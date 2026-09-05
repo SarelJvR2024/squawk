@@ -231,3 +231,25 @@ export interface Visit {
 }
 
 export type Role = "tpjv" | "acsa";
+
+/** A note left on a check's visual evidence during review.
+ *
+ *  Distinct from `Response.observation`, which is the auditor's record of what
+ *  was found, and from `Finding.description`, which is what goes to ACSA. This
+ *  is the conversation about the photograph — an engineer who was not on site
+ *  asking whether that is the right panel, or confirming it has since been
+ *  replaced. It is never merged into either of the other two. */
+export interface FeedbackNote {
+  id: string;
+  /** The check whose evidence is being discussed. */
+  checkId: string;
+  text: string;
+  author: string;
+  /** Which side left it. An engineer's read of a photograph and an auditor's
+   *  are both worth having, and worth telling apart. */
+  role: Role;
+  createdAt: number;
+  /** Set when someone marks the point dealt with. The note stays — a thread
+   *  that erases itself is no use at the next visit. */
+  resolvedAt: number | null;
+}

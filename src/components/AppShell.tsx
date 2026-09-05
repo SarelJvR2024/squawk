@@ -19,6 +19,7 @@ import { useAssistAvailable } from "@/lib/assist";
 import ExportPanel from "@/components/ExportPanel";
 import {
   IconClipboard,
+  IconCamera,
   IconGrid,
   IconDownload,
   IconHelp,
@@ -33,6 +34,7 @@ import { Pill } from "@/components/ui/primitives";
 const NAV = [
   { href: "/capture", label: "Capture", icon: IconClipboard },
   { href: "/field", label: "Field", icon: IconPin },
+  { href: "/review", label: "Review", icon: IconCamera },
   { href: "/findings", label: "Findings", icon: IconLoop },
   { href: "/closure", label: "Closure", icon: IconLoop },
   { href: "/dashboard", label: "Dashboard", icon: IconGrid },
@@ -146,7 +148,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <nav className="flex gap-[2px] rounded-[11px] p-[3px]" style={{ background: "var(--sunken)" }}>
           {NAV.map((n) => {
             const active = pathname === n.href;
-            const disabled = role === "acsa" && n.href !== "/dashboard";
+            /* ACSA is read-only across the audit, but Visual review is where
+               their engineers answer a photograph — the one screen where their
+               input is the point rather than a risk. Comments are labelled by
+               role and never touch the observation or the finding. */
+            const disabled =
+              role === "acsa" && n.href !== "/dashboard" && n.href !== "/review";
             const Icon = n.icon;
             const badge =
               n.href === "/capture"

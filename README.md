@@ -23,6 +23,7 @@ Section numbers in code comments point at that document.
 | Findings and rating | ACSA B170 001M matrix, agreed vs suggested ratings, root cause, owner, due date |
 | Closure | Carry-forward: 23 seeded 2025 findings plus anything an earlier visit left open, four-way verification, coverage guard, lifecycle |
 | Dashboards | Airport, discipline and portfolio, with movement against March 2025 |
+| Visual review | All photographs and voice notes per discipline per airport, with an engineer feedback thread |
 | AI assistance | Optional and advisory — off unless a key is set |
 | Exports | Excel and CSV: register, findings, closure, evidence request, summary |
 | Word report templates | Not started — design document phase 4 |
@@ -55,6 +56,7 @@ node tests/risk-matrix.test.mjs          # the ACSA matrix, all 25 cells
 node tests/capture.test.mjs              # capture is real, not fabricated
 node tests/scope.test.mjs                # one audit per entity per visit
 node tests/carryforward.test.mjs         # earlier visits reach the next one
+node tests/review.test.mjs               # feedback never becomes the record
 npm run build && npm start &             # then, against a running server:
 BASE=http://localhost:3000 node tests/e2e.js          # 21 assertions
 BASE=http://localhost:3000 node tests/robustness.js   # 30 assertions
@@ -102,7 +104,7 @@ written in cannot reach `fonts.googleapis.com`. On Vercel you can switch
 ```
 src/
   app/
-    (app)/            capture · field · findings · closure · dashboard
+    (app)/            capture · field · review · findings · closure · dashboard
     api/assist/       the AI endpoint — the only thing that leaves the device
     globals.css       design tokens for both themes
   components/
@@ -186,6 +188,16 @@ tests/                five suites — see tests/README.md
   ways. Marking one Closed closes the finding itself, so it stops carrying. A
   rating the group never agreed carries as "Not audited" — surviving a visit
   must not turn a suggestion into a decision.
+
+- **A review comment is not the record.** `/review` shows every photograph and
+  voice note per discipline for the airport in view, so a discipline lead can
+  answer evidence without knowing which of 374 checks carries it. Comments
+  there are never merged into the observation or the finding — an engineer who
+  thinks their aside might be quoted in an ACSA report writes a more careful,
+  less useful comment, and a report that absorbed one would be misattributing a
+  finding. `tests/review.test.mjs` enforces it. ACSA's role is read-only
+  everywhere else but can comment here, because their engineers answering a
+  photograph is the point of the screen.
 
 - **Answer Library content is reviewed content.** Issue buttons seed findings
   with suggested severities, so they carry weight. A discipline lead signs off

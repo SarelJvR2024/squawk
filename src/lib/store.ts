@@ -10,6 +10,7 @@ import type {
   Capture,
   Check,
   Compliance,
+  FeedbackNote,
   Finding,
   Likelihood,
   PriorFinding,
@@ -84,12 +85,18 @@ export interface VisitData {
   responses: Record<string, Response>;
   verifications: Record<string, Verification>;
   captures: Capture[];
+  /** Review notes on visual evidence, keyed by check. Optional rather than
+   *  migrated in: an older persisted visit simply has none, which reads
+   *  correctly as "nobody has commented yet". Bumping the version to add a
+   *  field that is absent-means-empty would risk a migration for no gain. */
+  feedback?: Record<string, FeedbackNote[]>;
 }
 
 const EMPTY_VISIT: VisitData = Object.freeze({
   responses: Object.freeze({}) as Record<string, Response>,
   verifications: Object.freeze({}) as Record<string, Verification>,
   captures: Object.freeze([]) as unknown as Capture[],
+  feedback: Object.freeze({}) as Record<string, FeedbackNote[]>,
 });
 
 function emptyResponse(checkId: string): Response {
@@ -161,6 +168,11 @@ interface State {
 
   addAttachment: (checkId: string, a: Omit<Attachment, "id" | "createdAt">) => void;
   removeAttachment: (checkId: string, attachmentId: string) => void;
+
+  feedbackFor: (checkId: string) => FeedbackNote[];
+  addFeedback: (checkId: string, text: string) => void;
+  toggleFeedbackResolved: (checkId: string, id: string) => void;
+  removeFeedback: (checkId: string, id: string) => void;
 
   addCapture: (c: Omit<Capture, "id" | "createdAt">) => void;
   assignCapture: (captureId: string, checkId: string) => void;
@@ -343,6 +355,47 @@ export const useStore = create<State>()(
           writeScope((d) => ({ verifications: { ...d.verifications, [pf]: next } }));
           set({ lastSavedAt: Date.now() });
         },
+
+        feedbackFor: (checkId) => get().visitData().feedback?.[checkId] ?? [],
+
+        addFeedback: (checkId, text) => {
+          const body = text.trim();
+          if (!body) return;
+          const note: FeedbackNote = {
+            id: `FB-${uid()}`,
+            checkId,
+            text: body,
+            author: get().auditor,
+            role: get().role,
+            createdAt: Date.now(),
+            resolvedAt: null,
+          };
+          writeScope((d) => ({
+            feedback: {
+              ...(d.feedback ?? {}),
+              [checkId]: [...(d.feedback?.[checkId] ?? []), note],
+            },
+          }));
+          set({ lastSavedAt: Date.now() });
+        },
+
+        toggleFeedbackResolved: (checkId, id) =>
+          writeScope((d) => ({
+            feedback: {
+              ...(d.feedback ?? {}),
+              [checkId]: (d.feedback?.[checkId] ?? []).map((n) =>
+                n.id === id ? { ...n, resolvedAt: n.resolvedAt ? null : Date.now() } : n
+              ),
+            },
+          })),
+
+        removeFeedback: (checkId, id) =>
+          writeScope((d) => ({
+            feedback: {
+              ...(d.feedback ?? {}),
+              [checkId]: (d.feedback?.[checkId] ?? []).filter((n) => n.id !== id),
+            },
+          })),
 
         addCapture: (c) =>
           writeScope((d) => ({
@@ -554,6 +607,9 @@ export const useVisitData = () =>
 export const useResponses = () => useVisitData().responses;
 export const useVerifications = () => useVisitData().verifications;
 export const useCaptures = () => useVisitData().captures;
+export const useFeedback = () => useVisitData().feedback ?? EMPTY_FEEDBACK;
+
+const EMPTY_FEEDBACK: Record<string, FeedbackNote[]> = Object.freeze({});
 
 /** Findings raised on the visit currently in view. */
 export function useVisitFindings(): Finding[] {

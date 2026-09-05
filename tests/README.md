@@ -1,7 +1,7 @@
 # Tests
 
-Eight suites, no framework — all run with plain `node`. Four need a running
-server; four do not.
+Nine suites, no framework — all run with plain `node`. Four need a running
+server; five do not.
 
 | Suite | Needs a server | Asserts |
 |---|---|---|
@@ -9,6 +9,7 @@ server; four do not.
 | `capture.test.mjs` | no | 27 |
 | `scope.test.mjs` | no | 31 |
 | `carryforward.test.mjs` | no | 20 |
+| `review.test.mjs` | no | 22 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 30 |
 | `exports.js` | yes | 7 |
@@ -85,6 +86,26 @@ outstanding and a closed finding stops carrying; an unagreed rating carries as
 "Not audited" rather than becoming a decision by surviving; closure reads the
 real list and closing an item closes the finding behind it; and no visit label
 or site name is hardcoded into the screen.
+
+## `review.test.mjs`
+
+Guards the one rule Visual review exists to protect: a review comment is a
+conversation *about* the evidence and is never merged into
+`Response.observation` (the auditor's record of what they found) or
+`Finding.description` (what reaches ACSA and the SACAA). An engineer who thinks
+their aside might be quoted in an audit report writes a different, more careful,
+less useful comment — and a report that quietly absorbed one would be
+misattributing a finding.
+
+```bash
+node tests/review.test.mjs
+```
+
+Six parts: the screen writes neither observations nor findings; feedback belongs
+to one entity and visit; author and side are recorded on every note; resolving a
+comment keeps it and is reversible; the screen is genuinely reviewable
+(discipline first, evidence only, lightbox, transcripts, revoked object URLs);
+and ACSA can reach it despite being read-only everywhere else.
 
 ## The browser suites
 
