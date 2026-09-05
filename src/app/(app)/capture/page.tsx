@@ -90,7 +90,7 @@ function CaptureInner() {
     <>
       {/* rail — disciplines and asset systems */}
       <aside
-        className="hidden w-[238px] shrink-0 overflow-y-auto border-r px-[9px] pt-[11px] pb-6 lg:block"
+        className="hidden w-[210px] shrink-0 overflow-y-auto border-r px-[9px] pt-[11px] pb-6 lg:block"
         style={{ background: "var(--rail)", borderColor: "var(--line)" }}
       >
         <div className="mb-2 flex flex-wrap gap-1 px-[2px]">
