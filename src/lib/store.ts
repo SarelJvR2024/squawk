@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { useMemo } from "react";
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
 import { delBlob } from "./media";
 import type {
@@ -16,10 +17,15 @@ import type {
   Role,
   Severity,
   Verification,
-  Visit,
 } from "./types";
 import checksRaw from "@/data/checks.json";
 import priorRaw from "@/data/priorFindings.json";
+import {
+  CURRENT_ENTITY_CODE,
+  CURRENT_VISIT_ID,
+  entity as entityOf,
+  PROGRAMME_VISITS,
+} from "./programme";
 
 export const CHECKS = checksRaw as unknown as Check[];
 export const PRIOR = priorRaw as unknown as PriorFinding[];
@@ -32,18 +38,24 @@ export const AUDITORS = [
   "TPJV Mechanical Lead",
 ];
 
-export const RESPONSIBLE = [
-  "KSIA Maintenance Engineering Manager",
-  "KSIA Electrical Engineer",
-  "KSIA Mechanical Engineer",
-  "KSIA Civil Engineer",
-  "KSIA B&FM Manager",
-  "KSIA E&DM Coordinator",
-  "KSIA Fire & Safety / SHE",
-  "KSIA Airport Coordinator",
-  "Fuel Operator",
-  "ACSA Corporate Office (Maintenance Engineering)",
-];
+/** Who a finding can be assigned to. The site-side roles carry the entity's own
+ *  short code — an action at Cape Town cannot be owned by the "KSIA Electrical
+ *  Engineer", which is what this list said when it was a flat constant. */
+export function responsibleFor(entityCode: string): string[] {
+  const short = entityOf(entityCode).short;
+  return [
+    `${short} Maintenance Engineering Manager`,
+    `${short} Electrical Engineer`,
+    `${short} Mechanical Engineer`,
+    `${short} Civil Engineer`,
+    `${short} B&FM Manager`,
+    `${short} E&DM Coordinator`,
+    `${short} Fire & Safety / SHE`,
+    `${short} Airport Coordinator`,
+    "Fuel Operator",
+    "ACSA Corporate Office (Maintenance Engineering)",
+  ];
+}
 
 export const ROOT_CAUSES = [
   "Maintenance backlog",
@@ -53,19 +65,32 @@ export const ROOT_CAUSES = [
   "Other",
 ];
 
-/** 3-year cycle, two visits a year. Only Mar 2025 and Sep 2026 carry data.
- *  @deprecated Read from src/data/programme.json via src/lib/programme.ts —
- *  this copy stays only until every caller has moved across. */
-export const VISITS: Visit[] = [
-  { id: "2025-03", label: "Mar 2025", site: "KSIA", state: "done", note: "23 findings" },
-  { id: "2025-09", label: "Sep 2025", site: "KSIA", state: "skipped", note: "not audited" },
-  { id: "2026-03", label: "Mar 2026", site: "KSIA", state: "skipped", note: "not audited" },
-  { id: "2026-09", label: "Sep 2026", site: "KSIA", state: "current", note: "this visit" },
-  { id: "2027-03", label: "Mar 2027", site: "KSIA", state: "scheduled", note: "scheduled" },
-  { id: "2027-09", label: "Sep 2027", site: "KSIA", state: "scheduled", note: "cycle close" },
-];
+/* ---------- scope ----------
 
-export const CURRENT_VISIT = "2026-09";
+   Everything an audit records belongs to one entity on one visit. Before this
+   existed, `responses` was keyed by checkId alone and `verifications` by pf
+   alone: capturing KSIA-ELE-001 at King Shaka and then switching to O.R. Tambo
+   showed King Shaka's answer, and the September visit overwrote March's. The
+   programme was modelled for ten entities across six visits while the data
+   layer could hold exactly one cell of that grid.
+
+   The scope key is the composite. Nothing outside this file builds one by
+   hand. */
+
+export const scopeKey = (entityCode: string, visitId: string) =>
+  `${entityCode}/${visitId}`;
+
+export interface VisitData {
+  responses: Record<string, Response>;
+  verifications: Record<string, Verification>;
+  captures: Capture[];
+}
+
+const EMPTY_VISIT: VisitData = Object.freeze({
+  responses: Object.freeze({}) as Record<string, Response>,
+  verifications: Object.freeze({}) as Record<string, Verification>,
+  captures: Object.freeze([]) as unknown as Capture[],
+});
 
 function emptyResponse(checkId: string): Response {
   return {
@@ -83,28 +108,51 @@ function emptyResponse(checkId: string): Response {
   };
 }
 
+function emptyVerification(pf: string): Verification {
+  return {
+    pf,
+    outcome: null,
+    evidence: "",
+    attachments: [],
+    verifiedBy: "",
+    verifiedAt: null,
+  };
+}
+
 interface State {
   role: Role;
   auditor: string;
-  responses: Record<string, Response>;
+  /** The entity and visit every scoped read and write below belongs to. */
+  entity: string;
+  visit: string;
+  byVisit: Record<string, VisitData>;
+  /** Flat across the whole programme — a finding carries its own entity and
+   *  originVisit, which is what lets a later visit see what an earlier one
+   *  left open. */
   findings: Finding[];
-  verifications: Record<string, Verification>;
-  captures: Capture[];
   lastSavedAt: number | null;
   hydrated: boolean;
 
   setRole: (r: Role) => void;
   setAuditor: (a: string) => void;
+  setEntity: (code: string) => void;
+  setVisit: (visitId: string) => void;
+
+  visitData: () => VisitData;
   response: (checkId: string) => Response;
   patch: (checkId: string, p: Partial<Response>) => void;
   setCompliance: (checkId: string, c: Compliance | null) => void;
   toggleEvidence: (checkId: string, i: number) => void;
-  toggleIssue: (checkId: string, i: number, f: Omit<Finding, "id" | "createdAt">) => void;
+  toggleIssue: (
+    checkId: string,
+    i: number,
+    f: Omit<Finding, "id" | "createdAt" | "entity">
+  ) => void;
   setWalkabout: (checkId: string, i: number | null, sets?: Compliance) => void;
   appendObservation: (checkId: string, text: string) => void;
   commit: (checkId: string) => void;
 
-  addFinding: (f: Omit<Finding, "id" | "createdAt">) => string;
+  addFinding: (f: Omit<Finding, "id" | "createdAt" | "entity">) => string;
   updateFinding: (id: string, p: Partial<Finding>) => void;
   removeFindingsForIssue: (checkId: string, issueIndex: number) => void;
 
@@ -119,7 +167,9 @@ interface State {
   dropCapture: (captureId: string) => void;
   discardCapture: (captureId: string) => void;
 
-  resetAll: () => void;
+  /** Clears the CURRENT visit only. Wiping the whole programme because one
+   *  visit needs restarting is not a thing anyone means to do. */
+  resetVisit: () => void;
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -136,169 +186,213 @@ const idbStorage = {
 
 export const useStore = create<State>()(
   persist(
-    (set, get) => ({
-      role: "tpjv",
-      auditor: AUDITORS[0],
-      responses: {},
-      findings: [],
-      verifications: {},
-      captures: [],
-      lastSavedAt: null,
-      hydrated: false,
-
-      setRole: (role) => set({ role }),
-      setAuditor: (auditor) => set({ auditor }),
-
-      response: (checkId) => get().responses[checkId] ?? emptyResponse(checkId),
-
-      patch: (checkId, p) =>
-        set((s) => ({
-          responses: {
-            ...s.responses,
-            [checkId]: { ...(s.responses[checkId] ?? emptyResponse(checkId)), ...p },
-          },
-        })),
-
-      setCompliance: (checkId, c) => get().patch(checkId, { compliance: c }),
-
-      toggleEvidence: (checkId, i) => {
-        const r = get().response(checkId);
-        const picked = r.evidencePicked.includes(i)
-          ? r.evidencePicked.filter((x) => x !== i)
-          : [...r.evidencePicked, i];
-        get().patch(checkId, { evidencePicked: picked });
-      },
-
-      toggleIssue: (checkId, i, findingSeed) => {
-        const r = get().response(checkId);
-        if (r.issuesPicked.includes(i)) {
-          get().patch(checkId, { issuesPicked: r.issuesPicked.filter((x) => x !== i) });
-          get().removeFindingsForIssue(checkId, i);
-        } else {
-          get().patch(checkId, {
-            issuesPicked: [...r.issuesPicked, i],
-            compliance: "NC",
-          });
-          get().addFinding({ ...findingSeed, checkId });
-        }
-      },
-
-      setWalkabout: (checkId, i, sets) => {
-        const r = get().response(checkId);
-        const next = r.walkaboutPicked === i ? null : i;
-        get().patch(checkId, {
-          walkaboutPicked: next,
-          ...(next !== null && sets ? { compliance: sets } : {}),
+    (set, get) => {
+      /* Every scoped write goes through here, so a new entity or visit starts
+         from a blank sheet instead of inheriting the last one's answers. */
+      const writeScope = (fn: (d: VisitData) => Partial<VisitData>) =>
+        set((s) => {
+          const key = scopeKey(s.entity, s.visit);
+          const current = s.byVisit[key] ?? {
+            responses: {},
+            verifications: {},
+            captures: [],
+          };
+          return {
+            byVisit: { ...s.byVisit, [key]: { ...current, ...fn(current) } },
+          };
         });
-      },
 
-      appendObservation: (checkId, text) => {
-        const r = get().response(checkId);
-        const obs = r.observation ? `${r.observation.replace(/\s*$/, "")} ${text}` : text;
-        get().patch(checkId, { observation: obs });
-      },
+      return {
+        role: "tpjv",
+        auditor: AUDITORS[0],
+        entity: CURRENT_ENTITY_CODE,
+        visit: CURRENT_VISIT_ID,
+        byVisit: {},
+        findings: [],
+        lastSavedAt: null,
+        hydrated: false,
 
-      addAttachment: (checkId, a) => {
-        const r = get().response(checkId);
-        get().patch(checkId, {
-          attachments: [...r.attachments, { ...a, id: uid(), createdAt: Date.now() }],
-        });
-      },
+        setRole: (role) => set({ role }),
+        setAuditor: (auditor) => set({ auditor }),
 
-      commit: (checkId) => {
-        const r = get().response(checkId);
-        get().patch(checkId, {
-          captured: true,
-          compliance: r.compliance ?? "C",
-          capturedBy: get().auditor,
-          capturedAt: Date.now(),
-        });
-        set({ lastSavedAt: Date.now() });
-      },
+        setEntity: (code) =>
+          set((s) => {
+            /* Moving to another airport lands on a visit that airport actually
+               has, rather than carrying across a visit id belonging to the
+               previous one. */
+            const visits = PROGRAMME_VISITS.filter((v) => v.entity === code);
+            const keep = visits.some((v) => v.id === s.visit);
+            const fallback =
+              visits.find((v) => v.state === "current") ?? visits[visits.length - 1];
+            return { entity: code, visit: keep ? s.visit : (fallback?.id ?? s.visit) };
+          }),
 
-      addFinding: (f) => {
-        const id = `F-${uid().toUpperCase().slice(0, 5)}`;
-        set((s) => ({ findings: [...s.findings, { ...f, id, createdAt: Date.now() }] }));
-        return id;
-      },
+        setVisit: (visit) => set({ visit }),
 
-      updateFinding: (id, p) =>
-        set((s) => ({
-          findings: s.findings.map((f) => (f.id === id ? { ...f, ...p } : f)),
-        })),
+        visitData: () => get().byVisit[scopeKey(get().entity, get().visit)] ?? EMPTY_VISIT,
 
-      removeFindingsForIssue: (checkId, issueIndex) =>
-        set((s) => ({
-          findings: s.findings.filter(
-            (f) => !(f.checkId === checkId && f.issueIndex === issueIndex)
-          ),
-        })),
+        response: (checkId) => get().visitData().responses[checkId] ?? emptyResponse(checkId),
 
-      verification: (pf) =>
-        get().verifications[pf] ?? {
-          pf,
-          outcome: null,
-          evidence: "",
-          attachments: [],
-          verifiedBy: "",
-          verifiedAt: null,
+        patch: (checkId, p) =>
+          writeScope((d) => ({
+            responses: {
+              ...d.responses,
+              [checkId]: { ...(d.responses[checkId] ?? emptyResponse(checkId)), ...p },
+            },
+          })),
+
+        setCompliance: (checkId, c) => get().patch(checkId, { compliance: c }),
+
+        toggleEvidence: (checkId, i) => {
+          const r = get().response(checkId);
+          const picked = r.evidencePicked.includes(i)
+            ? r.evidencePicked.filter((x) => x !== i)
+            : [...r.evidencePicked, i];
+          get().patch(checkId, { evidencePicked: picked });
         },
 
-      patchVerification: (pf, p) =>
-        set((s) => ({
-          verifications: {
-            ...s.verifications,
-            [pf]: { ...get().verification(pf), ...p, verifiedBy: get().auditor },
-          },
-          lastSavedAt: Date.now(),
-        })),
+        toggleIssue: (checkId, i, findingSeed) => {
+          const r = get().response(checkId);
+          if (r.issuesPicked.includes(i)) {
+            get().patch(checkId, { issuesPicked: r.issuesPicked.filter((x) => x !== i) });
+            get().removeFindingsForIssue(checkId, i);
+          } else {
+            get().patch(checkId, {
+              issuesPicked: [...r.issuesPicked, i],
+              compliance: "NC",
+            });
+            get().addFinding({ ...findingSeed, checkId });
+          }
+        },
 
-      addCapture: (c) =>
-        set((s) => ({
-          captures: [...s.captures, { ...c, id: `CAP-${uid()}`, createdAt: Date.now() }],
-        })),
+        setWalkabout: (checkId, i, sets) => {
+          const r = get().response(checkId);
+          const next = r.walkaboutPicked === i ? null : i;
+          get().patch(checkId, {
+            walkaboutPicked: next,
+            ...(next !== null && sets ? { compliance: sets } : {}),
+          });
+        },
 
-      assignCapture: (captureId, checkId) => {
-        const cap = get().captures.find((c) => c.id === captureId);
-        if (!cap) return;
-        /* The attachment takes over the capture's blobKey — the bytes are not
-           copied and must not be deleted. dropCapture removes the tray record
-           only; discardCapture is the one that deletes media. */
-        get().addAttachment(checkId, {
-          kind: cap.kind,
-          name: cap.name,
-          blobKey: cap.blobKey,
-          mimeType: cap.mimeType,
-          dataUrl: cap.dataUrl,
-          durationSec: cap.durationSec,
-          transcript: cap.transcript,
-          unavailable: cap.unavailable,
-          createdBy: cap.createdBy,
-        });
-        get().dropCapture(captureId);
-      },
+        appendObservation: (checkId, text) => {
+          const r = get().response(checkId);
+          const obs = r.observation ? `${r.observation.replace(/\s*$/, "")} ${text}` : text;
+          get().patch(checkId, { observation: obs });
+        },
 
-      dropCapture: (captureId) =>
-        set((s) => ({ captures: s.captures.filter((c) => c.id !== captureId) })),
+        addAttachment: (checkId, a) => {
+          const r = get().response(checkId);
+          get().patch(checkId, {
+            attachments: [...r.attachments, { ...a, id: uid(), createdAt: Date.now() }],
+          });
+        },
 
-      discardCapture: (captureId) => {
-        const cap = get().captures.find((c) => c.id === captureId);
-        if (cap?.blobKey) void delBlob(cap.blobKey);
-        get().dropCapture(captureId);
-      },
+        removeAttachment: (checkId, attachmentId) => {
+          const r = get().response(checkId);
+          const a = r.attachments.find((x) => x.id === attachmentId);
+          if (a?.blobKey) void delBlob(a.blobKey);
+          get().patch(checkId, {
+            attachments: r.attachments.filter((x) => x.id !== attachmentId),
+          });
+        },
 
-      removeAttachment: (checkId, attachmentId) => {
-        const r = get().response(checkId);
-        const a = r.attachments.find((x) => x.id === attachmentId);
-        if (a?.blobKey) void delBlob(a.blobKey);
-        get().patch(checkId, {
-          attachments: r.attachments.filter((x) => x.id !== attachmentId),
-        });
-      },
+        commit: (checkId) => {
+          const r = get().response(checkId);
+          get().patch(checkId, {
+            captured: true,
+            compliance: r.compliance ?? "C",
+            capturedBy: get().auditor,
+            capturedAt: Date.now(),
+          });
+          set({ lastSavedAt: Date.now() });
+        },
 
-      resetAll: () =>
-        set({ responses: {}, findings: [], verifications: {}, captures: [], lastSavedAt: null }),
-    }),
+        addFinding: (f) => {
+          const id = `F-${uid().toUpperCase().slice(0, 5)}`;
+          set((s) => ({
+            findings: [
+              ...s.findings,
+              { ...f, entity: s.entity, id, createdAt: Date.now() },
+            ],
+          }));
+          return id;
+        },
+
+        updateFinding: (id, p) =>
+          set((s) => ({
+            findings: s.findings.map((f) => (f.id === id ? { ...f, ...p } : f)),
+          })),
+
+        removeFindingsForIssue: (checkId, issueIndex) =>
+          set((s) => ({
+            findings: s.findings.filter(
+              (f) =>
+                !(
+                  f.checkId === checkId &&
+                  f.issueIndex === issueIndex &&
+                  f.entity === s.entity &&
+                  f.originVisit === s.visit
+                )
+            ),
+          })),
+
+        verification: (pf) => get().visitData().verifications[pf] ?? emptyVerification(pf),
+
+        patchVerification: (pf, p) => {
+          const next = { ...get().verification(pf), ...p, verifiedBy: get().auditor };
+          writeScope((d) => ({ verifications: { ...d.verifications, [pf]: next } }));
+          set({ lastSavedAt: Date.now() });
+        },
+
+        addCapture: (c) =>
+          writeScope((d) => ({
+            captures: [...d.captures, { ...c, id: `CAP-${uid()}`, createdAt: Date.now() }],
+          })),
+
+        assignCapture: (captureId, checkId) => {
+          const cap = get().visitData().captures.find((c) => c.id === captureId);
+          if (!cap) return;
+          /* The attachment takes over the capture's blobKey — the bytes are not
+             copied and must not be deleted. dropCapture removes the tray record
+             only; discardCapture is the one that deletes media. */
+          get().addAttachment(checkId, {
+            kind: cap.kind,
+            name: cap.name,
+            blobKey: cap.blobKey,
+            mimeType: cap.mimeType,
+            dataUrl: cap.dataUrl,
+            durationSec: cap.durationSec,
+            transcript: cap.transcript,
+            unavailable: cap.unavailable,
+            createdBy: cap.createdBy,
+          });
+          get().dropCapture(captureId);
+        },
+
+        dropCapture: (captureId) =>
+          writeScope((d) => ({ captures: d.captures.filter((c) => c.id !== captureId) })),
+
+        discardCapture: (captureId) => {
+          const cap = get().visitData().captures.find((c) => c.id === captureId);
+          if (cap?.blobKey) void delBlob(cap.blobKey);
+          get().dropCapture(captureId);
+        },
+
+        resetVisit: () =>
+          set((s) => {
+            const key = scopeKey(s.entity, s.visit);
+            const rest = { ...s.byVisit };
+            delete rest[key];
+            return {
+              byVisit: rest,
+              findings: s.findings.filter(
+                (f) => !(f.entity === s.entity && f.originVisit === s.visit)
+              ),
+              lastSavedAt: null,
+            };
+          }),
+      };
+    },
     {
       /* The app is called Squawk, but this key predates the name and must not
          change: it is what a tablet's captured audit is stored under, and
@@ -307,12 +401,16 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 4,
+      version: 5,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           findings?: Finding[];
           responses?: Record<string, Response>;
+          verifications?: Record<string, Verification>;
           captures?: Capture[];
+          byVisit?: Record<string, VisitData>;
+          entity?: string;
+          visit?: string;
         } | null;
         if (!st) return st;
         if (from < 2 && Array.isArray(st.findings)) {
@@ -387,15 +485,42 @@ export const useStore = create<State>()(
           }
           if (Array.isArray(st.captures)) st.captures = st.captures.map(markLegacy);
         }
+        if (from < 5) {
+          /* v4 and earlier held exactly one audit: responses keyed by checkId,
+             verifications by pf, with no entity or visit anywhere. Everything
+             on a tablet at that version was captured at the entity and visit
+             the programme file named, so that is the scope it moves into. No
+             data is dropped — it is filed where it belongs. */
+          const key = scopeKey(CURRENT_ENTITY_CODE, CURRENT_VISIT_ID);
+          st.byVisit = {
+            [key]: {
+              responses: st.responses ?? {},
+              verifications: st.verifications ?? {},
+              captures: st.captures ?? [],
+            },
+          };
+          st.entity = CURRENT_ENTITY_CODE;
+          st.visit = CURRENT_VISIT_ID;
+          if (Array.isArray(st.findings)) {
+            st.findings = st.findings.map((f) => ({
+              ...f,
+              entity: f.entity ?? CURRENT_ENTITY_CODE,
+              originVisit: f.originVisit || CURRENT_VISIT_ID,
+            }));
+          }
+          delete st.responses;
+          delete st.verifications;
+          delete st.captures;
+        }
         return st;
       },
       partialize: (s: State) => ({
         role: s.role,
         auditor: s.auditor,
-        responses: s.responses,
+        entity: s.entity,
+        visit: s.visit,
+        byVisit: s.byVisit,
         findings: s.findings,
-        verifications: s.verifications,
-        captures: s.captures,
         lastSavedAt: s.lastSavedAt,
       }),
     }
@@ -409,6 +534,43 @@ if (typeof window !== "undefined") {
     unsub();
   });
   if (useStore.persist.hasHydrated()) useStore.setState({ hydrated: true });
+}
+
+/* ---------- scoped hooks ----------
+
+   Screens read through these rather than reaching into `byVisit`, so switching
+   entity or visit re-renders everything consistently and no screen can forget
+   which audit it is showing. Each returns a reference that is stable while the
+   underlying slice is unchanged — a selector building a fresh object every call
+   would loop. */
+
+export const useEntityCode = () => useStore((s) => s.entity);
+export const useVisitId = () => useStore((s) => s.visit);
+export const useEntity = () => entityOf(useStore((s) => s.entity));
+
+export const useVisitData = () =>
+  useStore((s) => s.byVisit[scopeKey(s.entity, s.visit)] ?? EMPTY_VISIT);
+
+export const useResponses = () => useVisitData().responses;
+export const useVerifications = () => useVisitData().verifications;
+export const useCaptures = () => useVisitData().captures;
+
+/** Findings raised on the visit currently in view. */
+export function useVisitFindings(): Finding[] {
+  const all = useStore((s) => s.findings);
+  const entity = useStore((s) => s.entity);
+  const visit = useStore((s) => s.visit);
+  return useMemo(
+    () => all.filter((f) => f.entity === entity && f.originVisit === visit),
+    [all, entity, visit]
+  );
+}
+
+/** Every finding ever raised at the entity in view, across all visits. */
+export function useEntityFindings(): Finding[] {
+  const all = useStore((s) => s.findings);
+  const entity = useStore((s) => s.entity);
+  return useMemo(() => all.filter((f) => f.entity === entity), [all, entity]);
 }
 
 /* ---------- derived selectors ---------- */

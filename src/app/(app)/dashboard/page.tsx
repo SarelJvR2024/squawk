@@ -5,10 +5,13 @@ import {
   CHECKS,
   DISCIPLINES,
   PRIOR,
-  VISITS,
   checksOf,
   priorFor,
+  useResponses,
   useStore,
+  useVerifications,
+  useEntityCode,
+  useVisitFindings,
 } from "@/lib/store";
 import { CURRENT_ENTITY, CURRENT_VISIT_ID, ENTITIES, PROGRAMME_VISITS } from "@/lib/programme";
 
@@ -34,9 +37,14 @@ function pct(n: number, total: number) {
 }
 
 export default function DashboardPage() {
-  const responses = useStore((s) => s.responses);
-  const findings = useStore((s) => s.findings);
-  const verifications = useStore((s) => s.verifications);
+  const responses = useResponses();
+  const findings = useVisitFindings();
+  const entityCode = useEntityCode();
+  const cycleVisits = useMemo(
+    () => PROGRAMME_VISITS.filter((v) => v.entity === entityCode),
+    [entityCode]
+  );
+  const verifications = useVerifications();
   const role = useStore((s) => s.role);
 
   const [level, setLevel] = useState<Level>("airport");
@@ -420,7 +428,7 @@ export default function DashboardPage() {
                 </Panel>
               )}
               <div className="mt-3 flex flex-wrap gap-2">
-                {VISITS.map((v) => (
+                {cycleVisits.map((v) => (
                   <span
                     key={v.id}
                     className="rounded-full px-2.5 py-1 font-mono text-[10px]"

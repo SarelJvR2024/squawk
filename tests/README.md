@@ -1,12 +1,13 @@
 # Tests
 
-Six suites, no framework — all run with plain `node`. Four need a running
-server; two do not.
+Seven suites, no framework — all run with plain `node`. Four need a running
+server; three do not.
 
 | Suite | Needs a server | Asserts |
 |---|---|---|
 | `risk-matrix.test.mjs` | no | 25 |
 | `capture.test.mjs` | no | 27 |
+| `scope.test.mjs` | no | 31 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 30 |
 | `exports.js` | yes | 7 |
@@ -47,7 +48,33 @@ the stream is released; an empty transcript stays empty; blobs live under their
 own IndexedDB keys and never inside the persisted store; and records made before
 capture worked are marked unavailable rather than deleted.
 
+## `scope.test.mjs`
+
+Guards that an audit belongs to one entity on one visit. Before the store was
+re-keyed, `responses` was keyed by checkId alone and `verifications` by pf
+alone, with no entity or visit in persisted state at all: capturing at King
+Shaka and switching to O.R. Tambo showed King Shaka's answers, and September
+overwrote March. The app held one cell of a sixty-cell grid and said nothing.
+
+```bash
+node tests/scope.test.mjs
+```
+
+Six parts: the scope key is the entity and visit together and captured data
+lives under it; every write goes through the one scoped helper; no screen reads
+the store's raw slices; nothing is hardcoded to one site (owners, the cycle
+strip, export filenames); the scope is actually selectable in the shell; and the
+v5 migration files pre-scope data rather than dropping it.
+
 ## The browser suites
+
+`playwright` is not a dependency of this project — install it locally when you
+want to run these:
+
+```bash
+npm i -D playwright && npx playwright install chromium
+```
+
 
 ```bash
 npm run build && npm start &

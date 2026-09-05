@@ -3,8 +3,18 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CHECKS, PRIOR, useStore, VISITS, AUDITORS } from "@/lib/store";
-import { CURRENT_ENTITY, PROGRAMME_VISITS, CURRENT_VISIT_ID } from "@/lib/programme";
+import {
+  AUDITORS,
+  CHECKS,
+  PRIOR,
+  useEntityCode,
+  useResponses,
+  useStore,
+  useVerifications,
+  useVisitFindings,
+  useVisitId,
+} from "@/lib/store";
+import { ENTITIES, entity as entityOf, PROGRAMME_VISITS } from "@/lib/programme";
 import { useAssistAvailable } from "@/lib/assist";
 import ExportPanel from "@/components/ExportPanel";
 import {
@@ -19,8 +29,6 @@ import {
 } from "@/components/ui/icons";
 import { Pill } from "@/components/ui/primitives";
 
-const CURRENT_VISIT_LABEL =
-  PROGRAMME_VISITS.find((v) => v.id === CURRENT_VISIT_ID)?.label ?? CURRENT_VISIT_ID;
 
 const NAV = [
   { href: "/capture", label: "Capture", icon: IconClipboard },
@@ -37,9 +45,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const setRole = useStore((s) => s.setRole);
   const auditor = useStore((s) => s.auditor);
   const setAuditor = useStore((s) => s.setAuditor);
-  const responses = useStore((s) => s.responses);
-  const verifications = useStore((s) => s.verifications);
-  const findings = useStore((s) => s.findings);
+  const responses = useResponses();
+  const verifications = useVerifications();
+  const findings = useVisitFindings();
+  const entityCode = useEntityCode();
+  const visitId = useVisitId();
+  const setEntity = useStore((s) => s.setEntity);
+  const setVisit = useStore((s) => s.setVisit);
+
+  /* The cycle strip and the picker both run off the visits this entity
+     actually has, so switching airport re-draws the programme rather than
+     showing another site's schedule. */
+  const visits = useMemo(
+    () => PROGRAMME_VISITS.filter((v) => v.entity === entityCode),
+    [entityCode]
+  );
+  const visitLabel =
+    visits.find((v) => v.id === visitId)?.label ?? visitId;
 
   const [palette, setPalette] = useState(false);
   const aiOn = useAssistAvailable();
@@ -116,7 +138,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               Squawk
             </b>
             <span className="font-mono text-[8.5px] tracking-[0.07em]" style={{ color: "var(--ink-3)" }}>
-              {CURRENT_ENTITY.short} · {CURRENT_VISIT_LABEL.toUpperCase()}
+              {entityOf(entityCode).short} · {visitLabel.toUpperCase()}
             </span>
           </span>
         </Link>
@@ -256,12 +278,39 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         className="no-scrollbar flex shrink-0 items-center overflow-x-auto border-b px-3.5 py-[7px]"
         style={{ background: "var(--panel)", borderColor: "var(--line)" }}
       >
+        {/* Which audit everything below belongs to. Ten entities, six visits
+            each — the store keys every response, verification and capture by
+            this pair, so changing it here changes the whole app's subject. */}
+        <select
+          value={entityCode}
+          onChange={(e) => setEntity(e.target.value)}
+          aria-label="Entity"
+          className="mr-2.5 h-[26px] shrink-0 rounded-[7px] border px-1.5 font-mono text-[9.5px]"
+          style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+        >
+          {ENTITIES.map((e) => (
+            <option key={e.code} value={e.code}>
+              {e.short} — {e.name}
+            </option>
+          ))}
+        </select>
         <span className="mr-3.5 whitespace-nowrap font-mono text-[8.5px] tracking-[0.1em] uppercase" style={{ color: "var(--ink-4)" }}>
           3-year cycle · 2 visits a year
         </span>
-        {VISITS.map((v, i) => (
+        {visits.map((v, i) => (
           <span key={v.id} className="flex shrink-0 items-center">
-            <span className="flex shrink-0 items-center gap-[6px]">
+            <button
+              type="button"
+              onClick={() => setVisit(v.id)}
+              aria-current={v.id === visitId}
+              title={`Show ${v.label}`}
+              className="flex shrink-0 items-center gap-[6px] rounded-[7px] px-1.5 py-[3px] transition-[var(--t)]"
+              style={
+                v.id === visitId
+                  ? { background: "var(--acc-soft)", boxShadow: "inset 0 0 0 1px var(--acc-line)" }
+                  : undefined
+              }
+            >
               <span
                 className="h-[7px] w-[7px] rounded-full"
                 style={{
@@ -280,8 +329,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 {v.label}
                 <span style={{ opacity: 0.6 }}> · {v.note}</span>
               </span>
-            </span>
-            {i < VISITS.length - 1 && (
+            </button>
+            {i < visits.length - 1 && (
               <span
                 className="mx-2 h-[1.5px] w-[22px] shrink-0 rounded-[2px]"
                 style={{ background: v.state === "done" ? "var(--good-line)" : "var(--line)" }}

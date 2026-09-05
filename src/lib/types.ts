@@ -167,6 +167,9 @@ export interface Response {
 export interface Finding {
   id: string;
   checkId: string | null;
+  /** Which entity this was raised at. With originVisit it is what lets the
+   *  next visit to the same airport see what the last one left open. */
+  entity: string;
   discipline: string;
   system: string;
   area: string;

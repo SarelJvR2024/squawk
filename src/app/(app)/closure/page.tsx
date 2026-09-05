@@ -2,7 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PRIOR, checksOf, useStore } from "@/lib/store";
+import {
+  PRIOR,
+  checksOf,
+  useResponses,
+  useStore,
+  useVerifications,
+  useVisitFindings,
+} from "@/lib/store";
 import { bandFor, movement } from "@/lib/risk";
 import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconClock, IconDash, IconLoop, IconX } from "@/components/ui/icons";
@@ -22,9 +29,9 @@ type Filter = "all" | "priority" | "unverified" | "repeat" | "nocover";
 
 export default function ClosurePage() {
   const router = useRouter();
-  const responses = useStore((s) => s.responses);
-  const findings = useStore((s) => s.findings);
-  const verifications = useStore((s) => s.verifications);
+  const responses = useResponses();
+  const findings = useVisitFindings();
+  const verifications = useVerifications();
   const patchVerification = useStore((s) => s.patchVerification);
 
   const [filter, setFilter] = useState<Filter>("all");

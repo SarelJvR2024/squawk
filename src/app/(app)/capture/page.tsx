@@ -8,7 +8,7 @@ import {
   checksOf,
   priorFor,
   systemsOf,
-  useStore,
+  useResponses,
 } from "@/lib/store";
 import CheckDetail from "@/components/CheckDetail";
 import { Dot, Empty, Pill, Track } from "@/components/ui/primitives";
@@ -26,7 +26,7 @@ const RATING_TONE = {
 
 function CaptureInner() {
   const params = useSearchParams();
-  const responses = useStore((s) => s.responses);
+  const responses = useResponses();
 
   const [discipline, setDiscipline] = useState<string>(DISCIPLINES[0]);
   const [system, setSystem] = useState<string | null>(null);

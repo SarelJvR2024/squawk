@@ -7,7 +7,7 @@ import type {
   Verification,
 } from "./types";
 import { BAND_AS_RATING, BAND_META, bandFor, cellCode, movement } from "./risk";
-import { CURRENT_ENTITY, CURRENT_VISIT_ID, PROGRAMME_VISITS } from "./programme";
+import { entity as entityOf, PROGRAMME_VISITS } from "./programme";
 import type { Sheet } from "./xlsx";
 
 /* The exports.
@@ -27,8 +27,13 @@ import type { Sheet } from "./xlsx";
  *     be worse than no export at all.
  */
 
-const VISIT_LABEL =
-  PROGRAMME_VISITS.find((v) => v.id === CURRENT_VISIT_ID)?.label ?? CURRENT_VISIT_ID;
+/* Which audit is being exported travels with the data. It used to be read from
+   a module constant, so a workbook produced while looking at Cape Town would
+   still have been titled and filenamed for King Shaka's September visit — the
+   one sheet where getting the subject wrong is least recoverable, because it
+   leaves the room. */
+const visitLabel = (visitId: string) =>
+  PROGRAMME_VISITS.find((v) => v.id === visitId)?.label ?? visitId;
 
 const STATUS_WORD: Record<string, string> = {
   C: "Compliant",
@@ -43,6 +48,10 @@ const docs = (c: Check) =>
   c.acsaDocs.map((d) => `${d.doc}${d.clause ? ` cl. ${d.clause}` : ""}`).join("; ");
 
 export interface ExportInput {
+  /** The entity and visit this export is of. Not optional — an export that
+   *  cannot name its own subject should not be produced. */
+  entity: string;
+  visit: string;
   checks: Check[];
   responses: Record<string, Response>;
   findings: Finding[];
@@ -118,7 +127,7 @@ export function registerSheet(x: ExportInput): Sheet {
       { header: "Target / limit", width: 58, wrap: true },
       { header: "ACSA states", width: 58, wrap: true },
       { header: "ACSA document & clause", width: 34, wrap: true },
-      { header: `Site variant (${CURRENT_ENTITY.code})`, width: 46, wrap: true },
+      { header: `Site variant (${x.entity})`, width: 46, wrap: true },
       { header: "External basis", width: 52, wrap: true },
       { header: "Citation confidence", width: 18, wrap: true },
       { header: "Caveat on the basis", width: 46, wrap: true },
@@ -127,7 +136,7 @@ export function registerSheet(x: ExportInput): Sheet {
       { header: "Question put to ACSA", width: 48, wrap: true },
       { header: "Walkabout instruction", width: 48, wrap: true },
       { header: "Mar 2025 finding", width: 14 },
-      { header: `Status (${VISIT_LABEL})`, width: 16 },
+      { header: `Status (${visitLabel(x.visit)})`, width: 16 },
       { header: "Observation", width: 60, wrap: true },
       { header: "Evidence requested", width: 42, wrap: true },
       { header: "Issues found", width: 52, wrap: true },
@@ -255,7 +264,7 @@ export function closureSheet(x: ExportInput): Sheet {
       { header: "Asset system", width: 30 },
       { header: "Mar 2025 rating", width: 15 },
       { header: "Finding as raised in Mar 2025", width: 66, wrap: true },
-      { header: `Verification (${VISIT_LABEL})`, width: 16 },
+      { header: `Verification (${visitLabel(x.visit)})`, width: 16 },
       { header: "Evidence of closure", width: 58, wrap: true },
       { header: "Verified by", width: 22 },
       { header: "Verified on", width: 12 },
@@ -375,8 +384,8 @@ export function aboutSheet(x: ExportInput): Sheet {
     ],
     rows: [
       ["Produced by", "Squawk — asset assurance capture, Thabile-Pridin JV"],
-      ["Entity", `${CURRENT_ENTITY.name} (${CURRENT_ENTITY.code})`],
-      ["Visit", VISIT_LABEL],
+      ["Entity", `${entityOf(x.entity).name} (${x.entity})`],
+      ["Visit", visitLabel(x.visit)],
       ["Exported", new Date()],
       ["", ""],
       ["Check-points in scope", x.checks.length],
@@ -430,10 +439,15 @@ export function fullWorkbook(x: ExportInput): Sheet[] {
   ];
 }
 
-export function exportFilename(kind: string, ext = "xlsx"): string {
+export function exportFilename(
+  entityCode: string,
+  visitId: string,
+  kind: string,
+  ext = "xlsx"
+): string {
   const d = new Date();
   const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(
     d.getDate()
   ).padStart(2, "0")}`;
-  return `${CURRENT_ENTITY.code}_${CURRENT_VISIT_ID}_${kind}_${stamp}.${ext}`;
+  return `${entityCode}_${visitId}_${kind}_${stamp}.${ext}`;
 }

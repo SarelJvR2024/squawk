@@ -2,7 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CHECKS, DISCIPLINES, RESPONSIBLE, ROOT_CAUSES, useStore } from "@/lib/store";
+import {
+  CHECKS,
+  DISCIPLINES,
+  ROOT_CAUSES,
+  responsibleFor,
+  useEntityCode,
+  useStore,
+  useVisitFindings,
+} from "@/lib/store";
 import { assist, findingContext, useAssistAvailable } from "@/lib/assist";
 import { BAND_META, LIKELIHOOD_DEF, LIKELIHOODS, SEVERITIES, SEVERITY_DEF, bandFor, cellCode } from "@/lib/risk";
 import { Btn, Chip, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
@@ -13,7 +21,8 @@ type Filter = "all" | "unrated" | "open" | "repeat";
 
 export default function FindingsPage() {
   const router = useRouter();
-  const findings = useStore((s) => s.findings);
+  const findings = useVisitFindings();
+  const entityCode = useEntityCode();
   const updateFinding = useStore((s) => s.updateFinding);
 
   const [filter, setFilter] = useState<Filter>("all");
@@ -442,7 +451,7 @@ export default function FindingsPage() {
                     }}
                   >
                     <option value="">{active.owner ? "Select…" : "⚠ unassigned"}</option>
-                    {RESPONSIBLE.map((r) => (
+                    {responsibleFor(entityCode).map((r) => (
                       <option key={r}>{r}</option>
                     ))}
                   </select>

@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { CHECKS, PRIOR, useStore } from "@/lib/store";
+import {
+  CHECKS,
+  PRIOR,
+  useResponses,
+  useEntityCode,
+  useVerifications,
+  useVisitFindings,
+  useVisitId,
+} from "@/lib/store";
 import { loadAnswers } from "@/lib/answers";
 import {
   aboutSheet,
@@ -59,9 +67,11 @@ const OPTIONS: { kind: Kind; title: string; blurb: string }[] = [
 ];
 
 export default function ExportPanel({ onClose }: { onClose: () => void }) {
-  const responses = useStore((s) => s.responses);
-  const findings = useStore((s) => s.findings);
-  const verifications = useStore((s) => s.verifications);
+  const responses = useResponses();
+  const findings = useVisitFindings();
+  const verifications = useVerifications();
+  const entityCode = useEntityCode();
+  const visitId = useVisitId();
   const [busy, setBusy] = useState<Kind | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,6 +84,8 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
          is lazily loaded, so wait for it rather than exporting a worse file. */
       const library = await loadAnswers();
       const x: ExportInput = {
+        entity: entityCode,
+        visit: visitId,
         checks: CHECKS,
         responses,
         findings,
@@ -91,11 +103,11 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
 
       if (csv) {
         const sheet = kind === "full" ? registerSheet(x) : one[kind]();
-        downloadText(toCsv(sheet), exportFilename(kind === "full" ? "register" : kind, "csv"));
+        downloadText(toCsv(sheet), exportFilename(entityCode, visitId, kind === "full" ? "register" : kind, "csv"));
       } else if (kind === "full") {
-        downloadWorkbook(fullWorkbook(x), exportFilename("audit"));
+        downloadWorkbook(fullWorkbook(x), exportFilename(entityCode, visitId, "audit"));
       } else {
-        downloadWorkbook([aboutSheet(x), one[kind]()], exportFilename(kind));
+        downloadWorkbook([aboutSheet(x), one[kind]()], exportFilename(entityCode, visitId, kind));
       }
     } catch (e) {
       /* Say what went wrong. A silent failure on an export looks like a browser

@@ -182,9 +182,12 @@ check(
 /* --------------------------------- Part 5: pre-recording records are honest */
 
 check(
-  "the store migrates to v4",
-  /version: 4/.test(store),
-  ""
+  "the store is at or past v4 and still runs the v4 migration",
+  (() => {
+    const m = store.match(/version: (\d+)/);
+    return !!m && Number(m[1]) >= 4 && /if \(from < 4\)/.test(store);
+  })(),
+  "later versions may be added, but the v4 branch is what marks fabricated attachments"
 );
 
 check(

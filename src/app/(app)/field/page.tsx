@@ -2,7 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AREAS, CHECKS, CURRENT_VISIT, DISCIPLINES, useStore } from "@/lib/store";
+import {
+  AREAS,
+  CHECKS,
+  DISCIPLINES,
+  useCaptures,
+  useResponses,
+  useStore,
+  useVisitId,
+} from "@/lib/store";
 import { CURRENT_ENTITY, locationAxis } from "@/lib/programme";
 import type { Check, Compliance } from "@/lib/types";
 import { Btn, Chip, Empty, Panel, Pill } from "@/components/ui/primitives";
@@ -31,8 +39,9 @@ const btnStyle = (tone: string, on: boolean): React.CSSProperties =>
 
 export default function FieldPage() {
   const router = useRouter();
-  const responses = useStore((s) => s.responses);
-  const captures = useStore((s) => s.captures);
+  const responses = useResponses();
+  const captures = useCaptures();
+  const visitId = useVisitId();
   const auditor = useStore((s) => s.auditor);
   const setCompliance = useStore((s) => s.setCompliance);
   const commit = useStore((s) => s.commit);
@@ -418,7 +427,7 @@ export default function FieldPage() {
                     owner: "",
                     dueDate: "",
                     actionStatus: "Open",
-                    originVisit: CURRENT_VISIT,
+                    originVisit: visitId,
                     priorRating: null,
                     adHoc: true,
                     createdBy: auditor,

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Check, Compliance } from "@/lib/types";
-import { CURRENT_VISIT, priorFor, useStore } from "@/lib/store";
+import { priorFor, useResponses, useStore, useVisitId } from "@/lib/store";
 import { useAnswers } from "@/lib/answers";
 import {
   assist,
@@ -51,7 +51,7 @@ export default function CheckDetail({
   onNext: () => void;
   onSaved: (msg: string) => void;
 }) {
-  const r = useStore((s) => s.responses[check.id]) ?? {
+  const r = useResponses()[check.id] ?? {
     checkId: check.id,
     compliance: null,
     observation: "",
@@ -74,6 +74,7 @@ export default function CheckDetail({
   const addAttachment = useStore((s) => s.addAttachment);
   const removeAttachment = useStore((s) => s.removeAttachment);
   const commit = useStore((s) => s.commit);
+  const visitId = useVisitId();
 
   const aiOn = useAssistAvailable();
   const [draft, setDraft] = useState<string | null>(null);
@@ -496,7 +497,7 @@ export default function CheckDetail({
                             owner: "",
                             dueDate: "",
                             actionStatus: "Open",
-                            originVisit: CURRENT_VISIT,
+                            originVisit: visitId,
                             priorRating: pf?.rating ?? null,
                             adHoc: false,
                             createdBy: auditor,
