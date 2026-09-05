@@ -21,7 +21,7 @@ Section numbers in code comments point at that document.
 | Capture workspace (section 8) | Three-pane workspace, answer chips, real voice and photo capture, progress, ⌘K, keyboard |
 | Field inspection mode | Location-first, 44px targets, capture-first tray, ad-hoc findings, offline |
 | Findings and rating | ACSA B170 001M matrix, agreed vs suggested ratings, root cause, owner, due date |
-| Closure | 23 prior findings, four-way verification, coverage guard, lifecycle |
+| Closure | Carry-forward: 23 seeded 2025 findings plus anything an earlier visit left open, four-way verification, coverage guard, lifecycle |
 | Dashboards | Airport, discipline and portfolio, with movement against March 2025 |
 | AI assistance | Optional and advisory — off unless a key is set |
 | Exports | Excel and CSV: register, findings, closure, evidence request, summary |
@@ -53,6 +53,8 @@ Six suites, no framework, all plain `node`. See `tests/README.md`.
 ```bash
 node tests/risk-matrix.test.mjs          # the ACSA matrix, all 25 cells
 node tests/capture.test.mjs              # capture is real, not fabricated
+node tests/scope.test.mjs                # one audit per entity per visit
+node tests/carryforward.test.mjs         # earlier visits reach the next one
 npm run build && npm start &             # then, against a running server:
 BASE=http://localhost:3000 node tests/e2e.js          # 21 assertions
 BASE=http://localhost:3000 node tests/robustness.js   # 30 assertions
@@ -169,6 +171,21 @@ tests/                five suites — see tests/README.md
   transcript is only ever what the dictation engine heard or the auditor typed.
   An empty transcript is a correct answer. `tests/capture.test.mjs` exists to
   stop any of that being quietly undone.
+
+- **An audit belongs to one entity on one visit.** State is keyed by
+  `${entity}/${visit}` (`src/lib/store.ts`). Screens read through
+  `useResponses` / `useVerifications` / `useCaptures` / `useVisitFindings`,
+  never the raw slices — a raw read shows whatever scope was last selected.
+  Anything that names a site or a visit follows the scope: owners, the cycle
+  strip, the closure lifecycle, export filenames. `tests/scope.test.mjs`
+  enforces it.
+
+- **Findings carry forward, and that is a mechanism now.** `src/lib/carryforward.ts`
+  merges the seeded 2025 findings with anything raised at this entity on an
+  earlier visit that nobody closed, and closure verifies both the same four
+  ways. Marking one Closed closes the finding itself, so it stops carrying. A
+  rating the group never agreed carries as "Not audited" — surviving a visit
+  must not turn a suggestion into a decision.
 
 - **Answer Library content is reviewed content.** Issue buttons seed findings
   with suggested severities, so they carry weight. A discipline lead signs off

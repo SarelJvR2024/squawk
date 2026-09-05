@@ -1,13 +1,14 @@
 # Tests
 
-Seven suites, no framework — all run with plain `node`. Four need a running
-server; three do not.
+Eight suites, no framework — all run with plain `node`. Four need a running
+server; four do not.
 
 | Suite | Needs a server | Asserts |
 |---|---|---|
 | `risk-matrix.test.mjs` | no | 25 |
 | `capture.test.mjs` | no | 27 |
 | `scope.test.mjs` | no | 31 |
+| `carryforward.test.mjs` | no | 20 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 30 |
 | `exports.js` | yes | 7 |
@@ -65,6 +66,25 @@ lives under it; every write goes through the one scoped helper; no screen reads
 the store's raw slices; nothing is hardcoded to one site (owners, the cycle
 strip, export filenames); the scope is actually selectable in the shell; and the
 v5 migration files pre-scope data rather than dropping it.
+
+## `carryforward.test.mjs`
+
+Guards that what an earlier visit left open reaches the next one. Closure read
+one static file — the 23 March 2025 findings — and nothing else; a finding
+raised in this app, rated Red, with an owner and a due date, became a row in a
+list and then nothing. The shell drew a three-year cycle across every screen
+while the cycle was not implemented.
+
+```bash
+node tests/carryforward.test.mjs
+```
+
+Five parts: seeded and carried items are the same shape and keyed so old
+verifications still resolve; only earlier visits can leave something
+outstanding and a closed finding stops carrying; an unagreed rating carries as
+"Not audited" rather than becoming a decision by surviving; closure reads the
+real list and closing an item closes the finding behind it; and no visit label
+or site name is hardcoded into the screen.
 
 ## The browser suites
 
