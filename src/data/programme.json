@@ -1,0 +1,31 @@
+{
+  "cycle": {
+    "years": 3,
+    "visitsPerYear": 2,
+    "startsAt": "2025-03",
+    "endsAt": "2027-09"
+  },
+  "currentEntity": "FALE",
+  "currentVisit": "2026-09",
+  "entities": [
+    { "code": "FALE", "name": "King Shaka International", "short": "KSIA", "kind": "airport", "live": true,  "zones": [] },
+    { "code": "FAOR", "name": "O.R. Tambo International", "short": "ORTIA", "kind": "airport", "live": false, "zones": [] },
+    { "code": "FACT", "name": "Cape Town International",  "short": "CTIA", "kind": "airport", "live": false, "zones": [] },
+    { "code": "FAPE", "name": "Chief Dawid Stuurman",     "short": "CDSIA", "kind": "airport", "live": false, "zones": [] },
+    { "code": "FAEL", "name": "King Phalo",               "short": "KPA",  "kind": "airport", "live": false, "zones": [] },
+    { "code": "FAGG", "name": "George",                   "short": "GRJ",  "kind": "airport", "live": false, "zones": [] },
+    { "code": "FAKM", "name": "Kimberley",                "short": "KIM",  "kind": "airport", "live": false, "zones": [] },
+    { "code": "FAUP", "name": "Upington",                 "short": "UTN",  "kind": "airport", "live": false, "zones": [] },
+    { "code": "FABL", "name": "Bram Fischer International","short": "BFN", "kind": "airport", "live": false, "zones": [] },
+    { "code": "HO",   "name": "Head Office",              "short": "HO",   "kind": "head-office", "live": false, "zones": [] }
+  ],
+  "visits": [
+    { "id": "2025-03", "label": "Mar 2025", "entity": "FALE", "state": "done",      "note": "23 findings" },
+    { "id": "2025-09", "label": "Sep 2025", "entity": "FALE", "state": "skipped",   "note": "not audited" },
+    { "id": "2026-03", "label": "Mar 2026", "entity": "FALE", "state": "skipped",   "note": "not audited" },
+    { "id": "2026-09", "label": "Sep 2026", "entity": "FALE", "state": "current",   "note": "this visit" },
+    { "id": "2027-03", "label": "Mar 2027", "entity": "FALE", "state": "scheduled", "note": "scheduled" },
+    { "id": "2027-09", "label": "Sep 2027", "entity": "FALE", "state": "scheduled", "note": "cycle close" }
+  ],
+  "zoneMap": {}
+}

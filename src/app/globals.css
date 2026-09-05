@@ -1,0 +1,252 @@
+@import "tailwindcss";
+
+/* ============================================================
+   ACSA Asset Assurance — design tokens
+   Implements section 5 of the design document (interface standard).
+   Brand indigo is reserved for active state, primary action and focus.
+   Semantic colour is separate and never used for emphasis.
+   ============================================================ */
+:root {
+  --bg: #f7f6fb;
+  --panel: #ffffff;
+  --sunken: #f2f0f8;
+  --rail: #fbfafe;
+  --focus-surface: #fdfcff;
+  --line: #e8e5f1;
+  --line-2: #dad5e8;
+  --line-3: #c7c0dc;
+  --ink: #16131f;
+  --ink-2: #56506b;
+  --ink-3: #8b84a0;
+  --ink-4: #ada6bf;
+  --acc: #4b2e83;
+  --acc-2: #5c3a9c;
+  --acc-soft: #f0eafb;
+  --acc-line: #d9cbf2;
+  --on-acc: #ffffff;
+  --good: #157f52;
+  --good-bg: #e7f4ed;
+  --good-line: #a8dcc1;
+  --bad: #b93338;
+  --bad-bg: #fbebec;
+  --bad-line: #efb3b6;
+  --warn: #9c6b12;
+  --warn-bg: #faf1dc;
+  --warn-line: #e5c689;
+  --neu: #6f6889;
+  --neu-bg: #efedf6;
+  --e1: 0 1px 2px rgba(22, 16, 40, 0.06);
+  --e2: 0 2px 4px rgba(22, 16, 40, 0.05), 0 8px 16px -8px rgba(22, 16, 40, 0.1);
+  --e3: 0 12px 32px -12px rgba(22, 16, 40, 0.22), 0 2px 6px rgba(22, 16, 40, 0.06);
+  --t: 150ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f0d18;
+    --panel: #191527;
+    --sunken: #141120;
+    --rail: #141120;
+    --focus-surface: #1c1830;
+    --line: #2a2440;
+    --line-2: #372f52;
+    --line-3: #493f6b;
+    --ink: #f3f1fa;
+    --ink-2: #b9b2d2;
+    --ink-3: #8b83a8;
+    --ink-4: #6b6488;
+    --acc: #a78beb;
+    --acc-2: #bca5f2;
+    --acc-soft: #251e3f;
+    --acc-line: #3b3160;
+    --on-acc: #14101f;
+    --good: #4ecb8b;
+    --good-bg: #0f2e1f;
+    --good-line: #265d40;
+    --bad: #f07c82;
+    --bad-bg: #34161a;
+    --bad-line: #6b2f35;
+    --warn: #e5b85e;
+    --warn-bg: #332714;
+    --warn-line: #6b5327;
+    --neu: #9b93b8;
+    --neu-bg: #221d36;
+    --e1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --e2: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 16px -8px rgba(0, 0, 0, 0.5);
+    --e3: 0 12px 32px -12px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4);
+  }
+}
+
+[data-theme="dark"] {
+  --bg: #0f0d18;
+  --panel: #191527;
+  --sunken: #141120;
+  --rail: #141120;
+  --focus-surface: #1c1830;
+  --line: #2a2440;
+  --line-2: #372f52;
+  --line-3: #493f6b;
+  --ink: #f3f1fa;
+  --ink-2: #b9b2d2;
+  --ink-3: #8b83a8;
+  --ink-4: #6b6488;
+  --acc: #a78beb;
+  --acc-2: #bca5f2;
+  --acc-soft: #251e3f;
+  --acc-line: #3b3160;
+  --on-acc: #14101f;
+  --good: #4ecb8b;
+  --good-bg: #0f2e1f;
+  --good-line: #265d40;
+  --bad: #f07c82;
+  --bad-bg: #34161a;
+  --bad-line: #6b2f35;
+  --warn: #e5b85e;
+  --warn-bg: #332714;
+  --warn-line: #6b5327;
+  --neu: #9b93b8;
+  --neu-bg: #221d36;
+  --e1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --e2: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 16px -8px rgba(0, 0, 0, 0.5);
+  --e3: 0 12px 32px -12px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-sunken: var(--sunken);
+  --color-rail: var(--rail);
+  --color-focus-surface: var(--focus-surface);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-line-3: var(--line-3);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-acc: var(--acc);
+  --color-acc-2: var(--acc-2);
+  --color-acc-soft: var(--acc-soft);
+  --color-acc-line: var(--acc-line);
+  --color-on-acc: var(--on-acc);
+  --color-good: var(--good);
+  --color-good-bg: var(--good-bg);
+  --color-good-line: var(--good-line);
+  --color-bad: var(--bad);
+  --color-bad-bg: var(--bad-bg);
+  --color-bad-line: var(--bad-line);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-warn-line: var(--warn-line);
+  --color-neu: var(--neu);
+  --color-neu-bg: var(--neu-bg);
+  --font-display: "Archivo", ui-sans-serif, system-ui, "Segoe UI", Arial, sans-serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, "Segoe UI", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  --radius-s: 8px;
+  --radius-m: 11px;
+  --radius-l: 15px;
+  --radius-xl: 20px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  margin: 0;
+  letter-spacing: -0.018em;
+  text-wrap: balance;
+}
+
+::selection {
+  background: var(--acc-soft);
+  color: var(--acc);
+}
+
+:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line-2);
+  border-radius: 6px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--line-3);
+  background-clip: content-box;
+  border: 3px solid transparent;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* --- shared primitives --- */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+.label-xs {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.track {
+  height: 3px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+  display: flex;
+}
+.track > i {
+  display: block;
+  height: 100%;
+  transition: width 400ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

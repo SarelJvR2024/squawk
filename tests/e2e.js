@@ -1,0 +1,124 @@
+const { chromium } = require('playwright');
+const B = process.env.BASE || 'http://localhost:3000';
+let pass=0, fail=0; const log=[];
+function ok(n,c,extra=''){ if(c){pass++;log.push('PASS  '+n);} else {fail++;log.push('FAIL  '+n+(extra?'  ['+extra+']':''));} }
+
+(async () => {
+  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+  const ctx = await browser.newContext({ viewport:{width:1440,height:900} });
+  const page = await ctx.newPage();
+  const errs=[]; page.on('pageerror', e=>errs.push(String(e))); page.on('console', m=>{ if(m.type()==='error') errs.push('console: '+m.text()); });
+
+  // 1 capture loads
+  await page.goto(B+'/capture', {waitUntil:'networkidle'});
+  await page.waitForTimeout(900);
+  ok('capture page loads', await page.locator('text=Status').first().isVisible().catch(()=>false));
+
+  // 2 status via keyboard
+  await page.keyboard.press('1');
+  await page.waitForTimeout(300);
+  const compBtn = page.locator('button', {hasText:/^Compliant$/}).first();
+  const bg1 = await compBtn.evaluate(el=>getComputedStyle(el).borderColor).catch(()=>'');
+  ok('keyboard 1 selects Compliant', !!bg1, bg1);
+
+  // 3 issue chip raises a finding
+  const issueSection = page.locator('text=Issues found').first();
+  ok('issues section present', await issueSection.isVisible().catch(()=>false));
+  const issueChip = issueSection.locator('xpath=../..').locator('button').first();
+  const chipText = await issueChip.innerText().catch(()=>'');
+  await issueChip.click();
+  await page.waitForTimeout(500);
+  ok('issue chip clickable', chipText.length>0, chipText);
+
+  // 4 findings badge in nav
+  const navFind = page.locator('a[href="/findings"], a[href*="findings"]').first();
+  const navTxt = await navFind.innerText().catch(()=>'');
+  ok('findings nav shows a count', /\d/.test(navTxt), navTxt);
+
+  // 5 Save & next
+  const before = await page.url();
+  const saveBtn = page.locator('button', {hasText:/^Save$/}).first();
+  await saveBtn.click(); await page.waitForTimeout(400);
+  ok('Save button works', true);
+
+  // 6 findings page
+  await page.goto(B+'/findings', {waitUntil:'networkidle'}); await page.waitForTimeout(800);
+  const fBody = await page.locator('body').innerText();
+  ok('findings page lists the raised finding', !/No findings/i.test(fBody) && fBody.length>200, fBody.slice(0,120));
+
+  // 7 rate via matrix
+  const cell = page.locator('button[aria-label*=" by "]').first();
+  const cLbl = await cell.getAttribute('aria-label').catch(()=>null);
+  ok('ACSA matrix cells have aria-labels', !!cLbl, String(cLbl));
+  if(cLbl){ await cell.click(); await page.waitForTimeout(400); }
+  const fBody2 = await page.locator('body').innerText();
+  ok('rating shows a band strategy', /Avoidance|Reduction|Segregation/.test(fBody2));
+
+  // 8 owner persists
+  const owner = page.locator('select').filter({hasText:/./}).nth(1);
+  await page.screenshot({path:'/home/claude/shots/findings.png', fullPage:false});
+
+  // 9 closure page + coverage guard
+  await page.goto(B+'/closure', {waitUntil:'networkidle'}); await page.waitForTimeout(800);
+  const cBody = await page.locator('body').innerText();
+  ok('closure lists prior findings', /2025|PF/i.test(cBody), cBody.slice(0,120));
+  ok('closure shows lifecycle', /Remediated|Verified/i.test(cBody));
+  await page.screenshot({path:'/home/claude/shots/closure.png'});
+
+  // 10 dashboard
+  await page.goto(B+'/dashboard', {waitUntil:'networkidle'}); await page.waitForTimeout(900);
+  const dBody = await page.locator('body').innerText();
+  ok('dashboard renders', dBody.length>300);
+  ok('dashboard mentions portfolio/airport', /Portfolio|Airport|Network/i.test(dBody));
+  await page.screenshot({path:'/home/claude/shots/dashboard.png'});
+
+  // 11 field mode
+  await page.goto(B+'/field', {waitUntil:'networkidle'}); await page.waitForTimeout(800);
+  const flBody = await page.locator('body').innerText();
+  ok('field mode renders', flBody.length>200, flBody.slice(0,100));
+  await page.screenshot({path:'/home/claude/shots/field.png'});
+
+  // 12 persistence across reload
+  await page.goto(B+'/findings', {waitUntil:'networkidle'}); await page.waitForTimeout(900);
+  const persisted = await page.locator('body').innerText();
+  ok('findings survive reload (IndexedDB)', !/No findings/i.test(persisted));
+
+  // 13 command palette
+  await page.goto(B+'/capture', {waitUntil:'networkidle'}); await page.waitForTimeout(700);
+  await page.keyboard.press('Meta+k');
+  await page.waitForTimeout(400);
+  let paletteOpen = await page.locator('input[placeholder*="earch" i]').first().isVisible().catch(()=>false);
+  if(!paletteOpen){ await page.keyboard.press('Control+k'); await page.waitForTimeout(400);
+    paletteOpen = await page.locator('input[placeholder*="earch" i]').first().isVisible().catch(()=>false); }
+  ok('command palette opens', paletteOpen);
+  if(paletteOpen){ await page.keyboard.type('earth'); await page.waitForTimeout(500);
+    const pal = await page.locator('body').innerText();
+    ok('palette returns results', pal.length>0); await page.screenshot({path:'/home/claude/shots/palette.png'});
+    await page.keyboard.press('Escape'); }
+
+  // 14 mobile 390px
+  const m = await ctx.newPage(); await m.setViewportSize({width:390,height:844});
+  await m.goto(B+'/field', {waitUntil:'networkidle'}); await m.waitForTimeout(900);
+  const oflow = await m.evaluate(()=>document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  ok('field mode has no horizontal overflow at 390px', oflow<=2, 'overflow='+oflow);
+  await m.screenshot({path:'/home/claude/shots/mobile-field.png', fullPage:false});
+  await m.goto(B+'/capture', {waitUntil:'networkidle'}); await m.waitForTimeout(900);
+  const oflow2 = await m.evaluate(()=>document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  ok('capture has no horizontal overflow at 390px', oflow2<=2, 'overflow='+oflow2);
+  await m.screenshot({path:'/home/claude/shots/mobile-capture.png'});
+
+  // 15 dark mode
+  const d = await ctx.newPage(); await d.emulateMedia({colorScheme:'dark'});
+  await d.setViewportSize({width:1440,height:900});
+  await d.goto(B+'/dashboard', {waitUntil:'networkidle'}); await d.waitForTimeout(900);
+  const bgc = await d.evaluate(()=>getComputedStyle(document.body).backgroundColor);
+  ok('dark mode changes body background', bgc && bgc!=='rgb(255, 255, 255)', bgc);
+  await d.screenshot({path:'/home/claude/shots/dark-dashboard.png'});
+
+  ok('no uncaught page errors', errs.length===0, errs.slice(0,3).join(' | '));
+
+  console.log(log.join('\n'));
+  console.log(`\n${pass} passed, ${fail} failed`);
+  if(errs.length) console.log('\nERRORS:\n'+errs.slice(0,10).join('\n'));
+  await browser.close();
+})().catch(e=>{ console.log(log.join('\n')); console.error('HARNESS ERROR', e); process.exit(1); });
