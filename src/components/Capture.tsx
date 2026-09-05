@@ -21,7 +21,7 @@ import {
   useDictation,
   useRecorder,
 } from "@/lib/media";
-import { CURRENT_ENTITY } from "@/lib/programme";
+import { useEntityCode } from "@/lib/store";
 import type { Attachment } from "@/lib/types";
 import { IconCamera, IconMic, IconX } from "./ui/icons";
 import { Pill } from "./ui/primitives";
@@ -51,6 +51,7 @@ export function VoiceNoteButton({
 }) {
   const rec = useRecorder();
   const dict = useDictation();
+  const entityCode = useEntityCode();
   const [busy, setBusy] = useState(false);
   const supported = supportsRecording();
 
@@ -75,7 +76,7 @@ export function VoiceNoteButton({
       await putBlob(blobKey, result.blob);
       onCaptured({
         kind: "voice",
-        name: `${CURRENT_ENTITY.code}-voice-${new Date()
+        name: `${entityCode}-voice-${new Date()
           .toISOString()
           .slice(11, 19)
           .replace(/:/g, "")}.${extensionFor(result.mimeType)}`,
@@ -191,6 +192,7 @@ export function PhotoButton({
   className?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const entityCode = useEntityCode();
 
   return (
     <>
@@ -210,7 +212,7 @@ export function PhotoButton({
           await putBlob(blobKey, file);
           onCaptured({
             kind: "photo",
-            name: file.name || `${CURRENT_ENTITY.code}-photo.${extensionFor(file.type)}`,
+            name: file.name || `${entityCode}-photo.${extensionFor(file.type)}`,
             blobKey,
             mimeType: file.type || "image/jpeg",
           });

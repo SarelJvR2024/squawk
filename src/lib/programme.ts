@@ -46,7 +46,14 @@ export function entity(code: string = CURRENT_ENTITY_CODE): Entity {
   return ENTITIES.find((e) => e.code === code) ?? ENTITIES[0];
 }
 
-export const CURRENT_ENTITY = entity();
+/* There is deliberately no CURRENT_ENTITY constant. One existed, and three
+   screens read it after the store was keyed by entity — so the dashboard
+   titled itself "King Shaka International" while showing another airport's
+   numbers, and a voice note recorded at Cape Town was filenamed FALE-voice-…
+   The current entity is state, not a module constant; read it with
+   useEntity() / useEntityCode(). CURRENT_ENTITY_CODE below is the programme's
+   STARTING entity and is only for the store's initial state and its
+   migration. */
 
 export function visitsFor(code: string = CURRENT_ENTITY_CODE): Visit[] {
   return PROGRAMME_VISITS.filter((v) => v.entity === code);

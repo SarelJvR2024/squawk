@@ -19,7 +19,7 @@ Section numbers in code comments point at that document.
 | Seed data | 374 check-points, 8 disciplines, 99 ACSA documents mapped, 33 site variants, 23 March 2025 findings |
 | Answer Library (section 7) | **Complete — all 374 checks, 11,179 researched options** |
 | Capture workspace (section 8) | Three-pane workspace, answer chips, real voice and photo capture, progress, ⌘K, keyboard |
-| Field inspection mode | Location-first, 44px targets, capture-first tray, ad-hoc findings, offline |
+| Field inspection mode | Location-first, researched walkabout options with photo expectation, 44px targets, capture-first tray, ad-hoc findings, offline |
 | Findings and rating | ACSA B170 001M matrix, agreed vs suggested ratings, root cause, owner, due date |
 | Closure | Carry-forward: 23 seeded 2025 findings plus anything an earlier visit left open, four-way verification, coverage guard, lifecycle |
 | Dashboards | Airport, discipline and portfolio, with movement against March 2025 |
@@ -57,6 +57,7 @@ node tests/capture.test.mjs              # capture is real, not fabricated
 node tests/scope.test.mjs                # one audit per entity per visit
 node tests/carryforward.test.mjs         # earlier visits reach the next one
 node tests/review.test.mjs               # feedback never becomes the record
+node tests/tablet.test.mjs               # the tablet is the device
 npm run build && npm start &             # then, against a running server:
 BASE=http://localhost:3000 node tests/e2e.js          # 21 assertions
 BASE=http://localhost:3000 node tests/robustness.js   # 30 assertions
@@ -198,6 +199,14 @@ tests/                five suites — see tests/README.md
   finding. `tests/review.test.mjs` enforces it. ACSA's role is read-only
   everywhere else but can comment here, because their engineers answering a
   photograph is the point of the screen.
+
+- **The tablet is the device, not a narrow desktop.** The touch floor lives in
+  one `@media (pointer: coarse)` block in `globals.css` — 44px targets, 16px
+  fields so iOS does not zoom the page in mid-capture — rather than a second
+  set of components; a mouse sees none of it. The check screen goes two-pane at
+  `lg`, because an iPad in landscape is 1180px and was stacking the entire
+  reference column above the controls, and when it does stack capture is
+  ordered first. `tests/tablet.test.mjs` enforces it.
 
 - **Answer Library content is reviewed content.** Issue buttons seed findings
   with suggested severities, so they carry weight. A discipline lead signs off

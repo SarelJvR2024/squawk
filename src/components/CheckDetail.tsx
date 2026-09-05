@@ -176,10 +176,14 @@ export default function CheckDetail({
         )}
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)]">
+      {/* Two panes from lg, not xl. An iPad in landscape is 1180px wide and was
+          falling to a single column, which stacked the entire reference column
+          — basis, thresholds, ACSA documents — above the capture controls. On
+          anything narrower the order below puts capture first instead. */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)]">
         {/* reference column */}
         <div
-          className="border-b px-[18px] pt-4 pb-[18px] xl:overflow-y-auto xl:border-r xl:border-b-0 xl:pb-[90px]"
+          className="order-2 border-b px-[18px] pt-4 pb-[18px] lg:order-1 lg:overflow-y-auto lg:border-r lg:border-b-0 lg:pb-[90px]"
           style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
         >
           {check.siteVariant && (
@@ -413,7 +417,7 @@ export default function CheckDetail({
 
         {/* capture column */}
         <div
-          className="px-5 pt-4 pb-[90px] xl:overflow-y-auto"
+          className="order-1 px-5 pt-4 pb-[18px] lg:order-2 lg:pb-[90px] lg:overflow-y-auto"
           style={{ background: "var(--focus-surface)" }}
         >
           <Field label="Status" hint="1 – 4">
@@ -435,7 +439,7 @@ export default function CheckDetail({
           {a ? (
             <>
               <Field label="Evidence to request" hint={`${r.evidencePicked.length}/${a.EO.length}`}>
-                <div className="flex flex-wrap gap-[5px]">
+                <div className="chip-row flex flex-wrap gap-[5px]">
                   {a.EO.map((e, i) => (
                     <Chip
                       key={i}
@@ -453,7 +457,7 @@ export default function CheckDetail({
 
               {a.AO.length > 0 && (
                 <Field label="Likely answers" hint="sets status & seeds the note">
-                  <div className="flex flex-wrap gap-[5px]">
+                  <div className="chip-row flex flex-wrap gap-[5px]">
                     {a.AO.map((x, i) => (
                       <Chip
                         key={i}
@@ -470,7 +474,7 @@ export default function CheckDetail({
               )}
 
               <Field label="Issues found" hint="raises a finding · suggests severity">
-                <div className="flex flex-wrap gap-[5px]">
+                <div className="chip-row flex flex-wrap gap-[5px]">
                   {a.IO.map((x, i) => {
                     const band = bandFor(x.severity_hint, x.likelihood_hint);
                     return (
@@ -523,7 +527,7 @@ export default function CheckDetail({
 
               {a.WO.length > 0 && (
                 <Field label="Walkabout" hint="what the eye settles on">
-                  <div className="flex flex-wrap gap-[5px]">
+                  <div className="chip-row flex flex-wrap gap-[5px]">
                     {a.WO.map((w, i) => (
                       <Chip
                         key={i}
@@ -548,7 +552,7 @@ export default function CheckDetail({
                     className="mb-[7px] h-[9px] w-[110px] rounded-full"
                     style={{ background: "var(--line-2)", opacity: 0.7 }}
                   />
-                  <div className="flex flex-wrap gap-[5px]">
+                  <div className="chip-row flex flex-wrap gap-[5px]">
                     {Array.from({ length: n }, (_, i) => (
                       <div
                         key={i}
@@ -577,7 +581,7 @@ export default function CheckDetail({
             hint={voice ? "voice note attached" : "tap · type · speak"}
           >
             {a && a.OS.length > 0 && (
-              <div className="mb-[7px] flex flex-wrap gap-[5px]">
+              <div className="chip-row mb-[7px] flex flex-wrap gap-[5px]">
                 {a.OS.map((sn, i) => (
                   <Chip key={i} onClick={() => appendObservation(check.id, sn)}>
                     + {sn}
@@ -604,7 +608,7 @@ export default function CheckDetail({
                   Suggested wording · yours to accept, edit or ignore
                 </div>
                 <div className="text-[12.5px] leading-[1.55]">{draft}</div>
-                <div className="mt-2.5 flex flex-wrap gap-[6px]">
+                <div className="chip-row mt-2.5 flex flex-wrap gap-[6px]">
                   <Btn
                     onClick={() => {
                       patch(check.id, { observation: draft });

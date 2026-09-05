@@ -132,6 +132,39 @@ for (const [name, text] of screens) {
   );
 }
 
+/* The first version of this suite checked that screens did not read the raw
+   store slices, and missed that three of them read a CURRENT_ENTITY module
+   constant instead — same bug, different door. Both doors are shut now. */
+for (const [name, text] of screens) {
+  check(
+    `${name} does not read a module-level entity or visit constant`,
+    !/CURRENT_ENTITY\b/.test(text) && !/CURRENT_VISIT_ID/.test(text) && !/CURRENT_VISIT\b/.test(text),
+    "the current entity is state, not a constant — the dashboard named the wrong airport this way"
+  );
+}
+
+check(
+  "no CURRENT_ENTITY constant exists to be reached for",
+  !/export const CURRENT_ENTITY =/.test(fs.readFileSync(path.join(here, "..", "src", "lib", "programme.ts"), "utf8")),
+  "removing it is what stops the next screen doing the same thing"
+);
+
+check(
+  "capture names media with the entity in view",
+  /const entityCode = useEntityCode\(\);/.test(
+    fs.readFileSync(path.join(here, "..", "src", "components", "Capture.tsx"), "utf8")
+  ),
+  "a voice note taken at Cape Town was filenamed FALE-voice-…"
+);
+
+check(
+  "field mode asks for the location axis of the entity in view",
+  /locationAxis\(entityCode\)/.test(
+    fs.readFileSync(path.join(here, "..", "src", "app", "(app)", "field", "page.tsx"), "utf8")
+  ),
+  "the default argument silently resolved to the programme's starting entity"
+);
+
 check(
   "the scoped hooks exist",
   ["useVisitData", "useResponses", "useVerifications", "useCaptures", "useVisitFindings"]

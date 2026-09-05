@@ -250,3 +250,45 @@ h4 {
     animation: none !important;
   }
 }
+
+/* ---------------------------------------------------------------- touch
+
+   The desk build is a mouse design: 26px chips, 9px type, dense rows. The
+   same screens are used on a tablet held in one hand and tapped with the
+   other, sometimes gloved, on an apron, and a 26px target missed twice is
+   an auditor who stops capturing and writes on paper.
+
+   Rather than a second set of components, the floor is applied where the
+   pointer is actually coarse. A mouse sees no change at all.
+
+   `pointer: coarse` is the primary input, so a tablet with a keyboard case
+   attached still reports coarse and still gets the larger targets — which is
+   correct, because the finger is still there. */
+@media (pointer: coarse) {
+  button:not(.tap-tight),
+  select:not(.tap-tight),
+  summary:not(.tap-tight),
+  [role="button"]:not(.tap-tight) {
+    min-height: 44px;
+  }
+
+  /* An icon-only control has no text to widen it. */
+  button:not(.tap-tight):has(> svg:only-child) {
+    min-width: 44px;
+  }
+
+  /* iOS zooms the whole page in when a field smaller than 16px takes focus,
+     and does not zoom back out. Mid-capture that reads as the app breaking. */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  /* Answer Library chips are the capture control. They wrap, so giving them
+     height costs nothing but a little vertical space. */
+  .chip-row button {
+    min-height: 44px;
+    padding-inline: 13px;
+  }
+}

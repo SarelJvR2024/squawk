@@ -7,15 +7,19 @@ import {
   CHECKS,
   DISCIPLINES,
   useCaptures,
+  useEntity,
+  useEntityCode,
   useResponses,
   useStore,
   useVisitId,
 } from "@/lib/store";
-import { CURRENT_ENTITY, locationAxis } from "@/lib/programme";
+import { locationAxis } from "@/lib/programme";
 import type { Check, Compliance } from "@/lib/types";
 import { Btn, Chip, Empty, Panel, Pill } from "@/components/ui/primitives";
 import { AttachmentStrip, PhotoButton, PhotoThumb, VoiceNoteButton } from "@/components/Capture";
+import { useAnswerLibrary } from "@/lib/answers";
 import {
+  IconCamera,
   IconCheck,
   IconClock,
   IconDash,
@@ -42,8 +46,17 @@ export default function FieldPage() {
   const responses = useResponses();
   const captures = useCaptures();
   const visitId = useVisitId();
+  /* The researched walkabout options. Field mode is the walkabout screen and
+     was the one place that never showed them — an auditor on the apron got
+     four status buttons while 11,179 reviewed options sat in the library that
+     only the desk screen opened. Loaded once for the session and kept in
+     memory, so it survives the wifi dropping. */
+  const library = useAnswerLibrary();
+  const entity = useEntity();
+  const entityCode = useEntityCode();
   const auditor = useStore((s) => s.auditor);
   const setCompliance = useStore((s) => s.setCompliance);
+  const setWalkabout = useStore((s) => s.setWalkabout);
   const commit = useStore((s) => s.commit);
   const addAttachment = useStore((s) => s.addAttachment);
   const removeAttachment = useStore((s) => s.removeAttachment);
@@ -96,7 +109,7 @@ export default function FieldPage() {
 
   /* Zones come from the programme file. Until ACSA gives us real ones the axis
      falls back to the register's categories, and the strip below says so. */
-  const axis = locationAxis();
+  const axis = locationAxis(entityCode);
   const options = groupBy === "area" ? axis.options : DISCIPLINES;
   const doneCount = visible.filter((c) => responses[c.id]?.captured).length;
 
@@ -173,7 +186,7 @@ export default function FieldPage() {
               className="mt-[7px] text-[10.5px] leading-[1.5]"
               style={{ color: "var(--ink-3)" }}
             >
-              These are the register&rsquo;s categories, not physical zones — {CURRENT_ENTITY.short} zone
+              These are the register&rsquo;s categories, not physical zones — {entity.short} zone
               names have not been supplied yet. Search finds any check wherever you
               are standing.
             </div>
@@ -204,10 +217,15 @@ export default function FieldPage() {
                   {items.filter((c) => responses[c.id]?.captured).length}/{items.length}
                 </span>
               </div>
-              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {items.map((c) => {
                   const r = responses[c.id];
                   const attachments = r?.attachments ?? [];
+                  const photos = attachments.filter((a) => a.kind === "photo");
+                  const wo = library?.[c.id]?.WO ?? [];
+                  const picked = r?.walkaboutPicked;
+                  const needsPhoto =
+                    picked != null && wo[picked]?.photo === true && photos.length === 0;
                   return (
                     <div
                       key={c.id}
@@ -231,6 +249,54 @@ export default function FieldPage() {
                       >
                         {c.walkabout ?? c.requirement}
                       </button>
+                      {/* What the eye settles on, in the words the library
+                          researched — tapped instead of typed, because typing
+                          on an apron is what stops people capturing. Above the
+                          four statuses, since picking one usually sets the
+                          status anyway. */}
+                      {wo.length > 0 && (
+                        <div className="chip-row mb-2 flex flex-wrap gap-[5px]">
+                          {wo.map((w, i) => (
+                            <Chip
+                              key={i}
+                              selected={r?.walkaboutPicked === i}
+                              onClick={() => {
+                                setWalkabout(c.id, i, w.sets);
+                                commit(c.id);
+                                say(
+                                  w.photo && photos.length === 0
+                                    ? `${c.id} — ${w.label}. Photograph expected.`
+                                    : `${c.id} — ${w.label}`
+                                );
+                              }}
+                              title={w.photo ? "This observation expects a photograph" : undefined}
+                            >
+                              {w.label}
+                              {w.photo ? " 📷" : ""}
+                            </Chip>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* The library marks which observations are only worth
+                          having with an image behind them. That flag was
+                          carried in the data and rendered nowhere but a desk
+                          tooltip. Saying it here, while the auditor is still
+                          standing in front of the thing, is the whole point. */}
+                      {needsPhoto && (
+                        <div
+                          className="mb-2 flex items-center gap-2 rounded-[9px] border px-[10px] py-[7px] text-[11px]"
+                          style={{
+                            background: "var(--warn-bg)",
+                            borderColor: "var(--warn-line)",
+                            color: "var(--warn)",
+                          }}
+                        >
+                          <IconCamera width={13} height={13} />
+                          Photograph expected for this observation
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-4 gap-[5px]">
                         {STATUSES.map(({ key, Icon, tone, label }) => (
                           <button

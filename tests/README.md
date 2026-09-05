@@ -1,7 +1,7 @@
 # Tests
 
-Nine suites, no framework — all run with plain `node`. Four need a running
-server; five do not.
+Ten suites, no framework — all run with plain `node`. Four need a running
+server; six do not.
 
 | Suite | Needs a server | Asserts |
 |---|---|---|
@@ -10,6 +10,7 @@ server; five do not.
 | `scope.test.mjs` | no | 31 |
 | `carryforward.test.mjs` | no | 20 |
 | `review.test.mjs` | no | 22 |
+| `tablet.test.mjs` | no | 17 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 30 |
 | `exports.js` | yes | 7 |
@@ -106,6 +107,24 @@ to one entity and visit; author and side are recorded on every note; resolving a
 comment keeps it and is reversible; the screen is genuinely reviewable
 (discipline first, evidence only, lightbox, transcripts, revoked object URLs);
 and ACSA can reach it despite being read-only everywhere else.
+
+## `tablet.test.mjs`
+
+Guards that the tablet is treated as the device, not a narrow desktop. Three
+things were wrong at once and all three cost capture rather than looks: a mouse
+design's 26px targets tapped with a gloved thumb; the check screen going
+two-pane only at 1280px, so an iPad in landscape (1180px) stacked and put the
+whole reference column above the controls; and field mode — the walkabout
+screen — never showing the researched walkabout options at all.
+
+```bash
+node tests/tablet.test.mjs
+```
+
+Five parts: a `pointer: coarse` floor a mouse never sees; capture never below
+the fold; field mode doing the walkabout it exists for, including the library's
+own "wants a photograph" flag; fewer scrolls; and the two scope bugs this pass
+turned up.
 
 ## The browser suites
 

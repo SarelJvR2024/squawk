@@ -10,13 +10,12 @@ import {
   useResponses,
   useStore,
   useVerifications,
+  useEntity,
   useEntityCode,
   useVisitFindings,
+  useVisitId,
 } from "@/lib/store";
-import { CURRENT_ENTITY, CURRENT_VISIT_ID, ENTITIES, PROGRAMME_VISITS } from "@/lib/programme";
-
-const CURRENT_VISIT_LABEL =
-  PROGRAMME_VISITS.find((v) => v.id === CURRENT_VISIT_ID)?.label ?? CURRENT_VISIT_ID;
+import { ENTITIES, PROGRAMME_VISITS } from "@/lib/programme";
 import { LIKELIHOODS, SEVERITIES, bandFor, movement } from "@/lib/risk";
 import { Panel, Pill, Track } from "@/components/ui/primitives";
 import { IconInfo, IconLoop } from "@/components/ui/icons";
@@ -40,6 +39,10 @@ export default function DashboardPage() {
   const responses = useResponses();
   const findings = useVisitFindings();
   const entityCode = useEntityCode();
+  const entity = useEntity();
+  const visitId = useVisitId();
+  const visitLabel =
+    PROGRAMME_VISITS.find((v) => v.id === visitId)?.label ?? visitId;
   const cycleVisits = useMemo(
     () => PROGRAMME_VISITS.filter((v) => v.entity === entityCode),
     [entityCode]
@@ -136,8 +139,8 @@ export default function DashboardPage() {
               {level === "portfolio"
                 ? "ACSA network — cycle 2025–2027"
                 : level === "discipline"
-                  ? `${discipline} — ${CURRENT_ENTITY.name}`
-                  : `${CURRENT_ENTITY.name} — ${CURRENT_VISIT_LABEL}`}
+                  ? `${discipline} — ${entity.name}`
+                  : `${entity.name} — ${visitLabel}`}
             </h2>
             <p className="mt-1 max-w-[78ch] text-[12.5px]" style={{ color: "var(--ink-2)" }}>
               {role === "acsa"
@@ -185,7 +188,7 @@ export default function DashboardPage() {
                 <IconInfo width={14} height={14} style={{ marginTop: 1 }} />
                 <span>
                   Nine airports and head office on a three-year cycle, two visits a year — 60 audits
-                  per cycle. Only {CURRENT_ENTITY.short} carries captured data at this point; the rest are shown
+                  per cycle. Only {entity.short} carries captured data at this point; the rest are shown
                   as not yet audited rather than filled with placeholder figures.
                 </span>
               </div>
