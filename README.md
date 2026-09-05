@@ -18,7 +18,7 @@ Section numbers in code comments point at that document.
 | Data model (section 6) | Typed domain model, local-first store over IndexedDB |
 | Seed data | 374 check-points, 8 disciplines, 99 ACSA documents mapped, 33 site variants, 23 March 2025 findings |
 | Answer Library (section 7) | **Complete — all 374 checks, 11,179 researched options** |
-| Capture workspace (section 8) | Three-pane workspace, answer chips, voice and photo, progress, ⌘K, keyboard |
+| Capture workspace (section 8) | Three-pane workspace, answer chips, real voice and photo capture, progress, ⌘K, keyboard |
 | Field inspection mode | Location-first, 44px targets, capture-first tray, ad-hoc findings, offline |
 | Findings and rating | ACSA B170 001M matrix, agreed vs suggested ratings, root cause, owner, due date |
 | Closure | 23 prior findings, four-way verification, coverage guard, lifecycle |
@@ -48,10 +48,11 @@ npm run build && npm start
 
 ## Tests
 
-Five suites, no framework, all plain `node`. See `tests/README.md`.
+Six suites, no framework, all plain `node`. See `tests/README.md`.
 
 ```bash
 node tests/risk-matrix.test.mjs          # the ACSA matrix, all 25 cells
+node tests/capture.test.mjs              # capture is real, not fabricated
 npm run build && npm start &             # then, against a running server:
 BASE=http://localhost:3000 node tests/e2e.js          # 21 assertions
 BASE=http://localhost:3000 node tests/robustness.js   # 30 assertions
@@ -59,7 +60,9 @@ BASE=http://localhost:3000 node tests/exports.js      #  7 assertions
 BASE_NO_KEY=... BASE_WITH_KEY=... node tests/ai.js    # 14 assertions
 ```
 
-Run `tests/risk-matrix.test.mjs` after **any** edit to `src/lib/risk.ts`.
+Run `tests/risk-matrix.test.mjs` after **any** edit to `src/lib/risk.ts`, and
+`tests/capture.test.mjs` after any edit to `src/lib/media.ts`,
+`src/components/Capture.tsx`, `CheckDetail.tsx` or field mode.
 
 ## Deploying to Vercel
 
@@ -156,6 +159,16 @@ tests/                five suites — see tests/README.md
   airport or the next visit is a data change. Zones are deliberately empty and
   field mode says so on screen rather than pretending the register's `area`
   categories are places.
+
+- **Capture must be real, and the test says so.** Voice and photo were
+  fabricated until `src/lib/media.ts` existed: the mic button wrote a fixed
+  duration and a transcript lifted from the Answer Library straight into the
+  auditor's observation. Audio and images now come from `getUserMedia` /
+  `MediaRecorder` and the camera, blobs live under their own IndexedDB keys
+  (never inside the persisted store, which rewrites on every keystroke), and a
+  transcript is only ever what the dictation engine heard or the auditor typed.
+  An empty transcript is a correct answer. `tests/capture.test.mjs` exists to
+  stop any of that being quietly undone.
 
 - **Answer Library content is reviewed content.** Issue buttons seed findings
   with suggested severities, so they carry weight. A discipline lead signs off

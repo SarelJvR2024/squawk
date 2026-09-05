@@ -11,13 +11,12 @@ import {
   useAssistAvailable,
 } from "@/lib/assist";
 import { bandFor, BAND_META } from "@/lib/risk";
+import { AttachmentStrip, PhotoButton, VoiceNoteButton } from "./Capture";
 import {
-  IconCamera,
   IconCheck,
   IconClock,
   IconDash,
   IconLeft,
-  IconMic,
   IconRight,
   IconSpark,
   IconWand,
@@ -73,9 +72,9 @@ export default function CheckDetail({
   const appendObservation = useStore((s) => s.appendObservation);
   const patch = useStore((s) => s.patch);
   const addAttachment = useStore((s) => s.addAttachment);
+  const removeAttachment = useStore((s) => s.removeAttachment);
   const commit = useStore((s) => s.commit);
 
-  const [recording, setRecording] = useState(false);
   const aiOn = useAssistAvailable();
   const [draft, setDraft] = useState<string | null>(null);
   const [thinking, setThinking] = useState<null | "observation" | "explain">(null);
@@ -664,49 +663,35 @@ export default function CheckDetail({
                   {thinking === "observation" ? "Drafting…" : "Draft with AI"}
                 </button>
               )}
-              <button
-                onClick={() => {
-                  if (recording) {
-                    setRecording(false);
-                    addAttachment(check.id, {
-                      kind: "voice",
-                      name: `voice-${check.id}.webm`,
-                      durationSec: 14,
-                      transcript: a?.IO[0]?.finding ?? "Observation dictated on site.",
-                      createdBy: auditor,
-                    });
-                    appendObservation(check.id, `[voice] ${a?.IO[0]?.finding ?? "Observation dictated on site."}`);
-                    onSaved("Transcribed and attached");
-                  } else setRecording(true);
+              <VoiceNoteButton
+                onCaptured={(m) => {
+                  addAttachment(check.id, { ...m, createdBy: auditor });
+                  /* The transcript is attached to the note, not spliced into
+                     the observation. An auditor writes the observation; the
+                     recording is evidence beside it. */
+                  onSaved(
+                    m.transcript
+                      ? "Voice note attached with transcript"
+                      : "Voice note attached"
+                  );
                 }}
-                className="flex items-center gap-[6px] rounded-[8px] border px-[11px] py-[6px] text-[11px] transition-[var(--t)]"
-                style={
-                  recording
-                    ? { background: "var(--bad)", borderColor: "var(--bad)", color: "#fff" }
-                    : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
-                }
-              >
-                <IconMic width={13} height={13} />
-                {recording ? "Recording · tap to stop" : "Voice note"}
-              </button>
-              <button
-                onClick={() => {
-                  addAttachment(check.id, {
-                    kind: "photo",
-                    name: `KSIA-P${String(101 + photos).slice(-3)}.jpg`,
-                    createdBy: auditor,
-                  });
+              />
+              <PhotoButton
+                onCaptured={(m) => {
+                  addAttachment(check.id, { ...m, createdBy: auditor });
                   onSaved(`Photo attached to ${check.id}`);
                 }}
-                className="flex items-center gap-[6px] rounded-[8px] border px-[11px] py-[6px] text-[11px] transition-[var(--t)]"
-                style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
-              >
-                <IconCamera width={13} height={13} />
-                Photo
-              </button>
+              />
               {photos > 0 && <Pill>{photos} photo{photos > 1 ? "s" : ""}</Pill>}
-              {voice && <Pill tone="accent">voice 0:14</Pill>}
             </div>
+            {r.attachments.length > 0 && (
+              <div className="mt-[10px]">
+                <AttachmentStrip
+                  attachments={r.attachments}
+                  onRemove={(id) => removeAttachment(check.id, id)}
+                />
+              </div>
+            )}
           </Field>
         </div>
       </div>

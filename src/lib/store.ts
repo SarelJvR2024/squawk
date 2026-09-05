@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
+import { delBlob } from "./media";
 import type {
   Attachment,
   Capture,
@@ -101,7 +102,6 @@ interface State {
   toggleIssue: (checkId: string, i: number, f: Omit<Finding, "id" | "createdAt">) => void;
   setWalkabout: (checkId: string, i: number | null, sets?: Compliance) => void;
   appendObservation: (checkId: string, text: string) => void;
-  addAttachment: (checkId: string, a: Omit<Attachment, "id" | "createdAt">) => void;
   commit: (checkId: string) => void;
 
   addFinding: (f: Omit<Finding, "id" | "createdAt">) => string;
@@ -111,9 +111,13 @@ interface State {
   verification: (pf: string) => Verification;
   patchVerification: (pf: string, p: Partial<Verification>) => void;
 
+  addAttachment: (checkId: string, a: Omit<Attachment, "id" | "createdAt">) => void;
+  removeAttachment: (checkId: string, attachmentId: string) => void;
+
   addCapture: (c: Omit<Capture, "id" | "createdAt">) => void;
   assignCapture: (captureId: string, checkId: string) => void;
   dropCapture: (captureId: string) => void;
+  discardCapture: (captureId: string) => void;
 
   resetAll: () => void;
 }
@@ -257,11 +261,18 @@ export const useStore = create<State>()(
       assignCapture: (captureId, checkId) => {
         const cap = get().captures.find((c) => c.id === captureId);
         if (!cap) return;
+        /* The attachment takes over the capture's blobKey — the bytes are not
+           copied and must not be deleted. dropCapture removes the tray record
+           only; discardCapture is the one that deletes media. */
         get().addAttachment(checkId, {
           kind: cap.kind,
           name: cap.name,
+          blobKey: cap.blobKey,
+          mimeType: cap.mimeType,
           dataUrl: cap.dataUrl,
+          durationSec: cap.durationSec,
           transcript: cap.transcript,
+          unavailable: cap.unavailable,
           createdBy: cap.createdBy,
         });
         get().dropCapture(captureId);
@@ -269,6 +280,21 @@ export const useStore = create<State>()(
 
       dropCapture: (captureId) =>
         set((s) => ({ captures: s.captures.filter((c) => c.id !== captureId) })),
+
+      discardCapture: (captureId) => {
+        const cap = get().captures.find((c) => c.id === captureId);
+        if (cap?.blobKey) void delBlob(cap.blobKey);
+        get().dropCapture(captureId);
+      },
+
+      removeAttachment: (checkId, attachmentId) => {
+        const r = get().response(checkId);
+        const a = r.attachments.find((x) => x.id === attachmentId);
+        if (a?.blobKey) void delBlob(a.blobKey);
+        get().patch(checkId, {
+          attachments: r.attachments.filter((x) => x.id !== attachmentId),
+        });
+      },
 
       resetAll: () =>
         set({ responses: {}, findings: [], verifications: {}, captures: [], lastSavedAt: null }),
@@ -281,9 +307,13 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 3,
+      version: 4,
       migrate: (persisted: unknown, from: number) => {
-        const st = persisted as { findings?: Finding[] } | null;
+        const st = persisted as {
+          findings?: Finding[];
+          responses?: Record<string, Response>;
+          captures?: Capture[];
+        } | null;
         if (!st) return st;
         if (from < 2 && Array.isArray(st.findings)) {
           st.findings = st.findings.map((f) => ({
@@ -329,6 +359,33 @@ export const useStore = create<State>()(
             likelihood: f.likelihood ? (LIK[f.likelihood.charAt(0)] ?? null) : null,
             ratingConfirmed: false,
           }));
+        }
+        if (from < 4) {
+          /* v3 and earlier could not record. "Voice note" wrote a fixed
+             durationSec and a transcript lifted from the Answer Library;
+             "Photo" wrote a filename and no image. Those records describe
+             evidence that was never captured, so mark them unavailable —
+             the UI shows them struck through with the reason. Deleting them
+             instead would quietly shrink an attachment count an auditor may
+             already have reported. */
+          const markLegacy = <T extends { blobKey?: string; dataUrl?: string }>(a: T): T => ({
+            ...a,
+            unavailable: !a.blobKey && !a.dataUrl,
+          });
+          if (st.responses) {
+            st.responses = Object.fromEntries(
+              Object.entries(st.responses).map(([k, r]) => [
+                k,
+                {
+                  ...r,
+                  attachments: Array.isArray(r.attachments)
+                    ? r.attachments.map(markLegacy)
+                    : [],
+                },
+              ])
+            );
+          }
+          if (Array.isArray(st.captures)) st.captures = st.captures.map(markLegacy);
         }
         return st;
       },

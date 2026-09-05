@@ -6,13 +6,12 @@ import { AREAS, CHECKS, CURRENT_VISIT, DISCIPLINES, useStore } from "@/lib/store
 import { CURRENT_ENTITY, locationAxis } from "@/lib/programme";
 import type { Check, Compliance } from "@/lib/types";
 import { Btn, Chip, Empty, Panel, Pill } from "@/components/ui/primitives";
+import { AttachmentStrip, PhotoButton, PhotoThumb, VoiceNoteButton } from "@/components/Capture";
 import {
-  IconCamera,
   IconCheck,
   IconClock,
   IconDash,
   IconInbox,
-  IconMic,
   IconPin,
   IconSearch,
   IconX,
@@ -38,11 +37,11 @@ export default function FieldPage() {
   const setCompliance = useStore((s) => s.setCompliance);
   const commit = useStore((s) => s.commit);
   const addAttachment = useStore((s) => s.addAttachment);
+  const removeAttachment = useStore((s) => s.removeAttachment);
   const addCapture = useStore((s) => s.addCapture);
   const assignCapture = useStore((s) => s.assignCapture);
-  const dropCapture = useStore((s) => s.dropCapture);
+  const discardCapture = useStore((s) => s.discardCapture);
   const addFinding = useStore((s) => s.addFinding);
-  const patch = useStore((s) => s.patch);
 
   const [area, setArea] = useState<string>("All");
   const [q, setQ] = useState("");
@@ -92,12 +91,6 @@ export default function FieldPage() {
   const options = groupBy === "area" ? axis.options : DISCIPLINES;
   const doneCount = visible.filter((c) => responses[c.id]?.captured).length;
 
-  const swatch = (i: number) => {
-    const cols = ["#8b84a0", "#4b2e83", "#9c6b12", "#157f52", "#b93338"];
-    return `data:image/svg+xml;utf8,${encodeURIComponent(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="${cols[i % 5]}"/><circle cx="40" cy="33" r="13" fill="rgba(255,255,255,.28)"/><rect x="14" y="54" width="52" height="6" rx="3" fill="rgba(255,255,255,.28)"/></svg>`
-    )}`;
-  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -205,7 +198,7 @@ export default function FieldPage() {
               <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                 {items.map((c) => {
                   const r = responses[c.id];
-                  const photos = r?.attachments.filter((a) => a.kind === "photo") ?? [];
+                  const attachments = r?.attachments ?? [];
                   return (
                     <div
                       key={c.id}
@@ -247,48 +240,27 @@ export default function FieldPage() {
                           </button>
                         ))}
                       </div>
-                      <div className="mt-2 flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            addAttachment(c.id, {
-                              kind: "photo",
-                              name: `KSIA-P${String(101 + photos.length).slice(-3)}.jpg`,
-                              dataUrl: swatch(photos.length),
-                              createdBy: auditor,
-                            });
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <PhotoButton
+                          compact
+                          onCaptured={(m) => {
+                            addAttachment(c.id, { ...m, createdBy: auditor });
                             say(`Photo added to ${c.id}`);
                           }}
-                          aria-label="Add photo"
-                          className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border transition-[var(--t)]"
-                          style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
-                        >
-                          <IconCamera width={15} height={15} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            addAttachment(c.id, {
-                              kind: "voice",
-                              name: `voice-${c.id}.webm`,
-                              durationSec: 12,
-                              transcript: "Dictated on site.",
-                              createdBy: auditor,
-                            });
-                            patch(c.id, {
-                              observation: `${responses[c.id]?.observation ?? ""} [voice] Dictated on site.`.trim(),
-                            });
+                        />
+                        <VoiceNoteButton
+                          compact
+                          onCaptured={(m) => {
+                            addAttachment(c.id, { ...m, createdBy: auditor });
                             say(`Voice note added to ${c.id}`);
                           }}
-                          aria-label="Add voice note"
-                          className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border transition-[var(--t)]"
-                          style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
-                        >
-                          <IconMic width={15} height={15} />
-                        </button>
-                        <div className="no-scrollbar flex gap-1 overflow-x-auto">
-                          {photos.map((p) => (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img key={p.id} src={p.dataUrl} alt="" className="h-[34px] w-[34px] shrink-0 rounded-[7px] object-cover" />
-                          ))}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <AttachmentStrip
+                            attachments={attachments}
+                            thumbSize={34}
+                            onRemove={(id) => removeAttachment(c.id, id)}
+                          />
                         </div>
                       </div>
                     </div>
@@ -305,23 +277,19 @@ export default function FieldPage() {
         className="sticky bottom-0 z-20 flex items-center gap-2 border-t px-4 py-2.5 sm:px-6"
         style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "0 -4px 16px -8px rgba(22,16,40,.14)" }}
       >
-        <Btn
-          variant="primary"
+        <PhotoButton
+          primary
+          label="Capture now"
           className="flex-1 justify-center sm:flex-none"
-          onClick={() => {
+          onCaptured={(m) => {
             addCapture({
-              kind: "photo",
-              name: `CAP-${captures.length + 101}.jpg`,
-              dataUrl: swatch(captures.length),
+              ...m,
               area: area === "All" ? "Unspecified" : area,
               createdBy: auditor,
             });
             say("Captured — assign it whenever you like");
           }}
-        >
-          <IconCamera width={14} height={14} />
-          Capture now
-        </Btn>
+        />
         <Btn className="flex-1 justify-center sm:flex-none" onClick={() => setAdhoc(true)}>
           + New finding
         </Btn>
@@ -349,8 +317,7 @@ export default function FieldPage() {
             </p>
             {captures.map((cap) => (
               <div key={cap.id} className="mb-2 flex items-center gap-2.5 rounded-[11px] border p-2.5" style={{ background: "var(--sunken)", borderColor: "var(--line)" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={cap.dataUrl} alt="" className="h-[44px] w-[44px] rounded-[8px] object-cover" />
+                <PhotoThumb a={cap} size={44} />
                 <div className="min-w-0 flex-1">
                   <div className="font-mono text-[10px]" style={{ color: "var(--ink-4)" }}>
                     {cap.name} · {cap.area}
@@ -374,7 +341,7 @@ export default function FieldPage() {
                     </option>
                   ))}
                 </select>
-                <button onClick={() => dropCapture(cap.id)} aria-label="Discard" style={{ color: "var(--ink-3)" }}>
+                <button onClick={() => discardCapture(cap.id)} aria-label="Discard" style={{ color: "var(--ink-3)" }}>
                   <IconX width={14} height={14} />
                 </button>
               </div>

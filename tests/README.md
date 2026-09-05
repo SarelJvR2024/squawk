@@ -1,11 +1,12 @@
 # Tests
 
-Five suites, no framework — all run with plain `node`. Four need a running
-server; one does not.
+Six suites, no framework — all run with plain `node`. Four need a running
+server; two do not.
 
 | Suite | Needs a server | Asserts |
 |---|---|---|
 | `risk-matrix.test.mjs` | no | 25 |
+| `capture.test.mjs` | no | 27 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 30 |
 | `exports.js` | yes | 7 |
@@ -21,6 +22,30 @@ edit to `src/lib/risk.ts`** — it exists to stop the matrix being quietly
 ```bash
 node tests/risk-matrix.test.mjs
 ```
+
+## `capture.test.mjs`
+
+Guards that voice and photo capture stay real. Before it existed, "Voice note"
+flipped a boolean and wrote `a?.IO[0]?.finding` — the first issue option from
+the Answer Library — into the auditor's observation as though it had been
+dictated on site, with a fixed `durationSec: 14`; "Photo" wrote a filename and
+no image; field mode used a generated colour swatch. None of it was visible on
+screen, and all of it would have reached an ACSA report as evidence.
+
+Like `risk-matrix.test.mjs` it reads the source rather than running it, because
+the fabrication was in what the code *said*. **Run it after any edit to
+`src/lib/media.ts`, `src/components/Capture.tsx`, `CheckDetail.tsx` or field
+mode.**
+
+```bash
+node tests/capture.test.mjs
+```
+
+It asserts, in five parts: the fabricated strings and durations are gone from
+both capture surfaces; `getUserMedia` and `MediaRecorder` are genuinely used and
+the stream is released; an empty transcript stays empty; blobs live under their
+own IndexedDB keys and never inside the persisted store; and records made before
+capture worked are marked unavailable rather than deleted.
 
 ## The browser suites
 

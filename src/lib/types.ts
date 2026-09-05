@@ -129,9 +129,23 @@ export interface Attachment {
   id: string;
   kind: "photo" | "voice" | "file";
   name: string;
+  /** Key into the media store (src/lib/media.ts), NOT the bytes. Blobs are
+   *  held under their own IndexedDB keys because this record is persisted
+   *  inside one JSON value that rewrites on every keystroke. */
+  blobKey?: string;
+  mimeType?: string;
+  /** Legacy inline data from before the media store existed. Read, never
+   *  written. */
   dataUrl?: string;
+  /** Measured elapsed seconds. Absent for a photograph. */
   durationSec?: number;
+  /** Typed by the auditor, or dictated by the browser and then corrected by
+   *  the auditor. Never generated on their behalf. */
   transcript?: string;
+  /** Set by the v4 migration on attachments recorded before capture was real:
+   *  the record exists but there is no audio or image behind it. Shown as
+   *  unavailable rather than silently rendering an empty player. */
+  unavailable?: boolean;
   createdAt: number;
   createdBy: string;
 }
@@ -192,8 +206,14 @@ export interface Capture {
   id: string;
   kind: "photo" | "voice";
   name: string;
+  /** As Attachment.blobKey — the media store holds the bytes. */
+  blobKey?: string;
+  mimeType?: string;
+  /** Legacy inline data. Read, never written. */
   dataUrl?: string;
+  durationSec?: number;
   transcript?: string;
+  unavailable?: boolean;
   area: string;
   createdAt: number;
   createdBy: string;
