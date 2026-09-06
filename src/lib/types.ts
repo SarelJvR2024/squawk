@@ -282,6 +282,62 @@ export interface Response {
   flaggedForField: boolean;
 }
 
+/** A hazard: the EVENT a set of findings exposes.
+ *
+ *  A finding says a document was missing or a coupler was worn. A hazard says
+ *  what that missing control was protecting against — "uncontained fuel release
+ *  on the apron" — and that is what gets rated, because rating the document
+ *  produces a risk profile made of paperwork.
+ *
+ *  Hazards are scoped to an entity and a visit like everything else, and are
+ *  built by consolidating findings: two write-ups in different disciplines'
+ *  language frequently describe one physical thing. */
+export interface Hazard {
+  id: string;
+  entity: string;
+  originVisit: string;
+  /** Under 15 words. The event, not the finding. */
+  event: string;
+  description: string;
+  /** What control failed, and what it was protecting against. */
+  why: string;
+  /** The findings this consolidates. A hazard with none is one somebody raised
+   *  directly at the register, which is allowed. */
+  findingIds: string[];
+  discipline: string;
+  system: string;
+  /** B170 001M, the instrument this repo actually carries. Gated by
+   *  ratingConfirmed exactly as a finding is: the assistant may propose a
+   *  rating, it may never agree one. */
+  severity: Severity | null;
+  likelihood: Likelihood | null;
+  ratingConfirmed: boolean;
+  /** ACSA's enterprise risk matrix — a SEPARATE instrument, deliberately not
+   *  derived from B170 001M. See src/lib/erm.ts: the scale itself has not been
+   *  supplied, so these stay null and `ermConfirmed` stays false. Nothing in
+   *  the app will let a value be set until the real matrix is dropped in. */
+  ermSeverity: string | null;
+  ermLikelihood: string | null;
+  ermConfirmed: boolean;
+  /** Where the consolidation came from, and whether a photograph drove it. */
+  source: "consolidated" | "manual";
+  note: string;
+  /** Set by the post-walk re-read, so a reader can see it was looked at again
+   *  and what changed. */
+  reassessedAt: number | null;
+  reassessNote: string;
+  /** Same vocabulary as a finding's — ROOT_CAUSES in src/lib/store.ts. A hazard
+   *  built from several findings usually has one cause behind all of them, and
+   *  that is the thing the remediation has to address. */
+  rootCause: string;
+  action: string;
+  owner: string;
+  dueDate: string;
+  actionStatus: ActionStatus;
+  createdAt: number;
+  createdBy: string;
+}
+
 export interface Finding {
   id: string;
   checkId: string | null;
@@ -310,6 +366,9 @@ export interface Finding {
   originVisit: string;
   priorRating: string | null;
   adHoc: boolean;
+  /** The event this finding exposes, proposed early at the check and refined at
+   *  consolidation. A suggestion until a hazard is actually created from it. */
+  suggestedEvent: string;
   createdAt: number;
   createdBy: string;
 }

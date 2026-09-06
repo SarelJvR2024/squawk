@@ -3,6 +3,7 @@ import type {
   Attachment,
   Check,
   Finding,
+  Hazard,
   PriorFinding,
   Response,
   Verification,
@@ -11,6 +12,7 @@ import { BAND_AS_RATING, BAND_META, bandFor, cellCode, movement } from "./risk";
 import { entity as entityOf, PROGRAMME_VISITS } from "./programme";
 import { portalIdFor } from "./sites";
 import { priorFor } from "./register";
+import * as erm from "./erm";
 import { photoFilename } from "./photos";
 import type { CellValue, Sheet } from "./xlsx";
 
@@ -59,6 +61,10 @@ export interface ExportInput {
   checks: Check[];
   responses: Record<string, Response>;
   findings: Finding[];
+  /** The consolidated view of the same audit. Optional so an older caller —
+   *  or a fixture written before the register existed — still produces a
+   *  workbook, with an empty Hazards sheet rather than a crash. */
+  hazards?: Hazard[];
   prior: PriorFinding[];
   verifications: Record<string, Verification>;
   /** Loaded lazily; when absent the evidence and issue labels fall back to indices. */
@@ -207,6 +213,12 @@ export function findingsSheet(x: ExportInput): Sheet {
       f.priorRating ?? "",
       move ?? "",
       f.adHoc ? "Ad-hoc (raised in the field)" : "From a check-point",
+      /* Where this finding ended up on the hazard register, and the event
+         somebody named for it at the check. Without these a reader holding the
+         Findings sheet cannot tell whether a finding was consolidated or
+         overlooked, and "not grouped" is itself a finding about the audit. */
+      (x.hazards ?? []).find((h) => h.findingIds.includes(f.id))?.id ?? "Not grouped",
+      f.suggestedEvent,
       /* The photographs behind this finding, by their captions. A count alone
          tells a reader there is evidence but not what it shows, and the
          workbook is where most people will meet it. */
@@ -249,6 +261,8 @@ export function findingsSheet(x: ExportInput): Sheet {
       { header: "Mar 2025 rating", width: 15 },
       { header: "Movement", width: 13 },
       { header: "Origin", width: 26 },
+      { header: "Consolidated into", width: 16 },
+      { header: "Event proposed at the check", width: 44, wrap: true },
       { header: "Photographs", width: 12 },
       { header: "Photograph files", width: 44, wrap: true },
       { header: "Photograph captions", width: 60, wrap: true },
@@ -331,6 +345,128 @@ export function photographsSheet(x: ExportInput): Sheet {
       { header: "Size (KB)", width: 10 },
       { header: "Where the image is", width: 34 },
       { header: "Record copy", width: 60 },
+    ],
+    rows,
+  };
+}
+
+/* ------------------------------------------------------------------- hazards */
+
+/** Photographs behind a hazard: the ones on the checks its findings came from,
+ *  de-duplicated. Two findings raised at one check share its photographs and a
+ *  count that includes them twice is a count nobody can reconcile. */
+function hazardPhotos(x: ExportInput, h: Hazard): Attachment[] {
+  const seen = new Set<string>();
+  const out: Attachment[] = [];
+  for (const id of h.findingIds) {
+    const f = x.findings.find((y) => y.id === id);
+    if (!f?.checkId) continue;
+    for (const a of photosFor(x, f.checkId)) {
+      if (seen.has(a.id)) continue;
+      seen.add(a.id);
+      out.push(a);
+    }
+  }
+  return out;
+}
+
+/** One row per hazard, carrying BOTH rating instruments.
+ *
+ *  B170 001M and ACSA's enterprise risk matrix measure different things and
+ *  neither is derived from the other, so they get their own columns and their
+ *  own state column. The ERM columns are empty in this build and the state
+ *  column says why in words — an empty band that reads like "no risk" is
+ *  exactly the silent failure src/lib/erm.ts exists to prevent.
+ *
+ *  As on the findings sheet, an unagreed rating never reaches the rating
+ *  columns. It goes in "Suggested cell", labelled. */
+export function hazardsSheet(x: ExportInput): Sheet {
+  const rows = (x.hazards ?? []).map((h) => {
+    const agreed = h.ratingConfirmed;
+    const band = agreed ? bandFor(h.severity, h.likelihood) : null;
+    const suggested = !agreed ? cellCode(h.severity, h.likelihood) : null;
+    const photos = hazardPhotos(x, h);
+    return [
+      h.id,
+      h.event,
+      h.description,
+      h.why,
+      h.discipline,
+      h.system,
+      h.findingIds.join(" · "),
+      h.findingIds.length,
+      h.source === "consolidated" ? "Consolidated from findings" : "Raised directly",
+      /* B170 001M — the instrument this build carries. */
+      agreed ? h.severity : "",
+      agreed ? h.likelihood : "",
+      agreed ? cellCode(h.severity, h.likelihood) : "",
+      band ?? "",
+      band ? BAND_META[band].label : "",
+      band ? BAND_META[band].strategy : "",
+      suggested ?? "",
+      agreed ? "Agreed by the audit team" : "Suggested — not yet agreed",
+      /* ACSA's ERM matrix — a separate instrument, and an unsupplied one. */
+      h.ermConfirmed ? (h.ermSeverity ?? "") : "",
+      h.ermConfirmed ? (h.ermLikelihood ?? "") : "",
+      h.ermConfirmed
+        ? "Agreed by the audit team"
+        : erm.available()
+          ? "Not yet agreed"
+          : erm.UNAVAILABLE_REASON,
+      h.rootCause,
+      h.action,
+      h.owner,
+      iso(h.dueDate),
+      h.actionStatus,
+      h.note,
+      when(h.reassessedAt) ?? "",
+      h.reassessNote,
+      photos.length,
+      photos.map(photoFilename).join(" · "),
+      photos.map((a) => a.caption?.trim() || "(no caption)").join(" · "),
+      h.originVisit,
+      h.createdBy,
+      when(h.createdAt),
+    ];
+  });
+
+  return {
+    name: "Hazards",
+    columns: [
+      { header: "Hazard", width: 12 },
+      { header: "Event", width: 44, wrap: true },
+      { header: "Description", width: 58, wrap: true },
+      { header: "What control failed, and what it protected", width: 58, wrap: true },
+      { header: "Discipline", width: 20 },
+      { header: "Asset system", width: 26 },
+      { header: "Findings behind it", width: 30 },
+      { header: "Findings", width: 10 },
+      { header: "Origin", width: 26 },
+      { header: "Severity (B170 001M)", width: 18 },
+      { header: "Likelihood (B170 001M)", width: 18 },
+      { header: "Matrix cell", width: 11 },
+      { header: "Band", width: 9 },
+      { header: "Band meaning", width: 26 },
+      { header: "Strategy (B170 001M)", width: 44, wrap: true },
+      { header: "Suggested cell (not agreed)", width: 20 },
+      { header: "B170 001M rating state", width: 26 },
+      { header: "Severity (ACSA ERM)", width: 18 },
+      { header: "Likelihood (ACSA ERM)", width: 18 },
+      { header: "ERM rating state", width: 62, wrap: true },
+      { header: "Root cause", width: 26 },
+      { header: "Treatment", width: 58, wrap: true },
+      { header: "Owner", width: 30 },
+      { header: "Due date", width: 12 },
+      { header: "Action status", width: 15 },
+      { header: "Consolidation note", width: 58, wrap: true },
+      { header: "Re-read after the walk", width: 18 },
+      { header: "What the re-read changed", width: 58, wrap: true },
+      { header: "Photographs", width: 12 },
+      { header: "Photograph files", width: 44, wrap: true },
+      { header: "Photograph captions", width: 60, wrap: true },
+      { header: "Raised at visit", width: 14 },
+      { header: "Raised by", width: 22 },
+      { header: "Raised on", width: 12 },
     ],
     rows,
   };
@@ -446,6 +582,11 @@ export function summarySheet(x: ExportInput): Sheet {
     const agreed = fs.filter((f) => f.ratingConfirmed);
     const inBand = (b: string) =>
       agreed.filter((f) => bandFor(f.severity, f.likelihood) === b).length;
+    /* Hazards are counted separately from findings, never summed with them.
+       One hazard can stand behind four findings, and adding the two together
+       would double-count the same exposure. */
+    const hs = (x.hazards ?? []).filter((h) => h.discipline === d);
+    const hAgreed = hs.filter((h) => h.ratingConfirmed);
     return [
       d,
       cs.length,
@@ -460,6 +601,9 @@ export function summarySheet(x: ExportInput): Sheet {
       inBand("Red"),
       inBand("Amber"),
       inBand("Green"),
+      hs.length,
+      hAgreed.length,
+      hAgreed.filter((h) => bandFor(h.severity, h.likelihood) === "Red").length,
     ];
   });
 
@@ -479,6 +623,9 @@ export function summarySheet(x: ExportInput): Sheet {
       { header: "Red", width: 8 },
       { header: "Amber", width: 8 },
       { header: "Green", width: 8 },
+      { header: "Hazards", width: 9 },
+      { header: "Hazard rating agreed", width: 19 },
+      { header: "Hazards red", width: 12 },
     ],
     rows,
   };
@@ -515,6 +662,13 @@ export function aboutSheet(x: ExportInput): Sheet {
       ["Findings raised", x.findings.length],
       ["Ratings agreed by the team", agreed],
       ["Ratings still only suggested", x.findings.length - agreed],
+      ["Hazards on the register", (x.hazards ?? []).length],
+      [
+        "Findings not yet consolidated",
+        x.findings.filter(
+          (f) => !(x.hazards ?? []).some((h) => h.findingIds.includes(f.id))
+        ).length,
+      ],
       ["2025 findings verified", `${verified} of ${x.prior.length}`],
       ["", ""],
       [
@@ -524,6 +678,14 @@ export function aboutSheet(x: ExportInput): Sheet {
       [
         "Suggested vs agreed ratings",
         "An issue button in the tool carries a suggested severity and likelihood. That suggestion is NOT a rating. The severity, likelihood, cell, band and strategy columns are filled only where the audit team agreed the cell together; anything still only suggested appears in its own column and is marked as such in Rating state.",
+      ],
+      [
+        "Findings and hazards",
+        "A finding is what was observed — a missing record, a worn coupler. A hazard is the event the failed control was protecting against, and that is what carries a severity. One hazard can stand behind several findings, so the two counts are reported separately and must never be added together.",
+      ],
+      [
+        "The ACSA ERM columns on the Hazards sheet",
+        `${erm.UNAVAILABLE_REASON} The columns exist so the sheet's shape is right when the matrix is supplied; they are empty in this export and that is not a rating of zero. B170 001M is not used to fill them in — the two are separate instruments measuring different things, and any mapping between them is ACSA's to state.`,
       ],
       [
         "The risk matrix",
@@ -556,6 +718,7 @@ export function fullWorkbook(x: ExportInput): Sheet[] {
     summarySheet(x),
     registerSheet(x),
     findingsSheet(x),
+    hazardsSheet(x),
     closureSheet(x),
     evidenceRequestSheet(x),
     photographsSheet(x),

@@ -1,7 +1,7 @@
 # Tests
 
-Twenty suites, no framework — all run with plain `node`. Seven need a running
-server; thirteen do not. **Check each suite's exit status, not its output**: a
+Twenty-two suites, no framework — all run with plain `node`. Seven need a
+running server; fifteen do not. **Check each suite's exit status, not its output**: a
 `for` loop over them reports the status of the loop.
 
 | Suite | Needs a server | Assertions run |
@@ -16,16 +16,22 @@ server; thirteen do not. **Check each suite's exit status, not its output**: a
 | `reset.test.mjs` | no | 17 |
 | `completion.test.mjs` | no | 18 |
 | `audits.test.mjs` | no | 18 |
-| `voice.test.mjs` | no | 36 |
+| `voice.test.mjs` | no | 37 |
 | `sites.test.mjs` | no | 41 |
-| `photos.test.mjs` | no | 61 |
+| `photos.test.mjs` | no | 76 |
+| `hazards.test.mjs` | no | 106 |
+| `erm-matrix.test.mjs` | no | 30 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 38 |
-| `exports.js` | yes | 17 |
+| `exports.js` | yes | 30 |
 | `ai.js` | yes, two of them | 26 |
 | `persite.js` | yes | 25 |
 | `vision.js` | starts its own | 17 |
-| `record.js` | starts its own | 13 |
+| `record.js` | starts its own | 14 |
+
+**706 assertions in total**, every count above verified by running the suite,
+not by remembering what it used to be. Two in this table were wrong before that
+was done.
 
 ## `risk-matrix.test.mjs`
 
@@ -243,9 +249,13 @@ BASE=http://localhost:3000 node tests/exports.js
   duplicate findings, a 2,000-character observation and a 400-character unbroken
   token, the ACSA read-only role, keyboard-only navigation, an unknown check id,
   an unknown route.
-- **`exports.js`** — captures a check, agrees a rating, downloads the workbook
-  and the CSV, checks the filename carries entity, visit and date, and that the
-  ACSA role has no export control.
+- **`exports.js`** — captures a check, agrees a rating, raises a hazard,
+  downloads the workbook and the CSVs, and reads them back: the filename carries
+  entity, visit and date; the photograph index matches the files in the zip; the
+  Hazards sheet carries both rating instruments in their own columns and the
+  empty ERM ones say they are unsupplied rather than reading blank; the Findings
+  sheet names the hazard each finding ended up in; and the ACSA role has no
+  export control.
 
 Screenshots land in `shots/`.
 
@@ -326,6 +336,63 @@ node tests/photos.test.mjs
 
 **Run it after any edit to `src/lib/media.ts`, `src/components/Capture.tsx`,
 `RootCauseAdvice.tsx` or `src/app/api/assist/route.ts`.**
+
+## `hazards.test.mjs`
+
+The register that answers *what could happen?*, as opposed to the one that
+answers *what did we see?*. Rating findings instead of hazards produces a risk
+profile made of paperwork — no gaseous suppression in a substation, a
+fire-detection gap in the same room and an unsigned maintenance record for the
+panel in it score as three medium paperwork risks where there is one red
+physical one — and it reads perfectly plausible.
+
+Parts 1–4 **run the real parsers and context builders** out of
+`src/lib/assist.ts` rather than reading them, because the rules that matter
+there are arithmetic no regex would catch: a finding claimed by two groups stays
+in the first one only, a group naming a finding nobody sent is refused rather
+than created empty, and an unrecognised confidence degrades to `low` instead of
+`high`. A finding in two hazards is double-counted in every total downstream.
+
+The rest is source-reading, in the pattern of `risk-matrix.test.mjs`: nothing
+the assistant returns is applied without a tap; the rating block is written once
+and rendered from both screens; and the re-read prompt still carries the sentence
+that stops a model raising a likelihood off a rusty panel — likelihood on this
+scale is occurrence history, and a photograph cannot show that.
+
+```bash
+node tests/hazards.test.mjs
+```
+
+**Run it after any edit to the hazard register, `RecordActions.tsx`, the assist
+parsers or the `hazard` / `consolidate` / `reassess` prompts.**
+
+## `erm-matrix.test.mjs`
+
+The test for an instrument that is **declared and empty**, which is unusual
+enough to read the header before changing it.
+
+ACSA's enterprise risk matrix is the second rating instrument on a hazard. Its
+scale wording, band labels and cell mapping are ACSA document content nobody has
+supplied, so `src/lib/erm.ts` holds nothing and `available()` returns false.
+This suite asserts that it stays that way honestly: the scale is empty, nothing
+derives it from B170 001M, and the absence is *said* — on screen and in the
+export's rating-state column — rather than left as blank cells that read like
+"no risk".
+
+Writing a plausible scale would be the worst available option, and this repo has
+already shipped that failure once in a different form: a severity/likelihood
+scale that banded correctly but meant something else, where level 3 read
+"Likely" and ACSA's level 3 means "unlikely but could possibly occur".
+
+When ACSA supply the matrix, fill in the three constants and **rewrite parts 1
+and 2 against their own table**, cell by cell, the way `risk-matrix.test.mjs` is
+written against B170 001M. Part 3 stands either way.
+
+```bash
+node tests/erm-matrix.test.mjs
+```
+
+**Run it after any edit to `src/lib/erm.ts` or `src/lib/risk.ts`.**
 
 ## `vision.js`
 

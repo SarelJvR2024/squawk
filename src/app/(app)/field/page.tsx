@@ -533,6 +533,7 @@ export default function FieldPage() {
                     actionStatus: "Open",
                     originVisit: visitId,
                     priorRating: null,
+                    suggestedEvent: "",
                     adHoc: true,
                     createdBy: auditor,
                   });

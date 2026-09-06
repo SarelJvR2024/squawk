@@ -5,19 +5,18 @@ import { useRouter } from "next/navigation";
 import {
   checksAt,
   disciplinesAt,
-  ROOT_CAUSES,
-  responsibleFor,
   useEntityCode,
   useResponses,
   useStore,
   useVisitFindings,
 } from "@/lib/store";
-import { assist, findingContext, useAssistAvailable } from "@/lib/assist";
-import { BAND_META, LIKELIHOOD_DEF, LIKELIHOODS, SEVERITIES, SEVERITY_DEF, bandFor, cellCode } from "@/lib/risk";
-import { Btn, Chip, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
+import { assist, findingContext } from "@/lib/assist";
+import { BAND_META, bandFor, cellCode } from "@/lib/risk";
+import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
+import RecordActions from "@/components/RecordActions";
 import RootCauseAdvice from "@/components/RootCauseAdvice";
-import { IconCheck, IconInbox, IconLoop, IconSpark } from "@/components/ui/icons";
-import type { ActionStatus, Finding } from "@/lib/types";
+import { IconCheck, IconInbox, IconLoop } from "@/components/ui/icons";
+import type { Finding } from "@/lib/types";
 
 type Filter = "all" | "unrated" | "open" | "repeat";
 
@@ -32,9 +31,6 @@ export default function FindingsPage() {
   const [discipline, setDiscipline] = useState<string>("All");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const aiOn = useAssistAvailable();
-  const [opinion, setOpinion] = useState<{ id: string; text: string } | null>(null);
-  const [asking, setAsking] = useState(false);
 
   const say = (m: string) => {
     setToast(m);
@@ -212,293 +208,32 @@ export default function FindingsPage() {
               </div>
               <h3 className="mb-3 text-[14.5px] leading-[1.35] font-bold">{active.description}</h3>
 
-              <div className="mb-2 flex items-center justify-between">
-                <b className="font-display text-[11px] font-semibold">Severity (rows) × Likelihood (columns)</b>
-                <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                  ACSA B170 001M · click the cell the group agrees on
-                </span>
-              </div>
-              <div className="overflow-x-auto">
-                <table style={{ borderSpacing: 5, borderCollapse: "separate" }}>
-                  <thead>
-                    <tr>
-                      <th className="pr-1.5 text-right font-mono text-[8px] font-medium" style={{ color: "var(--ink-4)" }}>
-                        S&nbsp;&darr;
-                      </th>
-                      {LIKELIHOODS.map((l) => (
-                        <th
-                          key={l}
-                          title={`${l} (${LIKELIHOOD_DEF[l.charAt(0)].gloss || "—"}) — ${LIKELIHOOD_DEF[l.charAt(0)].meaning}`}
-                          className="p-[3px] font-mono text-[9px] font-medium"
-                          style={{ color: "var(--ink-4)" }}
-                        >
-                          {l.charAt(0)}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {SEVERITIES.map((s) => (
-                      <tr key={s}>
-                        <th
-                          title={`${s} — ${SEVERITY_DEF[s.charAt(0)].consequence}. ${SEVERITY_DEF[s.charAt(0)].example}`}
-                          className="pr-1.5 text-right font-mono text-[9px] font-medium"
-                          style={{ color: "var(--ink-4)" }}
-                        >
-                          {s.charAt(0)}
-                        </th>
-                        {LIKELIHOODS.map((l) => {
-                          const band = bandFor(s, l)!;
-                          const picked = active.severity === s && active.likelihood === l;
-                          const tone = BAND_META[band].tone;
-                          return (
-                            <td key={l}>
-                              <button
-                                onClick={() => {
-                                  updateFinding(active.id, {
-                                    severity: s,
-                                    likelihood: l,
-                                    ratingConfirmed: true,
-                                  });
-                                  say(`${cellCode(s, l)} → ${BAND_META[band].label}`);
-                                }}
-                                aria-label={`Severity ${s} by likelihood ${l} — ${band}, ${BAND_META[band].label}`}
-                                className="h-[42px] w-[56px] rounded-[8px] border-[1.5px] font-mono text-[10.5px] font-semibold transition-[var(--t)]"
-                                style={{
-                                  background: `var(--${tone}-bg)`,
-                                  color: `var(--${tone})`,
-                                  borderColor: picked
-                                    ? active.ratingConfirmed
-                                      ? "var(--acc)"
-                                      : "var(--ink-4)"
-                                    : "transparent",
-                                  borderStyle: picked && !active.ratingConfirmed ? "dashed" : "solid",
-                                  boxShadow:
-                                    picked && active.ratingConfirmed ? "0 0 0 2px var(--acc-soft)" : "none",
-                                }}
-                              >
-                                {cellCode(s, l)}
-                              </button>
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {(() => {
-                const band = bandFor(active.severity, active.likelihood);
-                return (
-                  <div
-                    className="my-3 flex flex-wrap items-center gap-2 rounded-[11px] px-[15px] py-3 font-display text-[13.5px] font-bold"
-                    style={
-                      band
-                        ? { background: `var(--${BAND_META[band].tone}-bg)`, color: `var(--${BAND_META[band].tone})` }
-                        : { background: "var(--sunken)", color: "var(--ink-3)", fontWeight: 500, fontSize: 12 }
-                    }
-                  >
-                    {band ? (
-                      <>
-                        <span>
-                          {cellCode(active.severity, active.likelihood)} · {band} — {BAND_META[band].label}
-                        </span>
-                        <span className="font-sans text-[11px] font-normal opacity-80">
-                          {BAND_META[band].strategy}
-                        </span>
-                        {!active.ratingConfirmed && (
-                          <span
-                            className="ml-auto rounded-full px-2 py-[3px] font-mono text-[9px] font-semibold tracking-[.04em] uppercase"
-                            style={{ background: "var(--panel)", color: "var(--ink-3)" }}
-                          >
-                            Suggested · click to agree
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      "Pick a cell to set severity and likelihood together"
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* ACSA's own definitions, in the room, at the moment the group
-                  decides. The one-word label is not enough to rate against —
-                  "Remote" and "Occasional" mean specific things here, and an
-                  earlier version of this tool proved how easily a paraphrase
-                  shifts a whole register by a notch. */}
-              <details className="group mb-3.5">
-                <summary
-                  className="flex cursor-pointer list-none items-center gap-1.5 py-1 font-display text-[11px] font-semibold select-none"
-                  style={{ color: "var(--ink-3)" }}
-                >
-                  <span className="transition-transform group-open:rotate-90">›</span>
-                  What the scales mean · B170 001M cl. 4.3.1–4.3.2, verbatim
-                </summary>
-                <div className="mt-1.5 grid gap-3 md:grid-cols-2">
-                  <div
-                    className="rounded-[11px] border p-3"
-                    style={{ borderColor: "var(--line)", background: "var(--sunken)" }}
-                  >
-                    <div className="label-xs mb-1.5">Severity</div>
-                    {SEVERITIES.map((s) => (
-                      <div key={s} className="mb-[7px] text-[11.5px] leading-[1.45]">
-                        <b className="font-mono">{s.charAt(0)}</b>{" "}
-                        <b>{s.slice(4)}</b>
-                        <span style={{ color: "var(--ink-2)" }}>
-                          {" "}
-                          — {SEVERITY_DEF[s.charAt(0)].consequence}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  <div
-                    className="rounded-[11px] border p-3"
-                    style={{ borderColor: "var(--line)", background: "var(--sunken)" }}
-                  >
-                    <div className="label-xs mb-1.5">Likelihood</div>
-                    {LIKELIHOODS.map((l) => {
-                      const d = LIKELIHOOD_DEF[l.charAt(0)];
-                      return (
-                        <div key={l} className="mb-[7px] text-[11.5px] leading-[1.45]">
-                          <b className="font-mono">{l.charAt(0)}</b> <b>{l.slice(4)}</b>
-                          {d.gloss && (
-                            <span style={{ color: "var(--ink-3)" }}> ({d.gloss})</span>
-                          )}
-                          <span style={{ color: "var(--ink-2)" }}> — {d.meaning}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </details>
-
-              {aiOn && (
-                /* A second opinion for the room, printed as text. It never
-                   moves the cell — the group does that, and the group can
-                   disagree with it. */
-                <div className="mb-3.5">
-                  {opinion?.id === active.id ? (
-                    <div
-                      className="rounded-[11px] border p-3 text-[12px] leading-[1.55] whitespace-pre-line"
-                      style={{ borderColor: "var(--line-2)", background: "var(--sunken)" }}
-                    >
-                      <div className="label-xs mb-1.5">
-                        A second opinion · the group still decides
-                      </div>
-                      {opinion.text}
-                      <div className="mt-2.5">
-                        <Btn variant="ghost" onClick={() => setOpinion(null)}>
-                          Dismiss
-                        </Btn>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      disabled={asking}
-                      onClick={async () => {
-                        setAsking(true);
-                        try {
-                          const check = checksAt(entityCode).find((c) => c.id === active.checkId);
-                          const text = await assist("rating", findingContext(active, check));
-                          setOpinion({ id: active.id, text });
-                        } catch (err) {
-                          say(err instanceof Error ? err.message : "The assistant is unavailable");
-                        } finally {
-                          setAsking(false);
-                        }
-                      }}
-                      className="flex items-center gap-[6px] rounded-[8px] border px-[11px] py-[6px] text-[11px] transition-[var(--t)] disabled:opacity-55"
-                      style={{
-                        background: "var(--panel)",
-                        borderColor: "var(--line-2)",
-                        color: "var(--ink-2)",
-                      }}
-                    >
-                      <IconSpark width={13} height={13} />
-                      {asking ? "Thinking…" : "Ask for a second opinion"}
-                    </button>
-                  )}
-                </div>
-              )}
-
-              <div className="mb-2 font-display text-[11px] font-semibold">Root cause</div>
-              <div className="flex flex-wrap gap-[5px]">
-                {ROOT_CAUSES.map((rc) => (
-                  <Chip key={rc} selected={active.rootCause === rc} onClick={() => updateFinding(active.id, { rootCause: rc })}>
-                    {rc}
-                  </Chip>
-                ))}
-              </div>
-              {/* Same component as the check screen. Some findings are worked
-                  here rather than at the check, and the advice must not differ
-                  depending on which screen the auditor happened to open. */}
-              <div className="mb-4">
-                <RootCauseAdvice
-                  finding={active}
-                  check={active.checkId ? checksAt(entityCode).find((c) => c.id === active.checkId) : undefined}
-                  attachments={
-                    active.checkId ? (responses[active.checkId]?.attachments ?? []) : []
-                  }
-                  onPick={(rc) => updateFinding(active.id, { rootCause: rc })}
-                />
-              </div>
-
-              <div className="mb-2 font-display text-[11px] font-semibold">Remediation action</div>
-              <textarea
-                value={active.action}
-                onChange={(e) => updateFinding(active.id, { action: e.target.value })}
-                placeholder="What must happen…"
-                className="min-h-[70px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
-                style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+              {/* One rating and treatment block, shared with the hazard
+                  register. See src/components/RecordActions.tsx — a second copy
+                  of a risk matrix is how two screens end up carrying two
+                  vocabularies for one instrument. */}
+              <RecordActions
+                record={active}
+                entityCode={entityCode}
+                onChange={(patch) => updateFinding(active.id, patch)}
+                onToast={say}
+                secondOpinion={async () => {
+                  const check = checksAt(entityCode).find((c) => c.id === active.checkId);
+                  return assist("rating", findingContext(active, check));
+                }}
+                advice={
+                  /* Same component as the check screen. Some findings are
+                     worked here rather than at the check, and the advice must
+                     not differ depending on which screen the auditor opened. */
+                  <RootCauseAdvice
+                    finding={active}
+                    check={active.checkId ? checksAt(entityCode).find((c) => c.id === active.checkId) : undefined}
+                    attachments={active.checkId ? (responses[active.checkId]?.attachments ?? []) : []}
+                    onPick={(rc) => updateFinding(active.id, { rootCause: rc })}
+                  />
+                }
               />
 
-              <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                <label className="block">
-                  <span className="label-xs">Owner</span>
-                  <select
-                    value={active.owner}
-                    onChange={(e) => updateFinding(active.id, { owner: e.target.value })}
-                    className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[11.5px]"
-                    style={{
-                      background: "var(--panel)",
-                      borderColor: active.owner ? "var(--line-2)" : "var(--warn-line)",
-                    }}
-                  >
-                    <option value="">{active.owner ? "Select…" : "⚠ unassigned"}</option>
-                    {responsibleFor(entityCode).map((r) => (
-                      <option key={r}>{r}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block">
-                  <span className="label-xs">Target date</span>
-                  <input
-                    type="date"
-                    value={active.dueDate}
-                    onChange={(e) => updateFinding(active.id, { dueDate: e.target.value })}
-                    className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[11.5px]"
-                    style={{
-                      background: "var(--panel)",
-                      borderColor: active.dueDate ? "var(--line-2)" : "var(--warn-line)",
-                    }}
-                  />
-                </label>
-                <label className="block">
-                  <span className="label-xs">Action status</span>
-                  <select
-                    value={active.actionStatus}
-                    onChange={(e) => updateFinding(active.id, { actionStatus: e.target.value as ActionStatus })}
-                    className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[11.5px]"
-                    style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-                  >
-                    {(["Open", "In progress", "Closed"] as ActionStatus[]).map((s) => (
-                      <option key={s}>{s}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-3.5" style={{ borderColor: "var(--line)" }}>
                 <span className="font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>

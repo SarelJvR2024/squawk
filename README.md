@@ -21,13 +21,14 @@ Section numbers in code comments point at that document.
 | Capture workspace (section 8) | Three-pane workspace, answer chips, real voice and photo capture, progress, ⌘K, keyboard |
 | Field inspection mode | Location-first, researched walkabout options with photo expectation, 44px targets, capture-first tray, ad-hoc findings, offline |
 | Findings and rating | ACSA B170 001M matrix, agreed vs suggested ratings, root cause, owner, due date |
+| Hazards | Consolidation from findings with the photographs behind each group, post-walk re-read, both rating instruments — ACSA's ERM scale not yet supplied |
 | Closure | Carry-forward: this site's own 2025 findings plus anything an earlier visit left open, four-way verification, coverage guard, lifecycle |
 | Audits | Every entity × visit in one place; open any, create new ones; the programme file seeds, the app extends |
 | Dashboards | Airport, discipline and a real ten-site portfolio, with movement against 2025 |
 | Visual review | All photographs and voice notes per discipline per airport, with an engineer feedback thread |
 | AI assistance | Optional and advisory — off unless a key is set |
 | Voice notes | Always recorded on the device; transcription and write-up are opt-in |
-| Exports | Excel and CSV: register, findings, closure, evidence request, summary |
+| Exports | Excel and CSV: register, findings, hazards, closure, evidence request, summary, photographs — plus the images as files |
 | Word report templates | Not started — design document phase 4 |
 
 ## Stack
@@ -55,7 +56,7 @@ npm run build && npm start
 
 ## Tests
 
-Seventeen suites, no framework, all plain `node`. See `tests/README.md` — and
+Twenty-two suites, no framework, all plain `node`. See `tests/README.md` — and
 check each suite's **exit status**, not the output: a `for` loop over them
 reports the status of the loop, not of the suites.
 
@@ -72,15 +73,23 @@ node tests/completion.test.mjs           # complete means every mode answered
 node tests/audits.test.mjs               # any audit reachable, new ones creatable
 node tests/voice.test.mjs                # a rewrite never overwrites what was said
 node tests/sites.test.mjs                # ten sites, one register, right counts
+node tests/photos.test.mjs               # stored, captioned, and only sent on purpose
+node tests/hazards.test.mjs              # a finding is in at most one hazard
+node tests/erm-matrix.test.mjs           # an unsupplied scale stays unsupplied
+node tests/vision.js                     # starts its own servers
+node tests/record.js                     # starts its own server
 npm run build && npm start &             # then, against a running server:
 BASE=http://localhost:3000 node tests/e2e.js          # 21 assertions
-BASE=http://localhost:3000 node tests/robustness.js   # 30 assertions
-BASE=http://localhost:3000 node tests/exports.js      #  7 assertions
+BASE=http://localhost:3000 node tests/robustness.js   # 38 assertions
+BASE=http://localhost:3000 node tests/exports.js      # 30 assertions
 BASE=http://localhost:3000 node tests/persite.js      # 25 assertions, four sites
 BASE_NO_KEY=... BASE_WITH_KEY=... node tests/ai.js    # 26 assertions
 ```
 
 Run `tests/risk-matrix.test.mjs` after **any** edit to `src/lib/risk.ts`,
+`tests/erm-matrix.test.mjs` after any edit to `src/lib/erm.ts`,
+`tests/hazards.test.mjs` after any edit to the hazard register, `RecordActions`
+or the assist parsers,
 `tests/capture.test.mjs` after any edit to `src/lib/media.ts`,
 `src/components/Capture.tsx`, `CheckDetail.tsx` or field mode, and
 `tests/sites.test.mjs` after any edit to the register, the site table or
@@ -128,7 +137,7 @@ written in cannot reach `fonts.googleapis.com`. On Vercel you can switch
 ```
 src/
   app/
-    (app)/            capture · field · review · findings · closure · dashboard
+    (app)/            capture · field · review · findings · hazards · closure · dashboard
     api/assist/       the AI endpoint — text out, never audio or images
     api/transcribe/   voice-note transcription — the only route audio leaves by
   lib/
@@ -142,11 +151,14 @@ src/
     AppShell.tsx      header, nav, cycle strip, command palette, role switch
     CheckDetail.tsx   the check screen — reference left, capture right
     RootCauseAdvice.tsx  candidate causes and, more usefully, what to ask
+    HazardAdvice.tsx  the event a finding exposes, named at the check
+    RecordActions.tsx the rating and treatment block — findings AND hazards
     ExportPanel.tsx   the export sheet
     ui/               primitives and icons
   lib/
     types.ts          domain model
     risk.ts           ACSA B170 001M matrix — Red / Amber / Green
+    erm.ts            ACSA's enterprise risk matrix — declared, and empty
     store.ts          state, persistence, selectors
     programme.ts      entities, visits, zones — all data-driven
     answers.ts        lazily-loaded Answer Library
@@ -327,6 +339,66 @@ There used to be `pf` and `pfq` columns on the register row itself. They were
 King Shaka's numbers, so a Cape Town check announced a King Shaka finding, and
 seven never-audited sites announced one too. They are gone.
 
+## Hazards
+
+The findings register answers *what did we see?*. The hazard register at
+`/hazards` answers *what could happen?*, and they are not the same list.
+
+A finding is an observation — a missing record, a worn coupler. A hazard is the
+event the failed control was protecting against, and that is what carries a
+severity. Rate the findings instead and the register that reaches ACSA is a risk
+profile made of paperwork: no gaseous suppression in a substation, a
+fire-detection gap in the same room and an unsigned maintenance record for the
+panel in it score as three medium paperwork risks where there is one red
+physical one. It reads perfectly plausible and it is wrong.
+
+So hazards are built by **consolidating** findings, and one hazard commonly
+stands behind several. The two counts are reported separately everywhere and
+**must never be added together**.
+
+Three things on that screen are worth knowing:
+
+- **Every consolidation proposal shows the photographs behind it.** This is the
+  highest-value thing on the page. Two disciplines write the same physical
+  defect up in their own language, and the photographs are what settle whether
+  the write-ups are one thing — a reviewer can see it at a glance without
+  opening either finding.
+- **A finding belongs to at most one hazard.** The prompt says so and
+  `parseGroups` enforces it, dropping a repeat claim and refusing a group left
+  with nothing. A finding in two hazards is double-counted in every total
+  downstream.
+- **The post-walk re-read** looks at the hazard again after the site walk. It
+  may raise a new hazard from something visible in a photograph; it may not move
+  a likelihood on the strength of one. Likelihood on this scale is occurrence
+  history, and a photograph shows condition.
+
+Nothing is applied without a tap. A proposal becomes a hazard when somebody
+accepts it, and the rating stays *unrated* — counting in no KPI, no dashboard
+and no export column — until somebody clicks a cell on the matrix.
+
+### The ERM matrix — declared, and deliberately empty
+
+A hazard carries **two** ratings: ACSA B170 001M, and ACSA's enterprise risk
+matrix. They are separate instruments measuring different things — B170 001M is
+aviation safety risk in the format the SACAA Director of Civil Aviation accepts;
+ERM is enterprise risk — and neither is derived from the other.
+
+**The ERM scale is not in this repo.** Its severity and likelihood wording, its
+band labels and its cell mapping are ACSA document content nobody has supplied.
+So `src/lib/erm.ts` declares the instrument and holds nothing: `available()`
+returns false, the screen says the matrix has not been supplied instead of
+rendering a picker, and the export writes that same sentence into the ERM rating
+state column rather than leaving cells that read like "no risk".
+
+Writing a plausible one would be the worst available option. A risk scale that
+looks official and is invented reaches an ACSA report as a number somebody acts
+on, and the failure is silent. That has already happened here in a different
+form — see *Notes for whoever picks this up*.
+
+When ACSA supply the matrix, fill in `ERM_SEVERITIES`, `ERM_LIKELIHOODS` and
+`ERM_BANDS` and rewrite parts 1 and 2 of `tests/erm-matrix.test.mjs` against
+their own table. It is a data change, not a rebuild.
+
 ## Photographs
 
 ### One name, in every place
@@ -506,10 +578,26 @@ least as prominently as the cause, and picking a cause is the only thing
 `RootCauseAdvice` can change; the questions are for the room and are never
 written into the record.
 
+Three more tasks serve the hazard register. **`hazard`** names the event a
+finding exposes, from the check screen, while the auditor is still in front of
+the asset. **`consolidate`** groups the findings that describe one physical
+thing. **`reassess`** re-reads a hazard after the site walk. All three propose;
+none of them rates, and `reassess` is told in the prompt that a photograph may
+raise a new hazard but may **not** raise a likelihood on its own — likelihood on
+this scale is occurrence history, and a photograph cannot show that. Without
+that sentence a model looks at a rusty panel and pushes the likelihood up, which
+is the wrong reasoning applied to the right evidence.
+
 What is sent: the check in front of the auditor, a transcript for a write-up,
 and — **only when `ASSIST_VISION` is on** — the photographs being asked about.
 Audio is never sent. `src/lib/assist.ts` has the context builders, which are the
 single place that decides this.
+
+Images sent for consolidation are **labelled** — each one is preceded by a line
+naming the photograph and the finding it hangs off. Unlabelled, eight
+photographs are eight pictures of an airport and the model cannot say *which*
+two findings its photographs showed to be one thing; an attribution a reviewer
+cannot check is worse than no grouping at all.
 
 Every key stays server-side. Five things can put data somewhere other than the
 tablet — live text, Transcribe, the assistant, photographs through the

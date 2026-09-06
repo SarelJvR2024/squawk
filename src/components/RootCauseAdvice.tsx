@@ -24,11 +24,12 @@ import {
   rootCauseContext,
   useAssistAvailable,
   useVisionOn,
+  type AdviceSubject,
   type RootCauseCandidate,
 } from "@/lib/assist";
 import { ROOT_CAUSES } from "@/lib/store";
 import { getBlob } from "@/lib/media";
-import type { Attachment, Check, Finding } from "@/lib/types";
+import type { Attachment, Check } from "@/lib/types";
 import { IconSpark } from "@/components/ui/icons";
 
 const CONF_TONE: Record<RootCauseCandidate["confidence"], string> = {
@@ -43,7 +44,8 @@ export default function RootCauseAdvice({
   attachments = [],
   onPick,
 }: {
-  finding: Finding;
+  /** A finding, or a hazard wearing the same four fields. */
+  finding: AdviceSubject;
   check?: Check;
   /** The photographs on the check this finding came from, if any. */
   attachments?: Attachment[];

@@ -16,6 +16,7 @@ import { bandFor, BAND_META } from "@/lib/risk";
 import { modeLabels, needsField } from "@/lib/verification";
 import { AttachmentStrip, PhotoButton, VoiceNoteButton } from "./Capture";
 import RootCauseAdvice from "./RootCauseAdvice";
+import HazardAdvice from "./HazardAdvice";
 import {
   IconCheck,
   IconClock,
@@ -551,6 +552,7 @@ export default function CheckDetail({
                             actionStatus: "Open",
                             originVisit: visitId,
                             priorRating: pf?.rating ?? null,
+                            suggestedEvent: "",
                             adHoc: false,
                             createdBy: auditor,
                           });
@@ -599,6 +601,18 @@ export default function CheckDetail({
                       onPick={(rc) => {
                         updateFinding(f.id, { rootCause: rc });
                         onSaved(`Root cause set · ${rc}`);
+                      }}
+                    />
+                    {/* And the other half of the same moment: what event does
+                        this expose? Named here, it gives the hazard register
+                        something a person wrote to consolidate from. */}
+                    <HazardAdvice
+                      finding={f}
+                      check={check}
+                      attachments={r.attachments}
+                      onAccept={(event) => {
+                        updateFinding(f.id, { suggestedEvent: event });
+                        onSaved(`Hazard noted · ${event}`);
                       }}
                     />
                   </div>

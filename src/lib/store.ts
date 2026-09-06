@@ -12,6 +12,7 @@ import type {
   Compliance,
   FeedbackNote,
   Finding,
+  Hazard,
   Likelihood,
   PriorFinding,
   PriorRating,
@@ -239,6 +240,7 @@ interface State {
    *  originVisit, which is what lets a later visit see what an earlier one
    *  left open. */
   findings: Finding[];
+  hazards: Hazard[];
   lastSavedAt: number | null;
   hydrated: boolean;
 
@@ -270,6 +272,13 @@ interface State {
 
   addFinding: (f: Omit<Finding, "id" | "createdAt" | "entity">) => string;
   updateFinding: (id: string, p: Partial<Finding>) => void;
+
+  /** Hazards, flat across the programme like findings, each carrying its own
+   *  entity and originVisit. Same reason: a hazard raised in September is what
+   *  the March visit reads to see what it inherited. */
+  addHazard: (h: Omit<Hazard, "id" | "createdAt" | "entity">) => string;
+  updateHazard: (id: string, p: Partial<Hazard>) => void;
+  removeHazard: (id: string) => void;
   removeFindingsForIssue: (checkId: string, issueIndex: number) => void;
 
   verification: (pf: string) => Verification;
@@ -343,6 +352,7 @@ export const useStore = create<State>()(
         byVisit: {},
         customVisits: [],
         findings: [],
+        hazards: [],
         lastSavedAt: null,
         hydrated: false,
 
@@ -546,6 +556,22 @@ export const useStore = create<State>()(
             findings: s.findings.map((f) => (f.id === id ? { ...f, ...p } : f)),
           })),
 
+        addHazard: (h) => {
+          const id = `HZ-${uid().toUpperCase().slice(0, 5)}`;
+          set((s) => ({
+            hazards: [...s.hazards, { ...h, entity: s.entity, id, createdAt: Date.now() }],
+          }));
+          return id;
+        },
+
+        updateHazard: (id, p) =>
+          set((s) => ({
+            hazards: s.hazards.map((h) => (h.id === id ? { ...h, ...p } : h)),
+          })),
+
+        removeHazard: (id) =>
+          set((s) => ({ hazards: s.hazards.filter((h) => h.id !== id) })),
+
         removeFindingsForIssue: (checkId, issueIndex) =>
           set((s) => ({
             findings: s.findings.filter(
@@ -690,11 +716,12 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 8,
+      version: 9,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
           findings?: Finding[];
+          hazards?: Hazard[];
           responses?: Record<string, Response>;
           verifications?: Record<string, Verification>;
           captures?: Capture[];
@@ -881,6 +908,20 @@ export const useStore = create<State>()(
             }
           }
         }
+        if (from < 9) {
+          /* The hazard register did not exist. Nothing to convert — a finding
+             is not a hazard, and inventing the event a finding exposes is
+             exactly the judgement this app leaves to a person. Existing
+             findings get an empty suggestedEvent and the register starts
+             empty. */
+          st.hazards = st.hazards ?? [];
+          if (Array.isArray(st.findings)) {
+            st.findings = st.findings.map((f) => ({
+              ...f,
+              suggestedEvent: f.suggestedEvent ?? "",
+            }));
+          }
+        }
         return st;
       },
       partialize: (s: State) => ({
@@ -892,6 +933,7 @@ export const useStore = create<State>()(
         byVisit: s.byVisit,
         customVisits: s.customVisits,
         findings: s.findings,
+        hazards: s.hazards,
         lastSavedAt: s.lastSavedAt,
       }),
     }
@@ -984,6 +1026,18 @@ export function useEntityFindings(): Finding[] {
   const all = useStore((s) => s.findings);
   const entity = useStore((s) => s.entity);
   return useMemo(() => all.filter((f) => f.entity === entity), [all, entity]);
+}
+
+/** Hazards raised at the entity and visit in view. Scoped the same way
+ *  findings are, for the same reason. */
+export function useVisitHazards(): Hazard[] {
+  const all = useStore((s) => s.hazards);
+  const entity = useStore((s) => s.entity);
+  const visit = useStore((s) => s.visit);
+  return useMemo(
+    () => all.filter((h) => h.entity === entity && h.originVisit === visit),
+    [all, entity, visit]
+  );
 }
 
 /* ---------- derived selectors ---------- */

@@ -8,6 +8,7 @@ import {
   useEntityCode,
   useVerifications,
   useVisitFindings,
+  useVisitHazards,
   useVisitId,
 } from "@/lib/store";
 import { loadAnswers } from "@/lib/answers";
@@ -20,6 +21,7 @@ import {
   evidenceRequestSheet,
   exportFilename,
   findingsSheet,
+  hazardsSheet,
   fullWorkbook,
   photographsSheet,
   registerSheet,
@@ -30,14 +32,22 @@ import { downloadBytes, downloadText, downloadWorkbook, toCsv, type Sheet } from
 import { Btn } from "@/components/ui/primitives";
 import { IconDownload, IconX } from "@/components/ui/icons";
 
-type Kind = "full" | "register" | "findings" | "closure" | "evidence" | "summary" | "photographs";
+type Kind =
+  | "full"
+  | "register"
+  | "findings"
+  | "hazards"
+  | "closure"
+  | "evidence"
+  | "summary"
+  | "photographs";
 
 const OPTIONS: { kind: Kind; title: string; blurb: string }[] = [
   {
     kind: "full",
     title: "Everything",
     blurb:
-      "Seven sheets: a cover note explaining what a blank cell means, the summary, the register, the findings, the closure position, the evidence request and the photograph index.",
+      "Eight sheets: a cover note explaining what a blank cell means, the summary, the register, the findings, the hazards, the closure position, the evidence request and the photograph index.",
   },
   {
     kind: "register",
@@ -50,6 +60,12 @@ const OPTIONS: { kind: Kind; title: string; blurb: string }[] = [
     title: "Findings",
     blurb:
       "Every finding with its agreed rating, band and strategy, its owner and due date. Suggested ratings the team has not agreed are kept in their own column.",
+  },
+  {
+    kind: "hazards",
+    title: "Hazards",
+    blurb:
+      "What the findings expose, rated as events, carrying both rating instruments in their own columns. ACSA's ERM scale has not been supplied, so those columns say so rather than reading blank.",
   },
   {
     kind: "closure",
@@ -85,6 +101,7 @@ const WARN_BYTES = 200 * 1024 * 1024;
 export default function ExportPanel({ onClose }: { onClose: () => void }) {
   const responses = useResponses();
   const findings = useVisitFindings();
+  const hazards = useVisitHazards();
   const verifications = useVerifications();
   const entityCode = useEntityCode();
   const [budget, setBudget] = useState({ count: 0, bytes: 0 });
@@ -177,6 +194,7 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
         checks: checksAt(entityCode),
         responses,
         findings,
+        hazards,
         prior: priorFindingsAt(entityCode),
         verifications,
         library,
@@ -184,6 +202,7 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
       const one: Record<Exclude<Kind, "full">, () => Sheet> = {
         register: () => registerSheet(x),
         findings: () => findingsSheet(x),
+        hazards: () => hazardsSheet(x),
         closure: () => closureSheet(x),
         evidence: () => evidenceRequestSheet(x),
         summary: () => summarySheet(x),
