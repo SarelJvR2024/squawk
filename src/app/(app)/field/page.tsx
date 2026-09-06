@@ -564,8 +564,8 @@ export default function FieldPage() {
                     description: "",
                     why: hazWhy.trim(),
                     findingIds: [],
-                    discipline: adhocDisc,
-                    system: adhocArea,
+                    disciplines: [adhocDisc],
+                    systems: [adhocArea],
                     /* Unrated, on both instruments, always. The walk names the
                        event; the group rates it. */
                     severity: null,
@@ -575,8 +575,13 @@ export default function FieldPage() {
                     ermLikelihood: null,
                     ermConfirmed: false,
                     ermLikelihoodAssumed: false,
-                    source: "manual",
+                    /* Seen on the walk, and the register says so. */
+                    origin: "field",
                     note: `Seen on the walk at ${adhocArea}.`,
+                    occurrence: "",
+                    ratingRationale: "",
+                    progress: [],
+                    immediate: false,
                     reassessedAt: null,
                     reassessNote: "",
                     rootCause: "",

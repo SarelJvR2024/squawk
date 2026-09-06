@@ -13,6 +13,14 @@ import { entity as entityOf, PROGRAMME_VISITS } from "./programme";
 import { portalIdFor } from "./sites";
 import { priorFor } from "./register";
 import * as erm from "./erm";
+
+/** Who raised the hazard, spelled out for a reader of the workbook. */
+const ORIGIN_TEXT: Record<Hazard["origin"], string> = {
+  consolidated: "Consolidated from findings",
+  field: "Seen on the walk",
+  acsa: "Raised by ACSA in the closing session",
+  tpjv: "Raised by TPJV",
+};
 import { photoFilename } from "./photos";
 import type { CellValue, Sheet } from "./xlsx";
 
@@ -391,11 +399,20 @@ export function hazardsSheet(x: ExportInput): Sheet {
       h.event,
       h.description,
       h.why,
-      h.discipline,
-      h.system,
+      /* Every discipline the hazard spans, not the first one's. Two write-ups
+         of one physical defect in two disciplines is the case consolidation
+         exists for, and a single value throws that away. */
+      h.disciplines.join(" · "),
+      h.systems.join(" · "),
+      h.disciplines.length,
       h.findingIds.join(" · "),
       h.findingIds.length,
-      h.source === "consolidated" ? "Consolidated from findings" : "Raised directly",
+      ORIGIN_TEXT[h.origin],
+      h.immediate ? "Yes — end-of-week critical review" : "",
+      /* ACSA's occurrence history. Four of B170's five likelihood levels are
+         defined by whether the event has happened and how often, so a
+         likelihood set without this is a judgement with its evidence missing. */
+      h.occurrence,
       /* B170 001M — the instrument this build carries. */
       agreed ? h.severity : "",
       agreed ? h.likelihood : "",
@@ -436,11 +453,19 @@ export function hazardsSheet(x: ExportInput): Sheet {
         : h.ermConsequence || h.ermLikelihood
           ? "Suggested — not yet agreed"
           : "Not rated on ERM",
+      h.ratingRationale,
       h.rootCause,
       h.action,
       h.owner,
       iso(h.dueDate),
       h.actionStatus,
+      /* Their one Progress/Update cell, our whole log. */
+      h.progress
+        .map(
+          (n) =>
+            `${new Date(n.at).toISOString().slice(0, 10)} · ${n.by}: ${n.note}`
+        )
+        .join("\n"),
       h.note,
       when(h.reassessedAt) ?? "",
       h.reassessNote,
@@ -460,11 +485,14 @@ export function hazardsSheet(x: ExportInput): Sheet {
       { header: "Event", width: 44, wrap: true },
       { header: "Description", width: 58, wrap: true },
       { header: "What control failed, and what it protected", width: 58, wrap: true },
-      { header: "Discipline", width: 20 },
-      { header: "Asset system", width: 26 },
+      { header: "Disciplines", width: 26, wrap: true },
+      { header: "Asset systems", width: 30, wrap: true },
+      { header: "Disciplines spanned", width: 18 },
       { header: "Findings behind it", width: 30 },
       { header: "Findings", width: 10 },
       { header: "Origin", width: 26 },
+      { header: "Immediate (critical review)", width: 26 },
+      { header: "Occurrence history (ACSA)", width: 50, wrap: true },
       { header: "Severity (B170 001M)", width: 18 },
       { header: "Likelihood (B170 001M)", width: 18 },
       { header: "Matrix cell", width: 11 },
@@ -481,11 +509,13 @@ export function hazardsSheet(x: ExportInput): Sheet {
       { header: "ERM response (cl. 9.2.2)", width: 42, wrap: true },
       { header: "Combined Assurance Coverage Plan (cl. 9.1.2)", width: 38, wrap: true },
       { header: "ERM rating state", width: 48, wrap: true },
+      { header: "Why the cell was agreed", width: 50, wrap: true },
       { header: "Root cause", width: 26 },
       { header: "Treatment", width: 58, wrap: true },
       { header: "Owner", width: 30 },
       { header: "Due date", width: 12 },
       { header: "Action status", width: 15 },
+      { header: "Progress / Update", width: 66, wrap: true },
       { header: "Consolidation note", width: 58, wrap: true },
       { header: "Re-read after the walk", width: 18 },
       { header: "What the re-read changed", width: 58, wrap: true },
@@ -629,7 +659,10 @@ export function summarySheet(x: ExportInput): Sheet {
     /* Hazards are counted separately from findings, never summed with them.
        One hazard can stand behind four findings, and adding the two together
        would double-count the same exposure. */
-    const hs = (x.hazards ?? []).filter((h) => h.discipline === d);
+    /* A hazard spanning two disciplines counts in both — it is one
+       exposure, and each lead has to see it. The Hazards total on this sheet
+       therefore reads higher than the register's count by design. */
+    const hs = (x.hazards ?? []).filter((h) => h.disciplines.includes(d));
     const hAgreed = hs.filter((h) => h.ratingConfirmed);
     return [
       d,

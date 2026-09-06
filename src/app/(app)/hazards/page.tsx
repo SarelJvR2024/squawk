@@ -58,6 +58,17 @@ import type { Attachment, Hazard } from "@/lib/types";
  *  it is capped here too — and the screen says which photographs went. */
 const IMAGE_CAP = 8;
 
+/** Who raised it, in words a reader of the register will understand. `acsa`
+ *  earns its own label and its own colour: the closing session is where ACSA
+ *  add what the check-list missed, and reporting those as theirs is part of
+ *  showing the audit listened. */
+const ORIGIN_LABEL: Record<Hazard["origin"], string> = {
+  consolidated: "CONSOLIDATED",
+  field: "SEEN ON THE WALK",
+  acsa: "RAISED BY ACSA",
+  tpjv: "RAISED BY TPJV",
+};
+
 type Filter = "all" | "unrated" | "open";
 
 export default function HazardsPage() {
@@ -124,7 +135,7 @@ export default function HazardsPage() {
 
   const list = useMemo(() => {
     let l = hazards;
-    if (discipline !== "All") l = l.filter((h) => h.discipline === discipline);
+    if (discipline !== "All") l = l.filter((h) => h.disciplines.includes(discipline));
     if (filter === "unrated") l = l.filter((h) => !h.ratingConfirmed);
     if (filter === "open") l = l.filter((h) => h.actionStatus !== "Closed");
     return l;
@@ -146,8 +157,8 @@ export default function HazardsPage() {
       description: "",
       why: "",
       findingIds: [],
-      discipline: "",
-      system: "",
+      disciplines: [],
+      systems: [],
       severity: null,
       likelihood: null,
       ratingConfirmed: false,
@@ -155,8 +166,12 @@ export default function HazardsPage() {
       ermLikelihood: null,
       ermConfirmed: false,
       ermLikelihoodAssumed: false,
-      source: "manual",
+      origin: "tpjv",
       note: "",
+      occurrence: "",
+      ratingRationale: "",
+      progress: [],
+      immediate: false,
       reassessedAt: null,
       reassessNote: "",
       rootCause: "",
@@ -224,16 +239,19 @@ export default function HazardsPage() {
 
   function accept(p: HazardProposal) {
     const ids = p.findingIds ?? [];
-    const first = findings.find((f) => f.id === ids[0]);
+    /* EVERY discipline and system the group touches, not the first one's.
+       Two write-ups of the same fuse in two disciplines is the case this
+       screen exists for; recording one of them undoes the consolidation. */
+    const behind = findings.filter((f) => ids.includes(f.id));
     const id = addHazard(
       blank({
         event: p.event,
         description: p.description,
         why: p.why,
         findingIds: ids,
-        discipline: first?.discipline ?? "",
-        system: first?.system ?? "",
-        source: "consolidated",
+        disciplines: [...new Set(behind.map((f) => f.discipline).filter(Boolean))],
+        systems: [...new Set(behind.map((f) => f.system).filter(Boolean))],
+        origin: "consolidated",
         note: p.note ?? "",
       })
     );
@@ -262,7 +280,11 @@ export default function HazardsPage() {
         await assist(
           "reassess",
           reassessContext(
-            h,
+            {
+              ...h,
+              discipline: h.disciplines.join(", "),
+              system: h.systems.join(", "),
+            },
             behind,
             photos.map((a) => a.caption?.trim()).filter(Boolean) as string[]
           ),
@@ -308,7 +330,7 @@ export default function HazardsPage() {
             <Btn
               variant="primary"
               onClick={() => {
-                const id = addHazard(blank({ source: "manual" }));
+                const id = addHazard(blank({ origin: "tpjv" }));
                 setActiveId(id);
                 say(`${id} raised · name the event, then rate it`);
               }}
@@ -414,7 +436,7 @@ export default function HazardsPage() {
               <Btn
                 onClick={() =>
                   setActiveId(
-                    addHazard(blank({ source: "manual", event: "", createdBy: auditor }))
+                    addHazard(blank({ origin: "tpjv", event: "", createdBy: auditor }))
                   )
                 }
               >
@@ -459,12 +481,22 @@ export default function HazardsPage() {
                 style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
               >
                 <div className="flex flex-wrap items-center gap-2">
-                  <b className="text-[12.5px]">{p.event}</b>
+                  {p.event ? (
+                    <b className="text-[12.5px]">{p.event}</b>
+                  ) : (
+                    /* A finding the model did not place. It comes back rather
+                       than vanishing — consolidation may be wrong about how
+                       things group, it may not make a finding disappear. */
+                    <b className="text-[12.5px]" style={{ color: "var(--ink-3)" }}>
+                      Not grouped · {ids.join(", ")}
+                    </b>
+                  )}
                   <span
                     className="font-mono text-[9px] tracking-[.04em] uppercase"
                     style={{ color: "var(--ink-4)" }}
                   >
-                    {p.confidence} confidence · {ids.length} finding{ids.length === 1 ? "" : "s"}
+                    {p.event ? `${p.confidence} confidence · ` : ""}
+                    {ids.length} finding{ids.length === 1 ? "" : "s"}
                   </span>
                 </div>
                 {p.description && (
@@ -552,7 +584,7 @@ export default function HazardsPage() {
                 <div className="mt-2.5 flex flex-wrap gap-2">
                   <Btn variant="primary" onClick={() => accept(p)}>
                     <IconCheck width={13} height={13} />
-                    Accept as a hazard
+                    {p.event ? "Accept as a hazard" : "Raise it as its own hazard"}
                   </Btn>
                   <Btn
                     variant="ghost"
@@ -634,11 +666,12 @@ export default function HazardsPage() {
               >
                 <div className="mb-2 flex flex-wrap items-center gap-2 font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
                   <span>{active.id}</span>
-                  <Pill tone={active.source === "consolidated" ? "accent" : "neutral"}>
-                    {active.source === "consolidated" ? "CONSOLIDATED" : "RAISED DIRECTLY"}
+                  <Pill tone={active.origin === "consolidated" ? "accent" : active.origin === "acsa" ? "warn" : "neutral"}>
+                    {ORIGIN_LABEL[active.origin]}
                   </Pill>
-                  {active.discipline && <span>{active.discipline}</span>}
-                  {active.system && <span>{active.system}</span>}
+                  {active.disciplines.length > 0 && <span>{active.disciplines.join(" · ")}</span>}
+                  {active.systems.length > 0 && <span>{active.systems.join(" · ")}</span>}
+                  {active.immediate && <Pill tone="bad">IMMEDIATE</Pill>}
                 </div>
 
                 <label className="mb-2 block">
@@ -715,10 +748,17 @@ export default function HazardsPage() {
                         onChange={(e) => {
                           if (!e.target.value) return;
                           const f = findings.find((x) => x.id === e.target.value);
+                          /* Adding a finding widens the hazard rather than
+                             overwriting it — a second discipline is the point,
+                             not a conflict. */
                           updateHazard(active.id, {
                             findingIds: [...active.findingIds, e.target.value],
-                            discipline: active.discipline || f?.discipline || "",
-                            system: active.system || f?.system || "",
+                            disciplines: [
+                              ...new Set([...active.disciplines, f?.discipline].filter(Boolean) as string[]),
+                            ],
+                            systems: [
+                              ...new Set([...active.systems, f?.system].filter(Boolean) as string[]),
+                            ],
                           });
                         }}
                         className="rounded-full border px-[9px] py-[3px] text-[10.5px]"
@@ -762,6 +802,38 @@ export default function HazardsPage() {
                   })()}
                 </div>
 
+                {/* ACSA's occurrence history, asked for where the rating is
+                    made. Four of B170 001M's five likelihood levels are
+                    defined by whether the event has happened and how often —
+                    "has occurred rarely", "has occurred infrequently" — so a
+                    likelihood set without this is a judgement with its
+                    evidence missing. It is ACSA's data, not ours. */}
+                <label className="mb-2 block">
+                  <span className="label-xs">
+                    Occurrence history · ACSA&rsquo;s, in their words — the likelihood axis needs it
+                  </span>
+                  <textarea
+                    value={active.occurrence}
+                    onChange={(e) => updateHazard(active.id, { occurrence: e.target.value })}
+                    placeholder="Has it happened here before, and how often…"
+                    className="mt-1 min-h-[48px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                    style={{
+                      background: "var(--panel)",
+                      borderColor: active.occurrence ? "var(--line-2)" : "var(--warn-line)",
+                    }}
+                  />
+                </label>
+
+                <label className="mb-3 flex items-center gap-2 text-[12px]">
+                  <input
+                    type="checkbox"
+                    checked={active.immediate}
+                    onChange={(e) => updateHazard(active.id, { immediate: e.target.checked })}
+                    className="h-[16px] w-[16px]"
+                  />
+                  Raise in the end-of-week critical review with ACSA
+                </label>
+
                 <RecordActions
                   record={active}
                   entityCode={entityCode}
@@ -788,8 +860,8 @@ export default function HazardsPage() {
                     <RootCauseAdvice
                       finding={{
                         description: [active.event, active.why].filter(Boolean).join(". "),
-                        discipline: active.discipline,
-                        system: active.system,
+                        discipline: active.disciplines.join(", "),
+                        system: active.systems.join(", "),
                         rootCause: active.rootCause,
                       }}
                       attachments={photosOf(active.findingIds)}
@@ -798,6 +870,23 @@ export default function HazardsPage() {
                   }
                   footer={
                     <>
+                      {/* Why the group agreed the cell they agreed. A rating
+                          with no reasoning is a number nobody can defend
+                          eighteen months later, and the out-brief is where it
+                          gets asked. */}
+                      <label className="mt-4 block">
+                        <span className="label-xs">Why the group agreed this cell</span>
+                        <textarea
+                          value={active.ratingRationale}
+                          onChange={(e) =>
+                            updateHazard(active.id, { ratingRationale: e.target.value })
+                          }
+                          placeholder="What made it that severity, and that likelihood…"
+                          className="mt-1 min-h-[48px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                          style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                        />
+                      </label>
+
                       {/* --------------------------- the post-walk re-read */}
                       {aiOn && (
                         <div
@@ -885,9 +974,9 @@ export default function HazardsPage() {
                                         blank({
                                           event: n.event,
                                           why: n.why,
-                                          discipline: active.discipline,
-                                          system: active.system,
-                                          source: "manual",
+                                          disciplines: active.disciplines,
+                                          systems: active.systems,
+                                          origin: "tpjv",
                                           note: `Seen in a photograph during the re-read of ${active.id}.`,
                                         })
                                       );
