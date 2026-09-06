@@ -108,15 +108,48 @@ const ok = (n, c, x = "") => {
 
   ok("the photographs sheet exports", /photographs/i.test(d4.suggestedFilename()), d4.suggestedFilename());
   ok(
-    "its columns are the index, in order",
-    /Photograph.*Check.*Discipline.*Asset system.*Area.*Caption.*Caption source.*Taken.*Attached/.test(head),
+    "its columns are the index, in order, and File comes first",
+    /^\ufeff?File,Reference,Check,Discipline,Asset system,Area,Caption,Caption source,Taken,Attached/.test(head),
     head.slice(0, 160)
+  );
+  ok(
+    "and it says where each image actually is",
+    /Where the image is,Record copy/.test(head),
+    head.slice(-80)
   );
   ok("the caption an auditor typed is in the row", /Signature column of the register/.test(csv),
      csv.split("\n")[1]?.slice(0, 140) || "");
   ok("and it is attributed to the auditor, not the assistant", /,Auditor,/.test(csv));
   ok("the check reference is this site's portal id", /,KSIA-[A-Z]{3}-\d{3},/.test(csv),
      csv.split("\n")[1]?.slice(0, 80) || "");
+
+  // --- the images themselves, as files ---
+  const dlz = p.waitForEvent("download", { timeout: 60000 });
+  await p.locator("button", { hasText: /^Download images$/ }).first().click();
+  const dz = await dlz;
+  const zipPath = "/home/claude/delivery/" + dz.suggestedFilename();
+  await dz.saveAs(zipPath);
+  ok("the images download as a zip", /photographs.*\.zip$/.test(dz.suggestedFilename()),
+     dz.suggestedFilename());
+
+  /* Read the zip's central directory rather than trusting the filename. */
+  const zbuf = fs.readFileSync(zipPath);
+  const names = [];
+  for (let i = 0; i < zbuf.length - 4; i++) {
+    if (zbuf.readUInt32LE(i) === 0x02014b50) {
+      const n = zbuf.readUInt16LE(i + 28);
+      names.push(zbuf.subarray(i + 46, i + 46 + n).toString("utf8"));
+    }
+  }
+  ok("it contains the photograph, named the way the workbook refers to it",
+     names.some((n) => /^photographs\/KSIA-[A-Z]{3}-\d{3}_P01\.jpg$/.test(n)), names.join(" | "));
+  ok("and a manifest so the zip reads on its own",
+     names.includes("photographs/MANIFEST.csv"), names.join(" | "));
+
+  /* The cross-reference: the name in the workbook is the name in the zip. */
+  const inZip = names.find((n) => n.endsWith(".jpg"))?.replace("photographs/", "");
+  ok("the workbook's File column matches the file in the zip exactly",
+     !!inZip && csv.includes(inZip), `${inZip} not found in the Photographs sheet`);
 
   ok("no page errors during export", errs.length === 0, errs[0] || "");
 

@@ -35,7 +35,11 @@ Section numbers in code comments point at that document.
 - **Next.js 16** (App Router) + **React 19** + **TypeScript**
 - **Tailwind CSS 4**, design tokens in `src/app/globals.css`
 - **Zustand** + **IndexedDB** (`idb-keyval`) — local-first, offline capable
-- **fflate** — the only runtime dependency beyond the framework, for writing .xlsx
+- **fflate** — for writing .xlsx and the photograph zip
+- **@vercel/blob** — the record copy of every photograph. Added rather than
+  calling the REST API by hand: the `x-api-version` contract is not documented,
+  and guessing at an undocumented wire format is worse than a documented
+  dependency. Nothing outside `src/app/api/photos/route.ts` imports it
 
 Local-first is a deliberate choice while the hosting and data-governance question
 (design document Q4) is open: nothing leaves the device, and the store sits
@@ -108,9 +112,12 @@ npx vercel --prod   # promote to production
 | `ELEVENLABS_API_KEY` | Turns **Transcribe** on for voice notes. Without it a note is still recorded, kept and played back; its text is typed by hand. |
 | `TRANSCRIBE_MODEL` | Overrides the transcription model id. Defaults to `scribe_v1`. |
 | `TRANSCRIBE_LANGUAGE` | Pins transcription to one language. **Leave unset.** Auto-detection is what carries an auditor switching between English and Afrikaans inside one sentence. |
+| `ASSIST_VISION` | `1` sends photographs to the model. **Unset or `0` and no image byte leaves**, whatever the client sends — the route strips them. Every AI affordance still works on captions alone. |
+| `ASSIST_ENDPOINT` | Where the assist request goes. Defaults to the Anthropic API; point it at an in-tenant endpoint if ACSA's governance requires the data to stay there. Nothing in the UI changes. |
+| `BLOB_READ_WRITE_TOKEN` | Turns the **record copy** on: every photograph is also written to Vercel Blob, privately. Without it the app is unchanged — capture, caption, export, all local — and says on screen that photographs are on the device only. |
 
-Setting either key is a **data-governance decision, not a technical one** — see
-*Voice notes* and *AI assistance* below.
+Setting any of these is a **data-governance decision, not a technical one** —
+see *Photographs*, *Voice notes* and *AI assistance* below.
 
 Fonts load from Google Fonts at runtime because the build environment this was
 written in cannot reach `fonts.googleapis.com`. On Vercel you can switch
@@ -128,6 +135,8 @@ src/
     register.ts       the register and the 2025 data, entity-scoped, no React
     sites.ts          which checks apply where, and each site's portal ids
     media.ts          recording, photo downscaling, EXIF date, the blob store
+    photos.ts         what a photograph is called, and the export zip
+    sync.ts           the queue that gets photographs to the record store
     globals.css       design tokens for both themes
   components/
     AppShell.tsx      header, nav, cycle strip, command palette, role switch
@@ -318,6 +327,135 @@ There used to be `pf` and `pfq` columns on the register row itself. They were
 King Shaka's numbers, so a Cape Town check announced a King Shaka finding, and
 seven never-audited sites announced one too. They are gone.
 
+## Photographs
+
+### One name, in every place
+
+Every photograph is called `KSIA-ELE-001_P01` — the check-point's portal id and
+a sequence number — and that one string is:
+
+- the filename in the export zip (`photographs/KSIA-ELE-001_P01.jpg`)
+- the object name in the record store (`FALE/2026-09/KSIA-ELE-001_P01.jpg`)
+- the **File** column of the Photographs sheet, and *Photograph files* on every
+  finding
+- the anchor a Word report will place the image at
+
+So somebody holding the workbook can find the photograph without asking anybody.
+
+**Sequence numbers are never reused.** Delete `_P01` and the next photograph is
+`_P03`. A reference that silently came to mean a different image would let a
+finding evidenced by `_P02` in March be evidenced by a different photograph in
+September, with nothing on screen or in the workbook saying so. A gap in the
+numbering is the cheap price.
+
+### Four places a photograph lives
+
+| | Why | For how long |
+|---|---|---|
+| **The tablet** | The working copy — captioned and looked at on site, offline | The audit. **Never deleted because a record copy exists** |
+| **The record store** | The copy that survives the device | Retention, still undecided |
+| **The export zip** | Handed over, attached to an email, filed | With the deliverable |
+| **The Word report** | Evidence beside the finding it supports | Phase 4, not built |
+
+### Captions
+
+**Every photograph is captioned, or it is incomplete.** A photograph with no
+caption is a JPEG in a browser's storage that nobody can search, report on or
+recognise in six months — the workbook row would carry a filename and a
+timestamp. So an uncaptioned photograph is shown in the same warn treatment a
+finding with no owner gets, the export writes **NO CAPTION** rather than a blank
+cell that reads as "nothing to say", and the export panel counts how many are
+outstanding before you produce the workbook.
+
+The caption carries its **source**. One an auditor wrote and one the assistant
+proposed and a person accepted are not the same evidence, and the export says
+which. Typing over a proposal hands authorship back.
+
+### On the device
+
+**Images never enter the persisted store.** Zustand's `persist` writes the whole
+store to one key on every change; base64 images in it would re-serialise
+megabytes per keystroke. The store holds metadata and a 240px thumbnail; the
+full image lives under its own key in the media store. Deleting a photograph
+deletes the stored image too.
+
+**Every image is downscaled before it is stored** — longest edge 1600px, JPEG
+q0.82. A phone photograph is 4–12 MB as taken and 300–600 KB stored, still far
+more than enough to read a serial plate. The canvas re-encode strips EXIF, which
+is mostly welcome; but *when* a photograph was taken is audit evidence, so
+`DateTimeOriginal` is read off the original first and kept.
+
+**The app asks the browser not to evict the audit**
+(`navigator.storage.persist()`) and reports the answer rather than assuming it.
+Safari clears script-writable storage for a site not visited for about a week
+unless it is added to the home screen; Chrome evicts under pressure. If the
+browser refuses, the export panel says so in words.
+
+**The export panel shows what the evidence costs the tablet** and warns above
+~200 MB. A device running out of storage mid-audit must fail visibly: the
+browser's own quota error is opaque and arrives while somebody is on an apron.
+
+### The record copy — `BLOB_READ_WRITE_TOKEN`
+
+A tablet is a capture device, not a records system. Browser storage is evicted
+under pressure, cleared with site data, and gone with the device — and a finding
+challenged in six months is evidenced by the photograph or by nothing.
+
+- Every photograph is queued the moment it is captured and uploaded when there
+  is a network. The queue is **derived from the records**, not held beside them:
+  anything with a stored image and no `cloudUrl` is outstanding, by definition,
+  so it survives a reload, a crashed tab and a flat battery.
+- **`access: "private"`.** These are photographs of a national key point; a
+  public blob URL is a URL anybody who ever sees it can keep. Reading one back
+  needs a signed URL — a route to build when somebody needs it. The local copy
+  serves the app today.
+- Uploads run **one at a time**. Eight in parallel on airport wifi is eight
+  timeouts.
+- The header says when photographs are still only on the device; each row says
+  which of them. Silent once everything is stored.
+- Without the token none of this appears and the audit is unchanged.
+
+> Vercel Blob was chosen over SharePoint or an in-tenant Azure account. It is
+> the least new infrastructure, and it puts ACSA site photographs with a third
+> party neither ACSA nor TPJV governs. That is the Q4 question and it was
+> decided knowingly; if ACSA's governance requires otherwise,
+> `src/app/api/photos/route.ts` is the single place that changes.
+
+### Getting the images out
+
+**Images** in the export panel produces a zip of the photographs, separate from
+the workbook on purpose: the index is a few kilobytes and the evidence is not,
+so an auditor can send a discipline lead the workbook without a hundred
+megabytes attached and fetch the images when somebody asks. The zip carries a
+`MANIFEST.csv` so it still reads on its own once separated from the workbook —
+which, being a separate download, it will be.
+
+### Retention — still undecided
+
+Nobody has said how long photographs are kept, where the master lives once an
+audit closes, who the custodian is, or what happens at device handover. The
+record store makes the question answerable; it does not answer it.
+
+### Vision — `ASSIST_VISION`
+
+Whether site photographs reach the model is a separate decision from whether
+they reach the record store, and it defaults to **off**:
+
+- With the flag unset the route drops images from the request before it is
+  assembled — **the server is the enforcement point**, and no client change gets
+  round it.
+- The affordance still works with vision off; it runs on captions alone, which
+  is the other reason an uncaptioned photograph is treated as incomplete.
+- The screen says which, in a line rather than a tooltip: *"Photographs are sent
+  to the assistant for this step"* or *"Photograph captions are sent; the images
+  themselves are not."*
+- At most **8 images and 4 MB** per request, **refused** with a readable message
+  rather than truncated — an answer about eight of nine photographs says nothing
+  about the ninth.
+
+`tests/vision.js` proves this against a real forwarded request body rather than
+by reading the code.
+
 ## Voice notes
 
 **A note is recorded, stored and played back on the device, always.** That needs
@@ -360,15 +498,23 @@ result is a suggestion shown beside the record with **Use it** and **Discard**.
 It never sets a status, never rates a finding, never marks anything captured,
 and the rating opinion is printed as text — it does not move the cell.
 
-It also writes up a transcribed voice note (above). Only text is sent to it:
-the check in front of the auditor and, for a write-up, that transcript.
-**Photographs are never sent to the model, and neither is audio** —
-`src/lib/assist.ts` has the context builders, which are the single place that
-decides this.
+It also writes up a transcribed voice note, proposes a caption for a
+photograph, and proposes **root causes** — where the useful output is not the
+cause but the *question to put to the responsible person*, because a root cause
+is something they know and the auditor does not. `askInstead` is rendered at
+least as prominently as the cause, and picking a cause is the only thing
+`RootCauseAdvice` can change; the questions are for the room and are never
+written into the record.
 
-Both keys stay server-side. Three things in this app can put data somewhere
-other than the tablet — live text, Transcribe and the assistant — and all three
-are off until someone turns them on. That is Q4 and it is not settled. If
+What is sent: the check in front of the auditor, a transcript for a write-up,
+and — **only when `ASSIST_VISION` is on** — the photographs being asked about.
+Audio is never sent. `src/lib/assist.ts` has the context builders, which are the
+single place that decides this.
+
+Every key stays server-side. Five things can put data somewhere other than the
+tablet — live text, Transcribe, the assistant, photographs through the
+assistant, and the record copy — and all five are off until someone turns them
+on. That is Q4 and it is not settled. If
 ACSA's governance requires data to stay in their tenant, point
 `src/app/api/assist/route.ts` and `src/app/api/transcribe/route.ts` at
 in-tenant endpoints; nothing in the UI changes.

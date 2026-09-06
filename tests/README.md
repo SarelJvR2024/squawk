@@ -1,6 +1,6 @@
 # Tests
 
-Nineteen suites, no framework — all run with plain `node`. Six need a running
+Twenty suites, no framework — all run with plain `node`. Seven need a running
 server; thirteen do not. **Check each suite's exit status, not its output**: a
 `for` loop over them reports the status of the loop.
 
@@ -18,13 +18,14 @@ server; thirteen do not. **Check each suite's exit status, not its output**: a
 | `audits.test.mjs` | no | 18 |
 | `voice.test.mjs` | no | 36 |
 | `sites.test.mjs` | no | 41 |
-| `photos.test.mjs` | no | 36 |
+| `photos.test.mjs` | no | 61 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 38 |
-| `exports.js` | yes | 12 |
+| `exports.js` | yes | 17 |
 | `ai.js` | yes, two of them | 26 |
 | `persite.js` | yes | 25 |
 | `vision.js` | starts its own | 17 |
+| `record.js` | starts its own | 13 |
 
 ## `risk-matrix.test.mjs`
 
@@ -341,6 +342,24 @@ It starts and stops its own servers — nothing needs to be running first — us
 
 ```bash
 node tests/vision.js
+```
+
+## `record.js`
+
+Sarel's requirement in one sentence: photographs must go to cloud storage for
+the record, **and** they must remain on the capturing device. Those pull against
+each other in the obvious implementation — upload, then free the space — and the
+failure would be invisible until an auditor tried to look at their own
+photograph on an apron with no signal.
+
+So this drives a real browser against the real route with a stub blob store
+standing in for Vercel, and checks both halves: the image left, and the image is
+still here. It also checks the queue drains without anyone pressing anything,
+that the object lands under the path the workbook refers to, and that a reload
+does not re-upload what is already stored.
+
+```bash
+node tests/record.js
 ```
 
 ## `ai.js`

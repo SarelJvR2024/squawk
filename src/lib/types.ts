@@ -190,6 +190,24 @@ export interface Attachment {
   /** Legacy inline data from before the media store existed. Read, never
    *  written. */
   dataUrl?: string;
+  /** The reference this photograph is known by, everywhere.
+   *
+   *  `KSIA-ELE-001_P01` — the check-point's portal id and a sequence number. It
+   *  is the filename in the export zip, the object name in cloud storage, the
+   *  first column of the Photographs sheet and the anchor a Word report will
+   *  use. One identifier in every place, so somebody holding the workbook can
+   *  find the image without asking anybody.
+   *
+   *  Sequence numbers are never reused. If P01 is deleted the next photograph
+   *  is P03, not P02 — an audit reference that silently comes to mean a
+   *  different image is worse than a gap in the numbering. */
+  ref?: string;
+  /** Where the record copy lives, once it has been uploaded. The LOCAL copy is
+   *  never deleted because this is set — the device keeps its own. */
+  cloudUrl?: string;
+  cloudAt?: number;
+  /** Why the last upload attempt failed, if it did. Shown, not swallowed. */
+  cloudError?: string;
   /** Small inline preview, so a strip of photographs paints without an async
    *  read per tile. The full image lives in the media store under its blobKey
    *  and is NEVER put in the persisted value — see src/lib/media.ts. */

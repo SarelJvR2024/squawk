@@ -35,6 +35,7 @@ import {
   useVisionOn,
 } from "@/lib/assist";
 import { useDictationEnabled, useEntityCode } from "@/lib/store";
+import { useRecordStore } from "@/lib/sync";
 import type { Attachment } from "@/lib/types";
 import { IconCamera, IconMic, IconSpark, IconX } from "./ui/icons";
 import { Pill } from "./ui/primitives";
@@ -617,6 +618,7 @@ function PhotoRow({
   const dead = a.unavailable || (missing && !a.dataUrl && !a.thumbDataUrl);
   const aiOn = useAssistAvailable();
   const vision = useVisionOn();
+  const recordStore = useRecordStore();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -713,6 +715,23 @@ function PhotoRow({
           )}
 
           <span className="flex flex-wrap items-center gap-[6px] font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+            {/* Where this one actually is. "On this device only" is the honest
+                state for most of an audit and is not an error — but an auditor
+                is entitled to see it rather than assume a copy exists
+                somewhere. */}
+            {recordStore && !dead && (
+              a.cloudUrl ? (
+                <span style={{ color: "var(--good)" }} title={`Record copy stored ${a.cloudAt ? new Date(a.cloudAt).toLocaleString("en-ZA") : ""}`}>
+                  in the record store
+                </span>
+              ) : a.cloudError ? (
+                <span style={{ color: "var(--bad)" }} title={a.cloudError}>
+                  not sent — {a.cloudError.slice(0, 40)}
+                </span>
+              ) : (
+                <span style={{ color: "var(--warn)" }}>on this device only</span>
+              )
+            )}
             {uncaptioned && (
               <span style={{ color: "var(--warn)" }}>Caption needed</span>
             )}
@@ -721,6 +740,7 @@ function PhotoRow({
                 assistant caption
               </span>
             )}
+            {a.ref && <span title="The name this photograph has in the export and the record store">{a.ref}</span>}
             {a.takenAt && <span>taken {new Date(a.takenAt).toLocaleString("en-ZA")}</span>}
             {a.width && a.height ? <span>{a.width}×{a.height}</span> : null}
             {a.bytes ? <span>{formatBytes(a.bytes)}</span> : null}

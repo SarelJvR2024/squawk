@@ -185,6 +185,37 @@ export async function preparePhoto(file: Blob): Promise<PreparedPhoto> {
   }
 }
 
+/** Ask the browser to stop evicting this audit.
+ *
+ *  IndexedDB is "best-effort" by default: Chrome and Android may clear it under
+ *  storage pressure, and Safari clears script-writable storage for a site not
+ *  visited for about seven days unless it has been added to the home screen.
+ *  Either of those takes the photographs, the captures and the whole audit with
+ *  them, silently, while somebody is between site visits.
+ *
+ *  `persist()` asks for the storage to be marked durable. The browser decides —
+ *  Chrome grants it on a site the user has engaged with or installed, Safari
+ *  behaves differently again — so the answer is reported rather than assumed,
+ *  and the export panel says plainly when it was refused. */
+export async function requestPersistentStorage(): Promise<boolean> {
+  try {
+    if (typeof navigator === "undefined" || !navigator.storage?.persist) return false;
+    /* Already granted on a previous run — do not ask again, it can prompt. */
+    if (await navigator.storage.persisted?.()) return true;
+    return await navigator.storage.persist();
+  } catch {
+    return false;
+  }
+}
+
+export async function isStoragePersisted(): Promise<boolean> {
+  try {
+    return (await navigator.storage?.persisted?.()) ?? false;
+  } catch {
+    return false;
+  }
+}
+
 /** How much of the tablet the evidence is using.
  *
  *  A tablet running out of storage mid-audit must fail visibly. Reading the

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   checksAt,
   priorFindingsAt,
@@ -11,7 +11,9 @@ import {
   useVisitId,
 } from "@/lib/store";
 import { loadAnswers } from "@/lib/answers";
-import { formatBytes, photoBudget } from "@/lib/media";
+import { formatBytes, getBlob, isStoragePersisted, photoBudget } from "@/lib/media";
+import { buildPhotoZip, photoFilename, type PhotoFile } from "@/lib/photos";
+import { portalIdFor } from "@/lib/sites";
 import {
   aboutSheet,
   closureSheet,
@@ -24,7 +26,7 @@ import {
   summarySheet,
   type ExportInput,
 } from "@/lib/exports";
-import { downloadText, downloadWorkbook, toCsv, type Sheet } from "@/lib/xlsx";
+import { downloadBytes, downloadText, downloadWorkbook, toCsv, type Sheet } from "@/lib/xlsx";
 import { Btn } from "@/components/ui/primitives";
 import { IconDownload, IconX } from "@/components/ui/icons";
 
@@ -70,7 +72,7 @@ const OPTIONS: { kind: Kind; title: string; blurb: string }[] = [
     kind: "photographs",
     title: "Photographs",
     blurb:
-      "One row per photograph — what it shows, which check it belongs to, who captioned it and when it was taken. A photograph nobody indexed is a photograph nobody will find.",
+      "One row per photograph — the file it is, what it shows, which check it belongs to, who captioned it and when it was taken. This is the index; Images below is the evidence itself.",
   },
 ];
 
@@ -86,9 +88,11 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
   const verifications = useVerifications();
   const entityCode = useEntityCode();
   const [budget, setBudget] = useState({ count: 0, bytes: 0 });
+  const [persisted, setPersisted] = useState<boolean | null>(null);
   useEffect(() => {
     let live = true;
     void photoBudget().then((b) => live && setBudget(b));
+    void isStoragePersisted().then((v) => live && setPersisted(v));
     return () => {
       live = false;
     };
@@ -99,8 +103,65 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
     0
   );
   const visitId = useVisitId();
-  const [busy, setBusy] = useState<Kind | null>(null);
+  const [busy, setBusy] = useState<Kind | "images" | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const photos = useMemo(
+    () =>
+      Object.entries(responses).flatMap(([checkId, r]) =>
+        r.attachments
+          .filter((a) => a.kind === "photo" && a.blobKey && !a.unavailable)
+          .map((a) => ({ checkId, a }))
+      ),
+    [responses]
+  );
+  const photoCount = photos.length;
+
+  /* The images, zipped, with a manifest. Read straight out of the media store
+     rather than from anything the records claim, because a record pointing at a
+     blob that is not there is exactly the case worth catching before somebody
+     relies on the zip. */
+  const downloadImages = async () => {
+    setBusy("images");
+    setError(null);
+    try {
+      const files: PhotoFile[] = [];
+      const rows: string[] = [
+        "file,reference,check,caption,caption source,taken,attached,attached by",
+      ];
+      const q = (v: string) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+      for (const { checkId, a } of photos) {
+        const blob = await getBlob(a.blobKey!);
+        if (!blob) continue;
+        const name = photoFilename(a);
+        files.push({ name, bytes: new Uint8Array(await blob.arrayBuffer()) });
+        rows.push(
+          [
+            name,
+            a.ref ?? "",
+            portalIdFor(entityCode, checkId),
+            a.caption?.trim() ?? "",
+            a.caption?.trim() ? (a.captionSource === "assistant" ? "Assistant, accepted" : "Auditor") : "NO CAPTION",
+            a.takenAt ? new Date(a.takenAt).toISOString() : "",
+            new Date(a.createdAt).toISOString(),
+            a.createdBy,
+          ]
+            .map(q)
+            .join(",")
+        );
+      }
+      if (!files.length) throw new Error("No stored images to export.");
+      downloadBytes(
+        buildPhotoZip(files, rows.join("\n")),
+        exportFilename(entityCode, visitId, "photographs", "zip"),
+        "application/zip"
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The images could not be zipped.");
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const build = async (kind: Kind, csv: boolean) => {
     setBusy(kind);
@@ -202,9 +263,45 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
               Getting large. Export and reset a finished visit before starting another.
             </span>
           )}
+          {/* Whether the browser has agreed not to throw this away. Safari
+              clears storage for a site not visited for about a week; Chrome
+              evicts under pressure. If the answer is no, say so here rather
+              than letting somebody find out after a site visit. */}
+          {persisted === false && (
+            <span style={{ color: "var(--warn)" }}>
+              This browser has not granted persistent storage — it may clear the audit if
+              the device runs low or the app goes unopened for a week. Export before you
+              leave site.
+            </span>
+          )}
         </div>
 
-        {error && (
+        {/* The images themselves, separately from the workbook. Separate because
+          the index is a few kilobytes and the evidence is not: an auditor can
+          send the workbook to a discipline lead without a hundred megabytes
+          attached, and fetch the images when somebody asks. The filenames match
+          the File column of the Photographs sheet exactly. */}
+      <div
+        className="mb-3.5 flex flex-wrap items-start gap-3 rounded-[13px] border p-3"
+        style={{ borderColor: "var(--line)", background: "var(--sunken)" }}
+      >
+        <div className="min-w-[180px] flex-1">
+          <b className="block font-display text-[12.5px] font-semibold">Images</b>
+          <span className="mt-[3px] block text-[11.5px] leading-[1.5]" style={{ color: "var(--ink-2)" }}>
+            Every photograph as a file, named the way the workbook refers to it
+            ({photoCount === 0 ? "none captured yet" : `${photoCount} · ${formatBytes(budget.bytes)}`}),
+            with a manifest inside so the zip still reads on its own.
+          </span>
+        </div>
+        <div className="flex shrink-0 gap-[6px]">
+          <Btn disabled={busy !== null || photoCount === 0} onClick={downloadImages}>
+            <IconDownload width={13} height={13} />
+            {busy === "images" ? "Zipping…" : "Download images"}
+          </Btn>
+        </div>
+      </div>
+
+      {error && (
           <div
             className="mb-3 rounded-[11px] border px-3.5 py-2.5 text-[12px]"
             style={{ borderColor: "var(--bad)", background: "var(--bad-bg)", color: "var(--bad)" }}

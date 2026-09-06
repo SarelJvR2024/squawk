@@ -119,6 +119,20 @@ export const IconDownload = (p: SVGProps<SVGSVGElement>) => (
     <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
   </svg>
 );
+/* The record copy. A cloud with an up-arrow rather than a tick, because the
+   state it usually shows is "not there yet". */
+export const IconCloud = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...s(p)}>
+    <path
+      d="M7 18h10a4 4 0 000-8 6 6 0 00-11.5-1.5A3.5 3.5 0 006 18h1z"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+    />
+    <path d="M12 20v-7m0 0l-2.5 2.5M12 13l2.5 2.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 /* Composer — deterministic, offline. Distinct from the AI spark on purpose:
    an auditor should be able to tell at a glance which button needs a network. */
 export const IconWand = (p: SVGProps<SVGSVGElement>) => (
