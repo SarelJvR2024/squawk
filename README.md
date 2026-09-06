@@ -114,7 +114,7 @@ npx vercel --prod   # promote to production
 | `TRANSCRIBE_LANGUAGE` | Pins transcription to one language. **Leave unset.** Auto-detection is what carries an auditor switching between English and Afrikaans inside one sentence. |
 | `ASSIST_VISION` | `1` sends photographs to the model. **Unset or `0` and no image byte leaves**, whatever the client sends — the route strips them. Every AI affordance still works on captions alone. |
 | `ASSIST_ENDPOINT` | Where the assist request goes. Defaults to the Anthropic API; point it at an in-tenant endpoint if ACSA's governance requires the data to stay there. Nothing in the UI changes. |
-| `BLOB_READ_WRITE_TOKEN` | Turns the **record copy** on: every photograph is also written to Vercel Blob, privately. Without it the app is unchanged — capture, caption, export, all local — and says on screen that photographs are on the device only. |
+| `SQUAWK_READ_WRITE_TOKEN` | Turns the **record copy** on: every photograph is also written to Vercel Blob, privately. This is the live deployment's name — the store `squawk-blob` was created with the custom prefix `SQUAWK`, and **Vercel generates the value; you never type it**. The route accepts any `*_READ_WRITE_TOKEN`, so the default `BLOB_READ_WRITE_TOKEN` works too, and `GET /api/photos` reports which name it found. Without one the app is unchanged — capture, caption, export, all local — and says on screen that photographs are on the device only. |
 
 Setting any of these is a **data-governance decision, not a technical one** —
 see *Photographs*, *Voice notes* and *AI assistance* below.
@@ -395,7 +395,7 @@ browser refuses, the export panel says so in words.
 ~200 MB. A device running out of storage mid-audit must fail visibly: the
 browser's own quota error is opaque and arrives while somebody is on an apron.
 
-### The record copy — `BLOB_READ_WRITE_TOKEN`
+### The record copy — `SQUAWK_READ_WRITE_TOKEN`
 
 A tablet is a capture device, not a records system. Browser storage is evicted
 under pressure, cleared with site data, and gone with the device — and a finding
@@ -405,10 +405,26 @@ challenged in six months is evidenced by the photograph or by nothing.
   is a network. The queue is **derived from the records**, not held beside them:
   anything with a stored image and no `cloudUrl` is outstanding, by definition,
   so it survives a reload, a crashed tab and a flat battery.
-- **`access: "private"`.** These are photographs of a national key point; a
-  public blob URL is a URL anybody who ever sees it can keep. Reading one back
-  needs a signed URL — a route to build when somebody needs it. The local copy
-  serves the app today.
+- **Create the store with Access: Private.** The dashboard defaults the radio to
+  Public — *"anyone with the URL can access them"* — and these are photographs
+  of a national key point: a public blob URL is a URL anybody who ever sees it
+  can keep, permanently, with no authentication. The route uploads with
+  `access: "private"`, so a Public store refuses and the error says exactly that
+  rather than passing through an SDK message. It deliberately does **not** retry
+  as public: whether site photographs sit on an open URL is not a decision a
+  retry makes. Reading one back needs a signed URL — a route to build when
+  somebody needs it; the local copy serves the app today.
+- **The token's name does not matter, and that is deliberate.** Creating a store
+  offers a custom environment-variable prefix; the live store uses `SQUAWK`, so
+  the variable is `SQUAWK_READ_WRITE_TOKEN`. Reading only the default name would
+  make a correctly created store look **identical to no store at all** — nothing
+  uploading, nothing erroring, the header quietly saying "on device only"
+  forever, and somebody believing the photographs were being kept. Any
+  `*_READ_WRITE_TOKEN` is taken, and `GET /api/photos` names the one it used.
+- **Region is fixed at creation.** `squawk-blob` is in `iad1` (Washington,
+  D.C.). ACSA is a South African state-owned entity and these are photographs of
+  national key points, so where they physically rest belongs with whoever owns
+  the data-governance answer. It cannot be changed later, only recreated.
 - Uploads run **one at a time**. Eight in parallel on airport wifi is eight
   timeouts.
 - The header says when photographs are still only on the device; each row says
@@ -429,6 +445,25 @@ so an auditor can send a discipline lead the workbook without a hundred
 megabytes attached and fetch the images when somebody asks. The zip carries a
 `MANIFEST.csv` so it still reads on its own once separated from the workbook —
 which, being a separate download, it will be.
+
+### Checking it is on
+
+Three probes, in a browser, on whichever deployment you are testing. None ever
+returns a key's value:
+
+```
+/api/photos      → {"available":true,"via":"SQUAWK_READ_WRITE_TOKEN"}
+/api/assist      → {"available":true,"model":"claude-sonnet-4-5","vision":false}
+/api/transcribe  → {"available":true,"model":"scribe_v1"}
+```
+
+`available: false` means the variable did not reach the *running* deployment —
+usually because it was added after the last build. Redeploy. On `/api/photos`,
+`via` is how you tell a working prefix from one being silently ignored.
+
+`available: true` only means the token is present. If the store was created
+Public, this probe still passes and the first upload fails with a message
+telling you to recreate it.
 
 ### Retention — still undecided
 

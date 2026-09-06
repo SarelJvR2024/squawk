@@ -88,13 +88,14 @@ const startApp = () =>
       cwd: ROOT,
       env: {
         ...process.env,
-        /* Deliberately the PREFIXED name, not the default. Creating a store in
-           the Vercel dashboard offers a custom prefix, and a store created that
-           way looks to a route reading only BLOB_READ_WRITE_TOKEN exactly like
-           no store at all — nothing uploads, nothing errors, and the only clue
-           is a header that keeps saying "on device only". This suite runs the
-           awkward configuration so that stays fixed. */
-        SQUAWK_BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_stubstore_stubtoken",
+        /* PRODUCTION'S actual variable name, not the default and not an
+           invented one. The live store squawk-blob was created with the custom
+           prefix SQUAWK, so Vercel named the token SQUAWK_READ_WRITE_TOKEN — and
+           a route reading only BLOB_READ_WRITE_TOKEN would see a correctly
+           created store as no store at all: nothing uploads, nothing errors, and
+           the only clue is a header that keeps saying "on device only". Running
+           the real name here is what keeps that shut. */
+        SQUAWK_READ_WRITE_TOKEN: "vercel_blob_rw_stubstore_stubtoken",
         VERCEL_BLOB_API_URL: `http://127.0.0.1:${STUB_PORT}`,
       },
       stdio: "ignore",
@@ -138,7 +139,7 @@ const mediaKeys = (page) =>
     const avail = await (await fetch(`http://127.0.0.1:${APP_PORT}/api/photos`)).json();
     ok("the route reports a record store is configured", avail.available === true, JSON.stringify(avail));
     ok("it finds the token under a custom prefix, not just the default name",
-       avail.via === "SQUAWK_BLOB_READ_WRITE_TOKEN", String(avail.via));
+       avail.via === "SQUAWK_READ_WRITE_TOKEN", String(avail.via));
 
     browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
