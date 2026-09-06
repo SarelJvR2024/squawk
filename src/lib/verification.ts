@@ -1,13 +1,13 @@
 /** How a check-point is actually verified, and therefore where it belongs.
  *
- *  The register has always carried this. `vtype` on every one of the 374 rows
+ *  The register has always carried this. `vtype` on every one of the 324 rows
  *  names one or more of three modes:
  *
  *    Evidence                    — a document to collect and read
  *    Question                    — something to ask a person
  *    Site Physical Verification  — something to go and look at
  *
- *  Nothing read it. Capture listed all 374, including the nine that have
+ *  Nothing read it. Capture listed the whole register, including the nine that have
  *  nothing to ask and nothing to collect — an auditor at a desk was handed
  *  rows whose only answer is on an apron. Field mode listed checks that had a
  *  walkabout string, which happens to give the right 314 today but is a proxy:
@@ -17,23 +17,21 @@
  *
  *  So both screens now ask this file, and this file reads the declared field.
  *
- *  Distribution across the register:
+ *  Distribution across Rev A2 (06 Sep 2026, 324 check-points):
  *
- *    Evidence + Site Physical Verification              238
- *    Evidence + Site Physical Verification + Question    65
- *    Evidence                                            38
- *    Evidence + Question                                 22
+ *    Evidence + Site Physical Verification              225
+ *    Evidence + Site Physical Verification + Question    63
+ *    Evidence + Question                                 15
+ *    Evidence                                            10
  *    Site Physical Verification                           9
  *    Site Physical Verification + Question                2
  *
- *  which resolves to Evidence 363, Physical 314, Question 89 — and matches the
- *  register's own evidenceExpected (363), walkabout (314) and question (89)
- *  columns exactly.
+ *  which resolves to Evidence 313, Physical 299, Question 80.
  *
- *  Routed:  desk 365 (Evidence or Question) · field 314 (Physical)
- *           overlap 305 · desk-only 60 · field-only 9 · orphaned 0
+ *  Routed:  desk 315 (Evidence or Question) · field 299 (Physical)
+ *           overlap 290 · desk-only 25 · field-only 9 · orphaned 0
  *
- *  The 305 overlap is correct rather than duplication: reading the maintenance
+ *  The 290 overlap is correct rather than duplication: reading the maintenance
  *  record and looking at the pump are two different acts on the same
  *  requirement, done by different people at different times. Note the overlap
  *  includes the two "Site Physical Verification + Question" rows — they carry a

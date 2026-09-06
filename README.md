@@ -16,8 +16,8 @@ Section numbers in code comments point at that document.
 |---|---|
 | Design system (section 5 interface standard) | Implemented as CSS tokens and primitives, light and dark |
 | Data model (section 6) | Typed domain model, local-first store over IndexedDB |
-| Seed data | 374 check-points, 8 disciplines, 99 ACSA documents mapped, 33 site variants, 23 March 2025 findings |
-| Answer Library (section 7) | **Complete — all 374 checks, 11,179 researched options** |
+| Seed data | **Rev A2 (06 Sep 2026): 324 check-points, 6 disciplines**, 99 ACSA documents mapped, 33 site variants, 22 March 2025 asset-system ratings |
+| Answer Library (section 7) | **Complete — all 324 checks, re-keyed to Rev A2** |
 | Capture workspace (section 8) | Three-pane workspace, answer chips, real voice and photo capture, progress, ⌘K, keyboard |
 | Field inspection mode | Location-first, researched walkabout options with photo expectation, 44px targets, capture-first tray, ad-hoc findings, offline |
 | Findings and rating | ACSA B170 001M matrix, agreed vs suggested ratings, root cause, owner, due date |
@@ -229,6 +229,17 @@ tests/                five suites — see tests/README.md
   only the dashboard, the progress ring and the export speak of "complete". The
   export reports Desk done / Site seen / Complete as separate columns — one
   "Captured" column would tell ACSA a site check happened when it had not.
+
+- **The register is Rev A2, and the rebase is reproducible.** `src/data/source/`
+  holds the register as issued; `scripts/rebase-to-revA2.mjs` transforms it into
+  `checks.json`, `priorFindings.json` and a re-keyed `answers.json`, and refuses
+  to write if any check would lose its `vtype` or its Answer Library options.
+  Rev A2 carries twelve fields where Squawk's `Check` carries twenty-five — the
+  ACSA reference block, citation confidence, site variants, walkabout text and
+  `vtype` are researched content this project produced and the script preserves
+  them by id. 303 ids are unchanged; the 21 ME Management items are matched to
+  their new Process Safety & Risk numbers **by requirement text, not position**,
+  because the renumbering is not positional (KSIA-MEM-002 is KSIA-PSR-029).
 
 - **Answer Library content is reviewed content.** Issue buttons seed findings
   with suggested severities, so they carry weight. A discipline lead signs off

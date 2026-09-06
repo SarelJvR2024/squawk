@@ -4,91 +4,91 @@
   "discipline": "Electrical",
   "system": "Switchgear",
   "rating": "Unacceptable",
-  "finding": "Switchgear annual maintenance reports inadequate — do not show all required checks on VCB, protection & auxiliary relays, panels and busbars."
+  "finding": "Switchgear annual maintenance reports inadequate, do not show all required checks on VCB, protection & auxiliary relays, panels and busbars."
  },
  {
   "pf": "PF-02",
   "discipline": "Electrical",
   "system": "Generators",
   "rating": "Unacceptable",
-  "finding": "No diesel cut-out fuse on generator fuel supply — critical for isolating supply in case of fire."
+  "finding": "No diesel cut-out fuse installed on any generator (fire isolation); oil leaks on the floor of some airside substations; maintenance records run to March 2024; weekly off-load, monthly on-load tests and annual service to be evidenced."
  },
  {
   "pf": "PF-03",
   "discipline": "Electrical",
   "system": "Electricity Distribution System",
   "rating": "Tolerable",
-  "finding": "Rated Tolerable in Mar 2025 — to be improved to Acceptable."
+  "finding": "Switchgear and generators, central to the distribution network, rated Unacceptable; distribution system Tolerable until those findings are closed."
  },
  {
   "pf": "PF-04",
   "discipline": "Electrical",
   "system": "Transformers",
   "rating": "Tolerable",
-  "finding": "Rated Tolerable in Mar 2025 — to be improved to Acceptable."
+  "finding": "TRF 02 at AS1 off (oil below minimum); AS4 TRF 01 and 02 indicate partial discharges; Basement Chamber A1 TRF 04 and 05 indicate a high-range thermal fault (above 700 °C); production rates to be monitored."
  },
  {
   "pf": "PF-05",
   "discipline": "Electrical",
   "system": "ILS",
   "rating": "Tolerable",
-  "finding": "Rated Tolerable in Mar 2025 — to be improved to Acceptable."
+  "finding": "RWY 06 GP transmitter 1 unserviceable; ILS downgraded to CAT I; flight inspection report to be checked."
  },
  {
   "pf": "PF-06",
   "discipline": "Electrical",
   "system": "AWOS",
   "rating": "Tolerable",
-  "finding": "Rated Tolerable in Mar 2025 — to be improved to Acceptable."
+  "finding": "Latest AWOS calibration records not submitted."
  },
  {
   "pf": "PF-07",
   "discipline": "Electrical",
   "system": "FDS & Gaseous Suppression",
   "rating": "Tolerable",
-  "finding": "Rated Tolerable in Mar 2025 — to be improved to Acceptable."
+  "finding": "Systems well maintained per service stickers; faults observed on some panels need to be cleared."
  },
  {
   "pf": "PF-08",
   "discipline": "Electrical",
   "system": "X-Ray Machines",
   "rating": "Tolerable",
-  "finding": "Rated Tolerable in Mar 2025 — to be improved to Acceptable."
+  "finding": "Quarterly PM records for the previous two quarters submitted (calibration confirmed); one sampled machine at international arrivals not in good condition, one at local departures not functional."
  },
  {
   "pf": "PF-09",
   "discipline": "Electrical",
   "system": "AGL",
   "rating": "Acceptable",
-  "finding": "Acceptable in Mar 2025 — verify the standard has been sustained."
+  "finding": "Acceptable in Mar 2025."
  },
  {
   "pf": "PF-10",
   "discipline": "Electrical",
   "system": "Substations",
   "rating": "Acceptable",
-  "finding": "Acceptable in Mar 2025 — verify the standard has been sustained."
+  "finding": "Acceptable in Mar 2025."
  },
  {
   "pf": "PF-11",
   "discipline": "Electrical",
   "system": "UPS",
   "rating": "Acceptable",
-  "finding": "Acceptable in Mar 2025 — verify the standard has been sustained."
+  "finding": "Acceptable in Mar 2025."
  },
  {
   "pf": "PF-12",
   "discipline": "Electrical",
   "system": "Lighting",
   "rating": "Acceptable",
-  "finding": "Acceptable in Mar 2025 — verify the standard has been sustained."
+  "finding": "Acceptable in Mar 2025."
  },
  {
   "pf": "PF-13",
   "discipline": "Mechanical",
   "system": "Fuel System",
   "rating": "Unacceptable",
-  "finding": "Most hydrant pit couplers have worn seals or damaged lids — risk of significant refuelling delays."
+  "finding": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays."
  },
  {
   "pf": "PF-14",
@@ -109,55 +109,48 @@
   "discipline": "Civil",
   "system": "Friction Measurement & Corrective Maintenance",
   "rating": "Tolerable",
-  "finding": "Friction levels below minimum in some runway sections — corrective measures required."
+  "finding": "Friction levels below minimum in some runway sections, corrective measures required."
  },
  {
   "pf": "PF-17",
-  "discipline": "Civil",
-  "system": "FOD Management",
-  "rating": "Tolerable",
-  "finding": "FOD-related observation linked to friction / surface condition."
- },
- {
-  "pf": "PF-18",
   "discipline": "Civil",
   "system": "Airside Service Roads & Perimeter",
   "rating": "Tolerable",
   "finding": "Service road expansion joints need repair or replacement."
  },
  {
-  "pf": "PF-19",
+  "pf": "PF-18",
   "discipline": "Building & Facilities",
   "system": "Corrosion",
   "rating": "Acceptable",
-  "finding": "Building steel corrosion previously Tolerable — addressed, now Acceptable. Verify sustained."
+  "finding": "Building corrosion (steel structure) previously Tolerable, addressed, now Acceptable. Verify sustained."
  },
  {
-  "pf": "PF-20",
+  "pf": "PF-19",
   "discipline": "Building & Facilities",
   "system": "Refuse Disposal",
   "rating": "Acceptable",
   "finding": "Refuse disposal improved; good housekeeping maintained. Verify sustained."
  },
  {
-  "pf": "PF-21",
+  "pf": "PF-20",
   "discipline": "Process Safety & Risk",
   "system": "Standby Power Safety",
   "rating": "Unacceptable",
-  "finding": "No cut-out fuse on diesel supply to generators — fire hazard."
+  "finding": "No cut-out fuse on diesel supply to generators, fire hazard."
  },
  {
-  "pf": "PF-22",
+  "pf": "PF-21",
   "discipline": "Process Safety & Risk",
   "system": "Fuel Farm & Hydrant (MHI)",
   "rating": "Unacceptable",
-  "finding": "Fuel hydrant pit couplers without lids — pit flooding and fuel leaks leading to environmental contamination."
+  "finding": "Fuel hydrant pit couplers without lids, pit flooding and fuel leaks leading to environmental contamination."
  },
  {
-  "pf": "PF-23",
-  "discipline": "Energy & Demand Mgmt",
+  "pf": "PF-22",
+  "discipline": "Energy & Demand Management",
   "system": "Energy Distribution",
   "rating": "Not audited",
-  "finding": "E&DM was not audited at KSIA in Mar 2025 — no compliance dashboard exists. This round establishes the E&DM baseline."
+  "finding": "E&DM was not audited at KSIA in Mar 2025, no compliance dashboard exists. This round is the E&DM baseline."
  }
 ]

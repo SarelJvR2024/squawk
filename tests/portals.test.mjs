@@ -7,15 +7,15 @@ import { fileURLToPath } from "node:url";
  *  The register declares, per row, how each check-point is verified: Evidence
  *  (a document to collect), Question (something to ask a person), Site
  *  Physical Verification (something to go and look at). Nothing read it.
- *  Capture listed all 374 — including the nine whose only mode is physical,
+ *  Capture listed the whole register — including the nine whose only mode is physical,
  *  which an auditor at a desk cannot answer at all. Field mode listed anything
- *  with walkabout text, which gives the right 314 today by coincidence rather
+ *  with walkabout text, which gave the right count by coincidence rather
  *  than by declaration.
  *
  *  Two failure modes to guard, and they pull in opposite directions:
  *
  *    - duplication: every check in both views, so neither list means anything
- *      and the tablet carries 374 rows of which 60 cannot be done on site;
+ *      and the tablet carries every row, including the 25 that cannot be done on site;
  *    - orphaning: a check in neither view, which is worse, because nothing on
  *      screen would ever say so.
  *
@@ -58,7 +58,7 @@ const n = {
   neither: checks.filter((c) => !isDesk(c) && !isPhysical(c)).length,
 };
 
-check("the register holds 374 check-points", n.total === 374, `got ${n.total}`);
+check("the register holds 324 check-points (Rev A2)", n.total === 324, `got ${n.total}`);
 
 check(
   "every check declares how it is verified",
@@ -66,17 +66,35 @@ check(
   `${checks.filter((c) => !c.vtype).length} rows have no vtype`
 );
 
-check("Evidence: 363", n.evidence === 363, `got ${n.evidence}`);
-check("Question: 89", n.question === 89, `got ${n.question}`);
-check("Site Physical Verification: 314", n.physical === 314, `got ${n.physical}`);
+check("Evidence: 313", n.evidence === 313, `got ${n.evidence}`);
+check("Question: 80", n.question === 80, `got ${n.question}`);
+check("Site Physical Verification: 299", n.physical === 299, `got ${n.physical}`);
 
 /* The register carries the same facts twice — once as vtype, once as the
    columns. If they ever disagree, one of them is wrong and the routing is
    built on the wrong one. */
+/* Under Rev A this held in both directions. Under Rev A2 it holds in one:
+   everything declaring Evidence has an evidenceExpected, but two physical-only
+   rows (KSIA-MEC-029, KSIA-PSR-016) carry the literal "Site inspection" in that
+   column — which is the physical verification, not a document to collect. So
+   the invariant is stated in the direction that is actually true, and the two
+   exceptions are named rather than filtered away by a rule that would also
+   swallow the four Evidence rows legitimately answered by a site inspection. */
+const declaresEvidenceWithout = checks.filter((c) => isEvidence(c) && !c.evidenceExpected);
 check(
-  "vtype agrees with the evidenceExpected column",
-  checks.filter((c) => c.evidenceExpected).length === n.evidence,
-  `${checks.filter((c) => c.evidenceExpected).length} vs ${n.evidence}`
+  "every check declaring Evidence names the evidence expected",
+  declaresEvidenceWithout.length === 0,
+  `${declaresEvidenceWithout.length} declare Evidence with the column blank`
+);
+
+const evidenceColumnOnly = checks.filter((c) => c.evidenceExpected && !isEvidence(c));
+check(
+  "the only rows with an evidence column but no Evidence mode are the two site-inspection ones",
+  evidenceColumnOnly.length === 2 &&
+    evidenceColumnOnly.every(
+      (c) => c.evidenceExpected.trim().toLowerCase() === "site inspection"
+    ),
+  evidenceColumnOnly.map((c) => `${c.id}=${c.evidenceExpected}`).join(", ")
 );
 check(
   "vtype agrees with the question column",
@@ -99,19 +117,19 @@ check(
 
 check(
   "the audit workspace is not the whole register",
-  n.desk === 365 && n.desk < n.total,
+  n.desk === 315 && n.desk < n.total,
   `desk ${n.desk} of ${n.total} — the 9 physical-only checks belong on the tablet`
 );
 
 check(
   "field inspection is not the whole register",
-  n.physical === 314 && n.physical < n.total,
-  `field ${n.physical} of ${n.total} — 60 desk-only checks must not reach the apron`
+  n.physical === 299 && n.physical < n.total,
+  `field ${n.physical} of ${n.total} — 25 desk-only checks must not reach the apron`
 );
 
 check(
-  "the overlap is the 305 that genuinely need both",
-  n.both === 305,
+  "the overlap is the 290 that genuinely need both",
+  n.both === 290,
   `got ${n.both} — reading the record and seeing the asset are two acts on one requirement`
 );
 
@@ -186,7 +204,7 @@ check(
   "a desk check that also needs the asset seen says so",
   /needsField\(check\) &&/.test(detail) &&
     /appears in Field inspection too/.test(detail),
-  "saving at the desk answers half of a 305-check overlap, and must not read as done"
+  "saving at the desk answers half of a 290-check overlap, and must not read as done"
 );
 
 check(
