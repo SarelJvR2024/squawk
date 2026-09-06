@@ -179,8 +179,16 @@ export default function RecordActions({
                         aria-label={`Severity ${s} by likelihood ${l} — ${b}, ${BAND_META[b].label}`}
                         className="h-[42px] w-[56px] rounded-[8px] border-[1.5px] font-mono text-[10.5px] font-semibold transition-[var(--t)]"
                         style={{
-                          background: `var(--${tone}-bg)`,
-                          color: `var(--${tone})`,
+                          /* An AGREED cell is filled solid, the way the report
+                             prints it. A suggestion keeps the soft tint. */
+                          background:
+                            picked && record.ratingConfirmed
+                              ? `var(--${tone}-solid)`
+                              : `var(--${tone}-bg)`,
+                          color:
+                            picked && record.ratingConfirmed
+                              ? "var(--on-solid)"
+                              : `var(--${tone})`,
                           borderColor: picked
                             ? record.ratingConfirmed
                               ? "var(--acc)"
@@ -206,7 +214,12 @@ export default function RecordActions({
         className="my-3 flex flex-wrap items-center gap-2 rounded-[11px] px-[15px] py-3 font-display text-[13.5px] font-bold"
         style={
           band
-            ? { background: `var(--${BAND_META[band].tone}-bg)`, color: `var(--${BAND_META[band].tone})` }
+            ? record.ratingConfirmed
+              ? {
+                  background: `var(--${BAND_META[band].tone}-solid)`,
+                  color: "var(--on-solid)",
+                }
+              : { background: `var(--${BAND_META[band].tone}-bg)`, color: `var(--${BAND_META[band].tone})` }
             : { background: "var(--sunken)", color: "var(--ink-3)", fontWeight: 500, fontSize: 12 }
         }
       >
@@ -325,8 +338,14 @@ export default function RecordActions({
                             aria-label={`Consequence ${c} by likelihood ${l} — priority ${p}, ${erm.ERM_PRIORITY_META[p].tolerance}`}
                             className="h-[36px] w-[52px] rounded-[8px] border-[1.5px] font-mono text-[10px] font-semibold transition-[var(--t)]"
                             style={{
-                              background: `var(--${tone}-bg)`,
-                              color: `var(--${tone})`,
+                              background:
+                                picked && record.ermConfirmed
+                                  ? `var(--${tone}-solid)`
+                                  : `var(--${tone}-bg)`,
+                              color:
+                                picked && record.ermConfirmed
+                                  ? "var(--on-solid)"
+                                  : `var(--${tone})`,
                               borderColor: picked
                                 ? record.ermConfirmed
                                   ? "var(--acc)"
@@ -368,10 +387,15 @@ export default function RecordActions({
                   className="mt-2 flex flex-wrap items-center gap-2 rounded-[9px] px-[11px] py-[8px] font-display text-[12px] font-bold"
                   style={
                     p
-                      ? {
-                          background: `var(--${erm.ERM_PRIORITY_META[p].tone}-bg)`,
-                          color: `var(--${erm.ERM_PRIORITY_META[p].tone})`,
-                        }
+                      ? record.ermConfirmed
+                        ? {
+                            background: `var(--${erm.ERM_PRIORITY_META[p].tone}-solid)`,
+                            color: "var(--on-solid)",
+                          }
+                        : {
+                            background: `var(--${erm.ERM_PRIORITY_META[p].tone}-bg)`,
+                            color: `var(--${erm.ERM_PRIORITY_META[p].tone})`,
+                          }
                       : { background: "var(--panel)", color: "var(--ink-3)", fontWeight: 500, fontSize: 11 }
                   }
                 >

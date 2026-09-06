@@ -234,6 +234,26 @@ async function badge(p, href) {
     await p.waitForTimeout(500);
   }
 
+  /* The ACSA report fills an agreed rating cell SOLID with white text and the
+     app keeps a soft tint for one the assistant has only suggested — so the
+     weight of the colour carries the meaning rather than a word beside it
+     doing all the work. Two cells in the SAME band are compared: 5A, which
+     was just agreed, against 5B, which is Red too and was not. If they ever
+     paint the same, the distinction has quietly stopped existing. */
+  const style = (sel) =>
+    p.locator(sel).first().evaluate((el) => {
+      const c = getComputedStyle(el);
+      return { bg: c.backgroundColor, fg: c.color };
+    });
+  const agreedCell = await style('button[aria-label^="Severity A - Catastrophic by likelihood 5"]');
+  const otherRed = await style('button[aria-label^="Severity B - Hazardous by likelihood 5"]');
+  ok("an agreed cell is filled solid, the way the report prints it",
+     agreedCell.bg === "rgb(199, 56, 48)", agreedCell.bg);
+  ok("and its text is white against that fill",
+     agreedCell.fg === "rgb(255, 255, 255)", agreedCell.fg);
+  ok("a cell in the same band that nobody agreed stays a soft tint",
+     otherRed.bg !== agreedCell.bg, `${otherRed.bg} vs ${agreedCell.bg}`);
+
   await p.goto(B + "/dashboard", { waitUntil: "networkidle" });
   await p.waitForTimeout(1600);
   const agreed = {

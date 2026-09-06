@@ -35,6 +35,18 @@
   --warn-line: #e5c689;
   --neu: #6f6889;
   --neu-bg: #efedf6;
+  /* Solid band fills. The ACSA Asset Assurance report fills a rating cell
+     SOLID with white text; the app keeps a soft tint for a rating the
+     assistant has only suggested, so the visual weight carries the meaning
+     rather than a word next to it doing all the work.
+     --bad-solid is the report's own #C73830 (5.20:1 on white).
+     The report's amber #D58F0D is 2.70:1 with white text — fine on paper,
+     unreadable on a tablet on an apron and below WCAG AA — so the solid
+     amber is the darker warn already used for text (4.64:1). */
+  --bad-solid: #c73830;
+  --warn-solid: #9c6b12;
+  --good-solid: #157f52;
+  --on-solid: #ffffff;
   --e1: 0 1px 2px rgba(22, 16, 40, 0.06);
   --e2: 0 2px 4px rgba(22, 16, 40, 0.05), 0 8px 16px -8px rgba(22, 16, 40, 0.1);
   --e3: 0 12px 32px -12px rgba(22, 16, 40, 0.22), 0 2px 6px rgba(22, 16, 40, 0.06);
@@ -71,6 +83,10 @@
     --warn-line: #6b5327;
     --neu: #9b93b8;
     --neu-bg: #221d36;
+    --bad-solid: #f07c82;
+    --warn-solid: #e5b85e;
+    --good-solid: #4ecb8b;
+    --on-solid: #14101f;
     --e1: 0 1px 2px rgba(0, 0, 0, 0.4);
     --e2: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 16px -8px rgba(0, 0, 0, 0.5);
     --e3: 0 12px 32px -12px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4);
@@ -106,6 +122,10 @@
   --warn-line: #6b5327;
   --neu: #9b93b8;
   --neu-bg: #221d36;
+  --bad-solid: #f07c82;
+  --warn-solid: #e5b85e;
+  --good-solid: #4ecb8b;
+  --on-solid: #14101f;
   --e1: 0 1px 2px rgba(0, 0, 0, 0.4);
   --e2: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 16px -8px rgba(0, 0, 0, 0.5);
   --e3: 0 12px 32px -12px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4);
@@ -135,6 +155,10 @@
   --color-bad: var(--bad);
   --color-bad-bg: var(--bad-bg);
   --color-bad-line: var(--bad-line);
+  --color-bad-solid: var(--bad-solid);
+  --color-warn-solid: var(--warn-solid);
+  --color-good-solid: var(--good-solid);
+  --color-on-solid: var(--on-solid);
   --color-warn: var(--warn);
   --color-warn-bg: var(--warn-bg);
   --color-warn-line: var(--warn-line);

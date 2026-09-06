@@ -28,9 +28,9 @@ running server; fifteen do not. **Check each suite's exit status, not its output
 | `persite.js` | yes | 25 |
 | `vision.js` | starts its own | 17 |
 | `record.js` | starts its own | 14 |
-| `flow.js` | yes | 35 |
+| `flow.js` | yes | 38 |
 
-**817 assertions in total**, every count above verified by running the suite,
+**820 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -436,6 +436,12 @@ Worsened saw nothing.
 ```bash
 BASE=http://localhost:3000 node tests/flow.js
 ```
+
+It also compares two cells in the **same band** — 5A, just agreed, against 5B,
+which is Red too and was not — and asserts they do not paint the same. The
+report fills an agreed cell solid with white text; a suggestion keeps the soft
+tint. If those ever converge, the distinction has quietly stopped existing and
+nothing else in the suite would notice.
 
 **Run it after any change to how a figure is derived** — the store's selectors,
 the dashboard, closure, or anything that reads `ratingConfirmed`.
