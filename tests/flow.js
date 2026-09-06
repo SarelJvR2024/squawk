@@ -238,7 +238,40 @@ async function badge(p, name) {
      /UNRATED/.test(hazBody) || /counts nowhere until the group agrees/.test(hazBody),
      "the finding it consolidates was agreed 5A; the hazard is a separate judgement");
 
-  /* ---------------- 6. and the closure position ---------------- */
+  /* ---------------- 6. the OTHER way a hazard is raised ----------------
+     Not every hazard is consolidated from findings. One seen on the walk is
+     not a finding first and never becomes one — no check-point was written up
+     about it, and grouping findings afterwards cannot invent it. Until this
+     existed the register's empty state offered only "Go to capture", so on a
+     fresh device there was no way to record a hazard at all. */
+  await p.goto(B + "/field", { waitUntil: "networkidle" });
+  await p.waitForTimeout(2000);
+  const newHazard = p.locator("button", { hasText: /New hazard/ });
+  ok("the walk offers a way to raise a hazard where it is seen",
+     (await newHazard.count()) > 0);
+  await newHazard.first().click();
+  await p.waitForTimeout(600);
+  await p
+    .locator('input[placeholder^="Uncontained fuel release"]')
+    .first()
+    .fill("Uncontained fuel release on the apron");
+  await p.locator("textarea").last().fill("Hydrant pit lid missing; no bunding under the coupler.");
+  await p.locator("button", { hasText: /Create hazard/ }).first().click();
+  await p.waitForTimeout(900);
+
+  await p.goto(B + "/hazards", { waitUntil: "networkidle" });
+  await p.waitForTimeout(1500);
+  const withWalk = await p.locator("body").innerText();
+  ok("a hazard raised on the walk reaches the register",
+     /Uncontained fuel release on the apron/.test(withWalk));
+  ok("and it arrives unrated like every other one",
+     /UNRATED/.test(withWalk),
+     "the walk names the event; the group rates it");
+  ok("it needed no finding behind it",
+     /0 findings/.test(withWalk) || /Raised directly|RAISED DIRECTLY/i.test(withWalk),
+     "a hazard with no findings is legitimate and the type has always allowed it");
+
+  /* ---------------- 7. and the closure position ---------------- */
   await p.goto(B + "/closure", { waitUntil: "networkidle" });
   await p.waitForTimeout(1400);
   const closure = await p.locator("body").innerText();

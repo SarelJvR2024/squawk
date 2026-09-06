@@ -292,3 +292,16 @@ h4 {
     padding-inline: 13px;
   }
 }
+
+/* A nav that scrolls sideways on a tablet, without the scrollbar sitting in
+   the middle of the chrome. The bar itself is 767px of destinations and the
+   header has to fit inside 820 in portrait, so the overflow is real and the
+   swipe is the way through it — but a visible track across the top of the app
+   reads as a defect rather than an affordance. */
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

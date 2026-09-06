@@ -28,9 +28,9 @@ running server; fifteen do not. **Check each suite's exit status, not its output
 | `persite.js` | yes | 25 |
 | `vision.js` | starts its own | 17 |
 | `record.js` | starts its own | 14 |
-| `flow.js` | yes | 20 |
+| `flow.js` | yes | 24 |
 
-**788 assertions in total**, every count above verified by running the suite,
+**792 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
