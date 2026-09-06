@@ -28,6 +28,27 @@ import { put } from "@vercel/blob";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** The token, whatever Vercel called it.
+ *
+ *  Creating a blob store offers a "Custom Environment Variable Prefix", so a
+ *  project with several stores can tell them apart — a store named with the
+ *  prefix SQUAWK_BLOB produces SQUAWK_BLOB_READ_WRITE_TOKEN, not the default
+ *  BLOB_READ_WRITE_TOKEN. Reading only the default name means a correctly
+ *  created store looks to the app exactly like no store at all, and the app is
+ *  built to go quiet in that case: nothing uploads, nothing errors, and the
+ *  only clue is a header that keeps saying photographs are on the device only.
+ *
+ *  So take any *_READ_WRITE_TOKEN, preferring the default when both exist. The
+ *  prefix is the deployment's business, not this route's. */
+function blobToken(): string | undefined {
+  const direct = process.env.BLOB_READ_WRITE_TOKEN;
+  if (direct) return direct;
+  for (const [k, v] of Object.entries(process.env)) {
+    if (k.endsWith("_READ_WRITE_TOKEN") && v) return v;
+  }
+  return undefined;
+}
+
 /* Comfortably above a downscaled photograph (300-600 KB) and well under the
    serverless body limit. A file over this is not a photograph this app made. */
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -40,11 +61,23 @@ const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 const PATH = /^[A-Z0-9]{2,6}\/\d{4}-\d{2}\/[A-Za-z0-9._-]{1,120}$/;
 
 export async function GET() {
-  return Response.json({ available: !!process.env.BLOB_READ_WRITE_TOKEN });
+  const token = blobToken();
+  return Response.json({
+    available: !!token,
+    /* Named so a deployment can see WHICH variable was picked up, without the
+       value ever leaving the server. Getting this wrong is silent otherwise. */
+    via: token
+      ? process.env.BLOB_READ_WRITE_TOKEN
+        ? "BLOB_READ_WRITE_TOKEN"
+        : Object.keys(process.env).find(
+            (k) => k.endsWith("_READ_WRITE_TOKEN") && process.env[k]
+          )
+      : null,
+  });
 }
 
 export async function POST(req: NextRequest) {
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  const token = blobToken();
   if (!token) {
     return Response.json(
       {
@@ -103,8 +136,17 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     const message = e instanceof Error ? e.message : "unknown";
     console.error("photo upload", pathname, message);
+    /* A store created as Public cannot take a private blob. Say that, rather
+       than passing on an SDK message nobody can act on — and do NOT quietly
+       retry as public. Whether photographs of a national key point sit on a
+       URL anybody can keep is not a decision this route makes on a retry. */
+    const publicStore = /private|access/i.test(message);
     return Response.json(
-      { error: `The record store rejected the upload: ${message}` },
+      {
+        error: publicStore
+          ? "The record store will not accept a private upload. It was probably created with Access: Public — these are site photographs and they are stored privately by design. Create the store as Private."
+          : `The record store rejected the upload: ${message}`,
+      },
       { status: 502 }
     );
   }

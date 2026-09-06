@@ -392,9 +392,27 @@ check(
 );
 
 check(
+  "the token is found whatever the store's prefix named it",
+  /k\.endsWith\("_READ_WRITE_TOKEN"\)/.test(photoRoute) && /function blobToken\(\)/.test(photoRoute),
+  "a correctly created store with a custom prefix would otherwise look identical to no store at all"
+);
+
+check(
+  "and the route says which name it used, without ever returning the value",
+  /via: token/.test(photoRoute) && !/token: token,/.test(photoRoute),
+  "getting this wrong is silent otherwise"
+);
+
+check(
+  "a Public store is reported as such, not retried as public",
+  /created with Access: Public/.test(photoRoute) && !/access: "public"/.test(photoRoute),
+  "whether site photographs sit on an open URL is not a decision a retry makes"
+);
+
+check(
   "without a token the route refuses and the app carries on",
   /if \(!token\)/.test(photoRoute) && /status: 503/.test(photoRoute) &&
-    /available: !!process\.env\.BLOB_READ_WRITE_TOKEN/.test(photoRoute),
+    /available: !!token,/.test(photoRoute),
   ""
 );
 
@@ -502,6 +520,26 @@ for (const [what, needle] of [
   ["that retention is undecided", "Retention — still undecided"],
 ]) {
   check(`README documents ${what}`, readme.includes(needle), needle);
+}
+
+/* The suites that start their own servers must not run against one they did not
+   start: a stale next-server on the port answers the readiness poll with an old
+   build and an old environment, and the suite then quietly tests something else.
+   That is worse than a failure, because it can also pass. */
+for (const suite of ["record.js", "vision.js"]) {
+  const t = fs.readFileSync(path.join(here, suite), "utf8");
+  check(
+    `${suite} refuses to run against a server it did not start`,
+    /async function requireFreePort/.test(t) && /already answering/.test(t),
+    ""
+  );
+  check(
+    `${suite} kills the process group, not just the wrapper`,
+    /function killTree/.test(t) &&
+      /process\.kill\(-p\.pid, "SIGKILL"\)/.test(t) &&
+      /detached: true/.test(t),
+    "spawn kills the npx wrapper and orphans the next-server grandchild on the port"
+  );
 }
 
 /* ------------------------------------------------------------------ result */

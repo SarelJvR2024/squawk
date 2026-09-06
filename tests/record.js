@@ -52,16 +52,55 @@ const stub = http.createServer((req, res) => {
   });
 });
 
+/* Refuse to run against a server this file did not start.
+ *
+ *  `spawn` kills the npx wrapper, not the next-server grandchild, so a suite
+ *  that died badly can leave a server holding the port. The next run's readiness
+ *  poll then succeeds immediately — against the OLD build, with the OLD
+ *  environment — and the suite quietly tests something that is not the code in
+ *  front of you. That is worse than a failure, because it can also PASS. */
+async function requireFreePort(port, what) {
+  try {
+    await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(1500) });
+  } catch {
+    return; // nothing there, which is what we want
+  }
+  throw new Error(
+    `Port ${port} is already answering. Something else (a stale ${what} from an ` +
+      `earlier run?) is holding it, and this suite would test that instead of the ` +
+      `current build. Kill it and run again.`
+  );
+}
+
+/** Kill the process GROUP, not just the wrapper. */
+function killTree(p) {
+  if (!p?.pid) return;
+  try {
+    process.kill(-p.pid, "SIGKILL");
+  } catch {
+    try { p.kill("SIGKILL"); } catch {}
+  }
+}
+
 const startApp = () =>
   new Promise((resolve, reject) => {
     const p = spawn("npx", ["next", "start", "-p", String(APP_PORT)], {
       cwd: ROOT,
       env: {
         ...process.env,
-        BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_stubstore_stubtoken",
+        /* Deliberately the PREFIXED name, not the default. Creating a store in
+           the Vercel dashboard offers a custom prefix, and a store created that
+           way looks to a route reading only BLOB_READ_WRITE_TOKEN exactly like
+           no store at all — nothing uploads, nothing errors, and the only clue
+           is a header that keeps saying "on device only". This suite runs the
+           awkward configuration so that stays fixed. */
+        SQUAWK_BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_stubstore_stubtoken",
         VERCEL_BLOB_API_URL: `http://127.0.0.1:${STUB_PORT}`,
       },
       stdio: "ignore",
+      /* Its own process group, so the kill below takes the next-server
+         grandchild with it rather than orphaning it on the port. */
+      detached: true,
     });
     const t0 = Date.now();
     const poll = async () => {
@@ -91,11 +130,15 @@ const mediaKeys = (page) =>
 (async () => {
   let app, browser;
   try {
+    await requireFreePort(STUB_PORT, "stub");
+    await requireFreePort(APP_PORT, "next-server");
     await new Promise((r) => stub.listen(STUB_PORT, "127.0.0.1", r));
     app = await startApp();
 
     const avail = await (await fetch(`http://127.0.0.1:${APP_PORT}/api/photos`)).json();
     ok("the route reports a record store is configured", avail.available === true, JSON.stringify(avail));
+    ok("it finds the token under a custom prefix, not just the default name",
+       avail.via === "SQUAWK_BLOB_READ_WRITE_TOKEN", String(avail.via));
 
     browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -162,7 +205,7 @@ const mediaKeys = (page) =>
     process.exitCode = 1;
   } finally {
     await browser?.close();
-    app?.kill();
+    killTree(app);
     stub.close();
   }
 
