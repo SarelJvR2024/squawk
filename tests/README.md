@@ -1,6 +1,6 @@
 # Tests
 
-Twenty-two suites, no framework — all run with plain `node`. Seven need a
+Twenty-three suites, no framework — all run with plain `node`. Eight need a
 running server; fifteen do not. **Check each suite's exit status, not its output**: a
 `for` loop over them reports the status of the loop.
 
@@ -28,8 +28,9 @@ running server; fifteen do not. **Check each suite's exit status, not its output
 | `persite.js` | yes | 25 |
 | `vision.js` | starts its own | 17 |
 | `record.js` | starts its own | 14 |
+| `flow.js` | yes | 20 |
 
-**768 assertions in total**, every count above verified by running the suite,
+**788 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -398,6 +399,46 @@ node tests/erm-matrix.test.mjs
 ```
 
 **Run it after any edit to `src/lib/erm.ts` or `src/lib/risk.ts`.**
+
+## `flow.js`
+
+**Does the number move, and does it move only when it should?**
+
+Every screen derives its figures from one store, and the invariant the whole
+application is built on is that a rating the group has not agreed reaches no
+KPI, no dashboard and no export. That rule is easy to state and easy to leak.
+It leaked: `currentRating()` — which decides whether an asset system reads
+Unacceptable, Tolerable or Acceptable this visit — was written twice, on the
+dashboard and on closure, and **neither copy checked `ratingConfirmed`**. A
+finding raised by tapping an issue button arrives carrying that button's
+*suggested* severity, so it banded immediately, and one tap could move the
+Improved / Unchanged / Worsened counts against March 2025 — the headline
+comparison in the out-brief.
+
+Reading the code did not catch that. It survived because the rule *is* applied
+correctly in `exports.ts`, in `carryforward.ts` and in the dashboard's own
+`rated` list, each within a few lines of a comment saying so; these two
+functions were somewhere else.
+
+So this suite drives a real browser through the auditor's actual path — capture
+a check, raise a finding, agree a rating, consolidate a hazard, open closure —
+and asserts **what changed and what did not** at each step. Two assertions carry
+the weight, and they are deliberately a pair: the movement counts must not move
+on a suggestion, and they must move once a person taps the cell. A guard that
+never lets anything through is not a guard.
+
+It watches all three movement counts rather than one. Watching only *Worsened*
+let the defect through the first time this suite was written: the issue button
+on that asset system seeds an **Amber** suggestion and the system was Tolerable
+in 2025, so the ungated code scored it *Unchanged* and an assertion aimed at
+Worsened saw nothing.
+
+```bash
+BASE=http://localhost:3000 node tests/flow.js
+```
+
+**Run it after any change to how a figure is derived** — the store's selectors,
+the dashboard, closure, or anything that reads `ratingConfirmed`.
 
 ## `vision.js`
 
