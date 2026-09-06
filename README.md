@@ -540,23 +540,32 @@ telling you to recreate it.
 
 **`ambiguous: true` means two stores and no choice.** A project that has had two
 blob stores has two tokens, and the second one does not replace the first — it
-sits alongside it. When more than one `*_READ_WRITE_TOKEN` is set and neither
-`BLOB_READ_WRITE_TOKEN` nor `BLOB_TOKEN_VAR` says which to use, **the route
-uploads nothing** and `reason` says so. That is deliberate: picking one by any
+sits alongside it. When more than one `*_READ_WRITE_TOKEN` is set and
+`BLOB_TOKEN_VAR` does not say which to use, **the route uploads nothing** and
+`reason` says so.
+
+**`BLOB_READ_WRITE_TOKEN` gets no preference for being the default name.** It is
+usually the *older* connection — the store that existed before anyone chose a
+custom prefix — so preferring it is how a deployment keeps quietly writing to the
+store it replaced. Giving the newer store a prefix is the deliberate act; being
+the default is not. That is deliberate: picking one by any
 tidy rule is wrong half the time, and a record copy in a store nobody
 remembers is a record nobody will ever look in. The photograph stays on the
 device regardless.
 
 Two ways to resolve it, either is fine:
 
-- Delete the token of the store you replaced. `candidates` lists every name it
-  can see, so you know what to delete.
-- Or set `BLOB_TOKEN_VAR` to the name of the one you mean, and keep both.
+- Set `BLOB_TOKEN_VAR` to the name of the one you mean, and keep both. This is
+  the safer of the two: it is reversible, and it does not depend on working out
+  which store a token belongs to.
+- Or delete the tokens of the stores you replaced. `candidates` lists every name
+  the route can see, so you know what is there to remove.
 
 This is not hypothetical — it is what this deployment did. `squawk-blob` was
-created Private with the prefix `SQUAWK` after an earlier store had already
-produced `SQUAWK_BLOB_READ_WRITE_TOKEN`, and `SQUAWK_BLOB` sorts before
-`SQUAWK`, so any first-match rule reaches for the store that was abandoned.
+created Private with the prefix `SQUAWK`, giving `SQUAWK_READ_WRITE_TOKEN`, but
+`/api/photos` on production answered `via: "BLOB_READ_WRITE_TOKEN"` — a second,
+earlier token still present and preferred by the old rule. Photographs were
+being offered to a store nobody had chosen.
 
 ### Retention — still undecided
 

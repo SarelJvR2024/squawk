@@ -60,25 +60,30 @@ function blobTokenNames(): string[] {
 /** The variable this route will use — or nothing, when the deployment has not
  *  said which.
  *
- *  Three ways to be sure, in order:
+ *  Two ways to be sure, and only two:
  *    1. BLOB_TOKEN_VAR names the variable outright.
- *    2. BLOB_READ_WRITE_TOKEN, the default name, exists.
- *    3. Exactly one *_READ_WRITE_TOKEN exists, so there is nothing to choose.
+ *    2. Exactly one *_READ_WRITE_TOKEN exists, so there is nothing to choose.
  *
- *  With two candidates and none of the above this returns undefined ON PURPOSE.
- *  Alphabetical order would be deterministic and still wrong: this deployment
- *  has SQUAWK_BLOB_READ_WRITE_TOKEN from a store created Public and
- *  SQUAWK_READ_WRITE_TOKEN from the Private one that replaced it, and "BLOB"
- *  sorts first — so the tidy-looking rule picks the store nobody meant.
+ *  Anything else returns undefined ON PURPOSE.
  *
- *  Writing evidence to a store nobody chose is worse than not writing it. The
- *  photograph stays on the device either way; a record copy in a forgotten
- *  store is a record nobody will ever look in. So it refuses, and says which
- *  names it can see. */
+ *  Note what is NOT a third way: preferring BLOB_READ_WRITE_TOKEN because it is
+ *  the default name. That was the first version of this fix and it was wrong,
+ *  and the live deployment is exactly why. Its probe answered
+ *  `via: "BLOB_READ_WRITE_TOKEN"` — while the store the photographs were meant
+ *  for is `squawk-blob`, created with the prefix SQUAWK and therefore reached
+ *  through SQUAWK_READ_WRITE_TOKEN. The default name is the OLDER connection,
+ *  and a rule that prefers it silently keeps choosing the store somebody
+ *  replaced. Being the default is not evidence of intent; deliberately giving
+ *  the newer store a prefix rather is.
+ *
+ *  So: more than one candidate, whatever they are called, is a question for the
+ *  deployment and not for this function. Writing evidence to a store nobody
+ *  chose is worse than not writing it — the photograph stays on the device
+ *  either way, and a record copy in a forgotten store is a record nobody will
+ *  ever look in. */
 function blobTokenName(): string | undefined {
   const named = process.env.BLOB_TOKEN_VAR;
   if (named && process.env[named]) return named;
-  if (process.env.BLOB_READ_WRITE_TOKEN) return "BLOB_READ_WRITE_TOKEN";
   const names = blobTokenNames();
   return names.length === 1 ? names[0] : undefined;
 }
@@ -95,7 +100,7 @@ function blobToken(): string | undefined {
 
 /** What to tell somebody looking at two tokens. */
 const AMBIGUOUS_REASON = (names: string[]) =>
-  `This deployment has ${names.length} blob tokens set — ${names.join(", ")} — and nothing says which store the photographs belong in. Nothing has been uploaded, because a record copy in the wrong store is a record nobody will find. Delete the token of the store you replaced, or set BLOB_TOKEN_VAR to the name of the one you mean.`;
+  `This deployment has ${names.length} blob tokens set — ${names.join(", ")} — and nothing says which store the photographs belong in. Nothing has been uploaded, because a record copy in the wrong store is a record nobody will find. Set BLOB_TOKEN_VAR to the name of the one you mean, or delete the tokens of the stores you replaced. BLOB_READ_WRITE_TOKEN is not preferred just for being the default name: it is usually the OLDER connection, and a store you gave a custom prefix to is the one you chose deliberately.`;
 
 /* Comfortably above a downscaled photograph (300-600 KB) and well under the
    serverless body limit. A file over this is not a photograph this app made. */

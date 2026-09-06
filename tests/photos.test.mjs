@@ -430,6 +430,21 @@ check(
   /names\.length === 1 \? names\[0\] : undefined/.test(photoRoute),
   "a record copy in the wrong store is a record nobody will find"
 );
+
+/* The first version of this fix DID prefer the default name, and the live
+   deployment proved that wrong: its probe answered via BLOB_READ_WRITE_TOKEN
+   while the store the photographs were meant for is reached through
+   SQUAWK_READ_WRITE_TOKEN. The default name is the older connection. Being the
+   default is not evidence of intent — giving the newer store a prefix is. */
+check(
+  "and the default name gets no special preference over a prefixed one",
+  !/if \(process\.env\.BLOB_READ_WRITE_TOKEN\) return "BLOB_READ_WRITE_TOKEN"/.test(photoRoute),
+  "preferring it silently keeps choosing the store somebody replaced"
+);
+check(
+  "the reason explains why the default is not the safe assumption",
+  /not preferred just for being the default name/.test(photoRoute)
+);
 check(
   "and the refusal is its own message, not the same as having no store at all",
   /AMBIGUOUS_REASON/.test(photoRoute) &&
@@ -443,7 +458,7 @@ check(
 );
 check(
   "the reason says what to actually do",
-  /Delete the token of the store you replaced/.test(photoRoute)
+  /Set BLOB_TOKEN_VAR to the name of the one you mean/.test(photoRoute)
 );
 check(
   "and a failed upload names the variable it used",
@@ -598,10 +613,15 @@ check(
   !envTable.includes("| `SQUAWK_BLOB_READ_WRITE_TOKEN` |")
 );
 check(
-  "the stale token is named where it belongs — as the thing to delete",
-  /Delete the token of the store you replaced/.test(readme) &&
-    readme.includes("SQUAWK_BLOB_READ_WRITE_TOKEN"),
-  "naming it is how somebody knows which of the two to remove"
+  "the README explains how to resolve two stores",
+  /delete the tokens of the stores you replaced/i.test(readme) &&
+    /BLOB_TOKEN_VAR/.test(readme),
+  "somebody has to know which of the two to remove"
+);
+check(
+  "and warns that the default name is the older connection, not the safe one",
+  /gets no preference for being the default name/.test(readme),
+  "this is the trap the live deployment actually fell into"
 );
 for (const [what, needle] of [
   ["the vision flag", "ASSIST_VISION"],
