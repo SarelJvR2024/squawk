@@ -232,12 +232,28 @@ export default function RecordActions({
               ACSA enterprise risk · J050 001FW cl. 9.2.2 · a separate instrument
             </span>
           </div>
-          <div className="mb-2 text-[10.5px] leading-[1.5]" style={{ color: "var(--ink-3)" }}>
-            Consequence runs 5 to 1, the opposite direction to B170 001M&rsquo;s A to E, and this
-            likelihood is a <b>probability</b> where B170&rsquo;s is occurrence history. The two
-            instruments disagree on five cells by design. Nothing here is derived from the rating
-            above without you agreeing it.
-          </div>
+          {/* Folded away. It is the right explanation and it is four lines
+              long, which on a tablet is four lines the auditor scrolls past
+              every single time after the first. The one sentence that changes
+              what somebody does — that a carried likelihood is not an agreed
+              one — is not in here; it appears as a warning at the point it is
+              actually true. */}
+          <details className="group mb-2">
+            <summary
+              className="flex cursor-pointer list-none items-center gap-1.5 py-[2px] text-[10.5px] select-none"
+              style={{ color: "var(--ink-3)" }}
+            >
+              <span className="transition-transform group-open:rotate-90">›</span>
+              Why this is a second instrument, not a second opinion
+            </summary>
+            <div className="mt-1 text-[10.5px] leading-[1.5]" style={{ color: "var(--ink-3)" }}>
+              Consequence runs 5 to 1, the opposite direction to B170 001M&rsquo;s A to E, and this
+              likelihood is a <b>probability</b> where B170&rsquo;s is occurrence history. The two
+              instruments disagree on five cells by design. Nothing here is derived from the rating
+              above without you agreeing it. Clause 9.1.2: priorities I and II enter ACSA&rsquo;s
+              Combined Assurance Coverage Plan.
+            </div>
+          </details>
 
           {/* Consequence down, likelihood across, exactly as cl. 9.2.2 prints
               it. One tap sets both and agrees them, the same gesture the B170
