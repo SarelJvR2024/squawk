@@ -123,6 +123,7 @@ npx vercel --prod   # promote to production
 | `TRANSCRIBE_LANGUAGE` | Pins transcription to one language. **Leave unset.** Auto-detection is what carries an auditor switching between English and Afrikaans inside one sentence. |
 | `ASSIST_VISION` | `1` sends photographs to the model. **Unset or `0` and no image byte leaves**, whatever the client sends — the route strips them. Every AI affordance still works on captions alone. |
 | `ASSIST_ENDPOINT` | Where the assist request goes. Defaults to the Anthropic API; point it at an in-tenant endpoint if ACSA's governance requires the data to stay there. Nothing in the UI changes. |
+| `BLOB_TOKEN_VAR` | Names which `*_READ_WRITE_TOKEN` to use, for a project with more than one blob store. Only needed when two are set; see *Checking it is on*. |
 | `SQUAWK_READ_WRITE_TOKEN` | Turns the **record copy** on: every photograph is also written to Vercel Blob, privately. This is the live deployment's name — the store `squawk-blob` was created with the custom prefix `SQUAWK`, and **Vercel generates the value; you never type it**. The route accepts any `*_READ_WRITE_TOKEN`, so the default `BLOB_READ_WRITE_TOKEN` works too, and `GET /api/photos` reports which name it found. Without one the app is unchanged — capture, caption, export, all local — and says on screen that photographs are on the device only. |
 
 Setting any of these is a **data-governance decision, not a technical one** —
@@ -558,6 +559,35 @@ usually because it was added after the last build. Redeploy. On `/api/photos`,
 `available: true` only means the token is present. If the store was created
 Public, this probe still passes and the first upload fails with a message
 telling you to recreate it.
+
+**`ambiguous: true` means two stores and no choice.** A project that has had two
+blob stores has two tokens, and the second one does not replace the first — it
+sits alongside it. When more than one `*_READ_WRITE_TOKEN` is set and
+`BLOB_TOKEN_VAR` does not say which to use, **the route uploads nothing** and
+`reason` says so.
+
+**`BLOB_READ_WRITE_TOKEN` gets no preference for being the default name.** It is
+usually the *older* connection — the store that existed before anyone chose a
+custom prefix — so preferring it is how a deployment keeps quietly writing to the
+store it replaced. Giving the newer store a prefix is the deliberate act; being
+the default is not. That is deliberate: picking one by any
+tidy rule is wrong half the time, and a record copy in a store nobody
+remembers is a record nobody will ever look in. The photograph stays on the
+device regardless.
+
+Two ways to resolve it, either is fine:
+
+- Set `BLOB_TOKEN_VAR` to the name of the one you mean, and keep both. This is
+  the safer of the two: it is reversible, and it does not depend on working out
+  which store a token belongs to.
+- Or delete the tokens of the stores you replaced. `candidates` lists every name
+  the route can see, so you know what is there to remove.
+
+This is not hypothetical — it is what this deployment did. `squawk-blob` was
+created Private with the prefix `SQUAWK`, giving `SQUAWK_READ_WRITE_TOKEN`, but
+`/api/photos` on production answered `via: "BLOB_READ_WRITE_TOKEN"` — a second,
+earlier token still present and preferred by the old rule. Photographs were
+being offered to a store nobody had chosen.
 
 ### Retention — still undecided
 
