@@ -15,7 +15,7 @@
  *  within a morning's capture. Media lives under its own keys and the
  *  attachment record carries only `blobKey`. See src/lib/store.ts. */
 
-import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
+import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from "idb-keyval";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const MEDIA_PREFIX = "squawk-media/";
@@ -32,6 +32,26 @@ export async function getBlob(id: string): Promise<Blob | undefined> {
 
 export async function delBlob(id: string): Promise<void> {
   await idbDel(mediaKey(id));
+}
+
+export async function delBlobs(ids: string[]): Promise<void> {
+  await Promise.all(ids.map((id) => idbDel(mediaKey(id))));
+}
+
+/** Every media key in the store, orphans included.
+ *
+ *  Resetting by walking the audit's own records would leave behind anything
+ *  whose record was already gone — a photograph taken and then deleted, a
+ *  recording from a visit that was cleared. Over a few dry runs that is the
+ *  quota filling up with files nothing points at, so a reset sweeps the
+ *  prefix rather than trusting the index. */
+export async function clearAllMedia(): Promise<number> {
+  const all = await idbKeys();
+  const mine = all.filter(
+    (k): k is string => typeof k === "string" && k.startsWith(MEDIA_PREFIX)
+  );
+  await Promise.all(mine.map((k) => idbDel(k)));
+  return mine.length;
 }
 
 /* ---------- capability detection ----------

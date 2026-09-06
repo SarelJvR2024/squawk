@@ -10,12 +10,13 @@ import {
   systemsOf,
   useResponses,
 } from "@/lib/store";
+import { needsDesk, needsQuestion } from "@/lib/verification";
 import CheckDetail from "@/components/CheckDetail";
 import { Dot, Empty, Pill, Track } from "@/components/ui/primitives";
 import { IconInbox } from "@/components/ui/icons";
 import type { Check } from "@/lib/types";
 
-type Filter = "all" | "open" | "nc" | "pf";
+type Filter = "all" | "open" | "q" | "nc" | "pf";
 
 const RATING_TONE = {
   Unacceptable: "bad",
@@ -46,13 +47,25 @@ function CaptureInner() {
     setActiveId(c.id);
   }, [params]);
 
+  /* The audit workspace lists what a desk can actually progress — a check to
+     ask about or collect a document for. The nine checks whose only mode is
+     Site Physical Verification have no question and no evidence to gather, so
+     they belong on the tablet and nowhere else; listing them here was handing
+     an auditor rows they could not answer without leaving the room. See
+     src/lib/verification.ts. */
+  const deskChecks = useMemo(
+    () => checksOf(discipline, system).filter(needsDesk),
+    [discipline, system]
+  );
+
   const visible = useMemo(() => {
-    let list = checksOf(discipline, system);
+    let list = deskChecks;
     if (filter === "open") list = list.filter((c) => !responses[c.id]?.captured);
     if (filter === "nc") list = list.filter((c) => responses[c.id]?.compliance === "NC");
     if (filter === "pf") list = list.filter((c) => c.pf);
+    if (filter === "q") list = list.filter(needsQuestion);
     return list;
-  }, [discipline, system, filter, responses]);
+  }, [deskChecks, filter, responses]);
 
   const active: Check | undefined =
     visible.find((c) => c.id === activeId) ?? visible[0];
@@ -94,7 +107,7 @@ function CaptureInner() {
         style={{ background: "var(--rail)", borderColor: "var(--line)" }}
       >
         <div className="mb-2 flex flex-wrap gap-1 px-[2px]">
-          {([["all", "All"], ["open", "Open"], ["nc", "NC"], ["pf", "2025"]] as [Filter, string][]).map(
+          {([["all", "All"], ["open", "Open"], ["q", "Ask"], ["nc", "NC"], ["pf", "2025"]] as [Filter, string][]).map(
             ([k, label]) => (
               <button
                 key={k}
@@ -124,7 +137,7 @@ function CaptureInner() {
           style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
         >
           {DISCIPLINES.map((d) => {
-            const cs = checksOf(d);
+            const cs = checksOf(d).filter(needsDesk);
             const done = cs.filter((c) => responses[c.id]?.captured).length;
             return (
               <option key={d} value={d}>
@@ -139,7 +152,7 @@ function CaptureInner() {
           <span>{systemsOf(discipline).length}</span>
         </div>
         {systemsOf(discipline).map((sys) => {
-          const cs = checksOf(discipline, sys);
+          const cs = checksOf(discipline, sys).filter(needsDesk);
           const done = cs.filter((c) => responses[c.id]?.captured).length;
           const nc = cs.filter((c) => responses[c.id]?.compliance === "NC").length;
           const pf = priorFor(discipline, sys);

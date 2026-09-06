@@ -11,12 +11,14 @@ import {
   useAssistAvailable,
 } from "@/lib/assist";
 import { bandFor, BAND_META } from "@/lib/risk";
+import { modeLabels, needsField } from "@/lib/verification";
 import { AttachmentStrip, PhotoButton, VoiceNoteButton } from "./Capture";
 import {
   IconCheck,
   IconClock,
   IconDash,
   IconLeft,
+  IconPin,
   IconRight,
   IconSpark,
   IconWand,
@@ -131,7 +133,14 @@ export default function CheckDetail({
           <span>{check.id}</span>
           <span>·</span>
           <span>{check.system}</span>
-          <Pill tone="accent">{check.vtype ?? ""}</Pill>
+          {/* What this check actually requires, from the register's vtype.
+              "Physical" also means it is waiting on the tablet in Field mode —
+              saving here does not answer that half. */}
+          {modeLabels(check).map((m) => (
+            <Pill key={m} tone={m === "Physical" ? "warn" : "accent"}>
+              {m.toUpperCase()}
+            </Pill>
+          ))}
           {check.coverage === "none" && <Pill tone="bad">NO ACSA BASIS</Pill>}
           {check.siteVariant && <Pill tone="warn">{check.siteVariant.site} VARIANT</Pill>}
           {pf && (
@@ -175,6 +184,16 @@ export default function CheckDetail({
           </button>
         )}
       </div>
+
+      {needsField(check) && (
+        <div
+          className="flex items-center gap-2 border-b px-5 py-[7px] text-[11px]"
+          style={{ background: "var(--warn-bg)", borderColor: "var(--line)", color: "var(--warn)" }}
+        >
+          <IconPin width={12} height={12} />
+          This check also needs the asset seen on site — it appears in Field inspection too.
+        </div>
+      )}
 
       {/* Two panes from lg, not xl. An iPad in landscape is 1180px wide and was
           falling to a single column, which stacked the entire reference column

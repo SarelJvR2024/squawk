@@ -1,7 +1,7 @@
 # Tests
 
-Ten suites, no framework — all run with plain `node`. Four need a running
-server; six do not.
+Twelve suites, no framework — all run with plain `node`. Four need a running
+server; eight do not.
 
 | Suite | Needs a server | Asserts |
 |---|---|---|
@@ -11,6 +11,8 @@ server; six do not.
 | `carryforward.test.mjs` | no | 20 |
 | `review.test.mjs` | no | 22 |
 | `tablet.test.mjs` | no | 17 |
+| `portals.test.mjs` | no | 23 |
+| `reset.test.mjs` | no | 16 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 30 |
 | `exports.js` | yes | 7 |
@@ -125,6 +127,48 @@ Five parts: a `pointer: coarse` floor a mouse never sees; capture never below
 the fold; field mode doing the walkabout it exists for, including the library's
 own "wants a photograph" flag; fewer scrolls; and the two scope bugs this pass
 turned up.
+
+## `portals.test.mjs`
+
+Guards that a check appears where it can actually be answered. The register
+declares per row how each check-point is verified — Evidence, Question, Site
+Physical Verification — and nothing read it: Capture listed all 374 including
+the nine an auditor at a desk cannot answer, and Field routed on whether
+someone had written walkabout text.
+
+```bash
+node tests/portals.test.mjs
+```
+
+Part 1 parses `checks.json` **independently** of `src/lib/verification.ts`, the
+way the matrix test bands the matrix against its own table — so the counts are
+checked against the data rather than against the module agreeing with itself.
+It caught a real arithmetic error on the first run: the overlap is 305, not the
+303 it is tempting to get from the distribution, because the two
+`Site Physical Verification + Question` rows are desk work as well.
+
+The routing it asserts: **desk 365 · field 314 · overlap 305 · desk-only 60 ·
+field-only 9 · orphaned 0.** Both failure modes are guarded and they pull in
+opposite directions — blanket duplication makes each list meaningless, and an
+orphaned check is worse because nothing on screen would ever say so.
+
+## `reset.test.mjs`
+
+Guards the Start again control used during a dry run. Everything a reset does
+is unrecoverable — no server copy, no undo, and the tablet's IndexedDB is the
+only place a half-captured audit exists — so it must be reachable, hard to hit
+by accident, and it must clear the media as well as the records.
+
+```bash
+node tests/reset.test.mjs
+```
+
+Five parts: reachable in the shell and closed to ACSA; two separate scopes;
+media actually deleted (a visit reset sweeps its own blobs, a full reset sweeps
+the whole `squawk-media/` prefix so orphans go too); arm-then-confirm with a
+count of what is about to be lost and disarm-on-scope-change; and reference
+data — the 374 checks, the Answer Library, the 23 seeded findings — never
+touched.
 
 ## The browser suites
 

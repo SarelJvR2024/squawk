@@ -18,6 +18,7 @@ import type { Check, Compliance } from "@/lib/types";
 import { Btn, Chip, Empty, Panel, Pill } from "@/components/ui/primitives";
 import { AttachmentStrip, PhotoButton, PhotoThumb, VoiceNoteButton } from "@/components/Capture";
 import { useAnswerLibrary } from "@/lib/answers";
+import { modeLabels, needsField } from "@/lib/verification";
 import {
   IconCamera,
   IconCheck,
@@ -84,7 +85,10 @@ export default function FieldPage() {
      across every discipline. Search overrides the filter entirely. */
   const visible = useMemo(() => {
     const s = q.trim().toLowerCase();
-    let list = CHECKS.filter((c) => c.walkabout || c.woCount > 0);
+    /* Routed on the register's declared vtype, not on whether someone wrote
+       walkabout text. Both give 314 today; only one of them keeps giving 314
+       if a walkabout line is ever left blank. See src/lib/verification.ts. */
+    let list = CHECKS.filter(needsField);
     if (s) {
       return list.filter((c) =>
         `${c.id} ${c.requirement} ${c.area} ${c.discipline} ${c.walkabout ?? ""}`
@@ -242,6 +246,13 @@ export default function FieldPage() {
                         </span>
                         <Pill>{groupBy === "area" ? c.discipline.split(" ")[0] : c.area}</Pill>
                         {c.pf && <Pill tone="warn">{c.pf}</Pill>}
+                        {modeLabels(c)
+                          .filter((m) => m !== "Physical")
+                          .map((m) => (
+                            <Pill key={m} tone="accent">
+                              {m.toUpperCase()}
+                            </Pill>
+                          ))}
                       </div>
                       <button
                         onClick={() => router.push(`/capture?check=${c.id}`)}

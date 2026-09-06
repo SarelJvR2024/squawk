@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { useMemo } from "react";
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
-import { delBlob } from "./media";
+import { clearAllMedia, delBlob, delBlobs } from "./media";
 import type {
   Attachment,
   Capture,
@@ -182,6 +182,9 @@ interface State {
   /** Clears the CURRENT visit only. Wiping the whole programme because one
    *  visit needs restarting is not a thing anyone means to do. */
   resetVisit: () => void;
+  /** Clears every visit at every entity, and every media file. For a dry run,
+   *  where the point is to start from nothing twice in a morning. */
+  resetEverything: () => void;
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -431,19 +434,43 @@ export const useStore = create<State>()(
           get().dropCapture(captureId);
         },
 
-        resetVisit: () =>
-          set((s) => {
-            const key = scopeKey(s.entity, s.visit);
-            const rest = { ...s.byVisit };
+        resetVisit: () => {
+          const s = get();
+          const key = scopeKey(s.entity, s.visit);
+          const data = s.byVisit[key];
+          /* Drop this visit's media before its records go, or the blobs become
+             orphans nothing can reach and nothing will clean up. */
+          if (data) {
+            const keys = [
+              ...Object.values(data.responses).flatMap((r) =>
+                r.attachments.map((a) => a.blobKey)
+              ),
+              ...Object.values(data.verifications).flatMap((v) =>
+                v.attachments.map((a) => a.blobKey)
+              ),
+              ...data.captures.map((c) => c.blobKey),
+            ].filter((k): k is string => !!k);
+            if (keys.length) void delBlobs(keys);
+          }
+          set((st) => {
+            const rest = { ...st.byVisit };
             delete rest[key];
             return {
               byVisit: rest,
-              findings: s.findings.filter(
-                (f) => !(f.entity === s.entity && f.originVisit === s.visit)
+              findings: st.findings.filter(
+                (f) => !(f.entity === st.entity && f.originVisit === st.visit)
               ),
               lastSavedAt: null,
             };
-          }),
+          });
+        },
+
+        resetEverything: () => {
+          /* Sweeps the media prefix rather than walking the records, so a
+             photograph whose record was already deleted goes too. */
+          void clearAllMedia();
+          set({ byVisit: {}, findings: [], lastSavedAt: null });
+        },
       };
     },
     {

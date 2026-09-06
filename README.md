@@ -58,6 +58,8 @@ node tests/scope.test.mjs                # one audit per entity per visit
 node tests/carryforward.test.mjs         # earlier visits reach the next one
 node tests/review.test.mjs               # feedback never becomes the record
 node tests/tablet.test.mjs               # the tablet is the device
+node tests/portals.test.mjs              # checks reach the right view
+node tests/reset.test.mjs                # starting again is safe
 npm run build && npm start &             # then, against a running server:
 BASE=http://localhost:3000 node tests/e2e.js          # 21 assertions
 BASE=http://localhost:3000 node tests/robustness.js   # 30 assertions
@@ -207,6 +209,15 @@ tests/                five suites — see tests/README.md
   `lg`, because an iPad in landscape is 1180px and was stacking the entire
   reference column above the controls, and when it does stack capture is
   ordered first. `tests/tablet.test.mjs` enforces it.
+
+- **A check appears where it can be answered.** `vtype` on every register row
+  declares Evidence / Question / Site Physical Verification, and
+  `src/lib/verification.ts` is the only place that reads it. Capture lists the
+  365 a desk can progress, Field lists the 314 that need the asset seen, they
+  overlap on 305, and nothing is orphaned. The overlap is not duplication —
+  reading the maintenance record and looking at the pump are two acts on one
+  requirement — but a check in a view that cannot progress it is.
+  `tests/portals.test.mjs` parses the register independently to check this.
 
 - **Answer Library content is reviewed content.** Issue buttons seed findings
   with suggested severities, so they carry weight. A discipline lead signs off

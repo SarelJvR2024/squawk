@@ -15,8 +15,10 @@ import {
   useVisitId,
 } from "@/lib/store";
 import { ENTITIES, entity as entityOf, PROGRAMME_VISITS } from "@/lib/programme";
+import { needsDesk, needsField } from "@/lib/verification";
 import { useAssistAvailable } from "@/lib/assist";
 import ExportPanel from "@/components/ExportPanel";
+import ResetPanel from "@/components/ResetPanel";
 import {
   IconClipboard,
   IconCamera,
@@ -69,6 +71,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const aiOn = useAssistAvailable();
   const [help, setHelp] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [q, setQ] = useState("");
 
   const done = useMemo(
@@ -77,6 +80,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   );
   const unverified = PRIOR.length - Object.values(verifications).filter((v) => v.outcome).length;
   const pct = Math.round((done / CHECKS.length) * 100);
+
+  /* Each nav badge counts what is outstanding in THAT view, not across the
+     register. Capture lists 365 and Field lists 314; a badge of 374 on either
+     is a number that cannot be worked down to zero. */
+  const deskOutstanding = useMemo(
+    () => CHECKS.filter((c) => needsDesk(c) && !responses[c.id]?.captured).length,
+    [responses]
+  );
+  const fieldOutstanding = useMemo(
+    () => CHECKS.filter((c) => needsField(c) && !responses[c.id]?.captured).length,
+    [responses]
+  );
 
   useEffect(() => {
     if (role === "acsa" && pathname !== "/dashboard") router.replace("/dashboard");
@@ -96,6 +111,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         setPalette(false);
         setHelp(false);
         setExporting(false);
+        setResetting(false);
         return;
       }
       if (!typing && e.key === "?") setHelp(true);
@@ -157,12 +173,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             const Icon = n.icon;
             const badge =
               n.href === "/capture"
-                ? CHECKS.length - done
-                : n.href === "/closure"
-                  ? unverified
-                  : n.href === "/findings"
-                    ? findings.length
-                    : 0;
+                ? deskOutstanding
+                : n.href === "/field"
+                  ? fieldOutstanding
+                  : n.href === "/closure"
+                    ? unverified
+                    : n.href === "/findings"
+                      ? findings.length
+                      : 0;
             return (
               <Link
                 key={n.href}
@@ -220,6 +238,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             >
               <IconDownload width={13} height={13} />
               <span className="hidden md:inline">Export</span>
+            </button>
+          )}
+
+          {role !== "acsa" && (
+            <button
+              onClick={() => setResetting(true)}
+              aria-label="Start again"
+              title="Start again — clear captured data for a dry run"
+              className="flex items-center gap-[6px] rounded-[8px] border px-[10px] py-[7px] text-[11.5px] transition-[var(--t)]"
+              style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+            >
+              <IconLoop width={13} height={13} />
+              <span className="hidden lg:inline">Reset</span>
             </button>
           )}
 
@@ -462,6 +493,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       {exporting && <ExportPanel onClose={() => setExporting(false)} />}
+      {resetting && <ResetPanel onClose={() => setResetting(false)} />}
 
       {role === "acsa" && (
         <div
