@@ -509,9 +509,23 @@ check(
    meant to write them asserted its way to a failure before it wrote the file,
    and nothing checked. A doc claim is as checkable as a code claim. */
 const readme = fs.readFileSync(path.join(here, "..", "README.md"), "utf8");
+
+/* Twice now a README edit has silently not happened — a python heredoc chained
+   behind a command that failed, so it never ran, while a later success message
+   made it look done. Both times the claim went into a PR description as fact.
+   Naming each claim here is the only thing that has actually caught it. */
+check(
+  "README does not still name a variable the deployment has never had",
+  !readme.includes("SQUAWK_BLOB_READ_WRITE_TOKEN"),
+  "the live prefix is SQUAWK, so the token is SQUAWK_READ_WRITE_TOKEN"
+);
 for (const [what, needle] of [
   ["the vision flag", "ASSIST_VISION"],
   ["the record store token", "BLOB_READ_WRITE_TOKEN"],
+  ["the LIVE token variable name", "SQUAWK_READ_WRITE_TOKEN"],
+  ["that the store must be created Private", "Access: Private"],
+  ["that region is fixed at creation", "iad1"],
+  ["how to check the probes without exposing a key", "Checking it is on"],
   ["a photographs section", "## Photographs"],
   ["why images stay out of the persist value", "Images never enter the persisted store"],
   ["that the local copy is never deleted", "Never deleted because a record copy exists"],
