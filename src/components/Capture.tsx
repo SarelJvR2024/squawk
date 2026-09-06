@@ -725,8 +725,20 @@ function PhotoRow({
                   in the record store
                 </span>
               ) : a.cloudError ? (
-                <span style={{ color: "var(--bad)" }} title={a.cloudError}>
-                  not sent — {a.cloudError.slice(0, 40)}
+                /* The WHOLE message, wrapped, on its own line.
+                 *
+                 *  This used to be 40 characters with the rest in a `title`
+                 *  attribute. On the iPad this app is built for there is no
+                 *  hover, so the part that says what to do — which store, which
+                 *  token, create it Private — was unreachable on the only device
+                 *  that matters. An upload failure a person cannot read is an
+                 *  upload failure nobody can fix. */
+                <span
+                  role="alert"
+                  className="block w-full max-w-full whitespace-pre-wrap"
+                  style={{ color: "var(--bad)" }}
+                >
+                  not sent — {a.cloudError}
                 </span>
               ) : (
                 <span style={{ color: "var(--warn)" }}>on this device only</span>

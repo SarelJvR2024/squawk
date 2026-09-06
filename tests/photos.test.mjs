@@ -399,8 +399,73 @@ check(
 
 check(
   "and the route says which name it used, without ever returning the value",
-  /via: token/.test(photoRoute) && !/token: token,/.test(photoRoute),
+  /via: via \?\? null,/.test(photoRoute) && !/token: token,/.test(photoRoute),
   "getting this wrong is silent otherwise"
+);
+
+/* Two stores is the real deployment: a Public one was created first and a
+   Private one replaced it. If the token of the store nobody meant is still set,
+   picking by insertion order is a coin toss, and losing it fails as "the upload
+   broke" rather than as "wrong store". */
+check(
+  "the token is chosen deterministically, not by env insertion order",
+  /\.sort\(\)/.test(photoRoute) &&
+    /* Comments stripped: the header names the old walk to explain why it went. */
+    !/Object\.entries\(process\.env\)/.test(
+      photoRoute.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "")
+    ),
+  "Object.entries order is insertion order, which is a coin toss with two stores"
+);
+check(
+  "every candidate token name is reported, so a stale one is visible",
+  /candidates: names,/.test(photoRoute) && /ambiguous: blobAmbiguous\(\)/.test(photoRoute)
+);
+
+/* THE BUG THIS SUITE NOW GUARDS. The live project has a token from a store
+   created Public and a token from the Private store that replaced it. Any rule
+   that silently picks one is wrong half the time, and "BLOB" sorts before "R",
+   so the tidy alphabetical rule picks the store nobody meant. */
+check(
+  "with two tokens and nothing saying which, the route refuses rather than guessing",
+  /names\.length === 1 \? names\[0\] : undefined/.test(photoRoute),
+  "a record copy in the wrong store is a record nobody will find"
+);
+check(
+  "and the refusal is its own message, not the same as having no store at all",
+  /AMBIGUOUS_REASON/.test(photoRoute) &&
+    /if \(blobAmbiguous\(\)\)/.test(photoRoute) &&
+    /No record store is configured/.test(photoRoute),
+  "one is a supported state, the other is a misconfiguration somebody must fix"
+);
+check(
+  "the deployment can name the one it means without deleting the other",
+  /BLOB_TOKEN_VAR/.test(photoRoute)
+);
+check(
+  "the reason says what to actually do",
+  /Delete the token of the store you replaced/.test(photoRoute)
+);
+check(
+  "and a failed upload names the variable it used",
+  /using \$\{via\}/.test(photoRoute) && /also set: /.test(photoRoute),
+  "\"the store rejected it\" is unactionable on a project with two stores"
+);
+check(
+  "the candidate list is names only — no token value is ever returned",
+  !/process\.env\[k\]\s*\)?\s*\)?\s*;?\s*$/m.test(photoRoute.split("candidates: names")[0].slice(-400)) &&
+    /filter\(\(k\) => k\.endsWith\("_READ_WRITE_TOKEN"\) && process\.env\[k\]\)/.test(photoRoute)
+);
+
+/* An upload error the auditor cannot read is an upload error nobody fixes, and
+   the iPad this is built for has no hover. */
+check(
+  "the whole upload error is rendered, not 40 characters behind a title",
+  !/cloudError\.slice\(0, 40\)/.test(capture) && /not sent — \{a\.cloudError\}/.test(capture),
+  "the actionable part was unreachable on a tablet"
+);
+check(
+  "and it is announced, not just coloured",
+  /role="alert"/.test(capture) && /whitespace-pre-wrap/.test(capture)
 );
 
 check(
@@ -412,7 +477,7 @@ check(
 check(
   "without a token the route refuses and the app carries on",
   /if \(!token\)/.test(photoRoute) && /status: 503/.test(photoRoute) &&
-    /available: !!token,/.test(photoRoute),
+    /available: !!via,/.test(photoRoute),
   ""
 );
 
@@ -514,10 +579,29 @@ const readme = fs.readFileSync(path.join(here, "..", "README.md"), "utf8");
    behind a command that failed, so it never ran, while a later success message
    made it look done. Both times the claim went into a PR description as fact.
    Naming each claim here is the only thing that has actually caught it. */
+/* This once asserted the string SQUAWK_BLOB_READ_WRITE_TOKEN was absent
+   entirely, because the README had documented it as the variable to SET and it
+   never existed. It now appears legitimately — as the stale token to DELETE,
+   which is the live misconfiguration. So the assertion moved to what it always
+   meant: the env-var table must document the real one and not the wrong one. */
+const envTable = readme
+  .split("### Optional environment variables")[1]
+  ?.split("\n\n")
+  .find((b) => b.includes("_READ_WRITE_TOKEN")) ?? "";
 check(
-  "README does not still name a variable the deployment has never had",
-  !readme.includes("SQUAWK_BLOB_READ_WRITE_TOKEN"),
+  "the env-var table documents the variable this deployment actually has",
+  envTable.includes("| `SQUAWK_READ_WRITE_TOKEN` |"),
   "the live prefix is SQUAWK, so the token is SQUAWK_READ_WRITE_TOKEN"
+);
+check(
+  "and does not tell anyone to set the one that never existed",
+  !envTable.includes("| `SQUAWK_BLOB_READ_WRITE_TOKEN` |")
+);
+check(
+  "the stale token is named where it belongs — as the thing to delete",
+  /Delete the token of the store you replaced/.test(readme) &&
+    readme.includes("SQUAWK_BLOB_READ_WRITE_TOKEN"),
+  "naming it is how somebody knows which of the two to remove"
 );
 for (const [what, needle] of [
   ["the vision flag", "ASSIST_VISION"],

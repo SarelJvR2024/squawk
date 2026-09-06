@@ -40,14 +40,62 @@ export const dynamic = "force-dynamic";
  *
  *  So take any *_READ_WRITE_TOKEN, preferring the default when both exist. The
  *  prefix is the deployment's business, not this route's. */
-function blobToken(): string | undefined {
-  const direct = process.env.BLOB_READ_WRITE_TOKEN;
-  if (direct) return direct;
-  for (const [k, v] of Object.entries(process.env)) {
-    if (k.endsWith("_READ_WRITE_TOKEN") && v) return v;
-  }
-  return undefined;
+/** Every variable that looks like a blob token, by NAME, sorted.
+ *
+ *  Sorted because the first version of this walked `Object.entries(process.env)`
+ *  and took the first match, which is insertion order — fine with one store and
+ *  a coin toss with two. A project that has had two stores has two tokens, and
+ *  picking the wrong one fails in a way that reads like a broken upload rather
+ *  than like the wrong store: a Private upload to a store created Public is
+ *  refused, and the message says nothing about which token was used.
+ *
+ *  Values never leave the server. Names do, because the name is the thing a
+ *  deployment has to look at to fix this. */
+function blobTokenNames(): string[] {
+  return Object.keys(process.env)
+    .filter((k) => k.endsWith("_READ_WRITE_TOKEN") && process.env[k])
+    .sort();
 }
+
+/** The variable this route will use — or nothing, when the deployment has not
+ *  said which.
+ *
+ *  Three ways to be sure, in order:
+ *    1. BLOB_TOKEN_VAR names the variable outright.
+ *    2. BLOB_READ_WRITE_TOKEN, the default name, exists.
+ *    3. Exactly one *_READ_WRITE_TOKEN exists, so there is nothing to choose.
+ *
+ *  With two candidates and none of the above this returns undefined ON PURPOSE.
+ *  Alphabetical order would be deterministic and still wrong: this deployment
+ *  has SQUAWK_BLOB_READ_WRITE_TOKEN from a store created Public and
+ *  SQUAWK_READ_WRITE_TOKEN from the Private one that replaced it, and "BLOB"
+ *  sorts first — so the tidy-looking rule picks the store nobody meant.
+ *
+ *  Writing evidence to a store nobody chose is worse than not writing it. The
+ *  photograph stays on the device either way; a record copy in a forgotten
+ *  store is a record nobody will ever look in. So it refuses, and says which
+ *  names it can see. */
+function blobTokenName(): string | undefined {
+  const named = process.env.BLOB_TOKEN_VAR;
+  if (named && process.env[named]) return named;
+  if (process.env.BLOB_READ_WRITE_TOKEN) return "BLOB_READ_WRITE_TOKEN";
+  const names = blobTokenNames();
+  return names.length === 1 ? names[0] : undefined;
+}
+
+/** True when there are several candidates and nothing says which to use. */
+function blobAmbiguous(): boolean {
+  return !blobTokenName() && blobTokenNames().length > 1;
+}
+
+function blobToken(): string | undefined {
+  const name = blobTokenName();
+  return name ? process.env[name] : undefined;
+}
+
+/** What to tell somebody looking at two tokens. */
+const AMBIGUOUS_REASON = (names: string[]) =>
+  `This deployment has ${names.length} blob tokens set — ${names.join(", ")} — and nothing says which store the photographs belong in. Nothing has been uploaded, because a record copy in the wrong store is a record nobody will find. Delete the token of the store you replaced, or set BLOB_TOKEN_VAR to the name of the one you mean.`;
 
 /* Comfortably above a downscaled photograph (300-600 KB) and well under the
    serverless body limit. A file over this is not a photograph this app made. */
@@ -61,24 +109,35 @@ const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 const PATH = /^[A-Z0-9]{2,6}\/\d{4}-\d{2}\/[A-Za-z0-9._-]{1,120}$/;
 
 export async function GET() {
-  const token = blobToken();
+  const names = blobTokenNames();
+  const via = blobTokenName();
   return Response.json({
-    available: !!token,
+    available: !!via,
     /* Named so a deployment can see WHICH variable was picked up, without the
        value ever leaving the server. Getting this wrong is silent otherwise. */
-    via: token
-      ? process.env.BLOB_READ_WRITE_TOKEN
-        ? "BLOB_READ_WRITE_TOKEN"
-        : Object.keys(process.env).find(
-            (k) => k.endsWith("_READ_WRITE_TOKEN") && process.env[k]
-          )
-      : null,
+    via: via ?? null,
+    /* And every OTHER candidate, because two tokens means two stores and only
+       one of them is the one somebody meant. A stale token left behind from a
+       store that was recreated is the failure this reports. */
+    candidates: names,
+    ambiguous: blobAmbiguous(),
+    reason: blobAmbiguous() ? AMBIGUOUS_REASON(names) : null,
   });
 }
 
 export async function POST(req: NextRequest) {
   const token = blobToken();
   if (!token) {
+    /* Two different silences, and they need two different answers. No store at
+       all is the documented, supported state — the app is local-only and says
+       so. Two stores and no choice is a misconfiguration somebody has to fix,
+       and it must not read like the first. */
+    if (blobAmbiguous()) {
+      return Response.json(
+        { error: AMBIGUOUS_REASON(blobTokenNames()), available: false },
+        { status: 503 }
+      );
+    }
     return Response.json(
       {
         error: "No record store is configured for this deployment.",
@@ -141,11 +200,18 @@ export async function POST(req: NextRequest) {
        retry as public. Whether photographs of a national key point sit on a
        URL anybody can keep is not a decision this route makes on a retry. */
     const publicStore = /private|access/i.test(message);
+    /* Name the variable the upload used. Without it "the record store rejected
+       it" is unactionable on a project with two stores — which is exactly the
+       project this is, one Public store having been created before the Private
+       one. The name is not a secret; the token it points at never leaves. */
+    const via = blobTokenName();
+    const others = blobTokenNames().filter((n) => n !== via);
+    const which = via ? ` (using ${via}${others.length ? `; also set: ${others.join(", ")}` : ""})` : "";
     return Response.json(
       {
         error: publicStore
-          ? "The record store will not accept a private upload. It was probably created with Access: Public — these are site photographs and they are stored privately by design. Create the store as Private."
-          : `The record store rejected the upload: ${message}`,
+          ? `The record store will not accept a private upload${which}. It was probably created with Access: Public — these are site photographs and they are stored privately by design. Create the store as Private, and delete the token of any store you replaced.`
+          : `The record store rejected the upload${which}: ${message}`,
       },
       { status: 502 }
     );
