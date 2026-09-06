@@ -16,9 +16,9 @@ running server; fifteen do not. **Check each suite's exit status, not its output
 | `reset.test.mjs` | no | 17 |
 | `completion.test.mjs` | no | 18 |
 | `audits.test.mjs` | no | 18 |
-| `voice.test.mjs` | no | 36 |
+| `voice.test.mjs` | no | 37 |
 | `sites.test.mjs` | no | 41 |
-| `photos.test.mjs` | no | 61 |
+| `photos.test.mjs` | no | 76 |
 | `hazards.test.mjs` | no | 106 |
 | `erm-matrix.test.mjs` | no | 30 |
 | `e2e.js` | yes | 21 |
@@ -27,7 +27,11 @@ running server; fifteen do not. **Check each suite's exit status, not its output
 | `ai.js` | yes, two of them | 26 |
 | `persite.js` | yes | 25 |
 | `vision.js` | starts its own | 17 |
-| `record.js` | starts its own | 13 |
+| `record.js` | starts its own | 14 |
+
+**706 assertions in total**, every count above verified by running the suite,
+not by remembering what it used to be. Two in this table were wrong before that
+was done.
 
 ## `risk-matrix.test.mjs`
 
