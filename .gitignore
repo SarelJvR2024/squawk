@@ -1,0 +1,52 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# next.js
+/.next/
+/out/
+# next-env.d.ts is deliberately NOT ignored, though create-next-app ignores it:
+# it is committed here, and a fresh clone that runs `tsc --noEmit` before its
+# first build needs it to exist.
+
+# production
+/build
+
+# testing
+/coverage
+# tests/*.js write their screenshots here — see tests/README.md
+/shots/
+
+# TypeScript incremental build state. This was tracked, and churned on every
+# build: a one-line register tweak arrived as a diff with a rewritten binary
+# cache attached, which is noise in a review and a needless conflict on a
+# branch. It is derived from tsconfig.json and the sources, so nothing is lost.
+*.tsbuildinfo
+
+# environment. ANTHROPIC_API_KEY turns the optional assistant on and is the one
+# secret this project has — see the AI assistance note in README.md.
+.env
+.env*.local
+.env.production
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# deployment
+.vercel
+
+# editors and OS
+.DS_Store
+*.pem
+.idea/
+.vscode/*
+!.vscode/extensions.json
