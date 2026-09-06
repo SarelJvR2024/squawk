@@ -170,7 +170,7 @@ src/
     answers.json      11,179 researched options, loaded on demand
     priorFindings.json  the 23 March 2025 findings
     programme.json    entities, the 3-year cycle, zones
-tests/                five suites — see tests/README.md
+tests/                twenty-two suites — see tests/README.md
 ```
 
 ## Notes for whoever picks this up
