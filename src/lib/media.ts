@@ -16,7 +16,7 @@
  *  attachment record carries only `blobKey`. See src/lib/store.ts. */
 
 import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from "idb-keyval";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 const MEDIA_PREFIX = "squawk-media/";
 
@@ -52,6 +52,26 @@ export async function clearAllMedia(): Promise<number> {
   );
   await Promise.all(mine.map((k) => idbDel(k)));
   return mine.length;
+}
+
+/** True only after the first client render.
+ *
+ *  Capability detection reads `window`, so calling it during render makes the
+ *  server and the client disagree — the server says "no microphone" and paints
+ *  the disabled control, the client says "microphone" and paints the button,
+ *  and React throws a hydration mismatch and rebuilds the tree. Gating on this
+ *  makes the first client render identical to the server's, and the real
+ *  answer arrives on the render after that. */
+const neverChanges = () => () => {};
+export function useIsClient(): boolean {
+  /* useSyncExternalStore is the sanctioned way to say "this differs between
+     server and client": the server snapshot is false, the client snapshot is
+     true, and React handles the handover instead of a setState in an effect. */
+  return useSyncExternalStore(
+    neverChanges,
+    () => true,
+    () => false
+  );
 }
 
 /* ---------- capability detection ----------
@@ -315,7 +335,10 @@ export function useDictation(lang = "en-ZA") {
     setTranscript("");
   }, []);
 
-  return { transcript, listening, start, stop, reset, supported: supportsDictation() };
+  /* Same reason as useIsClient above: this must not differ between the
+     server's render and the client's first one. */
+  const client = useIsClient();
+  return { transcript, listening, start, stop, reset, supported: client && supportsDictation() };
 }
 
 /* ---------- object URLs ----------

@@ -18,6 +18,7 @@ import {
   putBlob,
   supportsRecording,
   useBlobUrl,
+  useIsClient,
   useDictation,
   useRecorder,
 } from "@/lib/media";
@@ -53,7 +54,11 @@ export function VoiceNoteButton({
   const dict = useDictation();
   const entityCode = useEntityCode();
   const [busy, setBusy] = useState(false);
-  const supported = supportsRecording();
+  /* Assume the control is available until the client can actually check.
+     The server cannot know, and guessing "unavailable" would both mismatch on
+     hydration and flash a disabled button at an auditor who has a microphone. */
+  const isClient = useIsClient();
+  const supported = !isClient || supportsRecording();
 
   const recording = rec.state === "recording";
 
