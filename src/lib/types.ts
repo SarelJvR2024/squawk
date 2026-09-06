@@ -139,9 +139,21 @@ export interface Attachment {
   dataUrl?: string;
   /** Measured elapsed seconds. Absent for a photograph. */
   durationSec?: number;
-  /** Typed by the auditor, or dictated by the browser and then corrected by
-   *  the auditor. Never generated on their behalf. */
+  /** What was actually said, verbatim — typed by the auditor, heard by the
+   *  browser's dictation engine, or returned by the transcription service.
+   *  This is the record of the recording and is never overwritten by a tidied
+   *  version of itself. */
   transcript?: string;
+  /** Where `transcript` came from, so a reader can weigh it. "browser" is the
+   *  on-device speech engine listening live while the note was recorded;
+   *  "service" is the audio sent to the transcription service afterwards;
+   *  absent means an auditor typed it. */
+  transcriptSource?: "browser" | "service";
+  /** The transcript rewritten as an audit-grade answer — a SUGGESTION, held
+   *  beside the verbatim text rather than replacing it, and not in the audit
+   *  record until the auditor accepts it into the observation. */
+  revised?: string;
+  transcribedAt?: number;
   /** Set by the v4 migration on attachments recorded before capture was real:
    *  the record exists but there is no audio or image behind it. Shown as
    *  unavailable rather than silently rendering an empty player. */
@@ -229,6 +241,9 @@ export interface Capture {
   dataUrl?: string;
   durationSec?: number;
   transcript?: string;
+  /** As Attachment.transcriptSource. Carried through assignCapture so a note
+   *  dictated in the tray keeps its provenance once it reaches a check. */
+  transcriptSource?: "browser" | "service";
   unavailable?: boolean;
   area: string;
   createdAt: number;

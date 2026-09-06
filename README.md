@@ -26,6 +26,7 @@ Section numbers in code comments point at that document.
 | Dashboards | Airport, discipline and portfolio, with movement against March 2025 |
 | Visual review | All photographs and voice notes per discipline per airport, with an engineer feedback thread |
 | AI assistance | Optional and advisory — off unless a key is set |
+| Voice notes | Always recorded on the device; transcription and write-up are opt-in |
 | Exports | Excel and CSV: register, findings, closure, evidence request, summary |
 | Word report templates | Not started — design document phase 4 |
 
@@ -97,9 +98,12 @@ npx vercel --prod   # promote to production
 |---|---|
 | `ANTHROPIC_API_KEY` | Turns the AI assistance on. Without it the endpoint reports itself unavailable and every AI affordance disappears; the app is fully usable either way. |
 | `ASSIST_MODEL` | Overrides the model id. Defaults to `claude-sonnet-4-5`. |
+| `ELEVENLABS_API_KEY` | Turns **Transcribe** on for voice notes. Without it a note is still recorded, kept and played back; its text is typed by hand. |
+| `TRANSCRIBE_MODEL` | Overrides the transcription model id. Defaults to `scribe_v1`. |
+| `TRANSCRIBE_LANGUAGE` | Pins transcription to one language. **Leave unset.** Auto-detection is what carries an auditor switching between English and Afrikaans inside one sentence. |
 
-Setting the key is a **data-governance decision, not a technical one** — see
-*AI assistance* below.
+Setting either key is a **data-governance decision, not a technical one** — see
+*Voice notes* and *AI assistance* below.
 
 Fonts load from Google Fonts at runtime because the build environment this was
 written in cannot reach `fonts.googleapis.com`. On Vercel you can switch
@@ -111,7 +115,8 @@ written in cannot reach `fonts.googleapis.com`. On Vercel you can switch
 src/
   app/
     (app)/            capture · field · review · findings · closure · dashboard
-    api/assist/       the AI endpoint — the only thing that leaves the device
+    api/assist/       the AI endpoint — text out, never audio or images
+    api/transcribe/   voice-note transcription — the only route audio leaves by
     globals.css       design tokens for both themes
   components/
     AppShell.tsx      header, nav, cycle strip, command palette, role switch
@@ -245,6 +250,34 @@ tests/                five suites — see tests/README.md
   with suggested severities, so they carry weight. A discipline lead signs off
   each set before it goes live (design document Q9).
 
+## Voice notes
+
+**A note is recorded, stored and played back on the device, always.** That needs
+no key, no service and no network, and nothing in the app may make it
+conditional. The audio is the evidence; everything below is convenience on top
+of it.
+
+Three separate steps turn a spoken note into written text, and each is a
+separate decision by the person holding the tablet:
+
+| Step | What it does | Default |
+|---|---|---|
+| **Live text** | The browser writes words on screen as you speak. This is *not* on-device — Chrome streams the audio to Google's speech service to do it. English-only, and absent on iPadOS Safari. | **Off.** A switch in the shortcuts panel, and the app says on screen while it is running. |
+| **Transcribe** | Sends *that one recording* to the transcription service and stores what came back, word for word. Handles English and Afrikaans in the same sentence, which the browser cannot. | Only where `ELEVENLABS_API_KEY` is set, and only on a tap. Never on save, never in the background. |
+| **Write it up** | Asks the model to turn the verbatim transcript into the written observation for that check — the wording an auditor would have typed, not a literal reading of a ramble. | Only where a model is configured, and only on a tap. |
+
+**The verbatim transcript is kept after the rewrite, next to the audio.** A
+tidied sentence that quietly dropped one of three items, or turned 40mm into
+40cm, is the exact failure this application exists to prevent, and the only way
+to catch it is to still have the original. The rewrite lives in its own field,
+is labelled *suggested wording — not in the record*, and reaches the observation
+only when someone presses **Use it** — where it is appended to what the auditor
+already typed, not substituted for it.
+
+Before Transcribe existed, dictation started itself on every recording and said
+so nowhere. Store version 7 turns it off for anyone upgrading mid-audit;
+captured audio and existing transcripts are untouched.
+
 ## AI assistance
 
 Two layers, deliberately separate.
@@ -259,11 +292,15 @@ result is a suggestion shown beside the record with **Use it** and **Discard**.
 It never sets a status, never rates a finding, never marks anything captured,
 and the rating opinion is printed as text — it does not move the cell.
 
-Only the text of the check in front of the auditor is sent. Photographs, voice
-notes and attachments never leave the device; `src/lib/assist.ts` has the
-context builders, which are the single place that decides this.
+It also writes up a transcribed voice note (above). Only text is sent to it:
+the check in front of the auditor and, for a write-up, that transcript.
+**Photographs are never sent to the model, and neither is audio** —
+`src/lib/assist.ts` has the context builders, which are the single place that
+decides this.
 
-The key stays server-side. Turning the assistant on means data leaves the
-device, so it belongs with Q4 — if ACSA's governance requires data to stay in
-their tenant, point `src/app/api/assist/route.ts` at an in-tenant endpoint
-instead. Nothing in the UI changes.
+Both keys stay server-side. Three things in this app can put data somewhere
+other than the tablet — live text, Transcribe and the assistant — and all three
+are off until someone turns them on. That is Q4 and it is not settled. If
+ACSA's governance requires data to stay in their tenant, point
+`src/app/api/assist/route.ts` and `src/app/api/transcribe/route.ts` at
+in-tenant endpoints; nothing in the UI changes.

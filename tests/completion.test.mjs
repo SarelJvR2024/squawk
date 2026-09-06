@@ -150,9 +150,12 @@ check(
 
 /* --------------------------- Part 6: the migration does not invent a site visit */
 
+/* The version moves on as other things are persisted — v7 added the dictation
+   preference. What this suite cares about is that the v6 step is still there
+   and still runs for anyone upgrading from below it. */
 check(
   "v6 migrates the old single flag",
-  /version: 6,/.test(store) && /if \(from < 6\)/.test(store),
+  /if \(from < 6\)/.test(store) && /version: (?:[7-9]|\d{2,}),/.test(store),
   ""
 );
 

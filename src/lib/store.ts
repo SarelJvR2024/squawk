@@ -204,6 +204,12 @@ function emptyVerification(pf: string): Verification {
 interface State {
   role: Role;
   auditor: string;
+  /** Live speech-to-text while a voice note records. OFF until the auditor
+   *  turns it on, because the browser's dictation engine is not on-device:
+   *  Chrome streams the audio to Google's speech service to produce the text.
+   *  Recording itself never depends on this — the audio is the evidence and
+   *  is always kept locally. */
+  dictation: boolean;
   /** The entity and visit every scoped read and write below belongs to. */
   entity: string;
   visit: string;
@@ -219,6 +225,7 @@ interface State {
 
   setRole: (r: Role) => void;
   setAuditor: (a: string) => void;
+  setDictation: (on: boolean) => void;
   setEntity: (code: string) => void;
   setVisit: (visitId: string) => void;
   /** Create an audit. Returns null on success, or why it was refused. */
@@ -250,6 +257,14 @@ interface State {
   patchVerification: (pf: string, p: Partial<Verification>) => void;
 
   addAttachment: (checkId: string, a: Omit<Attachment, "id" | "createdAt">) => void;
+  /** Write a transcript, its provenance or a revision back onto a note that is
+   *  already attached. Transcription happens after the fact, so the record has
+   *  to be reachable again once the text comes back. */
+  updateAttachment: (
+    checkId: string,
+    attachmentId: string,
+    patch: Partial<Attachment>
+  ) => void;
   removeAttachment: (checkId: string, attachmentId: string) => void;
 
   feedbackFor: (checkId: string) => FeedbackNote[];
@@ -303,6 +318,7 @@ export const useStore = create<State>()(
       return {
         role: "tpjv",
         auditor: AUDITORS[0],
+        dictation: false,
         entity: CURRENT_ENTITY_CODE,
         visit: CURRENT_VISIT_ID,
         byVisit: {},
@@ -313,6 +329,7 @@ export const useStore = create<State>()(
 
         setRole: (role) => set({ role }),
         setAuditor: (auditor) => set({ auditor }),
+        setDictation: (dictation) => set({ dictation }),
 
         setEntity: (code) =>
           set((s) => {
@@ -432,6 +449,20 @@ export const useStore = create<State>()(
           const r = get().response(checkId);
           get().patch(checkId, {
             attachments: [...r.attachments, { ...a, id: uid(), createdAt: Date.now() }],
+          });
+        },
+
+        updateAttachment: (checkId, attachmentId, patch) => {
+          const r = get().response(checkId);
+          /* id, blobKey and createdAt identify the note and point at its
+             bytes. A caller passing them would be renaming the evidence, so
+             they are stripped rather than trusted. */
+          const { id: _i, blobKey: _b, createdAt: _c, ...safe } = patch;
+          void _i; void _b; void _c;
+          get().patch(checkId, {
+            attachments: r.attachments.map((x) =>
+              x.id === attachmentId ? { ...x, ...safe } : x
+            ),
           });
         },
 
@@ -564,6 +595,7 @@ export const useStore = create<State>()(
             dataUrl: cap.dataUrl,
             durationSec: cap.durationSec,
             transcript: cap.transcript,
+            transcriptSource: cap.transcriptSource,
             unavailable: cap.unavailable,
             createdBy: cap.createdBy,
           });
@@ -626,9 +658,10 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 6,
+      version: 7,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
+          dictation?: boolean;
           findings?: Finding[];
           responses?: Record<string, Response>;
           verifications?: Record<string, Verification>;
@@ -783,11 +816,22 @@ export const useStore = create<State>()(
             );
           }
         }
+        if (from < 7) {
+          /* v6 and earlier started the browser's dictation engine automatically
+             whenever a voice note was recorded, which sent the auditor's speech
+             to the browser vendor's service without anyone being told. A tablet
+             upgrading in mid-audit lands with it OFF — the safe side of a
+             consent question is off, and turning it back on is one tap in the
+             panel. Nothing already captured changes: the audio and any
+             transcript already taken are kept exactly as they are. */
+          st.dictation = false;
+        }
         return st;
       },
       partialize: (s: State) => ({
         role: s.role,
         auditor: s.auditor,
+        dictation: s.dictation,
         entity: s.entity,
         visit: s.visit,
         byVisit: s.byVisit,
@@ -817,6 +861,9 @@ if (typeof window !== "undefined") {
    would loop. */
 
 export const useEntityCode = () => useStore((s) => s.entity);
+/** Whether the browser's live dictation engine may run while a note records.
+ *  Off by default — see the `dictation` field on State for why. */
+export const useDictationEnabled = () => useStore((s) => s.dictation);
 export const useVisitId = () => useStore((s) => s.visit);
 export const useEntity = () => entityOf(useStore((s) => s.entity));
 

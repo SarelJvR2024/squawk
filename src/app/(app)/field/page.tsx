@@ -19,6 +19,7 @@ import type { Check, Compliance } from "@/lib/types";
 import { Btn, Chip, Empty, Panel, Pill } from "@/components/ui/primitives";
 import { AttachmentStrip, PhotoButton, PhotoThumb, VoiceNoteButton } from "@/components/Capture";
 import { useAnswerLibrary } from "@/lib/answers";
+import { assist, transcriptContext, useAssistAvailable } from "@/lib/assist";
 import { modeLabels, needsField } from "@/lib/verification";
 import {
   IconCamera,
@@ -62,6 +63,9 @@ export default function FieldPage() {
   const commit = useStore((s) => s.commit);
   const addAttachment = useStore((s) => s.addAttachment);
   const removeAttachment = useStore((s) => s.removeAttachment);
+  const updateAttachment = useStore((s) => s.updateAttachment);
+  const appendObservation = useStore((s) => s.appendObservation);
+  const aiOn = useAssistAvailable();
   const addCapture = useStore((s) => s.addCapture);
   const assignCapture = useStore((s) => s.assignCapture);
   const discardCapture = useStore((s) => s.discardCapture);
@@ -347,6 +351,16 @@ export default function FieldPage() {
                             attachments={attachments}
                             thumbSize={34}
                             onRemove={(id) => removeAttachment(c.id, id)}
+                            onUpdate={(id, p) => updateAttachment(c.id, id, p)}
+                            writeUp={
+                              aiOn
+                                ? (t) => assist("transcript", transcriptContext(t, c, r))
+                                : undefined
+                            }
+                            onAccept={(text) => {
+                              appendObservation(c.id, text);
+                              say(`Written up into ${c.id}`);
+                            }}
                           />
                         </div>
                       </div>

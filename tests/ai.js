@@ -36,7 +36,7 @@ const ok=(n,c,x='')=>{c?(pass++,log.push('PASS  '+n)):(fail++,log.push('FAIL  '+
   await p.context().close();
  }
 
- // ---- model configured (port 3103, placeholder key -> upstream 401) ----
+ // ---- fully configured (BASE_WITH_KEY, placeholder keys -> upstream fails) ----
  {
   const p=await (await b.newContext({viewport:{width:1440,height:900}})).newPage();
   const errs=[]; p.on('pageerror',e=>errs.push(String(e)));
@@ -55,10 +55,66 @@ const ok=(n,c,x='')=>{c?(pass++,log.push('PASS  '+n)):(fail++,log.push('FAIL  '+
   await p.locator('button[aria-label="Keyboard shortcuts"]').first().click(); await p.waitForTimeout(600);
   const h=await p.locator('body').innerText();
   ok('help panel states the AI position', /AI assistance/.test(h) && /model is connected/i.test(h));
-  ok('help panel states that attachments never leave the device', /never leave the device/i.test(h));
+  /* This used to assert "attachments never leave the device", which stopped
+     being true when Transcribe was added: a voice note's audio does leave, on
+     a tap. The panel now names all three egress paths instead, and the claim
+     that survives is the narrower one that is still true — the MODEL is sent
+     text only. */
+  ok('help panel names every path that can send data off the device',
+     /Three things can send data off this device/.test(h) &&
+     /all three are off until someone turns them on/i.test(h));
+  ok('help panel still says photographs and audio never reach the model',
+     /Photographs are never sent to it, and audio never is either/i.test(h));
+  ok('help panel offers the live-text switch and says where the audio goes',
+     /Live text while recording/.test(h) && /speech service/i.test(h));
+  const dictBox = p.locator('input[aria-label="Live text while recording"]').first();
+  ok('live text is off until the auditor switches it on',
+     (await dictBox.count()) === 1 && (await dictBox.isChecked()) === false);
   await p.screenshot({path:'/home/claude/shots/ai-help.png'});
   await p.context().close();
  }
+
+ // ---- a real recording, on a fake microphone ----
+ /* The transcribe and write-up controls hang off a voice note that exists, so
+    the only way to see them is to make one. Chromium's fake capture device
+    gives MediaRecorder a real stream to record, which is as close to an
+    auditor pressing the button as this can get without a person and a mic. */
+ {
+  const fb = await chromium.launch({
+    executablePath:'/opt/pw-browsers/chromium',
+    args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream'],
+  });
+  const ctx = await fb.newContext({viewport:{width:1440,height:900}, permissions:['microphone']});
+  const p = await ctx.newPage();
+  const errs=[]; p.on('pageerror',e=>errs.push(String(e)));
+  await p.goto(''+B1+'/capture',{waitUntil:'networkidle'}); await p.waitForTimeout(2000);
+
+  const before = await p.locator('audio').count();
+  await p.locator('button[aria-label="Record a voice note"]').first().click();
+  await p.waitForTimeout(400);
+  const rec = await p.locator('body').innerText();
+  ok('recording shows a running timer', /Stop · \d+:\d\d/.test(rec), rec.slice(0,60).replace(/\n/g,' '));
+  ok('live text is NOT running, because nobody switched it on',
+     !/speech sent to the browser/i.test(rec));
+  await p.waitForTimeout(1600);
+  await p.locator('button[aria-label="Stop recording"]').first().click();
+  await p.waitForTimeout(1500);
+
+  ok('the note is kept and can be played back', (await p.locator('audio').count()) === before + 1);
+  const after = await p.locator('body').innerText();
+  ok('the note carries its real measured duration', /0:0[12]/.test(after), after.slice(0,120).replace(/\n/g,' '));
+  ok('Transcribe is offered on the note', (await p.locator('button',{hasText:/^Transcribe$/}).count()) >= 1);
+  ok('nothing is written up before there is a transcript',
+     (await p.locator('button',{hasText:/Write it up/}).count()) === 0);
+  ok('no suggested wording is claimed before anyone asked for one',
+     !/Suggested wording/.test(after));
+  ok('recording a note does not write to the observation',
+     (await p.locator('textarea').first().inputValue()).trim() === '');
+  ok('no page errors while recording', errs.length===0, errs[0]||'');
+  await p.screenshot({path:'/home/claude/shots/ai-voicenote.png'});
+  await ctx.close(); await fb.close();
+ }
+
  console.log(log.join('\n')); console.log(`\n${pass} passed, ${fail} failed`);
  await b.close(); process.exit(fail?1:0);
 })().catch(e=>{console.log(log.join('\n'));console.error('HARNESS',e.message);process.exit(1)});

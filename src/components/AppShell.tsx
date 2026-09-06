@@ -19,7 +19,7 @@ import {
 } from "@/lib/store";
 import { ENTITIES, entity as entityOf } from "@/lib/programme";
 import { needsDesk, needsField } from "@/lib/verification";
-import { useAssistAvailable } from "@/lib/assist";
+import { useAssistAvailable, useTranscribeAvailable } from "@/lib/assist";
 import ExportPanel from "@/components/ExportPanel";
 import ResetPanel from "@/components/ResetPanel";
 import AuditsPanel from "@/components/AuditsPanel";
@@ -70,6 +70,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const [palette, setPalette] = useState(false);
   const aiOn = useAssistAvailable();
+  const transcribeOn = useTranscribeAvailable();
+  const dictation = useStore((s) => s.dictation);
+  const setDictation = useStore((s) => s.setDictation);
   const [help, setHelp] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -488,16 +491,72 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               ))}
             </div>
 
+            <h3 className="mt-5 mb-2 text-[14px] font-bold">Voice notes</h3>
+            <p className="text-[12px] leading-[1.6]" style={{ color: "var(--ink-2)" }}>
+              Every voice note is recorded and kept on this device. It plays back
+              beside the check it belongs to and stays there until the audit is
+              exported or reset — that part needs no network and no service, and
+              it is not optional.
+            </p>
+
+            {/* The consent switch. It is a switch and not a line of prose
+                because "dictation is on" was previously true of every recording
+                and said nowhere. */}
+            <label
+              className="mt-2.5 flex cursor-pointer items-start gap-2.5 rounded-[11px] border p-[11px]"
+              style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+            >
+              <input
+                type="checkbox"
+                checked={dictation}
+                onChange={(e) => setDictation(e.target.checked)}
+                className="mt-[2px] h-[16px] w-[16px] shrink-0 accent-[var(--acc)]"
+                aria-label="Live text while recording"
+              />
+              <span className="min-w-0 text-[12px] leading-[1.55]">
+                <b>Live text while recording</b>
+                <span className="block" style={{ color: "var(--ink-2)" }}>
+                  Shows words on screen as you speak. Your browser does this by
+                  streaming the audio to its vendor&rsquo;s speech service — on Chrome
+                  that is Google — so it is off unless you switch it on. It is
+                  English-only and it is absent on iPad Safari. The recording itself
+                  is unaffected either way.
+                </span>
+              </span>
+            </label>
+
+            <p className="mt-2.5 text-[12px] leading-[1.6]" style={{ color: "var(--ink-2)" }}>
+              {transcribeOn ? (
+                <>
+                  <b>Transcribe</b> on a note sends that one recording to the
+                  transcription service and stores what it heard, word for word. It
+                  handles English and Afrikaans in the same sentence, which the
+                  browser cannot. It runs only when you press it — never on save,
+                  never in the background.
+                </>
+              ) : (
+                <>
+                  No transcription service is configured, so a note&rsquo;s text is
+                  typed by hand. To turn it on, set{" "}
+                  <code className="font-mono text-[11px]">ELEVENLABS_API_KEY</code> in
+                  the deployment environment.
+                </>
+              )}
+            </p>
+
             <h3 className="mt-5 mb-2 text-[14px] font-bold">AI assistance</h3>
             <p className="text-[12px] leading-[1.6]" style={{ color: "var(--ink-2)" }}>
               {aiOn ? (
                 <>
                   A model is connected. It drafts wording, reads a procedure back in
-                  plain English and offers a view on a rating — always as a suggestion
-                  you accept, edit or ignore. It never sets a status, never rates a
-                  finding and never writes to the record on its own. Only the text of
-                  the check you are on is sent; photographs, voice notes and
-                  attachments never leave the device.
+                  plain English, offers a view on a rating, and turns a transcribed
+                  voice note into the written observation — always as a suggestion you
+                  accept, edit or ignore. It never sets a status, never rates a finding
+                  and never writes to the record on its own. When it writes up a note,
+                  the words you actually said are kept beside the suggestion so you can
+                  check nothing was changed. Only text is sent to it: the check you are
+                  on and, for a write-up, that transcript. Photographs are never sent to
+                  it, and audio never is either.
                 </>
               ) : (
                 <>
@@ -505,11 +564,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <b>Compose from taps</b> builds your observation from the buttons you
                   have pressed, offline. To turn the assistant on, set{" "}
                   <code className="font-mono text-[11px]">ANTHROPIC_API_KEY</code> in the
-                  deployment environment. That decision belongs with the data-governance
-                  question (design document Q4), because it is the one thing in this app
-                  that sends anything off the device.
+                  deployment environment.
                 </>
               )}
+            </p>
+
+            <p className="mt-2.5 text-[11px] leading-[1.55]" style={{ color: "var(--ink-3)" }}>
+              Three things can send data off this device: live text, Transcribe and
+              the assistant. Each is listed above, each is separately switched, and
+              all three are off until someone turns them on. Nothing else in the app
+              leaves the tablet. This is the design document&rsquo;s Q4 question and it
+              is not settled yet.
             </p>
           </div>
         </div>

@@ -15,6 +15,7 @@ import {
   delBlob,
   extensionFor,
   formatDuration,
+  getBlob,
   putBlob,
   supportsRecording,
   useBlobUrl,
@@ -22,9 +23,10 @@ import {
   useDictation,
   useRecorder,
 } from "@/lib/media";
-import { useEntityCode } from "@/lib/store";
+import { transcribe, useTranscribeAvailable } from "@/lib/assist";
+import { useDictationEnabled, useEntityCode } from "@/lib/store";
 import type { Attachment } from "@/lib/types";
-import { IconCamera, IconMic, IconX } from "./ui/icons";
+import { IconCamera, IconMic, IconSpark, IconX } from "./ui/icons";
 import { Pill } from "./ui/primitives";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -36,6 +38,7 @@ export interface CapturedMedia {
   mimeType: string;
   durationSec?: number;
   transcript?: string;
+  transcriptSource?: "browser" | "service";
 }
 
 const TAP =
@@ -53,6 +56,10 @@ export function VoiceNoteButton({
   const rec = useRecorder();
   const dict = useDictation();
   const entityCode = useEntityCode();
+  /* Opt-in, and read here rather than inside useDictation so the hook stays a
+     plain wrapper over the browser API and the consent decision lives in one
+     visible place. */
+  const dictationOn = useDictationEnabled();
   const [busy, setBusy] = useState(false);
   /* Assume the control is available until the client can actually check.
      The server cannot know, and guessing "unavailable" would both mismatch on
@@ -68,8 +75,9 @@ export function VoiceNoteButton({
       setBusy(true);
       const ok = await rec.start();
       /* Dictation rides along with the recording but is never required by it:
-         if the engine refuses, the audio still records. */
-      if (ok && dict.supported) dict.start();
+         if the engine refuses, the audio still records. It runs only when the
+         auditor has switched it on, because it is not on-device. */
+      if (ok && dictationOn && dict.supported) dict.start();
       setBusy(false);
       return;
     }
@@ -89,7 +97,9 @@ export function VoiceNoteButton({
         mimeType: result.mimeType,
         durationSec: result.durationSec,
         /* Only what the engine actually heard. Empty is a correct answer. */
-        transcript: dict.transcript.trim() || undefined,
+        transcript: (dictationOn && dict.transcript.trim()) || undefined,
+        transcriptSource:
+          dictationOn && dict.transcript.trim() ? "browser" : undefined,
       });
     }
     dict.reset();
@@ -164,13 +174,23 @@ export function VoiceNoteButton({
           {rec.error}
         </span>
       )}
-      {recording && dict.supported && dict.transcript && (
-        <span
-          className="max-w-[280px] truncate text-[10.5px] italic"
-          style={{ color: "var(--ink-3)" }}
-          title={dict.transcript}
-        >
-          {dict.transcript}
+      {/* While the browser engine is listening, say so. It is not on-device
+          and the auditor is entitled to see that it is running, every time,
+          rather than having agreed to it once in a panel weeks ago. */}
+      {recording && dictationOn && dict.supported && (
+        <span className="flex min-w-0 flex-col leading-[1.35]">
+          <span className="text-[9.5px] font-semibold tracking-[.04em] uppercase" style={{ color: "var(--warn)" }}>
+            live text on · speech sent to the browser&rsquo;s service
+          </span>
+          {dict.transcript && (
+            <span
+              className="max-w-[280px] truncate text-[10.5px] italic"
+              style={{ color: "var(--ink-3)" }}
+              title={dict.transcript}
+            >
+              {dict.transcript}
+            </span>
+          )}
         </span>
       )}
     </span>
@@ -300,48 +320,228 @@ export function PhotoThumb({ a, size = 44 }: { a: ThumbSource; size?: number }) 
   );
 }
 
-function VoiceRow({ a, onRemove }: { a: Attachment; onRemove?: () => void }) {
+const MINI =
+  "inline-flex h-[30px] items-center gap-[5px] rounded-[8px] border px-[9px] text-[10.5px] font-semibold transition-[var(--t)] disabled:opacity-50 disabled:cursor-not-allowed";
+
+/** One recorded note: the player, what was said, and the two optional steps
+ *  that turn what was said into what gets written down.
+ *
+ *  The steps are deliberately separate and deliberately manual.
+ *
+ *    Transcribe   sends this note's audio to the transcription service and
+ *                 stores what came back, VERBATIM. That is the only thing that
+ *                 ever overwrites `transcript`.
+ *    Write it up  asks the model to turn that verbatim text into the written
+ *                 observation for this check. The result is held in `revised`,
+ *                 beside the transcript, labelled as a suggestion.
+ *    Use it       is the only thing that puts any of it into the audit record,
+ *                 and an auditor has to press it.
+ *
+ *  Keeping the verbatim text after the rewrite is the point. A tidy sentence
+ *  that quietly dropped one of three items, or turned 40mm into 40cm, is
+ *  exactly the failure this application exists to prevent, and the only way to
+ *  catch it is to still have the original next to the audio. */
+function VoiceRow({
+  a,
+  onRemove,
+  onUpdate,
+  writeUp,
+  onAccept,
+}: {
+  a: Attachment;
+  onRemove?: () => void;
+  onUpdate?: (patch: Partial<Attachment>) => void;
+  writeUp?: (transcript: string) => Promise<string>;
+  onAccept?: (text: string) => void;
+}) {
   const { url, missing } = useBlobUrl(a.blobKey);
   const src = url ?? a.dataUrl ?? null;
   const dead = a.unavailable || (missing && !a.dataUrl);
+  const canTranscribe = useTranscribeAvailable();
+  const [busy, setBusy] = useState<"hearing" | "writing" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const showTranscribe = !dead && !!a.blobKey && !!onUpdate && canTranscribe;
+  const showWriteUp = !dead && !!a.transcript && !!writeUp && !!onUpdate;
+
+  async function runTranscribe() {
+    if (!a.blobKey || !onUpdate) return;
+    setBusy("hearing");
+    setError(null);
+    try {
+      const blob = await getBlob(a.blobKey);
+      if (!blob) throw new Error("The audio for this note is no longer stored.");
+      const { text } = await transcribe(blob, a.name || "note.webm");
+      /* A re-transcription replaces the verbatim text, so any earlier rewrite
+         of the OLD text is now stale and is cleared rather than left sitting
+         under a transcript it no longer came from. */
+      onUpdate({
+        transcript: text,
+        transcriptSource: "service",
+        transcribedAt: Date.now(),
+        revised: undefined,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Transcription failed.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function runWriteUp() {
+    if (!a.transcript || !writeUp || !onUpdate) return;
+    setBusy("writing");
+    setError(null);
+    try {
+      onUpdate({ revised: await writeUp(a.transcript) });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The assistant is unavailable.");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   return (
     <div
-      className="flex items-center gap-2 rounded-[9px] border px-[9px] py-[7px]"
+      className="flex flex-col gap-[7px] rounded-[9px] border px-[9px] py-[7px]"
       style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
     >
-      <IconMic width={13} height={13} style={{ color: "var(--ink-3)" }} />
-      {dead ? (
-        <span className="text-[10.5px] line-through" style={{ color: "var(--ink-4)" }}>
-          no audio stored — recorded before capture worked
-        </span>
-      ) : src ? (
-        <audio controls src={src} className="h-[32px] max-w-[220px]" preload="metadata" />
-      ) : (
-        <span className="text-[10.5px]" style={{ color: "var(--ink-4)" }}>
-          loading…
+      <div className="flex flex-wrap items-center gap-2">
+        <IconMic width={13} height={13} style={{ color: "var(--ink-3)" }} />
+        {dead ? (
+          <span className="text-[10.5px] line-through" style={{ color: "var(--ink-4)" }}>
+            no audio stored — recorded before capture worked
+          </span>
+        ) : src ? (
+          <audio controls src={src} className="h-[32px] max-w-[220px]" preload="metadata" />
+        ) : (
+          <span className="text-[10.5px]" style={{ color: "var(--ink-4)" }}>
+            loading…
+          </span>
+        )}
+        {!dead && <Pill tone="accent">{formatDuration(a.durationSec)}</Pill>}
+
+        {showTranscribe && (
+          <button
+            type="button"
+            onClick={runTranscribe}
+            disabled={busy !== null}
+            className={MINI}
+            style={{
+              background: "var(--panel)",
+              borderColor: "var(--line-2)",
+              color: "var(--ink-2)",
+            }}
+            title="Sends this recording to the transcription service and stores what it heard, word for word."
+          >
+            <IconMic width={12} height={12} />
+            {busy === "hearing"
+              ? "Listening…"
+              : a.transcript
+                ? "Transcribe again"
+                : "Transcribe"}
+          </button>
+        )}
+        {showWriteUp && (
+          <button
+            type="button"
+            onClick={runWriteUp}
+            disabled={busy !== null}
+            className={MINI}
+            style={{
+              background: "var(--panel)",
+              borderColor: "var(--line-2)",
+              color: "var(--ink-2)",
+            }}
+            title="Turns what you said into the written observation for this check. Advisory — nothing is recorded until you accept it."
+          >
+            <IconSpark width={12} height={12} />
+            {busy === "writing" ? "Writing…" : a.revised ? "Write it up again" : "Write it up"}
+          </button>
+        )}
+
+        {onRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label="Remove this voice note"
+            className="ml-auto flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[7px] border"
+            style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+          >
+            <IconX width={12} height={12} />
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <span className="text-[10.5px]" style={{ color: "var(--bad)" }}>
+          {error}
         </span>
       )}
-      {!dead && <Pill tone="accent">{formatDuration(a.durationSec)}</Pill>}
+
       {a.transcript && (
-        <span
-          className="max-w-[260px] truncate text-[10.5px] italic"
-          style={{ color: "var(--ink-3)" }}
-          title={a.transcript}
-        >
-          “{a.transcript}”
-        </span>
+        <div className="flex flex-col gap-[2px]">
+          <span
+            className="text-[9px] font-semibold tracking-[.05em] uppercase"
+            style={{ color: "var(--ink-4)" }}
+          >
+            {a.transcriptSource === "service"
+              ? "Transcribed · word for word"
+              : a.transcriptSource === "browser"
+                ? "Heard live by the browser · word for word"
+                : "Typed"}
+          </span>
+          <span className="text-[11px] italic" style={{ color: "var(--ink-3)" }}>
+            “{a.transcript}”
+          </span>
+        </div>
       )}
-      {onRemove && (
-        <button
-          type="button"
-          onClick={onRemove}
-          aria-label="Remove this voice note"
-          className="ml-auto flex h-[28px] w-[28px] items-center justify-center rounded-[7px] border"
-          style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+
+      {a.revised && (
+        <div
+          className="flex flex-col gap-[5px] rounded-[7px] border px-[8px] py-[6px]"
+          style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
         >
-          <IconX width={12} height={12} />
-        </button>
+          <span
+            className="text-[9px] font-semibold tracking-[.05em] uppercase"
+            style={{ color: "var(--ink-4)" }}
+          >
+            Suggested wording — not in the record
+          </span>
+          <span className="text-[11.5px]" style={{ color: "var(--ink-1)" }}>
+            {a.revised}
+          </span>
+          <div className="flex items-center gap-[6px]">
+            {onAccept && (
+              <button
+                type="button"
+                onClick={() => onAccept(a.revised!)}
+                className={MINI}
+                style={{
+                  background: "var(--acc)",
+                  borderColor: "var(--acc)",
+                  color: "var(--on-acc)",
+                }}
+              >
+                Use it
+              </button>
+            )}
+            {onUpdate && (
+              <button
+                type="button"
+                onClick={() => onUpdate({ revised: undefined })}
+                className={MINI}
+                style={{
+                  background: "var(--panel)",
+                  borderColor: "var(--line-2)",
+                  color: "var(--ink-3)",
+                }}
+              >
+                Discard
+              </button>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -350,10 +550,22 @@ function VoiceRow({ a, onRemove }: { a: Attachment; onRemove?: () => void }) {
 export function AttachmentStrip({
   attachments,
   onRemove,
+  onUpdate,
+  writeUp,
+  onAccept,
   thumbSize = 44,
 }: {
   attachments: Attachment[];
   onRemove?: (id: string) => void;
+  /** Persist a change to one note — a transcript coming back, a rewrite being
+   *  produced or discarded. Omit it and a note is read-only. */
+  onUpdate?: (id: string, patch: Partial<Attachment>) => void;
+  /** Turn a verbatim transcript into the written observation. Supplied by the
+   *  caller because only the caller knows which check the note belongs to;
+   *  omit it and the rewrite step is not offered. */
+  writeUp?: (transcript: string) => Promise<string>;
+  /** Put an accepted rewrite into the record. This component never does it. */
+  onAccept?: (text: string) => void;
   thumbSize?: number;
 }) {
   const photos = attachments.filter((a) => a.kind === "photo");
@@ -387,7 +599,14 @@ export function AttachmentStrip({
         </div>
       )}
       {voices.map((a) => (
-        <VoiceRow key={a.id} a={a} onRemove={onRemove ? () => onRemove(a.id) : undefined} />
+        <VoiceRow
+          key={a.id}
+          a={a}
+          onRemove={onRemove ? () => onRemove(a.id) : undefined}
+          onUpdate={onUpdate ? (patch) => onUpdate(a.id, patch) : undefined}
+          writeUp={writeUp}
+          onAccept={onAccept}
+        />
       ))}
     </div>
   );

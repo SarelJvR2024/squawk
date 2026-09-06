@@ -8,6 +8,7 @@ import {
   assist,
   checkContext,
   composeObservation,
+  transcriptContext,
   useAssistAvailable,
 } from "@/lib/assist";
 import { bandFor, BAND_META } from "@/lib/risk";
@@ -79,6 +80,7 @@ export default function CheckDetail({
   const patch = useStore((s) => s.patch);
   const addAttachment = useStore((s) => s.addAttachment);
   const removeAttachment = useStore((s) => s.removeAttachment);
+  const updateAttachment = useStore((s) => s.updateAttachment);
   const commit = useStore((s) => s.commit);
   const visitId = useVisitId();
 
@@ -721,6 +723,22 @@ export default function CheckDetail({
                 <AttachmentStrip
                   attachments={r.attachments}
                   onRemove={(id) => removeAttachment(check.id, id)}
+                  onUpdate={(id, p) => updateAttachment(check.id, id, p)}
+                  /* Only offered where a model is configured. Without one the
+                     note is still recorded, played back and transcribed —
+                     there is simply nothing to write it up with. */
+                  writeUp={
+                    aiOn
+                      ? (t) => assist("transcript", transcriptContext(t, check, r))
+                      : undefined
+                  }
+                  /* Accepting appends to the observation rather than replacing
+                     it: an auditor who has already typed something has not
+                     asked for it to be thrown away. */
+                  onAccept={(text) => {
+                    appendObservation(check.id, text);
+                    onSaved("Written up into the observation");
+                  }}
                 />
               </div>
             )}

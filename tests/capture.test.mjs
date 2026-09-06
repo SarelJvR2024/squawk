@@ -129,10 +129,20 @@ check(
 
 /* ------------------------------------ Part 3: an empty transcript stays empty */
 
+/* The guard is that nothing stands in for silence. The expression grew a
+   condition when dictation became opt-in (tests/voice.test.mjs owns that
+   change); what must not come back is a fallback that puts SOMETHING in the
+   field when the engine heard nothing. */
 check(
   "an absent transcript is left undefined rather than filled",
-  /transcript:\s*dict\.transcript\.trim\(\)\s*\|\|\s*undefined/.test(capture),
+  /transcript: \(dictationOn && dict\.transcript\.trim\(\)\) \|\| undefined,/.test(capture),
   "an empty transcript is a correct answer"
+);
+
+check(
+  "the fallback for an empty transcript is undefined and nothing else",
+  !/dict\.transcript[^\n]*\|\|\s*["'`]/.test(capture),
+  "|| \"\" or || a placeholder would put words in the auditor's mouth"
 );
 
 check(

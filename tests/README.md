@@ -1,24 +1,25 @@
 # Tests
 
-Fourteen suites, no framework — all run with plain `node`. Four need a running
-server; ten do not.
+Fifteen suites, no framework — all run with plain `node`. Four need a running
+server; eleven do not.
 
-| Suite | Needs a server | Asserts |
+| Suite | Needs a server | Assertions run |
 |---|---|---|
-| `risk-matrix.test.mjs` | no | 25 |
-| `capture.test.mjs` | no | 27 |
-| `scope.test.mjs` | no | 31 |
+| `risk-matrix.test.mjs` | no | 29 |
+| `capture.test.mjs` | no | 28 |
+| `scope.test.mjs` | no | 46 |
 | `carryforward.test.mjs` | no | 20 |
 | `review.test.mjs` | no | 22 |
-| `tablet.test.mjs` | no | 17 |
-| `portals.test.mjs` | no | 23 |
-| `reset.test.mjs` | no | 16 |
-| `completion.test.mjs` | no | 17 |
-| `audits.test.mjs` | no | 16 |
+| `tablet.test.mjs` | no | 18 |
+| `portals.test.mjs` | no | 27 |
+| `reset.test.mjs` | no | 17 |
+| `completion.test.mjs` | no | 18 |
+| `audits.test.mjs` | no | 17 |
+| `voice.test.mjs` | no | 36 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 30 |
 | `exports.js` | yes | 7 |
-| `ai.js` | yes, two of them | 14 |
+| `ai.js` | yes, two of them | 26 |
 
 ## `risk-matrix.test.mjs`
 
@@ -242,25 +243,67 @@ BASE=http://localhost:3000 node tests/exports.js
 
 Screenshots land in `shots/`.
 
-## `ai.js`
+## `voice.test.mjs`
 
-Needs the app running twice: once with no key, once with one. It asserts that
-the offline composer works without a model, that the AI controls are hidden
-without one and shown with one, that a model failure is reported honestly and
-leaves the record untouched, and that a draft is never written to the record
-until it is accepted.
+Guards the seams around a voice note, which are three separate decisions that
+must not collapse into one another: the recording (always, locally, no key), the
+browser's live dictation (off until switched on, because it streams audio to the
+browser vendor's speech service), server-side transcription (per note, on a tap),
+and the model's write-up (a suggestion, never the record).
+
+The invariant worth stating on its own: **a rewrite never overwrites the
+verbatim transcript.** A tidy sentence that dropped an item or changed a number
+is only catchable if the original is still sitting next to the audio.
 
 ```bash
-npm start -p 3000 &                              # no key
-ANTHROPIC_API_KEY=<anything> npm start -p 3001 & # key present
+node tests/voice.test.mjs
+```
+
+**Run it after any edit to `src/lib/media.ts`, `src/components/Capture.tsx`,
+`src/app/api/transcribe/route.ts`, or the AI assistance section of
+`AppShell.tsx`.**
+
+## `ai.js`
+
+Needs the app running twice: once with no keys, once fully configured. It
+asserts that the offline composer works without a model, that the AI controls
+are hidden without one and shown with one, that a model failure is reported
+honestly and leaves the record untouched, that a draft is never written to the
+record until it is accepted, and that the help panel names every path by which
+data can leave the device.
+
+Its third block records a real voice note against Chromium's fake capture
+device, which is the only way to see the controls that hang off a note that
+exists — and confirms that live text does not run when nobody switched it on.
+
+```bash
+npm start -p 3000 &                              # no keys
+ANTHROPIC_API_KEY=<anything> ELEVENLABS_API_KEY=<anything> npm start -p 3001 &
 BASE_NO_KEY=http://localhost:3000 BASE_WITH_KEY=http://localhost:3001 node tests/ai.js
 ```
 
-The key does not have to be valid — an invalid one exercises the failure path,
-which is the branch worth testing.
+Neither key has to be valid — invalid ones exercise the failure paths, which are
+the branches worth testing. The transcription *success* path cannot be tested
+without a real key and is the one thing here that has never run.
 
-## Known non-failure
+## Exit status
 
-In an offline sandbox, `e2e.js` fails its "no uncaught page errors" assertion on
-the Google Fonts request. That is the environment, not the app; on Vercel it
-passes.
+Every suite exits non-zero if any assertion failed. Check the status, not the
+output — `for f in tests/*; do node $f; done` reports the status of the loop,
+not of the suites, and will happily report success over a red one.
+
+`e2e.js` was the exception until it was fixed: it exited 0 whatever happened, so
+a genuinely broken run read as green to anything that checked. It no longer does.
+
+## Sandbox egress
+
+Fonts load from `fonts.googleapis.com` at runtime (see `src/app/layout.tsx`),
+which an offline sandbox cannot reach. `e2e.js` excludes failed resource loads
+from that host, and only that host, from its page-error assertion — the page
+renders in its fallback stack and the app is unaffected. Any other resource
+failing to load is still a real error.
+
+The transcription service (`api.elevenlabs.io`) is likewise unreachable from a
+sandbox, so `api/transcribe`'s success path is the one branch in this repo that
+has never been executed. Its failure branches — no key, no audio, oversized,
+unreachable upstream, empty result — all have coverage.

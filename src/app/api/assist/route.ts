@@ -7,10 +7,15 @@ import type { NextRequest } from "next/server";
 
    The key never reaches the browser. Without ANTHROPIC_API_KEY the route
    reports itself unavailable and the UI hides its assist affordances, so the
-   app is fully usable with no model at all. See the design document Q4: until
-   hosting and data governance are settled, this is the ONLY thing in the app
-   that sends anything off the device, and it sends only the text listed in
-   each task below — never attachments, never photographs, never voice notes. */
+   app is fully usable with no model at all.
+
+   What this route sends off the device is text and only text — the material
+   listed in each task below. It never sends a photograph and never sends audio.
+   It is no longer the only route that sends anything, though: see
+   /api/transcribe, which sends the audio of a voice note when an auditor asks
+   for that note to be transcribed, and the browser's own dictation engine,
+   which the auditor now has to switch on. All three are the design document's
+   Q4 question and all three are off until a key is set or a switch is thrown. */
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +28,8 @@ type Task =
   | "finding"          // tidy a finding into one audit-grade sentence
   | "explain"          // plain-English reading of what this check requires
   | "rating"           // an opinion on severity and likelihood, with reasons
-  | "narrative";       // draft the discipline section of the report
+  | "narrative"        // draft the discipline section of the report
+  | "transcript";      // turn a spoken note into the written answer
 
 const SYSTEM = `You are assisting a Thabile-Pridin JV auditor during an Airports Company South Africa asset assurance audit at a South African airport.
 
@@ -44,6 +50,8 @@ const TASK_PROMPT: Record<Task, string> = {
     "Explain what this check requires, in plain English, for an auditor who has not read the underlying procedure. Cover: what ACSA's own documents demand, what the acceptance threshold is (or say clearly that ACSA states none), and what 'good' looks like on the day. Four sentences at most.",
   rating:
     "Give your opinion on how this finding rates on ACSA's B170 001M matrix: severity A (Catastrophic) to E (Minor), likelihood 1 (Not likely) to 5 (Expected). Answer in this shape and nothing else:\nSeverity: <letter> — <five words>\nLikelihood: <number> — <five words>\nWhy: <one sentence>\nThe audit team rates as a group and may well disagree with you; frame it as a view, not a verdict.",
+  transcript:
+    "Below is a verbatim transcript of a voice note an auditor dictated at the asset, followed by the check it was recorded against. Spoken notes ramble, restart, switch between English and Afrikaans mid-sentence, and carry filler. Rewrite it as the written observation for this check.\n\nRules for this task specifically:\n- Carry across every fact, number, unit, quantity, location and item the auditor said, exactly as said. A number is the whole value of this record; changing 40mm to 40cm, or dropping one of three items, is the worst thing you can do here.\n- Where the auditor spoke Afrikaans, write the observation in English, but keep any proper noun, plant name, equipment tag or ACSA document reference in the form they said it.\n- Drop the filler, the false starts, the asides to other people and anything said about the recording itself.\n- Do not add a fact the auditor did not say, do not resolve something they left uncertain, and do not soften or sharpen their judgement. If they said they were unsure, the observation says so.\n- If the note is too garbled or too sparse to make an observation from, say exactly that in one sentence instead of inventing one.\nReturn the observation text alone, with no preamble, heading or quotation marks.",
   narrative:
     "Draft the narrative for this discipline's section of the audit report from the captured material below. Lead with the overall position, then what was found, then what remains open. Do not list every check. No headings, no bullet points, three paragraphs at most.",
 };

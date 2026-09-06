@@ -59,22 +59,45 @@ function lower(s: string): string {
 
 /* ------------------------------------------------------------------ assist */
 
-export type AssistTask = "observation" | "finding" | "explain" | "rating" | "narrative";
+export type AssistTask =
+  | "observation"
+  | "finding"
+  | "explain"
+  | "rating"
+  | "narrative"
+  | "transcript";
 
-let availability: boolean | null = null;
-let probe: Promise<boolean> | null = null;
+/* One probe per endpoint per page load, shared by every component that asks.
+   Each of these is a separate deployment decision — a site may have a model and
+   no transcription, or the other way round — so they are asked separately and
+   neither implies the other. */
+const availability: Record<string, boolean | null> = {};
+const probes: Record<string, Promise<boolean> | undefined> = {};
+
+function useServiceAvailable(path: string): boolean {
+  /* The cached answer is read in the initialiser, not written back from the
+     effect, so a component mounting after the probe has already resolved
+     renders the right thing on its first pass rather than flickering. */
+  const [on, setOn] = useState(availability[path] ?? false);
+  useEffect(() => {
+    if (availability[path] != null) return;
+    probes[path] ??= fetch(path)
+      .then((r) => (r.ok ? r.json() : { available: false }))
+      .then((j: { available?: boolean }) => (availability[path] = !!j.available))
+      .catch(() => (availability[path] = false));
+    probes[path]!.then(setOn);
+  }, [path]);
+  return on;
+}
 
 export function useAssistAvailable(): boolean {
-  const [on, setOn] = useState(availability ?? false);
-  useEffect(() => {
-    if (availability !== null) return;
-    probe ??= fetch("/api/assist")
-      .then((r) => (r.ok ? r.json() : { available: false }))
-      .then((j: { available?: boolean }) => (availability = !!j.available))
-      .catch(() => (availability = false));
-    probe.then(setOn);
-  }, []);
-  return on;
+  return useServiceAvailable("/api/assist");
+}
+
+/** True when the deployment has a transcription service configured, which is
+ *  what puts Transcribe on a voice note. Independent of the model above. */
+export function useTranscribeAvailable(): boolean {
+  return useServiceAvailable("/api/transcribe");
 }
 
 export async function assist(task: AssistTask, context: string): Promise<string> {
@@ -86,6 +109,22 @@ export async function assist(task: AssistTask, context: string): Promise<string>
   const j = (await r.json()) as { text?: string; error?: string };
   if (!r.ok || !j.text) throw new Error(j.error ?? "The assistant is unavailable.");
   return j.text;
+}
+
+/** Send one recorded note to be transcribed. Returns what was actually heard,
+ *  verbatim. The caller stores that as the transcript and decides separately
+ *  whether to ask the model to write it up — the two steps are kept apart so a
+ *  tidy-up can never be mistaken for the recording itself. */
+export async function transcribe(
+  blob: Blob,
+  filename: string
+): Promise<{ text: string; language: string | null }> {
+  const form = new FormData();
+  form.append("audio", blob, filename);
+  const r = await fetch("/api/transcribe", { method: "POST", body: form });
+  const j = (await r.json()) as { text?: string; language?: string | null; error?: string };
+  if (!r.ok || !j.text) throw new Error(j.error ?? "Transcription is unavailable.");
+  return { text: j.text, language: j.language ?? null };
 }
 
 /* ------------------------------------------------- context builders
@@ -123,6 +162,20 @@ export function checkContext(check: Check, r?: Response, lib?: AnswerLibrary | n
     if (r.observation) l.push(`Auditor's note so far: ${r.observation}`);
   }
   return l.join("\n");
+}
+
+/** What goes with a transcript when it is written up: the words that were
+ *  spoken, and enough of the check for the model to know what the note is
+ *  about. Nothing else — and the audio itself has already been and gone
+ *  through /api/transcribe, which is a separate decision the auditor made. */
+export function transcriptContext(transcript: string, check: Check, r?: Response): string {
+  return [
+    "VERBATIM TRANSCRIPT OF THE VOICE NOTE:",
+    transcript,
+    "",
+    "THE CHECK IT WAS RECORDED AGAINST:",
+    checkContext(check, r),
+  ].join("\n");
 }
 
 export function findingContext(f: Finding, check?: Check): string {
