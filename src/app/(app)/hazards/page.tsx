@@ -1028,7 +1028,7 @@ export default function HazardsPage() {
                         }
                       >
                         <Btn
-                          variant="ghost"
+                          variant="danger"
                           onClick={() => {
                             removeHazard(active.id);
                             setActiveId(null);

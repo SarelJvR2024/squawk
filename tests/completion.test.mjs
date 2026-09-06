@@ -110,11 +110,22 @@ check(
   "a card must not grey out because someone read a document at a desk"
 );
 
+/* The badges read done-of-total now rather than a bare outstanding count, so
+   the halves are scoped by filtering the list first and then counting what is
+   done in it — but the rule they guard is unchanged: a desk-done check that
+   still needs the asset seen belongs on the Inspection badge, not off both. */
 check(
-  "the nav badges count their own half",
-  /needsDesk\(c\) && !deskDone\(responses\[c\.id\]\)/.test(shell) &&
-    /needsField\(c\) && !fieldDone\(responses\[c\.id\]\)/.test(shell),
-  ""
+  "the nav badges count their own half, each scoped to its own list",
+  /checks\.filter\(needsDesk\)/.test(shell) &&
+    /checks\.filter\(needsField\)/.test(shell) &&
+    /deskDone\(responses\[c\.id\]\)/.test(shell) &&
+    /fieldDone\(responses\[c\.id\]\)/.test(shell),
+  "a desk-done check that still needs the asset seen must stay on the Inspection badge"
+);
+check(
+  "and neither half is derived from the combined captured flag",
+  !/\.captured\)\.length,\s*\n?\s*total/.test(shell),
+  "captured means BOTH halves answered; a badge built on it would hide the outstanding one"
 );
 
 /* ----------------------------------------- Part 4: the auditor is told plainly */
