@@ -64,6 +64,10 @@ export default function CheckDetail({
     captured: false,
     capturedBy: "",
     capturedAt: null,
+    deskDoneBy: "",
+    deskDoneAt: null,
+    fieldDoneBy: "",
+    fieldDoneAt: null,
     flaggedForField: false,
   };
   const auditor = useStore((s) => s.auditor);
@@ -114,8 +118,12 @@ export default function CheckDetail({
   }, [check.id, r.compliance, setCompliance, onNext, onPrev]);
 
   const save = (advance: boolean) => {
-    commit(check.id);
-    onSaved(`${check.id} saved`);
+    commit(check.id, "desk");
+    onSaved(
+      needsField(check) && !r.fieldDoneAt
+        ? `${check.id} — desk done. Still needs the asset seen in Field.`
+        : `${check.id} saved`
+    );
     if (advance) onNext();
   };
 
@@ -726,8 +734,24 @@ export default function CheckDetail({
         style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "0 -4px 16px -8px rgba(22,16,40,.14)" }}
       >
         <div className="flex items-center gap-[6px] font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
-          {r.captured && <span className="h-[6px] w-[6px] rounded-full" style={{ background: "var(--good)" }} />}
-          {r.captured ? `captured by ${r.capturedBy.split(" ")[0]}` : "not captured yet"}
+          {/* Both halves, named. "Captured" on a check that also needs the
+              asset seen would be a claim nobody has earned yet. */}
+          <span
+            className="h-[6px] w-[6px] rounded-full"
+            style={{
+              background: r.captured
+                ? "var(--good)"
+                : r.deskDoneAt
+                  ? "var(--warn)"
+                  : "var(--line-3)",
+            }}
+          />
+          {r.captured
+            ? `complete · ${r.capturedBy.split(" ")[0]}`
+            : r.deskDoneAt
+              ? `desk done by ${r.deskDoneBy.split(" ")[0]} · awaiting site`
+              : "not captured yet"}
+          {needsField(check) && r.fieldDoneAt && ` · site seen by ${r.fieldDoneBy.split(" ")[0]}`}
           {r.issuesPicked.length > 0 && ` · ${r.issuesPicked.length} finding${r.issuesPicked.length > 1 ? "s" : ""}`}
         </div>
         <div className="flex gap-[7px]">

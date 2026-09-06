@@ -1,7 +1,7 @@
 # Tests
 
-Twelve suites, no framework — all run with plain `node`. Four need a running
-server; eight do not.
+Thirteen suites, no framework — all run with plain `node`. Four need a running
+server; nine do not.
 
 | Suite | Needs a server | Asserts |
 |---|---|---|
@@ -13,6 +13,7 @@ server; eight do not.
 | `tablet.test.mjs` | no | 17 |
 | `portals.test.mjs` | no | 23 |
 | `reset.test.mjs` | no | 16 |
+| `completion.test.mjs` | no | 17 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 30 |
 | `exports.js` | yes | 7 |
@@ -169,6 +170,26 @@ the whole `squawk-media/` prefix so orphans go too); arm-then-confirm with a
 count of what is about to be lost and disarm-on-scope-change; and reference
 data — the 374 checks, the Answer Library, the 23 seeded findings — never
 touched.
+
+## `completion.test.mjs`
+
+Guards that a check is complete only when every mode it declares has been
+answered. There was one `captured` flag set by whichever screen saved first, so
+for the 305 checks needing both a document review and the asset seen, ticking it
+at a desk marked it done — the dashboard counted it, the export said
+"Captured: Yes", and nobody had walked out to look at the pump.
+
+```bash
+node tests/completion.test.mjs
+```
+
+Six parts: both halves recorded with who and when; `captured` derived rather
+than asserted; each screen counting its own half (a field card must not grey out
+because someone read a file at a desk); the auditor told plainly what is still
+outstanding; the export reporting Desk done / Site seen / Complete as three
+columns; and the v6 migration carrying a dual-mode check to the desk half
+**only** — claiming the field half would assert a site visit that may never have
+happened.
 
 ## The browser suites
 

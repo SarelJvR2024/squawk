@@ -116,9 +116,9 @@ check(
 );
 
 check(
-  "tapping an option records it and its status",
-  /setWalkabout\(c\.id, i, w\.sets\);\s*\n\s*commit\(c\.id\);/.test(field),
-  "tapped, not typed — typing on an apron is what stops people capturing"
+  "tapping an option records it and its status, as FIELD work",
+  /setWalkabout\(c\.id, i, w\.sets\);\s*\n\s*commit\(c\.id, "field"\);/.test(field),
+  "tapped not typed, and credited to the half the tablet can actually answer"
 );
 
 check(

@@ -60,6 +60,7 @@ node tests/review.test.mjs               # feedback never becomes the record
 node tests/tablet.test.mjs               # the tablet is the device
 node tests/portals.test.mjs              # checks reach the right view
 node tests/reset.test.mjs                # starting again is safe
+node tests/completion.test.mjs           # complete means every mode answered
 npm run build && npm start &             # then, against a running server:
 BASE=http://localhost:3000 node tests/e2e.js          # 21 assertions
 BASE=http://localhost:3000 node tests/robustness.js   # 30 assertions
@@ -218,6 +219,14 @@ tests/                five suites — see tests/README.md
   reading the maintenance record and looking at the pump are two acts on one
   requirement — but a check in a view that cannot progress it is.
   `tests/portals.test.mjs` parses the register independently to check this.
+
+- **Complete means every declared mode is answered.** A response carries a desk
+  half and a field half, each stamped with who and when; `captured` is derived
+  from whether every mode the check's `vtype` declares is covered, and is never
+  set directly. Capture counts the desk half, Field counts the field half, and
+  only the dashboard, the progress ring and the export speak of "complete". The
+  export reports Desk done / Site seen / Complete as separate columns — one
+  "Captured" column would tell ACSA a site check happened when it had not.
 
 - **Answer Library content is reviewed content.** Issue buttons seed findings
   with suggested severities, so they carry weight. A discipline lead signs off

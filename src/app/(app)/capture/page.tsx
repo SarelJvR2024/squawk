@@ -9,6 +9,7 @@ import {
   priorFor,
   systemsOf,
   useResponses,
+  deskDone,
 } from "@/lib/store";
 import { needsDesk, needsQuestion } from "@/lib/verification";
 import CheckDetail from "@/components/CheckDetail";
@@ -60,7 +61,7 @@ function CaptureInner() {
 
   const visible = useMemo(() => {
     let list = deskChecks;
-    if (filter === "open") list = list.filter((c) => !responses[c.id]?.captured);
+    if (filter === "open") list = list.filter((c) => !deskDone(responses[c.id]));
     if (filter === "nc") list = list.filter((c) => responses[c.id]?.compliance === "NC");
     if (filter === "pf") list = list.filter((c) => c.pf);
     if (filter === "q") list = list.filter(needsQuestion);
@@ -89,7 +90,7 @@ function CaptureInner() {
 
   const dotTone = (c: Check) => {
     const r = responses[c.id];
-    if (!r?.captured) return "pending" as const;
+    if (!deskDone(r)) return "pending" as const;
     return r.compliance === "NC"
       ? ("bad" as const)
       : r.compliance === "C"
@@ -138,7 +139,7 @@ function CaptureInner() {
         >
           {DISCIPLINES.map((d) => {
             const cs = checksOf(d).filter(needsDesk);
-            const done = cs.filter((c) => responses[c.id]?.captured).length;
+            const done = cs.filter((c) => deskDone(responses[c.id])).length;
             return (
               <option key={d} value={d}>
                 {d} — {done}/{cs.length}
@@ -153,7 +154,7 @@ function CaptureInner() {
         </div>
         {systemsOf(discipline).map((sys) => {
           const cs = checksOf(discipline, sys).filter(needsDesk);
-          const done = cs.filter((c) => responses[c.id]?.captured).length;
+          const done = cs.filter((c) => deskDone(responses[c.id])).length;
           const nc = cs.filter((c) => responses[c.id]?.compliance === "NC").length;
           const pf = priorFor(discipline, sys);
           const on = system === sys;
@@ -207,8 +208,8 @@ function CaptureInner() {
             </span>
           </div>
           <div className="mt-[2px] text-[10px]" style={{ color: "var(--ink-3)" }}>
-            {visible.filter((c) => responses[c.id]?.captured).length} captured ·{" "}
-            {visible.filter((c) => !responses[c.id]?.captured).length} open
+            {visible.filter((c) => deskDone(responses[c.id])).length} desk done ·{" "}
+            {visible.filter((c) => !deskDone(responses[c.id])).length} open
           </div>
         </div>
 

@@ -108,6 +108,15 @@ export function registerSheet(x: ExportInput): Sheet {
       walk,
       photos || "",
       voice || "",
+      /* Both halves, separately. A single "Captured: Yes" on a check that
+         needs the record read AND the asset seen would tell ACSA the site
+         verification happened when only one of the two did. */
+      r?.deskDoneAt ? "Yes" : "No",
+      r?.deskDoneBy ?? "",
+      when(r?.deskDoneAt),
+      r?.fieldDoneAt ? "Yes" : "No",
+      r?.fieldDoneBy ?? "",
+      when(r?.fieldDoneAt),
       r?.captured ? "Yes" : "No",
       r?.capturedBy ?? "",
       when(r?.capturedAt),
@@ -143,9 +152,15 @@ export function registerSheet(x: ExportInput): Sheet {
       { header: "Walkabout observation", width: 38, wrap: true },
       { header: "Photos", width: 8 },
       { header: "Voice notes", width: 11 },
-      { header: "Captured", width: 10 },
-      { header: "Captured by", width: 22 },
-      { header: "Captured at", width: 13 },
+      { header: "Desk done", width: 10 },
+      { header: "Desk done by", width: 22 },
+      { header: "Desk done at", width: 13 },
+      { header: "Site seen", width: 10 },
+      { header: "Site seen by", width: 22 },
+      { header: "Site seen at", width: 13 },
+      { header: "Complete", width: 10 },
+      { header: "Completed by", width: 22 },
+      { header: "Completed at", width: 13 },
     ],
     rows,
   };
@@ -353,7 +368,7 @@ export function summarySheet(x: ExportInput): Sheet {
     columns: [
       { header: "Discipline", width: 26 },
       { header: "Check-points", width: 13 },
-      { header: "Captured", width: 10 },
+      { header: "Complete", width: 10 },
       { header: "Compliant", width: 11 },
       { header: "Non-compliant", width: 14 },
       { header: "Not applicable", width: 14 },
@@ -373,7 +388,12 @@ export function summarySheet(x: ExportInput): Sheet {
 
 /** A cover sheet, so nobody has to be told verbally what a blank cell means. */
 export function aboutSheet(x: ExportInput): Sheet {
+  /* Complete means every mode the register declares has been answered. Desk
+     and site are reported alongside it, because "180 complete" without them
+     hides whether the remainder is waiting on documents or on a walk. */
   const captured = Object.values(x.responses).filter((r) => r.captured).length;
+  const deskDone = Object.values(x.responses).filter((r) => r.deskDoneAt).length;
+  const fieldSeen = Object.values(x.responses).filter((r) => r.fieldDoneAt).length;
   const agreed = x.findings.filter((f) => f.ratingConfirmed).length;
   const verified = Object.values(x.verifications).filter((v) => v.outcome).length;
   return {
@@ -389,7 +409,9 @@ export function aboutSheet(x: ExportInput): Sheet {
       ["Exported", new Date()],
       ["", ""],
       ["Check-points in scope", x.checks.length],
-      ["Captured", captured],
+      ["Complete (all declared modes answered)", captured],
+      ["Desk done", deskDone],
+      ["Site seen", fieldSeen],
       ["Findings raised", x.findings.length],
       ["Ratings agreed by the team", agreed],
       ["Ratings still only suggested", x.findings.length - agreed],

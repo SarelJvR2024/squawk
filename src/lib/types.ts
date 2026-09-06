@@ -158,9 +158,22 @@ export interface Response {
   issuesPicked: number[];
   walkaboutPicked: number | null;
   attachments: Attachment[];
+  /** DERIVED, and written only by the store: true when every mode this check's
+   *  vtype declares has been answered. A check needing both a document review
+   *  and the asset seen is not captured until both halves are done — before
+   *  per-portal tracking existed this flag went true on the first save from
+   *  either screen, so 305 checks could read as complete with nobody having
+   *  looked at the asset. Never set this directly; call commit(id, portal). */
   captured: boolean;
+  /** Who and when for the half that COMPLETED the check. */
   capturedBy: string;
   capturedAt: number | null;
+  /** The desk half — evidence collected and questions asked, from Capture. */
+  deskDoneBy: string;
+  deskDoneAt: number | null;
+  /** The field half — the asset seen, from Field inspection. */
+  fieldDoneBy: string;
+  fieldDoneAt: number | null;
   flaggedForField: boolean;
 }
 

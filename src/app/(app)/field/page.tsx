@@ -12,6 +12,7 @@ import {
   useResponses,
   useStore,
   useVisitId,
+  fieldDone,
 } from "@/lib/store";
 import { locationAxis } from "@/lib/programme";
 import type { Check, Compliance } from "@/lib/types";
@@ -115,7 +116,7 @@ export default function FieldPage() {
      falls back to the register's categories, and the strip below says so. */
   const axis = locationAxis(entityCode);
   const options = groupBy === "area" ? axis.options : DISCIPLINES;
-  const doneCount = visible.filter((c) => responses[c.id]?.captured).length;
+  const doneCount = visible.filter((c) => fieldDone(responses[c.id])).length;
 
 
   return (
@@ -218,7 +219,7 @@ export default function FieldPage() {
               <div className="flex items-center justify-between px-1 pt-3 pb-1.5">
                 <span className="label-xs">{g}</span>
                 <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                  {items.filter((c) => responses[c.id]?.captured).length}/{items.length}
+                  {items.filter((c) => fieldDone(responses[c.id])).length}/{items.length}
                 </span>
               </div>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -236,8 +237,8 @@ export default function FieldPage() {
                       className="rounded-[13px] border p-3 transition-[var(--t)]"
                       style={{
                         background: "var(--panel)",
-                        borderColor: r?.captured ? "var(--line)" : "var(--line-2)",
-                        opacity: r?.captured ? 0.78 : 1,
+                        borderColor: fieldDone(r) ? "var(--line)" : "var(--line-2)",
+                        opacity: fieldDone(r) ? 0.78 : 1,
                       }}
                     >
                       <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
@@ -273,7 +274,7 @@ export default function FieldPage() {
                               selected={r?.walkaboutPicked === i}
                               onClick={() => {
                                 setWalkabout(c.id, i, w.sets);
-                                commit(c.id);
+                                commit(c.id, "field");
                                 say(
                                   w.photo && photos.length === 0
                                     ? `${c.id} — ${w.label}. Photograph expected.`
@@ -314,7 +315,7 @@ export default function FieldPage() {
                             key={key}
                             onClick={() => {
                               setCompliance(c.id, key);
-                              commit(c.id);
+                              commit(c.id, "field");
                               say(`${c.id} — ${label}`);
                             }}
                             aria-label={label}

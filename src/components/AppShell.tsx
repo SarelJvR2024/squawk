@@ -13,6 +13,8 @@ import {
   useVerifications,
   useVisitFindings,
   useVisitId,
+  deskDone,
+  fieldDone,
 } from "@/lib/store";
 import { ENTITIES, entity as entityOf, PROGRAMME_VISITS } from "@/lib/programme";
 import { needsDesk, needsField } from "@/lib/verification";
@@ -85,11 +87,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
      register. Capture lists 365 and Field lists 314; a badge of 374 on either
      is a number that cannot be worked down to zero. */
   const deskOutstanding = useMemo(
-    () => CHECKS.filter((c) => needsDesk(c) && !responses[c.id]?.captured).length,
+    () => CHECKS.filter((c) => needsDesk(c) && !deskDone(responses[c.id])).length,
     [responses]
   );
   const fieldOutstanding = useMemo(
-    () => CHECKS.filter((c) => needsField(c) && !responses[c.id]?.captured).length,
+    () => CHECKS.filter((c) => needsField(c) && !fieldDone(responses[c.id])).length,
     [responses]
   );
 

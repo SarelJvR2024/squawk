@@ -27,6 +27,7 @@ import {
   entity as entityOf,
   PROGRAMME_VISITS,
 } from "./programme";
+import { needsDesk, needsField } from "./verification";
 
 export const CHECKS = checksRaw as unknown as Check[];
 export const PRIOR = priorRaw as unknown as PriorFinding[];
@@ -111,8 +112,42 @@ function emptyResponse(checkId: string): Response {
     captured: false,
     capturedBy: "",
     capturedAt: null,
+    deskDoneBy: "",
+    deskDoneAt: null,
+    fieldDoneBy: "",
+    fieldDoneAt: null,
     flaggedForField: false,
   };
+}
+
+export type Portal = "desk" | "field";
+
+const checkById = new Map(CHECKS.map((c) => [c.id, c]));
+
+/** Has the desk half been answered? */
+export const deskDone = (r: Response | undefined) => !!r?.deskDoneAt;
+/** Has the field half been answered? */
+export const fieldDone = (r: Response | undefined) => !!r?.fieldDoneAt;
+
+/** Complete means every mode the register declares for this check has been
+ *  answered — not "somebody pressed Save once". For the 305 checks that need
+ *  both a document review and the asset seen, one half is half. */
+export function isComplete(checkId: string, r: Response | undefined): boolean {
+  if (!r) return false;
+  const c = checkById.get(checkId);
+  if (!c) return !!r.deskDoneAt || !!r.fieldDoneAt;
+  const deskOk = !needsDesk(c) || !!r.deskDoneAt;
+  const fieldOk = !needsField(c) || !!r.fieldDoneAt;
+  return deskOk && fieldOk;
+}
+
+/** What is still outstanding on a check, in words, for a screen to show. */
+export function outstandingHalf(checkId: string, r: Response | undefined): Portal | null {
+  const c = checkById.get(checkId);
+  if (!c) return null;
+  if (needsDesk(c) && !r?.deskDoneAt) return "desk";
+  if (needsField(c) && !r?.fieldDoneAt) return "field";
+  return null;
 }
 
 function emptyVerification(pf: string): Verification {
@@ -157,7 +192,7 @@ interface State {
   ) => void;
   setWalkabout: (checkId: string, i: number | null, sets?: Compliance) => void;
   appendObservation: (checkId: string, text: string) => void;
-  commit: (checkId: string) => void;
+  commit: (checkId: string, portal: Portal) => void;
 
   addFinding: (f: Omit<Finding, "id" | "createdAt" | "entity">) => string;
   updateFinding: (id: string, p: Partial<Finding>) => void;
@@ -311,15 +346,27 @@ export const useStore = create<State>()(
           });
         },
 
-        commit: (checkId) => {
+        commit: (checkId, portal) => {
           const r = get().response(checkId);
+          const now = Date.now();
+          const who = get().auditor;
+          const half =
+            portal === "desk"
+              ? { deskDoneBy: who, deskDoneAt: now }
+              : { fieldDoneBy: who, fieldDoneAt: now };
+          const next = { ...r, ...half };
+          /* `captured` is derived, never asserted. It goes true only once every
+             mode the register declares for this check has been answered, so a
+             desk save on a check that also needs the asset seen leaves it
+             outstanding — which is the whole point of tracking the halves. */
+          const complete = isComplete(checkId, next);
           get().patch(checkId, {
-            captured: true,
+            ...half,
             compliance: r.compliance ?? "C",
-            capturedBy: get().auditor,
-            capturedAt: Date.now(),
+            captured: complete,
+            ...(complete ? { capturedBy: who, capturedAt: now } : {}),
           });
-          set({ lastSavedAt: Date.now() });
+          set({ lastSavedAt: now });
         },
 
         addFinding: (f) => {
@@ -481,7 +528,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 5,
+      version: 6,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           findings?: Finding[];
@@ -591,6 +638,52 @@ export const useStore = create<State>()(
           delete st.responses;
           delete st.verifications;
           delete st.captures;
+        }
+        if (from < 6) {
+          /* v5 and earlier had one `captured` flag set by whichever screen
+             saved first. Which half that was is not recorded anywhere, so it
+             cannot be recovered — and guessing costs more than it saves.
+
+             A check with only one mode is unambiguous: the flag can only have
+             meant that mode, so it moves there. A check needing both is
+             carried to the DESK half only. Claiming the field half would be
+             asserting that somebody walked out and looked at the asset, which
+             is exactly the kind of invented evidence this application exists
+             not to produce. Some checks will therefore go from reading
+             "captured" to reading "desk done · awaiting site" — that is the
+             migration telling the truth, not losing work. */
+          const walk = (rs: Record<string, Response>) =>
+            Object.fromEntries(
+              Object.entries(rs).map(([id, r]) => {
+                const c = CHECKS.find((x) => x.id === id);
+                const wasCaptured = !!(r as Response).captured;
+                const desk = !c || needsDesk(c);
+                const fieldOnly = !!c && needsField(c) && !needsDesk(c);
+                const next: Response = {
+                  ...r,
+                  deskDoneBy: r.deskDoneBy ?? "",
+                  deskDoneAt:
+                    r.deskDoneAt ?? (wasCaptured && desk ? (r.capturedAt ?? Date.now()) : null),
+                  fieldDoneBy: r.fieldDoneBy ?? "",
+                  fieldDoneAt:
+                    r.fieldDoneAt ??
+                    (wasCaptured && fieldOnly ? (r.capturedAt ?? Date.now()) : null),
+                };
+                if (wasCaptured && !next.deskDoneBy && desk) next.deskDoneBy = r.capturedBy ?? "";
+                if (wasCaptured && !next.fieldDoneBy && fieldOnly)
+                  next.fieldDoneBy = r.capturedBy ?? "";
+                next.captured = isComplete(id, next);
+                return [id, next];
+              })
+            );
+          if (st.byVisit) {
+            st.byVisit = Object.fromEntries(
+              Object.entries(st.byVisit).map(([k, d]) => [
+                k,
+                { ...d, responses: walk(d.responses ?? {}) },
+              ])
+            );
+          }
         }
         return st;
       },

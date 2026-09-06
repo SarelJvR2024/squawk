@@ -213,10 +213,10 @@ check(
 );
 
 check(
-  "both badges are scoped by the same routing the views use",
-  /needsDesk\(c\) && !responses\[c\.id\]\?\.captured/.test(shell) &&
-    /needsField\(c\) && !responses\[c\.id\]\?\.captured/.test(shell),
-  ""
+  "each badge counts its own half outstanding, not the derived complete flag",
+  /needsDesk\(c\) && !deskDone\(responses\[c\.id\]\)/.test(shell) &&
+    /needsField\(c\) && !fieldDone\(responses\[c\.id\]\)/.test(shell),
+  "a desk-done check that still needs the asset seen must stay on the Field badge"
 );
 
 /* ------------------------------------------------------------------ result */
