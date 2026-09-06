@@ -38,6 +38,180 @@ export async function delBlobs(ids: string[]): Promise<void> {
   await Promise.all(ids.map((id) => idbDel(mediaKey(id))));
 }
 
+/* ---------- photographs ----------
+
+   A phone photograph is 4-12 MB. Stored as taken, twenty of them fill a
+   tablet's quota and the audit stops mid-morning with an opaque browser error.
+   So every image is re-encoded before it is stored: longest edge 1600px, JPEG
+   quality 0.82, which lands a typical photo at 300-600 KB and is still far more
+   than enough to read a serial plate off.
+
+   The canvas re-encode strips EXIF as a side effect, which is mostly welcome —
+   GPS coordinates of a national key point are not something to carry around by
+   accident. But WHEN a photograph was taken is audit evidence, so the capture
+   timestamp is read out of the original first and kept on the attachment. It is
+   read with a small purpose-built parser rather than a dependency: this needs
+   one tag, and the failure mode of not finding it is simply that the record
+   falls back to the time it was attached. */
+
+const MAX_EDGE = 1600;
+const JPEG_QUALITY = 0.82;
+
+/** The DateTimeOriginal EXIF tag (0x9003), as milliseconds, or null.
+ *
+ *  Deliberately shallow: it walks the APP1 segment far enough to find the tag
+ *  and gives up on anything unexpected. A photograph with no readable EXIF is
+ *  the normal case for a screenshot or a re-saved image, not an error. */
+export async function exifTakenAt(file: Blob): Promise<number | null> {
+  try {
+    const buf = await file.slice(0, 128 * 1024).arrayBuffer();
+    const v = new DataView(buf);
+    if (v.byteLength < 4 || v.getUint16(0) !== 0xffd8) return null; // not a JPEG
+
+    let off = 2;
+    while (off + 4 < v.byteLength) {
+      if (v.getUint8(off) !== 0xff) return null;
+      const marker = v.getUint8(off + 1);
+      const size = v.getUint16(off + 2);
+      if (marker === 0xe1) {
+        const tiff = off + 10; // skip "Exif\0\0"
+        if (tiff + 8 > v.byteLength) return null;
+        const le = v.getUint16(tiff) === 0x4949;
+        const u16 = (o: number) => v.getUint16(o, le);
+        const u32 = (o: number) => v.getUint32(o, le);
+        const ifd0 = tiff + u32(tiff + 4);
+
+        const findIn = (dir: number, tag: number): number | null => {
+          if (dir + 2 > v.byteLength) return null;
+          const n = u16(dir);
+          for (let i = 0; i < n; i++) {
+            const e = dir + 2 + i * 12;
+            if (e + 12 > v.byteLength) return null;
+            if (u16(e) === tag) return u32(e + 8);
+          }
+          return null;
+        };
+
+        /* DateTimeOriginal lives in the Exif sub-IFD, pointed at from IFD0. */
+        const sub = findIn(ifd0, 0x8769);
+        const at = sub === null ? null : findIn(tiff + sub, 0x9003);
+        if (at === null) return null;
+
+        const start = tiff + at;
+        if (start + 19 > v.byteLength) return null;
+        let str = "";
+        for (let i = 0; i < 19; i++) str += String.fromCharCode(v.getUint8(start + i));
+        /* "2026:09:06 14:22:31" */
+        const m = /^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(str);
+        if (!m) return null;
+        const t = new Date(
+          Number(m[1]), Number(m[2]) - 1, Number(m[3]),
+          Number(m[4]), Number(m[5]), Number(m[6])
+        ).getTime();
+        return Number.isFinite(t) ? t : null;
+      }
+      if (marker === 0xda) return null; // start of scan; EXIF would have come first
+      off += 2 + size;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export interface PreparedPhoto {
+  blob: Blob;
+  mimeType: string;
+  width: number;
+  height: number;
+  bytes: number;
+  takenAt: number | null;
+  thumbDataUrl: string;
+}
+
+function drawTo(img: HTMLImageElement, maxEdge: number): HTMLCanvasElement {
+  const scale = Math.min(1, maxEdge / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(img.naturalWidth * scale));
+  c.height = Math.max(1, Math.round(img.naturalHeight * scale));
+  c.getContext("2d")?.drawImage(img, 0, 0, c.width, c.height);
+  return c;
+}
+
+/** Downscale, re-encode and measure. Returns the original untouched if the
+ *  browser cannot decode it — a photograph that will not re-encode is still
+ *  better evidence than no photograph. */
+export async function preparePhoto(file: Blob): Promise<PreparedPhoto> {
+  const takenAt = await exifTakenAt(file);
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("undecodable"));
+      el.src = url;
+    });
+
+    const full = drawTo(img, MAX_EDGE);
+    const blob = await new Promise<Blob | null>((res) =>
+      full.toBlob(res, "image/jpeg", JPEG_QUALITY)
+    );
+    /* A thumbnail small enough to sit in the persisted store, so a strip of
+       photographs paints without an async read per tile. */
+    const thumbDataUrl = drawTo(img, 240).toDataURL("image/jpeg", 0.6);
+
+    if (!blob) throw new Error("no blob");
+    return {
+      blob,
+      mimeType: "image/jpeg",
+      width: full.width,
+      height: full.height,
+      bytes: blob.size,
+      takenAt,
+      thumbDataUrl,
+    };
+  } catch {
+    return {
+      blob: file,
+      mimeType: file.type || "image/jpeg",
+      width: 0,
+      height: 0,
+      bytes: file.size,
+      takenAt,
+      thumbDataUrl: "",
+    };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** How much of the tablet the evidence is using.
+ *
+ *  A tablet running out of storage mid-audit must fail visibly. Reading the
+ *  actual stored blobs rather than summing what the records claim, because the
+ *  records are what would be wrong in the case worth catching. */
+export async function photoBudget(): Promise<{ count: number; bytes: number }> {
+  const all = await idbKeys();
+  const mine = all.filter(
+    (k): k is string => typeof k === "string" && k.startsWith(MEDIA_PREFIX)
+  );
+  let bytes = 0;
+  let count = 0;
+  for (const k of mine) {
+    const b = (await idbGet(k)) as Blob | undefined;
+    if (!b) continue;
+    count++;
+    bytes += b.size;
+  }
+  return { count, bytes };
+}
+
+export function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
 /** Every media key in the store, orphans included.
  *
  *  Resetting by walking the audit's own records would leave behind anything

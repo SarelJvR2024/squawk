@@ -1,4 +1,7 @@
 const { chromium } = require('playwright');
+/* A real 1x1 JPEG. Small enough to inline, real enough that the browser decodes
+   it and the downscale path actually runs. */
+const PIXEL_JPEG = '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==';
 const B = process.env.BASE || 'http://localhost:3000';
 let pass=0, fail=0; const log=[];
 const ok=(n,c,x='')=>{ c?(pass++,log.push('PASS  '+n)):(fail++,log.push('FAIL  '+n+(x?'  ['+x+']':''))); };
@@ -155,6 +158,70 @@ const fresh = async (ctx) => { const p = await ctx.newPage(); return p; };
     await p.goto(B+'/no-such-route',{waitUntil:'networkidle'}); await p.waitForTimeout(700);
     const nf = await p.locator('body').innerText();
     ok('unknown route returns a 404 page', /404|not found/i.test(nf), nf.slice(0,80));
+    await ctx.close();
+  }
+
+  // ---------- PHOTOGRAPHS: attached, captioned, survive a reload, deleted cleanly ----------
+  /* A real file goes through the real input. The whole path matters here —
+     downscale, store, thumbnail, caption, persist, delete — and every step of
+     it is the difference between evidence and a JPEG nobody can find. */
+  {
+    const ctx = await browser.newContext({viewport:{width:1440,height:900}});
+    const p = await ctx.newPage();
+    const bad=[]; p.on('pageerror',e=>bad.push(String(e)));
+    await p.goto(B+'/capture',{waitUntil:'networkidle'}); await p.waitForTimeout(1800);
+
+    const before = await p.locator('input[aria-label^="Caption for"]').count();
+    await p.locator('input[type=file][accept="image/*"]').first().setInputFiles({
+      name:'apron.jpg', mimeType:'image/jpeg', buffer: Buffer.from(PIXEL_JPEG,'base64'),
+    });
+    await p.waitForTimeout(1800);
+
+    const capField = p.locator('input[aria-label^="Caption for"]').first();
+    ok('a photograph attaches and gets a caption field',
+       (await p.locator('input[aria-label^="Caption for"]').count()) === before + 1);
+
+    const body1 = await p.locator('body').innerText();
+    ok('an uncaptioned photograph is shown as incomplete', /Caption needed/.test(body1),
+       body1.slice(0,100).replace(/\n/g,' '));
+    ok('the observation is untouched by attaching a photograph',
+       (await p.locator('textarea').first().inputValue()).trim() === '');
+
+    await capField.fill('Hydrant pit coupler, lid missing');
+    await p.waitForTimeout(900);
+    const body2 = await p.locator('body').innerText();
+    ok('captioning clears the incomplete state', !/Caption needed/.test(body2));
+
+    // survives a reload — the image is in IndexedDB, the caption in the store
+    await p.reload({waitUntil:'networkidle'}); await p.waitForTimeout(2000);
+    const kept = await p.locator('input[aria-label^="Caption for"]').first().inputValue();
+    ok('the caption survives a reload', kept === 'Hydrant pit coupler, lid missing', kept);
+    ok('the image survives a reload too',
+       (await p.locator('img[alt="Hydrant pit coupler, lid missing"]').count()) >= 1);
+
+    // deleting removes the record AND the stored image
+    const keysBefore = await p.evaluate(async () => {
+      const req = indexedDB.open('keyval-store');
+      return new Promise((res) => { req.onsuccess = () => {
+        const db = req.result;
+        const all = db.transaction('keyval').objectStore('keyval').getAllKeys();
+        all.onsuccess = () => res(all.result.filter((k)=>String(k).startsWith('squawk-media/photo-')).length);
+      };});
+    });
+    await p.locator('button[aria-label^="Remove apron.jpg"], button[aria-label*="Remove"]').first().click();
+    await p.waitForTimeout(1400);
+    const keysAfter = await p.evaluate(async () => {
+      const req = indexedDB.open('keyval-store');
+      return new Promise((res) => { req.onsuccess = () => {
+        const db = req.result;
+        const all = db.transaction('keyval').objectStore('keyval').getAllKeys();
+        all.onsuccess = () => res(all.result.filter((k)=>String(k).startsWith('squawk-media/photo-')).length);
+      };});
+    });
+    ok('deleting a photograph removes its stored image, not just the record',
+       keysAfter === keysBefore - 1, `${keysBefore} -> ${keysAfter}`);
+    ok('no page errors in the photograph path', bad.length===0, bad[0]||'');
+    await p.screenshot({path:'/home/claude/shots/photo-caption.png'});
     await ctx.close();
   }
 

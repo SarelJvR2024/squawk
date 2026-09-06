@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Check, Compliance } from "@/lib/types";
-import { priorFor, useEntityCode, useResponses, useStore, useVisitId } from "@/lib/store";
+import { priorFor, useEntityCode, useResponses, useStore, useVisitFindings, useVisitId } from "@/lib/store";
 import { portalIdFor } from "@/lib/sites";
 import { useAnswers } from "@/lib/answers";
 import {
@@ -15,6 +15,7 @@ import {
 import { bandFor, BAND_META } from "@/lib/risk";
 import { modeLabels, needsField } from "@/lib/verification";
 import { AttachmentStrip, PhotoButton, VoiceNoteButton } from "./Capture";
+import RootCauseAdvice from "./RootCauseAdvice";
 import {
   IconCheck,
   IconClock,
@@ -82,6 +83,7 @@ export default function CheckDetail({
   const addAttachment = useStore((s) => s.addAttachment);
   const removeAttachment = useStore((s) => s.removeAttachment);
   const updateAttachment = useStore((s) => s.updateAttachment);
+  const updateFinding = useStore((s) => s.updateFinding);
   const commit = useStore((s) => s.commit);
   const visitId = useVisitId();
 
@@ -93,6 +95,9 @@ export default function CheckDetail({
   const obsRef = useRef<HTMLTextAreaElement>(null);
   const a = useAnswers(check.id);
   const entityCode = useEntityCode();
+  /* Findings this check has raised, so their root cause can be worked here
+     rather than only on the findings screen. */
+  const raised = useVisitFindings().filter((f) => f.checkId === check.id);
   /* The id an auditor reads out and the portal syncs on is the SITE's id.
      ORTIA-ELE-001 and KSIA-ELE-001 are the same requirement at two airports;
      showing the King Shaka number at O.R. Tambo would be quoting the wrong
@@ -566,6 +571,38 @@ export default function CheckDetail({
                     );
                   })}
                 </div>
+
+                {/* Root-cause advice for what this check has actually raised.
+                    It sits here, next to the issue chips, because this is the
+                    moment the auditor is still standing in front of the
+                    responsible person — the questions are only useful before
+                    everyone leaves the room. Same component as the findings
+                    screen. */}
+                {raised.map((f) => (
+                  <div
+                    key={f.id}
+                    className="mt-[9px] rounded-[10px] border px-[10px] py-[8px]"
+                    style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                  >
+                    <div className="flex flex-wrap items-center gap-[6px]">
+                      <span className="text-[11px] font-semibold">{f.title}</span>
+                      {f.rootCause ? (
+                        <Pill tone="accent">{f.rootCause}</Pill>
+                      ) : (
+                        <Pill tone="warn">No root cause</Pill>
+                      )}
+                    </div>
+                    <RootCauseAdvice
+                      finding={f}
+                      check={check}
+                      attachments={r.attachments}
+                      onPick={(rc) => {
+                        updateFinding(f.id, { rootCause: rc });
+                        onSaved(`Root cause set · ${rc}`);
+                      }}
+                    />
+                  </div>
+                ))}
               </Field>
 
               {a.WO.length > 0 && (

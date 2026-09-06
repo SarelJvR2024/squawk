@@ -1,7 +1,8 @@
 # Tests
 
-Seventeen suites, no framework — all run with plain `node`. Five need a running
-server; twelve do not.
+Nineteen suites, no framework — all run with plain `node`. Six need a running
+server; thirteen do not. **Check each suite's exit status, not its output**: a
+`for` loop over them reports the status of the loop.
 
 | Suite | Needs a server | Assertions run |
 |---|---|---|
@@ -17,11 +18,13 @@ server; twelve do not.
 | `audits.test.mjs` | no | 18 |
 | `voice.test.mjs` | no | 36 |
 | `sites.test.mjs` | no | 41 |
+| `photos.test.mjs` | no | 36 |
 | `e2e.js` | yes | 21 |
-| `robustness.js` | yes | 30 |
-| `exports.js` | yes | 7 |
+| `robustness.js` | yes | 38 |
+| `exports.js` | yes | 12 |
 | `ai.js` | yes, two of them | 26 |
 | `persite.js` | yes | 25 |
+| `vision.js` | starts its own | 17 |
 
 ## `risk-matrix.test.mjs`
 
@@ -305,6 +308,39 @@ whole register's numbers while claiming to be at a site.
 ```bash
 npm start -p 3000 &
 BASE=http://localhost:3000 node tests/persite.js
+```
+
+## `photos.test.mjs`
+
+Three things about a photograph that must stay separate: how it is **stored** (a
+phone photo is 4-12 MB as taken, so every image is re-encoded to 1600px / q0.82
+first, with the EXIF capture date read off the original before the canvas
+destroys it), whether it is **captioned** (uncaptioned is shown as incomplete and
+exported as NO CAPTION, because a blank cell reads as "nothing to say"), and
+whether it is **sent** (`ASSIST_VISION`, enforced in the route).
+
+```bash
+node tests/photos.test.mjs
+```
+
+**Run it after any edit to `src/lib/media.ts`, `src/components/Capture.tsx`,
+`RootCauseAdvice.tsx` or `src/app/api/assist/route.ts`.**
+
+## `vision.js`
+
+The one suite that does not read the source. It stands a stub endpoint in front
+of the assist route, sends photographs through `/api/assist`, and inspects **the
+bytes the route forwarded** — because a client that is told not to send images
+and a server that refuses to forward them look identical from outside until you
+look. With `ASSIST_VISION` unset it asserts no image block *and* no image byte
+reached the network; with it on, that all three arrived in the documented shape,
+and that over-cap requests are refused rather than truncated.
+
+It starts and stops its own servers — nothing needs to be running first — using
+`ASSIST_ENDPOINT` to point the route at the stub.
+
+```bash
+node tests/vision.js
 ```
 
 ## `ai.js`

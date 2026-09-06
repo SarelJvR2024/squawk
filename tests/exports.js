@@ -1,6 +1,9 @@
 const { chromium } = require("playwright");
 const fs = require("fs");
 const B = process.env.BASE || "http://localhost:3000";
+/* A real 1x1 JPEG — small enough to inline, real enough to decode. */
+const PIXEL_JPEG =
+  "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==";
 let pass = 0,
   fail = 0;
 const log = [];
@@ -41,6 +44,15 @@ const ok = (n, c, x = "") => {
   await p.waitForTimeout(500);
   await p.locator("textarea").first().fill('Register produced; three of eleven entries unsigned & "undated".');
   await p.waitForTimeout(300);
+  /* A captioned photograph, so the Photographs sheet has something real in it
+     and the Findings sheet has a caption to carry across. */
+  await p.locator('input[type=file][accept="image/*"]').first().setInputFiles({
+    name: "register.jpg", mimeType: "image/jpeg", buffer: Buffer.from(PIXEL_JPEG, "base64"),
+  });
+  await p.waitForTimeout(1600);
+  await p.locator('input[aria-label^="Caption for"]').first()
+    .fill("Signature column of the register, three rows blank");
+  await p.waitForTimeout(600);
   await p.locator("button", { hasText: /^Save$/ }).first().click();
   await p.waitForTimeout(700);
 
@@ -82,6 +94,29 @@ const ok = (n, c, x = "") => {
   const d3 = await dl3;
   await d3.saveAs("/home/claude/delivery/" + d3.suggestedFilename());
   ok("a single-sheet export downloads", /findings/.test(d3.suggestedFilename()), d3.suggestedFilename());
+
+  // --- the photograph index, read out of the workbook itself ---
+  const photoCard = p.locator("b", { hasText: /^Photographs$/ }).first().locator("xpath=../..");
+  await photoCard.scrollIntoViewIfNeeded();
+  const dl4 = p.waitForEvent("download", { timeout: 60000 });
+  await photoCard.locator("button", { hasText: /^CSV$/ }).first().click();
+  const d4 = await dl4;
+  const photoCsv = "/home/claude/delivery/" + d4.suggestedFilename();
+  await d4.saveAs(photoCsv);
+  const csv = fs.readFileSync(photoCsv, "utf8");
+  const head = csv.split("\n")[0];
+
+  ok("the photographs sheet exports", /photographs/i.test(d4.suggestedFilename()), d4.suggestedFilename());
+  ok(
+    "its columns are the index, in order",
+    /Photograph.*Check.*Discipline.*Asset system.*Area.*Caption.*Caption source.*Taken.*Attached/.test(head),
+    head.slice(0, 160)
+  );
+  ok("the caption an auditor typed is in the row", /Signature column of the register/.test(csv),
+     csv.split("\n")[1]?.slice(0, 140) || "");
+  ok("and it is attributed to the auditor, not the assistant", /,Auditor,/.test(csv));
+  ok("the check reference is this site's portal id", /,KSIA-[A-Z]{3}-\d{3},/.test(csv),
+     csv.split("\n")[1]?.slice(0, 80) || "");
 
   ok("no page errors during export", errs.length === 0, errs[0] || "");
 

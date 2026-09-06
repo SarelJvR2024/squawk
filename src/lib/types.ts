@@ -190,6 +190,28 @@ export interface Attachment {
   /** Legacy inline data from before the media store existed. Read, never
    *  written. */
   dataUrl?: string;
+  /** Small inline preview, so a strip of photographs paints without an async
+   *  read per tile. The full image lives in the media store under its blobKey
+   *  and is NEVER put in the persisted value — see src/lib/media.ts. */
+  thumbDataUrl?: string;
+  width?: number;
+  height?: number;
+  bytes?: number;
+  /** EXIF DateTimeOriginal, where the file carried one. When a photograph was
+   *  taken is audit evidence; the canvas re-encode strips EXIF, so this is read
+   *  off the original before it is downscaled. */
+  takenAt?: number;
+  /** What this photograph shows, in the auditor's words.
+   *
+   *  This is what makes a photograph searchable, reportable and usable at all.
+   *  An uncaptioned photograph is shown as incomplete, the same as a finding
+   *  with no owner: in six months nobody will know what they are looking at,
+   *  and a reviewer reading the workbook has only a filename. */
+  caption?: string;
+  /** Set when the caption text came from the assistant and a person accepted
+   *  it. A caption an auditor wrote and one a model proposed are not the same
+   *  evidence and the export says which. */
+  captionSource?: "auditor" | "assistant";
   /** Measured elapsed seconds. Absent for a photograph. */
   durationSec?: number;
   /** What was actually said, verbatim — typed by the auditor, heard by the

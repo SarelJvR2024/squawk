@@ -1,5 +1,6 @@
 import type {
   AnswerLibrary,
+  Attachment,
   Check,
   Finding,
   PriorFinding,
@@ -10,7 +11,7 @@ import { BAND_AS_RATING, BAND_META, bandFor, cellCode, movement } from "./risk";
 import { entity as entityOf, PROGRAMME_VISITS } from "./programme";
 import { portalIdFor } from "./sites";
 import { priorFor } from "./register";
-import type { Sheet } from "./xlsx";
+import type { CellValue, Sheet } from "./xlsx";
 
 /* The exports.
  *
@@ -205,6 +206,13 @@ export function findingsSheet(x: ExportInput): Sheet {
       f.priorRating ?? "",
       move ?? "",
       f.adHoc ? "Ad-hoc (raised in the field)" : "From a check-point",
+      /* The photographs behind this finding, by their captions. A count alone
+         tells a reader there is evidence but not what it shows, and the
+         workbook is where most people will meet it. */
+      photosFor(x, f.checkId).length,
+      photosFor(x, f.checkId)
+        .map((a) => a.caption?.trim() || "(no caption)")
+        .join(" · "),
       f.originVisit,
       f.createdBy,
       when(f.createdAt),
@@ -237,9 +245,77 @@ export function findingsSheet(x: ExportInput): Sheet {
       { header: "Mar 2025 rating", width: 15 },
       { header: "Movement", width: 13 },
       { header: "Origin", width: 26 },
+      { header: "Photographs", width: 12 },
+      { header: "Photograph captions", width: 60, wrap: true },
       { header: "Raised at visit", width: 14 },
       { header: "Raised by", width: 22 },
       { header: "Raised on", width: 12 },
+    ],
+    rows,
+  };
+}
+
+/* ---------------------------------------------------------------- photographs */
+
+/** Photographs attached to a check. Null checkId (an ad-hoc finding) has none
+ *  of its own. */
+function photosFor(x: ExportInput, checkId: string | null | undefined): Attachment[] {
+  if (!checkId) return [];
+  return (x.responses[checkId]?.attachments ?? []).filter((a) => a.kind === "photo");
+}
+
+/** One row per photograph.
+ *
+ *  A photograph nobody indexed is a photograph nobody will find. This sheet is
+ *  the index: what it shows, where it belongs, who said so and when it was
+ *  taken. `Caption source` is not decoration — a caption an auditor wrote and
+ *  one a model proposed and a person accepted are different evidence, and a
+ *  reader is entitled to tell them apart. */
+export function photographsSheet(x: ExportInput): Sheet {
+  const rows: CellValue[][] = [];
+  for (const c of x.checks) {
+    const r = x.responses[c.id];
+    if (!r) continue;
+    for (const a of r.attachments) {
+      if (a.kind !== "photo") continue;
+      rows.push([
+        a.id,
+        portalIdFor(x.entity, c.id),
+        c.discipline,
+        c.system,
+        c.area,
+        a.caption?.trim() ?? "",
+        a.caption?.trim()
+          ? a.captionSource === "assistant"
+            ? "Assistant, accepted by the auditor"
+            : "Auditor"
+          : "NO CAPTION",
+        when(a.takenAt) ?? "",
+        when(a.createdAt),
+        a.createdBy,
+        a.width && a.height ? `${a.width}×${a.height}` : "",
+        a.bytes ? Math.round(a.bytes / 1024) : "",
+        a.unavailable ? "No image stored" : "Stored on the capture device",
+      ]);
+    }
+  }
+
+  return {
+    name: "Photographs",
+    columns: [
+      { header: "Photograph", width: 14 },
+      { header: "Check", width: 15 },
+      { header: "Discipline", width: 20 },
+      { header: "Asset system", width: 26 },
+      { header: "Area", width: 20 },
+      { header: "Caption", width: 62, wrap: true },
+      { header: "Caption source", width: 30 },
+      { header: "Taken", width: 18 },
+      { header: "Attached", width: 18 },
+      { header: "Attached by", width: 22 },
+      { header: "Dimensions", width: 13 },
+      { header: "Size (KB)", width: 10 },
+      { header: "Image", width: 26 },
     ],
     rows,
   };
@@ -467,6 +543,7 @@ export function fullWorkbook(x: ExportInput): Sheet[] {
     findingsSheet(x),
     closureSheet(x),
     evidenceRequestSheet(x),
+    photographsSheet(x),
   ];
 }
 

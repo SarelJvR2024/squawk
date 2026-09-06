@@ -127,10 +127,12 @@ src/
   lib/
     register.ts       the register and the 2025 data, entity-scoped, no React
     sites.ts          which checks apply where, and each site's portal ids
+    media.ts          recording, photo downscaling, EXIF date, the blob store
     globals.css       design tokens for both themes
   components/
     AppShell.tsx      header, nav, cycle strip, command palette, role switch
     CheckDetail.tsx   the check screen — reference left, capture right
+    RootCauseAdvice.tsx  candidate causes and, more usefully, what to ask
     ExportPanel.tsx   the export sheet
     ui/               primitives and icons
   lib/

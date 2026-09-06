@@ -208,7 +208,7 @@ check(
 
 check(
   "the assist route carries the task",
-  /\| "transcript";/.test(assistRoute) && /^\s*transcript:/m.test(assistRoute),
+  /\| "transcript"/.test(assistRoute) && /^\s*transcript:/m.test(assistRoute),
   ""
 );
 
@@ -288,8 +288,20 @@ check(
 
 check(
   "the assist route's own header no longer claims to be the only egress",
-  /see\s*\n?\s*\/api\/transcribe/.test(assistRoute),
+  /\/api\/transcribe sends the audio of a/.test(assistRoute) &&
+    !/the ONLY thing in the app\s*\n?\s*that sends anything off the device/.test(assistRoute),
   "the next person to read that file must not be told something untrue"
+);
+
+/* The header grew again when vision arrived, and the claim it makes is now
+   narrower and still has to be true: text always, images only behind the flag,
+   audio never. */
+check(
+  "and it says exactly what it does send",
+  /and — only when ASSIST_VISION is 1 — the photographs the auditor is asking\s*\n\s*about\. It never sends audio\./.test(
+    assistRoute
+  ),
+  ""
 );
 
 /* ------------------------------------------------------------------ result */
