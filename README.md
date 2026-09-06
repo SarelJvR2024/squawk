@@ -376,28 +376,50 @@ Nothing is applied without a tap. A proposal becomes a hazard when somebody
 accepts it, and the rating stays *unrated* — counting in no KPI, no dashboard
 and no export column — until somebody clicks a cell on the matrix.
 
-### The ERM matrix — declared, and deliberately empty
+### The ERM matrix — ACSA's second instrument
 
-A hazard carries **two** ratings: ACSA B170 001M, and ACSA's enterprise risk
-matrix. They are separate instruments measuring different things — B170 001M is
-aviation safety risk in the format the SACAA Director of Civil Aviation accepts;
-ERM is enterprise risk — and neither is derived from the other.
+A hazard carries **two** ratings, and they are different instruments measuring
+different things.
 
-**The ERM scale is not in this repo.** Its severity and likelihood wording, its
-band labels and its cell mapping are ACSA document content nobody has supplied.
-So `src/lib/erm.ts` declares the instrument and holds nothing: `available()`
-returns false, the screen says the matrix has not been supplied instead of
-rendering a picker, and the export writes that same sentence into the ERM rating
-state column rather than leaving cells that read like "no risk".
+**B170 001M** (`src/lib/risk.ts`) rates a *safety hazard* in the format the
+SACAA Director of Civil Aviation accepts: severity A–E by likelihood 1–5, banded
+Red / Amber / Green.
 
-Writing a plausible one would be the worst available option. A risk scale that
-looks official and is invented reaches an ACSA report as a number somebody acts
-on, and the failure is silent. That has already happened here in a different
-form — see *Notes for whoever picks this up*.
+**The ERM matrix** (`src/lib/erm.ts`) rates *business risk* and decides what
+enters ACSA's Combined Assurance Coverage Plan. J050 001FW *Combined Assurance
+Framework*, Version 1, 19 October 2017, clause 9.2.2: consequence 5–1 by
+likelihood 1–5, giving priority **I / II / III** — Unacceptable, Tolerable,
+Acceptable. Clause 9.1.2 is why it is carried at all: *risks rated as I and II
+as a minimum shall be included in the Combined Assurance Coverage Plan*.
 
-When ACSA supply the matrix, fill in `ERM_SEVERITIES`, `ERM_LIKELIHOODS` and
-`ERM_BANDS` and rewrite parts 1 and 2 of `tests/erm-matrix.test.mjs` against
-their own table. It is a data change, not a rebuild.
+Three things about the pair that are easy to get wrong, and expensive:
+
+- **The consequence axis runs the other way.** B170 goes A (Catastrophic) → E
+  (Negligible); ERM goes 5 (Catastrophic) → 1 (Minor). Anyone tidying the two
+  into one shape inverts this matrix silently and the priorities stay
+  plausible-looking while being exactly wrong.
+- **The likelihood axes are not the same question.** B170's is *occurrence
+  history* — "has occurred rarely". ERM's is a *probability band* — "Likely,
+  25–54%". A hazard can sit at B170 level 3 and ERM level 2 with neither being
+  wrong. So the app will carry a B170 rating across as a **starting point**, and
+  it marks the likelihood as an assumption on screen and in the export until
+  somebody looks at it again and taps a cell.
+- **ERM is markedly harsher.** 10 / 9 / 6 against B170's 6 / 12 / 7.
+
+Laid on top of each other the two disagree on five cells — **1B, 2A, 3B, 4C,
+5D**, ERM harsher in every one. That is not a defect in either. It is also the
+answer to a question this project escalated: the Rev A2 register's matrix
+disagreed with B170 001M on those exact five cells, which looked like a
+transcription error. It was not. **The register carries the ERM matrix**, and
+the real error is that ACSA's Compliance Check-list Template cites B170 001M in
+its header while printing the ERM grid underneath. Worth telling Prince; nothing
+in this repo needs changing for it.
+
+`tests/erm-matrix.test.mjs` transcribes the grid independently from the
+framework and asserts all 25 cells, the 10/9/6 split, the axis direction, the
+percentage bands, clause 9.1.2, and the five disagreements — computed from both
+grids rather than remembered, so the day either is edited the claim is
+re-checked. Run it after any edit to `erm.ts` or `risk.ts`.
 
 ## Photographs
 

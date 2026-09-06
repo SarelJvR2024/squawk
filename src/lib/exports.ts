@@ -405,14 +405,37 @@ export function hazardsSheet(x: ExportInput): Sheet {
       band ? BAND_META[band].strategy : "",
       suggested ?? "",
       agreed ? "Agreed by the audit team" : "Suggested — not yet agreed",
-      /* ACSA's ERM matrix — a separate instrument, and an unsupplied one. */
-      h.ermConfirmed ? (h.ermSeverity ?? "") : "",
+      /* ACSA's ERM matrix — a separate instrument, gated separately.
+         J050 001FW cl. 9.2.2. Nothing here is derived from the B170 columns
+         above: a carried likelihood that nobody agreed stays out, and the
+         state column says which of the two reasons it is out for. */
+      h.ermConfirmed ? (h.ermConsequence ?? "") : "",
       h.ermConfirmed ? (h.ermLikelihood ?? "") : "",
+      h.ermConfirmed ? (erm.ermCell(h.ermConsequence, h.ermLikelihood) ?? "") : "",
+      h.ermConfirmed ? (erm.ermPriority(h.ermConsequence, h.ermLikelihood) ?? "") : "",
+      (() => {
+        const p = h.ermConfirmed ? erm.ermPriority(h.ermConsequence, h.ermLikelihood) : null;
+        return p ? erm.ERM_PRIORITY_META[p].tolerance : "";
+      })(),
+      (() => {
+        const p = h.ermConfirmed ? erm.ermPriority(h.ermConsequence, h.ermLikelihood) : null;
+        return p ? erm.ERM_PRIORITY_META[p].action : "";
+      })(),
+      /* Clause 9.1.2 — the reason the ERM rating is carried at all. */
+      (() => {
+        const p = h.ermConfirmed ? erm.ermPriority(h.ermConsequence, h.ermLikelihood) : null;
+        if (!p) return "";
+        return erm.entersAssurancePlan(p)
+          ? "Yes — cl. 9.1.2, I and II as a minimum"
+          : "No — below the cl. 9.1.2 threshold";
+      })(),
       h.ermConfirmed
-        ? "Agreed by the audit team"
-        : erm.available()
-          ? "Not yet agreed"
-          : erm.UNAVAILABLE_REASON,
+        ? h.ermLikelihoodAssumed
+          ? "Agreed, but the likelihood was carried from B170 001M"
+          : "Agreed by the audit team"
+        : h.ermConsequence || h.ermLikelihood
+          ? "Suggested — not yet agreed"
+          : "Not rated on ERM",
       h.rootCause,
       h.action,
       h.owner,
@@ -450,9 +473,14 @@ export function hazardsSheet(x: ExportInput): Sheet {
       { header: "Strategy (B170 001M)", width: 44, wrap: true },
       { header: "Suggested cell (not agreed)", width: 20 },
       { header: "B170 001M rating state", width: 26 },
-      { header: "Severity (ACSA ERM)", width: 18 },
+      { header: "Consequence (ACSA ERM)", width: 18 },
       { header: "Likelihood (ACSA ERM)", width: 18 },
-      { header: "ERM rating state", width: 62, wrap: true },
+      { header: "ERM cell", width: 10 },
+      { header: "ERM priority", width: 12 },
+      { header: "ERM tolerance", width: 14 },
+      { header: "ERM response (cl. 9.2.2)", width: 42, wrap: true },
+      { header: "Combined Assurance Coverage Plan (cl. 9.1.2)", width: 38, wrap: true },
+      { header: "ERM rating state", width: 48, wrap: true },
       { header: "Root cause", width: 26 },
       { header: "Treatment", width: 58, wrap: true },
       { header: "Owner", width: 30 },
@@ -685,7 +713,7 @@ export function aboutSheet(x: ExportInput): Sheet {
       ],
       [
         "The ACSA ERM columns on the Hazards sheet",
-        `${erm.UNAVAILABLE_REASON} The columns exist so the sheet's shape is right when the matrix is supplied; they are empty in this export and that is not a rating of zero. B170 001M is not used to fill them in — the two are separate instruments measuring different things, and any mapping between them is ACSA's to state.`,
+        "ACSA's enterprise risk matrix, J050 001FW Combined Assurance Framework cl. 9.2.2. It is a SECOND instrument, not a variant of B170 001M: consequence 5 (Catastrophic) to 1 (Minor) — running the opposite direction to B170's A to E — by likelihood 1 to 5 as a probability band, giving priority I, II or III. Clause 9.1.2: risks rated I and II as a minimum enter the Combined Assurance Coverage Plan, which is the column that says so. Laid over B170 001M the two disagree on five cells (1B, 2A, 3B, 4C, 5D). That is not an error in either: they measure different things, and it is why the Compliance Check-list Template — which cites B170 001M in its header but prints this grid — should be read carefully. Nothing in this workbook derives one rating from the other; where the ERM likelihood was carried across from B170 rather than agreed on its own terms, the rating state column says so.",
       ],
       [
         "The risk matrix",

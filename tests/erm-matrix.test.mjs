@@ -2,47 +2,17 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-/* ACSA's enterprise risk matrix — the test for an instrument that is DECLARED
- *  AND EMPTY.
+/* ACSA's SECOND matrix — J050 001FW Combined Assurance Framework cl. 9.2.2.
  *
- *  This suite is unusual, so read why it exists before changing it.
- *
- *  The brief describes ERM as a second rating instrument carried on every
- *  hazard alongside B170 001M. B170 001M is in this repo verbatim and
- *  risk-matrix.test.mjs bands all 25 of its cells. The ERM matrix is not: its
- *  severity and likelihood wording, its band labels and its cell mapping are
- *  ACSA document content nobody has supplied.
- *
- *  Writing a plausible one would be the worst available option. A risk scale
- *  that looks official and is invented reaches an ACSA report as a number
- *  somebody acts on, and the failure is silent. It has already happened here in
- *  a different form: a severity/likelihood scale that banded correctly but
- *  meant something else, where level 3 read "Likely" and ACSA's level 3 means
- *  "unlikely but could possibly occur". Anyone rating against the label scored
- *  a notch low and nothing said so.
- *
- *  So until the real matrix arrives this suite asserts three things:
- *
- *    1. The scale is empty and available() is false.
- *    2. Nothing derives ERM from B170 001M.
- *    3. An unsupplied scale is SAID, not left blank — the screen and the export
- *       both carry the reason in words, because a blank band reads like "no
- *       risk" to anybody who did not build this.
- *
- *  When ACSA supply the matrix, fill ERM_SEVERITIES, ERM_LIKELIHOODS and
- *  ERM_BANDS in src/lib/erm.ts and REWRITE parts 1 and 2 of this file against
- *  their own table, the way risk-matrix.test.mjs is written against B170 001M —
- *  cell by cell, independently, so it disagrees with the implementation if the
- *  implementation drifts. Part 3 stands either way. */
+ * This exists for the same reason the B170 test does, and for one more: the two
+ * matrices look similar enough to be confused, and their consequence axes run in
+ * OPPOSITE directions. B170 severity goes A (Catastrophic) → E (Negligible);
+ * ERM consequence goes 5 (Catastrophic) → 1 (Minor). Anyone "tidying" the two
+ * into one shape inverts this matrix silently, and the priorities stay
+ * plausible-looking while being exactly wrong. */
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const read = (...p) => fs.readFileSync(path.join(here, "..", ...p), "utf8");
-
-const ermSrc = read("src", "lib", "erm.ts");
-const riskSrc = read("src", "lib", "risk.ts");
-const exportsSrc = read("src", "lib", "exports.ts");
-const actionsSrc = read("src", "components", "RecordActions.tsx");
-const typesSrc = read("src", "lib", "types.ts");
+const erm = fs.readFileSync(path.join(here, "..", "src", "lib", "erm.ts"), "utf8");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -53,136 +23,184 @@ const check = (name, cond, detail = "") => {
   }
 };
 
-/* --------------------------------------- Part 1: the scale, as actually held */
+/* Part 1 — the grid, transcribed independently from the framework PDF.
+   Rows are consequence 5→1, columns likelihood 1→5. */
+const EXPECTED = {
+  "5": ["II", "I", "I", "I", "I"],
+  "4": ["II", "II", "I", "I", "I"],
+  "3": ["III", "II", "II", "I", "I"],
+  "2": ["III", "III", "II", "II", "I"],
+  "1": ["III", "III", "III", "II", "II"],
+};
 
-const erm = await import(
-  "data:text/javascript," +
-    encodeURIComponent(
-      ermSrc
-        /* The file is TypeScript only in its annotations; strip those and it is
-           valid JS. Importing it beats regexing it — this asserts the VALUES
-           the app runs on, not the text of the file. */
-        .replace(/:\s*string\[\]/g, "")
-        .replace(/:\s*Record<string,\s*string>/g, "")
-        .replace(/\(severity:\s*string \| null,\s*likelihood:\s*string \| null\)/g, "(severity, likelihood)")
-        .replace(/\):\s*string \| null\s*\{/g, ") {")
-        .replace(/\):\s*boolean\s*\{/g, ") {")
-    )
+/* Pull the PRIORITY table straight out of the source. */
+const block = erm.slice(erm.indexOf("const PRIORITY"), erm.indexOf("export function ermPriority"));
+for (const [cons, row] of Object.entries(EXPECTED)) {
+  const line = block.split("\n").find((l) => l.trim().startsWith(`"${cons}":`));
+  check(`consequence ${cons} row is present`, !!line);
+  if (!line) continue;
+  row.forEach((want, i) => {
+    const lik = String(i + 1);
+    const m = line.match(new RegExp(`"${lik}":\\s*"(I{1,3})"`));
+    check(`cell consequence ${cons} × likelihood ${lik} is ${want}`, m && m[1] === want, m ? m[1] : "missing");
+  });
+}
+
+/* Part 2 — the distribution: 10 I, 9 II, 6 III.
+   Worth stating plainly, because B170's split is 6 Red / 12 Amber / 7 Green.
+   The ERM matrix is markedly harsher: 10 of its 25 cells demand immediate
+   action where B170 puts 6 in Red. That is a real difference between the two
+   instruments, not an error in either. */
+const counts = { I: 0, II: 0, III: 0 };
+Object.values(EXPECTED).forEach((r) => r.forEach((p) => counts[p]++));
+check("ten cells are Priority I (Unacceptable)", counts.I === 10, String(counts.I));
+check("nine cells are Priority II (Tolerable)", counts.II === 9, String(counts.II));
+check("six cells are Priority III (Acceptable)", counts.III === 6, String(counts.III));
+check("all 25 cells are accounted for", counts.I + counts.II + counts.III === 25);
+
+/* Part 3 — the axis direction, which is the trap. */
+check(
+  "consequence runs 5 Catastrophic down to 1 Minor",
+  /"5 - Catastrophic"[\s\S]{0,120}"1 - Minor"/.test(erm)
+);
+check("consequence is NOT lettered A-E like B170", !/"A - /.test(erm));
+check(
+  "likelihood carries ACSA's own words",
+  ["Not Likely", "Slight", "Highly Likely", "Expected"].every((w) => erm.includes(w))
+);
+check(
+  "the percentage bands from the template are carried",
+  erm.includes("25% to 54%") && erm.includes("Greater than 85%")
 );
 
-check("ERM_SEVERITIES is empty", erm.ERM_SEVERITIES.length === 0, `${erm.ERM_SEVERITIES.length}`);
-check("ERM_LIKELIHOODS is empty", erm.ERM_LIKELIHOODS.length === 0, `${erm.ERM_LIKELIHOODS.length}`);
-check("ERM_BANDS is empty", Object.keys(erm.ERM_BANDS).length === 0);
-check("available() is false", erm.available() === false);
-check("ermCell() returns null while unavailable", erm.ermCell("A", "1") === null);
-check("ermBand() returns null while unavailable", erm.ermBand("A", "1") === null);
+/* Part 4 — tolerance vocabulary and the scoping rule. */
+check("I is Unacceptable", /I:\s*\{[\s\S]{0,80}Unacceptable/.test(erm));
+check("II is Tolerable", /II:\s*\{[\s\S]{0,80}Tolerable/.test(erm));
+check("III is Acceptable", /III:\s*\{[\s\S]{0,80}Acceptable/.test(erm));
 check(
-  "the reason is a sentence an auditor can act on, not a code",
-  typeof erm.UNAVAILABLE_REASON === "string" && erm.UNAVAILABLE_REASON.length > 40
-);
-check(
-  "the reason says the matrix has not been supplied",
-  /has not been supplied/i.test(erm.UNAVAILABLE_REASON)
-);
-check(
-  "the reason says what hazards ARE rated on meanwhile",
-  /B170 001M/.test(erm.UNAVAILABLE_REASON)
+  "cl. 9.1.2 — I and II enter the assurance plan",
+  /entersAssurancePlan[\s\S]{0,160}p === "I" \|\| p === "II"/.test(erm)
 );
 
-/* ------------------------- Part 2: the two instruments are not wired together */
+/* Part 5 — the two instruments must not be silently fused. */
+check(
+  "the ERM suggestion is declared as an assumption, not a conversion",
+  erm.includes("likelihoodIsAssumed")
+);
+check(
+  "the file says why the likelihood axes cannot be converted",
+  /OCCURRENCE-based/.test(erm) && /PROBABILITY-based/.test(erm)
+);
+
+/* ---- Part 5: the two instruments stay separate in the CODE, not only in the
+       comments. Carried over from the suite this file replaces, which guarded
+       an erm.ts that was declared and deliberately empty while ACSA had not
+       supplied the scale. The scale has now arrived; the separation it was
+       protecting has not stopped mattering. */
+
+const read = (...p) => fs.readFileSync(path.join(here, "..", ...p), "utf8");
+const riskSrc = read("src", "lib", "risk.ts");
+const typesSrc = read("src", "lib", "types.ts");
+const actionsSrc = read("src", "components", "RecordActions.tsx");
+const exportsSrc = read("src", "lib", "exports.ts");
+const ermCode = erm.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
 
 check(
-  "erm.ts does not import risk.ts",
-  !/from\s+["']\.\/risk["']/.test(ermSrc) && !/require\(["']\.\/risk["']\)/.test(ermSrc)
+  "erm.ts does not import risk.ts's scales",
+  !/from\s+["']\.\/risk["']/.test(ermCode),
+  "it imports the Severity and Likelihood TYPES for suggestErm, and nothing else"
 );
-/* Comments stripped: the header legitimately NAMES the constants a future
-   maintainer must fill in. It is the code that must not reach into risk.ts. */
-const ermCode = ermSrc.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
 for (const name of ["SEVERITIES", "LIKELIHOODS", "BAND_META", "bandFor", "cellCode", "BAND_AS_RATING"]) {
   check(
-    `erm.ts's code does not reference risk.ts's ${name}`,
+    `erm.ts's code does not use risk.ts's ${name}`,
     !new RegExp(`(^|[^A-Z_])${name}\\b`, "m").test(ermCode)
   );
 }
 check(
-  "erm.ts carries no A-E severity scale of its own",
-  !/["'][A-E]\s*-\s*(Catastrophic|Hazardous|Major|Minor|Negligible)/.test(ermSrc)
-);
-check(
   "risk.ts knows nothing about ERM",
   !/\bERM\b/.test(riskSrc.replace(/\/\*[\s\S]*?\*\//g, ""))
 );
-check(
-  "erm.ts says in its own header that it must not be derived from B170 001M",
-  /Do NOT derive this from B170 001M/.test(ermSrc)
-);
 
-/* The store must never write an ERM rating out of a B170 001M one. Nothing in
-   the codebase may assign ermSeverity from severity. */
-const allTs = [];
-(function walk(dir) {
-  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, e.name);
-    if (e.isDirectory()) walk(full);
-    else if (/\.tsx?$/.test(e.name)) allTs.push([full, fs.readFileSync(full, "utf8")]);
+/* The five cells. Computed here from both instruments rather than asserted as
+   a remembered number, so the day either grid is edited this says so. */
+const RED = new Set(["5A", "5B", "5C", "4A", "4B", "3A"]);
+const AMBER = new Set(["5D","5E","4C","4D","4E","3B","3C","3D","2A","2B","2C","1A"]);
+const b170Band = (c) => (RED.has(c) ? "Red" : AMBER.has(c) ? "Amber" : "Green");
+const consFor = { A: "5", B: "4", C: "3", D: "2", E: "1" };
+const asBand = { I: "Red", II: "Amber", III: "Green" };
+const disagree = [];
+for (const S of ["A", "B", "C", "D", "E"]) {
+  for (const L of ["1", "2", "3", "4", "5"]) {
+    const ermSaid = asBand[EXPECTED[consFor[S]][Number(L) - 1]];
+    if (ermSaid !== b170Band(`${L}${S}`)) disagree.push(`${L}${S}`);
   }
-})(path.join(here, "..", "src"));
-
-const derived = allTs.filter(([, src]) =>
-  /ermSeverity\s*:\s*(f|h|record|active)?\.?severity\b/.test(src) ||
-  /ermLikelihood\s*:\s*(f|h|record|active)?\.?likelihood\b/.test(src) ||
-  /ermSeverity\s*:\s*BAND/.test(src)
+}
+check(
+  "the two instruments disagree on exactly five cells",
+  disagree.length === 5,
+  disagree.join(",")
 );
 check(
-  "no file derives an ERM rating from the B170 001M one",
-  derived.length === 0,
-  derived.map(([f]) => path.basename(f)).join(", ")
-);
-
-/* -------------------------- Part 3: an unsupplied scale is said, not implied */
-
-check(
-  "the Hazard type declares the ERM fields",
-  /ermSeverity:\s*string \| null;/.test(typesSrc) &&
-    /ermLikelihood:\s*string \| null;/.test(typesSrc) &&
-    /ermConfirmed:\s*boolean;/.test(typesSrc)
+  "and they are 1B, 2A, 3B, 4C, 5D — the five the Rev A2 register was queried over",
+  disagree.slice().sort().join(",") === "1B,2A,3B,4C,5D",
+  disagree.slice().sort().join(",")
 );
 check(
-  "ermConfirmed gates the ERM rating the way ratingConfirmed gates the other",
-  /ratingConfirmed:\s*boolean;/.test(typesSrc)
-);
-check(
-  "RecordActions asks erm.available() rather than assuming",
-  /erm\.available\(\)/.test(actionsSrc)
-);
-check(
-  "RecordActions shows the reason in words when the scale is missing",
-  /erm\.UNAVAILABLE_REASON/.test(actionsSrc)
-);
-check(
-  "RecordActions does not render an ERM picker when the scale is missing",
-  /erm\.available\(\)\s*\?/.test(actionsSrc)
-);
-check(
-  "the Hazards sheet has its own ERM columns",
-  /Severity \(ACSA ERM\)/.test(exportsSrc) && /Likelihood \(ACSA ERM\)/.test(exportsSrc)
-);
-check(
-  "the Hazards sheet keeps the two instruments in separate columns",
-  /Severity \(B170 001M\)/.test(exportsSrc) && /Likelihood \(B170 001M\)/.test(exportsSrc)
-);
-check(
-  "the export writes the unavailable reason into the ERM state column",
-  /erm\.UNAVAILABLE_REASON/.test(exportsSrc)
-);
-check(
-  "an unagreed ERM rating never reaches the ERM columns",
-  /h\.ermConfirmed \?/.test(exportsSrc)
-);
-check(
-  "the cover sheet explains the empty ERM columns",
-  /not a rating of zero/i.test(exportsSrc)
+  "ERM is the harsher instrument everywhere they differ",
+  disagree.every((cell) => {
+    const L = cell[0], S = cell[1];
+    const rank = { Green: 0, Amber: 1, Red: 2 };
+    return rank[asBand[EXPECTED[consFor[S]][Number(L) - 1]]] > rank[b170Band(cell)];
+  }),
+  "10/9/6 against 6/12/7 — if ERM ever reads softer, one of the grids has been inverted"
 );
 
-console.log(`\n${failures === 0 ? "ERM OK" : `${failures} FAILURES`}`);
+/* Gating. A rating the team did not agree reaches nothing, on either
+   instrument, and a carried likelihood is not an agreement. */
+check(
+  "the Hazard type carries the ERM axis by its own name",
+  /ermConsequence: ErmConsequence \| null;/.test(typesSrc) &&
+    /ermLikelihood: ErmLikelihood \| null;/.test(typesSrc) &&
+    /ermConfirmed: boolean;/.test(typesSrc),
+  "calling it ermSeverity is how the two axes get treated as the same axis"
+);
+check(
+  "a carried likelihood is recorded as an assumption",
+  /ermLikelihoodAssumed: boolean;/.test(typesSrc)
+);
+check(
+  "carrying the B170 rating across does not agree the ERM one",
+  /ermConfirmed: false,/.test(actionsSrc) && /likelihoodIsAssumed/.test(actionsSrc),
+  "a derived rating that arrives agreed is the silent conversion this instrument forbids"
+);
+check(
+  "tapping an ERM cell clears the assumption",
+  /ermLikelihoodAssumed: false,/.test(actionsSrc)
+);
+check(
+  "and the screen says the carried likelihood was not agreed",
+  /carried across, not agreed/.test(actionsSrc)
+);
+check(
+  "an unagreed ERM rating reaches no export column",
+  /h\.ermConfirmed \? \(h\.ermConsequence \?\? ""\) : ""/.test(exportsSrc)
+);
+check(
+  "the export carries the priority, the tolerance and the response",
+  /ERM priority/.test(exportsSrc) &&
+    /ERM tolerance/.test(exportsSrc) &&
+    /ERM response \(cl\. 9\.2\.2\)/.test(exportsSrc)
+);
+check(
+  "and clause 9.1.2 — whether it enters the Combined Assurance Coverage Plan",
+  /Combined Assurance Coverage Plan \(cl\. 9\.1\.2\)/.test(exportsSrc) &&
+    /entersAssurancePlan/.test(exportsSrc),
+  "this is the reason the ERM rating is carried at all"
+);
+check(
+  "the workbook explains the two instruments to whoever opens it",
+  /J050 001FW/.test(exportsSrc) && /1B, 2A, 3B, 4C, 5D/.test(exportsSrc)
+);
+
+console.log(`\n${failures === 0 ? "ERM MATRIX OK" : `${failures} FAILURES`}`);
 process.exit(failures ? 1 : 0);

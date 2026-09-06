@@ -236,8 +236,8 @@ check("hazards are persisted", /\n\s+hazards: s\.hazards,/.test(store));
 check("hazard ids are their own namespace", /HZ-\$\{uid\(\)/.test(store));
 check("a hazard can be removed, freeing its findings to regroup", /removeHazard:/.test(store));
 check("the persist key is untouched", /name: "acsa-assurance-v1"/.test(store));
-check("the version was bumped rather than the key renamed", /version: 9,/.test(store));
-check("and the bump has a migration", /if \(from < 9\)/.test(store));
+check("the version was bumped rather than the key renamed", /version: 10,/.test(store));
+check("and every bump has a migration", /if \(from < 9\)/.test(store) && /if \(from < 10\)/.test(store));
 check(
   "the migration does not invent a hazard from a finding",
   /a finding\s*\n?\s*\*?\s*is not a hazard/i.test(store) || /is not a hazard/.test(store)
@@ -384,11 +384,12 @@ check("it is in the full workbook", /hazardsSheet\(x\),/.test(exportsSrc));
 check("and available on its own", /kind: "hazards"/.test(panel));
 check("the panel passes the hazards through", /\n\s+hazards,/.test(panel));
 check(
-  "both instruments have their own columns",
+  "both instruments have their own columns, named by their own axes",
   /Severity \(B170 001M\)/.test(exportsSrc) &&
-    /Severity \(ACSA ERM\)/.test(exportsSrc) &&
+    /Consequence \(ACSA ERM\)/.test(exportsSrc) &&
     /B170 001M rating state/.test(exportsSrc) &&
-    /ERM rating state/.test(exportsSrc)
+    /ERM rating state/.test(exportsSrc),
+  "B170 has severity and ERM has consequence — they are not the same axis"
 );
 check(
   "an unagreed B170 001M rating goes to its own column, marked",
