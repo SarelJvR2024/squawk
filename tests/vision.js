@@ -48,6 +48,36 @@ const stub = http.createServer((req, res) => {
   });
 });
 
+/* Refuse to run against a server this file did not start.
+ *
+ *  `spawn` kills the npx wrapper, not the next-server grandchild, so a suite
+ *  that died badly can leave a server holding the port. The next run's readiness
+ *  poll then succeeds immediately — against the OLD build, with the OLD
+ *  environment — and the suite quietly tests something that is not the code in
+ *  front of you. That is worse than a failure, because it can also PASS. */
+async function requireFreePort(port, what) {
+  try {
+    await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(1500) });
+  } catch {
+    return; // nothing there, which is what we want
+  }
+  throw new Error(
+    `Port ${port} is already answering. Something else (a stale ${what} from an ` +
+      `earlier run?) is holding it, and this suite would test that instead of the ` +
+      `current build. Kill it and run again.`
+  );
+}
+
+/** Kill the process GROUP, not just the wrapper. */
+function killTree(p) {
+  if (!p?.pid) return;
+  try {
+    process.kill(-p.pid, "SIGKILL");
+  } catch {
+    try { p.kill("SIGKILL"); } catch {}
+  }
+}
+
 const startApp = (port, env) =>
   new Promise((resolve, reject) => {
     const p = spawn("npx", ["next", "start", "-p", String(port)], {
@@ -59,6 +89,9 @@ const startApp = (port, env) =>
         ...env,
       },
       stdio: "ignore",
+      /* Its own process group, so the kill below takes the next-server
+         grandchild with it rather than orphaning it on the port. */
+      detached: true,
     });
     const t0 = Date.now();
     const poll = async () => {
@@ -99,6 +132,9 @@ const imageBlocks = (raw) => {
 (async () => {
   let noVision, vision;
   try {
+    for (const [port, what] of [[STUB_PORT, "stub"], [NO_VISION_PORT, "next-server"], [VISION_PORT, "next-server"]]) {
+      await requireFreePort(port, what);
+    }
     await new Promise((r) => stub.listen(STUB_PORT, "127.0.0.1", r));
 
     /* ---------- ASSIST_VISION unset ---------- */
@@ -186,8 +222,8 @@ const imageBlocks = (raw) => {
     console.error("HARNESS", e.message);
     process.exitCode = 1;
   } finally {
-    noVision?.kill();
-    vision?.kill();
+    killTree(noVision);
+    killTree(vision);
     stub.close();
   }
 
