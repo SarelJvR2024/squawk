@@ -3,19 +3,23 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  CHECKS,
-  DISCIPLINES,
+  checksAt,
+  disciplinesAt,
   checksOf,
   priorFor,
   systemsOf,
-  useStore,
+  useEntityCode,
+  useResponses,
+  deskDone,
 } from "@/lib/store";
+import { portalIdFor } from "@/lib/sites";
+import { needsDesk, needsQuestion } from "@/lib/verification";
 import CheckDetail from "@/components/CheckDetail";
 import { Dot, Empty, Pill, Track } from "@/components/ui/primitives";
 import { IconInbox } from "@/components/ui/icons";
 import type { Check } from "@/lib/types";
 
-type Filter = "all" | "open" | "nc" | "pf";
+type Filter = "all" | "open" | "q" | "nc" | "pf";
 
 const RATING_TONE = {
   Unacceptable: "bad",
@@ -26,9 +30,17 @@ const RATING_TONE = {
 
 function CaptureInner() {
   const params = useSearchParams();
-  const responses = useStore((s) => s.responses);
+  const responses = useResponses();
+  const entityCode = useEntityCode();
+  /* This site's disciplines, not the register's. Corporate Office has no Civil
+     work at all — offering the tab would be offering an empty audit. */
+  const disciplines = useMemo(() => disciplinesAt(entityCode), [entityCode]);
 
-  const [discipline, setDiscipline] = useState<string>(DISCIPLINES[0]);
+  const [picked, setDiscipline] = useState<string>(disciplines[0]);
+  /* Derived, not corrected in an effect: switching to a site that does not have
+     the discipline in view falls back on the same render rather than painting a
+     rail tab with nothing behind it and fixing it a render later. */
+  const discipline = disciplines.includes(picked) ? picked : disciplines[0];
   const [system, setSystem] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -38,21 +50,35 @@ function CaptureInner() {
   useEffect(() => {
     const id = params.get("check");
     if (!id) return;
-    const c = CHECKS.find((x) => x.id === id);
+    const c = checksAt(entityCode).find((x) => x.id === id);
     if (!c) return;
     setDiscipline(c.discipline);
     setSystem(c.system);
     setFilter("all");
     setActiveId(c.id);
-  }, [params]);
+  }, [params, entityCode]);
+
+  /* The audit workspace lists what a desk can actually progress — a check to
+     ask about or collect a document for. The nine checks whose only mode is
+     Site Physical Verification have no question and no evidence to gather, so
+     they belong on the tablet and nowhere else; listing them here was handing
+     an auditor rows they could not answer without leaving the room. See
+     src/lib/verification.ts. */
+  const deskChecks = useMemo(
+    () => checksOf(entityCode, discipline, system).filter(needsDesk),
+    [entityCode, discipline, system]
+  );
+
 
   const visible = useMemo(() => {
-    let list = checksOf(discipline, system);
-    if (filter === "open") list = list.filter((c) => !responses[c.id]?.captured);
+    let list = deskChecks;
+    if (filter === "open") list = list.filter((c) => !deskDone(responses[c.id]));
     if (filter === "nc") list = list.filter((c) => responses[c.id]?.compliance === "NC");
-    if (filter === "pf") list = list.filter((c) => c.pf);
+    if (filter === "pf")
+      list = list.filter((c) => !!priorFor(entityCode, c.discipline, c.system));
+    if (filter === "q") list = list.filter(needsQuestion);
     return list;
-  }, [discipline, system, filter, responses]);
+  }, [deskChecks, filter, responses, entityCode]);
 
   const active: Check | undefined =
     visible.find((c) => c.id === activeId) ?? visible[0];
@@ -76,7 +102,7 @@ function CaptureInner() {
 
   const dotTone = (c: Check) => {
     const r = responses[c.id];
-    if (!r?.captured) return "pending" as const;
+    if (!deskDone(r)) return "pending" as const;
     return r.compliance === "NC"
       ? ("bad" as const)
       : r.compliance === "C"
@@ -90,11 +116,11 @@ function CaptureInner() {
     <>
       {/* rail — disciplines and asset systems */}
       <aside
-        className="hidden w-[238px] shrink-0 overflow-y-auto border-r px-[9px] pt-[11px] pb-6 lg:block"
+        className="hidden w-[210px] shrink-0 overflow-y-auto border-r px-[9px] pt-[11px] pb-6 lg:block"
         style={{ background: "var(--rail)", borderColor: "var(--line)" }}
       >
         <div className="mb-2 flex flex-wrap gap-1 px-[2px]">
-          {([["all", "All"], ["open", "Open"], ["nc", "NC"], ["pf", "2025"]] as [Filter, string][]).map(
+          {([["all", "All"], ["open", "Open"], ["q", "Ask"], ["nc", "NC"], ["pf", "2025"]] as [Filter, string][]).map(
             ([k, label]) => (
               <button
                 key={k}
@@ -114,6 +140,7 @@ function CaptureInner() {
 
         <div className="label-xs px-2 pt-2 pb-1.5">Discipline</div>
         <select
+          aria-label="Discipline"
           value={discipline}
           onChange={(e) => {
             setDiscipline(e.target.value);
@@ -123,9 +150,9 @@ function CaptureInner() {
           className="mb-3 w-full rounded-[8px] border px-2 py-[7px] text-[11.5px] outline-none"
           style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
         >
-          {DISCIPLINES.map((d) => {
-            const cs = checksOf(d);
-            const done = cs.filter((c) => responses[c.id]?.captured).length;
+          {disciplines.map((d) => {
+            const cs = checksOf(entityCode, d).filter(needsDesk);
+            const done = cs.filter((c) => deskDone(responses[c.id])).length;
             return (
               <option key={d} value={d}>
                 {d} — {done}/{cs.length}
@@ -136,13 +163,13 @@ function CaptureInner() {
 
         <div className="label-xs flex justify-between px-2 pt-1 pb-1.5">
           <span>Asset systems</span>
-          <span>{systemsOf(discipline).length}</span>
+          <span>{systemsOf(entityCode, discipline).length}</span>
         </div>
-        {systemsOf(discipline).map((sys) => {
-          const cs = checksOf(discipline, sys);
-          const done = cs.filter((c) => responses[c.id]?.captured).length;
+        {systemsOf(entityCode, discipline).map((sys) => {
+          const cs = checksOf(entityCode, discipline, sys).filter(needsDesk);
+          const done = cs.filter((c) => deskDone(responses[c.id])).length;
           const nc = cs.filter((c) => responses[c.id]?.compliance === "NC").length;
-          const pf = priorFor(discipline, sys);
+          const pf = priorFor(entityCode, discipline, sys);
           const on = system === sys;
           return (
             <button
@@ -166,7 +193,7 @@ function CaptureInner() {
               )}
               <div className="mb-1.5 flex items-center justify-between gap-1.5">
                 <b className="text-[11.5px] font-semibold">{sys}</b>
-                {pf && <Pill tone={RATING_TONE[pf.rating]}>{pf.pf}</Pill>}
+                {pf && <Pill tone={RATING_TONE[pf.rating]}>{pf.key}</Pill>}
               </div>
               <Track pct={cs.length ? (done / cs.length) * 100 : 0} />
               <div className="mt-[5px] font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
@@ -194,8 +221,8 @@ function CaptureInner() {
             </span>
           </div>
           <div className="mt-[2px] text-[10px]" style={{ color: "var(--ink-3)" }}>
-            {visible.filter((c) => responses[c.id]?.captured).length} captured ·{" "}
-            {visible.filter((c) => !responses[c.id]?.captured).length} open
+            {visible.filter((c) => deskDone(responses[c.id])).length} desk done ·{" "}
+            {visible.filter((c) => !deskDone(responses[c.id])).length} open
           </div>
         </div>
 
@@ -207,7 +234,7 @@ function CaptureInner() {
         ) : (
           visible.map((c) => {
             const on = c.id === active?.id;
-            const pf = c.pf ? priorFor(c.discipline, c.system) : null;
+            const pf = priorFor(entityCode, c.discipline, c.system);
             return (
               <button
                 key={c.id}
@@ -222,11 +249,11 @@ function CaptureInner() {
                 <Dot tone={dotTone(c)} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                    {c.id} · {c.system}
+                    {portalIdFor(entityCode, c.id)} · {c.system}
                   </span>
                   <span className="mt-[1px] block truncate text-[11.5px]">{c.requirement}</span>
                 </span>
-                {pf && <span className="mt-[2px]"><Pill tone={RATING_TONE[pf.rating]}>{c.pf}</Pill></span>}
+                {pf && <span className="mt-[2px]"><Pill tone={RATING_TONE[pf.rating]}>{pf.key}</Pill></span>}
               </button>
             );
           })

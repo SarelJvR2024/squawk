@@ -2,20 +2,34 @@
 
 import { useMemo, useState } from "react";
 import {
-  CHECKS,
-  DISCIPLINES,
-  PRIOR,
-  VISITS,
+  checksAt,
+  disciplinesAt,
+  priorFindingsAt,
+  usePortfolio,
   checksOf,
   priorFor,
+  useResponses,
   useStore,
+  useVerifications,
+  useEntity,
+  useEntityCode,
+  useVisitFindings,
+  useVisitId,
 } from "@/lib/store";
-import { CURRENT_ENTITY, CURRENT_VISIT_ID, ENTITIES, PROGRAMME_VISITS } from "@/lib/programme";
-
-const CURRENT_VISIT_LABEL =
-  PROGRAMME_VISITS.find((v) => v.id === CURRENT_VISIT_ID)?.label ?? CURRENT_VISIT_ID;
+import { ENTITIES, PROGRAMME_VISITS } from "@/lib/programme";
 import { LIKELIHOODS, SEVERITIES, bandFor, movement } from "@/lib/risk";
 import { Panel, Pill, Track } from "@/components/ui/primitives";
+
+/** "15–18 Sep 2026". The audit window comes off the register's own calendar. */
+function auditWindow(from: string, to: string): string {
+  const M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const [fy, fm, fd] = from.split("-");
+  const [, tm, td] = to.split("-");
+  const day = (d: string) => String(Number(d));
+  return fm === tm
+    ? `${day(fd)}–${day(td)} ${M[Number(tm) - 1]} ${fy}`
+    : `${day(fd)} ${M[Number(fm) - 1]} – ${day(td)} ${M[Number(tm) - 1]} ${fy}`;
+}
 import { IconInfo, IconLoop } from "@/components/ui/icons";
 
 /* The entity list, the visit cycle and the (still empty) zone names live in
@@ -34,15 +48,31 @@ function pct(n: number, total: number) {
 }
 
 export default function DashboardPage() {
-  const responses = useStore((s) => s.responses);
-  const findings = useStore((s) => s.findings);
-  const verifications = useStore((s) => s.verifications);
+  const responses = useResponses();
+  const findings = useVisitFindings();
+  const entityCode = useEntityCode();
+  const entity = useEntity();
+  const visitId = useVisitId();
+  const visitLabel =
+    PROGRAMME_VISITS.find((v) => v.id === visitId)?.label ?? visitId;
+  const cycleVisits = useMemo(
+    () => PROGRAMME_VISITS.filter((v) => v.entity === entityCode),
+    [entityCode]
+  );
+  const verifications = useVerifications();
   const role = useStore((s) => s.role);
+  const portfolio = usePortfolio();
 
   const [level, setLevel] = useState<Level>("airport");
-  const [discipline, setDiscipline] = useState(DISCIPLINES[0]);
+  /* Every number on this page is for the entity in view. The register is 324
+     check-points; this airport's checklist may be 319 or 200, and a percentage
+     against the wrong denominator is a number that lies on a page ACSA reads. */
+  const disciplines = useMemo(() => disciplinesAt(entityCode), [entityCode]);
+  const checks = useMemo(() => checksAt(entityCode), [entityCode]);
+  const prior = useMemo(() => priorFindingsAt(entityCode), [entityCode]);
+  const [discipline, setDiscipline] = useState(disciplines[0]);
 
-  const scope = level === "discipline" ? checksOf(discipline) : CHECKS;
+  const scope = level === "discipline" ? checksOf(entityCode, discipline) : checks;
 
   const stats = useMemo(() => {
     const captured = scope.filter((c) => responses[c.id]?.captured);
@@ -69,13 +99,16 @@ export default function DashboardPage() {
   const bandCount = (b: string) => rated.filter((f) => bandFor(f.severity, f.likelihood) === b).length;
 
   /* prior-finding closure and movement */
-  const priorScope = level === "discipline" ? PRIOR.filter((p) => p.discipline === discipline) : PRIOR;
-  const verified = priorScope.filter((p) => verifications[p.pf]?.outcome).length;
-  const closed = priorScope.filter((p) => verifications[p.pf]?.outcome === "Closed").length;
-  const repeat = priorScope.filter((p) => verifications[p.pf]?.outcome === "Open - repeat").length;
+  const priorScope =
+    level === "discipline" ? prior.filter((p) => p.discipline === discipline) : prior;
+  const verified = priorScope.filter((p) => verifications[p.portalId]?.outcome).length;
+  const closed = priorScope.filter((p) => verifications[p.portalId]?.outcome === "Closed").length;
+  const repeat = priorScope.filter(
+    (p) => verifications[p.portalId]?.outcome === "Open - repeat"
+  ).length;
 
   const currentRating = (disc: string, sys: string) => {
-    const cs = checksOf(disc, sys);
+    const cs = checksOf(entityCode, disc, sys);
     const ncFindings = findings.filter((f) => f.discipline === disc && f.system === sys);
     const bands = ncFindings.map((f) => bandFor(f.severity, f.likelihood));
     if (bands.includes("Red")) return "Unacceptable";
@@ -85,8 +118,12 @@ export default function DashboardPage() {
     return "Not assessed";
   };
 
+  /* An unallocated finding names a building, not an asset system, so there is
+     nothing to compare it against and it is left out of the movement counts
+     rather than counted as unchanged. */
   const moves = priorScope
-    .map((p) => movement(p.rating, currentRating(p.discipline, p.system)))
+    .filter((p) => p.assetSystem)
+    .map((p) => movement(p.tolerance, currentRating(p.discipline, p.assetSystem!)))
     .filter(Boolean);
   const improved = moves.filter((m) => m === "Improved").length;
   const unchanged = moves.filter((m) => m === "Unchanged").length;
@@ -94,7 +131,7 @@ export default function DashboardPage() {
 
   /* coverage guard: prior findings whose asset system has no check in scope */
   const noCoverage = priorScope.filter(
-    (p) => checksOf(p.discipline, p.system).length === 0
+    (p) => p.assetSystem && checksOf(entityCode, p.discipline, p.assetSystem).length === 0
   ).length;
 
   const kpi = (label: string, value: string | number, tone?: "good" | "bad" | "warn" | "acc") => (
@@ -128,8 +165,8 @@ export default function DashboardPage() {
               {level === "portfolio"
                 ? "ACSA network — cycle 2025–2027"
                 : level === "discipline"
-                  ? `${discipline} — ${CURRENT_ENTITY.name}`
-                  : `${CURRENT_ENTITY.name} — ${CURRENT_VISIT_LABEL}`}
+                  ? `${discipline} — ${entity.name}`
+                  : `${entity.name} — ${visitLabel}`}
             </h2>
             <p className="mt-1 max-w-[78ch] text-[12.5px]" style={{ color: "var(--ink-2)" }}>
               {role === "acsa"
@@ -161,7 +198,7 @@ export default function DashboardPage() {
                 className="rounded-[9px] border px-2.5 py-[7px] text-[12px]"
                 style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
               >
-                {DISCIPLINES.map((d) => (
+                {disciplines.map((d) => (
                   <option key={d}>{d}</option>
                 ))}
               </select>
@@ -176,23 +213,26 @@ export default function DashboardPage() {
               <div className="flex items-start gap-2.5 text-[11.5px]" style={{ color: "var(--acc)" }}>
                 <IconInfo width={14} height={14} style={{ marginTop: 1 }} />
                 <span>
-                  Nine airports and head office on a three-year cycle, two visits a year — 60 audits
-                  per cycle. Only {CURRENT_ENTITY.short} carries captured data at this point; the rest are shown
-                  as not yet audited rather than filled with placeholder figures.
+                  Ten sites on a three-year cycle, two visits a year. Round 1 (2026-27) runs
+                  15 Sep to 03 Dec 2026. The checklist is 324 check-points at the three
+                  international airports, 319 at the six regionals (no passenger boarding
+                  bridges) and 200 at Corporate Office (no airfield) — 3,086 in all. Captured
+                  counts are real: a site with nothing captured shows a dash rather than a
+                  placeholder figure.
                 </span>
               </div>
             </Panel>
             <div className="mb-3.5 grid grid-cols-2 gap-[9px] md:grid-cols-4">
-              {kpi("Entities in the cycle", ENTITIES.length, "acc")}
-              {kpi("Audited this cycle", ENTITIES.filter((n) => n.live).length, "good")}
-              {kpi("Open findings, network", findings.length, "bad")}
-              {kpi("Prior findings to verify", PRIOR.length - verified, "warn")}
+              {kpi("Sites in Round 1", portfolio.length, "acc")}
+              {kpi("Check-points, all sites", portfolio.reduce((n, r) => n + r.checks, 0), "acc")}
+              {kpi("Open findings, network", portfolio.reduce((n, r) => n + r.findings, 0), "bad")}
+              {kpi("2025 findings carried in", portfolio.reduce((n, r) => n + r.prior, 0), "warn")}
             </div>
             <div className="overflow-x-auto rounded-[15px] border" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
               <table className="w-full border-collapse text-[12px]">
                 <thead>
                   <tr>
-                    {["Entity", "Code", "This cycle", "Captured", "NC", "Prior findings", "Status"].map((h) => (
+                    {["Site", "Code", "Audit window", "Checklist", "Captured", "NC", "2025 findings"].map((h) => (
                       <th
                         key={h}
                         className="border-b px-3 py-2.5 text-left font-mono text-[8.5px] tracking-[0.09em] uppercase"
@@ -204,31 +244,37 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {ENTITIES.map((n) => (
-                    <tr key={n.code}>
-                      <td className="border-b px-3 py-2.5 font-medium" style={{ borderColor: "var(--line)" }}>
-                        {n.name}
-                      </td>
-                      <td className="border-b px-3 py-2.5 font-mono text-[11px]" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
-                        {n.code}
-                      </td>
-                      <td className="border-b px-3 py-2.5" style={{ borderColor: "var(--line)" }}>
-                        {n.live ? <Pill tone="accent">Sep 2026 · visit 4 of 6</Pill> : <span style={{ color: "var(--ink-4)" }}>—</span>}
-                      </td>
-                      <td className="border-b px-3 py-2.5 text-right font-mono tnum" style={{ borderColor: "var(--line)" }}>
-                        {n.live ? `${stats.captured}/${CHECKS.length}` : "—"}
-                      </td>
-                      <td className="border-b px-3 py-2.5 text-right font-mono tnum" style={{ borderColor: "var(--line)", color: n.live && stats.NC ? "var(--bad)" : "var(--ink-4)" }}>
-                        {n.live ? stats.NC || "—" : "—"}
-                      </td>
-                      <td className="border-b px-3 py-2.5 text-right font-mono tnum" style={{ borderColor: "var(--line)" }}>
-                        {n.code === "FALE" ? PRIOR.length : "—"}
-                      </td>
-                      <td className="border-b px-3 py-2.5" style={{ borderColor: "var(--line)" }}>
-                        {n.live ? <Pill tone="good">In progress</Pill> : <Pill>Not yet audited</Pill>}
-                      </td>
-                    </tr>
-                  ))}
+                  {ENTITIES.map((n) => {
+                    const row = portfolio.find((r) => r.code === n.code);
+                    const live = !!row && row.captured > 0;
+                    const cell = "border-b px-3 py-2.5";
+                    const num = `${cell} text-right font-mono tnum`;
+                    return (
+                      <tr key={n.code}>
+                        <td className={`${cell} font-medium`} style={{ borderColor: "var(--line)" }}>
+                          {n.name}
+                        </td>
+                        <td className={`${cell} font-mono text-[11px]`} style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
+                          {n.short}
+                        </td>
+                        <td className={cell} style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
+                          {n.auditFrom && n.auditTo ? auditWindow(n.auditFrom, n.auditTo) : "—"}
+                        </td>
+                        <td className={num} style={{ borderColor: "var(--line)" }}>
+                          {row?.checks ?? "—"}
+                        </td>
+                        <td className={num} style={{ borderColor: "var(--line)" }}>
+                          {live ? `${row!.captured}/${row!.checks}` : <span style={{ color: "var(--ink-4)" }}>—</span>}
+                        </td>
+                        <td className={num} style={{ borderColor: "var(--line)", color: row?.nc ? "var(--bad)" : "var(--ink-4)" }}>
+                          {row?.nc || "—"}
+                        </td>
+                        <td className={num} style={{ borderColor: "var(--line)", color: row?.prior ? "var(--warn)" : "var(--ink-4)" }}>
+                          {row?.prior || "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -266,12 +312,18 @@ export default function DashboardPage() {
                     </thead>
                     <tbody>
                       {(level === "discipline"
-                        ? Array.from(new Set(checksOf(discipline).map((c) => c.system))).map((sys) => ({
+                        ? Array.from(
+                            new Set(checksOf(entityCode, discipline).map((c) => c.system))
+                          ).map((sys) => ({
                             key: sys,
-                            cs: checksOf(discipline, sys),
-                            pf: priorFor(discipline, sys),
+                            cs: checksOf(entityCode, discipline, sys),
+                            pf: priorFor(entityCode, discipline, sys),
                           }))
-                        : DISCIPLINES.map((d) => ({ key: d, cs: checksOf(d), pf: null }))
+                        : disciplines.map((d) => ({
+                            key: d,
+                            cs: checksOf(entityCode, d),
+                            pf: null,
+                          }))
                       ).map(({ key, cs, pf }) => {
                         const done = cs.filter((c) => responses[c.id]?.captured).length;
                         const nc = cs.filter((c) => responses[c.id]?.compliance === "NC").length;
@@ -295,7 +347,7 @@ export default function DashboardPage() {
                             <td className="border-b px-2.5 py-2.5" style={{ borderColor: "var(--line)" }}>
                               {pf ? (
                                 <Pill tone={pf.rating === "Unacceptable" ? "bad" : pf.rating === "Tolerable" ? "warn" : "good"}>
-                                  {pf.pf}
+                                  {pf.key}
                                 </Pill>
                               ) : (
                                 <span style={{ color: "var(--ink-4)" }}>—</span>
@@ -420,7 +472,7 @@ export default function DashboardPage() {
                 </Panel>
               )}
               <div className="mt-3 flex flex-wrap gap-2">
-                {VISITS.map((v) => (
+                {cycleVisits.map((v) => (
                   <span
                     key={v.id}
                     className="rounded-full px-2.5 py-1 font-mono text-[10px]"

@@ -2,7 +2,18 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PRIOR, checksOf, useStore } from "@/lib/store";
+import {
+  checksOf,
+  useEntity,
+  useEntityCode,
+  useResponses,
+  useStore,
+  useVerifications,
+  useVisitFindings,
+  useVisitId,
+} from "@/lib/store";
+import { useOutstanding, visitsOpen } from "@/lib/carryforward";
+import { PROGRAMME_VISITS } from "@/lib/programme";
 import { bandFor, movement } from "@/lib/risk";
 import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconClock, IconDash, IconLoop, IconX } from "@/components/ui/icons";
@@ -18,14 +29,29 @@ const OUTCOMES: { key: VerificationOutcome; label: string; Icon: typeof IconChec
 const ratingTone = (r: string) =>
   r === "Unacceptable" ? "bad" : r === "Tolerable" ? "warn" : r === "Acceptable" ? "good" : "neutral";
 
-type Filter = "all" | "priority" | "unverified" | "repeat" | "nocover";
+type Filter = "all" | "priority" | "unverified" | "repeat" | "carried" | "nocover";
 
 export default function ClosurePage() {
   const router = useRouter();
-  const responses = useStore((s) => s.responses);
-  const findings = useStore((s) => s.findings);
-  const verifications = useStore((s) => s.verifications);
+  const responses = useResponses();
+  const findings = useVisitFindings();
+  const verifications = useVerifications();
   const patchVerification = useStore((s) => s.patchVerification);
+  const updateFinding = useStore((s) => s.updateFinding);
+  const entity = useEntity();
+  const entityCode = useEntityCode();
+  const visitId = useVisitId();
+
+  /* Everything an earlier visit at this entity left open — the seeded 2025
+     findings and any finding this app raised on a previous visit that nobody
+     closed. Both are the same question in front of the asset. */
+  const outstanding = useOutstanding();
+
+  const visitLabel =
+    PROGRAMME_VISITS.find((v) => v.id === visitId)?.label ?? visitId;
+  const nextVisit = PROGRAMME_VISITS.filter(
+    (v) => v.entity === entityCode && v.id > visitId
+  )[0];
 
   const [filter, setFilter] = useState<Filter>("all");
   const [activePf, setActivePf] = useState<string | null>(null);
@@ -38,7 +64,7 @@ export default function ClosurePage() {
 
   /** Current rating of an asset system, from this visit's captured data. */
   const currentRating = (discipline: string, system: string) => {
-    const cs = checksOf(discipline, system);
+    const cs = checksOf(entityCode, discipline, system);
     if (cs.length === 0) return "No coverage";
     const bands = findings
       .filter((f) => f.discipline === discipline && f.system === system)
@@ -51,26 +77,30 @@ export default function ClosurePage() {
   };
 
   const list = useMemo(() => {
-    let l = PRIOR;
+    let l = outstanding;
     if (filter === "priority") l = l.filter((p) => p.rating === "Unacceptable" || p.rating === "Tolerable");
-    if (filter === "unverified") l = l.filter((p) => !verifications[p.pf]?.outcome);
-    if (filter === "repeat") l = l.filter((p) => verifications[p.pf]?.outcome === "Open - repeat");
-    if (filter === "nocover") l = l.filter((p) => checksOf(p.discipline, p.system).length === 0);
+    if (filter === "unverified") l = l.filter((p) => !verifications[p.key]?.outcome);
+    if (filter === "repeat") l = l.filter((p) => verifications[p.key]?.outcome === "Open - repeat");
+    if (filter === "carried") l = l.filter((p) => p.source === "carried");
+    if (filter === "nocover")
+      l = l.filter((p) => checksOf(entityCode, p.discipline, p.system).length === 0);
     return l;
-  }, [filter, verifications]);
+  }, [entityCode, filter, verifications, outstanding]);
 
-  const active = list.find((p) => p.pf === activePf) ?? list[0];
-  const v = active ? verifications[active.pf] : undefined;
+  const active = list.find((p) => p.key === activePf) ?? list[0];
+  const v = active ? verifications[active.key] : undefined;
 
   const counts = {
-    closed: PRIOR.filter((p) => verifications[p.pf]?.outcome === "Closed").length,
-    partial: PRIOR.filter((p) => verifications[p.pf]?.outcome === "Partially closed").length,
-    repeat: PRIOR.filter((p) => verifications[p.pf]?.outcome === "Open - repeat").length,
-    unverified: PRIOR.filter((p) => !verifications[p.pf]?.outcome).length,
-    nocover: PRIOR.filter((p) => checksOf(p.discipline, p.system).length === 0).length,
+    closed: outstanding.filter((p) => verifications[p.key]?.outcome === "Closed").length,
+    partial: outstanding.filter((p) => verifications[p.key]?.outcome === "Partially closed").length,
+    repeat: outstanding.filter((p) => verifications[p.key]?.outcome === "Open - repeat").length,
+    unverified: outstanding.filter((p) => !verifications[p.key]?.outcome).length,
+    carried: outstanding.filter((p) => p.source === "carried").length,
+    nocover: outstanding.filter((p) => checksOf(entityCode, p.discipline, p.system).length === 0)
+      .length,
   };
 
-  const linked = active ? checksOf(active.discipline, active.system) : [];
+  const linked = active ? checksOf(entityCode, active.discipline, active.system) : [];
   const linkedNC = linked.filter((c) => responses[c.id]?.compliance === "NC").length;
   const cur = active ? currentRating(active.discipline, active.system) : "";
   const move = active ? movement(active.rating, cur) : null;
@@ -79,10 +109,21 @@ export default function ClosurePage() {
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
       <div className="mx-auto w-full max-w-[1240px] px-5 pt-5 pb-16">
         <div className="mb-4">
-          <h2 className="text-[18px] font-bold">2025 findings · closure verification</h2>
+          <h2 className="text-[18px] font-bold">
+            Outstanding at {entity.short} · closure verification
+          </h2>
           <p className="mt-1 max-w-[78ch] text-[12.5px]" style={{ color: "var(--ink-2)" }}>
-            All {PRIOR.length} findings from the March 2025 ACSA audit, pre-loaded.{" "}
-            {PRIOR.length - counts.unverified} of {PRIOR.length} verified this visit.
+            {outstanding.length === 0 ? (
+              <>Nothing is outstanding at {entity.name} coming into {visitLabel}.</>
+            ) : (
+              <>
+                {outstanding.length} item{outstanding.length === 1 ? "" : "s"} left open by earlier
+                visits — {outstanding.length - counts.carried} from the 2025 audit,{" "}
+                {counts.carried} raised in this system and never closed.{" "}
+                {outstanding.length - counts.unverified} of {outstanding.length} verified on{" "}
+                {visitLabel}.
+              </>
+            )}
           </p>
         </div>
 
@@ -92,7 +133,7 @@ export default function ClosurePage() {
             ["Partially closed", counts.partial, "warn"],
             ["Still open — repeat", counts.repeat, "bad"],
             ["Not yet verified", counts.unverified, "neu"],
-            ["No check covers it", counts.nocover, "acc"],
+            ["Carried from a visit", counts.carried, "acc"],
           ].map(([label, value, tone]) => (
             <div
               key={label as string}
@@ -114,8 +155,10 @@ export default function ClosurePage() {
           <div className="flex items-start gap-2.5 text-[11.5px]" style={{ color: "var(--acc)" }}>
             <IconLoop width={14} height={14} style={{ marginTop: 1 }} />
             <span>
-              Findings carry on the <b>3-year cycle</b>. Anything left open here reappears at March 2027
-              with its owner, due date and evidence trail intact.
+              Findings carry on the <b>3-year cycle</b>. Anything still open when this visit ends
+              reappears{nextVisit ? ` at ${nextVisit.label}` : " on the next visit"} with its owner,
+              due date and evidence trail intact — and marking one <b>Closed</b> here closes the
+              finding itself, so it stops carrying.
             </span>
           </div>
         </Panel>
@@ -123,11 +166,12 @@ export default function ClosurePage() {
         <div className="mb-3 flex flex-wrap gap-[6px]">
           {(
             [
-              ["all", `All ${PRIOR.length}`],
+              ["all", `All ${outstanding.length}`],
               ["priority", "Was Unacceptable / Tolerable"],
               ["unverified", "Not yet verified"],
               ["repeat", "Repeats"],
-              ["nocover", "No 2026 coverage"],
+              ["carried", `Carried forward (${counts.carried})`],
+              ["nocover", "Not covered this visit"],
             ] as [Filter, string][]
           ).map(([k, label]) => (
             <button
@@ -151,12 +195,12 @@ export default function ClosurePage() {
               <Empty>Nothing matches this filter.</Empty>
             ) : (
               list.map((p) => {
-                const o = verifications[p.pf]?.outcome;
-                const on = p.pf === active?.pf;
+                const o = verifications[p.key]?.outcome;
+                const on = p.key === active?.key;
                 return (
                   <button
-                    key={p.pf}
-                    onClick={() => setActivePf(p.pf)}
+                    key={p.key}
+                    onClick={() => setActivePf(p.key)}
                     className="relative flex w-full items-start gap-2 border-b px-[11px] py-[9px] text-left transition-[var(--t)]"
                     style={{ borderColor: "var(--line)", background: on ? "var(--acc-soft)" : "transparent" }}
                   >
@@ -168,7 +212,7 @@ export default function ClosurePage() {
                     />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                        {p.pf} · {p.system}
+                        {p.key} · {p.system} · {p.originLabel}
                       </span>
                       <span className="mt-[1px] block truncate text-[11.5px]">{p.finding}</span>
                     </span>
@@ -184,12 +228,25 @@ export default function ClosurePage() {
           {active && (
             <div className="rounded-[15px] border p-[18px]" style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "var(--e2)" }}>
               <div className="mb-1.5 flex flex-wrap items-center gap-[7px] font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
-                <span>{active.pf}</span>
+                <span>{active.key}</span>
                 <span>·</span>
                 <span>{active.discipline}</span>
                 <span>·</span>
                 <span>{active.system}</span>
-                <Pill tone={ratingTone(active.rating)}>MAR 2025 {active.rating.toUpperCase()}</Pill>
+                <Pill tone={ratingTone(active.rating)}>
+                  {active.originLabel.toUpperCase()} {active.rating.toUpperCase()}
+                </Pill>
+                {active.source === "carried" && <Pill tone="accent">CARRIED FORWARD</Pill>}
+                {(() => {
+                  const n = visitsOpen(active, entityCode, visitId);
+                  return n > 0 ? (
+                    <Pill tone="bad">
+                      OPEN ACROSS {n + 1} VISIT{n ? "S" : ""}
+                    </Pill>
+                  ) : null;
+                })()}
+                {active.owner && <span>· {active.owner}</span>}
+                {active.dueDate && <span>· due {active.dueDate}</span>}
               </div>
               <h3 className="mb-1 text-[14.5px] leading-[1.35] font-bold">{active.finding}</h3>
 
@@ -199,10 +256,20 @@ export default function ClosurePage() {
                 style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
               >
                 {[
-                  { n: "✓", t: "Raised", s: "Mar 2025", done: true },
-                  { n: "2", t: "Remediated", s: "by KSIA", done: !!v?.outcome && v.outcome !== "Not verified" },
-                  { n: "3", t: "Verified", s: "Sep 2026", done: !!v?.outcome, now: !v?.outcome },
-                  { n: "4", t: "Re-check", s: "Mar 2027", done: false },
+                  { n: "✓", t: "Raised", s: active.originLabel, done: true },
+                  {
+                    n: "2",
+                    t: "Remediated",
+                    s: `by ${entity.short}`,
+                    done: !!v?.outcome && v.outcome !== "Not verified",
+                  },
+                  { n: "3", t: "Verified", s: visitLabel, done: !!v?.outcome, now: !v?.outcome },
+                  {
+                    n: "4",
+                    t: v?.outcome === "Closed" ? "Closed" : "Re-check",
+                    s: v?.outcome === "Closed" ? "does not carry" : (nextVisit?.label ?? "next visit"),
+                    done: v?.outcome === "Closed",
+                  },
                 ].map((step, i, arr) => (
                   <span key={step.t} className="flex shrink-0 items-center">
                     <span className="flex shrink-0 items-center gap-2">
@@ -246,11 +313,27 @@ export default function ClosurePage() {
                     <button
                       key={key}
                       onClick={() => {
-                        patchVerification(active.pf, {
-                          outcome: on ? null : key,
+                        const outcome = on ? null : key;
+                        patchVerification(active.key, {
+                          outcome,
                           verifiedAt: Date.now(),
                         });
-                        if (!on) say(`${active.pf} — ${label}`);
+                        /* A carried finding is a real record, not a row in a
+                           list. Closing it here has to close it there, or it
+                           reappears on the next visit having been verified
+                           closed on this one. Un-picking reopens it for the
+                           same reason. */
+                        if (active.findingId) {
+                          updateFinding(active.findingId, {
+                            actionStatus:
+                              outcome === "Closed"
+                                ? "Closed"
+                                : outcome === "Partially closed"
+                                  ? "In progress"
+                                  : "Open",
+                          });
+                        }
+                        if (!on) say(`${active.key} — ${label}`);
                       }}
                       className="flex min-h-[56px] flex-col items-center justify-center gap-[5px] rounded-[11px] border-[1.5px] px-1 py-2.5 font-display text-[10.5px] font-semibold transition-[var(--t)] hover:-translate-y-[1px]"
                       style={
@@ -269,7 +352,7 @@ export default function ClosurePage() {
               <div className="mt-4 mb-2 font-display text-[11px] font-semibold">Evidence of closure</div>
               <textarea
                 value={v?.evidence ?? ""}
-                onChange={(e) => patchVerification(active.pf, { evidence: e.target.value })}
+                onChange={(e) => patchVerification(active.key, { evidence: e.target.value })}
                 placeholder="What proves it was fixed…"
                 className="min-h-[70px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
                 style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
@@ -277,7 +360,7 @@ export default function ClosurePage() {
 
               <div className="mt-4 mb-2 flex items-center justify-between">
                 <b className="font-display text-[11px] font-semibold">
-                  Sep 2026 checks covering {active.system}
+                  {visitLabel} checks covering {active.system}
                 </b>
                 <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
                   {linked.length} linked · {linkedNC} NC · current: {cur}
@@ -357,9 +440,9 @@ export default function ClosurePage() {
                 <Btn
                   variant="primary"
                   onClick={() => {
-                    const i = list.findIndex((p) => p.pf === active.pf);
-                    setActivePf(list[i + 1]?.pf ?? active.pf);
-                    say(`${active.pf} saved`);
+                    const i = list.findIndex((p) => p.key === active.key);
+                    setActivePf(list[i + 1]?.key ?? active.key);
+                    say(`${active.key} saved`);
                   }}
                 >
                   <IconCheck width={14} height={14} />

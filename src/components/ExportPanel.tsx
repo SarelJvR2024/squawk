@@ -1,8 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { CHECKS, PRIOR, useStore } from "@/lib/store";
+import { useEffect, useState } from "react";
+import {
+  checksAt,
+  priorFindingsAt,
+  useResponses,
+  useEntityCode,
+  useVerifications,
+  useVisitFindings,
+  useVisitId,
+} from "@/lib/store";
 import { loadAnswers } from "@/lib/answers";
+import { formatBytes, photoBudget } from "@/lib/media";
 import {
   aboutSheet,
   closureSheet,
@@ -10,6 +19,7 @@ import {
   exportFilename,
   findingsSheet,
   fullWorkbook,
+  photographsSheet,
   registerSheet,
   summarySheet,
   type ExportInput,
@@ -18,14 +28,14 @@ import { downloadText, downloadWorkbook, toCsv, type Sheet } from "@/lib/xlsx";
 import { Btn } from "@/components/ui/primitives";
 import { IconDownload, IconX } from "@/components/ui/icons";
 
-type Kind = "full" | "register" | "findings" | "closure" | "evidence" | "summary";
+type Kind = "full" | "register" | "findings" | "closure" | "evidence" | "summary" | "photographs";
 
 const OPTIONS: { kind: Kind; title: string; blurb: string }[] = [
   {
     kind: "full",
     title: "Everything",
     blurb:
-      "Six sheets: a cover note explaining what a blank cell means, the summary, the register, the findings, the closure position and the evidence request.",
+      "Seven sheets: a cover note explaining what a blank cell means, the summary, the register, the findings, the closure position, the evidence request and the photograph index.",
   },
   {
     kind: "register",
@@ -43,7 +53,7 @@ const OPTIONS: { kind: Kind; title: string; blurb: string }[] = [
     kind: "closure",
     title: "Closure",
     blurb:
-      "The 23 March 2025 findings, what was verified this visit, and the coverage guard where no current check covers the asset system.",
+      "This site's open 2025 findings, what was verified this visit, and the coverage guard where no current check covers the asset system.",
   },
   {
     kind: "evidence",
@@ -56,12 +66,39 @@ const OPTIONS: { kind: Kind; title: string; blurb: string }[] = [
     title: "Summary",
     blurb: "Progress and findings by discipline. One page, for the out-brief.",
   },
+  {
+    kind: "photographs",
+    title: "Photographs",
+    blurb:
+      "One row per photograph — what it shows, which check it belongs to, who captioned it and when it was taken. A photograph nobody indexed is a photograph nobody will find.",
+  },
 ];
 
+/** Above this, say something. A tablet's IndexedDB quota is not a fixed number
+ *  — it depends on the device and how much free space it has — so this is a
+ *  "look at this" line rather than a limit, chosen to fire long before a real
+ *  quota does. */
+const WARN_BYTES = 200 * 1024 * 1024;
+
 export default function ExportPanel({ onClose }: { onClose: () => void }) {
-  const responses = useStore((s) => s.responses);
-  const findings = useStore((s) => s.findings);
-  const verifications = useStore((s) => s.verifications);
+  const responses = useResponses();
+  const findings = useVisitFindings();
+  const verifications = useVerifications();
+  const entityCode = useEntityCode();
+  const [budget, setBudget] = useState({ count: 0, bytes: 0 });
+  useEffect(() => {
+    let live = true;
+    void photoBudget().then((b) => live && setBudget(b));
+    return () => {
+      live = false;
+    };
+  }, []);
+  const uncaptioned = Object.values(responses).reduce(
+    (n, r) =>
+      n + r.attachments.filter((a) => a.kind === "photo" && !a.caption?.trim()).length,
+    0
+  );
+  const visitId = useVisitId();
   const [busy, setBusy] = useState<Kind | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,10 +111,12 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
          is lazily loaded, so wait for it rather than exporting a worse file. */
       const library = await loadAnswers();
       const x: ExportInput = {
-        checks: CHECKS,
+        entity: entityCode,
+        visit: visitId,
+        checks: checksAt(entityCode),
         responses,
         findings,
-        prior: PRIOR,
+        prior: priorFindingsAt(entityCode),
         verifications,
         library,
       };
@@ -87,15 +126,16 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
         closure: () => closureSheet(x),
         evidence: () => evidenceRequestSheet(x),
         summary: () => summarySheet(x),
+        photographs: () => photographsSheet(x),
       };
 
       if (csv) {
         const sheet = kind === "full" ? registerSheet(x) : one[kind]();
-        downloadText(toCsv(sheet), exportFilename(kind === "full" ? "register" : kind, "csv"));
+        downloadText(toCsv(sheet), exportFilename(entityCode, visitId, kind === "full" ? "register" : kind, "csv"));
       } else if (kind === "full") {
-        downloadWorkbook(fullWorkbook(x), exportFilename("audit"));
+        downloadWorkbook(fullWorkbook(x), exportFilename(entityCode, visitId, "audit"));
       } else {
-        downloadWorkbook([aboutSheet(x), one[kind]()], exportFilename(kind));
+        downloadWorkbook([aboutSheet(x), one[kind]()], exportFilename(entityCode, visitId, kind));
       }
     } catch (e) {
       /* Say what went wrong. A silent failure on an export looks like a browser
@@ -131,10 +171,38 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         <p className="mb-4 text-[12px] leading-[1.55]" style={{ color: "var(--ink-2)" }}>
-          {captured} of {CHECKS.length} check-points captured, {findings.length}{" "}
+          {captured} of {checksAt(entityCode).length} check-points captured, {findings.length}{" "}
           {findings.length === 1 ? "finding" : "findings"} raised. Everything is exported as it
           stands — an empty status means not captured, never compliant.
         </p>
+
+        {/* What the evidence is costing the tablet. A device running out of
+            storage mid-audit must fail visibly: the browser's own error for a
+            full quota is opaque, arrives while somebody is standing on an
+            apron, and looks like the app simply refusing to save. */}
+        <div
+          className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[10px] border px-[10px] py-[8px] text-[11.5px]"
+          style={{
+            background: budget.bytes > WARN_BYTES ? "var(--warn-bg)" : "var(--sunken)",
+            borderColor: budget.bytes > WARN_BYTES ? "var(--warn-line)" : "var(--line-2)",
+            color: budget.bytes > WARN_BYTES ? "var(--warn)" : "var(--ink-2)",
+          }}
+        >
+          <span>
+            <b>{budget.count}</b> photograph{budget.count === 1 ? "" : "s"} and voice note
+            {budget.count === 1 ? "" : "s"} stored on this device, <b>{formatBytes(budget.bytes)}</b>
+          </span>
+          {uncaptioned > 0 && (
+            <span style={{ color: "var(--warn)" }}>
+              {uncaptioned} photograph{uncaptioned === 1 ? "" : "s"} with no caption
+            </span>
+          )}
+          {budget.bytes > WARN_BYTES && (
+            <span>
+              Getting large. Export and reset a finished visit before starting another.
+            </span>
+          )}
+        </div>
 
         {error && (
           <div

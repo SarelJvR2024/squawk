@@ -2,10 +2,20 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CHECKS, DISCIPLINES, RESPONSIBLE, ROOT_CAUSES, useStore } from "@/lib/store";
+import {
+  checksAt,
+  disciplinesAt,
+  ROOT_CAUSES,
+  responsibleFor,
+  useEntityCode,
+  useResponses,
+  useStore,
+  useVisitFindings,
+} from "@/lib/store";
 import { assist, findingContext, useAssistAvailable } from "@/lib/assist";
 import { BAND_META, LIKELIHOOD_DEF, LIKELIHOODS, SEVERITIES, SEVERITY_DEF, bandFor, cellCode } from "@/lib/risk";
 import { Btn, Chip, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
+import RootCauseAdvice from "@/components/RootCauseAdvice";
 import { IconCheck, IconInbox, IconLoop, IconSpark } from "@/components/ui/icons";
 import type { ActionStatus, Finding } from "@/lib/types";
 
@@ -13,7 +23,9 @@ type Filter = "all" | "unrated" | "open" | "repeat";
 
 export default function FindingsPage() {
   const router = useRouter();
-  const findings = useStore((s) => s.findings);
+  const findings = useVisitFindings();
+  const entityCode = useEntityCode();
+  const responses = useResponses();
   const updateFinding = useStore((s) => s.updateFinding);
 
   const [filter, setFilter] = useState<Filter>("all");
@@ -87,7 +99,7 @@ export default function FindingsPage() {
               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             >
               <option>All</option>
-              {DISCIPLINES.map((d) => (
+              {disciplinesAt(entityCode).map((d) => (
                 <option key={d}>{d}</option>
               ))}
             </select>
@@ -388,7 +400,7 @@ export default function FindingsPage() {
                       onClick={async () => {
                         setAsking(true);
                         try {
-                          const check = CHECKS.find((c) => c.id === active.checkId);
+                          const check = checksAt(entityCode).find((c) => c.id === active.checkId);
                           const text = await assist("rating", findingContext(active, check));
                           setOpinion({ id: active.id, text });
                         } catch (err) {
@@ -412,12 +424,25 @@ export default function FindingsPage() {
               )}
 
               <div className="mb-2 font-display text-[11px] font-semibold">Root cause</div>
-              <div className="mb-4 flex flex-wrap gap-[5px]">
+              <div className="flex flex-wrap gap-[5px]">
                 {ROOT_CAUSES.map((rc) => (
                   <Chip key={rc} selected={active.rootCause === rc} onClick={() => updateFinding(active.id, { rootCause: rc })}>
                     {rc}
                   </Chip>
                 ))}
+              </div>
+              {/* Same component as the check screen. Some findings are worked
+                  here rather than at the check, and the advice must not differ
+                  depending on which screen the auditor happened to open. */}
+              <div className="mb-4">
+                <RootCauseAdvice
+                  finding={active}
+                  check={active.checkId ? checksAt(entityCode).find((c) => c.id === active.checkId) : undefined}
+                  attachments={
+                    active.checkId ? (responses[active.checkId]?.attachments ?? []) : []
+                  }
+                  onPick={(rc) => updateFinding(active.id, { rootCause: rc })}
+                />
               </div>
 
               <div className="mb-2 font-display text-[11px] font-semibold">Remediation action</div>
@@ -442,7 +467,7 @@ export default function FindingsPage() {
                     }}
                   >
                     <option value="">{active.owner ? "Select…" : "⚠ unassigned"}</option>
-                    {RESPONSIBLE.map((r) => (
+                    {responsibleFor(entityCode).map((r) => (
                       <option key={r}>{r}</option>
                     ))}
                   </select>

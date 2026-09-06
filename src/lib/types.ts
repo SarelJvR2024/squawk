@@ -106,21 +106,74 @@ export interface Check {
   /** A caveat worth reading before quoting the basis — most often that ACSA's own
    *  cited standard is superseded or misattributed, which is a finding in itself. */
   basisNote: string | null;
-  /** The March 2025 finding covering this check's asset system, if any. Kept on
-   *  the check itself so filters, pills and counts stay synchronous. */
-  pf: string | null;
-  pfq: string | null;
+  /* There were `pf` and `pfq` columns here — the March 2025 King Shaka finding
+     covering this check's asset system, cached on the check so filters and
+     pills stayed synchronous. They are gone. Rev A2 is ONE register shared by
+     ten sites, so a King Shaka finding baked into a register row announced
+     itself at Cape Town, at Corporate Office and at seven sites that have never
+     been audited. The prior rating is a property of the site, not of the
+     requirement: ask priorFor(entityCode, discipline, system). */
   /** Walkabout options available — lets field mode filter without loading the library. */
   woCount: number;
   optionCount: number;
 }
 
-export interface PriorFinding {
-  pf: string;
+export type Tolerance = "Unacceptable" | "Tolerable" | "Acceptable" | "Not audited";
+
+/** One asset system's standing coming into this audit, at ONE site.
+ *
+ *  King Shaka carries the 22 ratings published in the March 2025 report.
+ *  O.R. Tambo and Cape Town have no published rating table, so theirs are
+ *  derived from their own 2025 portal findings — `derived` says which, because
+ *  a derived rating must not be shown as though ACSA had signed it off. The
+ *  other seven sites are baseline audits and have none. */
+export interface PriorRating {
+  /** Key a verification is stored under. King Shaka keeps PF-01…PF-22. */
+  key: string;
+  siteCode: string;
+  entityCode: string;
   discipline: string;
   system: string;
-  rating: "Unacceptable" | "Tolerable" | "Acceptable" | "Not audited";
-  finding: string;
+  rating: Tolerance;
+  note: string;
+  derived: boolean;
+  /** Portal ids of the findings a derived rating was computed from. */
+  from?: string[];
+}
+
+/** One open 2025 finding as it stands in the ACSA portal's Findings list.
+ *
+ *  `portalId` is the Title of the portal item and is the sync key — it is
+ *  never regenerated, reformatted or renumbered here.
+ *
+ *  `assetSystem` is null for the 19 findings that name a building or an area
+ *  rather than a register asset system (Cargo Building, Parkade Bridges,
+ *  Medical Surveillance Records and the rest). They are carried and shown, and
+ *  the discipline lead allocates them in the field — dropping them because
+ *  they do not join to a check would lose real open findings. */
+export interface PriorFinding {
+  portalId: string;
+  portalItemId: number;
+  siteCode: string;
+  entityCode: string;
+  discipline: string;
+  disciplineCode: string;
+  /** The asset system as the 2025 report worded it. */
+  assetSystemRecorded: string;
+  /** The register asset system it maps to, or null if it maps to none. */
+  assetSystem: string | null;
+  observation: string;
+  /** Rev A2's own scale, carried verbatim for display. NOT fed to
+   *  src/lib/risk.ts, whose B170 001M banding disagrees with it on five of
+   *  twenty-five cells — see the open question in README.md. */
+  severity: string | null;
+  likelihood: string | null;
+  riskPriority: string;
+  tolerance: Tolerance;
+  findingType: string;
+  status: string;
+  dateRaised: string;
+  reference: string;
 }
 
 /* ---------- instance data ---------- */
@@ -129,9 +182,57 @@ export interface Attachment {
   id: string;
   kind: "photo" | "voice" | "file";
   name: string;
+  /** Key into the media store (src/lib/media.ts), NOT the bytes. Blobs are
+   *  held under their own IndexedDB keys because this record is persisted
+   *  inside one JSON value that rewrites on every keystroke. */
+  blobKey?: string;
+  mimeType?: string;
+  /** Legacy inline data from before the media store existed. Read, never
+   *  written. */
   dataUrl?: string;
+  /** Small inline preview, so a strip of photographs paints without an async
+   *  read per tile. The full image lives in the media store under its blobKey
+   *  and is NEVER put in the persisted value — see src/lib/media.ts. */
+  thumbDataUrl?: string;
+  width?: number;
+  height?: number;
+  bytes?: number;
+  /** EXIF DateTimeOriginal, where the file carried one. When a photograph was
+   *  taken is audit evidence; the canvas re-encode strips EXIF, so this is read
+   *  off the original before it is downscaled. */
+  takenAt?: number;
+  /** What this photograph shows, in the auditor's words.
+   *
+   *  This is what makes a photograph searchable, reportable and usable at all.
+   *  An uncaptioned photograph is shown as incomplete, the same as a finding
+   *  with no owner: in six months nobody will know what they are looking at,
+   *  and a reviewer reading the workbook has only a filename. */
+  caption?: string;
+  /** Set when the caption text came from the assistant and a person accepted
+   *  it. A caption an auditor wrote and one a model proposed are not the same
+   *  evidence and the export says which. */
+  captionSource?: "auditor" | "assistant";
+  /** Measured elapsed seconds. Absent for a photograph. */
   durationSec?: number;
+  /** What was actually said, verbatim — typed by the auditor, heard by the
+   *  browser's dictation engine, or returned by the transcription service.
+   *  This is the record of the recording and is never overwritten by a tidied
+   *  version of itself. */
   transcript?: string;
+  /** Where `transcript` came from, so a reader can weigh it. "browser" is the
+   *  on-device speech engine listening live while the note was recorded;
+   *  "service" is the audio sent to the transcription service afterwards;
+   *  absent means an auditor typed it. */
+  transcriptSource?: "browser" | "service";
+  /** The transcript rewritten as an audit-grade answer — a SUGGESTION, held
+   *  beside the verbatim text rather than replacing it, and not in the audit
+   *  record until the auditor accepts it into the observation. */
+  revised?: string;
+  transcribedAt?: number;
+  /** Set by the v4 migration on attachments recorded before capture was real:
+   *  the record exists but there is no audio or image behind it. Shown as
+   *  unavailable rather than silently rendering an empty player. */
+  unavailable?: boolean;
   createdAt: number;
   createdBy: string;
 }
@@ -144,15 +245,31 @@ export interface Response {
   issuesPicked: number[];
   walkaboutPicked: number | null;
   attachments: Attachment[];
+  /** DERIVED, and written only by the store: true when every mode this check's
+   *  vtype declares has been answered. A check needing both a document review
+   *  and the asset seen is not captured until both halves are done — before
+   *  per-portal tracking existed this flag went true on the first save from
+   *  either screen, so 305 checks could read as complete with nobody having
+   *  looked at the asset. Never set this directly; call commit(id, portal). */
   captured: boolean;
+  /** Who and when for the half that COMPLETED the check. */
   capturedBy: string;
   capturedAt: number | null;
+  /** The desk half — evidence collected and questions asked, from Capture. */
+  deskDoneBy: string;
+  deskDoneAt: number | null;
+  /** The field half — the asset seen, from Field inspection. */
+  fieldDoneBy: string;
+  fieldDoneAt: number | null;
   flaggedForField: boolean;
 }
 
 export interface Finding {
   id: string;
   checkId: string | null;
+  /** Which entity this was raised at. With originVisit it is what lets the
+   *  next visit to the same airport see what the last one left open. */
+  entity: string;
   discipline: string;
   system: string;
   area: string;
@@ -192,8 +309,17 @@ export interface Capture {
   id: string;
   kind: "photo" | "voice";
   name: string;
+  /** As Attachment.blobKey — the media store holds the bytes. */
+  blobKey?: string;
+  mimeType?: string;
+  /** Legacy inline data. Read, never written. */
   dataUrl?: string;
+  durationSec?: number;
   transcript?: string;
+  /** As Attachment.transcriptSource. Carried through assignCapture so a note
+   *  dictated in the tray keeps its provenance once it reaches a check. */
+  transcriptSource?: "browser" | "service";
+  unavailable?: boolean;
   area: string;
   createdAt: number;
   createdBy: string;
@@ -208,3 +334,25 @@ export interface Visit {
 }
 
 export type Role = "tpjv" | "acsa";
+
+/** A note left on a check's visual evidence during review.
+ *
+ *  Distinct from `Response.observation`, which is the auditor's record of what
+ *  was found, and from `Finding.description`, which is what goes to ACSA. This
+ *  is the conversation about the photograph — an engineer who was not on site
+ *  asking whether that is the right panel, or confirming it has since been
+ *  replaced. It is never merged into either of the other two. */
+export interface FeedbackNote {
+  id: string;
+  /** The check whose evidence is being discussed. */
+  checkId: string;
+  text: string;
+  author: string;
+  /** Which side left it. An engineer's read of a photograph and an auditor's
+   *  are both worth having, and worth telling apart. */
+  role: Role;
+  createdAt: number;
+  /** Set when someone marks the point dealt with. The note stays — a thread
+   *  that erases itself is no use at the next visit. */
+  resolvedAt: number | null;
+}

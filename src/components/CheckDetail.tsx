@@ -2,22 +2,26 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Check, Compliance } from "@/lib/types";
-import { CURRENT_VISIT, priorFor, useStore } from "@/lib/store";
+import { priorFor, useEntityCode, useResponses, useStore, useVisitFindings, useVisitId } from "@/lib/store";
+import { portalIdFor } from "@/lib/sites";
 import { useAnswers } from "@/lib/answers";
 import {
   assist,
   checkContext,
   composeObservation,
+  transcriptContext,
   useAssistAvailable,
 } from "@/lib/assist";
 import { bandFor, BAND_META } from "@/lib/risk";
+import { modeLabels, needsField } from "@/lib/verification";
+import { AttachmentStrip, PhotoButton, VoiceNoteButton } from "./Capture";
+import RootCauseAdvice from "./RootCauseAdvice";
 import {
-  IconCamera,
   IconCheck,
   IconClock,
   IconDash,
   IconLeft,
-  IconMic,
+  IconPin,
   IconRight,
   IconSpark,
   IconWand,
@@ -52,7 +56,7 @@ export default function CheckDetail({
   onNext: () => void;
   onSaved: (msg: string) => void;
 }) {
-  const r = useStore((s) => s.responses[check.id]) ?? {
+  const r = useResponses()[check.id] ?? {
     checkId: check.id,
     compliance: null,
     observation: "",
@@ -63,6 +67,10 @@ export default function CheckDetail({
     captured: false,
     capturedBy: "",
     capturedAt: null,
+    deskDoneBy: "",
+    deskDoneAt: null,
+    fieldDoneBy: "",
+    fieldDoneAt: null,
     flaggedForField: false,
   };
   const auditor = useStore((s) => s.auditor);
@@ -73,9 +81,12 @@ export default function CheckDetail({
   const appendObservation = useStore((s) => s.appendObservation);
   const patch = useStore((s) => s.patch);
   const addAttachment = useStore((s) => s.addAttachment);
+  const removeAttachment = useStore((s) => s.removeAttachment);
+  const updateAttachment = useStore((s) => s.updateAttachment);
+  const updateFinding = useStore((s) => s.updateFinding);
   const commit = useStore((s) => s.commit);
+  const visitId = useVisitId();
 
-  const [recording, setRecording] = useState(false);
   const aiOn = useAssistAvailable();
   const [draft, setDraft] = useState<string | null>(null);
   const [thinking, setThinking] = useState<null | "observation" | "explain">(null);
@@ -83,7 +94,19 @@ export default function CheckDetail({
   const [titleOpen, setTitleOpen] = useState(false);
   const obsRef = useRef<HTMLTextAreaElement>(null);
   const a = useAnswers(check.id);
-  const pf = check.pf ? priorFor(check.discipline, check.system) : null;
+  const entityCode = useEntityCode();
+  /* Findings this check has raised, so their root cause can be worked here
+     rather than only on the findings screen. */
+  const raised = useVisitFindings().filter((f) => f.checkId === check.id);
+  /* The id an auditor reads out and the portal syncs on is the SITE's id.
+     ORTIA-ELE-001 and KSIA-ELE-001 are the same requirement at two airports;
+     showing the King Shaka number at O.R. Tambo would be quoting the wrong
+     check-point into an ACSA report. */
+  const portalId = portalIdFor(entityCode, check.id);
+  /* The prior rating belongs to the entity in view, not to the register row.
+     `check.pf` was a static column carrying King Shaka's PF number to every
+     site, so a Cape Town check announced a King Shaka finding. */
+  const pf = priorFor(entityCode, check.discipline, check.system);
   const longTitle = check.requirement.length > 140;
 
   /* Suggestions belong to the check that produced them. */
@@ -112,8 +135,12 @@ export default function CheckDetail({
   }, [check.id, r.compliance, setCompliance, onNext, onPrev]);
 
   const save = (advance: boolean) => {
-    commit(check.id);
-    onSaved(`${check.id} saved`);
+    commit(check.id, "desk");
+    onSaved(
+      needsField(check) && !r.fieldDoneAt
+        ? `${portalId} — desk done. Still needs the asset seen in Field.`
+        : `${portalId} saved`
+    );
     if (advance) onNext();
   };
 
@@ -128,15 +155,22 @@ export default function CheckDetail({
         style={{ background: "var(--panel)", borderColor: "var(--line)" }}
       >
         <div className="mb-[5px] flex flex-wrap items-center gap-[7px] font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
-          <span>{check.id}</span>
+          <span>{portalId}</span>
           <span>·</span>
           <span>{check.system}</span>
-          <Pill tone="accent">{check.vtype ?? ""}</Pill>
+          {/* What this check actually requires, from the register's vtype.
+              "Physical" also means it is waiting on the tablet in Field mode —
+              saving here does not answer that half. */}
+          {modeLabels(check).map((m) => (
+            <Pill key={m} tone={m === "Physical" ? "warn" : "accent"}>
+              {m.toUpperCase()}
+            </Pill>
+          ))}
           {check.coverage === "none" && <Pill tone="bad">NO ACSA BASIS</Pill>}
           {check.siteVariant && <Pill tone="warn">{check.siteVariant.site} VARIANT</Pill>}
           {pf && (
             <Pill tone={pf.rating === "Unacceptable" ? "bad" : pf.rating === "Tolerable" ? "warn" : "good"}>
-              {check.pf} · MAR 2025 {pf.rating.toUpperCase()}
+              {pf.key} · 2025 {pf.rating.toUpperCase()}
             </Pill>
           )}
           {r.captured && (
@@ -176,10 +210,24 @@ export default function CheckDetail({
         )}
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)]">
+      {needsField(check) && (
+        <div
+          className="flex items-center gap-2 border-b px-5 py-[7px] text-[11px]"
+          style={{ background: "var(--warn-bg)", borderColor: "var(--line)", color: "var(--warn)" }}
+        >
+          <IconPin width={12} height={12} />
+          This check also needs the asset seen on site — it appears in Field inspection too.
+        </div>
+      )}
+
+      {/* Two panes from lg, not xl. An iPad in landscape is 1180px wide and was
+          falling to a single column, which stacked the entire reference column
+          — basis, thresholds, ACSA documents — above the capture controls. On
+          anything narrower the order below puts capture first instead. */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)]">
         {/* reference column */}
         <div
-          className="border-b px-[18px] pt-4 pb-[18px] xl:overflow-y-auto xl:border-r xl:border-b-0 xl:pb-[90px]"
+          className="order-2 border-b px-[18px] pt-4 pb-[18px] lg:order-1 lg:overflow-y-auto lg:border-r lg:border-b-0 lg:pb-[90px]"
           style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
         >
           {check.siteVariant && (
@@ -243,13 +291,17 @@ export default function CheckDetail({
             </Panel>
           )}
 
-          {pf && check.pfq && (
+          {pf?.note && (
             <Panel tone="warn" className="mb-[9px]">
               <div className="label-xs" style={{ color: "var(--warn)" }}>
-                {check.pf} follow-up · carried from March 2025
+                {pf.key} follow-up · carried from 2025
+                {/* A derived rating was computed from that site's own portal
+                    findings rather than published as a rating, and says so
+                    rather than borrowing an authority nobody gave it. */}
+                {pf.derived && " · derived from the 2025 findings"}
               </div>
               <div className="mt-1 text-[12.5px] leading-[1.55]" style={{ color: "var(--warn)" }}>
-                {check.pfq}
+                {pf.note}
               </div>
             </Panel>
           )}
@@ -413,7 +465,7 @@ export default function CheckDetail({
 
         {/* capture column */}
         <div
-          className="px-5 pt-4 pb-[90px] xl:overflow-y-auto"
+          className="order-1 px-5 pt-4 pb-[18px] lg:order-2 lg:pb-[90px] lg:overflow-y-auto"
           style={{ background: "var(--focus-surface)" }}
         >
           <Field label="Status" hint="1 – 4">
@@ -435,7 +487,7 @@ export default function CheckDetail({
           {a ? (
             <>
               <Field label="Evidence to request" hint={`${r.evidencePicked.length}/${a.EO.length}`}>
-                <div className="flex flex-wrap gap-[5px]">
+                <div className="chip-row flex flex-wrap gap-[5px]">
                   {a.EO.map((e, i) => (
                     <Chip
                       key={i}
@@ -453,7 +505,7 @@ export default function CheckDetail({
 
               {a.AO.length > 0 && (
                 <Field label="Likely answers" hint="sets status & seeds the note">
-                  <div className="flex flex-wrap gap-[5px]">
+                  <div className="chip-row flex flex-wrap gap-[5px]">
                     {a.AO.map((x, i) => (
                       <Chip
                         key={i}
@@ -470,7 +522,7 @@ export default function CheckDetail({
               )}
 
               <Field label="Issues found" hint="raises a finding · suggests severity">
-                <div className="flex flex-wrap gap-[5px]">
+                <div className="chip-row flex flex-wrap gap-[5px]">
                   {a.IO.map((x, i) => {
                     const band = bandFor(x.severity_hint, x.likelihood_hint);
                     return (
@@ -497,7 +549,7 @@ export default function CheckDetail({
                             owner: "",
                             dueDate: "",
                             actionStatus: "Open",
-                            originVisit: CURRENT_VISIT,
+                            originVisit: visitId,
                             priorRating: pf?.rating ?? null,
                             adHoc: false,
                             createdBy: auditor,
@@ -519,11 +571,43 @@ export default function CheckDetail({
                     );
                   })}
                 </div>
+
+                {/* Root-cause advice for what this check has actually raised.
+                    It sits here, next to the issue chips, because this is the
+                    moment the auditor is still standing in front of the
+                    responsible person — the questions are only useful before
+                    everyone leaves the room. Same component as the findings
+                    screen. */}
+                {raised.map((f) => (
+                  <div
+                    key={f.id}
+                    className="mt-[9px] rounded-[10px] border px-[10px] py-[8px]"
+                    style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                  >
+                    <div className="flex flex-wrap items-center gap-[6px]">
+                      <span className="text-[11px] font-semibold">{f.title}</span>
+                      {f.rootCause ? (
+                        <Pill tone="accent">{f.rootCause}</Pill>
+                      ) : (
+                        <Pill tone="warn">No root cause</Pill>
+                      )}
+                    </div>
+                    <RootCauseAdvice
+                      finding={f}
+                      check={check}
+                      attachments={r.attachments}
+                      onPick={(rc) => {
+                        updateFinding(f.id, { rootCause: rc });
+                        onSaved(`Root cause set · ${rc}`);
+                      }}
+                    />
+                  </div>
+                ))}
               </Field>
 
               {a.WO.length > 0 && (
                 <Field label="Walkabout" hint="what the eye settles on">
-                  <div className="flex flex-wrap gap-[5px]">
+                  <div className="chip-row flex flex-wrap gap-[5px]">
                     {a.WO.map((w, i) => (
                       <Chip
                         key={i}
@@ -548,7 +632,7 @@ export default function CheckDetail({
                     className="mb-[7px] h-[9px] w-[110px] rounded-full"
                     style={{ background: "var(--line-2)", opacity: 0.7 }}
                   />
-                  <div className="flex flex-wrap gap-[5px]">
+                  <div className="chip-row flex flex-wrap gap-[5px]">
                     {Array.from({ length: n }, (_, i) => (
                       <div
                         key={i}
@@ -577,7 +661,7 @@ export default function CheckDetail({
             hint={voice ? "voice note attached" : "tap · type · speak"}
           >
             {a && a.OS.length > 0 && (
-              <div className="mb-[7px] flex flex-wrap gap-[5px]">
+              <div className="chip-row mb-[7px] flex flex-wrap gap-[5px]">
                 {a.OS.map((sn, i) => (
                   <Chip key={i} onClick={() => appendObservation(check.id, sn)}>
                     + {sn}
@@ -604,7 +688,7 @@ export default function CheckDetail({
                   Suggested wording · yours to accept, edit or ignore
                 </div>
                 <div className="text-[12.5px] leading-[1.55]">{draft}</div>
-                <div className="mt-2.5 flex flex-wrap gap-[6px]">
+                <div className="chip-row mt-2.5 flex flex-wrap gap-[6px]">
                   <Btn
                     onClick={() => {
                       patch(check.id, { observation: draft });
@@ -664,49 +748,51 @@ export default function CheckDetail({
                   {thinking === "observation" ? "Drafting…" : "Draft with AI"}
                 </button>
               )}
-              <button
-                onClick={() => {
-                  if (recording) {
-                    setRecording(false);
-                    addAttachment(check.id, {
-                      kind: "voice",
-                      name: `voice-${check.id}.webm`,
-                      durationSec: 14,
-                      transcript: a?.IO[0]?.finding ?? "Observation dictated on site.",
-                      createdBy: auditor,
-                    });
-                    appendObservation(check.id, `[voice] ${a?.IO[0]?.finding ?? "Observation dictated on site."}`);
-                    onSaved("Transcribed and attached");
-                  } else setRecording(true);
+              <VoiceNoteButton
+                onCaptured={(m) => {
+                  addAttachment(check.id, { ...m, createdBy: auditor });
+                  /* The transcript is attached to the note, not spliced into
+                     the observation. An auditor writes the observation; the
+                     recording is evidence beside it. */
+                  onSaved(
+                    m.transcript
+                      ? "Voice note attached with transcript"
+                      : "Voice note attached"
+                  );
                 }}
-                className="flex items-center gap-[6px] rounded-[8px] border px-[11px] py-[6px] text-[11px] transition-[var(--t)]"
-                style={
-                  recording
-                    ? { background: "var(--bad)", borderColor: "var(--bad)", color: "#fff" }
-                    : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
-                }
-              >
-                <IconMic width={13} height={13} />
-                {recording ? "Recording · tap to stop" : "Voice note"}
-              </button>
-              <button
-                onClick={() => {
-                  addAttachment(check.id, {
-                    kind: "photo",
-                    name: `KSIA-P${String(101 + photos).slice(-3)}.jpg`,
-                    createdBy: auditor,
-                  });
-                  onSaved(`Photo attached to ${check.id}`);
+              />
+              <PhotoButton
+                onCaptured={(m) => {
+                  addAttachment(check.id, { ...m, createdBy: auditor });
+                  onSaved(`Photo attached to ${portalId}`);
                 }}
-                className="flex items-center gap-[6px] rounded-[8px] border px-[11px] py-[6px] text-[11px] transition-[var(--t)]"
-                style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
-              >
-                <IconCamera width={13} height={13} />
-                Photo
-              </button>
+              />
               {photos > 0 && <Pill>{photos} photo{photos > 1 ? "s" : ""}</Pill>}
-              {voice && <Pill tone="accent">voice 0:14</Pill>}
             </div>
+            {r.attachments.length > 0 && (
+              <div className="mt-[10px]">
+                <AttachmentStrip
+                  attachments={r.attachments}
+                  onRemove={(id) => removeAttachment(check.id, id)}
+                  onUpdate={(id, p) => updateAttachment(check.id, id, p)}
+                  /* Only offered where a model is configured. Without one the
+                     note is still recorded, played back and transcribed —
+                     there is simply nothing to write it up with. */
+                  writeUp={
+                    aiOn
+                      ? (t) => assist("transcript", transcriptContext(t, check, r))
+                      : undefined
+                  }
+                  /* Accepting appends to the observation rather than replacing
+                     it: an auditor who has already typed something has not
+                     asked for it to be thrown away. */
+                  onAccept={(text) => {
+                    appendObservation(check.id, text);
+                    onSaved("Written up into the observation");
+                  }}
+                />
+              </div>
+            )}
           </Field>
         </div>
       </div>
@@ -717,8 +803,24 @@ export default function CheckDetail({
         style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "0 -4px 16px -8px rgba(22,16,40,.14)" }}
       >
         <div className="flex items-center gap-[6px] font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
-          {r.captured && <span className="h-[6px] w-[6px] rounded-full" style={{ background: "var(--good)" }} />}
-          {r.captured ? `captured by ${r.capturedBy.split(" ")[0]}` : "not captured yet"}
+          {/* Both halves, named. "Captured" on a check that also needs the
+              asset seen would be a claim nobody has earned yet. */}
+          <span
+            className="h-[6px] w-[6px] rounded-full"
+            style={{
+              background: r.captured
+                ? "var(--good)"
+                : r.deskDoneAt
+                  ? "var(--warn)"
+                  : "var(--line-3)",
+            }}
+          />
+          {r.captured
+            ? `complete · ${r.capturedBy.split(" ")[0]}`
+            : r.deskDoneAt
+              ? `desk done by ${r.deskDoneBy.split(" ")[0]} · awaiting site`
+              : "not captured yet"}
+          {needsField(check) && r.fieldDoneAt && ` · site seen by ${r.fieldDoneBy.split(" ")[0]}`}
           {r.issuesPicked.length > 0 && ` · ${r.issuesPicked.length} finding${r.issuesPicked.length > 1 ? "s" : ""}`}
         </div>
         <div className="flex gap-[7px]">

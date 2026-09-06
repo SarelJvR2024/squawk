@@ -1,5 +1,6 @@
 import type {
   AnswerLibrary,
+  Attachment,
   Check,
   Finding,
   PriorFinding,
@@ -7,8 +8,10 @@ import type {
   Verification,
 } from "./types";
 import { BAND_AS_RATING, BAND_META, bandFor, cellCode, movement } from "./risk";
-import { CURRENT_ENTITY, CURRENT_VISIT_ID, PROGRAMME_VISITS } from "./programme";
-import type { Sheet } from "./xlsx";
+import { entity as entityOf, PROGRAMME_VISITS } from "./programme";
+import { portalIdFor } from "./sites";
+import { priorFor } from "./register";
+import type { CellValue, Sheet } from "./xlsx";
 
 /* The exports.
  *
@@ -27,8 +30,13 @@ import type { Sheet } from "./xlsx";
  *     be worse than no export at all.
  */
 
-const VISIT_LABEL =
-  PROGRAMME_VISITS.find((v) => v.id === CURRENT_VISIT_ID)?.label ?? CURRENT_VISIT_ID;
+/* Which audit is being exported travels with the data. It used to be read from
+   a module constant, so a workbook produced while looking at Cape Town would
+   still have been titled and filenamed for King Shaka's September visit — the
+   one sheet where getting the subject wrong is least recoverable, because it
+   leaves the room. */
+const visitLabel = (visitId: string) =>
+  PROGRAMME_VISITS.find((v) => v.id === visitId)?.label ?? visitId;
 
 const STATUS_WORD: Record<string, string> = {
   C: "Compliant",
@@ -43,6 +51,10 @@ const docs = (c: Check) =>
   c.acsaDocs.map((d) => `${d.doc}${d.clause ? ` cl. ${d.clause}` : ""}`).join("; ");
 
 export interface ExportInput {
+  /** The entity and visit this export is of. Not optional — an export that
+   *  cannot name its own subject should not be produced. */
+  entity: string;
+  visit: string;
   checks: Check[];
   responses: Record<string, Response>;
   findings: Finding[];
@@ -72,7 +84,7 @@ export function registerSheet(x: ExportInput): Sheet {
     const voice = r?.attachments.filter((a) => a.kind === "voice").length ?? 0;
 
     return [
-      c.id,
+      portalIdFor(x.entity, c.id),
       c.discipline,
       c.system,
       c.area,
@@ -90,7 +102,7 @@ export function registerSheet(x: ExportInput): Sheet {
       c.coverage,
       c.question,
       c.walkabout ?? "",
-      c.pf ?? "",
+      priorFor(x.entity, c.discipline, c.system)?.key ?? "",
       /* Capture starts here. */
       r?.compliance ? STATUS_WORD[r.compliance] : "",
       r?.observation ?? "",
@@ -99,6 +111,15 @@ export function registerSheet(x: ExportInput): Sheet {
       walk,
       photos || "",
       voice || "",
+      /* Both halves, separately. A single "Captured: Yes" on a check that
+         needs the record read AND the asset seen would tell ACSA the site
+         verification happened when only one of the two did. */
+      r?.deskDoneAt ? "Yes" : "No",
+      r?.deskDoneBy ?? "",
+      when(r?.deskDoneAt),
+      r?.fieldDoneAt ? "Yes" : "No",
+      r?.fieldDoneBy ?? "",
+      when(r?.fieldDoneAt),
       r?.captured ? "Yes" : "No",
       r?.capturedBy ?? "",
       when(r?.capturedAt),
@@ -118,7 +139,7 @@ export function registerSheet(x: ExportInput): Sheet {
       { header: "Target / limit", width: 58, wrap: true },
       { header: "ACSA states", width: 58, wrap: true },
       { header: "ACSA document & clause", width: 34, wrap: true },
-      { header: `Site variant (${CURRENT_ENTITY.code})`, width: 46, wrap: true },
+      { header: `Site variant (${x.entity})`, width: 46, wrap: true },
       { header: "External basis", width: 52, wrap: true },
       { header: "Citation confidence", width: 18, wrap: true },
       { header: "Caveat on the basis", width: 46, wrap: true },
@@ -127,16 +148,22 @@ export function registerSheet(x: ExportInput): Sheet {
       { header: "Question put to ACSA", width: 48, wrap: true },
       { header: "Walkabout instruction", width: 48, wrap: true },
       { header: "Mar 2025 finding", width: 14 },
-      { header: `Status (${VISIT_LABEL})`, width: 16 },
+      { header: `Status (${visitLabel(x.visit)})`, width: 16 },
       { header: "Observation", width: 60, wrap: true },
       { header: "Evidence requested", width: 42, wrap: true },
       { header: "Issues found", width: 52, wrap: true },
       { header: "Walkabout observation", width: 38, wrap: true },
       { header: "Photos", width: 8 },
       { header: "Voice notes", width: 11 },
-      { header: "Captured", width: 10 },
-      { header: "Captured by", width: 22 },
-      { header: "Captured at", width: 13 },
+      { header: "Desk done", width: 10 },
+      { header: "Desk done by", width: 22 },
+      { header: "Desk done at", width: 13 },
+      { header: "Site seen", width: 10 },
+      { header: "Site seen by", width: 22 },
+      { header: "Site seen at", width: 13 },
+      { header: "Complete", width: 10 },
+      { header: "Completed by", width: 22 },
+      { header: "Completed at", width: 13 },
     ],
     rows,
   };
@@ -155,7 +182,7 @@ export function findingsSheet(x: ExportInput): Sheet {
       agreed && f.priorRating && band ? movement(f.priorRating, BAND_AS_RATING[band]) : null;
     return [
       f.id,
-      f.checkId ?? "",
+      f.checkId ? portalIdFor(x.entity, f.checkId) : "",
       f.discipline,
       f.system,
       f.area,
@@ -179,6 +206,13 @@ export function findingsSheet(x: ExportInput): Sheet {
       f.priorRating ?? "",
       move ?? "",
       f.adHoc ? "Ad-hoc (raised in the field)" : "From a check-point",
+      /* The photographs behind this finding, by their captions. A count alone
+         tells a reader there is evidence but not what it shows, and the
+         workbook is where most people will meet it. */
+      photosFor(x, f.checkId).length,
+      photosFor(x, f.checkId)
+        .map((a) => a.caption?.trim() || "(no caption)")
+        .join(" · "),
       f.originVisit,
       f.createdBy,
       when(f.createdAt),
@@ -211,9 +245,77 @@ export function findingsSheet(x: ExportInput): Sheet {
       { header: "Mar 2025 rating", width: 15 },
       { header: "Movement", width: 13 },
       { header: "Origin", width: 26 },
+      { header: "Photographs", width: 12 },
+      { header: "Photograph captions", width: 60, wrap: true },
       { header: "Raised at visit", width: 14 },
       { header: "Raised by", width: 22 },
       { header: "Raised on", width: 12 },
+    ],
+    rows,
+  };
+}
+
+/* ---------------------------------------------------------------- photographs */
+
+/** Photographs attached to a check. Null checkId (an ad-hoc finding) has none
+ *  of its own. */
+function photosFor(x: ExportInput, checkId: string | null | undefined): Attachment[] {
+  if (!checkId) return [];
+  return (x.responses[checkId]?.attachments ?? []).filter((a) => a.kind === "photo");
+}
+
+/** One row per photograph.
+ *
+ *  A photograph nobody indexed is a photograph nobody will find. This sheet is
+ *  the index: what it shows, where it belongs, who said so and when it was
+ *  taken. `Caption source` is not decoration — a caption an auditor wrote and
+ *  one a model proposed and a person accepted are different evidence, and a
+ *  reader is entitled to tell them apart. */
+export function photographsSheet(x: ExportInput): Sheet {
+  const rows: CellValue[][] = [];
+  for (const c of x.checks) {
+    const r = x.responses[c.id];
+    if (!r) continue;
+    for (const a of r.attachments) {
+      if (a.kind !== "photo") continue;
+      rows.push([
+        a.id,
+        portalIdFor(x.entity, c.id),
+        c.discipline,
+        c.system,
+        c.area,
+        a.caption?.trim() ?? "",
+        a.caption?.trim()
+          ? a.captionSource === "assistant"
+            ? "Assistant, accepted by the auditor"
+            : "Auditor"
+          : "NO CAPTION",
+        when(a.takenAt) ?? "",
+        when(a.createdAt),
+        a.createdBy,
+        a.width && a.height ? `${a.width}×${a.height}` : "",
+        a.bytes ? Math.round(a.bytes / 1024) : "",
+        a.unavailable ? "No image stored" : "Stored on the capture device",
+      ]);
+    }
+  }
+
+  return {
+    name: "Photographs",
+    columns: [
+      { header: "Photograph", width: 14 },
+      { header: "Check", width: 15 },
+      { header: "Discipline", width: 20 },
+      { header: "Asset system", width: 26 },
+      { header: "Area", width: 20 },
+      { header: "Caption", width: 62, wrap: true },
+      { header: "Caption source", width: 30 },
+      { header: "Taken", width: 18 },
+      { header: "Attached", width: 18 },
+      { header: "Attached by", width: 22 },
+      { header: "Dimensions", width: 13 },
+      { header: "Size (KB)", width: 10 },
+      { header: "Image", width: 26 },
     ],
     rows,
   };
@@ -223,27 +325,34 @@ export function findingsSheet(x: ExportInput): Sheet {
 
 export function closureSheet(x: ExportInput): Sheet {
   const rows = x.prior.map((p) => {
-    const v = x.verifications[p.pf];
-    const covering = x.checks.filter(
-      (c) => c.discipline === p.discipline && c.system === p.system
-    );
+    const v = x.verifications[p.portalId];
+    /* An unallocated finding names a building rather than a register asset
+       system, so nothing covers it by definition and the column says so
+       instead of reading as a coverage failure. */
+    const covering = p.assetSystem
+      ? x.checks.filter((c) => c.discipline === p.discipline && c.system === p.assetSystem)
+      : [];
     const nc = covering.filter((c) => x.responses[c.id]?.compliance === "NC").length;
     return [
-      p.pf,
+      p.portalId,
       p.discipline,
-      p.system,
-      p.rating,
-      p.finding,
+      p.assetSystem ?? p.assetSystemRecorded,
+      p.tolerance,
+      p.observation,
       v?.outcome ?? "",
       v?.evidence ?? "",
       v?.verifiedBy ?? "",
       when(v?.verifiedAt),
       covering.length,
-      covering.length ? covering.map((c) => c.id).join(", ") : "No check covers this",
+      covering.length
+        ? covering.map((c) => portalIdFor(x.entity, c.id)).join(", ")
+        : p.assetSystem
+          ? "No check covers this"
+          : "Unallocated — discipline lead assigns in the field",
       nc,
       /* The coverage guard, carried into the export: closure cannot be evidenced
          against a check that is not being done. */
-      covering.length === 0 ? "NOT COVERED THIS VISIT" : "",
+      covering.length === 0 && p.assetSystem ? "NOT COVERED THIS VISIT" : "",
     ];
   });
 
@@ -255,7 +364,7 @@ export function closureSheet(x: ExportInput): Sheet {
       { header: "Asset system", width: 30 },
       { header: "Mar 2025 rating", width: 15 },
       { header: "Finding as raised in Mar 2025", width: 66, wrap: true },
-      { header: `Verification (${VISIT_LABEL})`, width: 16 },
+      { header: `Verification (${visitLabel(x.visit)})`, width: 16 },
       { header: "Evidence of closure", width: 58, wrap: true },
       { header: "Verified by", width: 22 },
       { header: "Verified on", width: 12 },
@@ -281,7 +390,7 @@ export function evidenceRequestSheet(x: ExportInput): Sheet {
     for (const i of r.evidencePicked) {
       const e = lib?.EO[i];
       rows.push([
-        c.id,
+        portalIdFor(x.entity, c.id),
         c.discipline,
         c.system,
         e?.label ?? `Evidence item #${i}`,
@@ -344,7 +453,7 @@ export function summarySheet(x: ExportInput): Sheet {
     columns: [
       { header: "Discipline", width: 26 },
       { header: "Check-points", width: 13 },
-      { header: "Captured", width: 10 },
+      { header: "Complete", width: 10 },
       { header: "Compliant", width: 11 },
       { header: "Non-compliant", width: 14 },
       { header: "Not applicable", width: 14 },
@@ -364,7 +473,12 @@ export function summarySheet(x: ExportInput): Sheet {
 
 /** A cover sheet, so nobody has to be told verbally what a blank cell means. */
 export function aboutSheet(x: ExportInput): Sheet {
+  /* Complete means every mode the register declares has been answered. Desk
+     and site are reported alongside it, because "180 complete" without them
+     hides whether the remainder is waiting on documents or on a walk. */
   const captured = Object.values(x.responses).filter((r) => r.captured).length;
+  const deskDone = Object.values(x.responses).filter((r) => r.deskDoneAt).length;
+  const fieldSeen = Object.values(x.responses).filter((r) => r.fieldDoneAt).length;
   const agreed = x.findings.filter((f) => f.ratingConfirmed).length;
   const verified = Object.values(x.verifications).filter((v) => v.outcome).length;
   return {
@@ -375,16 +489,18 @@ export function aboutSheet(x: ExportInput): Sheet {
     ],
     rows: [
       ["Produced by", "Squawk — asset assurance capture, Thabile-Pridin JV"],
-      ["Entity", `${CURRENT_ENTITY.name} (${CURRENT_ENTITY.code})`],
-      ["Visit", VISIT_LABEL],
+      ["Entity", `${entityOf(x.entity).name} (${x.entity})`],
+      ["Visit", visitLabel(x.visit)],
       ["Exported", new Date()],
       ["", ""],
       ["Check-points in scope", x.checks.length],
-      ["Captured", captured],
+      ["Complete (all declared modes answered)", captured],
+      ["Desk done", deskDone],
+      ["Site seen", fieldSeen],
       ["Findings raised", x.findings.length],
       ["Ratings agreed by the team", agreed],
       ["Ratings still only suggested", x.findings.length - agreed],
-      ["Mar 2025 findings verified", `${verified} of ${x.prior.length}`],
+      ["2025 findings verified", `${verified} of ${x.prior.length}`],
       ["", ""],
       [
         "A blank status",
@@ -427,13 +543,19 @@ export function fullWorkbook(x: ExportInput): Sheet[] {
     findingsSheet(x),
     closureSheet(x),
     evidenceRequestSheet(x),
+    photographsSheet(x),
   ];
 }
 
-export function exportFilename(kind: string, ext = "xlsx"): string {
+export function exportFilename(
+  entityCode: string,
+  visitId: string,
+  kind: string,
+  ext = "xlsx"
+): string {
   const d = new Date();
   const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(
     d.getDate()
   ).padStart(2, "0")}`;
-  return `${CURRENT_ENTITY.code}_${CURRENT_VISIT_ID}_${kind}_${stamp}.${ext}`;
+  return `${entityCode}_${visitId}_${kind}_${stamp}.${ext}`;
 }

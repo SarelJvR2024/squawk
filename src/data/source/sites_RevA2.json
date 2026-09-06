@@ -1,0 +1,50 @@
+{
+  "meta": {
+    "source": "ACSA_register_RevA2_all_sites.json + README - Rev A2 register, all ten sites.txt",
+    "sharepoint": "https://tpjv.sharepoint.com/sites/ACSA-Asset-Assurance/Checklists/Squawk register (Rev A2)/",
+    "issued": "2026-09-06",
+    "supersedes": "KSIA-only Rev A2 set issued earlier on 06 Sep 2026",
+    "note": "Every site uses the same 324-item Rev A2 register and the same check-point numbers: KSIA-ELE-005, ORTIA-ELE-005 and CO-ELE-005 are the same requirement at three sites, so results compare across the group. Where a check-point is removed as not applicable its number is simply not used at that site — gaps, no renumbering. That is why Squawk holds the register once and derives each site's ids and applicable set, rather than storing 3,086 near-identical rows that could drift apart.",
+    "totalCheckpoints": 3086
+  },
+  "sites": [
+    { "siteCode": "KSIA",  "entityCode": "FALE", "icao": "FALE", "name": "King Shaka International Airport",           "class": "international", "audit": { "from": "2026-09-15", "to": "2026-09-18", "visit": "2026-09" }, "checks": 324, "inPortal": true },
+    { "siteCode": "ORTIA", "entityCode": "FAOR", "icao": "FAOR", "name": "O.R. Tambo International Airport",           "class": "international", "audit": { "from": "2026-09-29", "to": "2026-10-02", "visit": "2026-09" }, "checks": 324, "inPortal": true },
+    { "siteCode": "CTIA",  "entityCode": "FACT", "icao": "FACT", "name": "Cape Town International Airport",            "class": "international", "audit": { "from": "2026-10-13", "to": "2026-10-16", "visit": "2026-10" }, "checks": 324, "inPortal": true },
+    { "siteCode": "CO",    "entityCode": "HO",   "icao": "HO",   "name": "ACSA Corporate Office",                      "class": "corporate",     "audit": { "from": "2026-10-20", "to": "2026-10-21", "visit": "2026-10" }, "checks": 200, "inPortal": false },
+    { "siteCode": "BFIA",  "entityCode": "FABL", "icao": "FABL", "name": "Bram Fischer International Airport",         "class": "regional",      "audit": { "from": "2026-10-27", "to": "2026-10-29", "visit": "2026-10" }, "checks": 319, "inPortal": true },
+    { "siteCode": "KPA",   "entityCode": "FAEL", "icao": "FAEL", "name": "King Phalo Airport",                         "class": "regional",      "audit": { "from": "2026-11-03", "to": "2026-11-05", "visit": "2026-11" }, "checks": 319, "inPortal": false },
+    { "siteCode": "CDSIA", "entityCode": "FAPE", "icao": "FAPE", "name": "Chief Dawid Stuurman International Airport", "class": "regional",      "audit": { "from": "2026-11-10", "to": "2026-11-12", "visit": "2026-11" }, "checks": 319, "inPortal": true },
+    { "siteCode": "GRG",   "entityCode": "FAGG", "icao": "FAGG", "name": "George Airport",                             "class": "regional",      "audit": { "from": "2026-11-17", "to": "2026-11-19", "visit": "2026-11" }, "checks": 319, "inPortal": false },
+    { "siteCode": "KIM",   "entityCode": "FAKM", "icao": "FAKM", "name": "Kimberley Airport",                          "class": "regional",      "audit": { "from": "2026-11-24", "to": "2026-11-26", "visit": "2026-11" }, "checks": 319, "inPortal": false },
+    { "siteCode": "UPN",   "entityCode": "FAUP", "icao": "FAUP", "name": "Upington International Airport",             "class": "regional",      "audit": { "from": "2026-12-01", "to": "2026-12-03", "visit": "2026-12" }, "checks": 319, "inPortal": false }
+  ],
+  "applicability": {
+    "note": "TPJV assumption for the register; the discipline leads confirm before each site audit; nothing is removed from the contract scope. Where a system does not exist at a site (a hydrant fuel system, a water treatment plant) the auditor records N/A rather than the register removing it.",
+    "international": { "removed": [], "expectRemoved": 0 },
+    "regional": {
+      "reason": "No passenger boarding bridges.",
+      "removed": [
+        { "discipline": "Mechanical", "system": "Passenger Boarding Bridges (PLBs)" }
+      ],
+      "expectRemoved": 5
+    },
+    "corporate": {
+      "reason": "Head Office building, no airfield.",
+      "removed": [
+        { "discipline": "Electrical", "system": "AGL" },
+        { "discipline": "Electrical", "system": "ILS" },
+        { "discipline": "Electrical", "system": "AWOS" },
+        { "discipline": "Electrical", "system": "X-Ray Machines" },
+        { "discipline": "Mechanical", "system": "Passenger Boarding Bridges (PLBs)" },
+        { "discipline": "Mechanical", "system": "Fuel System" },
+        { "discipline": "Mechanical", "system": "BHS" },
+        { "discipline": "Mechanical", "system": "Water Treatment Plant" },
+        { "discipline": "Mechanical", "system": "Gas Hot Water Facility" },
+        { "discipline": "Civil", "system": "*" },
+        { "discipline": "Process Safety & Risk", "system": "Fuel Farm & Hydrant (MHI)" }
+      ],
+      "expectRemoved": 124
+    }
+  }
+}

@@ -2,17 +2,33 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AREAS, CHECKS, CURRENT_VISIT, DISCIPLINES, useStore } from "@/lib/store";
-import { CURRENT_ENTITY, locationAxis } from "@/lib/programme";
+import {
+  areasAt,
+  checksAt,
+  disciplinesAt,
+  priorFor,
+  useCaptures,
+  useEntity,
+  useEntityCode,
+  useResponses,
+  useStore,
+  useVisitId,
+  fieldDone,
+} from "@/lib/store";
+import { locationAxis } from "@/lib/programme";
+import { portalIdFor } from "@/lib/sites";
 import type { Check, Compliance } from "@/lib/types";
 import { Btn, Chip, Empty, Panel, Pill } from "@/components/ui/primitives";
+import { AttachmentStrip, PhotoButton, PhotoThumb, VoiceNoteButton } from "@/components/Capture";
+import { useAnswerLibrary } from "@/lib/answers";
+import { assist, transcriptContext, useAssistAvailable } from "@/lib/assist";
+import { modeLabels, needsField } from "@/lib/verification";
 import {
   IconCamera,
   IconCheck,
   IconClock,
   IconDash,
   IconInbox,
-  IconMic,
   IconPin,
   IconSearch,
   IconX,
@@ -32,17 +48,30 @@ const btnStyle = (tone: string, on: boolean): React.CSSProperties =>
 
 export default function FieldPage() {
   const router = useRouter();
-  const responses = useStore((s) => s.responses);
-  const captures = useStore((s) => s.captures);
+  const responses = useResponses();
+  const captures = useCaptures();
+  const visitId = useVisitId();
+  /* The researched walkabout options. Field mode is the walkabout screen and
+     was the one place that never showed them — an auditor on the apron got
+     four status buttons while 11,179 reviewed options sat in the library that
+     only the desk screen opened. Loaded once for the session and kept in
+     memory, so it survives the wifi dropping. */
+  const library = useAnswerLibrary();
+  const entity = useEntity();
+  const entityCode = useEntityCode();
   const auditor = useStore((s) => s.auditor);
   const setCompliance = useStore((s) => s.setCompliance);
+  const setWalkabout = useStore((s) => s.setWalkabout);
   const commit = useStore((s) => s.commit);
   const addAttachment = useStore((s) => s.addAttachment);
+  const removeAttachment = useStore((s) => s.removeAttachment);
+  const updateAttachment = useStore((s) => s.updateAttachment);
+  const appendObservation = useStore((s) => s.appendObservation);
+  const aiOn = useAssistAvailable();
   const addCapture = useStore((s) => s.addCapture);
   const assignCapture = useStore((s) => s.assignCapture);
-  const dropCapture = useStore((s) => s.dropCapture);
+  const discardCapture = useStore((s) => s.discardCapture);
   const addFinding = useStore((s) => s.addFinding);
-  const patch = useStore((s) => s.patch);
 
   const [area, setArea] = useState<string>("All");
   const [q, setQ] = useState("");
@@ -51,8 +80,12 @@ export default function FieldPage() {
   const [adhoc, setAdhoc] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [adhocText, setAdhocText] = useState("");
-  const [adhocDisc, setAdhocDisc] = useState(DISCIPLINES[0]);
-  const [adhocArea, setAdhocArea] = useState(AREAS[0]);
+  /* This site's disciplines and areas — a regional airport has no passenger
+     boarding bridges and Corporate Office has no airfield at all. */
+  const disciplines = useMemo(() => disciplinesAt(entityCode), [entityCode]);
+  const areas = useMemo(() => areasAt(entityCode), [entityCode]);
+  const [adhocDisc, setAdhocDisc] = useState(disciplines[0]);
+  const [adhocArea, setAdhocArea] = useState(areas[0]);
 
   const say = (m: string) => {
     setToast(m);
@@ -63,10 +96,13 @@ export default function FieldPage() {
      across every discipline. Search overrides the filter entirely. */
   const visible = useMemo(() => {
     const s = q.trim().toLowerCase();
-    let list = CHECKS.filter((c) => c.walkabout || c.woCount > 0);
+    /* Routed on the register's declared vtype, not on whether someone wrote
+       walkabout text. Both give 314 today; only one of them keeps giving 314
+       if a walkabout line is ever left blank. See src/lib/verification.ts. */
+    let list = checksAt(entityCode).filter(needsField);
     if (s) {
       return list.filter((c) =>
-        `${c.id} ${c.requirement} ${c.area} ${c.discipline} ${c.walkabout ?? ""}`
+        `${portalIdFor(entityCode, c.id)} ${c.requirement} ${c.area} ${c.discipline} ${c.walkabout ?? ""}`
           .toLowerCase()
           .includes(s)
       );
@@ -75,7 +111,7 @@ export default function FieldPage() {
       list = groupBy === "area" ? list.filter((c) => c.area === area) : list.filter((c) => c.discipline === area);
     }
     return list;
-  }, [q, area, groupBy]);
+  }, [entityCode, q, area, groupBy]);
 
   const groups = useMemo(() => {
     const g: Record<string, Check[]> = {};
@@ -88,16 +124,10 @@ export default function FieldPage() {
 
   /* Zones come from the programme file. Until ACSA gives us real ones the axis
      falls back to the register's categories, and the strip below says so. */
-  const axis = locationAxis();
-  const options = groupBy === "area" ? axis.options : DISCIPLINES;
-  const doneCount = visible.filter((c) => responses[c.id]?.captured).length;
+  const axis = locationAxis(entityCode);
+  const options = groupBy === "area" ? axis.options : disciplines;
+  const doneCount = visible.filter((c) => fieldDone(responses[c.id])).length;
 
-  const swatch = (i: number) => {
-    const cols = ["#8b84a0", "#4b2e83", "#9c6b12", "#157f52", "#b93338"];
-    return `data:image/svg+xml;utf8,${encodeURIComponent(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="${cols[i % 5]}"/><circle cx="40" cy="33" r="13" fill="rgba(255,255,255,.28)"/><rect x="14" y="54" width="52" height="6" rx="3" fill="rgba(255,255,255,.28)"/></svg>`
-    )}`;
-  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -171,7 +201,7 @@ export default function FieldPage() {
               className="mt-[7px] text-[10.5px] leading-[1.5]"
               style={{ color: "var(--ink-3)" }}
             >
-              These are the register&rsquo;s categories, not physical zones — {CURRENT_ENTITY.short} zone
+              These are the register&rsquo;s categories, not physical zones — {entity.short} zone
               names have not been supplied yet. Search finds any check wherever you
               are standing.
             </div>
@@ -199,29 +229,47 @@ export default function FieldPage() {
               <div className="flex items-center justify-between px-1 pt-3 pb-1.5">
                 <span className="label-xs">{g}</span>
                 <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                  {items.filter((c) => responses[c.id]?.captured).length}/{items.length}
+                  {items.filter((c) => fieldDone(responses[c.id])).length}/{items.length}
                 </span>
               </div>
-              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {items.map((c) => {
                   const r = responses[c.id];
-                  const photos = r?.attachments.filter((a) => a.kind === "photo") ?? [];
+                  const attachments = r?.attachments ?? [];
+                  const photos = attachments.filter((a) => a.kind === "photo");
+                  const wo = library?.[c.id]?.WO ?? [];
+                  const picked = r?.walkaboutPicked;
+                  const needsPhoto =
+                    picked != null && wo[picked]?.photo === true && photos.length === 0;
                   return (
                     <div
                       key={c.id}
                       className="rounded-[13px] border p-3 transition-[var(--t)]"
                       style={{
                         background: "var(--panel)",
-                        borderColor: r?.captured ? "var(--line)" : "var(--line-2)",
-                        opacity: r?.captured ? 0.78 : 1,
+                        borderColor: fieldDone(r) ? "var(--line)" : "var(--line-2)",
+                        opacity: fieldDone(r) ? 0.78 : 1,
                       }}
                     >
                       <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
                         <span className="font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
-                          {c.id}
+                          {portalIdFor(entityCode, c.id)}
                         </span>
                         <Pill>{groupBy === "area" ? c.discipline.split(" ")[0] : c.area}</Pill>
-                        {c.pf && <Pill tone="warn">{c.pf}</Pill>}
+                        {(() => {
+                          /* The 2025 rating for THIS site's asset system. It used
+                             to be a column on the register row, which meant every
+                             site wore King Shaka's finding. */
+                          const pf = priorFor(entityCode, c.discipline, c.system);
+                          return pf ? <Pill tone="warn">{pf.key}</Pill> : null;
+                        })()}
+                        {modeLabels(c)
+                          .filter((m) => m !== "Physical")
+                          .map((m) => (
+                            <Pill key={m} tone="accent">
+                              {m.toUpperCase()}
+                            </Pill>
+                          ))}
                       </div>
                       <button
                         onClick={() => router.push(`/capture?check=${c.id}`)}
@@ -229,13 +277,61 @@ export default function FieldPage() {
                       >
                         {c.walkabout ?? c.requirement}
                       </button>
+                      {/* What the eye settles on, in the words the library
+                          researched — tapped instead of typed, because typing
+                          on an apron is what stops people capturing. Above the
+                          four statuses, since picking one usually sets the
+                          status anyway. */}
+                      {wo.length > 0 && (
+                        <div className="chip-row mb-2 flex flex-wrap gap-[5px]">
+                          {wo.map((w, i) => (
+                            <Chip
+                              key={i}
+                              selected={r?.walkaboutPicked === i}
+                              onClick={() => {
+                                setWalkabout(c.id, i, w.sets);
+                                commit(c.id, "field");
+                                say(
+                                  w.photo && photos.length === 0
+                                    ? `${portalIdFor(entityCode, c.id)} — ${w.label}. Photograph expected.`
+                                    : `${c.id} — ${w.label}`
+                                );
+                              }}
+                              title={w.photo ? "This observation expects a photograph" : undefined}
+                            >
+                              {w.label}
+                              {w.photo ? " 📷" : ""}
+                            </Chip>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* The library marks which observations are only worth
+                          having with an image behind them. That flag was
+                          carried in the data and rendered nowhere but a desk
+                          tooltip. Saying it here, while the auditor is still
+                          standing in front of the thing, is the whole point. */}
+                      {needsPhoto && (
+                        <div
+                          className="mb-2 flex items-center gap-2 rounded-[9px] border px-[10px] py-[7px] text-[11px]"
+                          style={{
+                            background: "var(--warn-bg)",
+                            borderColor: "var(--warn-line)",
+                            color: "var(--warn)",
+                          }}
+                        >
+                          <IconCamera width={13} height={13} />
+                          Photograph expected for this observation
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-4 gap-[5px]">
                         {STATUSES.map(({ key, Icon, tone, label }) => (
                           <button
                             key={key}
                             onClick={() => {
                               setCompliance(c.id, key);
-                              commit(c.id);
+                              commit(c.id, "field");
                               say(`${c.id} — ${label}`);
                             }}
                             aria-label={label}
@@ -247,48 +343,37 @@ export default function FieldPage() {
                           </button>
                         ))}
                       </div>
-                      <div className="mt-2 flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            addAttachment(c.id, {
-                              kind: "photo",
-                              name: `KSIA-P${String(101 + photos.length).slice(-3)}.jpg`,
-                              dataUrl: swatch(photos.length),
-                              createdBy: auditor,
-                            });
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <PhotoButton
+                          compact
+                          onCaptured={(m) => {
+                            addAttachment(c.id, { ...m, createdBy: auditor });
                             say(`Photo added to ${c.id}`);
                           }}
-                          aria-label="Add photo"
-                          className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border transition-[var(--t)]"
-                          style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
-                        >
-                          <IconCamera width={15} height={15} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            addAttachment(c.id, {
-                              kind: "voice",
-                              name: `voice-${c.id}.webm`,
-                              durationSec: 12,
-                              transcript: "Dictated on site.",
-                              createdBy: auditor,
-                            });
-                            patch(c.id, {
-                              observation: `${responses[c.id]?.observation ?? ""} [voice] Dictated on site.`.trim(),
-                            });
+                        />
+                        <VoiceNoteButton
+                          compact
+                          onCaptured={(m) => {
+                            addAttachment(c.id, { ...m, createdBy: auditor });
                             say(`Voice note added to ${c.id}`);
                           }}
-                          aria-label="Add voice note"
-                          className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border transition-[var(--t)]"
-                          style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
-                        >
-                          <IconMic width={15} height={15} />
-                        </button>
-                        <div className="no-scrollbar flex gap-1 overflow-x-auto">
-                          {photos.map((p) => (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img key={p.id} src={p.dataUrl} alt="" className="h-[34px] w-[34px] shrink-0 rounded-[7px] object-cover" />
-                          ))}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <AttachmentStrip
+                            attachments={attachments}
+                            thumbSize={34}
+                            onRemove={(id) => removeAttachment(c.id, id)}
+                            onUpdate={(id, p) => updateAttachment(c.id, id, p)}
+                            writeUp={
+                              aiOn
+                                ? (t) => assist("transcript", transcriptContext(t, c, r))
+                                : undefined
+                            }
+                            onAccept={(text) => {
+                              appendObservation(c.id, text);
+                              say(`Written up into ${c.id}`);
+                            }}
+                          />
                         </div>
                       </div>
                     </div>
@@ -305,23 +390,19 @@ export default function FieldPage() {
         className="sticky bottom-0 z-20 flex items-center gap-2 border-t px-4 py-2.5 sm:px-6"
         style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "0 -4px 16px -8px rgba(22,16,40,.14)" }}
       >
-        <Btn
-          variant="primary"
+        <PhotoButton
+          primary
+          label="Capture now"
           className="flex-1 justify-center sm:flex-none"
-          onClick={() => {
+          onCaptured={(m) => {
             addCapture({
-              kind: "photo",
-              name: `CAP-${captures.length + 101}.jpg`,
-              dataUrl: swatch(captures.length),
+              ...m,
               area: area === "All" ? "Unspecified" : area,
               createdBy: auditor,
             });
             say("Captured — assign it whenever you like");
           }}
-        >
-          <IconCamera width={14} height={14} />
-          Capture now
-        </Btn>
+        />
         <Btn className="flex-1 justify-center sm:flex-none" onClick={() => setAdhoc(true)}>
           + New finding
         </Btn>
@@ -349,8 +430,7 @@ export default function FieldPage() {
             </p>
             {captures.map((cap) => (
               <div key={cap.id} className="mb-2 flex items-center gap-2.5 rounded-[11px] border p-2.5" style={{ background: "var(--sunken)", borderColor: "var(--line)" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={cap.dataUrl} alt="" className="h-[44px] w-[44px] rounded-[8px] object-cover" />
+                <PhotoThumb a={cap} size={44} />
                 <div className="min-w-0 flex-1">
                   <div className="font-mono text-[10px]" style={{ color: "var(--ink-4)" }}>
                     {cap.name} · {cap.area}
@@ -374,7 +454,7 @@ export default function FieldPage() {
                     </option>
                   ))}
                 </select>
-                <button onClick={() => dropCapture(cap.id)} aria-label="Discard" style={{ color: "var(--ink-3)" }}>
+                <button onClick={() => discardCapture(cap.id)} aria-label="Discard" style={{ color: "var(--ink-3)" }}>
                   <IconX width={14} height={14} />
                 </button>
               </div>
@@ -410,7 +490,7 @@ export default function FieldPage() {
               <label className="block">
                 <span className="label-xs">Discipline</span>
                 <select value={adhocDisc} onChange={(e) => setAdhocDisc(e.target.value)} className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[12px]" style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}>
-                  {DISCIPLINES.map((d) => (
+                  {disciplines.map((d) => (
                     <option key={d}>{d}</option>
                   ))}
                 </select>
@@ -418,7 +498,7 @@ export default function FieldPage() {
               <label className="block">
                 <span className="label-xs">Location</span>
                 <select value={adhocArea} onChange={(e) => setAdhocArea(e.target.value)} className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[12px]" style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}>
-                  {AREAS.map((a) => (
+                  {areas.map((a) => (
                     <option key={a}>{a}</option>
                   ))}
                 </select>
@@ -451,7 +531,7 @@ export default function FieldPage() {
                     owner: "",
                     dueDate: "",
                     actionStatus: "Open",
-                    originVisit: CURRENT_VISIT,
+                    originVisit: visitId,
                     priorRating: null,
                     adHoc: true,
                     createdBy: auditor,

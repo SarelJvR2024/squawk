@@ -59,33 +59,172 @@ function lower(s: string): string {
 
 /* ------------------------------------------------------------------ assist */
 
-export type AssistTask = "observation" | "finding" | "explain" | "rating" | "narrative";
+export type AssistTask =
+  | "observation"
+  | "finding"
+  | "explain"
+  | "rating"
+  | "narrative"
+  | "transcript"
+  | "caption"
+  | "rootcause";
 
-let availability: boolean | null = null;
-let probe: Promise<boolean> | null = null;
+/* One probe per endpoint per page load, shared by every component that asks.
+   Each of these is a separate deployment decision — a site may have a model and
+   no transcription, or the other way round — so they are asked separately and
+   neither implies the other. */
+const availability: Record<string, boolean | null> = {};
+const probes: Record<string, Promise<boolean> | undefined> = {};
+
+function useServiceAvailable(path: string): boolean {
+  /* The cached answer is read in the initialiser, not written back from the
+     effect, so a component mounting after the probe has already resolved
+     renders the right thing on its first pass rather than flickering. */
+  const [on, setOn] = useState(availability[path] ?? false);
+  useEffect(() => {
+    if (availability[path] != null) return;
+    probes[path] ??= fetch(path)
+      .then((r) => (r.ok ? r.json() : { available: false }))
+      .then((j: { available?: boolean }) => (availability[path] = !!j.available))
+      .catch(() => (availability[path] = false));
+    probes[path]!.then(setOn);
+  }, [path]);
+  return on;
+}
 
 export function useAssistAvailable(): boolean {
-  const [on, setOn] = useState(availability ?? false);
+  return useServiceAvailable("/api/assist");
+}
+
+/* Whether photographs are actually sent. Read only to WORD the on-screen line
+   correctly — the route drops images when the flag is off whatever the client
+   sends, because the server is the enforcement point. */
+const visionState: { on: boolean | null } = { on: null };
+let visionProbe: Promise<boolean> | null = null;
+
+export function useVisionOn(): boolean {
+  const [on, setOn] = useState(visionState.on ?? false);
   useEffect(() => {
-    if (availability !== null) return;
-    probe ??= fetch("/api/assist")
-      .then((r) => (r.ok ? r.json() : { available: false }))
-      .then((j: { available?: boolean }) => (availability = !!j.available))
-      .catch(() => (availability = false));
-    probe.then(setOn);
+    if (visionState.on !== null) return;
+    visionProbe ??= fetch("/api/assist")
+      .then((r) => (r.ok ? r.json() : { vision: false }))
+      .then((j: { vision?: boolean }) => (visionState.on = !!j.vision))
+      .catch(() => (visionState.on = false));
+    visionProbe.then(setOn);
   }, []);
   return on;
 }
 
-export async function assist(task: AssistTask, context: string): Promise<string> {
+/** True when the deployment has a transcription service configured, which is
+ *  what puts Transcribe on a voice note. Independent of the model above. */
+export function useTranscribeAvailable(): boolean {
+  return useServiceAvailable("/api/transcribe");
+}
+
+/** base64 without the data-URL prefix, which is what the API wants. */
+async function toBase64(blob: Blob): Promise<{ mediaType: string; data: string }> {
+  const buf = new Uint8Array(await blob.arrayBuffer());
+  let bin = "";
+  /* Chunked: String.fromCharCode(...) on a whole megabyte blows the argument
+     limit and throws, which would look like a model failure. */
+  for (let i = 0; i < buf.length; i += 0x8000) {
+    bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+  }
+  return { mediaType: blob.type || "image/jpeg", data: btoa(bin) };
+}
+
+export async function assist(
+  task: AssistTask,
+  context: string,
+  images: Blob[] = []
+): Promise<string> {
+  const encoded = images.length ? await Promise.all(images.map(toBase64)) : undefined;
   const r = await fetch("/api/assist", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ task, context }),
+    body: JSON.stringify({ task, context, ...(encoded ? { images: encoded } : {}) }),
   });
   const j = (await r.json()) as { text?: string; error?: string };
   if (!r.ok || !j.text) throw new Error(j.error ?? "The assistant is unavailable.");
   return j.text;
+}
+
+/* ---- strict parsers -------------------------------------------------------
+
+   Every JSON task is parsed and validated here rather than trusted. A model
+   that answers in prose, invents a root-cause category or returns one field of
+   four must produce a refusal the auditor can see, not a half-applied
+   proposal. */
+
+export interface CaptionResult {
+  caption: string;
+  legible: boolean;
+  note: string;
+}
+
+function jsonFrom(raw: string): unknown {
+  /* Models occasionally wrap JSON in a fenced block despite being told not to. */
+  const body = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/, "");
+  try {
+    return JSON.parse(body);
+  } catch {
+    return null;
+  }
+}
+
+export function parseCaption(raw: string): CaptionResult | null {
+  const j = jsonFrom(raw) as Partial<CaptionResult> | null;
+  if (!j || typeof j.caption !== "string" || !j.caption.trim()) return null;
+  return {
+    caption: j.caption.trim(),
+    legible: j.legible !== false,
+    note: typeof j.note === "string" ? j.note : "",
+  };
+}
+
+export interface RootCauseCandidate {
+  cause: string;
+  reasoning: string;
+  confidence: "high" | "medium" | "low";
+  /** The question to put to the responsible person. See parseRootCauses. */
+  askInstead: string;
+}
+
+/** `allowed` is the register's own root-cause vocabulary. A candidate outside
+ *  it is dropped rather than shown: a chip an auditor cannot actually set is
+ *  worse than one fewer suggestion. */
+export function parseRootCauses(raw: string, allowed: string[]): RootCauseCandidate[] {
+  const j = jsonFrom(raw) as { candidates?: unknown } | null;
+  const list = Array.isArray(j?.candidates) ? j!.candidates : [];
+  const out: RootCauseCandidate[] = [];
+  for (const c of list as Partial<RootCauseCandidate>[]) {
+    if (!c || typeof c.cause !== "string") continue;
+    if (!allowed.includes(c.cause)) continue;
+    const conf = c.confidence;
+    out.push({
+      cause: c.cause,
+      reasoning: typeof c.reasoning === "string" ? c.reasoning : "",
+      confidence: conf === "high" || conf === "medium" || conf === "low" ? conf : "low",
+      askInstead: typeof c.askInstead === "string" ? c.askInstead : "",
+    });
+  }
+  return out.slice(0, 4);
+}
+
+/** Send one recorded note to be transcribed. Returns what was actually heard,
+ *  verbatim. The caller stores that as the transcript and decides separately
+ *  whether to ask the model to write it up — the two steps are kept apart so a
+ *  tidy-up can never be mistaken for the recording itself. */
+export async function transcribe(
+  blob: Blob,
+  filename: string
+): Promise<{ text: string; language: string | null }> {
+  const form = new FormData();
+  form.append("audio", blob, filename);
+  const r = await fetch("/api/transcribe", { method: "POST", body: form });
+  const j = (await r.json()) as { text?: string; language?: string | null; error?: string };
+  if (!r.ok || !j.text) throw new Error(j.error ?? "Transcription is unavailable.");
+  return { text: j.text, language: j.language ?? null };
 }
 
 /* ------------------------------------------------- context builders
@@ -123,6 +262,55 @@ export function checkContext(check: Check, r?: Response, lib?: AnswerLibrary | n
     if (r.observation) l.push(`Auditor's note so far: ${r.observation}`);
   }
   return l.join("\n");
+}
+
+/** What goes with a transcript when it is written up: the words that were
+ *  spoken, and enough of the check for the model to know what the note is
+ *  about. Nothing else — and the audio itself has already been and gone
+ *  through /api/transcribe, which is a separate decision the auditor made. */
+export function transcriptContext(transcript: string, check: Check, r?: Response): string {
+  return [
+    "VERBATIM TRANSCRIPT OF THE VOICE NOTE:",
+    transcript,
+    "",
+    "THE CHECK IT WAS RECORDED AGAINST:",
+    checkContext(check, r),
+  ].join("\n");
+}
+
+/** What goes with a photograph when a caption is proposed.
+ *
+ *  Note what is NOT here: the auditor's observation, the finding, the status.
+ *  A caption must describe what is in the picture, and handing the model the
+ *  conclusion first is how you get a caption that agrees with the conclusion
+ *  instead of one that records the evidence. */
+export function captionContext(a: { name: string; takenAt?: number }): string {
+  return [
+    "Photograph taken during an ACSA asset assurance audit.",
+    a.takenAt && `Taken: ${new Date(a.takenAt).toISOString()}`,
+    "If no image is supplied with this request, say so in `note`, set `legible` false, and leave `caption` empty rather than describing a photograph you cannot see.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/** What goes with a finding when root causes are proposed. The allowed
+ *  vocabulary is sent so the model picks from it rather than inventing one, and
+ *  parseRootCauses drops anything outside it anyway. */
+export function rootCauseContext(
+  f: Finding,
+  allowed: string[],
+  check?: Check,
+  captions: string[] = []
+): string {
+  return [
+    findingContext(f, check),
+    captions.length && `Photographs attached: ${captions.map((c) => `"${c}"`).join("; ")}`,
+    "",
+    `Root-cause categories (choose only from these): ${allowed.join(" | ")}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export function findingContext(f: Finding, check?: Check): string {

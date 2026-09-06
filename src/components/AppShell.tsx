@@ -3,12 +3,30 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CHECKS, PRIOR, useStore, VISITS, AUDITORS } from "@/lib/store";
-import { CURRENT_ENTITY, PROGRAMME_VISITS, CURRENT_VISIT_ID } from "@/lib/programme";
-import { useAssistAvailable } from "@/lib/assist";
+import {
+  AUDITORS,
+  checksAt,
+  priorFindingsAt,
+  useEntityCode,
+  useResponses,
+  useStore,
+  useVerifications,
+  useVisitFindings,
+  useVisitId,
+  useVisits,
+  deskDone,
+  fieldDone,
+} from "@/lib/store";
+import { ENTITIES, entity as entityOf } from "@/lib/programme";
+import { needsDesk, needsField } from "@/lib/verification";
+import { useAssistAvailable, useTranscribeAvailable } from "@/lib/assist";
+import { portalIdFor } from "@/lib/sites";
 import ExportPanel from "@/components/ExportPanel";
+import ResetPanel from "@/components/ResetPanel";
+import AuditsPanel from "@/components/AuditsPanel";
 import {
   IconClipboard,
+  IconCamera,
   IconGrid,
   IconDownload,
   IconHelp,
@@ -19,12 +37,11 @@ import {
 } from "@/components/ui/icons";
 import { Pill } from "@/components/ui/primitives";
 
-const CURRENT_VISIT_LABEL =
-  PROGRAMME_VISITS.find((v) => v.id === CURRENT_VISIT_ID)?.label ?? CURRENT_VISIT_ID;
 
 const NAV = [
   { href: "/capture", label: "Capture", icon: IconClipboard },
   { href: "/field", label: "Field", icon: IconPin },
+  { href: "/review", label: "Review", icon: IconCamera },
   { href: "/findings", label: "Findings", icon: IconLoop },
   { href: "/closure", label: "Closure", icon: IconLoop },
   { href: "/dashboard", label: "Dashboard", icon: IconGrid },
@@ -37,22 +54,56 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const setRole = useStore((s) => s.setRole);
   const auditor = useStore((s) => s.auditor);
   const setAuditor = useStore((s) => s.setAuditor);
-  const responses = useStore((s) => s.responses);
-  const verifications = useStore((s) => s.verifications);
-  const findings = useStore((s) => s.findings);
+  const responses = useResponses();
+  const verifications = useVerifications();
+  const findings = useVisitFindings();
+  const entityCode = useEntityCode();
+  const visitId = useVisitId();
+  const setEntity = useStore((s) => s.setEntity);
+  const setVisit = useStore((s) => s.setVisit);
+
+  /* The cycle strip and the picker both run off the visits this entity
+     actually has, so switching airport re-draws the programme rather than
+     showing another site's schedule. */
+  const visits = useVisits(entityCode);
+  const visitLabel =
+    visits.find((v) => v.id === visitId)?.label ?? visitId;
 
   const [palette, setPalette] = useState(false);
   const aiOn = useAssistAvailable();
+  const transcribeOn = useTranscribeAvailable();
+  const dictation = useStore((s) => s.dictation);
+  const setDictation = useStore((s) => s.setDictation);
   const [help, setHelp] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [audits, setAudits] = useState(false);
   const [q, setQ] = useState("");
 
   const done = useMemo(
     () => Object.values(responses).filter((r) => r.captured).length,
     [responses]
   );
-  const unverified = PRIOR.length - Object.values(verifications).filter((v) => v.outcome).length;
-  const pct = Math.round((done / CHECKS.length) * 100);
+  /* This site's checklist, not the register. 324 at an international, 319 at a
+     regional, 200 at Corporate Office — a ring drawn against 324 everywhere
+     would never reach 100% at seven of the ten sites. */
+  const checks = useMemo(() => checksAt(entityCode), [entityCode]);
+  const unverified =
+    priorFindingsAt(entityCode).length -
+    Object.values(verifications).filter((v) => v.outcome).length;
+  const pct = checks.length ? Math.round((done / checks.length) * 100) : 0;
+
+  /* Each nav badge counts what is outstanding in THAT view, not across the
+     register. Capture lists 365 and Field lists 314; a badge of 374 on either
+     is a number that cannot be worked down to zero. */
+  const deskOutstanding = useMemo(
+    () => checks.filter((c) => needsDesk(c) && !deskDone(responses[c.id])).length,
+    [checks, responses]
+  );
+  const fieldOutstanding = useMemo(
+    () => checks.filter((c) => needsField(c) && !fieldDone(responses[c.id])).length,
+    [checks, responses]
+  );
 
   useEffect(() => {
     if (role === "acsa" && pathname !== "/dashboard") router.replace("/dashboard");
@@ -72,6 +123,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         setPalette(false);
         setHelp(false);
         setExporting(false);
+        setResetting(false);
+        setAudits(false);
         return;
       }
       if (!typing && e.key === "?") setHelp(true);
@@ -82,14 +135,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const results = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return CHECKS.filter(
-      (c) =>
-        !s ||
-        `${c.id} ${c.requirement} ${c.system} ${c.discipline} ${c.acsaThreshold}`
-          .toLowerCase()
-          .includes(s)
-    ).slice(0, 40);
-  }, [q]);
+    return checks
+      .filter(
+        (c) =>
+          !s ||
+          `${portalIdFor(entityCode, c.id)} ${c.requirement} ${c.system} ${c.discipline} ${c.acsaThreshold}`
+            .toLowerCase()
+            .includes(s)
+      )
+      .slice(0, 40);
+  }, [q, checks, entityCode]);
 
   const C = 2 * Math.PI * 12;
 
@@ -116,7 +171,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               Squawk
             </b>
             <span className="font-mono text-[8.5px] tracking-[0.07em]" style={{ color: "var(--ink-3)" }}>
-              {CURRENT_ENTITY.short} · {CURRENT_VISIT_LABEL.toUpperCase()}
+              {entityOf(entityCode).short} · {visitLabel.toUpperCase()}
             </span>
           </span>
         </Link>
@@ -124,16 +179,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <nav className="flex gap-[2px] rounded-[11px] p-[3px]" style={{ background: "var(--sunken)" }}>
           {NAV.map((n) => {
             const active = pathname === n.href;
-            const disabled = role === "acsa" && n.href !== "/dashboard";
+            /* ACSA is read-only across the audit, but Visual review is where
+               their engineers answer a photograph — the one screen where their
+               input is the point rather than a risk. Comments are labelled by
+               role and never touch the observation or the finding. */
+            const disabled =
+              role === "acsa" && n.href !== "/dashboard" && n.href !== "/review";
             const Icon = n.icon;
             const badge =
               n.href === "/capture"
-                ? CHECKS.length - done
-                : n.href === "/closure"
-                  ? unverified
-                  : n.href === "/findings"
-                    ? findings.length
-                    : 0;
+                ? deskOutstanding
+                : n.href === "/field"
+                  ? fieldOutstanding
+                  : n.href === "/closure"
+                    ? unverified
+                    : n.href === "/findings"
+                      ? findings.length
+                      : 0;
             return (
               <Link
                 key={n.href}
@@ -194,6 +256,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           )}
 
+          {role !== "acsa" && (
+            <button
+              onClick={() => setResetting(true)}
+              aria-label="Start again"
+              title="Start again — clear captured data for a dry run"
+              className="flex items-center gap-[6px] rounded-[8px] border px-[10px] py-[7px] text-[11.5px] transition-[var(--t)]"
+              style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+            >
+              <IconLoop width={13} height={13} />
+              <span className="hidden lg:inline">Reset</span>
+            </button>
+          )}
+
           <button
             onClick={() => setHelp(true)}
             aria-label="Keyboard shortcuts"
@@ -225,7 +300,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <circle cx="15" cy="15" r="12" fill="none" stroke="var(--line)" strokeWidth="3.5" />
                 <circle
                   cx="15" cy="15" r="12" fill="none" stroke="var(--acc)" strokeWidth="3.5" strokeLinecap="round"
-                  strokeDasharray={`${(C * done) / CHECKS.length} ${C}`}
+                  strokeDasharray={`${checks.length ? (C * done) / checks.length : 0} ${C}`}
                   style={{ transition: "stroke-dasharray 500ms cubic-bezier(.2,.7,.3,1)" }}
                 />
               </svg>
@@ -235,7 +310,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <div className="hidden md:block">
               <b className="block font-mono text-[12px] leading-[1.2] font-semibold tnum">
-                {done}/{CHECKS.length}
+                {done}/{checks.length}
               </b>
               <select
                 value={auditor}
@@ -256,12 +331,59 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         className="no-scrollbar flex shrink-0 items-center overflow-x-auto border-b px-3.5 py-[7px]"
         style={{ background: "var(--panel)", borderColor: "var(--line)" }}
       >
-        <span className="mr-3.5 whitespace-nowrap font-mono text-[8.5px] tracking-[0.1em] uppercase" style={{ color: "var(--ink-4)" }}>
-          3-year cycle · 2 visits a year
+        {/* Which audit everything below belongs to. Ten entities, six visits
+            each — the store keys every response, verification and capture by
+            this pair, so changing it here changes the whole app's subject. */}
+        <select
+          value={entityCode}
+          onChange={(e) => setEntity(e.target.value)}
+          aria-label="Entity"
+          className="mr-2.5 h-[26px] shrink-0 rounded-[7px] border px-1.5 font-mono text-[9.5px]"
+          style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+        >
+          {ENTITIES.map((e) => (
+            <option key={e.code} value={e.code}>
+              {e.short} — {e.name}
+            </option>
+          ))}
+        </select>
+        {/* The strip was clickable before this, but read as a progress
+            indicator, so nobody clicked it. Naming the action is the fix. */}
+        <button
+          onClick={() => setAudits(true)}
+          title="Open any audit, or start a new one"
+          className="mr-3 flex shrink-0 items-center gap-[5px] rounded-[7px] border px-[9px] py-[4px] font-mono text-[9.5px] transition-[var(--t)]"
+          style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+        >
+          <IconGrid width={11} height={11} />
+          All audits
+        </button>
+        <span className="mr-3 whitespace-nowrap font-mono text-[8.5px] tracking-[0.1em] uppercase" style={{ color: "var(--ink-4)" }}>
+          tap a visit to open it
         </span>
-        {VISITS.map((v, i) => (
+        {visits.length === 0 && (
+          <button
+            onClick={() => setAudits(true)}
+            className="flex shrink-0 items-center gap-[6px] rounded-[7px] border px-[10px] py-[4px] text-[10.5px] transition-[var(--t)]"
+            style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}
+          >
+            No audits at {entityOf(entityCode).short} yet — create the first one
+          </button>
+        )}
+        {visits.map((v, i) => (
           <span key={v.id} className="flex shrink-0 items-center">
-            <span className="flex shrink-0 items-center gap-[6px]">
+            <button
+              type="button"
+              onClick={() => setVisit(v.id)}
+              aria-current={v.id === visitId}
+              title={`Show ${v.label}`}
+              className="flex shrink-0 items-center gap-[6px] rounded-[7px] px-1.5 py-[3px] transition-[var(--t)]"
+              style={
+                v.id === visitId
+                  ? { background: "var(--acc-soft)", boxShadow: "inset 0 0 0 1px var(--acc-line)" }
+                  : undefined
+              }
+            >
               <span
                 className="h-[7px] w-[7px] rounded-full"
                 style={{
@@ -280,8 +402,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 {v.label}
                 <span style={{ opacity: 0.6 }}> · {v.note}</span>
               </span>
-            </span>
-            {i < VISITS.length - 1 && (
+            </button>
+            {i < visits.length - 1 && (
               <span
                 className="mx-2 h-[1.5px] w-[22px] shrink-0 rounded-[2px]"
                 style={{ background: v.state === "done" ? "var(--good-line)" : "var(--line)" }}
@@ -310,7 +432,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 autoFocus
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder={`Search all ${CHECKS.length} checks — ID, wording, system or ACSA figure…`}
+                placeholder={`Search ${entityOf(entityCode).short}'s ${checks.length} checks — ID, wording, system or ACSA figure…`}
                 className="w-full border-none bg-transparent text-[14.5px] outline-none"
               />
             </div>
@@ -326,7 +448,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   className="flex w-full items-center gap-[9px] rounded-[8px] px-[11px] py-2 text-left transition-[var(--t)] hover:bg-[var(--acc-soft)]"
                 >
                   <span className="w-[92px] shrink-0 font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
-                    {c.id}
+                    {portalIdFor(entityCode, c.id)}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-[12px]">{c.requirement}</span>
                   <Pill>{c.discipline}</Pill>
@@ -378,16 +500,72 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               ))}
             </div>
 
+            <h3 className="mt-5 mb-2 text-[14px] font-bold">Voice notes</h3>
+            <p className="text-[12px] leading-[1.6]" style={{ color: "var(--ink-2)" }}>
+              Every voice note is recorded and kept on this device. It plays back
+              beside the check it belongs to and stays there until the audit is
+              exported or reset — that part needs no network and no service, and
+              it is not optional.
+            </p>
+
+            {/* The consent switch. It is a switch and not a line of prose
+                because "dictation is on" was previously true of every recording
+                and said nowhere. */}
+            <label
+              className="mt-2.5 flex cursor-pointer items-start gap-2.5 rounded-[11px] border p-[11px]"
+              style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+            >
+              <input
+                type="checkbox"
+                checked={dictation}
+                onChange={(e) => setDictation(e.target.checked)}
+                className="mt-[2px] h-[16px] w-[16px] shrink-0 accent-[var(--acc)]"
+                aria-label="Live text while recording"
+              />
+              <span className="min-w-0 text-[12px] leading-[1.55]">
+                <b>Live text while recording</b>
+                <span className="block" style={{ color: "var(--ink-2)" }}>
+                  Shows words on screen as you speak. Your browser does this by
+                  streaming the audio to its vendor&rsquo;s speech service — on Chrome
+                  that is Google — so it is off unless you switch it on. It is
+                  English-only and it is absent on iPad Safari. The recording itself
+                  is unaffected either way.
+                </span>
+              </span>
+            </label>
+
+            <p className="mt-2.5 text-[12px] leading-[1.6]" style={{ color: "var(--ink-2)" }}>
+              {transcribeOn ? (
+                <>
+                  <b>Transcribe</b> on a note sends that one recording to the
+                  transcription service and stores what it heard, word for word. It
+                  handles English and Afrikaans in the same sentence, which the
+                  browser cannot. It runs only when you press it — never on save,
+                  never in the background.
+                </>
+              ) : (
+                <>
+                  No transcription service is configured, so a note&rsquo;s text is
+                  typed by hand. To turn it on, set{" "}
+                  <code className="font-mono text-[11px]">ELEVENLABS_API_KEY</code> in
+                  the deployment environment.
+                </>
+              )}
+            </p>
+
             <h3 className="mt-5 mb-2 text-[14px] font-bold">AI assistance</h3>
             <p className="text-[12px] leading-[1.6]" style={{ color: "var(--ink-2)" }}>
               {aiOn ? (
                 <>
                   A model is connected. It drafts wording, reads a procedure back in
-                  plain English and offers a view on a rating — always as a suggestion
-                  you accept, edit or ignore. It never sets a status, never rates a
-                  finding and never writes to the record on its own. Only the text of
-                  the check you are on is sent; photographs, voice notes and
-                  attachments never leave the device.
+                  plain English, offers a view on a rating, and turns a transcribed
+                  voice note into the written observation — always as a suggestion you
+                  accept, edit or ignore. It never sets a status, never rates a finding
+                  and never writes to the record on its own. When it writes up a note,
+                  the words you actually said are kept beside the suggestion so you can
+                  check nothing was changed. Only text is sent to it: the check you are
+                  on and, for a write-up, that transcript. Photographs are never sent to
+                  it, and audio never is either.
                 </>
               ) : (
                 <>
@@ -395,17 +573,25 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <b>Compose from taps</b> builds your observation from the buttons you
                   have pressed, offline. To turn the assistant on, set{" "}
                   <code className="font-mono text-[11px]">ANTHROPIC_API_KEY</code> in the
-                  deployment environment. That decision belongs with the data-governance
-                  question (design document Q4), because it is the one thing in this app
-                  that sends anything off the device.
+                  deployment environment.
                 </>
               )}
+            </p>
+
+            <p className="mt-2.5 text-[11px] leading-[1.55]" style={{ color: "var(--ink-3)" }}>
+              Three things can send data off this device: live text, Transcribe and
+              the assistant. Each is listed above, each is separately switched, and
+              all three are off until someone turns them on. Nothing else in the app
+              leaves the tablet. This is the design document&rsquo;s Q4 question and it
+              is not settled yet.
             </p>
           </div>
         </div>
       )}
 
       {exporting && <ExportPanel onClose={() => setExporting(false)} />}
+      {resetting && <ResetPanel onClose={() => setResetting(false)} />}
+      {audits && <AuditsPanel onClose={() => setAudits(false)} />}
 
       {role === "acsa" && (
         <div
