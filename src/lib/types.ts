@@ -412,6 +412,29 @@ export interface Finding {
   createdBy: string;
 }
 
+/** One dated entry in a record's history.
+ *
+ *  ACSA's dashboards carry a single Progress/Update CELL, and a cell gets typed
+ *  over. By the time a finding closes, nobody can say when it moved, who said
+ *  so, or which audit they said it at — the only thing left is the last person's
+ *  sentence. That is not a record, and a follow-up conversation eighteen months
+ *  later is exactly when it matters.
+ *
+ *  So progress is a LOG. Each entry keeps its author, its timestamp and the
+ *  visit it was recorded at, and the export flattens the whole log into ACSA's
+ *  one cell — their format, our history. */
+export interface ProgressNote {
+  at: number;
+  by: string;
+  /** The visit this was recorded at, so the timeline can group by audit. */
+  visit: string;
+  /** The outcome as it stood when this was written, or null for a plain note.
+   *  Kept per entry rather than only on the record, so a status that moved
+   *  from "Open - repeat" to "Closed" shows WHEN it moved. */
+  outcome: VerificationOutcome | null;
+  note: string;
+}
+
 export interface Verification {
   pf: string;
   outcome: VerificationOutcome | null;
@@ -419,6 +442,15 @@ export interface Verification {
   attachments: Attachment[];
   verifiedBy: string;
   verifiedAt: number | null;
+  /** What must still happen, when the outcome is anything but Closed.
+   *
+   *  Recorded against the CARRIED finding rather than raised as a new one, so
+   *  the action stays attached to the thing it fixes. A new finding would break
+   *  the chain back to March 2025 and the item would look like two problems. */
+  action?: string;
+  /** Progress at this visit. The timeline across visits is assembled by
+   *  historyFor() in carryforward.ts, which reads every visit's copy. */
+  progress?: ProgressNote[];
 }
 
 export interface Capture {

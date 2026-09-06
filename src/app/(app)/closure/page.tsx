@@ -12,7 +12,8 @@ import {
   useVisitFindings,
   useVisitId,
 } from "@/lib/store";
-import { currentRatingOf, useOutstanding, visitsOpen } from "@/lib/carryforward";
+import { currentRatingOf, useHistory, useOutstanding, visitsOpen } from "@/lib/carryforward";
+import ItemTimeline from "@/components/ItemTimeline";
 import { PROGRAMME_VISITS } from "@/lib/programme";
 import { bandFor, movement } from "@/lib/risk";
 import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
@@ -37,6 +38,8 @@ export default function ClosurePage() {
   const findings = useVisitFindings();
   const verifications = useVerifications();
   const patchVerification = useStore((s) => s.patchVerification);
+  const addProgress = useStore((s) => s.addProgress);
+  const [progressText, setProgressText] = useState("");
   const updateFinding = useStore((s) => s.updateFinding);
   const entity = useEntity();
   const entityCode = useEntityCode();
@@ -84,6 +87,8 @@ export default function ClosurePage() {
 
   const active = list.find((p) => p.key === activePf) ?? list[0];
   const v = active ? verifications[active.key] : undefined;
+  /* Read across every visit, not just this one — see historyFor(). */
+  const history = useHistory(active?.key ?? "");
 
   const counts = {
     closed: outstanding.filter((p) => verifications[p.key]?.outcome === "Closed").length,
@@ -351,6 +356,67 @@ export default function ClosurePage() {
                 placeholder="What proves it was fixed…"
                 className="min-h-[70px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
                 style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+              />
+
+              {/* What must still happen. Shown for anything that is not
+                  Closed, and recorded against the CARRIED item rather than
+                  raised as a new finding — a new finding breaks the chain back
+                  to the audit that found it, and the same problem then reads
+                  as two. */}
+              {v?.outcome && v.outcome !== "Closed" && (
+                <>
+                  <div className="mt-4 mb-2 font-display text-[11px] font-semibold">
+                    Mitigation action — what must still happen
+                  </div>
+                  <textarea
+                    value={v?.action ?? ""}
+                    onChange={(e) => patchVerification(active.key, { action: e.target.value })}
+                    placeholder="What is outstanding, and who has it…"
+                    className="min-h-[60px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                    style={{
+                      background: "var(--panel)",
+                      borderColor: v?.action ? "var(--line-2)" : "var(--warn-line)",
+                    }}
+                  />
+                </>
+              )}
+
+              {/* The dated log. ACSA's Progress/Update is one cell that gets
+                  typed over; this appends, keeping the author, the time and
+                  the visit, and the export flattens it back into their cell. */}
+              <div className="mt-4 mb-2 font-display text-[11px] font-semibold">Progress</div>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  value={progressText}
+                  onChange={(e) => setProgressText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && progressText.trim()) {
+                      addProgress(active.key, progressText);
+                      setProgressText("");
+                      say("Progress recorded");
+                    }
+                  }}
+                  placeholder="What moved, in one line…"
+                  className="min-w-0 flex-1 rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                />
+                <Btn
+                  disabled={!progressText.trim()}
+                  onClick={() => {
+                    addProgress(active.key, progressText);
+                    setProgressText("");
+                    say("Progress recorded");
+                  }}
+                >
+                  Add to the log
+                </Btn>
+              </div>
+
+              {/* Every audit that touched this, in order. */}
+              <ItemTimeline
+                history={history}
+                priorLabel={active.originLabel}
+                priorRating={active.rating}
               />
 
               <div className="mt-4 mb-2 flex items-center justify-between">

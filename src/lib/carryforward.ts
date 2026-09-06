@@ -28,8 +28,21 @@
 import { useMemo } from "react";
 import { BAND_AS_RATING, bandFor } from "./risk";
 import { PROGRAMME_VISITS } from "./programme";
-import { priorFindingsAt, useEntityFindings, useEntityCode, useVisitId } from "./store";
-import type { Finding, PriorFinding } from "./types";
+import type { VisitData } from "./store";
+import {
+  priorFindingsAt,
+  scopeKey,
+  useEntityFindings,
+  useEntityCode,
+  useStore,
+  useVisitId,
+} from "./store";
+import type {
+  Finding,
+  PriorFinding,
+  ProgressNote,
+  VerificationOutcome,
+} from "./types";
 
 /* The seeded set used to be one file of King Shaka's March 2025 findings and
    two constants naming the entity and visit they belonged to, because there was
@@ -211,4 +224,81 @@ export function currentRatingOf(
   if (checksForSystem.some((c) => responses[c.id]?.compliance === "NC")) return "Pending rating";
   if (checksForSystem.some((c) => responses[c.id]?.captured)) return "Acceptable";
   return "Not assessed";
+}
+
+/* ------------------------------------------------------------ the timeline */
+
+/** One audit's worth of what happened to a carried item. */
+export interface HistoryEntry {
+  visit: string;
+  label: string;
+  /** Where the visit sits relative to the one in view. */
+  when: "earlier" | "current" | "later";
+  outcome: VerificationOutcome | null;
+  evidence: string;
+  action: string;
+  verifiedBy: string;
+  verifiedAt: number | null;
+  attachments: number;
+  progress: ProgressNote[];
+}
+
+/** Everything recorded against one carried item, across every audit.
+ *
+ *  A verification has always been stored per visit — byVisit[entity|visit]
+ *  .verifications[portalId] — so March 2025's finding gets its own record at
+ *  September 2026 and another at March 2027. The data was there from the start.
+ *  What did not exist was any way to SEE it: the closure screen read the
+ *  current visit's record and nothing else, so an item that had been "Open -
+ *  repeat" twice and then closed looked exactly like one closed first time.
+ *
+ *  The whole point of a three-year cycle is the comparison. This is it. */
+export function historyFor(
+  byVisit: Record<string, VisitData>,
+  entityCode: string,
+  currentVisit: string,
+  portalId: string,
+  visits: { id: string; label: string }[]
+): HistoryEntry[] {
+  const order = visits.map((v) => v.id);
+  const nowAt = order.indexOf(currentVisit);
+  return visits
+    .map((v, i) => {
+      const d = byVisit[scopeKey(entityCode, v.id)];
+      const rec = d?.verifications?.[portalId];
+      /* A visit with nothing recorded is left out entirely rather than shown
+         as an empty row. "Nothing was recorded" and "nobody audited this yet"
+         are the same thing here, and a row of blanks reads like the first. */
+      if (!rec || (!rec.outcome && !rec.evidence && !(rec.progress?.length) && !rec.action)) {
+        return null;
+      }
+      return {
+        visit: v.id,
+        label: v.label,
+        when: i < nowAt ? "earlier" : i === nowAt ? "current" : "later",
+        outcome: rec.outcome,
+        evidence: rec.evidence ?? "",
+        action: rec.action ?? "",
+        verifiedBy: rec.verifiedBy ?? "",
+        verifiedAt: rec.verifiedAt ?? null,
+        attachments: rec.attachments?.length ?? 0,
+        progress: rec.progress ?? [],
+      } as HistoryEntry;
+    })
+    .filter((e): e is HistoryEntry => e !== null);
+}
+
+/** The same history for the entity and visit in view. */
+export function useHistory(portalId: string): HistoryEntry[] {
+  const byVisit = useStore((s) => s.byVisit);
+  const entityCode = useEntityCode();
+  const visitId = useVisitId();
+  const visits = useMemo(
+    () => PROGRAMME_VISITS.filter((v) => v.entity === entityCode),
+    [entityCode]
+  );
+  return useMemo(
+    () => historyFor(byVisit, entityCode, visitId, portalId, visits),
+    [byVisit, entityCode, visitId, portalId, visits]
+  );
 }
