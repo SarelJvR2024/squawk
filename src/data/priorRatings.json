@@ -1,0 +1,794 @@
+[
+ {
+  "key": "PF-01",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Electrical",
+  "system": "Switchgear",
+  "rating": "Unacceptable",
+  "note": "Switchgear annual maintenance reports inadequate, do not show all required checks on VCB, protection & auxiliary relays, panels and busbars.",
+  "derived": false
+ },
+ {
+  "key": "PF-02",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Electrical",
+  "system": "Generators",
+  "rating": "Unacceptable",
+  "note": "No diesel cut-out fuse installed on any generator (fire isolation); oil leaks on the floor of some airside substations; maintenance records run to March 2024; weekly off-load, monthly on-load tests and annual service to be evidenced.",
+  "derived": false
+ },
+ {
+  "key": "PF-03",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Electrical",
+  "system": "Electricity Distribution System",
+  "rating": "Tolerable",
+  "note": "Switchgear and generators, central to the distribution network, rated Unacceptable; distribution system Tolerable until those findings are closed.",
+  "derived": false
+ },
+ {
+  "key": "PF-04",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Electrical",
+  "system": "Transformers",
+  "rating": "Tolerable",
+  "note": "TRF 02 at AS1 off (oil below minimum); AS4 TRF 01 and 02 indicate partial discharges; Basement Chamber A1 TRF 04 and 05 indicate a high-range thermal fault (above 700 °C); production rates to be monitored.",
+  "derived": false
+ },
+ {
+  "key": "PF-05",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Electrical",
+  "system": "ILS",
+  "rating": "Tolerable",
+  "note": "RWY 06 GP transmitter 1 unserviceable; ILS downgraded to CAT I; flight inspection report to be checked.",
+  "derived": false
+ },
+ {
+  "key": "PF-06",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Electrical",
+  "system": "AWOS",
+  "rating": "Tolerable",
+  "note": "Latest AWOS calibration records not submitted.",
+  "derived": false
+ },
+ {
+  "key": "PF-07",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Electrical",
+  "system": "FDS & Gaseous Suppression",
+  "rating": "Tolerable",
+  "note": "Systems well maintained per service stickers; faults observed on some panels need to be cleared.",
+  "derived": false
+ },
+ {
+  "key": "PF-08",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Electrical",
+  "system": "X-Ray Machines",
+  "rating": "Tolerable",
+  "note": "Quarterly PM records for the previous two quarters submitted (calibration confirmed); one sampled machine at international arrivals not in good condition, one at local departures not functional.",
+  "derived": false
+ },
+ {
+  "key": "PF-09",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Electrical",
+  "system": "AGL",
+  "rating": "Acceptable",
+  "note": "Acceptable in Mar 2025.",
+  "derived": false
+ },
+ {
+  "key": "PF-10",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Electrical",
+  "system": "Substations",
+  "rating": "Acceptable",
+  "note": "Acceptable in Mar 2025.",
+  "derived": false
+ },
+ {
+  "key": "PF-11",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Electrical",
+  "system": "UPS",
+  "rating": "Acceptable",
+  "note": "Acceptable in Mar 2025.",
+  "derived": false
+ },
+ {
+  "key": "PF-12",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Electrical",
+  "system": "Lighting",
+  "rating": "Acceptable",
+  "note": "Acceptable in Mar 2025.",
+  "derived": false
+ },
+ {
+  "key": "PF-13",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Mechanical",
+  "system": "Fuel System",
+  "rating": "Unacceptable",
+  "note": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
+  "derived": false
+ },
+ {
+  "key": "PF-14",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Mechanical",
+  "system": "People Movers",
+  "rating": "Unacceptable",
+  "note": "People movers rated Unacceptable (escalators / travelators / lifts).",
+  "derived": false
+ },
+ {
+  "key": "PF-15",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Mechanical",
+  "system": "Passenger Boarding Bridges (PLBs)",
+  "rating": "Tolerable",
+  "note": "Signs of corrosion; no structural assessment reports by Professional Engineers to rule out structural failure.",
+  "derived": false
+ },
+ {
+  "key": "PF-16",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Civil",
+  "system": "Friction Measurement & Corrective Maintenance",
+  "rating": "Tolerable",
+  "note": "Friction levels below minimum in some runway sections, corrective measures required.",
+  "derived": false
+ },
+ {
+  "key": "PF-17",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Civil",
+  "system": "Airside Service Roads & Perimeter",
+  "rating": "Tolerable",
+  "note": "Service road expansion joints need repair or replacement.",
+  "derived": false
+ },
+ {
+  "key": "PF-18",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Building & Facilities",
+  "system": "Corrosion",
+  "rating": "Acceptable",
+  "note": "Building corrosion (steel structure) previously Tolerable, addressed, now Acceptable. Verify sustained.",
+  "derived": false
+ },
+ {
+  "key": "PF-19",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Building & Facilities",
+  "system": "Refuse Disposal",
+  "rating": "Acceptable",
+  "note": "Refuse disposal improved; good housekeeping maintained. Verify sustained.",
+  "derived": false
+ },
+ {
+  "key": "PF-20",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Process Safety & Risk",
+  "system": "Standby Power Safety",
+  "rating": "Unacceptable",
+  "note": "No cut-out fuse on diesel supply to generators, fire hazard.",
+  "derived": false
+ },
+ {
+  "key": "PF-21",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Process Safety & Risk",
+  "system": "Fuel Farm & Hydrant (MHI)",
+  "rating": "Unacceptable",
+  "note": "Fuel hydrant pit couplers without lids, pit flooding and fuel leaks leading to environmental contamination.",
+  "derived": false
+ },
+ {
+  "key": "PF-22",
+  "siteCode": "KSIA",
+  "entityCode": "FALE",
+  "discipline": "Energy & Demand Management",
+  "system": "Energy Distribution",
+  "rating": "Not audited",
+  "note": "E&DM was not audited at KSIA in Mar 2025, no compliance dashboard exists. This round is the E&DM baseline.",
+  "derived": false
+ },
+ {
+  "key": "ORTIA-R01",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Building & Facilities",
+  "system": "Building Drainage",
+  "rating": "Tolerable",
+  "note": "Building drainage rated Tolerable.",
+  "derived": true,
+  "from": [
+   "ORTIA-BFM-P02"
+  ]
+ },
+ {
+  "key": "ORTIA-R02",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Building & Facilities",
+  "system": "Stormwater Disposal",
+  "rating": "Unacceptable",
+  "note": "Gutter and waterproofing failure in the terminal building; reinstate waterproofing, clear full bores and replace damaged gutters and downpipes.",
+  "derived": true,
+  "from": [
+   "ORTIA-BFM-P01"
+  ]
+ },
+ {
+  "key": "ORTIA-R03",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Building & Facilities",
+  "system": "Water & Plumbing",
+  "rating": "Tolerable",
+  "note": "Lack of odour control in ablutions and insufficient air circulation; reinstate the odour control regime in the departures ablutions and check the air extractors in the lounge ablutions.",
+  "derived": true,
+  "from": [
+   "ORTIA-BFM-P03"
+  ]
+ },
+ {
+  "key": "ORTIA-R04",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Civil",
+  "system": "Drainage",
+  "rating": "Tolerable",
+  "note": "Airside drainage remains at a Tolerable level.",
+  "derived": true,
+  "from": [
+   "ORTIA-CIV-P09"
+  ]
+ },
+ {
+  "key": "ORTIA-R05",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Civil",
+  "system": "Perimeter / Security Fence",
+  "rating": "Unacceptable",
+  "note": "Perimeter and security fence remains at an Unacceptable level; corroding razor coils require attention.",
+  "derived": true,
+  "from": [
+   "ORTIA-CIV-P01"
+  ]
+ },
+ {
+  "key": "ORTIA-R06",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Civil",
+  "system": "Rubber Removal & Contaminants",
+  "rating": "Tolerable",
+  "note": "Rubber removal remains at a Tolerable level.",
+  "derived": true,
+  "from": [
+   "ORTIA-CIV-P08"
+  ]
+ },
+ {
+  "key": "ORTIA-R07",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Civil",
+  "system": "Runway",
+  "rating": "Tolerable",
+  "note": "Runways remain at a Tolerable level; friction survey of Runway 03R/21L on 20 February 2025 between design and maintenance level.",
+  "derived": true,
+  "from": [
+   "ORTIA-CIV-P07"
+  ]
+ },
+ {
+  "key": "ORTIA-R08",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Civil",
+  "system": "Visual Aids",
+  "rating": "Tolerable",
+  "note": "Visual aids remain at a Tolerable level.",
+  "derived": true,
+  "from": [
+   "ORTIA-CIV-P06"
+  ]
+ },
+ {
+  "key": "ORTIA-R09",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Civil",
+  "system": "Wind Direction Indicator",
+  "rating": "Tolerable",
+  "note": "Wind direction indicators remain at a Tolerable level.",
+  "derived": true,
+  "from": [
+   "ORTIA-CIV-P10"
+  ]
+ },
+ {
+  "key": "ORTIA-R10",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Electrical",
+  "system": "AGL",
+  "rating": "Unacceptable",
+  "note": "Multiple AGL circuits unserviceable: 03L RCL, 03L TDZ ZP3, ZS1, ZS2, ZS3, 21R TDZ ZP1, ZP2, ZP3, ZS3; 21L RCL, 03R RCL, 03R TDZ ZP2, ZS1, 21L TDZ ZP2, ZP3, ZS2.",
+  "derived": true,
+  "from": [
+   "ORTIA-ELE-P01"
+  ]
+ },
+ {
+  "key": "ORTIA-R11",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Electrical",
+  "system": "Electricity Distribution System",
+  "rating": "Unacceptable",
+  "note": "Unrecorded network modifications, especially the airfield bulk supply; fuel farm bulk supply and alternative supply provided from the terminal through the minisubs; DOMTEX to Sub 21R cable faulty for over three years with temporary supply from the Cargo network Sub 4; Main Intake Station South to DOMTEX feeder cable faulty for over three weeks; DOMTEX to new L-Band Sub feeder cable fault on 24 March 2025.",
+  "derived": true,
+  "from": [
+   "ORTIA-ELE-P02"
+  ]
+ },
+ {
+  "key": "ORTIA-R12",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Electrical",
+  "system": "FDS & Gaseous Suppression",
+  "rating": "Unacceptable",
+  "note": "A number of FDS panels faulty and ECUs in manual mode or faulty, confirmed by the maintenance report (loop faults, batteries); Sub 13 gaseous suppression cylinders removed from the HT room; no fire detection and gaseous suppression observed in the electrical rooms of the New Ops Complex Sub.",
+  "derived": true,
+  "from": [
+   "ORTIA-ELE-P06"
+  ]
+ },
+ {
+  "key": "ORTIA-R13",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Electrical",
+  "system": "Lighting",
+  "rating": "Tolerable",
+  "note": "Apron light output and indoor lighting records not provided (only 2023 records provided).",
+  "derived": true,
+  "from": [
+   "ORTIA-ELE-P05"
+  ]
+ },
+ {
+  "key": "ORTIA-R14",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Electrical",
+  "system": "Substations",
+  "rating": "Tolerable",
+  "note": "Outdated drawings mounted in substation rooms; Terminal Sub 9 has a massive accumulation of carbon dust particles; general accumulation of dust in all substations.",
+  "derived": true,
+  "from": [
+   "ORTIA-ELE-P03"
+  ]
+ },
+ {
+  "key": "ORTIA-R15",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Electrical",
+  "system": "UPS",
+  "rating": "Unacceptable",
+  "note": "CTB-WC 19 UPS unserviceable; DB B1.1 UPS unserviceable; Substation 12 LT room UPS on manual bypass; DB 1.2 Pier UPS unserviceable; DB 1.4 UPS unserviceable; DB 2.7 UPS unserviceable; DB A0.7 UPS on manual bypass.",
+  "derived": true,
+  "from": [
+   "ORTIA-ELE-P04"
+  ]
+ },
+ {
+  "key": "ORTIA-R16",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Electrical",
+  "system": "X-Ray Machines",
+  "rating": "Unacceptable",
+  "note": "TA-6 Position 4 AMD, ALPHA 4 Airside AMD and Charlie Gate Entrance X-ray machines unserviceable; light globes, light covers, tunnel covers and hard drives need replacement on a number of machines.",
+  "derived": true,
+  "from": [
+   "ORTIA-ELE-P07"
+  ]
+ },
+ {
+  "key": "ORTIA-R17",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Energy & Demand Management",
+  "system": "Energy Consumption",
+  "rating": "Tolerable",
+  "note": "Some tenants in the terminal are not metered; possible revenue loss. All areas that should be metered must be metered.",
+  "derived": true,
+  "from": [
+   "ORTIA-EDM-P02"
+  ]
+ },
+ {
+  "key": "ORTIA-R18",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Energy & Demand Management",
+  "system": "Metering",
+  "rating": "Tolerable",
+  "note": "Some meters have not been calibrated; meters used for billing must be calibrated.",
+  "derived": true,
+  "from": [
+   "ORTIA-EDM-P01"
+  ]
+ },
+ {
+  "key": "ORTIA-R19",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Mechanical",
+  "system": "BHS",
+  "rating": "Tolerable",
+  "note": "No calibration certificates for the weighing scales: non-compliance with the Legal Metrology Act 2014, possible penalties from the National Regulator for Compulsory Specifications and reputational risk if airlines request the certificates.",
+  "derived": true,
+  "from": [
+   "ORTIA-MEC-P04"
+  ]
+ },
+ {
+  "key": "ORTIA-R20",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Mechanical",
+  "system": "Fuel System",
+  "rating": "Tolerable",
+  "note": "Installation of appropriate fire suppression systems in the fuel system electrical rooms essential; rooms to be appropriately sealed.",
+  "derived": true,
+  "from": [
+   "ORTIA-MEC-P03"
+  ]
+ },
+ {
+  "key": "ORTIA-R21",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Mechanical",
+  "system": "HVAC",
+  "rating": "Unacceptable",
+  "note": "No records of interface testing of the fire detection system with the air handling units and fire dampers; no interface test records of the fire detection system with the smoke extraction fans. Insurance risk and risk to life of building occupants.",
+  "derived": true,
+  "from": [
+   "ORTIA-MEC-P01"
+  ]
+ },
+ {
+  "key": "ORTIA-R22",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Process Safety & Risk",
+  "system": "Standby Power Safety",
+  "rating": "Tolerable",
+  "note": "Fuel tank not bunded; the drip tray is insufficient to contain spillages; tank to be correctly bunded.",
+  "derived": true,
+  "from": [
+   "ORTIA-PSR-P03"
+  ]
+ },
+ {
+  "key": "ORTIA-R23",
+  "siteCode": "ORTIA",
+  "entityCode": "FAOR",
+  "discipline": "Process Safety & Risk",
+  "system": "Statutory Appointments & Competencies",
+  "rating": "Tolerable",
+  "note": "Assistant supervisor appointment letters issued for the sample requested but not signed by the appointees.",
+  "derived": true,
+  "from": [
+   "ORTIA-PSR-P06"
+  ]
+ },
+ {
+  "key": "CTIA-R01",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Civil",
+  "system": "Aprons",
+  "rating": "Unacceptable",
+  "note": "Urgent repair of surface defects and joint failures; corrective concrete repair per EN 1504 to avoid further cracking (deteriorated from Tolerable in 2023 to Unacceptable in 2025).",
+  "derived": true,
+  "from": [
+   "CTIA-CIV-P04"
+  ]
+ },
+ {
+  "key": "CTIA-R02",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Civil",
+  "system": "Friction Measurement & Corrective Maintenance",
+  "rating": "Tolerable",
+  "note": "Corrective measures required to avoid friction measurements falling below the minimum levels (ICAO).",
+  "derived": true,
+  "from": [
+   "CTIA-CIV-P02"
+  ]
+ },
+ {
+  "key": "CTIA-R03",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Civil",
+  "system": "Markings",
+  "rating": "Tolerable",
+  "note": "Repainting of the remaining faded markings on the aprons and taxiways required; oil spill oversight to improve visibility around the aprons (improved from Unacceptable in 2023).",
+  "derived": true,
+  "from": [
+   "CTIA-CIV-P01"
+  ]
+ },
+ {
+  "key": "CTIA-R04",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Civil",
+  "system": "Taxiways & Taxilanes",
+  "rating": "Tolerable",
+  "note": "Repair of further surface defects required; continuous monitoring of previous repairs.",
+  "derived": true,
+  "from": [
+   "CTIA-CIV-P03"
+  ]
+ },
+ {
+  "key": "CTIA-R05",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Electrical",
+  "system": "AGL",
+  "rating": "Tolerable",
+  "note": "No maintenance records submitted.",
+  "derived": true,
+  "from": [
+   "CTIA-ELE-P01"
+  ]
+ },
+ {
+  "key": "CTIA-R06",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Electrical",
+  "system": "AWOS",
+  "rating": "Tolerable",
+  "note": "No maintenance records provided.",
+  "derived": true,
+  "from": [
+   "CTIA-ELE-P09"
+  ]
+ },
+ {
+  "key": "CTIA-R07",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Electrical",
+  "system": "Electricity Distribution System",
+  "rating": "Unacceptable",
+  "note": "Electrical network poses a big operational risk with no maintenance records.",
+  "derived": true,
+  "from": [
+   "CTIA-ELE-P02"
+  ]
+ },
+ {
+  "key": "CTIA-R08",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Electrical",
+  "system": "FDS & Gaseous Suppression",
+  "rating": "Unacceptable",
+  "note": "No gaseous suppression observed at Airfranc Substation and Sub 19; faults observed on some FDS panels; no maintenance records provided.",
+  "derived": true,
+  "from": [
+   "CTIA-ELE-P10"
+  ]
+ },
+ {
+  "key": "CTIA-R09",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Electrical",
+  "system": "Generators",
+  "rating": "Unacceptable",
+  "note": "No maintenance records submitted.",
+  "derived": true,
+  "from": [
+   "CTIA-ELE-P05"
+  ]
+ },
+ {
+  "key": "CTIA-R10",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Electrical",
+  "system": "ILS",
+  "rating": "Tolerable",
+  "note": "No maintenance records provided.",
+  "derived": true,
+  "from": [
+   "CTIA-ELE-P08"
+  ]
+ },
+ {
+  "key": "CTIA-R11",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Electrical",
+  "system": "Substations",
+  "rating": "Unacceptable",
+  "note": "Sub 19 and T2 MV and LV equipment located in the same room, not compliant with SANS 10142-2; substation labels and notices worn off or missing (Electrical Machinery Regulations, OHS Act 85 of 1993).",
+  "derived": true,
+  "from": [
+   "CTIA-ELE-P04"
+  ]
+ },
+ {
+  "key": "CTIA-R12",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Electrical",
+  "system": "Switchgear",
+  "rating": "Unacceptable",
+  "note": "No maintenance records submitted.",
+  "derived": true,
+  "from": [
+   "CTIA-ELE-P03"
+  ]
+ },
+ {
+  "key": "CTIA-R13",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Electrical",
+  "system": "Transformers",
+  "rating": "Tolerable",
+  "note": "Transformers observed to be in good condition; no maintenance records submitted.",
+  "derived": true,
+  "from": [
+   "CTIA-ELE-P06"
+  ]
+ },
+ {
+  "key": "CTIA-R14",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Electrical",
+  "system": "UPS",
+  "rating": "Tolerable",
+  "note": "UPS replacement under way with equipment already on site; no maintenance records provided.",
+  "derived": true,
+  "from": [
+   "CTIA-ELE-P07"
+  ]
+ },
+ {
+  "key": "CTIA-R15",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Electrical",
+  "system": "X-Ray Machines",
+  "rating": "Tolerable",
+  "note": "No maintenance records provided.",
+  "derived": true,
+  "from": [
+   "CTIA-ELE-P11"
+  ]
+ },
+ {
+  "key": "CTIA-R16",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Mechanical",
+  "system": "Fire Protection - Fire Extinguishers",
+  "rating": "Tolerable",
+  "note": "Fire extinguisher pressure test records not provided.",
+  "derived": true,
+  "from": [
+   "CTIA-MEC-P04"
+  ]
+ },
+ {
+  "key": "CTIA-R17",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Mechanical",
+  "system": "Fire Protection - Fire Water pump station",
+  "rating": "Unacceptable",
+  "note": "No records provided to verify the operational status, maintenance history or testing of the fire water pump.",
+  "derived": true,
+  "from": [
+   "CTIA-MEC-P06"
+  ]
+ },
+ {
+  "key": "CTIA-R18",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Mechanical",
+  "system": "Fire Protection - Hose reels and fire hydrants",
+  "rating": "Tolerable",
+  "note": "No quarterly sprinkler head inspection records; no weekly valve station water flow alarm tests; no three-yearly deluge and control valve service records; no yearly independent ASIB inspection records.",
+  "derived": true,
+  "from": [
+   "CTIA-MEC-P05"
+  ]
+ },
+ {
+  "key": "CTIA-R19",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Mechanical",
+  "system": "Fuel System",
+  "rating": "Unacceptable",
+  "note": "No records that electrical machinery in hazardous locations meets SANS 10089-2; no cathodic protection records; internal tank integrity inspection records incomplete; plant condition poor with corrosion; bunding, oil separators, valves and water cooling systems require urgent attention.",
+  "derived": true,
+  "from": [
+   "CTIA-MEC-P03"
+  ]
+ },
+ {
+  "key": "CTIA-R20",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Mechanical",
+  "system": "HVAC",
+  "rating": "Unacceptable",
+  "note": "No flow test records for fresh air induction, toilet extraction and smoke extraction fans; no functional test records for roof vents, fire dampers and the HVAC/fire detection interface; plant condition poor; corrosion presenting safety and asset risks.",
+  "derived": true,
+  "from": [
+   "CTIA-MEC-P01"
+  ]
+ },
+ {
+  "key": "CTIA-R21",
+  "siteCode": "CTIA",
+  "entityCode": "FACT",
+  "discipline": "Mechanical",
+  "system": "People Movers",
+  "rating": "Tolerable",
+  "note": "Annexes valid at the time of audit; management to confirm that all endorsements on the certificates have been attended to.",
+  "derived": true,
+  "from": [
+   "CTIA-MEC-P02"
+  ]
+ }
+]

@@ -3,9 +3,10 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  AREAS,
-  CHECKS,
-  DISCIPLINES,
+  areasAt,
+  checksAt,
+  disciplinesAt,
+  priorFor,
   useCaptures,
   useEntity,
   useEntityCode,
@@ -15,6 +16,7 @@ import {
   fieldDone,
 } from "@/lib/store";
 import { locationAxis } from "@/lib/programme";
+import { portalIdFor } from "@/lib/sites";
 import type { Check, Compliance } from "@/lib/types";
 import { Btn, Chip, Empty, Panel, Pill } from "@/components/ui/primitives";
 import { AttachmentStrip, PhotoButton, PhotoThumb, VoiceNoteButton } from "@/components/Capture";
@@ -78,8 +80,12 @@ export default function FieldPage() {
   const [adhoc, setAdhoc] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [adhocText, setAdhocText] = useState("");
-  const [adhocDisc, setAdhocDisc] = useState(DISCIPLINES[0]);
-  const [adhocArea, setAdhocArea] = useState(AREAS[0]);
+  /* This site's disciplines and areas — a regional airport has no passenger
+     boarding bridges and Corporate Office has no airfield at all. */
+  const disciplines = useMemo(() => disciplinesAt(entityCode), [entityCode]);
+  const areas = useMemo(() => areasAt(entityCode), [entityCode]);
+  const [adhocDisc, setAdhocDisc] = useState(disciplines[0]);
+  const [adhocArea, setAdhocArea] = useState(areas[0]);
 
   const say = (m: string) => {
     setToast(m);
@@ -93,10 +99,10 @@ export default function FieldPage() {
     /* Routed on the register's declared vtype, not on whether someone wrote
        walkabout text. Both give 314 today; only one of them keeps giving 314
        if a walkabout line is ever left blank. See src/lib/verification.ts. */
-    let list = CHECKS.filter(needsField);
+    let list = checksAt(entityCode).filter(needsField);
     if (s) {
       return list.filter((c) =>
-        `${c.id} ${c.requirement} ${c.area} ${c.discipline} ${c.walkabout ?? ""}`
+        `${portalIdFor(entityCode, c.id)} ${c.requirement} ${c.area} ${c.discipline} ${c.walkabout ?? ""}`
           .toLowerCase()
           .includes(s)
       );
@@ -105,7 +111,7 @@ export default function FieldPage() {
       list = groupBy === "area" ? list.filter((c) => c.area === area) : list.filter((c) => c.discipline === area);
     }
     return list;
-  }, [q, area, groupBy]);
+  }, [entityCode, q, area, groupBy]);
 
   const groups = useMemo(() => {
     const g: Record<string, Check[]> = {};
@@ -119,7 +125,7 @@ export default function FieldPage() {
   /* Zones come from the programme file. Until ACSA gives us real ones the axis
      falls back to the register's categories, and the strip below says so. */
   const axis = locationAxis(entityCode);
-  const options = groupBy === "area" ? axis.options : DISCIPLINES;
+  const options = groupBy === "area" ? axis.options : disciplines;
   const doneCount = visible.filter((c) => fieldDone(responses[c.id])).length;
 
 
@@ -247,10 +253,16 @@ export default function FieldPage() {
                     >
                       <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
                         <span className="font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
-                          {c.id}
+                          {portalIdFor(entityCode, c.id)}
                         </span>
                         <Pill>{groupBy === "area" ? c.discipline.split(" ")[0] : c.area}</Pill>
-                        {c.pf && <Pill tone="warn">{c.pf}</Pill>}
+                        {(() => {
+                          /* The 2025 rating for THIS site's asset system. It used
+                             to be a column on the register row, which meant every
+                             site wore King Shaka's finding. */
+                          const pf = priorFor(entityCode, c.discipline, c.system);
+                          return pf ? <Pill tone="warn">{pf.key}</Pill> : null;
+                        })()}
                         {modeLabels(c)
                           .filter((m) => m !== "Physical")
                           .map((m) => (
@@ -281,7 +293,7 @@ export default function FieldPage() {
                                 commit(c.id, "field");
                                 say(
                                   w.photo && photos.length === 0
-                                    ? `${c.id} — ${w.label}. Photograph expected.`
+                                    ? `${portalIdFor(entityCode, c.id)} — ${w.label}. Photograph expected.`
                                     : `${c.id} — ${w.label}`
                                 );
                               }}
@@ -478,7 +490,7 @@ export default function FieldPage() {
               <label className="block">
                 <span className="label-xs">Discipline</span>
                 <select value={adhocDisc} onChange={(e) => setAdhocDisc(e.target.value)} className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[12px]" style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}>
-                  {DISCIPLINES.map((d) => (
+                  {disciplines.map((d) => (
                     <option key={d}>{d}</option>
                   ))}
                 </select>
@@ -486,7 +498,7 @@ export default function FieldPage() {
               <label className="block">
                 <span className="label-xs">Location</span>
                 <select value={adhocArea} onChange={(e) => setAdhocArea(e.target.value)} className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[12px]" style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}>
-                  {AREAS.map((a) => (
+                  {areas.map((a) => (
                     <option key={a}>{a}</option>
                   ))}
                 </select>

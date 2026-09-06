@@ -106,21 +106,74 @@ export interface Check {
   /** A caveat worth reading before quoting the basis — most often that ACSA's own
    *  cited standard is superseded or misattributed, which is a finding in itself. */
   basisNote: string | null;
-  /** The March 2025 finding covering this check's asset system, if any. Kept on
-   *  the check itself so filters, pills and counts stay synchronous. */
-  pf: string | null;
-  pfq: string | null;
+  /* There were `pf` and `pfq` columns here — the March 2025 King Shaka finding
+     covering this check's asset system, cached on the check so filters and
+     pills stayed synchronous. They are gone. Rev A2 is ONE register shared by
+     ten sites, so a King Shaka finding baked into a register row announced
+     itself at Cape Town, at Corporate Office and at seven sites that have never
+     been audited. The prior rating is a property of the site, not of the
+     requirement: ask priorFor(entityCode, discipline, system). */
   /** Walkabout options available — lets field mode filter without loading the library. */
   woCount: number;
   optionCount: number;
 }
 
-export interface PriorFinding {
-  pf: string;
+export type Tolerance = "Unacceptable" | "Tolerable" | "Acceptable" | "Not audited";
+
+/** One asset system's standing coming into this audit, at ONE site.
+ *
+ *  King Shaka carries the 22 ratings published in the March 2025 report.
+ *  O.R. Tambo and Cape Town have no published rating table, so theirs are
+ *  derived from their own 2025 portal findings — `derived` says which, because
+ *  a derived rating must not be shown as though ACSA had signed it off. The
+ *  other seven sites are baseline audits and have none. */
+export interface PriorRating {
+  /** Key a verification is stored under. King Shaka keeps PF-01…PF-22. */
+  key: string;
+  siteCode: string;
+  entityCode: string;
   discipline: string;
   system: string;
-  rating: "Unacceptable" | "Tolerable" | "Acceptable" | "Not audited";
-  finding: string;
+  rating: Tolerance;
+  note: string;
+  derived: boolean;
+  /** Portal ids of the findings a derived rating was computed from. */
+  from?: string[];
+}
+
+/** One open 2025 finding as it stands in the ACSA portal's Findings list.
+ *
+ *  `portalId` is the Title of the portal item and is the sync key — it is
+ *  never regenerated, reformatted or renumbered here.
+ *
+ *  `assetSystem` is null for the 19 findings that name a building or an area
+ *  rather than a register asset system (Cargo Building, Parkade Bridges,
+ *  Medical Surveillance Records and the rest). They are carried and shown, and
+ *  the discipline lead allocates them in the field — dropping them because
+ *  they do not join to a check would lose real open findings. */
+export interface PriorFinding {
+  portalId: string;
+  portalItemId: number;
+  siteCode: string;
+  entityCode: string;
+  discipline: string;
+  disciplineCode: string;
+  /** The asset system as the 2025 report worded it. */
+  assetSystemRecorded: string;
+  /** The register asset system it maps to, or null if it maps to none. */
+  assetSystem: string | null;
+  observation: string;
+  /** Rev A2's own scale, carried verbatim for display. NOT fed to
+   *  src/lib/risk.ts, whose B170 001M banding disagrees with it on five of
+   *  twenty-five cells — see the open question in README.md. */
+  severity: string | null;
+  likelihood: string | null;
+  riskPriority: string;
+  tolerance: Tolerance;
+  findingType: string;
+  status: string;
+  dateRaised: string;
+  reference: string;
 }
 
 /* ---------- instance data ---------- */

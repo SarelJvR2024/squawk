@@ -16,14 +16,14 @@ Section numbers in code comments point at that document.
 |---|---|
 | Design system (section 5 interface standard) | Implemented as CSS tokens and primitives, light and dark |
 | Data model (section 6) | Typed domain model, local-first store over IndexedDB |
-| Seed data | **Rev A2 (06 Sep 2026): 324 check-points, 6 disciplines**, 99 ACSA documents mapped, 33 site variants, 22 March 2025 asset-system ratings |
+| Seed data | **Rev A2 all sites (06 Sep 2026): 324 check-points × 10 sites = 3,086**, 6 disciplines, 99 ACSA documents mapped, 33 site variants, **78 open 2025 findings** and 66 asset-system ratings across three airports |
 | Answer Library (section 7) | **Complete — all 324 checks, re-keyed to Rev A2** |
 | Capture workspace (section 8) | Three-pane workspace, answer chips, real voice and photo capture, progress, ⌘K, keyboard |
 | Field inspection mode | Location-first, researched walkabout options with photo expectation, 44px targets, capture-first tray, ad-hoc findings, offline |
 | Findings and rating | ACSA B170 001M matrix, agreed vs suggested ratings, root cause, owner, due date |
-| Closure | Carry-forward: 23 seeded 2025 findings plus anything an earlier visit left open, four-way verification, coverage guard, lifecycle |
+| Closure | Carry-forward: this site's own 2025 findings plus anything an earlier visit left open, four-way verification, coverage guard, lifecycle |
 | Audits | Every entity × visit in one place; open any, create new ones; the programme file seeds, the app extends |
-| Dashboards | Airport, discipline and portfolio, with movement against March 2025 |
+| Dashboards | Airport, discipline and a real ten-site portfolio, with movement against 2025 |
 | Visual review | All photographs and voice notes per discipline per airport, with an engineer feedback thread |
 | AI assistance | Optional and advisory — off unless a key is set |
 | Voice notes | Always recorded on the device; transcription and write-up are opt-in |
@@ -51,7 +51,9 @@ npm run build && npm start
 
 ## Tests
 
-Six suites, no framework, all plain `node`. See `tests/README.md`.
+Seventeen suites, no framework, all plain `node`. See `tests/README.md` — and
+check each suite's **exit status**, not the output: a `for` loop over them
+reports the status of the loop, not of the suites.
 
 ```bash
 node tests/risk-matrix.test.mjs          # the ACSA matrix, all 25 cells
@@ -64,16 +66,21 @@ node tests/portals.test.mjs              # checks reach the right view
 node tests/reset.test.mjs                # starting again is safe
 node tests/completion.test.mjs           # complete means every mode answered
 node tests/audits.test.mjs               # any audit reachable, new ones creatable
+node tests/voice.test.mjs                # a rewrite never overwrites what was said
+node tests/sites.test.mjs                # ten sites, one register, right counts
 npm run build && npm start &             # then, against a running server:
 BASE=http://localhost:3000 node tests/e2e.js          # 21 assertions
 BASE=http://localhost:3000 node tests/robustness.js   # 30 assertions
 BASE=http://localhost:3000 node tests/exports.js      #  7 assertions
-BASE_NO_KEY=... BASE_WITH_KEY=... node tests/ai.js    # 14 assertions
+BASE=http://localhost:3000 node tests/persite.js      # 25 assertions, four sites
+BASE_NO_KEY=... BASE_WITH_KEY=... node tests/ai.js    # 26 assertions
 ```
 
-Run `tests/risk-matrix.test.mjs` after **any** edit to `src/lib/risk.ts`, and
+Run `tests/risk-matrix.test.mjs` after **any** edit to `src/lib/risk.ts`,
 `tests/capture.test.mjs` after any edit to `src/lib/media.ts`,
-`src/components/Capture.tsx`, `CheckDetail.tsx` or field mode.
+`src/components/Capture.tsx`, `CheckDetail.tsx` or field mode, and
+`tests/sites.test.mjs` after any edit to the register, the site table or
+`programme.json`.
 
 ## Deploying to Vercel
 
@@ -117,6 +124,9 @@ src/
     (app)/            capture · field · review · findings · closure · dashboard
     api/assist/       the AI endpoint — text out, never audio or images
     api/transcribe/   voice-note transcription — the only route audio leaves by
+  lib/
+    register.ts       the register and the 2025 data, entity-scoped, no React
+    sites.ts          which checks apply where, and each site's portal ids
     globals.css       design tokens for both themes
   components/
     AppShell.tsx      header, nav, cycle strip, command palette, role switch
@@ -249,6 +259,62 @@ tests/                five suites — see tests/README.md
 - **Answer Library content is reviewed content.** Issue buttons seed findings
   with suggested severities, so they carry weight. A discipline lead signs off
   each set before it goes live (design document Q9).
+
+## Ten sites, one register
+
+Rev A2 covers **3,086 check-points across ten sites**, but it is not ten
+registers. Every site uses the same 324-item register and the same check-point
+numbers — `KSIA-ELE-005`, `ORTIA-ELE-005` and `CO-ELE-005` are the same
+requirement at three sites, which is the point: results compare across the
+group. Where a check-point does not apply its number is simply not used there
+(gaps, no renumbering).
+
+Squawk therefore holds the register **once** and derives the rest:
+`portalIdFor()` gives the site-prefixed id — the portal's sync key and the
+number an auditor reads out — and `checksFor()` gives that site's applicable
+subset. Storing 3,086 rows instead would mean ten copies of every requirement,
+threshold and walkabout instruction, which drift apart the first time one is
+corrected and nobody remembers there are nine others.
+
+| Class | Sites | Checklist | Removed |
+|---|---|---|---|
+| International | King Shaka, O.R. Tambo, Cape Town | **324** | — |
+| Regional | Bram Fischer, King Phalo, Chief Dawid Stuurman, George, Kimberley, Upington | **319** | Passenger boarding bridges (5) |
+| Corporate | ACSA Corporate Office | **200** | All airfield work (124) — AGL, ILS, AWOS, X-ray, PBBs, fuel, BHS, water treatment, gas hot water, all Civil, fuel farm MHI |
+
+Applicability is a TPJV assumption for the register, confirmed by the discipline
+leads before each site audit; **nothing is removed from the contract scope**.
+Where a system exists in the register but not at a particular site — a hydrant
+fuel system, a water treatment plant at a small regional — the check stays and
+the auditor records N/A. Only whole asset systems that cannot exist at that
+class of site are removed.
+
+`tests/sites.test.mjs` recomputes all ten counts and the 3,086 total from the
+register itself rather than trusting the numbers above.
+
+## 2025 findings, per airport
+
+The portal's **78 open 2025 findings** are carried in and seeded as outstanding
+items for the next visit to verify: King Shaka 15 (March 2025), O.R. Tambo 33
+(May 2025), Cape Town 30 (March 2025). The other seven sites are baseline audits
+and correctly carry none.
+
+- `portalId` (`ORTIA-ELE-P01`) is the Title of the item in ACSA's Findings list
+  and is the key a closure syncs back on. It is never regenerated or renumbered.
+- **19 of the 78 name a building or an area rather than a register asset
+  system** — Cargo Building, Parkade Bridges, Medical Surveillance Records and
+  the rest. They are carried and shown with the words the 2025 report used, and
+  the discipline lead allocates them in the field. Dropping them for not joining
+  to a check would lose real open findings.
+- A **prior rating** is a property of the site, not of a requirement shared by
+  ten of them. King Shaka carries the 22 asset-system ratings published in March
+  2025; O.R. Tambo's and Cape Town's are derived from their own findings and are
+  labelled as derived, because a derived rating must not be shown as though ACSA
+  had signed it off.
+
+There used to be `pf` and `pfq` columns on the register row itself. They were
+King Shaka's numbers, so a Cape Town check announced a King Shaka finding, and
+seven never-audited sites announced one too. They are gone.
 
 ## Voice notes
 

@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  CHECKS,
-  DISCIPLINES,
+  checksAt,
+  disciplinesAt,
   ROOT_CAUSES,
   responsibleFor,
   useEntityCode,
@@ -96,7 +96,7 @@ export default function FindingsPage() {
               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             >
               <option>All</option>
-              {DISCIPLINES.map((d) => (
+              {disciplinesAt(entityCode).map((d) => (
                 <option key={d}>{d}</option>
               ))}
             </select>
@@ -397,7 +397,7 @@ export default function FindingsPage() {
                       onClick={async () => {
                         setAsking(true);
                         try {
-                          const check = CHECKS.find((c) => c.id === active.checkId);
+                          const check = checksAt(entityCode).find((c) => c.id === active.checkId);
                           const text = await assist("rating", findingContext(active, check));
                           setOpinion({ id: active.id, text });
                         } catch (err) {

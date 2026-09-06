@@ -5,8 +5,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   AUDITORS,
-  CHECKS,
-  PRIOR,
+  checksAt,
+  priorFindingsAt,
   useEntityCode,
   useResponses,
   useStore,
@@ -20,6 +20,7 @@ import {
 import { ENTITIES, entity as entityOf } from "@/lib/programme";
 import { needsDesk, needsField } from "@/lib/verification";
 import { useAssistAvailable, useTranscribeAvailable } from "@/lib/assist";
+import { portalIdFor } from "@/lib/sites";
 import ExportPanel from "@/components/ExportPanel";
 import ResetPanel from "@/components/ResetPanel";
 import AuditsPanel from "@/components/AuditsPanel";
@@ -83,19 +84,25 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     () => Object.values(responses).filter((r) => r.captured).length,
     [responses]
   );
-  const unverified = PRIOR.length - Object.values(verifications).filter((v) => v.outcome).length;
-  const pct = Math.round((done / CHECKS.length) * 100);
+  /* This site's checklist, not the register. 324 at an international, 319 at a
+     regional, 200 at Corporate Office — a ring drawn against 324 everywhere
+     would never reach 100% at seven of the ten sites. */
+  const checks = useMemo(() => checksAt(entityCode), [entityCode]);
+  const unverified =
+    priorFindingsAt(entityCode).length -
+    Object.values(verifications).filter((v) => v.outcome).length;
+  const pct = checks.length ? Math.round((done / checks.length) * 100) : 0;
 
   /* Each nav badge counts what is outstanding in THAT view, not across the
      register. Capture lists 365 and Field lists 314; a badge of 374 on either
      is a number that cannot be worked down to zero. */
   const deskOutstanding = useMemo(
-    () => CHECKS.filter((c) => needsDesk(c) && !deskDone(responses[c.id])).length,
-    [responses]
+    () => checks.filter((c) => needsDesk(c) && !deskDone(responses[c.id])).length,
+    [checks, responses]
   );
   const fieldOutstanding = useMemo(
-    () => CHECKS.filter((c) => needsField(c) && !fieldDone(responses[c.id])).length,
-    [responses]
+    () => checks.filter((c) => needsField(c) && !fieldDone(responses[c.id])).length,
+    [checks, responses]
   );
 
   useEffect(() => {
@@ -128,14 +135,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const results = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return CHECKS.filter(
-      (c) =>
-        !s ||
-        `${c.id} ${c.requirement} ${c.system} ${c.discipline} ${c.acsaThreshold}`
-          .toLowerCase()
-          .includes(s)
-    ).slice(0, 40);
-  }, [q]);
+    return checks
+      .filter(
+        (c) =>
+          !s ||
+          `${portalIdFor(entityCode, c.id)} ${c.requirement} ${c.system} ${c.discipline} ${c.acsaThreshold}`
+            .toLowerCase()
+            .includes(s)
+      )
+      .slice(0, 40);
+  }, [q, checks, entityCode]);
 
   const C = 2 * Math.PI * 12;
 
@@ -291,7 +300,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <circle cx="15" cy="15" r="12" fill="none" stroke="var(--line)" strokeWidth="3.5" />
                 <circle
                   cx="15" cy="15" r="12" fill="none" stroke="var(--acc)" strokeWidth="3.5" strokeLinecap="round"
-                  strokeDasharray={`${(C * done) / CHECKS.length} ${C}`}
+                  strokeDasharray={`${checks.length ? (C * done) / checks.length : 0} ${C}`}
                   style={{ transition: "stroke-dasharray 500ms cubic-bezier(.2,.7,.3,1)" }}
                 />
               </svg>
@@ -301,7 +310,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <div className="hidden md:block">
               <b className="block font-mono text-[12px] leading-[1.2] font-semibold tnum">
-                {done}/{CHECKS.length}
+                {done}/{checks.length}
               </b>
               <select
                 value={auditor}
@@ -423,7 +432,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 autoFocus
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder={`Search all ${CHECKS.length} checks — ID, wording, system or ACSA figure…`}
+                placeholder={`Search ${entityOf(entityCode).short}'s ${checks.length} checks — ID, wording, system or ACSA figure…`}
                 className="w-full border-none bg-transparent text-[14.5px] outline-none"
               />
             </div>
@@ -439,7 +448,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   className="flex w-full items-center gap-[9px] rounded-[8px] px-[11px] py-2 text-left transition-[var(--t)] hover:bg-[var(--acc-soft)]"
                 >
                   <span className="w-[92px] shrink-0 font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
-                    {c.id}
+                    {portalIdFor(entityCode, c.id)}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-[12px]">{c.requirement}</span>
                   <Pill>{c.discipline}</Pill>

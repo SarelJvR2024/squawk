@@ -3,6 +3,14 @@
  *
  *  Run:  node scripts/rebase-to-revA2.mjs [--write]
  *
+ *  NOTE: this script rebases the CHECK-POINT REGISTER only, from the KSIA-only
+ *  Rev A2 file. The all-sites Rev A2 register issued six hours later supersedes
+ *  it for everything else — the ten sites, their applicability and the 78 open
+ *  2025 findings — and Squawk takes those from src/data/source/sites_RevA2.json
+ *  and priorFindings2025_allSites.json. The check CONTENT is identical across
+ *  all ten sites, which is why the register itself is still correct here and is
+ *  stored once rather than 3,086 times. See src/lib/sites.ts.
+ *
  *  Rev A2 (06 Sep 2026) narrows the register to the six contract audit areas:
  *  324 check-points instead of 374. Asset Information Mgmt (50) is out of
  *  scope; ME Management (21) is no longer a discipline and its items now sit
@@ -164,10 +172,10 @@ const checks = rev.checkpoints.map((n) => {
     siteVariant: old?.siteVariant ?? null,
     basisConfidence: basisChanged ? null : (old?.basisConfidence ?? null),
     basisNote: basisChanged ? null : (old?.basisNote ?? null),
-    /* Re-linked against Rev A2's 22 ratings rather than carried: the old
-       values pointed at the 23-item set, which had a duplicate FOD item. */
-    pf: prior?.pf ?? null,
-    pfq: prior?.finding || null,
+    /* No pf/pfq. A prior rating belongs to a SITE, not to a requirement shared
+       by ten of them — see the note on Check in src/lib/types.ts. The ratings
+       and the portal's open findings live in src/data/priorRatings.json and
+       src/data/priorFindings.json, keyed by entity. */
     woCount: old?.woCount ?? 0,
     optionCount: old?.optionCount ?? 0,
   };
@@ -235,8 +243,10 @@ if (!WRITE) {
 fs.writeFileSync(p("src/data/checks.json"), JSON.stringify(checks, null, 1));
 fs.writeFileSync(p("src/data/priorFindings.json"), JSON.stringify(priorFindings, null, 1));
 fs.writeFileSync(p("src/data/answers.json"), JSON.stringify(nextAnswers));
-fs.writeFileSync(
-  p("src/data/portalFindings2025.json"),
-  JSON.stringify(rev.priorFindings2025, null, 1)
-);
+/* The KSIA-only portal findings this script used to write are superseded: the
+   all-sites Rev A2 register carries all 78 open 2025 findings across three
+   airports, vendored at src/data/source/priorFindings2025_allSites.json and
+   generated into src/data/priorFindings.json and priorRatings.json. Writing 15
+   King Shaka findings over that file would silently drop O.R. Tambo's 33 and
+   Cape Town's 30. */
 console.log("\nWritten.");

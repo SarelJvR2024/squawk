@@ -1,31 +1,244 @@
 {
-  "cycle": {
-    "years": 3,
-    "visitsPerYear": 2,
-    "startsAt": "2025-03",
-    "endsAt": "2027-09"
+ "cycle": {
+  "years": 3,
+  "visitsPerYear": 2,
+  "startsAt": "2025-03",
+  "endsAt": "2027-09"
+ },
+ "currentEntity": "FALE",
+ "currentVisit": "2026-09",
+ "entities": [
+  {
+   "code": "FALE",
+   "name": "King Shaka International Airport",
+   "short": "KSIA",
+   "kind": "airport",
+   "live": true,
+   "zones": [],
+   "class": "international",
+   "auditFrom": "2026-09-15",
+   "auditTo": "2026-09-18"
   },
-  "currentEntity": "FALE",
-  "currentVisit": "2026-09",
-  "entities": [
-    { "code": "FALE", "name": "King Shaka International", "short": "KSIA", "kind": "airport", "live": true,  "zones": [] },
-    { "code": "FAOR", "name": "O.R. Tambo International", "short": "ORTIA", "kind": "airport", "live": false, "zones": [] },
-    { "code": "FACT", "name": "Cape Town International",  "short": "CTIA", "kind": "airport", "live": false, "zones": [] },
-    { "code": "FAPE", "name": "Chief Dawid Stuurman",     "short": "CDSIA", "kind": "airport", "live": false, "zones": [] },
-    { "code": "FAEL", "name": "King Phalo",               "short": "KPA",  "kind": "airport", "live": false, "zones": [] },
-    { "code": "FAGG", "name": "George",                   "short": "GRJ",  "kind": "airport", "live": false, "zones": [] },
-    { "code": "FAKM", "name": "Kimberley",                "short": "KIM",  "kind": "airport", "live": false, "zones": [] },
-    { "code": "FAUP", "name": "Upington",                 "short": "UTN",  "kind": "airport", "live": false, "zones": [] },
-    { "code": "FABL", "name": "Bram Fischer International","short": "BFN", "kind": "airport", "live": false, "zones": [] },
-    { "code": "HO",   "name": "Head Office",              "short": "HO",   "kind": "head-office", "live": false, "zones": [] }
-  ],
-  "visits": [
-    { "id": "2025-03", "label": "Mar 2025", "entity": "FALE", "state": "done",      "note": "23 findings" },
-    { "id": "2025-09", "label": "Sep 2025", "entity": "FALE", "state": "skipped",   "note": "not audited" },
-    { "id": "2026-03", "label": "Mar 2026", "entity": "FALE", "state": "skipped",   "note": "not audited" },
-    { "id": "2026-09", "label": "Sep 2026", "entity": "FALE", "state": "current",   "note": "this visit" },
-    { "id": "2027-03", "label": "Mar 2027", "entity": "FALE", "state": "scheduled", "note": "scheduled" },
-    { "id": "2027-09", "label": "Sep 2027", "entity": "FALE", "state": "scheduled", "note": "cycle close" }
-  ],
-  "zoneMap": {}
+  {
+   "code": "FAOR",
+   "name": "O.R. Tambo International Airport",
+   "short": "ORTIA",
+   "kind": "airport",
+   "live": false,
+   "zones": [],
+   "class": "international",
+   "auditFrom": "2026-09-29",
+   "auditTo": "2026-10-02"
+  },
+  {
+   "code": "FACT",
+   "name": "Cape Town International Airport",
+   "short": "CTIA",
+   "kind": "airport",
+   "live": false,
+   "zones": [],
+   "class": "international",
+   "auditFrom": "2026-10-13",
+   "auditTo": "2026-10-16"
+  },
+  {
+   "code": "HO",
+   "name": "ACSA Corporate Office",
+   "short": "CO",
+   "kind": "head-office",
+   "live": false,
+   "zones": [],
+   "class": "corporate",
+   "auditFrom": "2026-10-20",
+   "auditTo": "2026-10-21"
+  },
+  {
+   "code": "FABL",
+   "name": "Bram Fischer International Airport",
+   "short": "BFIA",
+   "kind": "airport",
+   "live": false,
+   "zones": [],
+   "class": "regional",
+   "auditFrom": "2026-10-27",
+   "auditTo": "2026-10-29"
+  },
+  {
+   "code": "FAEL",
+   "name": "King Phalo Airport",
+   "short": "KPA",
+   "kind": "airport",
+   "live": false,
+   "zones": [],
+   "class": "regional",
+   "auditFrom": "2026-11-03",
+   "auditTo": "2026-11-05"
+  },
+  {
+   "code": "FAPE",
+   "name": "Chief Dawid Stuurman International Airport",
+   "short": "CDSIA",
+   "kind": "airport",
+   "live": false,
+   "zones": [],
+   "class": "regional",
+   "auditFrom": "2026-11-10",
+   "auditTo": "2026-11-12"
+  },
+  {
+   "code": "FAGG",
+   "name": "George Airport",
+   "short": "GRG",
+   "kind": "airport",
+   "live": false,
+   "zones": [],
+   "class": "regional",
+   "auditFrom": "2026-11-17",
+   "auditTo": "2026-11-19"
+  },
+  {
+   "code": "FAKM",
+   "name": "Kimberley Airport",
+   "short": "KIM",
+   "kind": "airport",
+   "live": false,
+   "zones": [],
+   "class": "regional",
+   "auditFrom": "2026-11-24",
+   "auditTo": "2026-11-26"
+  },
+  {
+   "code": "FAUP",
+   "name": "Upington International Airport",
+   "short": "UPN",
+   "kind": "airport",
+   "live": false,
+   "zones": [],
+   "class": "regional",
+   "auditFrom": "2026-12-01",
+   "auditTo": "2026-12-03"
+  }
+ ],
+ "visits": [
+  {
+   "id": "2025-03",
+   "label": "Mar 2025",
+   "entity": "FALE",
+   "state": "done",
+   "note": "23 findings"
+  },
+  {
+   "id": "2025-09",
+   "label": "Sep 2025",
+   "entity": "FALE",
+   "state": "skipped",
+   "note": "not audited"
+  },
+  {
+   "id": "2026-03",
+   "label": "Mar 2026",
+   "entity": "FALE",
+   "state": "skipped",
+   "note": "not audited"
+  },
+  {
+   "id": "2026-09",
+   "label": "Sep 2026",
+   "entity": "FALE",
+   "state": "current",
+   "note": "this visit"
+  },
+  {
+   "id": "2027-03",
+   "label": "Mar 2027",
+   "entity": "FALE",
+   "state": "scheduled",
+   "note": "scheduled"
+  },
+  {
+   "id": "2027-09",
+   "label": "Sep 2027",
+   "entity": "FALE",
+   "state": "scheduled",
+   "note": "cycle close"
+  },
+  {
+   "id": "2025-05",
+   "label": "May 2025",
+   "entity": "FAOR",
+   "state": "done",
+   "note": "33 findings"
+  },
+  {
+   "id": "2026-09",
+   "label": "Sep 2026",
+   "entity": "FAOR",
+   "state": "scheduled",
+   "note": "Round 1 · 29–02 Oct"
+  },
+  {
+   "id": "2025-03",
+   "label": "Mar 2025",
+   "entity": "FACT",
+   "state": "done",
+   "note": "30 findings"
+  },
+  {
+   "id": "2026-10",
+   "label": "Oct 2026",
+   "entity": "FACT",
+   "state": "scheduled",
+   "note": "Round 1 · 13–16 Oct"
+  },
+  {
+   "id": "2026-10",
+   "label": "Oct 2026",
+   "entity": "HO",
+   "state": "scheduled",
+   "note": "Round 1 · 20–21 Oct · baseline"
+  },
+  {
+   "id": "2026-10",
+   "label": "Oct 2026",
+   "entity": "FABL",
+   "state": "scheduled",
+   "note": "Round 1 · 27–29 Oct · baseline"
+  },
+  {
+   "id": "2026-11",
+   "label": "Nov 2026",
+   "entity": "FAEL",
+   "state": "scheduled",
+   "note": "Round 1 · 03–05 Nov · baseline"
+  },
+  {
+   "id": "2026-11",
+   "label": "Nov 2026",
+   "entity": "FAPE",
+   "state": "scheduled",
+   "note": "Round 1 · 10–12 Nov · baseline"
+  },
+  {
+   "id": "2026-11",
+   "label": "Nov 2026",
+   "entity": "FAGG",
+   "state": "scheduled",
+   "note": "Round 1 · 17–19 Nov · baseline"
+  },
+  {
+   "id": "2026-11",
+   "label": "Nov 2026",
+   "entity": "FAKM",
+   "state": "scheduled",
+   "note": "Round 1 · 24–26 Nov · baseline"
+  },
+  {
+   "id": "2026-12",
+   "label": "Dec 2026",
+   "entity": "FAUP",
+   "state": "scheduled",
+   "note": "Round 1 · 01–03 Dec · baseline"
+  }
+ ],
+ "zoneMap": {}
 }

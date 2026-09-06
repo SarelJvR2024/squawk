@@ -64,7 +64,7 @@ export default function ClosurePage() {
 
   /** Current rating of an asset system, from this visit's captured data. */
   const currentRating = (discipline: string, system: string) => {
-    const cs = checksOf(discipline, system);
+    const cs = checksOf(entityCode, discipline, system);
     if (cs.length === 0) return "No coverage";
     const bands = findings
       .filter((f) => f.discipline === discipline && f.system === system)
@@ -82,9 +82,10 @@ export default function ClosurePage() {
     if (filter === "unverified") l = l.filter((p) => !verifications[p.key]?.outcome);
     if (filter === "repeat") l = l.filter((p) => verifications[p.key]?.outcome === "Open - repeat");
     if (filter === "carried") l = l.filter((p) => p.source === "carried");
-    if (filter === "nocover") l = l.filter((p) => checksOf(p.discipline, p.system).length === 0);
+    if (filter === "nocover")
+      l = l.filter((p) => checksOf(entityCode, p.discipline, p.system).length === 0);
     return l;
-  }, [filter, verifications, outstanding]);
+  }, [entityCode, filter, verifications, outstanding]);
 
   const active = list.find((p) => p.key === activePf) ?? list[0];
   const v = active ? verifications[active.key] : undefined;
@@ -95,10 +96,11 @@ export default function ClosurePage() {
     repeat: outstanding.filter((p) => verifications[p.key]?.outcome === "Open - repeat").length,
     unverified: outstanding.filter((p) => !verifications[p.key]?.outcome).length,
     carried: outstanding.filter((p) => p.source === "carried").length,
-    nocover: outstanding.filter((p) => checksOf(p.discipline, p.system).length === 0).length,
+    nocover: outstanding.filter((p) => checksOf(entityCode, p.discipline, p.system).length === 0)
+      .length,
   };
 
-  const linked = active ? checksOf(active.discipline, active.system) : [];
+  const linked = active ? checksOf(entityCode, active.discipline, active.system) : [];
   const linkedNC = linked.filter((c) => responses[c.id]?.compliance === "NC").length;
   const cur = active ? currentRating(active.discipline, active.system) : "";
   const move = active ? movement(active.rating, cur) : null;
@@ -116,7 +118,7 @@ export default function ClosurePage() {
             ) : (
               <>
                 {outstanding.length} item{outstanding.length === 1 ? "" : "s"} left open by earlier
-                visits — {outstanding.length - counts.carried} from the March 2025 audit,{" "}
+                visits — {outstanding.length - counts.carried} from the 2025 audit,{" "}
                 {counts.carried} raised in this system and never closed.{" "}
                 {outstanding.length - counts.unverified} of {outstanding.length} verified on{" "}
                 {visitLabel}.

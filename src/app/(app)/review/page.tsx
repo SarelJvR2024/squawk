@@ -17,9 +17,10 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  CHECKS,
-  DISCIPLINES,
+  checksAt,
+  disciplinesAt,
   useEntity,
+  useEntityCode,
   useFeedback,
   useResponses,
   useStore,
@@ -138,6 +139,7 @@ export default function ReviewPage() {
   const findings = useVisitFindings();
   const feedback = useFeedback();
   const entity = useEntity();
+  const entityCode = useEntityCode();
   const visitId = useVisitId();
   const role = useStore((s) => s.role);
   const addFeedback = useStore((s) => s.addFeedback);
@@ -157,7 +159,7 @@ export default function ReviewPage() {
      what was captured, not what was skipped, which the Capture progress and the
      dashboard already say. */
   const items = useMemo<Item[]>(() => {
-    return CHECKS.filter((c) => (responses[c.id]?.attachments.length ?? 0) > 0)
+    return checksAt(entityCode).filter((c) => (responses[c.id]?.attachments.length ?? 0) > 0)
       .map((c) => {
         const r = responses[c.id]!;
         const notes = feedback[c.id] ?? [];
@@ -172,7 +174,7 @@ export default function ReviewPage() {
         };
       })
       .sort((a, b) => (b.response.capturedAt ?? 0) - (a.response.capturedAt ?? 0));
-  }, [responses, findings, feedback]);
+  }, [entityCode, responses, findings, feedback]);
 
   const byDiscipline = useMemo(() => {
     const m = new Map<string, number>();
@@ -227,7 +229,7 @@ export default function ReviewPage() {
         {/* discipline is the axis an engineer thinks in — theirs is the only one
             they will read, so it is the first control, not a dropdown. */}
         <div className="mb-3 flex flex-wrap gap-[6px]">
-          {["All", ...DISCIPLINES.filter((d) => byDiscipline.has(d))].map((d) => {
+          {["All", ...disciplinesAt(entityCode).filter((d) => byDiscipline.has(d))].map((d) => {
             const n = d === "All" ? items.length : (byDiscipline.get(d) ?? 0);
             return (
               <button

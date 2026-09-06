@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Check, Compliance } from "@/lib/types";
-import { priorFor, useResponses, useStore, useVisitId } from "@/lib/store";
+import { priorFor, useEntityCode, useResponses, useStore, useVisitId } from "@/lib/store";
+import { portalIdFor } from "@/lib/sites";
 import { useAnswers } from "@/lib/answers";
 import {
   assist,
@@ -91,7 +92,16 @@ export default function CheckDetail({
   const [titleOpen, setTitleOpen] = useState(false);
   const obsRef = useRef<HTMLTextAreaElement>(null);
   const a = useAnswers(check.id);
-  const pf = check.pf ? priorFor(check.discipline, check.system) : null;
+  const entityCode = useEntityCode();
+  /* The id an auditor reads out and the portal syncs on is the SITE's id.
+     ORTIA-ELE-001 and KSIA-ELE-001 are the same requirement at two airports;
+     showing the King Shaka number at O.R. Tambo would be quoting the wrong
+     check-point into an ACSA report. */
+  const portalId = portalIdFor(entityCode, check.id);
+  /* The prior rating belongs to the entity in view, not to the register row.
+     `check.pf` was a static column carrying King Shaka's PF number to every
+     site, so a Cape Town check announced a King Shaka finding. */
+  const pf = priorFor(entityCode, check.discipline, check.system);
   const longTitle = check.requirement.length > 140;
 
   /* Suggestions belong to the check that produced them. */
@@ -123,8 +133,8 @@ export default function CheckDetail({
     commit(check.id, "desk");
     onSaved(
       needsField(check) && !r.fieldDoneAt
-        ? `${check.id} — desk done. Still needs the asset seen in Field.`
-        : `${check.id} saved`
+        ? `${portalId} — desk done. Still needs the asset seen in Field.`
+        : `${portalId} saved`
     );
     if (advance) onNext();
   };
@@ -140,7 +150,7 @@ export default function CheckDetail({
         style={{ background: "var(--panel)", borderColor: "var(--line)" }}
       >
         <div className="mb-[5px] flex flex-wrap items-center gap-[7px] font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
-          <span>{check.id}</span>
+          <span>{portalId}</span>
           <span>·</span>
           <span>{check.system}</span>
           {/* What this check actually requires, from the register's vtype.
@@ -155,7 +165,7 @@ export default function CheckDetail({
           {check.siteVariant && <Pill tone="warn">{check.siteVariant.site} VARIANT</Pill>}
           {pf && (
             <Pill tone={pf.rating === "Unacceptable" ? "bad" : pf.rating === "Tolerable" ? "warn" : "good"}>
-              {check.pf} · MAR 2025 {pf.rating.toUpperCase()}
+              {pf.key} · 2025 {pf.rating.toUpperCase()}
             </Pill>
           )}
           {r.captured && (
@@ -276,13 +286,17 @@ export default function CheckDetail({
             </Panel>
           )}
 
-          {pf && check.pfq && (
+          {pf?.note && (
             <Panel tone="warn" className="mb-[9px]">
               <div className="label-xs" style={{ color: "var(--warn)" }}>
-                {check.pf} follow-up · carried from March 2025
+                {pf.key} follow-up · carried from 2025
+                {/* A derived rating was computed from that site's own portal
+                    findings rather than published as a rating, and says so
+                    rather than borrowing an authority nobody gave it. */}
+                {pf.derived && " · derived from the 2025 findings"}
               </div>
               <div className="mt-1 text-[12.5px] leading-[1.55]" style={{ color: "var(--warn)" }}>
-                {check.pfq}
+                {pf.note}
               </div>
             </Panel>
           )}
@@ -713,7 +727,7 @@ export default function CheckDetail({
               <PhotoButton
                 onCaptured={(m) => {
                   addAttachment(check.id, { ...m, createdBy: auditor });
-                  onSaved(`Photo attached to ${check.id}`);
+                  onSaved(`Photo attached to ${portalId}`);
                 }}
               />
               {photos > 0 && <Pill>{photos} photo{photos > 1 ? "s" : ""}</Pill>}

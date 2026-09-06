@@ -1,25 +1,27 @@
 # Tests
 
-Fifteen suites, no framework — all run with plain `node`. Four need a running
-server; eleven do not.
+Seventeen suites, no framework — all run with plain `node`. Five need a running
+server; twelve do not.
 
 | Suite | Needs a server | Assertions run |
 |---|---|---|
 | `risk-matrix.test.mjs` | no | 29 |
 | `capture.test.mjs` | no | 28 |
 | `scope.test.mjs` | no | 46 |
-| `carryforward.test.mjs` | no | 20 |
+| `carryforward.test.mjs` | no | 22 |
 | `review.test.mjs` | no | 22 |
 | `tablet.test.mjs` | no | 18 |
 | `portals.test.mjs` | no | 27 |
 | `reset.test.mjs` | no | 17 |
 | `completion.test.mjs` | no | 18 |
-| `audits.test.mjs` | no | 17 |
+| `audits.test.mjs` | no | 18 |
 | `voice.test.mjs` | no | 36 |
+| `sites.test.mjs` | no | 41 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 30 |
 | `exports.js` | yes | 7 |
 | `ai.js` | yes, two of them | 26 |
+| `persite.js` | yes | 25 |
 
 ## `risk-matrix.test.mjs`
 
@@ -262,6 +264,48 @@ node tests/voice.test.mjs
 **Run it after any edit to `src/lib/media.ts`, `src/components/Capture.tsx`,
 `src/app/api/transcribe/route.ts`, or the AI assistance section of
 `AppShell.tsx`.**
+
+## `sites.test.mjs`
+
+Rev A2 covers 3,086 check-points across ten sites, and the tempting reading is
+that it is ten registers. It is not: every site uses the same 324-item register
+and the same check-point numbers, and where one does not apply its number is
+simply not used there. Squawk therefore holds the register **once** and derives
+each site's ids and applicable set.
+
+Part 1 defends that shortcut the way `risk-matrix.test.mjs` defends the matrix —
+it recomputes every site's count from the register and the applicability rules
+and compares against the counts Rev A2 publishes: 324 at the three international
+airports, 319 at the six regionals, 200 at Corporate Office, **3,086 in total**.
+If those ever disagree, the shortcut is no longer equivalent to the all-sites
+file and the register has to be stored per site after all.
+
+Part 3 guards the quieter half: almost nothing about the register is the same at
+all ten sites — not the count, not the disciplines, not the asset systems, not
+the prior findings, not the ids — and all of it used to be module-level
+constants computed from the whole register.
+
+```bash
+node tests/sites.test.mjs
+```
+
+**Run it after any edit to `src/lib/sites.ts`, `src/lib/register.ts`,
+`src/data/checks.json`, `priorFindings.json`, `priorRatings.json` or
+`programme.json`.**
+
+## `persite.js`
+
+The browser half of the above. Drives four sites of three different classes —
+King Shaka (324, 15 open 2025 findings), O.R. Tambo (324, 33), Bram Fischer
+(319, none) and Corporate Office (200, none, and no Civil work at all) — and
+reads the counts, the check-point ids and the carried findings **off the
+rendered page**, because the failure it guards against is a screen showing the
+whole register's numbers while claiming to be at a site.
+
+```bash
+npm start -p 3000 &
+BASE=http://localhost:3000 node tests/persite.js
+```
 
 ## `ai.js`
 

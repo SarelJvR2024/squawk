@@ -28,16 +28,23 @@
 import { useMemo } from "react";
 import { BAND_AS_RATING, bandFor } from "./risk";
 import { PROGRAMME_VISITS } from "./programme";
-import { PRIOR, useEntityFindings, useEntityCode, useVisitId } from "./store";
+import { priorFindingsAt, useEntityFindings, useEntityCode, useVisitId } from "./store";
 import type { Finding, PriorFinding } from "./types";
 
-/** The audit priorFindings.json describes. Those 23 findings are the March 2025
- *  ACSA audit of King Shaka, which predates this application — there was no
- *  entity field to record because there was only ever one entity. A future
- *  seeded set for another airport should carry `entity` and `visit` on the
- *  record itself rather than extending this constant. */
-export const SEEDED_ENTITY = "FALE";
-export const SEEDED_VISIT = "2025-03";
+/* The seeded set used to be one file of King Shaka's March 2025 findings and
+   two constants naming the entity and visit they belonged to, because there was
+   only ever one entity. Rev A2's all-sites register carries the portal's 78
+   open 2025 findings across three sites — King Shaka 15, O.R. Tambo 33, Cape
+   Town 30 — and the other seven sites are baseline audits with none. So the
+   entity and the visit come off the record now, and the constants are gone:
+   they were the last place a second airport's findings could have been shown
+   as King Shaka's. */
+
+/** Which visit a site's 2025 findings were raised on, derived from the date the
+ *  portal records rather than written down twice. */
+export function seededVisitOf(p: PriorFinding): string {
+  return p.dateRaised.slice(0, 7);
+}
 
 export type OutstandingSource = "seeded" | "carried";
 
@@ -67,15 +74,23 @@ const visitLabel = (id: string) =>
   PROGRAMME_VISITS.find((v) => v.id === id)?.label ?? id;
 
 function fromSeeded(p: PriorFinding): Outstanding {
+  const originVisit = seededVisitOf(p);
   return {
-    key: p.pf,
+    /* The portal's own id. It is the sync key, so a verification recorded here
+       resolves to the right item in ACSA's Findings list. */
+    key: p.portalId,
     source: "seeded",
     discipline: p.discipline,
-    system: p.system,
-    finding: p.finding,
-    rating: p.rating,
-    originVisit: SEEDED_VISIT,
-    originLabel: visitLabel(SEEDED_VISIT),
+    /* 19 of the 78 name a building or an area rather than a register asset
+       system — Cargo Building, Parkade Bridges, Medical Surveillance Records.
+       They are carried with the words the 2025 report used, and the discipline
+       lead allocates them in the field. Dropping them for not joining to a
+       check would lose real open findings. */
+    system: p.assetSystem ?? p.assetSystemRecorded,
+    finding: p.observation,
+    rating: p.tolerance,
+    originVisit,
+    originLabel: visitLabel(originVisit),
   };
 }
 
@@ -109,8 +124,12 @@ export function outstandingFor(
   visitId: string,
   entityFindings: Finding[]
 ): Outstanding[] {
-  const seeded =
-    entityCode === SEEDED_ENTITY && visitId > SEEDED_VISIT ? PRIOR.map(fromSeeded) : [];
+  /* Seeded items appear only at their own site, and only on a visit after the
+     one that raised them — opening O.R. Tambo must not present Cape Town's
+     2025 findings, and the March 2025 visit must not present its own. */
+  const seeded = priorFindingsAt(entityCode)
+    .filter((p) => seededVisitOf(p) < visitId)
+    .map(fromSeeded);
 
   const carried = entityFindings
     .filter((f) => f.originVisit < visitId && f.actionStatus !== "Closed")

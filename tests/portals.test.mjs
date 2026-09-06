@@ -168,21 +168,21 @@ check(
 
 check(
   "the audit workspace filters to desk-verifiable checks",
-  /checksOf\(discipline, system\)\.filter\(needsDesk\)/.test(capture),
+  /checksOf\(entityCode, discipline, system\)\.filter\(needsDesk\)/.test(capture),
   ""
 );
 
 check(
   "field inspection filters on the declared mode, not the walkabout proxy",
-  /CHECKS\.filter\(needsField\)/.test(field) &&
-    !/CHECKS\.filter\(\(c\) => c\.walkabout \|\| c\.woCount > 0\)/.test(field),
+  /checksAt\(entityCode\)\.filter\(needsField\)/.test(field) &&
+    !/\.filter\(\(c\) => c\.walkabout \|\| c\.woCount > 0\)/.test(field),
   "walkabout text existing is not the register saying the asset must be seen"
 );
 
 check(
   "the discipline and system counts are filtered too",
-  /checksOf\(d\)\.filter\(needsDesk\)/.test(capture) &&
-    /checksOf\(discipline, sys\)\.filter\(needsDesk\)/.test(capture),
+  /checksOf\(entityCode, d\)\.filter\(needsDesk\)/.test(capture) &&
+    /checksOf\(entityCode, discipline, sys\)\.filter\(needsDesk\)/.test(capture),
   "an unfiltered count beside a filtered list is a number that lies"
 );
 

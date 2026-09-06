@@ -8,6 +8,8 @@ import type {
 } from "./types";
 import { BAND_AS_RATING, BAND_META, bandFor, cellCode, movement } from "./risk";
 import { entity as entityOf, PROGRAMME_VISITS } from "./programme";
+import { portalIdFor } from "./sites";
+import { priorFor } from "./register";
 import type { Sheet } from "./xlsx";
 
 /* The exports.
@@ -81,7 +83,7 @@ export function registerSheet(x: ExportInput): Sheet {
     const voice = r?.attachments.filter((a) => a.kind === "voice").length ?? 0;
 
     return [
-      c.id,
+      portalIdFor(x.entity, c.id),
       c.discipline,
       c.system,
       c.area,
@@ -99,7 +101,7 @@ export function registerSheet(x: ExportInput): Sheet {
       c.coverage,
       c.question,
       c.walkabout ?? "",
-      c.pf ?? "",
+      priorFor(x.entity, c.discipline, c.system)?.key ?? "",
       /* Capture starts here. */
       r?.compliance ? STATUS_WORD[r.compliance] : "",
       r?.observation ?? "",
@@ -179,7 +181,7 @@ export function findingsSheet(x: ExportInput): Sheet {
       agreed && f.priorRating && band ? movement(f.priorRating, BAND_AS_RATING[band]) : null;
     return [
       f.id,
-      f.checkId ?? "",
+      f.checkId ? portalIdFor(x.entity, f.checkId) : "",
       f.discipline,
       f.system,
       f.area,
@@ -247,27 +249,34 @@ export function findingsSheet(x: ExportInput): Sheet {
 
 export function closureSheet(x: ExportInput): Sheet {
   const rows = x.prior.map((p) => {
-    const v = x.verifications[p.pf];
-    const covering = x.checks.filter(
-      (c) => c.discipline === p.discipline && c.system === p.system
-    );
+    const v = x.verifications[p.portalId];
+    /* An unallocated finding names a building rather than a register asset
+       system, so nothing covers it by definition and the column says so
+       instead of reading as a coverage failure. */
+    const covering = p.assetSystem
+      ? x.checks.filter((c) => c.discipline === p.discipline && c.system === p.assetSystem)
+      : [];
     const nc = covering.filter((c) => x.responses[c.id]?.compliance === "NC").length;
     return [
-      p.pf,
+      p.portalId,
       p.discipline,
-      p.system,
-      p.rating,
-      p.finding,
+      p.assetSystem ?? p.assetSystemRecorded,
+      p.tolerance,
+      p.observation,
       v?.outcome ?? "",
       v?.evidence ?? "",
       v?.verifiedBy ?? "",
       when(v?.verifiedAt),
       covering.length,
-      covering.length ? covering.map((c) => c.id).join(", ") : "No check covers this",
+      covering.length
+        ? covering.map((c) => portalIdFor(x.entity, c.id)).join(", ")
+        : p.assetSystem
+          ? "No check covers this"
+          : "Unallocated — discipline lead assigns in the field",
       nc,
       /* The coverage guard, carried into the export: closure cannot be evidenced
          against a check that is not being done. */
-      covering.length === 0 ? "NOT COVERED THIS VISIT" : "",
+      covering.length === 0 && p.assetSystem ? "NOT COVERED THIS VISIT" : "",
     ];
   });
 
@@ -305,7 +314,7 @@ export function evidenceRequestSheet(x: ExportInput): Sheet {
     for (const i of r.evidencePicked) {
       const e = lib?.EO[i];
       rows.push([
-        c.id,
+        portalIdFor(x.entity, c.id),
         c.discipline,
         c.system,
         e?.label ?? `Evidence item #${i}`,
@@ -415,7 +424,7 @@ export function aboutSheet(x: ExportInput): Sheet {
       ["Findings raised", x.findings.length],
       ["Ratings agreed by the team", agreed],
       ["Ratings still only suggested", x.findings.length - agreed],
-      ["Mar 2025 findings verified", `${verified} of ${x.prior.length}`],
+      ["2025 findings verified", `${verified} of ${x.prior.length}`],
       ["", ""],
       [
         "A blank status",

@@ -37,9 +37,9 @@ check(
 );
 
 check(
-  "a seeded item keeps its PF number as its verification key",
-  /key: p\.pf,/.test(cf),
-  "verifications recorded before carry-forward existed must still resolve"
+  "a seeded item is keyed by the portal's own id",
+  /key: p\.portalId,/.test(cf),
+  "portalId is the Title of the item in ACSA's Findings list — the key a closure syncs back on"
 );
 
 check(
@@ -62,10 +62,27 @@ check(
   ""
 );
 
+/* This used to compare against a SEEDED_ENTITY constant, because there was one
+   seeded set and it was King Shaka's. Rev A2 carries 78 open findings across
+   three sites, so the entity comes off the record and the constant is gone —
+   it was the last place another airport's findings could have been shown as
+   King Shaka's. */
 check(
   "seeded findings appear only at the entity they belong to",
-  /entityCode === SEEDED_ENTITY && visitId > SEEDED_VISIT/.test(cf),
+  /priorFindingsAt\(entityCode\)/.test(cf) && !/SEEDED_ENTITY/.test(cf),
   "opening O.R. Tambo must not show King Shaka's 2025 findings as ORTIA's failures"
+);
+
+check(
+  "and only on a visit after the one that raised them",
+  /\.filter\(\(p\) => seededVisitOf\(p\) < visitId\)/.test(cf),
+  "the March 2025 visit must not present its own findings as something it inherited"
+);
+
+check(
+  "a finding that names a building rather than an asset system is still carried",
+  /p\.assetSystem \?\? p\.assetSystemRecorded/.test(cf),
+  "19 of the 78 do not join to a check — dropping them would lose real open findings"
 );
 
 check(

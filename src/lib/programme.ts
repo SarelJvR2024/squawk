@@ -19,8 +19,16 @@ export interface Entity {
   name: string;
   short: string;
   kind: EntityKind;
-  /** Has this entity been audited under the current programme yet? */
+  /** Has this entity been audited under the current programme yet?
+   *  Kept for the programme file's own bookkeeping — the dashboard no longer
+   *  trusts it, because "live" was a flag somebody had to remember to set. It
+   *  reads whether the entity actually has captured data instead. */
   live: boolean;
+  /** international | regional | corporate — decides the checklist size. */
+  class: "international" | "regional" | "corporate";
+  /** This site's Round 1 audit window, from the register's calendar. */
+  auditFrom: string;
+  auditTo: string;
   /** Physical zones on the site. Empty until ACSA supplies real names. */
   zones: string[];
 }

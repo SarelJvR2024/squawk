@@ -131,7 +131,7 @@ check(
 
 check(
   "discipline is the first control, not a dropdown",
-  /\["All", \.\.\.DISCIPLINES\.filter/.test(review),
+  /\["All", \.\.\.disciplinesAt\(entityCode\)\.filter/.test(review),
   "an engineer reads their own discipline and no other"
 );
 

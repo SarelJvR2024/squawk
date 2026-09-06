@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import {
-  CHECKS,
-  PRIOR,
+  checksAt,
+  priorFindingsAt,
   useResponses,
   useEntityCode,
   useVerifications,
@@ -86,10 +86,10 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
       const x: ExportInput = {
         entity: entityCode,
         visit: visitId,
-        checks: CHECKS,
+        checks: checksAt(entityCode),
         responses,
         findings,
-        prior: PRIOR,
+        prior: priorFindingsAt(entityCode),
         verifications,
         library,
       };
@@ -143,7 +143,7 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         <p className="mb-4 text-[12px] leading-[1.55]" style={{ color: "var(--ink-2)" }}>
-          {captured} of {CHECKS.length} check-points captured, {findings.length}{" "}
+          {captured} of {checksAt(entityCode).length} check-points captured, {findings.length}{" "}
           {findings.length === 1 ? "finding" : "findings"} raised. Everything is exported as it
           stands — an empty status means not captured, never compliant.
         </p>

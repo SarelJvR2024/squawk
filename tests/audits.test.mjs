@@ -35,11 +35,24 @@ const check = (name, cond, detail = "") => {
 
 /* ------------------------------- Part 1: the gap this exists to close ----- */
 
+/* This suite opened by asserting the gap it exists to close: ten entities in
+   the programme file and seeded visits for exactly ONE of them, so nine sites
+   depended entirely on an audit being created by hand in the app. Rev A2's
+   all-sites register carries the Round 1 calendar, so every site now opens on
+   a real audit and the assertion is the other way round. Creating audits still
+   matters — Round 2 is not in any file yet — and Part 2 onwards still covers
+   it. */
 const withVisits = new Set(programme.visits.map((v) => v.entity));
 check(
-  "the programme file still only covers one entity",
-  programme.entities.length === 10 && withVisits.size === 1,
-  `${withVisits.size} of ${programme.entities.length} entities have seeded visits — the rest depend entirely on audits created in the app`
+  "every site opens on a seeded audit",
+  programme.entities.length === 10 && withVisits.size === 10,
+  `${withVisits.size} of ${programme.entities.length} entities have a seeded visit`
+);
+
+check(
+  "every seeded visit belongs to an entity that exists",
+  programme.visits.every((v) => programme.entities.some((e) => e.code === v.entity)),
+  "a visit for an entity nobody can select is a visit nobody can open"
 );
 
 check(

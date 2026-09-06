@@ -49,8 +49,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-09",
-  "pfq": "Acceptable in Mar 2025.",
   "woCount": 5,
   "optionCount": 29
  },
@@ -101,8 +99,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The detailed series-circuit design and maintenance practice sits in the IEC 61820/61821/61822/61823 series, which are technical standards reflected in Doc 9157 Part 5 rather than South African law.",
-  "pf": "PF-09",
-  "pfq": "Acceptable in Mar 2025.",
   "woCount": 5,
   "optionCount": 26
  },
@@ -144,8 +140,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "SANS 10142-1 and the CoC regime cover the low-voltage installation only; the 11 kV network falls under SANS 10142-2:2018, so an LV CoC is not evidence of MV compliance.",
-  "pf": "PF-09",
-  "pfq": "Acceptable in Mar 2025.",
   "woCount": 5,
   "optionCount": 27
  },
@@ -190,8 +184,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The warning notice and prohibitory sign affixed at each isolation point follow the Operating Regulations for High Voltage Systems (ORHVS), an industry code rather than a statute; EMR reg 5 is the statutory requirement.",
-  "pf": "PF-09",
-  "pfq": "Acceptable in Mar 2025.",
   "woCount": 5,
   "optionCount": 26
  },
@@ -243,8 +235,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "Visual-aid maintenance is 10.5 in the current (8th) edition of Annex 14 Vol I; earlier editions numbered the same material 10.4.",
-  "pf": "PF-09",
-  "pfq": "Acceptable in Mar 2025.",
   "woCount": 5,
   "optionCount": 28
  },
@@ -297,8 +287,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "No ICAO or SANS source was confirmed for the >100 MOhm AGL insulation-resistance target; SANS 10142-1 sets a general low-voltage minimum that applies to the LV installation, not to the series circuit, so the threshold must be traced to OEM or ACSA documentation.",
-  "pf": "PF-09",
-  "pfq": "Acceptable in Mar 2025.",
   "woCount": 0,
   "optionCount": 24
  },
@@ -346,8 +334,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "No statute or ICAO SARP fixes a fleet-wide lamp failure percentage - the ICAO serviceability levels bite on precision approach CAT II/III systems - so the 70% figure must be traced to ACSA's own documented target.",
-  "pf": "PF-09",
-  "pfq": "Acceptable in Mar 2025.",
   "woCount": 5,
   "optionCount": 28
  },
@@ -400,8 +386,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "ACSA is a Schedule 2 major public entity, so the PFMA and not the MFMA is the financial-management authority; the paragraph letter within s51(1) was not confirmed, so it is cited at section level.",
-  "pf": "PF-09",
-  "pfq": "Acceptable in Mar 2025.",
   "woCount": 5,
   "optionCount": 26
  },
@@ -452,8 +436,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-09",
-  "pfq": "Acceptable in Mar 2025.",
   "woCount": 5,
   "optionCount": 29
  },
@@ -504,8 +486,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-03",
-  "pfq": "Switchgear and generators, central to the distribution network, rated Unacceptable; distribution system Tolerable until those findings are closed.",
   "woCount": 5,
   "optionCount": 27
  },
@@ -563,8 +543,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-03",
-  "pfq": "Switchgear and generators, central to the distribution network, rated Unacceptable; distribution system Tolerable until those findings are closed.",
   "woCount": 5,
   "optionCount": 28
  },
@@ -615,8 +593,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-03",
-  "pfq": "Switchgear and generators, central to the distribution network, rated Unacceptable; distribution system Tolerable until those findings are closed.",
   "woCount": 5,
   "optionCount": 28
  },
@@ -668,8 +644,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-03",
-  "pfq": "Switchgear and generators, central to the distribution network, rated Unacceptable; distribution system Tolerable until those findings are closed.",
   "woCount": 5,
   "optionCount": 28
  },
@@ -725,8 +699,6 @@
   },
   "basisConfidence": "medium",
   "basisNote": "No OHS Act regulation names SF6/vacuum functional, continuity, contact-resistance and breaker-speed testing or a twelve-month interval, so a finding rests on the general duty to maintain safe plant plus ACSA's own procedure and the OEM schedule; IEC 62271-100 covers AC circuit-breaker performance.",
-  "pf": "PF-01",
-  "pfq": "Switchgear annual maintenance reports inadequate, do not show all required checks on VCB, protection & auxiliary relays, panels and busbars.",
   "woCount": 5,
   "optionCount": 28
  },
@@ -774,8 +746,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-01",
-  "pfq": "Switchgear annual maintenance reports inadequate, do not show all required checks on VCB, protection & auxiliary relays, panels and busbars.",
   "woCount": 6,
   "optionCount": 30
  },
@@ -822,8 +792,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-01",
-  "pfq": "Switchgear annual maintenance reports inadequate, do not show all required checks on VCB, protection & auxiliary relays, panels and busbars.",
   "woCount": 5,
   "optionCount": 26
  },
@@ -887,8 +855,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-01",
-  "pfq": "Switchgear annual maintenance reports inadequate, do not show all required checks on VCB, protection & auxiliary relays, panels and busbars.",
   "woCount": 6,
   "optionCount": 29
  },
@@ -939,8 +905,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-10",
-  "pfq": "Acceptable in Mar 2025.",
   "woCount": 5,
   "optionCount": 27
  },
@@ -991,8 +955,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "EMR reg 6 is the direct statutory hit - ventilation, vermin, seepage/flooding and fire appliances are all named in it - but it sets no numeric value, so cooling performance must be judged against the OEM or design rating.",
-  "pf": "PF-10",
-  "pfq": "Acceptable in Mar 2025.",
   "woCount": 6,
   "optionCount": 29
  },
@@ -1037,8 +999,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-10",
-  "pfq": "Acceptable in Mar 2025.",
   "woCount": 5,
   "optionCount": 26
  },
@@ -1084,8 +1044,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "MHI reg 15 applies only where the fuel installation meets the major hazard installation thresholds, but it is the source of the twelve-monthly practice test ACSA applies at the fuel depot; the 2022 regulations replaced the 2001 set, in which the same duty sat at reg 6.",
-  "pf": "PF-10",
-  "pfq": "Acceptable in Mar 2025.",
   "woCount": 5,
   "optionCount": 27
  },
@@ -1132,8 +1090,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "No external instrument was found requiring the diagram to be permanently displayed - that is ACSA's own requirement; the external authorities require only that accurate, current diagrams exist and are available to the person switching.",
-  "pf": "PF-10",
-  "pfq": "Acceptable in Mar 2025.",
   "woCount": 5,
   "optionCount": 25
  },
@@ -1184,8 +1140,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-10",
-  "pfq": "Acceptable in Mar 2025.",
   "woCount": 6,
   "optionCount": 28
  },
@@ -1237,8 +1191,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-10",
-  "pfq": "Acceptable in Mar 2025.",
   "woCount": 5,
   "optionCount": 28
  },
@@ -1286,8 +1238,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "No South African statute fixes the weekly, monthly or annual generator test intervals - those are OEM and ACSA driven - and CAR 139.02.10A was only inserted in 2025, so the enforceable point is that the secondary supply works within the Table 8-1 switch-over time.",
-  "pf": "PF-02",
-  "pfq": "No diesel cut-out fuse installed on any generator (fire isolation); oil leaks on the floor of some airside substations; maintenance records run to March 2024; weekly off-load, monthly on-load tests and annual service to be evidenced.",
   "woCount": 5,
   "optionCount": 28
  },
@@ -1337,8 +1287,6 @@
   },
   "basisConfidence": "medium",
   "basisNote": "PER reg 2(3) excludes certain piping from the regulations, so where the underground fuel line falls outside PER the governing regime is SANS 10089-3 together with the fuel depot licence conditions; no statutory annual frequency for underground pipework was confirmed.",
-  "pf": "PF-02",
-  "pfq": "No diesel cut-out fuse installed on any generator (fire isolation); oil leaks on the floor of some airside substations; maintenance records run to March 2024; weekly off-load, monthly on-load tests and annual service to be evidenced.",
   "woCount": 0,
   "optionCount": 22
  },
@@ -1397,8 +1345,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "Reg 18 of the Noise Exposure Regulations, 2024 repeals the 2003 NIHL Regulations 18 months after promulgation, i.e. from about 6 September 2026 — confirm which instrument is in force on the audit date and cite reg 11 of the 2024 Regulations thereafter.",
-  "pf": "PF-02",
-  "pfq": "No diesel cut-out fuse installed on any generator (fire isolation); oil leaks on the floor of some airside substations; maintenance records run to March 2024; weekly off-load, monthly on-load tests and annual service to be evidenced.",
   "woCount": 5,
   "optionCount": 27
  },
@@ -1444,8 +1390,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "ACSA's D060 021M still cites the Major Hazard Installation Regulations, 1995/2001, which reg 25 of the 2022 Regulations repealed; the diesel qualifying quantity must be read off Annexure A of the 2022 Regulations, not the old schedule.",
-  "pf": "PF-02",
-  "pfq": "No diesel cut-out fuse installed on any generator (fire isolation); oil leaks on the floor of some airside substations; maintenance records run to March 2024; weekly off-load, monthly on-load tests and annual service to be evidenced.",
   "woCount": 5,
   "optionCount": 27
  },
@@ -1499,8 +1443,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The check cites NIHL reg 9 and 10(1); reg 9 is the noise zone provision and the exposure prohibition itself sits in reg 3, read with the reg 10 control hierarchy.",
-  "pf": "PF-02",
-  "pfq": "No diesel cut-out fuse installed on any generator (fire isolation); oil leaks on the floor of some airside substations; maintenance records run to March 2024; weekly off-load, monthly on-load tests and annual service to be evidenced.",
   "woCount": 5,
   "optionCount": 28
  },
@@ -1541,8 +1483,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-02",
-  "pfq": "No diesel cut-out fuse installed on any generator (fire isolation); oil leaks on the floor of some airside substations; maintenance records run to March 2024; weekly off-load, monthly on-load tests and annual service to be evidenced.",
   "woCount": 6,
   "optionCount": 28
  },
@@ -1583,8 +1523,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-02",
-  "pfq": "No diesel cut-out fuse installed on any generator (fire isolation); oil leaks on the floor of some airside substations; maintenance records run to March 2024; weekly off-load, monthly on-load tests and annual service to be evidenced.",
   "woCount": 5,
   "optionCount": 26
  },
@@ -1635,8 +1573,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-02",
-  "pfq": "No diesel cut-out fuse installed on any generator (fire isolation); oil leaks on the floor of some airside substations; maintenance records run to March 2024; weekly off-load, monthly on-load tests and annual service to be evidenced.",
   "woCount": 5,
   "optionCount": 27
  },
@@ -1682,8 +1618,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-02",
-  "pfq": "No diesel cut-out fuse installed on any generator (fire isolation); oil leaks on the floor of some airside substations; maintenance records run to March 2024; weekly off-load, monthly on-load tests and annual service to be evidenced.",
   "woCount": 5,
   "optionCount": 27
  },
@@ -1735,8 +1669,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "IEC 60422 and IEC 60599 are cited at document level and are engineering good practice adopted by ACSA — no South African regulation prescribes an oil-test or DGA frequency for transformers, so a finding here is a maintenance-standard finding, not a statutory contravention.",
-  "pf": "PF-04",
-  "pfq": "TRF 02 at AS1 off (oil below minimum); AS4 TRF 01 and 02 indicate partial discharges; Basement Chamber A1 TRF 04 and 05 indicate a high-range thermal fault (above 700 °C); production rates to be monitored.",
   "woCount": 0,
   "optionCount": 23
  },
@@ -1788,8 +1720,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-04",
-  "pfq": "TRF 02 at AS1 off (oil below minimum); AS4 TRF 01 and 02 indicate partial discharges; Basement Chamber A1 TRF 04 and 05 indicate a high-range thermal fault (above 700 °C); production rates to be monitored.",
   "woCount": 6,
   "optionCount": 29
  },
@@ -1843,8 +1773,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-11",
-  "pfq": "Acceptable in Mar 2025.",
   "woCount": 6,
   "optionCount": 30
  },
@@ -1895,8 +1823,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-05",
-  "pfq": "RWY 06 GP transmitter 1 unserviceable; ILS downgraded to CAT I; flight inspection report to be checked.",
   "woCount": 5,
   "optionCount": 27
  },
@@ -1937,8 +1863,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The Part 171 obligation sits with whichever entity holds the aeronautical telecommunication service approval for the ILS (commonly ATNS rather than the aerodrome licensee) — confirm which entity is approved before framing a finding against ACSA.",
-  "pf": "PF-05",
-  "pfq": "RWY 06 GP transmitter 1 unserviceable; ILS downgraded to CAT I; flight inspection report to be checked.",
   "woCount": 0,
   "optionCount": 21
  },
@@ -1984,8 +1908,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-06",
-  "pfq": "Latest AWOS calibration records not submitted.",
   "woCount": 5,
   "optionCount": 28
  },
@@ -2035,8 +1957,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-12",
-  "pfq": "Acceptable in Mar 2025.",
   "woCount": 5,
   "optionCount": 26
  },
@@ -2082,8 +2002,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-12",
-  "pfq": "Acceptable in Mar 2025.",
   "woCount": 6,
   "optionCount": 29
  },
@@ -2129,8 +2047,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 28
  },
@@ -2184,8 +2100,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-07",
-  "pfq": "Systems well maintained per service stickers; faults observed on some panels need to be cleared.",
   "woCount": 6,
   "optionCount": 30
  },
@@ -2238,8 +2152,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-08",
-  "pfq": "Quarterly PM records for the previous two quarters submitted (calibration confirmed); one sampled machine at international arrivals not in good condition, one at local departures not functional.",
   "woCount": 5,
   "optionCount": 28
  },
@@ -2291,8 +2203,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 28
  },
@@ -2352,8 +2262,6 @@
   },
   "basisConfidence": "high",
   "basisNote": "The check's reference to EIR reg 3 is wrong — reg 3 deals with approved inspection authorities; registration of persons is reg 11 and issue of a CoC by a registered person is reg 9.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 29
  },
@@ -2406,8 +2314,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The s.44 incorporation covers the low-voltage installation; SANS 10142-2 governs the medium-voltage portion above 1 kV and is not itself incorporated under the EIR.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 26
  },
@@ -2458,8 +2364,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 26
  },
@@ -2513,8 +2417,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The check cites CAR 139.02.10A, which is the aerodrome physical characteristics regulation; the maintenance-programme duty sits at 139.02.23 and the inspection programme at 139.02.26.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 28
  },
@@ -2565,8 +2467,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 27
  },
@@ -2621,8 +2521,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The check cites EMR reg 18, which is general earthing; the isolate-and-discharge-before-touching duty is reg 4. ORHVS, on which ACSA's switching authorisations rest, is an industry operating code, not a regulation.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 30
  },
@@ -2680,8 +2578,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "No South African regulation prescribes the form or content of a safe work method statement — the statutory hook is the s.8(2) general duty and, for contractors, the s.37(2) agreement, so a finding here is one of inadequate discharge of a general duty.",
-  "pf": null,
-  "pfq": null,
   "woCount": 0,
   "optionCount": 23
  },
@@ -2738,8 +2634,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 29
  },
@@ -2798,8 +2692,6 @@
   },
   "basisConfidence": "high",
   "basisNote": "The Driven Machinery Regulations, 2015 replaced the 1988 set and bite only where the machine falls into a listed class; GMR reg 3 is the general safeguarding duty that always applies.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 29
  },
@@ -2838,8 +2730,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 33
  },
@@ -2878,8 +2768,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The checklist's ≥20 ACH target is SANS 10400-O Table 2 verbatim, so an observed 12 ACH is a deemed-to-satisfy failure under Part O, not merely a procedural shortfall.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 30
  },
@@ -2921,8 +2809,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "Smoke extraction volume is fixed by the site-specific rational design rather than by a national figure, so the external authority governs the design, the competent person's inspection and the alarm interface — \"as per design\" is correct.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 31
  },
@@ -2965,8 +2851,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "ACSA cites SANS 1850:2003; the current edition is SANS 1850:2014 and its interval is six-monthly, so the checklist's quarterly figure is an internal or insurer requirement, not the standard's.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 33
  },
@@ -3004,8 +2888,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "No external instrument sets a monthly test interval for roof ventilators — reg O6 requires testing at \"acceptable intervals\" only, so a missed month is a departure from ACSA's own schedule rather than a contravention.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 30
  },
@@ -3045,8 +2927,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "Neither SANS 193 nor SANS 10400-T states a damper drop-test interval; the monthly frequency comes from the fire engineer's rational design and O&M schedule, which reg A19 obliges the owner to keep a competent person appointed against.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -3086,8 +2966,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -3113,8 +2991,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 33
  },
@@ -3162,8 +3038,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -3205,8 +3079,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "No South African instrument uses the phrase \"as-built wiring diagram\"; the enforceable hooks are circuit identification under SANS 10142-1, the CoC test report, and the safe-isolation duty.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -3243,8 +3115,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -3286,8 +3156,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -3330,8 +3198,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 33
  },
@@ -3372,8 +3238,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 0,
   "optionCount": 26
  },
@@ -3422,8 +3286,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -3476,8 +3338,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 33
  },
@@ -3528,8 +3388,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 35
  },
@@ -3568,8 +3426,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 33
  },
@@ -3608,8 +3464,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-14",
-  "pfq": "People movers rated Unacceptable (escalators / travelators / lifts).",
   "woCount": 6,
   "optionCount": 32
  },
@@ -3655,8 +3509,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The regulation's term is \"comprehensive report\"; \"Annexure B\" is SANS 1545-1 and industry usage, so match the certificate to reg 6 rather than to the annexure label.",
-  "pf": "PF-14",
-  "pfq": "People movers rated Unacceptable (escalators / travelators / lifts).",
   "woCount": 6,
   "optionCount": 32
  },
@@ -3694,8 +3546,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-14",
-  "pfq": "People movers rated Unacceptable (escalators / travelators / lifts).",
   "woCount": 6,
   "optionCount": 31
  },
@@ -3732,8 +3582,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "SANS 1543, not SANS 1545-1, is the escalator and passenger-conveyor standard; ACSA's procedure applies SANS 1545-1 to both, which is a defensible reporting format but the wrong technical reference for escalators.",
-  "pf": "PF-14",
-  "pfq": "People movers rated Unacceptable (escalators / travelators / lifts).",
   "woCount": 6,
   "optionCount": 32
  },
@@ -3759,8 +3607,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-14",
-  "pfq": "People movers rated Unacceptable (escalators / travelators / lifts).",
   "woCount": 6,
   "optionCount": 31
  },
@@ -3800,8 +3646,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "The regulations recognise only the \"comprehensive report\" — there is no \"Annex E\" report type in the LEPCR, so what distinguishes this report must be the accessibility content drawn from SANS 1545-3/-4 and EN 81-70, not a separate statutory instrument.",
-  "pf": "PF-14",
-  "pfq": "People movers rated Unacceptable (escalators / travelators / lifts).",
   "woCount": 6,
   "optionCount": 32
  },
@@ -3838,8 +3682,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-14",
-  "pfq": "People movers rated Unacceptable (escalators / travelators / lifts).",
   "woCount": 6,
   "optionCount": 32
  },
@@ -3876,8 +3718,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The 12-month interval is statutory under reg 7, so a lapsed or partial annual test (for example governor only, with no buffer test) is a contravention of the regulations and not merely of ACSA's procedure.",
-  "pf": "PF-14",
-  "pfq": "People movers rated Unacceptable (escalators / travelators / lifts).",
   "woCount": 6,
   "optionCount": 32
  },
@@ -3919,8 +3759,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-14",
-  "pfq": "People movers rated Unacceptable (escalators / travelators / lifts).",
   "woCount": 6,
   "optionCount": 32
  },
@@ -3968,8 +3806,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-14",
-  "pfq": "People movers rated Unacceptable (escalators / travelators / lifts).",
   "woCount": 6,
   "optionCount": 32
  },
@@ -4012,8 +3848,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-14",
-  "pfq": "People movers rated Unacceptable (escalators / travelators / lifts).",
   "woCount": 8,
   "optionCount": 35
  },
@@ -4059,8 +3893,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-15",
-  "pfq": "Signs of corrosion; no structural assessment reports by Professional Engineers to rule out structural failure.",
   "woCount": 6,
   "optionCount": 33
  },
@@ -4100,8 +3932,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-15",
-  "pfq": "Signs of corrosion; no structural assessment reports by Professional Engineers to rule out structural failure.",
   "woCount": 6,
   "optionCount": 31
  },
@@ -4147,8 +3977,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-15",
-  "pfq": "Signs of corrosion; no structural assessment reports by Professional Engineers to rule out structural failure.",
   "woCount": 6,
   "optionCount": 32
  },
@@ -4188,8 +4016,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-15",
-  "pfq": "Signs of corrosion; no structural assessment reports by Professional Engineers to rule out structural failure.",
   "woCount": 6,
   "optionCount": 32
  },
@@ -4247,8 +4073,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-15",
-  "pfq": "Signs of corrosion; no structural assessment reports by Professional Engineers to rule out structural failure.",
   "woCount": 7,
   "optionCount": 35
  },
@@ -4285,8 +4109,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 6,
   "optionCount": 32
  },
@@ -4329,8 +4151,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 6,
   "optionCount": 32
  },
@@ -4376,8 +4196,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 6,
   "optionCount": 34
  },
@@ -4419,8 +4237,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 6,
   "optionCount": 32
  },
@@ -4457,8 +4273,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 6,
   "optionCount": 33
  },
@@ -4506,8 +4320,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 6,
   "optionCount": 33
  },
@@ -4553,8 +4365,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 5,
   "optionCount": 32
  },
@@ -4591,8 +4401,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 5,
   "optionCount": 32
  },
@@ -4635,8 +4443,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "Holiday testing and close-interval survey are Energy Institute/JIG and API pipeline-integrity practice — recommended practice, not statutory; no South African instrument sets a coating spot-inspection frequency, so the finding is against the corrosion-protection duty rather than a missed interval.",
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 5,
   "optionCount": 32
  },
@@ -4678,8 +4484,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 6,
   "optionCount": 33
  },
@@ -4726,8 +4530,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 5,
   "optionCount": 32
  },
@@ -4764,8 +4566,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 6,
   "optionCount": 33
  },
@@ -4805,8 +4605,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 5,
   "optionCount": 32
  },
@@ -4843,8 +4641,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 5,
   "optionCount": 32
  },
@@ -4885,8 +4681,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 5,
   "optionCount": 33
  },
@@ -4912,8 +4706,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 5,
   "optionCount": 32
  },
@@ -4953,8 +4745,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 6,
   "optionCount": 33
  },
@@ -5002,8 +4792,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 6,
   "optionCount": 34
  },
@@ -5043,8 +4831,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 5,
   "optionCount": 32
  },
@@ -5091,8 +4877,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 6,
   "optionCount": 33
  },
@@ -5142,8 +4926,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 6,
   "optionCount": 33
  },
@@ -5198,8 +4980,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-13",
-  "pfq": "Most hydrant pit couplers have worn seals or damaged lids, risk of significant refuelling delays.",
   "woCount": 6,
   "optionCount": 37
  },
@@ -5255,8 +5035,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 37
  },
@@ -5304,8 +5082,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "Neither GMR 3 nor DMR 3 sets an inspection frequency — the duty is continuous, so a guard found missing, propped open or with a defeated interlock is itself the contravention regardless of when it was last inspected.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 33
  },
@@ -5345,8 +5121,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "GMR 6(3)(b) makes the warning device itself compulsory, but no instrument sets a test interval — the frequency and the required lead time before motion remain ACSA's own operational choice.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -5392,8 +5166,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "GMR 6(3)(a) is the statutory basis for both the immediate halt and the manual-reset requirement; the monthly test interval, and its extension to belt conveyors and carousels, is ACSA's own.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 33
  },
@@ -5440,8 +5212,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "SANS 10400-T is the deemed-to-satisfy route for National Building Regulation T1; the shutter-to-drive interlock itself is not separately standardised in SANS, so GMR 3 is the statutory hook.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 35
  },
@@ -5483,8 +5253,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "No statute fixes a test interval, so a finding on interval is procedural against ACSA's own D060 002M, while a bypassed or defeated interlock is a direct GMR 3 and GMR 6 contravention.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 32
  },
@@ -5519,8 +5287,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "GMR 6(3)(b) is the direct statutory basis for the siren; it allows an alternative arrangement only where an inspector has approved one as affording adequate safety.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 30
  },
@@ -5573,8 +5339,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 34
  },
@@ -5635,8 +5399,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 36
  },
@@ -5676,8 +5438,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -5717,8 +5477,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The monthly visual inspection and annual service by an accredited agent derive from SANS 10105-1 and municipal fire by-laws rather than directly from the OHS Act; ACSA's quarterly inspection interval is longer than the SANS routine-inspection expectation.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -5765,8 +5523,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 34
  },
@@ -5801,8 +5557,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -5837,8 +5591,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -5878,8 +5630,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 33
  },
@@ -5924,8 +5674,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 34
  },
@@ -5966,8 +5714,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 34
  },
@@ -6003,8 +5749,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -6044,8 +5788,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -6079,8 +5821,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -6127,8 +5867,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -6163,8 +5901,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 28
  },
@@ -6199,8 +5935,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 28
  },
@@ -6235,8 +5969,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 28
  },
@@ -6271,8 +6003,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 28
  },
@@ -6307,8 +6037,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 28
  },
@@ -6343,8 +6071,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 28
  },
@@ -6379,8 +6105,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 28
  },
@@ -6425,8 +6149,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -6477,8 +6199,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -6525,8 +6245,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -6573,8 +6291,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 29
  },
@@ -6627,8 +6343,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -6687,8 +6401,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -6733,8 +6445,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 29
  },
@@ -6780,8 +6490,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 30
  },
@@ -6827,8 +6535,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 28
  },
@@ -6880,8 +6586,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 29
  },
@@ -6933,8 +6637,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -6993,8 +6695,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -7049,8 +6749,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The 2022 HBA Regulations replaced the 2001 set, so \"these Regulations\" in the check now means the 2022 instrument.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -7105,8 +6803,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "Reg 15(f) is an exact match to the wording of this check and is the citation to put to ACSA if the contract lacks the clause.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -7164,8 +6860,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The 2022 Regulations put engineering containment ahead of PPE, so PPE-only compliance at the treatment plant is a reg 10 finding, not merely a reg 11 one.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -7217,8 +6911,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The 24-month interval survives from the 2001 Regulations but the 2022 reg 12 no longer requires an approved inspection authority — it requires a competent person working to documented protocols — so a finding should be based on reg 12, not on \"approved HBA inspection authority\".",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -7275,8 +6967,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -7327,8 +7017,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 30
  },
@@ -7387,8 +7075,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -7446,8 +7132,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -7494,8 +7178,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -7555,8 +7237,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -7602,8 +7282,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -7655,8 +7333,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "DMR 18 applies to the lifting machinery in all cases; Construction Regulation 17 bites where the gondola work falls within the definition of construction work.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -7709,8 +7385,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "Construction Regulation 17(10) is the only genuinely prior-to-use statutory obligation here and is stronger than ACSA's periodic intervals, so the gap in D080 017M is a real one.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -7768,8 +7442,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The DMR register is the statutory instrument; the Ladder Register ME 065 and CMMS 019 are ACSA's own additions and carry no statutory weight of their own.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -7821,8 +7493,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "A load test certificate issued by an unregistered entity is a nullity for DMR purposes, so this is a statutory finding and not merely a contractor-management one.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 30
  },
@@ -7868,8 +7538,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "Both legs must hold — an ECSA-registered individual working for an unregistered entity, or an unregistered individual at a registered entity, fails DMR 18(5).",
-  "pf": null,
-  "pfq": null,
   "woCount": 0,
   "optionCount": 24
  },
@@ -7934,8 +7602,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -7984,8 +7650,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -8026,8 +7690,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "Annex 14 Vol I Chapter 5 numbering is that of the 8th edition (2018) onward; the touchdown-zone pair count is a function of landing distance available, so read the figure from the amendment current at the audit date.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 28
  },
@@ -8080,8 +7742,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "No instrument publishes a numeric percentage-of-paint-remaining or retroreflectivity threshold for aerodrome markings; the test remains qualitative legibility against design intent.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 29
  },
@@ -8122,8 +7782,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 28
  },
@@ -8158,8 +7816,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The distance is a table value keyed to code number and category of operation, so audit against the runway's approved design/AIP figure rather than a single generic distance.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 28
  },
@@ -8205,8 +7861,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 29
  },
@@ -8260,8 +7914,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 30
  },
@@ -8312,8 +7964,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 29
  },
@@ -8365,8 +8015,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "Stand marking geometry is set by the stand's own design for its critical aircraft type, so the dimensional check is against the approved apron layout rather than a generic table.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -8413,8 +8061,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "D060 001M sets a daily signage inspection and D060 014M a monthly one for the same asset; the conflict should be raised as a finding against ACSA's own document set, not against the external standard.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 31
  },
@@ -8482,8 +8128,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -8532,8 +8176,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -8582,8 +8224,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -8629,8 +8269,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "ACR-PCR replaced the ACN-PCN method with effect from 28 November 2024, so a register or AIP entry still expressed as a PCN is out of date.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -8665,8 +8303,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "Sub-clause numbers within §3.5 were not confirmed this pass; take the 90 m / 240 m length figures from SA-CATS 139 and the Annex 14 amendment current at the audit date.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -8717,8 +8353,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "No SACAA or ICAO instrument publishes a numeric crack-width or rut-depth pass/fail figure; severity grading comes from ASTM D5340, and the COLTO Section 4000 repair standard D060 014M names is a workmanship specification, not a defect threshold.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -8774,8 +8408,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The 3 mm depth / 25 per cent area definition of standing water is a reporting definition, not a maintenance tolerance; vegetation in joints and loose aggregate remain qualitative FOD judgements.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -8825,8 +8457,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "Cited at section level: the flush-surface sub-clause number within §3.4 was not confirmed, and no instrument publishes a numeric maximum step height, so the ~25 mm figure sometimes quoted must not be treated as a standard.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 28
  },
@@ -8870,8 +8500,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "No aviation instrument sets a numeric edge-break depth or extent limit, so the finding must be framed on FOD generation, loss of edge support and drainage disruption rather than on a threshold.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 30
  },
@@ -8912,8 +8540,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "Cited at section level: the individual slope sub-clauses within §3.1 were not confirmed this pass, and the limits are code-number dependent, so the figures in the check target should be re-read from SA-CATS 139 before being used as pass/fail limits.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 29
  },
@@ -8967,8 +8593,6 @@
   },
   "basisConfidence": "high",
   "basisNote": "The graded half-widths of roughly 40 m and 75 m are code- and approach-type dependent; read the applicable figure from SA-CATS 139, and note that ACSA's 50 m grass-cutting width is a vegetation control width, not the strip's graded width.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -8994,8 +8618,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "No instrument publishes a CBR or other numeric bearing figure for the strip; compliance is demonstrated through the aerodrome's approved geotechnical and pavement design, so the audit test is whether that design documentation exists and is current.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 28
  },
@@ -9047,8 +8669,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "Frangibility is a design certification matter, so the practical evidence is a frangible-mount certificate or type approval per object, held against an object register for the strip and RESA.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -9121,8 +8741,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -9183,8 +8801,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -9244,8 +8860,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-16",
-  "pfq": "Friction levels below minimum in some runway sections, corrective measures required.",
   "woCount": 5,
   "optionCount": 31
  },
@@ -9295,8 +8909,6 @@
   },
   "basisConfidence": "high",
   "basisNote": "The traffic ladder itself (<15 = yearly through >210 = weekly) originates in ICAO Doc 9137 Part 2, not in the SA regulations, which set the outcome obligation rather than the frequency; the annual-mass column is an ACSA addition.",
-  "pf": "PF-16",
-  "pfq": "Friction levels below minimum in some runway sections, corrective measures required.",
   "woCount": 0,
   "optionCount": 25
  },
@@ -9346,8 +8958,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "No SACAA-prescribed retention period for friction records was confirmed; the five-year retention is ACSA's own procedural rule, so a finding on retention rests on D060 010 cl. 11 and not on Part 139.",
-  "pf": "PF-16",
-  "pfq": "Friction levels below minimum in some runway sections, corrective measures required.",
   "woCount": 0,
   "optionCount": 26
  },
@@ -9408,8 +9018,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "ACSA's D060 010 already adopts ICAO Doc 9137 Part 2 as the analysis method, so the external instrument is incorporated by reference into the procedure being audited.",
-  "pf": "PF-16",
-  "pfq": "Friction levels below minimum in some runway sections, corrective measures required.",
   "woCount": 0,
   "optionCount": 28
  },
@@ -9453,8 +9061,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 31
  },
@@ -9495,8 +9101,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "ACR-PCR replaced ACN-PCN with effect from 28 November 2024, and each pavement is rated in its own right — the test is taxiway PCR ≥ ACR of the aircraft using it, not numerical equality with the runway.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 29
  },
@@ -9546,8 +9150,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "Neither Annex 14 nor Part 139 publishes a numeric crack-width or rut-depth limit; the grading standard is whatever ACSA's pavement management methodology documents, commonly TMH 9 locally or ASTM D5340 for airport pavements.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -9597,8 +9199,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The 3 mm depth over 25 per cent of the area definition of standing water quoted in the target is a guidance threshold, not a Part 139 regulation — cite the removal obligation, and use the depth figure only as the assessment convention.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 31
  },
@@ -9642,8 +9242,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "The flush-edge provision in Annex 14 is a Recommended Practice rather than a Standard and carries no numeric step tolerance, which limits the severity a finding can carry; cited at chapter level because the clause number was not confirmed.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 28
  },
@@ -9687,8 +9285,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "COLTO 1998 is progressively being replaced by the COTO Standard Specifications, and severity grading of edge breaks comes from TMH 9 or ASTM D5340 rather than from any SACAA-published limit.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 29
  },
@@ -9734,8 +9330,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "Annex 14 slope values are cited at chapter level because the clause number was not confirmed, and they are design standards for new or reconstructed taxiways — on an existing taxiway the auditable requirement is drainage performance (no ponding), not retrofit of the slope.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 28
  },
@@ -9778,8 +9372,6 @@
   },
   "basisConfidence": "medium",
   "basisNote": "The distances quoted in the target (15.5 / 20 / 26 / 37 / 43.5 / 51 m) are the Annex 14 Table 3-1 taxiway-centre-line-to-object separation distances; confirm the taxiway's code letter and the current Annex 14 amendment before applying them as a pass-fail limit.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 31
  },
@@ -9835,8 +9427,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -9890,8 +9480,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -9932,8 +9520,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "Apron loading (static, parked, tight turning) is accounted for inside the ACR-PCR evaluation, so the compliance test is apron PCR ≥ ACR of the aircraft using it, not equality with the runway's PCR.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 28
  },
@@ -9989,8 +9575,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "No SACAA numeric crack or rut threshold exists; ASTM D5340 (airport Pavement Condition Index) or TMH 9 supplies the severity grading as industry practice, and ACSA should be able to name which it applies.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -10046,8 +9630,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "Vegetation and spilled aggregate on an apron are treated as FOD sources under Annex 14 §10.2 rather than under a separate vegetation standard; the 3 mm / 25 per cent standing-water figure is an assessment convention, not a regulation.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -10096,8 +9678,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "Neither Annex 14 nor Part 139 sets a numeric lip or step tolerance at an apron edge — ACSA's own B090 001M criterion ('no greater than necessary to drain off the pavement') remains the only measurable rule, so a finding must be framed as a hazard, not as a dimensional breach.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 30
  },
@@ -10143,8 +9723,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The five-yearly joint material replacement in D060 014M is an ACSA maintenance interval, not an external requirement; ASTM D5340 supplies the distress definitions but no mandatory intervention threshold.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -10206,8 +9784,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 33
  },
@@ -10254,8 +9830,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -10281,8 +9855,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 4,
   "optionCount": 29
  },
@@ -10335,8 +9907,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 33
  },
@@ -10401,8 +9971,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 33
  },
@@ -10463,8 +10031,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 33
  },
@@ -10520,8 +10086,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 33
  },
@@ -10580,8 +10144,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 32
  },
@@ -10645,8 +10207,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "FALE is a code 4 aerodrome, so reg 139.02.23(8)(e)(i) fixes a minimum of two movement area inspections a day independently of whatever frequency ACSA's own procedures set.",
-  "pf": null,
-  "pfq": null,
   "woCount": 0,
   "optionCount": 26
  },
@@ -10711,8 +10271,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -10764,8 +10322,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-17",
-  "pfq": "Service road expansion joints need repair or replacement.",
   "woCount": 6,
   "optionCount": 32
  },
@@ -10821,8 +10377,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 34
  },
@@ -10848,8 +10402,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 30
  },
@@ -10875,8 +10427,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "Occupation under a written local-authority permission granted pending issue of the certificate is time-limited and conditional and is not a substitute for the certificate itself.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 29
  },
@@ -10934,8 +10484,6 @@
   },
   "basisConfidence": "high",
   "basisNote": "GMR 2(4) and 2(5) key the appointee's qualification to installed power in kW and distribution capacity in kVA, not to supply voltage — the 11 kV trigger in S010 001M cl. 4.9 is ACSA's own threshold and should not be presented as the statutory test.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -10984,8 +10532,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "Two attributions in the register need correcting: extinguisher inspection and maintenance intervals sit in SANS 10105-1, not SANS 1475-1 (which governs the production of reconditioned extinguishers), and Environmental Regulations for Workplaces reg 9 contains no fire-warden requirement — it covers means of egress and the provision and maintenance of equipment only.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -11027,8 +10573,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "D080 028M cl. 4.2.5 cites 'the OHS Act of 1995'; the Act is No. 85 of 1993, and Construction Regulations 2014 reg 11(2) is both the correct citation and the external source of ACSA's six-monthly and yearly structural inspection intervals.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -11083,8 +10627,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -11132,8 +10674,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -11180,8 +10720,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The register cites 'NBR&BS Act ss12/13' for dangerous-building powers; s13 is the exemption and authorisation provision — the dangerous-building powers are s12, supported by s21.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 30
  },
@@ -11222,8 +10760,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "No South African instrument prescribes a movement-survey frequency or a numeric settlement limit for an existing building, so the audit test is the recorded design basis and the SANS 10160-1 serviceability criteria, not a published threshold.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 30
  },
@@ -11270,8 +10806,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -11325,8 +10859,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -11378,8 +10910,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 0,
   "optionCount": 25
  },
@@ -11426,8 +10956,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "T050 005M cl. 4.3 defers the quality limits to 'the effluent discharge permit'; the permit takes its limits from the eThekwini Sewage Disposal By-law schedules, so the by-law is the auditable standard behind the permit.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -11477,8 +11005,6 @@
   },
   "basisConfidence": "high",
   "basisNote": "No instrument requires an 'odour control record' as such — the auditable duty is Facilities Regulations reg 9 and reg A15, evidenced by the ablution inspection and servicing records ACSA already keeps.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -11531,8 +11057,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -11558,8 +11082,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "'PP26' and 'PP27' are not SANS or National Building Regulations designations — the two tests are SANS 10400-P cl. 4.26 and 4.27, and the SANS 1200 LD test method they invoke survives in SANS 10400-P even though the wider SANS 1200 series has largely been replaced by SANS 2001 for new works.",
-  "pf": null,
-  "pfq": null,
   "woCount": 0,
   "optionCount": 24
  },
@@ -11612,8 +11134,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The register's target text cites 'Facilities Regulations 2004 reg 2(1)' for the good-repair duty; reg 2 is sanitation — the maintenance duty is reg 9, 'Condition of rooms and facilities'.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -11664,8 +11184,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -11717,8 +11235,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -11760,8 +11276,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 29
  },
@@ -11814,8 +11328,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -11856,8 +11368,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 29
  },
@@ -11914,8 +11424,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -11969,8 +11477,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -12018,8 +11524,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-19",
-  "pfq": "Refuse disposal improved; good housekeeping maintained. Verify sustained.",
   "woCount": 6,
   "optionCount": 32
  },
@@ -12061,8 +11565,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The 2013 Norms and Standards bite only above the 100 m³ general / 80 m³ hazardous capacity thresholds, so confirm KSIA's yard capacity before citing them as binding rather than as good practice.",
-  "pf": "PF-19",
-  "pfq": "Refuse disposal improved; good housekeeping maintained. Verify sustained.",
   "woCount": 5,
   "optionCount": 30
  },
@@ -12110,8 +11612,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The register states no SANS 10400-U sub-regulation covers odour, which is correct — but the 2013 Norms and Standards do state an express odour requirement, so the check is better anchored there than on the by-law's general nuisance wording alone.",
-  "pf": "PF-19",
-  "pfq": "Refuse disposal improved; good housekeeping maintained. Verify sustained.",
   "woCount": 6,
   "optionCount": 32
  },
@@ -12159,8 +11659,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "No national instrument fixes a removal frequency: the external test is the by-law duty to have waste effectively and timeously removed by an authorised contractor, so the audit finding turns on capacity against actual fill rate rather than on a stated interval.",
-  "pf": "PF-19",
-  "pfq": "Refuse disposal improved; good housekeeping maintained. Verify sustained.",
   "woCount": 5,
   "optionCount": 31
  },
@@ -12196,8 +11694,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "Two different senses of 'access' apply: reg U2 is collection-vehicle access to the satisfaction of the local authority, while GN R.926 s8 is security access control — T050 002M cl. 4.5 addresses only the second, so the collection-access requirement is uncovered.",
-  "pf": "PF-19",
-  "pfq": "Refuse disposal improved; good housekeeping maintained. Verify sustained.",
   "woCount": 5,
   "optionCount": 29
  },
@@ -12257,8 +11753,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-19",
-  "pfq": "Refuse disposal improved; good housekeeping maintained. Verify sustained.",
   "woCount": 6,
   "optionCount": 32
  },
@@ -12310,8 +11804,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-18",
-  "pfq": "Building corrosion (steel structure) previously Tolerable, addressed, now Acceptable. Verify sustained.",
   "woCount": 6,
   "optionCount": 32
  },
@@ -12351,8 +11843,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 30
  },
@@ -12404,8 +11894,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -12468,8 +11956,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -12521,8 +12007,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -12570,8 +12054,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "No external instrument prescribes a daily interval or a checklist format; the target's citation of 'Facilities Regulations 2004 reg 2(1)' for the duty of care is misattributed — the maintenance duty is reg 9, 'Condition of rooms and facilities'.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -12624,8 +12106,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "No external instrument prescribes the format of a job-card backlog report or a maximum age for an open job card, so the finding must be framed against the statutory duty the open item breaches, not against the report itself.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -12679,8 +12159,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -12706,8 +12184,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-22",
-  "pfq": "E&DM was not audited at KSIA in Mar 2025, no compliance dashboard exists. This round is the E&DM baseline.",
   "woCount": 0,
   "optionCount": 25
  },
@@ -12748,8 +12224,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-22",
-  "pfq": "E&DM was not audited at KSIA in Mar 2025, no compliance dashboard exists. This round is the E&DM baseline.",
   "woCount": 0,
   "optionCount": 26
  },
@@ -12784,8 +12258,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 31
  },
@@ -12819,8 +12291,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "NRS 057 was issued as SANS 474 and is now in its second edition (SANS 474:2022); the 10-year tier for 1 MVA to 10 MVA sits in that code's verification table, but the clause could not be confirmed from an authoritative copy, so it is cited at document level.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 29
  },
@@ -12854,8 +12324,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "The 20-year tier is the longest interval band in the metering code and could not be confirmed to clause level, so the code is cited at document level; the trade-measurement duty under the Legal Metrology Act applies to tenant sub-metering irrespective of that interval.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 29
  },
@@ -12907,8 +12375,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -12934,8 +12400,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 31
  },
@@ -12994,8 +12458,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -13037,8 +12499,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "No South African instrument fixes a numeric energy cost-saving target for an airport operator, so a finding here should be framed as the absence of a measurable, verified target rather than as breach of a threshold.",
-  "pf": null,
-  "pfq": null,
   "woCount": 0,
   "optionCount": 26
  },
@@ -13084,8 +12544,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "Whether KSIA is a data provider under the reporting regulations turns on its own combustion capacity rather than on its electricity purchases, so confirm registration status before treating the 2% target as a regulatory obligation; no South African instrument fixes a percentage reduction for an airport's purchased electricity.",
-  "pf": null,
-  "pfq": null,
   "woCount": 0,
   "optionCount": 24
  },
@@ -13137,8 +12595,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -13164,8 +12620,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 0,
   "optionCount": 24
  },
@@ -13206,8 +12660,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -13233,8 +12685,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -13260,8 +12710,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "The 50-70 W/m2 minimum irradiance threshold is an inverter start-up and design parameter set by the OEM and the plant designer, not a figure fixed by any standard; what is externally governed is the quality, calibration and upkeep of the irradiance measurement used to judge it, and IEC 61724-1 is cited at document level because its clause numbering could not be confirmed.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 29
  },
@@ -13302,8 +12750,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "No external standard sets a minimum performance ratio; 0.9 sits above the 0.75 to 0.85 range typical of a well-performing fixed-tilt plant, so it is an ACSA design target and a shortfall against it is a performance observation rather than a breach of a standard.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -13329,8 +12775,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "No statute or SANS standard imposes a shade-free duty on an operating array; the external authority is the inspection and monitoring regime in the IEC 62446 series, and freedom from shading is usually also a condition of the module and yield warranties, which is contract and recommended practice rather than law.",
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 30
  },
@@ -13382,8 +12826,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -13409,8 +12851,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 0,
   "optionCount": 25
  },
@@ -13468,8 +12908,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -13526,8 +12964,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -13574,8 +13010,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 0,
   "optionCount": 25
  },
@@ -13601,8 +13035,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 0,
   "optionCount": 24
  },
@@ -13661,8 +13093,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -13703,8 +13133,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -13757,8 +13185,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 0,
   "optionCount": 26
  },
@@ -13816,8 +13242,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -13876,8 +13300,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 0,
   "optionCount": 26
  },
@@ -13936,8 +13358,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -14012,8 +13432,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-21",
-  "pfq": "Fuel hydrant pit couplers without lids, pit flooding and fuel leaks leading to environmental contamination.",
   "woCount": 6,
   "optionCount": 32
  },
@@ -14039,8 +13457,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-21",
-  "pfq": "Fuel hydrant pit couplers without lids, pit flooding and fuel leaks leading to environmental contamination.",
   "woCount": 6,
   "optionCount": 32
  },
@@ -14108,8 +13524,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-21",
-  "pfq": "Fuel hydrant pit couplers without lids, pit flooding and fuel leaks leading to environmental contamination.",
   "woCount": 6,
   "optionCount": 32
  },
@@ -14163,8 +13577,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-20",
-  "pfq": "No cut-out fuse on diesel supply to generators, fire hazard.",
   "woCount": 6,
   "optionCount": 32
  },
@@ -14223,8 +13635,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": "PF-20",
-  "pfq": "No cut-out fuse on diesel supply to generators, fire hazard.",
   "woCount": 6,
   "optionCount": 32
  },
@@ -14277,8 +13687,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -14336,8 +13744,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -14403,8 +13809,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -14458,8 +13862,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -14516,8 +13918,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -14588,8 +13988,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -14661,8 +14059,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -14722,8 +14118,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -14782,8 +14176,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -14840,8 +14232,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -14889,8 +14279,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 30
  },
@@ -14951,8 +14339,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -15011,8 +14397,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -15060,8 +14444,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -15114,8 +14496,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 29
  },
@@ -15175,8 +14555,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -15224,8 +14602,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -15285,8 +14661,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -15342,8 +14716,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -15397,8 +14769,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -15459,8 +14829,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 0,
   "optionCount": 26
  },
@@ -15520,8 +14888,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The target misattributes responsible corporate citizenship to King IV Principle 2 — it is Principle 3, Principle 2 being organisational ethics — and no South African statute imposes a general \"sustainability\" duty, so a finding must rest on Companies Regulation 43(5)(a)(iii) or NEMA s.28(1) rather than on King IV or on GBCSA star ratings, which are voluntary certification.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -15580,8 +14946,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "The target is right that Treasury Regulation 3.2.1 is departmental and cannot be cited against ACSA, but it misattributes risk governance to King IV Principle 4 — risk and opportunity governance is Principle 11, Principle 4 being value creation and sustainable development.",
-  "pf": null,
-  "pfq": null,
   "woCount": 0,
   "optionCount": 26
  },
@@ -15640,8 +15004,6 @@
   "siteVariant": null,
   "basisConfidence": "medium",
   "basisNote": "SAE JA1011 was revised in November 2024 and the commonly quoted 2009 revision is superseded, and ISO 55001:2014 is superseded by ISO 55001:2024, so any ACSA reference to the earlier editions is out of date; the Annex 14 table number is cited from the current edition and should be checked against the edition SACAA has adopted.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -15701,8 +15063,6 @@
   "siteVariant": null,
   "basisConfidence": "high",
   "basisNote": "ACSA reports under IFRS Accounting Standards rather than GRAP, so IAS 16 and not GRAP 17 governs the useful-life adjustment that closes out a renewal decision; ISO 55001:2014 has been superseded by the 2024 second edition.",
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -15772,8 +15132,6 @@
   },
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -15833,8 +15191,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  },
@@ -15912,8 +15268,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 6,
   "optionCount": 32
  },
@@ -15994,8 +15348,6 @@
   "siteVariant": null,
   "basisConfidence": null,
   "basisNote": null,
-  "pf": null,
-  "pfq": null,
   "woCount": 5,
   "optionCount": 31
  }

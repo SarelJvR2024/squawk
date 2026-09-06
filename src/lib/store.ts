@@ -14,24 +14,41 @@ import type {
   Finding,
   Likelihood,
   PriorFinding,
+  PriorRating,
   Response,
   Role,
   Severity,
   Verification,
 } from "./types";
-import checksRaw from "@/data/checks.json";
-import priorRaw from "@/data/priorFindings.json";
 import {
   CURRENT_ENTITY_CODE,
   CURRENT_VISIT_ID,
+  ENTITIES,
   entity as entityOf,
   PROGRAMME_VISITS,
   type Visit as ProgrammeVisit,
 } from "./programme";
 import { needsDesk, needsField } from "./verification";
 
-export const CHECKS = checksRaw as unknown as Check[];
-export const PRIOR = priorRaw as unknown as PriorFinding[];
+/* The register and the 2025 data are pure lookups and live in ./register, so a
+   non-React caller (src/lib/exports.ts) can use them without importing this
+   client store. Re-exported here because every screen has always asked the
+   store for them. */
+export {
+  CHECKS,
+  PRIOR_RATINGS,
+  PRIOR_FINDINGS,
+  ALL_DISCIPLINES,
+  checksAt,
+  priorRatingsAt,
+  priorFindingsAt,
+  priorFor,
+  disciplinesAt,
+  checksOf,
+  systemsOf,
+  areasAt,
+} from "./register";
+import { CHECKS, checksAt, priorFindingsAt, priorRatingsAt } from "./register";
 
 export const AUDITORS = [
   "Sarel Jansen van Rensburg",
@@ -933,21 +950,60 @@ export function useEntityFindings(): Finding[] {
 
 /* ---------- derived selectors ---------- */
 
-export const DISCIPLINES = Array.from(new Set(CHECKS.map((c) => c.discipline)));
 
-export function checksOf(discipline?: string | null, system?: string | null) {
-  return CHECKS.filter(
-    (c) =>
-      (!discipline || c.discipline === discipline) && (!system || c.system === system)
+export interface PortfolioRow {
+  code: string;
+  /** Every visit this entity has anything captured against. */
+  visits: string[];
+  checks: number;
+  captured: number;
+  nc: number;
+  findings: number;
+  prior: number;
+}
+
+/** The portfolio view is the one place that legitimately reads ACROSS scopes.
+ *  It goes through this selector rather than reaching into byVisit from a
+ *  screen, so the rule that screens read in scope stays a rule with exactly one
+ *  named exception instead of a convention with a hole in it. */
+export function usePortfolio(): PortfolioRow[] {
+  const byVisit = useStore((s) => s.byVisit);
+  const findings = useStore((s) => s.findings);
+  return useMemo(
+    () =>
+      ENTITIES.map((e) => {
+        const scopes = Object.entries(byVisit).filter(([k]) => k.startsWith(`${e.code}/`));
+        const seen = new Set<string>();
+        let nc = 0;
+        for (const [, d] of scopes) {
+          for (const [id, r] of Object.entries(d.responses)) {
+            if (r.captured) seen.add(id);
+            if (r.compliance === "NC") nc++;
+          }
+        }
+        return {
+          code: e.code,
+          visits: scopes.map(([k]) => k.split("/")[1]).sort(),
+          checks: checksAt(e.code).length,
+          captured: seen.size,
+          nc,
+          findings: findings.filter((f) => f.entity === e.code).length,
+          prior: priorFindingsAt(e.code).length,
+        };
+      }),
+    [byVisit, findings]
   );
 }
 
-export function systemsOf(discipline: string) {
-  return Array.from(new Set(checksOf(discipline).map((c) => c.system)));
+/** Hooks, so a screen cannot forget to pass the entity. */
+export function useChecks(): Check[] {
+  return checksAt(useStore((s) => s.entity));
 }
-
-export const AREAS = Array.from(new Set(CHECKS.map((c) => c.area))).sort();
-
-export function priorFor(discipline: string, system: string) {
-  return PRIOR.find((p) => p.discipline === discipline && p.system === system) ?? null;
+export function usePriorRatings(): PriorRating[] {
+  const entityCode = useStore((s) => s.entity);
+  return useMemo(() => priorRatingsAt(entityCode), [entityCode]);
+}
+export function usePriorFindings(): PriorFinding[] {
+  const entityCode = useStore((s) => s.entity);
+  return useMemo(() => priorFindingsAt(entityCode), [entityCode]);
 }
