@@ -26,6 +26,7 @@ import {
   CURRENT_VISIT_ID,
   entity as entityOf,
   PROGRAMME_VISITS,
+  type Visit as ProgrammeVisit,
 } from "./programme";
 import { needsDesk, needsField } from "./verification";
 
@@ -81,6 +82,45 @@ export const ROOT_CAUSES = [
 
 export const scopeKey = (entityCode: string, visitId: string) =>
   `${entityCode}/${visitId}`;
+
+/* ---------- the programme is extensible ----------
+
+   programme.json ships six visits, all of them at FALE. The other nine
+   entities have none — so the entity picker could reach them and there was
+   nowhere to put what you captured, and switching to O.R. Tambo left the visit
+   id of King Shaka's cycle showing above an empty cycle strip.
+
+   Visits are therefore state as well as data: the file seeds the programme,
+   and audits created in the app are persisted alongside. A visit id is
+   "YYYY-MM" and nothing may create one that is not, because carry-forward
+   decides what an earlier visit is by sorting these strings. */
+
+export const VISIT_ID = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+/** The programme's visits for one entity, plus any created in the app,
+ *  oldest first. One ordering, used everywhere, so "the previous visit" means
+ *  the same thing to carry-forward, the cycle strip and the Audits panel. */
+export function mergeVisits(
+  custom: ProgrammeVisit[],
+  entityCode: string
+): ProgrammeVisit[] {
+  return [
+    ...PROGRAMME_VISITS.filter((v) => v.entity === entityCode),
+    ...custom.filter((v) => v.entity === entityCode),
+  ].sort((a, b) => a.id.localeCompare(b.id));
+}
+
+export function visitLabelFor(visitId: string): string {
+  const m = visitId.match(VISIT_ID);
+  if (!m) return visitId;
+  const [y, mm] = visitId.split("-");
+  return `${MONTHS[Number(mm) - 1]} ${y}`;
+}
 
 export interface VisitData {
   responses: Record<string, Response>;
@@ -168,6 +208,8 @@ interface State {
   entity: string;
   visit: string;
   byVisit: Record<string, VisitData>;
+  /** Audits created in the app, on top of the six programme.json seeds. */
+  customVisits: ProgrammeVisit[];
   /** Flat across the whole programme — a finding carries its own entity and
    *  originVisit, which is what lets a later visit see what an earlier one
    *  left open. */
@@ -179,6 +221,12 @@ interface State {
   setAuditor: (a: string) => void;
   setEntity: (code: string) => void;
   setVisit: (visitId: string) => void;
+  /** Create an audit. Returns null on success, or why it was refused. */
+  addVisit: (entityCode: string, visitId: string, note?: string) => string | null;
+  /** Delete an audit created in the app. Refused if it holds anything, and
+   *  never applicable to the programme.json seeds. */
+  removeVisit: (entityCode: string, visitId: string) => string | null;
+  openAudit: (entityCode: string, visitId: string) => void;
 
   visitData: () => VisitData;
   response: (checkId: string) => Response;
@@ -258,6 +306,7 @@ export const useStore = create<State>()(
         entity: CURRENT_ENTITY_CODE,
         visit: CURRENT_VISIT_ID,
         byVisit: {},
+        customVisits: [],
         findings: [],
         lastSavedAt: null,
         hydrated: false,
@@ -269,8 +318,10 @@ export const useStore = create<State>()(
           set((s) => {
             /* Moving to another airport lands on a visit that airport actually
                has, rather than carrying across a visit id belonging to the
-               previous one. */
-            const visits = PROGRAMME_VISITS.filter((v) => v.entity === code);
+               previous one. An entity with no audits yet keeps the id showing
+               so the shell has something to render; the Audits panel is where
+               the first one gets created. */
+            const visits = mergeVisits(s.customVisits, code);
             const keep = visits.some((v) => v.id === s.visit);
             const fallback =
               visits.find((v) => v.state === "current") ?? visits[visits.length - 1];
@@ -278,6 +329,53 @@ export const useStore = create<State>()(
           }),
 
         setVisit: (visit) => set({ visit }),
+
+        addVisit: (entityCode, visitId, note) => {
+          if (!VISIT_ID.test(visitId))
+            return "A visit id must be YYYY-MM — carry-forward orders visits by sorting it.";
+          const existing = mergeVisits(get().customVisits, entityCode);
+          if (existing.some((v) => v.id === visitId))
+            return `${entityOf(entityCode).short} already has an audit for ${visitLabelFor(visitId)}.`;
+          set((s) => ({
+            customVisits: [
+              ...s.customVisits,
+              {
+                id: visitId,
+                label: visitLabelFor(visitId),
+                entity: entityCode,
+                state: "scheduled",
+                note: note?.trim() || "added in Squawk",
+              },
+            ],
+          }));
+          return null;
+        },
+
+        removeVisit: (entityCode, visitId) => {
+          const seeded = PROGRAMME_VISITS.some(
+            (v) => v.entity === entityCode && v.id === visitId
+          );
+          if (seeded) return "That audit comes from the programme and cannot be removed.";
+          const d = get().byVisit[scopeKey(entityCode, visitId)];
+          const hasData =
+            !!d &&
+            (Object.keys(d.responses).length > 0 ||
+              Object.keys(d.verifications).length > 0 ||
+              d.captures.length > 0);
+          const hasFindings = get().findings.some(
+            (f) => f.entity === entityCode && f.originVisit === visitId
+          );
+          if (hasData || hasFindings)
+            return "That audit holds captured data. Reset it first if you mean to discard it.";
+          set((s) => ({
+            customVisits: s.customVisits.filter(
+              (v) => !(v.entity === entityCode && v.id === visitId)
+            ),
+          }));
+          return null;
+        },
+
+        openAudit: (entityCode, visitId) => set({ entity: entityCode, visit: visitId }),
 
         visitData: () => get().byVisit[scopeKey(get().entity, get().visit)] ?? EMPTY_VISIT,
 
@@ -693,6 +791,7 @@ export const useStore = create<State>()(
         entity: s.entity,
         visit: s.visit,
         byVisit: s.byVisit,
+        customVisits: s.customVisits,
         findings: s.findings,
         lastSavedAt: s.lastSavedAt,
       }),
@@ -720,6 +819,42 @@ if (typeof window !== "undefined") {
 export const useEntityCode = () => useStore((s) => s.entity);
 export const useVisitId = () => useStore((s) => s.visit);
 export const useEntity = () => entityOf(useStore((s) => s.entity));
+
+/** Visits for the entity in view — programme seeds plus created audits. */
+export function useVisits(entityCode?: string): ProgrammeVisit[] {
+  const custom = useStore((s) => s.customVisits);
+  const current = useStore((s) => s.entity);
+  const code = entityCode ?? current;
+  return useMemo(() => mergeVisits(custom, code), [custom, code]);
+}
+
+/** Every audit across every entity that either exists in the programme, was
+ *  created here, or holds captured data. */
+export function useAllAudits(): { entity: string; visit: ProgrammeVisit }[] {
+  const custom = useStore((s) => s.customVisits);
+  const byVisit = useStore((s) => s.byVisit);
+  return useMemo(() => {
+    const seen = new Set<string>();
+    const out: { entity: string; visit: ProgrammeVisit }[] = [];
+    const push = (entityCode: string, v: ProgrammeVisit) => {
+      const k = scopeKey(entityCode, v.id);
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push({ entity: entityCode, visit: v });
+    };
+    for (const v of [...PROGRAMME_VISITS, ...custom]) push(v.entity, v);
+    /* A scope holding data but no visit definition would otherwise be
+       unreachable — data you captured that the programme has forgotten. */
+    for (const key of Object.keys(byVisit)) {
+      const [e, id] = key.split("/");
+      if (!e || !id || seen.has(key)) continue;
+      push(e, { id, label: visitLabelFor(id), entity: e, state: "done", note: "captured here" });
+    }
+    return out.sort(
+      (a, b) => a.entity.localeCompare(b.entity) || a.visit.id.localeCompare(b.visit.id)
+    );
+  }, [custom, byVisit]);
+}
 
 export const useVisitData = () =>
   useStore((s) => s.byVisit[scopeKey(s.entity, s.visit)] ?? EMPTY_VISIT);

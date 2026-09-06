@@ -1,7 +1,7 @@
 # Tests
 
-Thirteen suites, no framework — all run with plain `node`. Four need a running
-server; nine do not.
+Fourteen suites, no framework — all run with plain `node`. Four need a running
+server; ten do not.
 
 | Suite | Needs a server | Asserts |
 |---|---|---|
@@ -14,6 +14,7 @@ server; nine do not.
 | `portals.test.mjs` | no | 23 |
 | `reset.test.mjs` | no | 16 |
 | `completion.test.mjs` | no | 17 |
+| `audits.test.mjs` | no | 16 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 30 |
 | `exports.js` | yes | 7 |
@@ -190,6 +191,24 @@ outstanding; the export reporting Desk done / Site seen / Complete as three
 columns; and the v6 migration carrying a dual-mode check to the desk half
 **only** — claiming the field half would assert a site visit that may never have
 happened.
+
+## `audits.test.mjs`
+
+Guards that any audit can be reached and new ones created. `programme.json`
+seeds six visits and all six are at King Shaka — the other nine entities had
+none, so the entity picker could reach O.R. Tambo with nowhere to put anything
+captured there.
+
+```bash
+node tests/audits.test.mjs
+```
+
+Five parts: the file still covers one entity (asserted, so the gap stays
+visible); created audits persist and merge into one ordering with the seeds; a
+visit id is validated as `YYYY-MM` on the way in, because carry-forward decides
+what came before by sorting it; deletion cannot lose work — seeded audits are
+never removable and one holding responses *or findings* is refused; and the way
+in is visible, since the strip was already clickable and nobody clicked it.
 
 ## The browser suites
 

@@ -22,6 +22,7 @@ Section numbers in code comments point at that document.
 | Field inspection mode | Location-first, researched walkabout options with photo expectation, 44px targets, capture-first tray, ad-hoc findings, offline |
 | Findings and rating | ACSA B170 001M matrix, agreed vs suggested ratings, root cause, owner, due date |
 | Closure | Carry-forward: 23 seeded 2025 findings plus anything an earlier visit left open, four-way verification, coverage guard, lifecycle |
+| Audits | Every entity × visit in one place; open any, create new ones; the programme file seeds, the app extends |
 | Dashboards | Airport, discipline and portfolio, with movement against March 2025 |
 | Visual review | All photographs and voice notes per discipline per airport, with an engineer feedback thread |
 | AI assistance | Optional and advisory — off unless a key is set |
@@ -61,6 +62,7 @@ node tests/tablet.test.mjs               # the tablet is the device
 node tests/portals.test.mjs              # checks reach the right view
 node tests/reset.test.mjs                # starting again is safe
 node tests/completion.test.mjs           # complete means every mode answered
+node tests/audits.test.mjs               # any audit reachable, new ones creatable
 npm run build && npm start &             # then, against a running server:
 BASE=http://localhost:3000 node tests/e2e.js          # 21 assertions
 BASE=http://localhost:3000 node tests/robustness.js   # 30 assertions

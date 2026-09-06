@@ -13,14 +13,16 @@ import {
   useVerifications,
   useVisitFindings,
   useVisitId,
+  useVisits,
   deskDone,
   fieldDone,
 } from "@/lib/store";
-import { ENTITIES, entity as entityOf, PROGRAMME_VISITS } from "@/lib/programme";
+import { ENTITIES, entity as entityOf } from "@/lib/programme";
 import { needsDesk, needsField } from "@/lib/verification";
 import { useAssistAvailable } from "@/lib/assist";
 import ExportPanel from "@/components/ExportPanel";
 import ResetPanel from "@/components/ResetPanel";
+import AuditsPanel from "@/components/AuditsPanel";
 import {
   IconClipboard,
   IconCamera,
@@ -62,10 +64,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   /* The cycle strip and the picker both run off the visits this entity
      actually has, so switching airport re-draws the programme rather than
      showing another site's schedule. */
-  const visits = useMemo(
-    () => PROGRAMME_VISITS.filter((v) => v.entity === entityCode),
-    [entityCode]
-  );
+  const visits = useVisits(entityCode);
   const visitLabel =
     visits.find((v) => v.id === visitId)?.label ?? visitId;
 
@@ -74,6 +73,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [help, setHelp] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [audits, setAudits] = useState(false);
   const [q, setQ] = useState("");
 
   const done = useMemo(
@@ -114,6 +114,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         setHelp(false);
         setExporting(false);
         setResetting(false);
+        setAudits(false);
         return;
       }
       if (!typing && e.key === "?") setHelp(true);
@@ -334,9 +335,29 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </option>
           ))}
         </select>
-        <span className="mr-3.5 whitespace-nowrap font-mono text-[8.5px] tracking-[0.1em] uppercase" style={{ color: "var(--ink-4)" }}>
-          3-year cycle · 2 visits a year
+        {/* The strip was clickable before this, but read as a progress
+            indicator, so nobody clicked it. Naming the action is the fix. */}
+        <button
+          onClick={() => setAudits(true)}
+          title="Open any audit, or start a new one"
+          className="mr-3 flex shrink-0 items-center gap-[5px] rounded-[7px] border px-[9px] py-[4px] font-mono text-[9.5px] transition-[var(--t)]"
+          style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+        >
+          <IconGrid width={11} height={11} />
+          All audits
+        </button>
+        <span className="mr-3 whitespace-nowrap font-mono text-[8.5px] tracking-[0.1em] uppercase" style={{ color: "var(--ink-4)" }}>
+          tap a visit to open it
         </span>
+        {visits.length === 0 && (
+          <button
+            onClick={() => setAudits(true)}
+            className="flex shrink-0 items-center gap-[6px] rounded-[7px] border px-[10px] py-[4px] text-[10.5px] transition-[var(--t)]"
+            style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}
+          >
+            No audits at {entityOf(entityCode).short} yet — create the first one
+          </button>
+        )}
         {visits.map((v, i) => (
           <span key={v.id} className="flex shrink-0 items-center">
             <button
@@ -496,6 +517,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {exporting && <ExportPanel onClose={() => setExporting(false)} />}
       {resetting && <ResetPanel onClose={() => setResetting(false)} />}
+      {audits && <AuditsPanel onClose={() => setAudits(false)} />}
 
       {role === "acsa" && (
         <div
