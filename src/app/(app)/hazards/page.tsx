@@ -48,8 +48,9 @@ import { BAND_META, bandFor, cellCode } from "@/lib/risk";
 import { getBlob } from "@/lib/media";
 import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
 import RecordActions from "@/components/RecordActions";
+import StickyActions from "@/components/StickyActions";
 import RootCauseAdvice from "@/components/RootCauseAdvice";
-import { IconCheck, IconInbox, IconSpark, IconX } from "@/components/ui/icons";
+import { IconCheck, IconInbox, IconLeft, IconSpark, IconX } from "@/components/ui/icons";
 import type { Attachment, Hazard } from "@/lib/types";
 
 /** Vision sends at most eight images per request and the route refuses a ninth
@@ -897,15 +898,21 @@ export default function HazardsPage() {
                         </div>
                       )}
 
-                      <div
-                        className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-3.5"
-                        style={{ borderColor: "var(--line)" }}
+                      {/* The register had no save affordance at all — the only
+                          button down here was Remove, which is not what an
+                          auditor working a list of hazards reaches for. */}
+                      <StickyActions
+                        state={
+                          <>
+                            {active.ratingConfirmed
+                              ? "rated on B170 001M"
+                              : "unrated — counts nowhere until the group agrees a cell"}
+                            {active.ermConfirmed && " · ERM agreed"}
+                            {active.ermLikelihoodAssumed && " · ⚠ ERM likelihood carried, not agreed"}
+                            {!active.event && " · ⚠ unnamed"}
+                          </>
+                        }
                       >
-                        <span className="font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
-                          {active.ratingConfirmed
-                            ? "rated — counts in the dashboard and the export"
-                            : "unrated — counts nowhere until the group agrees a cell"}
-                        </span>
                         <Btn
                           variant="ghost"
                           onClick={() => {
@@ -915,9 +922,32 @@ export default function HazardsPage() {
                           }}
                         >
                           <IconX width={13} height={13} />
-                          Remove this hazard
+                          Remove
                         </Btn>
-                      </div>
+                        <Btn
+                          onClick={() => {
+                            const i = list.findIndex((h) => h.id === active.id);
+                            const prev = list[i - 1];
+                            if (prev) setActiveId(prev.id);
+                          }}
+                          disabled={list.findIndex((h) => h.id === active.id) === 0}
+                        >
+                          <IconLeft width={14} height={14} />
+                          Previous
+                        </Btn>
+                        <Btn
+                          variant="primary"
+                          onClick={() => {
+                            const i = list.findIndex((h) => h.id === active.id);
+                            const next = list[i + 1];
+                            setActiveId(next?.id ?? active.id);
+                            say(next ? `${active.id} saved · ${next.id}` : `${active.id} saved · last one`);
+                          }}
+                        >
+                          <IconCheck width={14} height={14} />
+                          Save &amp; next
+                        </Btn>
+                      </StickyActions>
                     </>
                   }
                 />

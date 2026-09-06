@@ -14,8 +14,9 @@ import { assist, findingContext } from "@/lib/assist";
 import { BAND_META, bandFor, cellCode } from "@/lib/risk";
 import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
 import RecordActions from "@/components/RecordActions";
+import StickyActions from "@/components/StickyActions";
 import RootCauseAdvice from "@/components/RootCauseAdvice";
-import { IconCheck, IconInbox, IconLoop } from "@/components/ui/icons";
+import { IconCheck, IconInbox, IconLeft, IconLoop } from "@/components/ui/icons";
 import type { Finding } from "@/lib/types";
 
 type Filter = "all" | "unrated" | "open" | "repeat";
@@ -235,24 +236,46 @@ export default function FindingsPage() {
               />
 
 
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-3.5" style={{ borderColor: "var(--line)" }}>
-                <span className="font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
-                  {active.actionStatus === "Closed"
-                    ? "closed — no re-check needed"
-                    : "carries to the next audit for verification"}
-                </span>
+              {/* Pinned, not parked at the end of a two-screen form. See
+                  StickyActions — this button used to sit below the fold before
+                  the auditor had scrolled at all. */}
+              <StickyActions
+                state={
+                  <>
+                    {active.ratingConfirmed ? "rated" : "unrated — counts nowhere yet"}
+                    {" · "}
+                    {active.actionStatus === "Closed"
+                      ? "closed, no re-check needed"
+                      : "carries to the next audit"}
+                    {!active.owner && " · ⚠ no owner"}
+                    {!active.dueDate && " · ⚠ no target date"}
+                  </>
+                }
+              >
+                <Btn
+                  onClick={() => {
+                    const i = list.findIndex((f) => f.id === active.id);
+                    const prev = list[i - 1];
+                    if (prev) setActiveId(prev.id);
+                  }}
+                  disabled={list.findIndex((f) => f.id === active.id) === 0}
+                >
+                  <IconLeft width={14} height={14} />
+                  Previous
+                </Btn>
                 <Btn
                   variant="primary"
                   onClick={() => {
                     const i = list.findIndex((f) => f.id === active.id);
-                    setActiveId(list[i + 1]?.id ?? active.id);
-                    say(`${active.id} saved`);
+                    const next = list[i + 1];
+                    setActiveId(next?.id ?? active.id);
+                    say(next ? `${active.id} saved · ${next.id}` : `${active.id} saved · last one`);
                   }}
                 >
                   <IconCheck width={14} height={14} />
                   Save &amp; next
                 </Btn>
-              </div>
+              </StickyActions>
             </div>
           )}
         </div>
