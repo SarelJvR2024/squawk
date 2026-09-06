@@ -232,13 +232,13 @@ check(
 
 check(
   "the cycle strip shows only this entity's visits",
-  /PROGRAMME_VISITS\.filter\(\(v\) => v\.entity === entityCode\)/.test(appShell),
-  ""
+  /const visits = useVisits\(entityCode\);/.test(appShell),
+  "useVisits merges the programme seeds with audits created in the app, for this entity only"
 );
 
 check(
   "switching entity lands on a visit that entity has",
-  /const visits = PROGRAMME_VISITS\.filter\(\(v\) => v\.entity === code\)/.test(store) &&
+  /const visits = mergeVisits\(s\.customVisits, code\)/.test(store) &&
     /keep \? s\.visit : \(fallback\?\.id \?\? s\.visit\)/.test(store),
   "carrying a visit id across entities would open a visit that does not exist"
 );
