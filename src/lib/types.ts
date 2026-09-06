@@ -429,6 +429,15 @@ export interface Finding {
   action: string;
   owner: string;
   dueDate: string;
+  /** Dated, attributed updates on the remediation.
+   *
+   *  The four fields ACSA's dashboards carry are filled at different moments:
+   *  root cause on the day with the responsible person in the room, the target
+   *  date at close-out, progress weeks later. ACSA's own Progress/Update is one
+   *  cell and gets typed over, so by the time a finding closes nobody can say
+   *  when it moved or who said so. Same shape as a verification's log; the
+   *  export flattens both into their single cell. */
+  progress: ProgressNote[];
   actionStatus: ActionStatus;
   originVisit: string;
   priorRating: string | null;

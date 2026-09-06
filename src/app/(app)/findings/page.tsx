@@ -27,6 +27,7 @@ export default function FindingsPage() {
   const entityCode = useEntityCode();
   const responses = useResponses();
   const updateFinding = useStore((s) => s.updateFinding);
+  const addFindingProgress = useStore((s) => s.addFindingProgress);
 
   const [filter, setFilter] = useState<Filter>("all");
   const [discipline, setDiscipline] = useState<string>("All");
@@ -218,6 +219,8 @@ export default function FindingsPage() {
                 entityCode={entityCode}
                 onChange={(patch) => updateFinding(active.id, patch)}
                 onToast={say}
+                progress={active.progress}
+                onProgress={(n) => addFindingProgress(active.id, n)}
                 secondOpinion={async () => {
                   const check = checksAt(entityCode).find((c) => c.id === active.checkId);
                   return assist("rating", findingContext(active, check));

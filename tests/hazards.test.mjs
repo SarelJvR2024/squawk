@@ -268,10 +268,10 @@ check("hazards are persisted", /\n\s+hazards: s\.hazards,/.test(store));
 check("hazard ids are their own namespace", /HZ-\$\{uid\(\)/.test(store));
 check("a hazard can be removed, freeing its findings to regroup", /removeHazard:/.test(store));
 check("the persist key is untouched", /name: "acsa-assurance-v1"/.test(store));
-check("the version was bumped rather than the key renamed", /version: 11,/.test(store));
+check("the version was bumped rather than the key renamed", /version: 12,/.test(store));
 check(
   "and every bump has a migration",
-  /if \(from < 9\)/.test(store) && /if \(from < 10\)/.test(store) && /if \(from < 11\)/.test(store)
+  [9, 10, 11, 12].every((v) => new RegExp(`if \\(from < ${v}\\)`).test(store))
 );
 check(
   "a consolidated hazard spans disciplines rather than borrowing the first one's",

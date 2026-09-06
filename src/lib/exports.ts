@@ -218,6 +218,12 @@ export function findingsSheet(x: ExportInput): Sheet {
       f.owner,
       iso(f.dueDate),
       f.actionStatus,
+      /* ACSA's one Progress/Update cell, carrying the whole log — each entry
+         dated and attributed, because a cell that has been typed over cannot
+         say when a finding moved or who said so. */
+      (f.progress ?? [])
+        .map((n) => `${new Date(n.at).toISOString().slice(0, 10)} · ${n.by}: ${n.note}`)
+        .join("\n"),
       f.priorRating ?? "",
       move ?? "",
       f.adHoc ? "Ad-hoc (raised in the field)" : "From a check-point",
@@ -266,6 +272,7 @@ export function findingsSheet(x: ExportInput): Sheet {
       { header: "Owner", width: 30 },
       { header: "Due date", width: 12 },
       { header: "Action status", width: 15 },
+      { header: "Progress / Update", width: 66, wrap: true },
       { header: "Mar 2025 rating", width: 15 },
       { header: "Movement", width: 13 },
       { header: "Origin", width: 26 },
