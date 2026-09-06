@@ -276,6 +276,41 @@ async function badge(p, name) {
   await p.waitForTimeout(1400);
   const closure = await p.locator("body").innerText();
   ok("closure lists this site's own prior findings", /2025/.test(closure));
+  /* ---------------- 8. following an item across audits ----------------
+     The three-year cycle exists so an item can be followed. A verification has
+     always been stored per visit, so the data was there from the start — but
+     the screen read the current visit's record and nothing else, so an item
+     that had been Open - repeat twice looked exactly like one closed first
+     time. That difference is the whole point of following up. */
+  await p.locator("button.min-h-\\[56px\\]", { hasText: /^Repeat$/ }).first().click();
+  await p.waitForTimeout(800);
+  ok("a mitigation action is asked for when an item does not close",
+     (await p.locator("text=Mitigation action").count()) > 0,
+     "recorded against the carried item, not raised as a new finding");
+  await p
+    .locator('textarea[placeholder^="What is outstanding"]')
+    .first()
+    .fill("Contractor appointed; parts on 6-week lead time.");
+  await p.waitForTimeout(300);
+
+  for (const line of ["Spoke to the Maintenance Manager, PO raised.", "Parts still not delivered."]) {
+    await p.locator('input[placeholder^="What moved"]').first().fill(line);
+    await p.locator("button", { hasText: /Add to the log/ }).first().click();
+    await p.waitForTimeout(600);
+  }
+  const timeline = await p.locator("body").innerText();
+  ok("the history is shown as a timeline", /every audit that touched this/i.test(timeline));
+  ok("including the audit that raised it", /raised/i.test(timeline));
+  /* The one that matters: ACSA's Progress/Update is a single cell that gets
+     typed over, so a second entry would replace the first. */
+  ok("BOTH log entries survive — it appends, it does not overwrite",
+     /PO raised/.test(timeline) && /Parts still not delivered/.test(timeline),
+     "a cell that gets typed over cannot say when an item moved or who said so");
+  ok("each entry carries its author and the status at the time",
+     /Sarel/.test(timeline) && /Open - repeat/i.test(timeline));
+  ok("and what is still outstanding is called out",
+     /still to happen/i.test(timeline));
+
   ok("no page errors anywhere in the flow", errs.length === 0, errs[0] || "");
 
   console.log(log.join("\n"));

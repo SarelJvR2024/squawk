@@ -86,14 +86,20 @@ const ok = (n, c, x = "") => {
   await p.locator("button[aria-label*=' by ']").nth(6).click();
   await p.waitForTimeout(400);
   const hazardBody = await p.locator("body").innerText();
+  /* These two used to assert the opposite, and correctly: erm.ts was a
+     declared, deliberately empty instrument while ACSA had not supplied the
+     scale. J050 001FW cl. 9.2.2 arrived, so the screen offers the real matrix
+     now — consequence 5 to 1, priorities I/II/III — and the assertions follow
+     the world rather than the other way round. */
   ok(
-    "the hazard screen says the ERM matrix has not been supplied",
-    /has not been supplied/.test(hazardBody),
-    hazardBody.slice(0, 120).replace(/\n/g, " ")
+    "the hazard screen offers ACSA's ERM matrix, cited",
+    /J050 001FW/i.test(hazardBody) && /cl\. 9\.2\.2/i.test(hazardBody),
+    hazardBody.slice(0, 160).replace(/\n/g, " ")
   );
   ok(
-    "and does not offer an ERM picker it cannot fill",
-    (await p.locator("select").filter({ hasText: "Not set" }).count()) === 0
+    "and it is not a second opinion on B170 001M",
+    (await p.locator("button[aria-label*='priority']").count()) === 25,
+    "25 cells of a separate instrument, not a re-skin of the other one"
   );
 
   // --- export ---
@@ -196,12 +202,20 @@ const ok = (n, c, x = "") => {
 
   ok("the hazards sheet exports", /hazards/i.test(d5.suggestedFilename()), d5.suggestedFilename());
   ok(
-    "it carries BOTH rating instruments, in their own columns",
+    "it carries BOTH rating instruments, each by its own axis name",
     /Severity \(B170 001M\)/.test(hhead) &&
       /Likelihood \(B170 001M\)/.test(hhead) &&
-      /Severity \(ACSA ERM\)/.test(hhead) &&
+      /Consequence \(ACSA ERM\)/.test(hhead) &&
       /Likelihood \(ACSA ERM\)/.test(hhead),
-    hhead.slice(0, 200)
+    "B170 has SEVERITY and ERM has CONSEQUENCE — they run in opposite " +
+      "directions and are not the same axis: " + hhead.slice(0, 200)
+  );
+  ok(
+    "and the ERM columns carry what the rating is FOR",
+    /ERM priority/.test(hhead) &&
+      /ERM tolerance/.test(hhead) &&
+      /Combined Assurance Coverage Plan \(cl\. 9\.1\.2\)/.test(hhead),
+    "cl. 9.1.2 is why the second rating exists at all"
   );
   ok(
     "and a rating-state column for each, so neither reads as agreed by default",
@@ -213,11 +227,18 @@ const ok = (n, c, x = "") => {
     "the agreed B170 001M rating reached the sheet",
     /Agreed by the audit team/.test(hcsv)
   );
+  /* The hazard in this run was rated on B170 001M and never on ERM, so the
+     ERM columns are empty — and they must say WHICH kind of empty. "Not rated
+     on ERM" and a blank cell read very differently to somebody holding the
+     workbook, and neither means a rating of zero. */
   ok(
-    "the empty ERM columns SAY they are unsupplied rather than reading blank",
-    /has not been supplied/.test(hcsv),
-    hcsv.split("\n")[1]?.slice(0, 200) || ""
+    "an ERM rating nobody agreed reads as not rated, not as blank",
+    /Not rated on ERM/.test(hcsv),
+    hcsv.split("\n")[1]?.slice(0, 220) || ""
   );
+  /* The cover sheet's own wording is asserted in erm-matrix.test.mjs, which
+     reads exports.ts directly — cheaper than pulling a second workbook here,
+     and it fails for the same reason if the explanation ever goes. */
   ok("the findings behind it are named", /F-[A-Z0-9]{5}/.test(hcsv), hcsv.split("\n")[1]?.slice(0, 80) || "");
   ok("and its photographs are indexed the same way the findings sheet indexes them",
      /Photograph files/.test(hhead) && /Photograph captions/.test(hhead));

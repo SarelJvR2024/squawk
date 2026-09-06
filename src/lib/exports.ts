@@ -520,6 +520,20 @@ export function closureSheet(x: ExportInput): Sheet {
       p.observation,
       v?.outcome ?? "",
       v?.evidence ?? "",
+      /* What is still outstanding, where the item did not close. */
+      v?.action ?? "",
+      /* ACSA's Progress/Update is one cell, so the log is flattened into it —
+         their format, our history. Each entry keeps its date, its author and
+         the outcome as it stood, because a cell that has been typed over
+         cannot say when an item moved or who said so. */
+      (v?.progress ?? [])
+        .map(
+          (n) =>
+            `${new Date(n.at).toISOString().slice(0, 10)} · ${n.by}${
+              n.outcome ? ` · ${n.outcome}` : ""
+            }: ${n.note}`
+        )
+        .join("\n"),
       v?.verifiedBy ?? "",
       when(v?.verifiedAt),
       covering.length,
@@ -545,6 +559,8 @@ export function closureSheet(x: ExportInput): Sheet {
       { header: "Finding as raised in Mar 2025", width: 66, wrap: true },
       { header: `Verification (${visitLabel(x.visit)})`, width: 16 },
       { header: "Evidence of closure", width: 58, wrap: true },
+      { header: "Mitigation action outstanding", width: 50, wrap: true },
+      { header: "Progress / Update", width: 66, wrap: true },
       { header: "Verified by", width: 22 },
       { header: "Verified on", width: 12 },
       { header: "Checks covering it", width: 16 },

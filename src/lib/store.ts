@@ -16,6 +16,7 @@ import type {
   Likelihood,
   PriorFinding,
   PriorRating,
+  ProgressNote,
   Response,
   Role,
   Severity,
@@ -282,6 +283,8 @@ interface State {
   removeFindingsForIssue: (checkId: string, issueIndex: number) => void;
 
   verification: (pf: string) => Verification;
+  /** Appends a dated, attributed entry to a carried item's progress log. */
+  addProgress: (pf: string, note: string) => void;
   patchVerification: (pf: string, p: Partial<Verification>) => void;
 
   addAttachment: (checkId: string, a: Omit<Attachment, "id" | "createdAt">) => void;
@@ -589,6 +592,33 @@ export const useStore = create<State>()(
 
         patchVerification: (pf, p) => {
           const next = { ...get().verification(pf), ...p, verifiedBy: get().auditor };
+          writeScope((d) => ({ verifications: { ...d.verifications, [pf]: next } }));
+          set({ lastSavedAt: Date.now() });
+        },
+
+        /* Append to the log rather than overwrite a cell. ACSA's own
+           Progress/Update field is one cell that gets typed over, so by the
+           time a finding closes nobody can say when it moved or who said so.
+           Each entry carries its author, its time and the visit, and the
+           outcome as it stood — a status that went from "Open - repeat" to
+           "Closed" shows WHEN. The export flattens the log back into ACSA's
+           single cell; their format, our history. */
+        addProgress: (pf, note) => {
+          const text = note.trim();
+          if (!text) return;
+          const cur = get().verification(pf);
+          const entry: ProgressNote = {
+            at: Date.now(),
+            by: get().auditor,
+            visit: get().visit,
+            outcome: cur.outcome,
+            note: text,
+          };
+          const next: Verification = {
+            ...cur,
+            progress: [...(cur.progress ?? []), entry],
+            verifiedBy: get().auditor,
+          };
           writeScope((d) => ({ verifications: { ...d.verifications, [pf]: next } }));
           set({ lastSavedAt: Date.now() });
         },
