@@ -45,7 +45,7 @@ export function Dot({ tone }: { tone: Tone | "pending" }) {
 }
 
 type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "default" | "primary" | "ghost";
+  variant?: "default" | "primary" | "ghost" | "danger";
   icon?: boolean;
 };
 
@@ -64,7 +64,12 @@ export function Btn({
       ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)", boxShadow: "var(--e1)" }
       : variant === "ghost"
         ? { background: "transparent", borderColor: "transparent", color: "var(--ink-2)" }
-        : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink)" };
+        : /* Destructive actions stop borrowing the neutral style. "Remove this
+             hazard" sitting in the same grey as "Previous" is a decision of a
+             different weight wearing the same clothes. */
+          variant === "danger"
+          ? { background: "var(--bad-bg)", borderColor: "var(--bad-line, var(--bad))", color: "var(--bad)" }
+          : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink)" };
   return (
     <button
       {...rest}

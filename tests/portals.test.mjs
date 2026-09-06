@@ -218,23 +218,53 @@ check(
 const shell = src("components", "AppShell.tsx");
 
 check(
-  "the Capture badge counts outstanding desk checks, not the register",
-  /n\.href === "\/capture"\s*\n?\s*\? deskOutstanding/.test(shell) &&
-    !/n\.href === "\/capture"\s*\n?\s*\? CHECKS\.length - done/.test(shell),
+  "the Checks badge is scoped to the desk list, not the whole register",
+  /n\.href === "\/capture"\s*\n?\s*\? `\$\{desk\.done\}\/\$\{desk\.total\}`/.test(shell) &&
+    !/CHECKS\.length/.test(shell),
   "a badge of 374 on a list of 365 cannot be worked down to zero"
 );
 
 check(
-  "Field carries its own badge",
-  /n\.href === "\/field"\s*\n?\s*\? fieldOutstanding/.test(shell),
-  ""
+  "Inspection carries its own, scoped to the field list",
+  /n\.href === "\/field"\s*\n?\s*\? `\$\{field\.done\}\/\$\{field\.total\}`/.test(shell)
 );
 
 check(
-  "each badge counts its own half outstanding, not the derived complete flag",
-  /needsDesk\(c\) && !deskDone\(responses\[c\.id\]\)/.test(shell) &&
-    /needsField\(c\) && !fieldDone\(responses\[c\.id\]\)/.test(shell),
-  "a desk-done check that still needs the asset seen must stay on the Field badge"
+  "each badge counts its own half, not the derived complete flag",
+  /needsDesk\(c\) && deskDone/.test(shell.replace(/\s+/g, " ")) ||
+    (/checks\.filter\(needsDesk\)/.test(shell) && /deskDone\(responses\[c\.id\]\)/.test(shell)),
+  "a desk-done check that still needs the asset seen must stay on the Inspection badge"
+);
+
+/* A bare number does not say which side of the work it counts. "314" beside
+   Checks could be 314 done or 314 left, and the auditor who needs to know is
+   the one least able to guess. */
+check(
+  "the counts read done of total where there IS a total",
+  /`\$\{desk\.done\}\/\$\{desk\.total\}`/.test(shell) &&
+    /`\$\{field\.done\}\/\$\{field\.total\}`/.test(shell) &&
+    /`\$\{verified\}\/\$\{priorTotal\}`/.test(shell)
+);
+check(
+  "and stay bare where there is no honest denominator",
+  /findings\.length \|\| ""/.test(shell) && /ungrouped \|\| ""/.test(shell),
+  "nobody knows how many findings an audit ought to find; inventing a total is worse"
+);
+
+/* The labels name the audit activity; the ROUTES do not move, because they are
+   in deployed links, the palette and several suites. */
+check(
+  "the nav names the activity rather than the software action",
+  /label: "Checks"/.test(shell) &&
+    /label: "Inspection"/.test(shell) &&
+    /label: "Follow-up"/.test(shell)
+);
+check(
+  "and the routes are untouched",
+  /href: "\/capture"/.test(shell) &&
+    /href: "\/field"/.test(shell) &&
+    /href: "\/closure"/.test(shell),
+  "renaming a URL to match a label is churn with a real cost and no reader benefit"
 );
 
 /* ------------------------------------------------------------------ result */

@@ -15,7 +15,7 @@ import {
 import { currentRatingOf, useHistory, useOutstanding, visitsOpen } from "@/lib/carryforward";
 import ItemTimeline from "@/components/ItemTimeline";
 import { PROGRAMME_VISITS } from "@/lib/programme";
-import { bandFor, movement } from "@/lib/risk";
+import { movement } from "@/lib/risk";
 import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconClock, IconDash, IconLoop, IconX } from "@/components/ui/icons";
 import type { VerificationOutcome } from "@/lib/types";

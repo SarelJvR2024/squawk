@@ -43,13 +43,23 @@ import {
 import { Pill } from "@/components/ui/primitives";
 
 
+/* The labels name the AUDIT ACTIVITY, not the software action.
+ *
+ *  "Capture" and "Field" described what the app does; an auditor thinks in
+ *  sessions — working the check-list, walking the assets, following up last
+ *  cycle. "Follow-up" earns its place most: it and "Findings" were both about
+ *  findings, and neither word said which cycle it meant.
+ *
+ *  THE ROUTES ARE DELIBERATELY UNCHANGED. /capture, /field and /closure are in
+ *  deployed links, the command palette and several test suites; renaming a URL
+ *  to match a label is churn with a real cost and no reader benefit. */
 const NAV = [
-  { href: "/capture", label: "Capture", icon: IconClipboard },
-  { href: "/field", label: "Field", icon: IconPin },
+  { href: "/capture", label: "Checks", icon: IconClipboard },
+  { href: "/field", label: "Inspection", icon: IconPin },
   { href: "/review", label: "Review", icon: IconCamera },
   { href: "/findings", label: "Findings", icon: IconLoop },
   { href: "/hazards", label: "Hazards", icon: IconFlag },
-  { href: "/closure", label: "Closure", icon: IconLoop },
+  { href: "/closure", label: "Follow-up", icon: IconLoop },
   { href: "/dashboard", label: "Dashboard", icon: IconGrid },
 ];
 
@@ -95,28 +105,27 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
      regional, 200 at Corporate Office — a ring drawn against 324 everywhere
      would never reach 100% at seven of the ten sites. */
   const checks = useMemo(() => checksAt(entityCode), [entityCode]);
-  const unverified =
-    priorFindingsAt(entityCode).length -
-    Object.values(verifications).filter((v) => v.outcome).length;
+  const priorTotal = priorFindingsAt(entityCode).length;
+  const verified = Object.values(verifications).filter((v) => v.outcome).length;
   const pct = checks.length ? Math.round((done / checks.length) * 100) : 0;
 
   /* Each nav badge counts what is outstanding in THAT view, not across the
      register. Capture lists 365 and Field lists 314; a badge of 374 on either
      is a number that cannot be worked down to zero. */
-  const deskOutstanding = useMemo(
-    () => checks.filter((c) => needsDesk(c) && !deskDone(responses[c.id])).length,
-    [checks, responses]
-  );
+  const desk = useMemo(() => {
+    const scope = checks.filter(needsDesk);
+    return { done: scope.filter((c) => deskDone(responses[c.id])).length, total: scope.length };
+  }, [checks, responses]);
   /* Findings nobody has put into a hazard yet. A finding may sit in at most
      one, so this is a straight set difference. */
   const ungrouped = useMemo(() => {
     const inHazard = new Set(hazards.flatMap((h) => h.findingIds));
     return findings.filter((f) => !inHazard.has(f.id)).length;
   }, [findings, hazards]);
-  const fieldOutstanding = useMemo(
-    () => checks.filter((c) => needsField(c) && !fieldDone(responses[c.id])).length,
-    [checks, responses]
-  );
+  const field = useMemo(() => {
+    const scope = checks.filter(needsField);
+    return { done: scope.filter((c) => fieldDone(responses[c.id])).length, total: scope.length };
+  }, [checks, responses]);
 
   useEffect(() => {
     if (role === "acsa" && pathname !== "/dashboard") router.replace("/dashboard");
@@ -192,7 +201,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         className="flex h-[52px] shrink-0 items-center gap-3 border-b px-3.5"
         style={{ background: "var(--panel)", borderColor: "var(--line)" }}
       >
-        <Link href="/dashboard" className="flex shrink-0 items-center gap-[9px] no-underline">
+        <Link href="/dashboard" className="flex min-h-[44px] shrink-0 items-center gap-[9px] no-underline">
           <span
             className="flex h-[27px] w-[27px] items-center justify-center rounded-[8px]"
             style={{
@@ -227,30 +236,40 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             const disabled =
               role === "acsa" && n.href !== "/dashboard" && n.href !== "/review";
             const Icon = n.icon;
+            /* Counts read DONE OF TOTAL where there is a finite amount of
+               work, because a bare number does not say which it is. "314"
+               beside Capture could be 314 done or 314 left, and the auditor
+               who needs to know is the one least able to guess.
+               Findings and Hazards stay bare: there is no denominator for how
+               many findings an audit ought to find, and inventing one would be
+               worse than the ambiguity. */
             const badge =
               n.href === "/capture"
-                ? deskOutstanding
+                ? `${desk.done}/${desk.total}`
                 : n.href === "/field"
-                  ? fieldOutstanding
+                  ? `${field.done}/${field.total}`
                   : n.href === "/closure"
-                    ? unverified
+                    ? `${verified}/${priorTotal}`
                     : n.href === "/findings"
-                      ? findings.length
-                      /* The badge on Hazards counts what is NOT done — findings
-                         nobody has grouped yet. A count of hazards would read
-                         like progress; a count of ungrouped findings is the
-                         work still outstanding, which is what a badge is
-                         for. */
+                      ? findings.length || ""
+                      /* Ungrouped findings, not a count of hazards: a count of
+                         hazards would read like progress, and this is the work
+                         still outstanding, which is what a badge is for. */
                       : n.href === "/hazards"
-                        ? ungrouped
-                        : 0;
+                        ? ungrouped || ""
+                        : "";
             return (
               <Link
                 key={n.href}
                 href={disabled ? "#" : n.href}
                 aria-disabled={disabled}
                 onClick={(e) => disabled && e.preventDefault()}
-                className="flex items-center gap-[6px] whitespace-nowrap rounded-[8px] px-3 py-[6px] font-display text-[11.5px] font-semibold no-underline transition-[var(--t)]"
+                /* 44px, because this is a tablet held on an apron.
+                   Measured: the nav links were 29px while every other tappable
+                   thing in the app was already 44 or more — 8 undersized
+                   targets out of 130, and all 8 of them were these, the
+                   controls used more than anything else. */
+                className="flex min-h-[44px] items-center gap-[6px] whitespace-nowrap rounded-[8px] px-3 py-[6px] font-display text-[11.5px] font-semibold no-underline transition-[var(--t)]"
                 style={{
                   background: active ? "var(--panel)" : "transparent",
                   color: active ? "var(--acc)" : "var(--ink-2)",
@@ -261,7 +280,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               >
                 <Icon width={13} height={13} />
                 {n.label}
-                {badge > 0 && (
+                {badge !== "" && badge !== 0 && (
                   <span
                     className="rounded-full px-[5px] font-mono text-[9px]"
                     style={{

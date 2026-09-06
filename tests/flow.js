@@ -47,13 +47,21 @@ async function ratedOnMatrix(p) {
   return p.evaluate(() => (document.body.innerText.match(/·\s*(\d+) rated/) || [])[1] ?? null);
 }
 
-/** The number in a nav badge, or 0 when there is none. */
-async function badge(p, name) {
-  return p.evaluate((n) => {
-    const a = [...document.querySelectorAll("a")].find((x) => x.textContent?.includes(n));
-    const m = a?.textContent?.match(/(\d+)\s*$/);
-    return m ? Number(m[1]) : 0;
-  }, name);
+/** A nav badge, as "done/total" or a bare count.
+ *
+ *  The labels name the audit activity — Checks, Inspection, Follow-up — and
+ *  the routes deliberately did not move with them, so this looks up by href
+ *  rather than by the visible word. A test that keys off a label breaks every
+ *  time somebody improves the wording, which is not what it is guarding. */
+async function badge(p, href) {
+  return p.evaluate((h) => {
+    const a = [...document.querySelectorAll("a")].find((x) => x.getAttribute("href") === h);
+    const t = a?.textContent ?? "";
+    const pair = t.match(/(\d+)\/(\d+)\s*$/);
+    if (pair) return { done: Number(pair[1]), total: Number(pair[2]) };
+    const one = t.match(/(\d+)\s*$/);
+    return { done: one ? Number(one[1]) : 0, total: null };
+  }, href);
 }
 
 (async () => {
@@ -90,7 +98,7 @@ async function badge(p, name) {
     .locator("button")
     .first()
     .waitFor({ timeout: 60000 });
-  const capBefore = await badge(p, "Capture");
+  const capBefore = await badge(p, "/capture");
   await p.keyboard.press("2");                       // Non-compliant
   await p.waitForTimeout(300);
   await p.locator("text=Issues found").first().locator("xpath=../..").locator("button").first().click();
@@ -98,11 +106,16 @@ async function badge(p, name) {
   await p.locator("button", { hasText: /^Save$/ }).first().click();
   await p.waitForTimeout(800);
 
-  const capAfter = await badge(p, "Capture");
-  ok("capturing a check works the Capture badge down", capAfter === capBefore - 1,
-     `${capBefore} -> ${capAfter}`);
-  ok("and raising a finding shows on the Findings badge", (await badge(p, "Findings")) === 1,
-     String(await badge(p, "Findings")));
+  const capAfter = await badge(p, "/capture");
+  ok("capturing a check moves the Checks badge UP — it counts done, not left",
+     capAfter.done === capBefore.done + 1 && capAfter.total === capBefore.total,
+     `${capBefore.done}/${capBefore.total} -> ${capAfter.done}/${capAfter.total}`);
+  ok("and the denominator is this site's list, not the register",
+     capAfter.total !== null && capAfter.total < 374,
+     `total=${capAfter.total}`);
+  ok("raising a finding shows on the Findings badge",
+     (await badge(p, "/findings")).done === 1,
+     JSON.stringify(await badge(p, "/findings")));
 
   /* ---------------- 3. THE INVARIANT ----------------
      A suggested rating must reach nothing. */

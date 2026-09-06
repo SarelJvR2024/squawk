@@ -12,9 +12,9 @@ running server; fifteen do not. **Check each suite's exit status, not its output
 | `carryforward.test.mjs` | no | 22 |
 | `review.test.mjs` | no | 22 |
 | `tablet.test.mjs` | no | 18 |
-| `portals.test.mjs` | no | 27 |
+| `portals.test.mjs` | no | 31 |
 | `reset.test.mjs` | no | 17 |
-| `completion.test.mjs` | no | 18 |
+| `completion.test.mjs` | no | 19 |
 | `audits.test.mjs` | no | 18 |
 | `voice.test.mjs` | no | 37 |
 | `sites.test.mjs` | no | 41 |
@@ -28,9 +28,9 @@ running server; fifteen do not. **Check each suite's exit status, not its output
 | `persite.js` | yes | 25 |
 | `vision.js` | starts its own | 17 |
 | `record.js` | starts its own | 14 |
-| `flow.js` | yes | 30 |
+| `flow.js` | yes | 31 |
 
-**806 assertions in total**, every count above verified by running the suite,
+**813 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
