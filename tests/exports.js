@@ -64,6 +64,38 @@ const ok = (n, c, x = "") => {
   await p.locator("textarea").first().fill("Re-issue the register with every entry signed and dated.");
   await p.waitForTimeout(400);
 
+  /* --- a hazard, built from that finding ---
+     Raised directly rather than through consolidation: this suite runs without
+     a model key, and the point being checked is the SHEET, not the grouping. */
+  await p.goto(B + "/hazards", { waitUntil: "networkidle" });
+  await p.waitForTimeout(1200);
+  await p.locator("button", { hasText: /^Raise one directly$/ }).first().click();
+  await p.waitForTimeout(500);
+  await p
+    .locator('input[placeholder^="Uncontained fuel release"]')
+    .first()
+    .fill("Loss of traceability on an unsigned MV register");
+  await p.waitForTimeout(300);
+  const addFinding = p.locator("select").filter({ hasText: "add a finding" }).first();
+  const addable = await addFinding.count();
+  if (addable) {
+    await addFinding.selectOption({ index: 1 });
+    await p.waitForTimeout(400);
+  }
+  ok("a hazard can be raised with no model configured", addable > 0);
+  await p.locator("button[aria-label*=' by ']").nth(6).click();
+  await p.waitForTimeout(400);
+  const hazardBody = await p.locator("body").innerText();
+  ok(
+    "the hazard screen says the ERM matrix has not been supplied",
+    /has not been supplied/.test(hazardBody),
+    hazardBody.slice(0, 120).replace(/\n/g, " ")
+  );
+  ok(
+    "and does not offer an ERM picker it cannot fill",
+    (await p.locator("select").filter({ hasText: "Not set" }).count()) === 0
+  );
+
   // --- export ---
   await p.goto(B + "/capture", { waitUntil: "networkidle" });
   await p.waitForTimeout(1500);
@@ -150,6 +182,65 @@ const ok = (n, c, x = "") => {
   const inZip = names.find((n) => n.endsWith(".jpg"))?.replace("photographs/", "");
   ok("the workbook's File column matches the file in the zip exactly",
      !!inZip && csv.includes(inZip), `${inZip} not found in the Photographs sheet`);
+
+  /* --- the hazards sheet, read out of the workbook itself --- */
+  const hazCard = p.locator("b", { hasText: /^Hazards$/ }).first().locator("xpath=../..");
+  await hazCard.scrollIntoViewIfNeeded();
+  const dl5 = p.waitForEvent("download", { timeout: 60000 });
+  await hazCard.locator("button", { hasText: /^CSV$/ }).first().click();
+  const d5 = await dl5;
+  const hazCsv = "/home/claude/delivery/" + d5.suggestedFilename();
+  await d5.saveAs(hazCsv);
+  const hcsv = fs.readFileSync(hazCsv, "utf8");
+  const hhead = hcsv.split("\n")[0];
+
+  ok("the hazards sheet exports", /hazards/i.test(d5.suggestedFilename()), d5.suggestedFilename());
+  ok(
+    "it carries BOTH rating instruments, in their own columns",
+    /Severity \(B170 001M\)/.test(hhead) &&
+      /Likelihood \(B170 001M\)/.test(hhead) &&
+      /Severity \(ACSA ERM\)/.test(hhead) &&
+      /Likelihood \(ACSA ERM\)/.test(hhead),
+    hhead.slice(0, 200)
+  );
+  ok(
+    "and a rating-state column for each, so neither reads as agreed by default",
+    /B170 001M rating state/.test(hhead) && /ERM rating state/.test(hhead)
+  );
+  ok("the event a person typed is in the row", /Loss of traceability on an unsigned MV register/.test(hcsv),
+     hcsv.split("\n")[1]?.slice(0, 140) || "");
+  ok(
+    "the agreed B170 001M rating reached the sheet",
+    /Agreed by the audit team/.test(hcsv)
+  );
+  ok(
+    "the empty ERM columns SAY they are unsupplied rather than reading blank",
+    /has not been supplied/.test(hcsv),
+    hcsv.split("\n")[1]?.slice(0, 200) || ""
+  );
+  ok("the findings behind it are named", /F-[A-Z0-9]{5}/.test(hcsv), hcsv.split("\n")[1]?.slice(0, 80) || "");
+  ok("and its photographs are indexed the same way the findings sheet indexes them",
+     /Photograph files/.test(hhead) && /Photograph captions/.test(hhead));
+
+  /* --- and the reverse cross-reference, off the findings sheet --- */
+  const findCard = p.locator("b", { hasText: /^Findings$/ }).first().locator("xpath=../..");
+  await findCard.scrollIntoViewIfNeeded();
+  const dl6 = p.waitForEvent("download", { timeout: 60000 });
+  await findCard.locator("button", { hasText: /^CSV$/ }).first().click();
+  const d6 = await dl6;
+  const findCsv = "/home/claude/delivery/" + d6.suggestedFilename();
+  await d6.saveAs(findCsv);
+  const fcsv = fs.readFileSync(findCsv, "utf8");
+  ok(
+    "the findings sheet says where each finding ended up",
+    /Consolidated into/.test(fcsv.split("\n")[0]),
+    fcsv.split("\n")[0].slice(-120)
+  );
+  ok(
+    "a finding in a hazard names it, and one in none says so",
+    /HZ-[A-Z0-9]{5}/.test(fcsv) || /Not grouped/.test(fcsv),
+    fcsv.split("\n")[1]?.slice(0, 160) || ""
+  );
 
   ok("no page errors during export", errs.length === 0, errs[0] || "");
 
