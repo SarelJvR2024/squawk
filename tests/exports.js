@@ -42,7 +42,15 @@ const ok = (n, c, x = "") => {
     .first()
     .click();
   await p.waitForTimeout(500);
-  await p.locator("textarea").first().fill('Register produced; three of eleven entries unsigned & "undated".');
+  /* The OBSERVATION field by its placeholder, not "the first textarea".
+     The check screen now carries a collapsed treatment block per raised
+     finding, which puts a hidden textarea earlier in the DOM — and a test that
+     says "the first one" was always going to break the first time the page
+     grew a field above it. */
+  await p
+    .locator('textarea[placeholder^="Composed from your taps"]')
+    .first()
+    .fill('Register produced; three of eleven entries unsigned & "undated".');
   await p.waitForTimeout(300);
   /* A captioned photograph, so the Photographs sheet has something real in it
      and the Findings sheet has a caption to carry across. */
@@ -61,7 +69,10 @@ const ok = (n, c, x = "") => {
   await p.waitForTimeout(1200);
   await p.locator("button[aria-label*=' by ']").nth(12).click();
   await p.waitForTimeout(400);
-  await p.locator("textarea").first().fill("Re-issue the register with every entry signed and dated.");
+  await p
+    .locator('textarea[placeholder^="What must happen"]')
+    .first()
+    .fill("Re-issue the register with every entry signed and dated.");
   await p.waitForTimeout(400);
 
   /* --- a hazard, built from that finding ---

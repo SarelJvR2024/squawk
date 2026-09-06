@@ -273,6 +273,8 @@ interface State {
 
   addFinding: (f: Omit<Finding, "id" | "createdAt" | "entity">) => string;
   updateFinding: (id: string, p: Partial<Finding>) => void;
+  /** Appends a dated, attributed entry to a finding's remediation log. */
+  addFindingProgress: (id: string, note: string) => void;
 
   /** Hazards, flat across the programme like findings, each carrying its own
    *  entity and originVisit. Same reason: a hazard raised in September is what
@@ -554,6 +556,28 @@ export const useStore = create<State>()(
           return id;
         },
 
+        /* Append, never overwrite — see ProgressNote. */
+        addFindingProgress: (id, note) => {
+          const text = note.trim();
+          if (!text) return;
+          const who = get().auditor;
+          const visit = get().visit;
+          set((s) => ({
+            findings: s.findings.map((f) =>
+              f.id === id
+                ? {
+                    ...f,
+                    progress: [
+                      ...(f.progress ?? []),
+                      { at: Date.now(), by: who, visit, outcome: null, note: text },
+                    ],
+                  }
+                : f
+            ),
+          }));
+          set({ lastSavedAt: Date.now() });
+        },
+
         updateFinding: (id, p) =>
           set((s) => ({
             findings: s.findings.map((f) => (f.id === id ? { ...f, ...p } : f)),
@@ -746,7 +770,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 11,
+      version: 12,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -1000,6 +1024,14 @@ export const useStore = create<State>()(
                 immediate: old.immediate ?? false,
               } as Hazard;
             });
+          }
+        }
+        if (from < 12) {
+          /* A finding gets the same dated log a verification and a hazard
+             already have. Absent means empty, which reads correctly as
+             "nobody has updated it yet". */
+          if (Array.isArray(st.findings)) {
+            st.findings = st.findings.map((f) => ({ ...f, progress: f.progress ?? [] }));
           }
         }
         return st;

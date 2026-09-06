@@ -17,6 +17,7 @@ import { modeLabels, needsField } from "@/lib/verification";
 import { AttachmentStrip, PhotoButton, VoiceNoteButton } from "./Capture";
 import RootCauseAdvice from "./RootCauseAdvice";
 import HazardAdvice from "./HazardAdvice";
+import RecordActions from "./RecordActions";
 import {
   IconCheck,
   IconClock,
@@ -96,6 +97,7 @@ export default function CheckDetail({
   const obsRef = useRef<HTMLTextAreaElement>(null);
   const a = useAnswers(check.id);
   const entityCode = useEntityCode();
+  const addFindingProgress = useStore((s) => s.addFindingProgress);
   /* Findings this check has raised, so their root cause can be worked here
      rather than only on the findings screen. */
   const raised = useVisitFindings().filter((f) => f.checkId === check.id);
@@ -553,6 +555,7 @@ export default function CheckDetail({
                             originVisit: visitId,
                             priorRating: pf?.rating ?? null,
                             suggestedEvent: "",
+                            progress: [],
                             adHoc: false,
                             createdBy: auditor,
                           });
@@ -615,6 +618,48 @@ export default function CheckDetail({
                         onSaved(`Hazard noted · ${event}`);
                       }}
                     />
+
+                    {/* The four fields ACSA's dashboards carry, on the screen
+                        where the issue was raised.
+                        The compliance session settles the check, confirms last
+                        cycle's finding and captures the root cause in ONE
+                        conversation with the responsible person in the room.
+                        Making the auditor navigate away is how the second and
+                        third get postponed and then never had.
+                        Folded, because a check can raise several findings and
+                        an open block each would bury the chips above it. The
+                        summary line says what is outstanding, so nothing has
+                        to be opened to find that out. */}
+                    <details className="group mt-[7px]">
+                      <summary
+                        className="flex cursor-pointer list-none items-center gap-1.5 py-[3px] text-[10.5px] select-none"
+                        style={{ color: "var(--ink-3)" }}
+                      >
+                        <span className="transition-transform group-open:rotate-90">›</span>
+                        Treatment ·{" "}
+                        {[
+                          !f.rootCause && "no root cause",
+                          !f.action && "no action",
+                          !f.owner && "no owner",
+                          !f.dueDate && "no date",
+                        ].filter(Boolean).join(", ") || "complete"}
+                        {f.progress?.length ? ` · ${f.progress.length} update${f.progress.length === 1 ? "" : "s"}` : ""}
+                      </summary>
+                      <div className="mt-1.5">
+                        <RecordActions
+                          record={f}
+                          entityCode={entityCode}
+                          showRating={false}
+                          progress={f.progress}
+                          onProgress={(n) => {
+                            addFindingProgress(f.id, n);
+                            onSaved("Progress recorded");
+                          }}
+                          onChange={(patch) => updateFinding(f.id, patch)}
+                          onToast={onSaved}
+                        />
+                      </div>
+                    </details>
                   </div>
                 ))}
               </Field>

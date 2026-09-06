@@ -43,6 +43,7 @@ import { Btn } from "@/components/ui/primitives";
 import { IconSpark } from "@/components/ui/icons";
 import type {
   ActionStatus,
+  ProgressNote,
   ErmConsequence,
   ErmLikelihood,
   Likelihood,
@@ -77,7 +78,15 @@ export default function RecordActions({
   secondOpinion,
   advice,
   showErm = false,
+  /* The check screen wants the treatment fields without the matrix: the
+     rating is agreed as a group at the findings register, but root cause and
+     the action are captured on the day with the responsible person in the
+     room. One component either way — writing the four fields twice is how
+     they drift. */
+  showRating = true,
   actionLabel = "Remediation action",
+  progress,
+  onProgress,
   footer,
 }: {
   record: RatedRecord;
@@ -93,12 +102,17 @@ export default function RecordActions({
    *  type and photographs. Slotted rather than duplicated. */
   advice?: ReactNode;
   showErm?: boolean;
+  showRating?: boolean;
   actionLabel?: string;
+  /** The dated log, when the caller keeps one. */
+  progress?: ProgressNote[];
+  onProgress?: (note: string) => void;
   footer?: ReactNode;
 }) {
   const aiOn = useAssistAvailable();
   const [opinion, setOpinion] = useState<{ id: string; text: string } | null>(null);
   const [asking, setAsking] = useState(false);
+  const [note, setNote] = useState("");
   const say = (m: string) => onToast?.(m);
 
   const band = bandFor(record.severity, record.likelihood);
@@ -109,6 +123,8 @@ export default function RecordActions({
           standard prints it. Tapping a cell sets both together and agrees the
           rating in the same gesture — the two were once separate selects, and
           a half-set rating is not a rating. */}
+      {showRating && (
+        <>
       <div className="mb-2 flex items-center justify-between">
         <b className="font-display text-[11px] font-semibold">
           Severity (rows) &times; Likelihood (columns)
@@ -517,6 +533,9 @@ export default function RecordActions({
         </div>
       )}
 
+        </>
+      )}
+
       <div className="mb-2 font-display text-[11px] font-semibold">Root cause</div>
       <div className="flex flex-wrap gap-[5px]">
         {ROOT_CAUSES.map((rc) => (
@@ -585,6 +604,65 @@ export default function RecordActions({
           </select>
         </label>
       </div>
+
+      {/* The dated log. ACSA's Progress/Update is one cell that gets typed
+          over; this appends, and the export flattens it back into their cell.
+          Rendered only where the caller keeps one, so nothing appears on a
+          record that has nowhere to put it. */}
+      {onProgress && (
+        <>
+          <div className="mt-4 mb-2 flex flex-wrap items-baseline justify-between gap-2">
+            <b className="font-display text-[11px] font-semibold">Progress</b>
+            <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+              {progress?.length
+                ? `${progress.length} update${progress.length === 1 ? "" : "s"}`
+                : "nothing recorded yet"}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && note.trim()) {
+                  onProgress(note);
+                  setNote("");
+                  say("Progress recorded");
+                }
+              }}
+              placeholder="What moved, in one line…"
+              className="min-w-0 flex-1 rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+              style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+            />
+            <Btn
+              disabled={!note.trim()}
+              onClick={() => {
+                onProgress(note);
+                setNote("");
+                say("Progress recorded");
+              }}
+            >
+              Add to the log
+            </Btn>
+          </div>
+          {(progress ?? []).map((n, i) => (
+            <div key={`${n.at}-${i}`} className="mt-[6px] flex gap-2 text-[11.5px] leading-[1.5]">
+              <span className="shrink-0 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                {new Date(n.at).toLocaleDateString("en-ZA", {
+                  day: "numeric",
+                  month: "short",
+                })}
+              </span>
+              <span style={{ color: "var(--ink-2)" }}>
+                {n.note}
+                <span className="ml-1.5 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                  {n.by.split(" ")[0]}
+                </span>
+              </span>
+            </div>
+          ))}
+        </>
+      )}
 
       {footer}
     </>

@@ -117,6 +117,32 @@ async function badge(p, href) {
      (await badge(p, "/findings")).done === 1,
      JSON.stringify(await badge(p, "/findings")));
 
+  /* ---------------- 2b. the treatment fields, where the issue was raised ----
+     ACSA's dashboards carry Root Cause, Risk Treatment, Target Date and
+     Progress/Update. The compliance session settles the check, confirms last
+     cycle's finding and captures the root cause in ONE conversation with the
+     responsible person in the room — making the auditor navigate away is how
+     the second and third get postponed and then never had. */
+  const treatment = p.locator("summary", { hasText: /Treatment ·/ }).first();
+  ok("the check screen carries the treatment fields for what it raised",
+     (await treatment.count()) > 0);
+  ok("and says what is outstanding without being opened",
+     /no root cause/.test(await treatment.innerText()),
+     "blank fields are filled at different moments and must never read as complete");
+  await treatment.click();
+  await p.waitForTimeout(600);
+  const checkBody = await p.locator("body").innerText();
+  ok("but NOT the risk matrix — the group agrees that at the register",
+     !/Severity \(rows\)/.test(checkBody),
+     "one component, two shapes; the four fields are not written twice");
+  await p.locator('input[placeholder^="What moved"]').first()
+    .fill("Manager confirmed the register is being reissued.");
+  await p.locator("button", { hasText: /Add to the log/ }).first().click();
+  await p.waitForTimeout(700);
+  const logged = await p.locator("body").innerText();
+  ok("progress on a finding is a dated log, recorded on the day",
+     /register is being reissued/.test(logged) && /1 update/.test(logged));
+
   /* ---------------- 3. THE INVARIANT ----------------
      A suggested rating must reach nothing. */
   await p.goto(B + "/dashboard", { waitUntil: "networkidle" });

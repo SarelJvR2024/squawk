@@ -672,6 +672,7 @@ export default function FieldPage() {
                     originVisit: visitId,
                     priorRating: null,
                     suggestedEvent: "",
+                    progress: [],
                     adHoc: true,
                     createdBy: auditor,
                   });
