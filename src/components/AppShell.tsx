@@ -12,6 +12,7 @@ import {
   useStore,
   useVerifications,
   useVisitFindings,
+  useVisitHazards,
   useVisitId,
   useVisits,
   deskDone,
@@ -32,6 +33,7 @@ import {
   IconCloud,
   IconGrid,
   IconDownload,
+  IconFlag,
   IconHelp,
   IconLock,
   IconLoop,
@@ -46,6 +48,7 @@ const NAV = [
   { href: "/field", label: "Field", icon: IconPin },
   { href: "/review", label: "Review", icon: IconCamera },
   { href: "/findings", label: "Findings", icon: IconLoop },
+  { href: "/hazards", label: "Hazards", icon: IconFlag },
   { href: "/closure", label: "Closure", icon: IconLoop },
   { href: "/dashboard", label: "Dashboard", icon: IconGrid },
 ];
@@ -60,6 +63,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const responses = useResponses();
   const verifications = useVerifications();
   const findings = useVisitFindings();
+  const hazards = useVisitHazards();
   const entityCode = useEntityCode();
   const visitId = useVisitId();
   const setEntity = useStore((s) => s.setEntity);
@@ -103,6 +107,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     () => checks.filter((c) => needsDesk(c) && !deskDone(responses[c.id])).length,
     [checks, responses]
   );
+  /* Findings nobody has put into a hazard yet. A finding may sit in at most
+     one, so this is a straight set difference. */
+  const ungrouped = useMemo(() => {
+    const inHazard = new Set(hazards.flatMap((h) => h.findingIds));
+    return findings.filter((f) => !inHazard.has(f.id)).length;
+  }, [findings, hazards]);
   const fieldOutstanding = useMemo(
     () => checks.filter((c) => needsField(c) && !fieldDone(responses[c.id])).length,
     [checks, responses]
@@ -209,7 +219,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     ? unverified
                     : n.href === "/findings"
                       ? findings.length
-                      : 0;
+                      /* The badge on Hazards counts what is NOT done — findings
+                         nobody has grouped yet. A count of hazards would read
+                         like progress; a count of ungrouped findings is the
+                         work still outstanding, which is what a badge is
+                         for. */
+                      : n.href === "/hazards"
+                        ? ungrouped
+                        : 0;
             return (
               <Link
                 key={n.href}

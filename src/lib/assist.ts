@@ -67,7 +67,10 @@ export type AssistTask =
   | "narrative"
   | "transcript"
   | "caption"
-  | "rootcause";
+  | "rootcause"
+  | "hazard"
+  | "consolidate"
+  | "reassess";
 
 /* One probe per endpoint per page load, shared by every component that asks.
    Each of these is a separate deployment decision — a site may have a model and
@@ -133,12 +136,25 @@ async function toBase64(blob: Blob): Promise<{ mediaType: string; data: string }
   return { mediaType: blob.type || "image/jpeg", data: btoa(bin) };
 }
 
+/** An image to send. A bare Blob where the picture speaks for itself; a
+ *  labelled one where the model has to say WHICH photograph it is talking
+ *  about — consolidation, above all. */
+export type AssistImage = Blob | { blob: Blob; label: string };
+
 export async function assist(
   task: AssistTask,
   context: string,
-  images: Blob[] = []
+  images: AssistImage[] = []
 ): Promise<string> {
-  const encoded = images.length ? await Promise.all(images.map(toBase64)) : undefined;
+  const encoded = images.length
+    ? await Promise.all(
+        images.map(async (i) =>
+          i instanceof Blob
+            ? await toBase64(i)
+            : { ...(await toBase64(i.blob)), label: i.label }
+        )
+      )
+    : undefined;
   const r = await fetch("/api/assist", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -179,6 +195,89 @@ export function parseCaption(raw: string): CaptionResult | null {
     caption: j.caption.trim(),
     legible: j.legible !== false,
     note: typeof j.note === "string" ? j.note : "",
+  };
+}
+
+export interface HazardProposal {
+  event: string;
+  description: string;
+  why: string;
+  confidence: "high" | "medium" | "low";
+  /** Present on a consolidation proposal: the findings behind this group. */
+  findingIds?: string[];
+  note?: string;
+}
+
+const conf = (v: unknown): "high" | "medium" | "low" =>
+  v === "high" || v === "medium" || v === "low" ? v : "low";
+
+function toProposal(c: Partial<HazardProposal> | null): HazardProposal | null {
+  if (!c || typeof c.event !== "string" || !c.event.trim()) return null;
+  return {
+    event: c.event.trim(),
+    description: typeof c.description === "string" ? c.description : "",
+    why: typeof c.why === "string" ? c.why : "",
+    confidence: conf(c.confidence),
+    ...(Array.isArray(c.findingIds)
+      ? { findingIds: c.findingIds.filter((x): x is string => typeof x === "string") }
+      : {}),
+    ...(typeof c.note === "string" ? { note: c.note } : {}),
+  };
+}
+
+/** "What hazard is this?" — one finding in, the events it exposes out. */
+export function parseHazards(raw: string): HazardProposal[] {
+  const j = jsonFrom(raw) as { hazards?: unknown } | null;
+  const list = Array.isArray(j?.hazards) ? j!.hazards : [];
+  return (list as Partial<HazardProposal>[])
+    .map(toProposal)
+    .filter((h): h is HazardProposal => h !== null)
+    .slice(0, 3);
+}
+
+/** Consolidation. `known` is the set of finding ids actually in scope: a group
+ *  naming a finding that does not exist would create a hazard pointing at
+ *  nothing, so unknown ids are dropped and a group left with none is refused. */
+export function parseGroups(raw: string, known: string[]): HazardProposal[] {
+  const j = jsonFrom(raw) as { groups?: unknown } | null;
+  const list = Array.isArray(j?.groups) ? j!.groups : [];
+  const seen = new Set<string>();
+  const out: HazardProposal[] = [];
+  for (const g of list as Partial<HazardProposal>[]) {
+    const p = toProposal(g);
+    if (!p) continue;
+    /* A finding may appear in at most one group. The prompt says so; this
+       enforces it, because a finding in two hazards is double-counted in every
+       total downstream. */
+    const ids = (p.findingIds ?? []).filter((id) => known.includes(id) && !seen.has(id));
+    if (!ids.length) continue;
+    ids.forEach((id) => seen.add(id));
+    out.push({ ...p, findingIds: ids });
+  }
+  return out;
+}
+
+export interface Reassessment {
+  note: string;
+  photographsSeen: string[];
+  ratingComment: string;
+  newHazards: { event: string; why: string }[];
+}
+
+export function parseReassessment(raw: string): Reassessment | null {
+  const j = jsonFrom(raw) as Partial<Reassessment> | null;
+  if (!j || typeof j.note !== "string") return null;
+  return {
+    note: j.note,
+    photographsSeen: Array.isArray(j.photographsSeen)
+      ? j.photographsSeen.filter((x): x is string => typeof x === "string")
+      : [],
+    ratingComment: typeof j.ratingComment === "string" ? j.ratingComment : "",
+    newHazards: Array.isArray(j.newHazards)
+      ? (j.newHazards as { event?: string; why?: string }[])
+          .filter((h) => typeof h?.event === "string" && h.event.trim())
+          .map((h) => ({ event: h.event!.trim(), why: typeof h.why === "string" ? h.why : "" }))
+      : [],
   };
 }
 
@@ -298,7 +397,7 @@ export function captionContext(a: { name: string; takenAt?: number }): string {
  *  vocabulary is sent so the model picks from it rather than inventing one, and
  *  parseRootCauses drops anything outside it anyway. */
 export function rootCauseContext(
-  f: Finding,
+  f: AdviceSubject,
   allowed: string[],
   check?: Check,
   captions: string[] = []
@@ -313,7 +412,18 @@ export function rootCauseContext(
     .join("\n");
 }
 
-export function findingContext(f: Finding, check?: Check): string {
+/** What findingContext actually reads. A hazard satisfies it too — its event
+ *  and what it exposes stand in for the description — so the root-cause advice
+ *  is one component across three screens rather than three near-copies. */
+export interface AdviceSubject {
+  description: string;
+  discipline: string;
+  system: string;
+  rootCause: string;
+  priorRating?: string | null;
+}
+
+export function findingContext(f: AdviceSubject, check?: Check): string {
   return [
     `Finding: ${f.description}`,
     `Discipline: ${f.discipline} · Asset system: ${f.system}`,
@@ -321,6 +431,87 @@ export function findingContext(f: Finding, check?: Check): string {
     f.priorRating && `This asset system was rated ${f.priorRating} in March 2025.`,
     check?.target && `Threshold: ${check.target}`,
     check?.acsaRequirement && `ACSA requires: ${check.acsaRequirement}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/** What goes with a finding when the hazard it exposes is proposed. The same
+ *  material the rating sees — a hazard named from less than the rating was
+ *  given would be a different judgement about the same evidence. */
+export function hazardContext(f: Finding, check?: Check, captions: string[] = []): string {
+  return [
+    findingContext(f, check),
+    f.suggestedEvent && `An event has already been proposed for this finding: ${f.suggestedEvent}`,
+    captions.length && `Photographs attached: ${captions.map((c) => `"${c}"`).join("; ")}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/** What goes with a consolidation run.
+ *
+ *  Every finding in scope, each with its id, because the model must answer in
+ *  ids and a group naming a finding that was never sent is a group pointing at
+ *  nothing. Photograph captions go per finding and are labelled with the
+ *  finding they belong to, so an image the model is shown can be attributed —
+ *  that attribution is the whole reason the images help here. */
+export function consolidateContext(
+  items: { finding: Finding; check?: Check; captions: string[] }[]
+): string {
+  const blocks = items.map(({ finding: f, check, captions }) =>
+    [
+      `--- ${f.id} ---`,
+      findingContext(f, check),
+      f.area && `Area: ${f.area}`,
+      captions.length &&
+        `Photographs on ${f.id}: ${captions.map((c) => `"${c}"`).join("; ")}`,
+    ]
+      .filter(Boolean)
+      .join("\n")
+  );
+  return [
+    `Findings in scope (${items.length}). Answer in these ids and no others:`,
+    "",
+    ...blocks,
+  ].join("\n");
+}
+
+/** What goes with a post-walk re-read: the hazard as it stands, the findings
+ *  behind it, and the captions of the photographs. The rating goes too — the
+ *  model is asked for a view on it, and it cannot have one without seeing it. */
+export function reassessContext(
+  h: {
+    event: string;
+    description: string;
+    why: string;
+    severity: string | null;
+    likelihood: string | null;
+    ratingConfirmed: boolean;
+    discipline: string;
+    system: string;
+    rootCause: string;
+  },
+  findings: Finding[],
+  captions: string[] = []
+): string {
+  return [
+    `Hazard: ${h.event}`,
+    h.description && `Description: ${h.description}`,
+    h.why && `What it exposes: ${h.why}`,
+    `Discipline: ${h.discipline} · Asset system: ${h.system}`,
+    h.rootCause && `Root cause selected: ${h.rootCause}`,
+    h.severity && h.likelihood
+      ? `Current rating: ${h.severity} / ${h.likelihood} — ${
+          h.ratingConfirmed ? "agreed by the audit team" : "suggested, not yet agreed"
+        }`
+      : "Current rating: none set.",
+    "",
+    findings.length
+      ? `Findings behind it:\n${findings.map((f) => `- ${f.id}: ${f.description}`).join("\n")}`
+      : "No findings behind it — raised directly at the register.",
+    captions.length && `\nPhotographs: ${captions.map((c) => `"${c}"`).join("; ")}`,
+    "If no image is supplied with this request, say so in `note` and leave `photographsSeen` empty rather than describing photographs you cannot see.",
   ]
     .filter(Boolean)
     .join("\n");

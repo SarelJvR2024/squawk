@@ -54,6 +54,15 @@ interface Img {
   mediaType: string;
   /** base64, no data-URL prefix. */
   data: string;
+  /** A line naming what this image belongs to, sent immediately before it.
+   *
+   *  Consolidation is the reason this exists. Eight photographs in one flat
+   *  block are eight pictures of an airport; the same eight, each preceded by
+   *  "KSIA-ELE-014_P02 — on finding F-3K9QP", let the model say *which* two
+   *  findings its photographs show to be the same physical thing. Without the
+   *  attribution the answer cannot be checked, and an ungrounded grouping is
+   *  worse than none. */
+  label?: string;
 }
 
 type Task =
@@ -64,7 +73,10 @@ type Task =
   | "narrative"        // draft the discipline section of the report
   | "transcript"       // turn a spoken note into the written answer
   | "caption"          // describe one photograph, factually
-  | "rootcause";       // candidate root causes, and the question to ask instead
+  | "rootcause"        // candidate root causes, and the question to ask instead
+  | "hazard"           // what event does this finding expose
+  | "consolidate"      // group findings that describe one physical thing
+  | "reassess";        // re-read a hazard after the walkthrough
 
 const SYSTEM = `You are assisting a Thabile-Pridin JV auditor during an Airports Company South Africa asset assurance audit at a South African airport.
 
@@ -92,6 +104,12 @@ const TASK_PROMPT: Record<Task, string> = {
     'Describe the photograph supplied, for an audit record. One line, under 25 words, factual, naming what is shown and its visible condition. No judgement, no cause, no rating, no date. If something an auditor would want — a serial plate, a gauge reading, a label — is present but cannot be made out, say so in `note` rather than guessing at it.\nReturn JSON and nothing else:\n{"caption":"<the line>","legible":<true if the subject is clear enough to describe usefully, else false>,"note":"<what could not be made out, or an empty string>"}',
   rootcause:
     'Propose the root causes that could explain the finding below.\n\nA root cause is something the responsible person knows and the auditor does not. Your real job here is to sharpen the QUESTION, not to answer it — `askInstead` is the most valuable field you will write, and a candidate with a good question and low confidence is worth more than a confident guess.\n\nRules:\n- Two to four candidates, ranked most likely first.\n- `cause` MUST be exactly one of the categories listed in the context under "Root-cause categories". Do not invent one, do not reword one.\n- `reasoning` is one sentence and must tie to something actually in the evidence. If the evidence does not support a cause, do not offer it.\n- `confidence` is high only where the evidence itself settles it, which is rare at this stage.\n- `askInstead` is the question to put to the responsible person that would confirm or kill this cause. Leave it empty only when the evidence already settles the matter.\nReturn JSON and nothing else:\n{"candidates":[{"cause":"<category>","reasoning":"<one sentence>","confidence":"<high|medium|low>","askInstead":"<question, or empty>"}]}',
+  hazard:
+    'Name the hazard the finding below exposes.\n\nRate the hazard, not the document. A missing maintenance record is not itself the risk — the risk is the event the maintenance was preventing, and that is what an audit rates. "Register not signed" is a finding; "loss of traceability on a fuel hydrant nobody can prove was serviced" is a hazard.\n\nRules:\n- One to three hazards, most significant first. Most findings expose one.\n- `event` is under 15 words and names an EVENT, not a document, a process or a state of paperwork.\n- `why` names the control that failed and what it was protecting against.\n- Do not rate it. Severity and likelihood are the audit team\'s to agree.\n- Where the finding does not support naming an event, say so in `why` and give `confidence` low rather than reaching.\nReturn JSON and nothing else:\n{"hazards":[{"event":"<under 15 words>","description":"<one or two sentences>","why":"<what control failed and what it was protecting against>","confidence":"<high|medium|low>"}]}',
+  consolidate:
+    'Below are findings from one audit. Group the ones that describe the SAME physical thing or the same exposure into hazards.\n\nDifferent disciplines write the same defect up in their own language: Electrical records a substation with no gaseous suppression, Process Safety records a fire-detection gap in the same room, and it is one hazard with two findings behind it. That is what this is for.\n\nWhere photographs are supplied, use them to test whether two findings describe the same physical item. Two write-ups in different disciplines\' language frequently show the same defect. Say in the note when a photograph is what made you group them, and name which photographs.\n\nRules:\n- A finding may appear in at most one group. Leave a finding out entirely rather than forcing it.\n- Do not group by discipline, by asset system or by severity. Group by the physical thing or the exposure.\n- A group of one is legitimate where a finding is its own hazard.\n- `event` is under 15 words and names the event, not the paperwork.\n- Do not rate anything.\nReturn JSON and nothing else:\n{"groups":[{"event":"<under 15 words>","description":"<one or two sentences>","why":"<what control failed and what it was protecting against>","findingIds":["F-XXXXX"],"note":"<why these belong together; name the photographs if a photograph is what showed it>","confidence":"<high|medium|low>"}]}',
+  reassess:
+    'Re-read the hazard below after the site walkthrough. Photographs from the walkthrough are supplied where the deployment sends them.\n\nDescribe only what is visible. A photograph may reveal a condition nobody wrote up — raise that as a separate hazard. It may not be used to raise a likelihood on its own: likelihood on this scale is occurrence history, which a photograph cannot show.\n\nThat last rule matters. A rusty panel in a photograph tells you about condition, not about how often the event has occurred, and moving likelihood on the strength of an image is the wrong reasoning applied to the right evidence.\n\nRules:\n- Say what the walkthrough changed, if anything. "Nothing seen on site changes this" is a good answer and often the right one.\n- `newHazards` is for conditions visible in the photographs that no finding covers. Empty is normal.\n- Do not agree a rating. Where you think the rating should move, say so in `ratingComment` as a view, with the reason, and leave it to the team.\n- Name which photographs you are describing.\nReturn JSON and nothing else:\n{"note":"<what the walkthrough did or did not change>","photographsSeen":["<file or reference>"],"ratingComment":"<a view on the rating and why, or empty>","newHazards":[{"event":"<under 15 words>","why":"<what it exposes>"}]}',
   narrative:
     "Draft the narrative for this discipline's section of the audit report from the captured material below. Lead with the overall position, then what was found, then what remains open. Do not list every check. No headings, no bullet points, three paragraphs at most.",
 };
@@ -158,10 +176,18 @@ export async function POST(req: NextRequest) {
   /* THE ENFORCEMENT POINT. With ASSIST_VISION unset this is an empty array and
      no image byte reaches the network, whatever the client sent. */
   const images: Img[] = VISION
-    ? sent.filter(
-        (i) =>
-          i && typeof i.data === "string" && ALLOWED_MEDIA.includes(i.mediaType)
-      )
+    ? sent
+        .filter(
+          (i) =>
+            i && typeof i.data === "string" && ALLOWED_MEDIA.includes(i.mediaType)
+        )
+        .map((i) => ({
+          mediaType: i.mediaType,
+          data: i.data,
+          ...(typeof i.label === "string" && i.label.trim()
+            ? { label: i.label.trim() }
+            : {}),
+        }))
     : [];
 
   try {
@@ -182,10 +208,15 @@ export async function POST(req: NextRequest) {
             /* Images first, then the instruction: the model reads the request
                with the evidence already in front of it. */
             content: [
-              ...images.map((i) => ({
-                type: "image" as const,
-                source: { type: "base64" as const, media_type: i.mediaType, data: i.data },
-              })),
+              ...images.flatMap((i) => [
+                ...(i.label
+                  ? [{ type: "text" as const, text: i.label.slice(0, 200) }]
+                  : []),
+                {
+                  type: "image" as const,
+                  source: { type: "base64" as const, media_type: i.mediaType, data: i.data },
+                },
+              ]),
               { type: "text" as const, text: `${TASK_PROMPT[task]}\n\n---\n${context}` },
             ],
           },
