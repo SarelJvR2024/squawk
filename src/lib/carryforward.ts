@@ -166,3 +166,49 @@ export function visitsOpen(item: Outstanding, entityCode: string, visitId: strin
   if (from < 0 || to < 0) return 0;
   return Math.max(0, to - from - 1);
 }
+
+/** What this visit's own work says an asset system is rated, in the same
+ *  vocabulary the 2025 register uses — so `movement()` compares like with like.
+ *
+ *  THIS WAS WRITTEN TWICE and neither copy gated on `ratingConfirmed`.
+ *
+ *  The dashboard and the closure screen each had their own `currentRating`, and
+ *  both banded every finding on the asset system whether the group had agreed
+ *  the rating or not. A finding raised by tapping an issue button arrives
+ *  carrying the button's suggested severity and likelihood with
+ *  `ratingConfirmed: false` — so `bandFor()` returned a band immediately, and
+ *  one tap could turn an asset system Unacceptable and move the
+ *  Improved / Unchanged / Worsened counts against March 2025. Those counts are
+ *  the headline comparison in the out-brief.
+ *
+ *  That is the invariant this whole application is built around — a suggested
+ *  rating reaches no KPI, no dashboard and no export — broken on the two
+ *  screens where it shows up largest. It survived because the rule was applied
+ *  correctly in `fromCarried` above, in `exports.ts` and in the dashboard's own
+ *  `rated` list, all of which are within a few lines of a comment saying so;
+ *  these two functions were somewhere else.
+ *
+ *  So there is now one of it, and it gates. `No coverage` is returned where the
+ *  current checklist has nothing covering the system: `movement()` does not
+ *  recognise it and returns null, which is what leaves it out of the counts
+ *  rather than scoring it as unchanged. */
+export function currentRatingOf(
+  checksForSystem: { id: string }[],
+  findingsForSystem: Finding[],
+  responses: Record<string, { compliance?: string | null; captured?: boolean }>
+): "No coverage" | "Unacceptable" | "Tolerable" | "Pending rating" | "Acceptable" | "Not assessed" {
+  if (checksForSystem.length === 0) return "No coverage";
+  /* Agreed ratings only. A suggestion is not a rating anywhere else in this
+     codebase and it is not one here. */
+  const bands = findingsForSystem
+    .filter((f) => f.ratingConfirmed)
+    .map((f) => bandFor(f.severity, f.likelihood));
+  if (bands.includes("Red")) return "Unacceptable";
+  if (bands.includes("Amber")) return "Tolerable";
+  /* A non-compliance with nothing agreed yet is explicitly NOT "Acceptable".
+     It is work in progress, and saying so is the difference between "we looked
+     and it was fine" and "we looked and have not finished". */
+  if (checksForSystem.some((c) => responses[c.id]?.compliance === "NC")) return "Pending rating";
+  if (checksForSystem.some((c) => responses[c.id]?.captured)) return "Acceptable";
+  return "Not assessed";
+}

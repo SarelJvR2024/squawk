@@ -716,7 +716,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 9,
+      version: 10,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -920,6 +920,27 @@ export const useStore = create<State>()(
               ...f,
               suggestedEvent: f.suggestedEvent ?? "",
             }));
+          }
+        }
+        if (from < 10) {
+          /* ACSA's ERM matrix arrived (J050 001FW cl. 9.2.2), so the field that
+             stood in for it is renamed to the axis the instrument actually
+             has. `ermSeverity` was always null — nothing could set it while the
+             scale was unsupplied — so there is no value to carry, only a shape
+             to correct. `ermLikelihoodAssumed` starts false: no likelihood has
+             been carried across from B170 for any existing hazard. */
+          if (Array.isArray(st.hazards)) {
+            st.hazards = st.hazards.map((h) => {
+              const { ermSeverity, ...rest } = h as Hazard & { ermSeverity?: unknown };
+              void ermSeverity;
+              return {
+                ...rest,
+                ermConsequence: null,
+                ermLikelihood: null,
+                ermConfirmed: false,
+                ermLikelihoodAssumed: false,
+              } as Hazard;
+            });
           }
         }
         return st;

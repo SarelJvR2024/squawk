@@ -282,6 +282,34 @@ export interface Response {
   flaggedForField: boolean;
 }
 
+/* ---------- ACSA's SECOND instrument: the ERM matrix ----------
+
+   J050 001FW *Combined Assurance Framework*, Version 1, 19 October 2017,
+   clause 9.2.2. It rates BUSINESS RISK and decides what enters ACSA's Combined
+   Assurance Coverage Plan. It is not a variant of B170 001M and not a competing
+   version of it — see the header of src/lib/erm.ts.
+
+   Consequence runs 5 → 1 with Catastrophic HIGH, the opposite direction to
+   B170's A → E. The number is carried inside the label for that reason: getting
+   the direction backwards inverts the entire matrix and nothing would say so. */
+
+export type ErmConsequence =
+  | "5 - Catastrophic"
+  | "4 - Critical"
+  | "3 - Significant"
+  | "2 - Moderate"
+  | "1 - Minor";
+
+export type ErmLikelihood =
+  | "1 - Not Likely"
+  | "2 - Slight"
+  | "3 - Likely"
+  | "4 - Highly Likely"
+  | "5 - Expected";
+
+/** I = Unacceptable · II = Tolerable · III = Acceptable (cl. 9.2.2). */
+export type ErmPriority = "I" | "II" | "III";
+
 /** A hazard: the EVENT a set of findings exposes.
  *
  *  A finding says a document was missing or a coupler was worn. A hazard says
@@ -313,12 +341,23 @@ export interface Hazard {
   likelihood: Likelihood | null;
   ratingConfirmed: boolean;
   /** ACSA's enterprise risk matrix — a SEPARATE instrument, deliberately not
-   *  derived from B170 001M. See src/lib/erm.ts: the scale itself has not been
-   *  supplied, so these stay null and `ermConfirmed` stays false. Nothing in
-   *  the app will let a value be set until the real matrix is dropped in. */
-  ermSeverity: string | null;
-  ermLikelihood: string | null;
+   *  derived from B170 001M. J050 001FW cl. 9.2.2; see src/lib/erm.ts.
+   *
+   *  The axis is CONSEQUENCE, not severity. B170 001M has severity; this has
+   *  consequence, they run in opposite directions, and calling them the same
+   *  thing is how a rating gets carried across without anyone looking at it. */
+  ermConsequence: ErmConsequence | null;
+  ermLikelihood: ErmLikelihood | null;
   ermConfirmed: boolean;
+  /** True while the ERM likelihood is still the one carried across from the
+   *  B170 rating rather than one the session looked at.
+   *
+   *  The consequence scales map by position closely enough to suggest. The
+   *  likelihood scales DO NOT: B170's is occurrence history ("has occurred
+   *  rarely"), ERM's is probability ("Likely, 25-54%"). A hazard can sit at
+   *  B170 level 3 and ERM level 2 with neither being wrong, so a carried
+   *  likelihood is flagged as an assumption until somebody agrees it. */
+  ermLikelihoodAssumed: boolean;
   /** Where the consolidation came from, and whether a photograph drove it. */
   source: "consolidated" | "manual";
   note: string;

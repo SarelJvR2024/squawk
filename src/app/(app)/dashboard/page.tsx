@@ -18,6 +18,7 @@ import {
 } from "@/lib/store";
 import { ENTITIES, PROGRAMME_VISITS } from "@/lib/programme";
 import { LIKELIHOODS, SEVERITIES, bandFor, movement } from "@/lib/risk";
+import { currentRatingOf } from "@/lib/carryforward";
 import { Panel, Pill, Track } from "@/components/ui/primitives";
 
 /** "15–18 Sep 2026". The audit window comes off the register's own calendar. */
@@ -107,16 +108,15 @@ export default function DashboardPage() {
     (p) => verifications[p.portalId]?.outcome === "Open - repeat"
   ).length;
 
-  const currentRating = (disc: string, sys: string) => {
-    const cs = checksOf(entityCode, disc, sys);
-    const ncFindings = findings.filter((f) => f.discipline === disc && f.system === sys);
-    const bands = ncFindings.map((f) => bandFor(f.severity, f.likelihood));
-    if (bands.includes("Red")) return "Unacceptable";
-    if (bands.includes("Amber")) return "Tolerable";
-    if (cs.some((c) => responses[c.id]?.compliance === "NC")) return "Pending rating";
-    if (cs.some((c) => responses[c.id]?.captured)) return "Acceptable";
-    return "Not assessed";
-  };
+  /* Shared with the closure screen — see currentRatingOf in carryforward.ts.
+     It was written twice and neither copy gated on ratingConfirmed, so an
+     untapped issue button could move the movement counts below. */
+  const currentRating = (disc: string, sys: string) =>
+    currentRatingOf(
+      checksOf(entityCode, disc, sys),
+      findings.filter((f) => f.discipline === disc && f.system === sys),
+      responses
+    );
 
   /* An unallocated finding names a building, not an asset system, so there is
      nothing to compare it against and it is left out of the movement counts

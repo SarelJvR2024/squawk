@@ -1,4 +1,10 @@
 import type { NextRequest } from "next/server";
+import {
+  LIKELIHOODS,
+  LIKELIHOOD_DEF,
+  SEVERITIES,
+  SEVERITY_DEF,
+} from "@/lib/risk";
 
 /* The assist endpoint. Everything the model is asked to do is advisory: it
    drafts wording and offers an opinion, and the auditor accepts, edits or
@@ -78,6 +84,45 @@ type Task =
   | "consolidate"      // group findings that describe one physical thing
   | "reassess";        // re-read a hazard after the walkthrough
 
+/** The B170 001M scales, BUILT FROM src/lib/risk.ts rather than restated here.
+ *
+ *  This exists because restating them was a live defect. The prompt used to
+ *  read "severity A (Catastrophic) to E (Minor), likelihood 1 (Not likely) to
+ *  5 (Expected)", and both halves were wrong:
+ *
+ *    · E is NEGLIGIBLE. Minor is D. The bottom of the scale was named one
+ *      notch too high.
+ *    · "Not likely to Expected" is a GENERIC probability scale. B170 001M's
+ *      likelihood is occurrence history — Extremely Improbable, Improbable,
+ *      Remote, Occasional, Frequent — and its level 3 means "unlikely but
+ *      could possibly occur", where the generic reading of level 3 is
+ *      "Likely". The opposite.
+ *
+ *  Every rating opinion the assistant has ever given was formed against that.
+ *  The same inversion had already been caught once inside risk.ts, and
+ *  tests/risk-matrix.test.mjs was written to stop it returning — but the wrong
+ *  words were in a DIFFERENT FILE from the matrix, so the suite guarding the
+ *  matrix could not see them.
+ *
+ *  Restating a scale is the bug. So this is generated: there is now one source
+ *  of these words, and a prompt that disagrees with the matrix is not
+ *  expressible. tests/risk-matrix.test.mjs asserts the route derives rather
+ *  than restates. */
+const B170_SCALES = [
+  "Severity, verbatim from cl. 4.3.1 — use these letters and these meanings, not a generic scale:",
+  ...SEVERITIES.map(
+    (s) => `  ${s} — ${SEVERITY_DEF[s.charAt(0)].consequence}`
+  ),
+  "",
+  "Likelihood, verbatim from cl. 4.3.2. NOTE: this axis is OCCURRENCE HISTORY, not probability. Level 3 means \"unlikely but could possibly occur\", NOT \"likely\":",
+  ...LIKELIHOODS.map((l) => {
+    const d = LIKELIHOOD_DEF[l.charAt(0)];
+    return `  ${l}${d.gloss ? ` (${d.gloss})` : ""} — ${d.meaning}`;
+  }),
+  "",
+  "Cells are written likelihood-first: 3A is likelihood 3, severity A.",
+].join("\n");
+
 const SYSTEM = `You are assisting a Thabile-Pridin JV auditor during an Airports Company South Africa asset assurance audit at a South African airport.
 
 House rules, in order of importance:
@@ -97,7 +142,7 @@ const TASK_PROMPT: Record<Task, string> = {
   explain:
     "Explain what this check requires, in plain English, for an auditor who has not read the underlying procedure. Cover: what ACSA's own documents demand, what the acceptance threshold is (or say clearly that ACSA states none), and what 'good' looks like on the day. Four sentences at most.",
   rating:
-    "Give your opinion on how this finding rates on ACSA's B170 001M matrix: severity A (Catastrophic) to E (Minor), likelihood 1 (Not likely) to 5 (Expected). Answer in this shape and nothing else:\nSeverity: <letter> — <five words>\nLikelihood: <number> — <five words>\nWhy: <one sentence>\nThe audit team rates as a group and may well disagree with you; frame it as a view, not a verdict.",
+    `Give your opinion on how this finding rates on ACSA's B170 001M matrix.\n\n${B170_SCALES}\n\nAnswer in this shape and nothing else:\nSeverity: <letter> — <five words>\nLikelihood: <number> — <five words>\nWhy: <one sentence>\nThe audit team rates as a group and may well disagree with you; frame it as a view, not a verdict.`,
   transcript:
     "Below is a verbatim transcript of a voice note an auditor dictated at the asset, followed by the check it was recorded against. Spoken notes ramble, restart, switch between English and Afrikaans mid-sentence, and carry filler. Rewrite it as the written observation for this check.\n\nRules for this task specifically:\n- Carry across every fact, number, unit, quantity, location and item the auditor said, exactly as said. A number is the whole value of this record; changing 40mm to 40cm, or dropping one of three items, is the worst thing you can do here.\n- Where the auditor spoke Afrikaans, write the observation in English, but keep any proper noun, plant name, equipment tag or ACSA document reference in the form they said it.\n- Drop the filler, the false starts, the asides to other people and anything said about the recording itself.\n- Do not add a fact the auditor did not say, do not resolve something they left uncertain, and do not soften or sharpen their judgement. If they said they were unsure, the observation says so.\n- If the note is too garbled or too sparse to make an observation from, say exactly that in one sentence instead of inventing one.\nReturn the observation text alone, with no preamble, heading or quotation marks.",
   caption:

@@ -6,7 +6,7 @@ running server; fifteen do not. **Check each suite's exit status, not its output
 
 | Suite | Needs a server | Assertions run |
 |---|---|---|
-| `risk-matrix.test.mjs` | no | 29 |
+| `risk-matrix.test.mjs` | no | 37 |
 | `capture.test.mjs` | no | 28 |
 | `scope.test.mjs` | no | 46 |
 | `carryforward.test.mjs` | no | 22 |
@@ -20,7 +20,7 @@ running server; fifteen do not. **Check each suite's exit status, not its output
 | `sites.test.mjs` | no | 41 |
 | `photos.test.mjs` | no | 96 |
 | `hazards.test.mjs` | no | 106 |
-| `erm-matrix.test.mjs` | no | 30 |
+| `erm-matrix.test.mjs` | no | 64 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 38 |
 | `exports.js` | yes | 30 |
@@ -29,7 +29,7 @@ running server; fifteen do not. **Check each suite's exit status, not its output
 | `vision.js` | starts its own | 17 |
 | `record.js` | starts its own | 14 |
 
-**726 assertions in total**, every count above verified by running the suite,
+**768 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -368,25 +368,30 @@ parsers or the `hazard` / `consolidate` / `reassess` prompts.**
 
 ## `erm-matrix.test.mjs`
 
-The test for an instrument that is **declared and empty**, which is unusual
-enough to read the header before changing it.
+ACSA's **second** rating instrument: J050 001FW *Combined Assurance Framework*
+cl. 9.2.2. Business risk, priorities I / II / III, and clause 9.1.2 decides
+what enters the Combined Assurance Coverage Plan.
 
-ACSA's enterprise risk matrix is the second rating instrument on a hazard. Its
-scale wording, band labels and cell mapping are ACSA document content nobody has
-supplied, so `src/lib/erm.ts` holds nothing and `available()` returns false.
-This suite asserts that it stays that way honestly: the scale is empty, nothing
-derives it from B170 001M, and the absence is *said* — on screen and in the
-export's rating-state column — rather than left as blank cells that read like
-"no risk".
+The grid is transcribed independently from the framework and checked cell by
+cell, the way `risk-matrix.test.mjs` is written against B170 001M — 25 cells,
+the 10 / 9 / 6 split, the percentage bands, the priority meanings.
 
-Writing a plausible scale would be the worst available option, and this repo has
-already shipped that failure once in a different form: a severity/likelihood
-scale that banded correctly but meant something else, where level 3 read
-"Likely" and ACSA's level 3 means "unlikely but could possibly occur".
+It exists for the reason the B170 suite does **and one more**: the two matrices
+look similar enough to be confused and their consequence axes run in *opposite*
+directions. B170 severity goes A (Catastrophic) → E (Negligible); ERM
+consequence goes 5 (Catastrophic) → 1 (Minor). Anyone tidying them into one
+shape inverts this one silently, and the priorities stay plausible while being
+exactly wrong.
 
-When ACSA supply the matrix, fill in the three constants and **rewrite parts 1
-and 2 against their own table**, cell by cell, the way `risk-matrix.test.mjs` is
-written against B170 001M. Part 3 stands either way.
+Later parts compute the **five cells where the instruments disagree** — 1B, 2A,
+3B, 4C, 5D — from both grids rather than asserting a remembered list, and check
+that ERM is the harsher of the two in every one. Those five are why the Rev A2
+register looked like it had a transcription error: it carries this matrix, not
+B170 001M. They also assert the separation holds in the code, not only in the
+comments: nothing derives one rating from the other, a likelihood carried across
+is marked as an assumption, and an unagreed ERM rating reaches no export column.
+
+**Run it after any edit to `src/lib/erm.ts` or `src/lib/risk.ts`.**
 
 ```bash
 node tests/erm-matrix.test.mjs

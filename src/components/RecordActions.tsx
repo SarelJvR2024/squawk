@@ -41,7 +41,13 @@ import { useAssistAvailable } from "@/lib/assist";
 import { Chip } from "@/components/ui/primitives";
 import { Btn } from "@/components/ui/primitives";
 import { IconSpark } from "@/components/ui/icons";
-import type { ActionStatus, Likelihood, Severity } from "@/lib/types";
+import type {
+  ActionStatus,
+  ErmConsequence,
+  ErmLikelihood,
+  Likelihood,
+  Severity,
+} from "@/lib/types";
 
 /** The shape both findings and hazards satisfy. Deliberately structural: this
  *  component does not import either type, so it cannot start depending on a
@@ -57,9 +63,10 @@ export interface RatedRecord {
   dueDate: string;
   actionStatus: ActionStatus;
   /** Hazards only. Absent on findings, which are not rated on ERM. */
-  ermSeverity?: string | null;
-  ermLikelihood?: string | null;
+  ermConsequence?: ErmConsequence | null;
+  ermLikelihood?: ErmLikelihood | null;
   ermConfirmed?: boolean;
+  ermLikelihoodAssumed?: boolean;
 }
 
 export default function RecordActions({
@@ -212,66 +219,193 @@ export default function RecordActions({
       {/* The ERM rating sits immediately under the B170 001M one, not further
           down behind unrelated fields — two ratings of the same thing belong
           next to each other, and separating them was a real defect once. */}
+      {/* The ERM rating sits immediately under the B170 001M one, not further
+          down behind unrelated fields — two ratings of the same thing belong
+          next to each other, and separating them was a real defect once. */}
       {showErm && (
         <div
           className="mb-3.5 rounded-[11px] border px-[13px] py-[11px]"
           style={{ borderColor: "var(--line-2)", background: "var(--sunken)" }}
         >
-          <div className="label-xs mb-1.5">ACSA enterprise risk matrix · a separate instrument</div>
-          {erm.available() ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className="label-xs">ERM severity</span>
-                <select
-                  value={record.ermSeverity ?? ""}
-                  onChange={(e) =>
-                    onChange({ ermSeverity: e.target.value || null, ermConfirmed: false })
-                  }
-                  className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[11.5px]"
-                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-                >
-                  <option value="">Not set</option>
-                  {erm.ERM_SEVERITIES.map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="label-xs">ERM likelihood</span>
-                <select
-                  value={record.ermLikelihood ?? ""}
-                  onChange={(e) =>
-                    onChange({ ermLikelihood: e.target.value || null, ermConfirmed: false })
-                  }
-                  className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[11.5px]"
-                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-                >
-                  <option value="">Not set</option>
+          <div className="mb-1 flex flex-wrap items-center gap-2">
+            <span className="label-xs">
+              ACSA enterprise risk · J050 001FW cl. 9.2.2 · a separate instrument
+            </span>
+          </div>
+          <div className="mb-2 text-[10.5px] leading-[1.5]" style={{ color: "var(--ink-3)" }}>
+            Consequence runs 5 to 1, the opposite direction to B170 001M&rsquo;s A to E, and this
+            likelihood is a <b>probability</b> where B170&rsquo;s is occurrence history. The two
+            instruments disagree on five cells by design. Nothing here is derived from the rating
+            above without you agreeing it.
+          </div>
+
+          {/* Consequence down, likelihood across, exactly as cl. 9.2.2 prints
+              it. One tap sets both and agrees them, the same gesture the B170
+              matrix uses — and it clears the assumed-likelihood flag, because
+              a cell somebody tapped is not a carried number. */}
+          <div className="overflow-x-auto">
+            <table style={{ borderSpacing: 4, borderCollapse: "separate" }}>
+              <thead>
+                <tr>
+                  <th
+                    className="pr-1.5 text-right font-mono text-[8px] font-medium"
+                    style={{ color: "var(--ink-4)" }}
+                  >
+                    C&nbsp;&darr;
+                  </th>
                   {erm.ERM_LIKELIHOODS.map((l) => (
-                    <option key={l}>{l}</option>
+                    <th
+                      key={l}
+                      title={`${l} — ${erm.ERM_LIKELIHOOD_DEF[l.charAt(0)]}`}
+                      className="p-[3px] font-mono text-[9px] font-medium"
+                      style={{ color: "var(--ink-4)" }}
+                    >
+                      {l.charAt(0)}
+                    </th>
                   ))}
-                </select>
-              </label>
-              <div className="sm:col-span-2">
-                <Btn
-                  variant={record.ermConfirmed ? "primary" : "ghost"}
-                  disabled={!record.ermSeverity || !record.ermLikelihood}
-                  onClick={() => onChange({ ermConfirmed: !record.ermConfirmed })}
+                </tr>
+              </thead>
+              <tbody>
+                {erm.ERM_CONSEQUENCES.map((c) => (
+                  <tr key={c}>
+                    <th
+                      title={`${c} — ${erm.ERM_CONSEQUENCE_DEF[c.charAt(0)]}`}
+                      className="pr-1.5 text-right font-mono text-[9px] font-medium"
+                      style={{ color: "var(--ink-4)" }}
+                    >
+                      {c.charAt(0)}
+                    </th>
+                    {erm.ERM_LIKELIHOODS.map((l) => {
+                      const p = erm.ermPriority(c, l)!;
+                      const picked = record.ermConsequence === c && record.ermLikelihood === l;
+                      const tone = erm.ERM_PRIORITY_META[p].tone;
+                      return (
+                        <td key={l}>
+                          <button
+                            onClick={() =>
+                              onChange({
+                                ermConsequence: c,
+                                ermLikelihood: l,
+                                ermConfirmed: true,
+                                ermLikelihoodAssumed: false,
+                              })
+                            }
+                            aria-label={`Consequence ${c} by likelihood ${l} — priority ${p}, ${erm.ERM_PRIORITY_META[p].tolerance}`}
+                            className="h-[36px] w-[52px] rounded-[8px] border-[1.5px] font-mono text-[10px] font-semibold transition-[var(--t)]"
+                            style={{
+                              background: `var(--${tone}-bg)`,
+                              color: `var(--${tone})`,
+                              borderColor: picked
+                                ? record.ermConfirmed
+                                  ? "var(--acc)"
+                                  : "var(--ink-4)"
+                                : "transparent",
+                              borderStyle: picked && !record.ermConfirmed ? "dashed" : "solid",
+                              boxShadow:
+                                picked && record.ermConfirmed ? "0 0 0 2px var(--acc-soft)" : "none",
+                            }}
+                          >
+                            {p}
+                          </button>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {(() => {
+            const p = erm.ermPriority(record.ermConsequence ?? null, record.ermLikelihood ?? null);
+            const suggest = () => {
+              const g = erm.suggestErm(record.severity, record.likelihood);
+              onChange({
+                ermConsequence: g.consequence,
+                ermLikelihood: g.likelihood,
+                /* NOT confirmed. A carried rating that arrives agreed is the
+                   silent derivation this instrument exists to prevent. */
+                ermConfirmed: false,
+                ermLikelihoodAssumed: g.likelihoodIsAssumed,
+              });
+              onToast?.("Carried across from B170 001M — check the likelihood, then agree it");
+            };
+            return (
+              <>
+                <div
+                  className="mt-2 flex flex-wrap items-center gap-2 rounded-[9px] px-[11px] py-[8px] font-display text-[12px] font-bold"
+                  style={
+                    p
+                      ? {
+                          background: `var(--${erm.ERM_PRIORITY_META[p].tone}-bg)`,
+                          color: `var(--${erm.ERM_PRIORITY_META[p].tone})`,
+                        }
+                      : { background: "var(--panel)", color: "var(--ink-3)", fontWeight: 500, fontSize: 11 }
+                  }
                 >
-                  {record.ermConfirmed ? "Agreed on ERM" : "Agree this ERM rating"}
-                </Btn>
-              </div>
-            </div>
-          ) : (
-            /* Not a placeholder to be filled in with something plausible.
-               See src/lib/erm.ts — an invented scale that looks official is
-               the failure this application exists to prevent. */
-            <div className="text-[11.5px] leading-[1.5]" style={{ color: "var(--ink-2)" }}>
-              {erm.UNAVAILABLE_REASON} The field and the export column exist; the scale itself is
-              ACSA document content and is not in this build. Nothing here derives it from B170
-              001M — they measure different things.
-            </div>
-          )}
+                  {p ? (
+                    <>
+                      <span>
+                        {erm.ermCell(record.ermConsequence ?? null, record.ermLikelihood ?? null)} ·
+                        Priority {p} — {erm.ERM_PRIORITY_META[p].tolerance}
+                      </span>
+                      <span className="font-sans text-[10.5px] font-normal opacity-80">
+                        {erm.ERM_PRIORITY_META[p].action}
+                      </span>
+                      {!record.ermConfirmed && (
+                        <span
+                          className="ml-auto rounded-full px-2 py-[3px] font-mono text-[8.5px] font-semibold tracking-[.04em] uppercase"
+                          style={{ background: "var(--panel)", color: "var(--ink-3)" }}
+                        >
+                          Suggested · tap a cell to agree
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    "No ERM rating set. Tap a cell, or carry the B170 rating across as a starting point."
+                  )}
+                </div>
+
+                {/* Clause 9.1.2 is the reason this rating exists at all: it is
+                    what decides whether the hazard reaches ACSA's Combined
+                    Assurance Coverage Plan. Say so where the rating is made. */}
+                {p && record.ermConfirmed && (
+                  <div className="mt-1.5 text-[11px]" style={{ color: "var(--ink-2)" }}>
+                    {erm.entersAssurancePlan(p)
+                      ? "Enters the Combined Assurance Coverage Plan (cl. 9.1.2 — I and II as a minimum)."
+                      : "Below the Combined Assurance Coverage Plan threshold (cl. 9.1.2)."}
+                  </div>
+                )}
+
+                {/* The one thing that must not pass quietly. */}
+                {record.ermLikelihoodAssumed && record.ermLikelihood && (
+                  <div
+                    className="mt-1.5 rounded-[7px] border px-[8px] py-[6px] text-[11px] leading-[1.5]"
+                    style={{
+                      background: "var(--warn-bg)",
+                      borderColor: "var(--warn-line)",
+                      color: "var(--warn)",
+                    }}
+                  >
+                    <b>This likelihood was carried across, not agreed.</b> B170 001M likelihood is
+                    occurrence history; ERM likelihood is a probability band
+                    {record.ermLikelihood
+                      ? ` (${erm.ERM_LIKELIHOOD_DEF[record.ermLikelihood.charAt(0)]})`
+                      : ""}
+                    . They are different questions — look at it again and tap the cell you mean.
+                  </div>
+                )}
+
+                {record.severity && record.likelihood && (
+                  <div className="mt-2">
+                    <Btn variant="ghost" onClick={suggest}>
+                      Carry the B170 rating across as a starting point
+                    </Btn>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
 

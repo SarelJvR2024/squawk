@@ -12,7 +12,7 @@ import {
   useVisitFindings,
   useVisitId,
 } from "@/lib/store";
-import { useOutstanding, visitsOpen } from "@/lib/carryforward";
+import { currentRatingOf, useOutstanding, visitsOpen } from "@/lib/carryforward";
 import { PROGRAMME_VISITS } from "@/lib/programme";
 import { bandFor, movement } from "@/lib/risk";
 import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
@@ -62,19 +62,14 @@ export default function ClosurePage() {
     setTimeout(() => setToast(null), 2400);
   };
 
-  /** Current rating of an asset system, from this visit's captured data. */
-  const currentRating = (discipline: string, system: string) => {
-    const cs = checksOf(entityCode, discipline, system);
-    if (cs.length === 0) return "No coverage";
-    const bands = findings
-      .filter((f) => f.discipline === discipline && f.system === system)
-      .map((f) => bandFor(f.severity, f.likelihood));
-    if (bands.includes("Red")) return "Unacceptable";
-    if (bands.includes("Amber")) return "Tolerable";
-    if (cs.some((c) => responses[c.id]?.compliance === "NC")) return "Pending rating";
-    if (cs.some((c) => responses[c.id]?.captured)) return "Acceptable";
-    return "Not assessed";
-  };
+  /** Current rating of an asset system, from this visit's captured data.
+   *  Shared with the dashboard — see currentRatingOf in carryforward.ts. */
+  const currentRating = (discipline: string, system: string) =>
+    currentRatingOf(
+      checksOf(entityCode, discipline, system),
+      findings.filter((f) => f.discipline === discipline && f.system === system),
+      responses
+    );
 
   const list = useMemo(() => {
     let l = outstanding;
