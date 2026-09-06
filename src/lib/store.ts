@@ -746,7 +746,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 10,
+      version: 11,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -969,6 +969,35 @@ export const useStore = create<State>()(
                 ermLikelihood: null,
                 ermConfirmed: false,
                 ermLikelihoodAssumed: false,
+              } as Hazard;
+            });
+          }
+        }
+        if (from < 11) {
+          /* A consolidated hazard spans disciplines by nature — the same
+             missing fuse was PF-02 to Electrical and PF-21 to Process Safety —
+             so discipline and system go plural. `source` becomes `origin`,
+             which can now say WHO raised it: a hazard ACSA add in the closing
+             session is reported as theirs, and "manual" could not express
+             that. Existing manual hazards become "tpjv", which is what they
+             were; nothing is guessed into "acsa". */
+          if (Array.isArray(st.hazards)) {
+            st.hazards = st.hazards.map((h) => {
+              const old = h as Hazard & {
+                discipline?: string;
+                system?: string;
+                source?: string;
+              };
+              const { discipline, system, source, ...rest } = old;
+              return {
+                ...rest,
+                disciplines: discipline ? [discipline] : (old.disciplines ?? []),
+                systems: system ? [system] : (old.systems ?? []),
+                origin: source === "consolidated" ? "consolidated" : "tpjv",
+                occurrence: old.occurrence ?? "",
+                ratingRationale: old.ratingRationale ?? "",
+                progress: old.progress ?? [],
+                immediate: old.immediate ?? false,
               } as Hazard;
             });
           }

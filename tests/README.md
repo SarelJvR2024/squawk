@@ -19,7 +19,7 @@ running server; fifteen do not. **Check each suite's exit status, not its output
 | `voice.test.mjs` | no | 37 |
 | `sites.test.mjs` | no | 41 |
 | `photos.test.mjs` | no | 96 |
-| `hazards.test.mjs` | no | 106 |
+| `hazards.test.mjs` | no | 113 |
 | `erm-matrix.test.mjs` | no | 64 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 38 |
@@ -30,7 +30,7 @@ running server; fifteen do not. **Check each suite's exit status, not its output
 | `record.js` | starts its own | 14 |
 | `flow.js` | yes | 30 |
 
-**799 assertions in total**, every count above verified by running the suite,
+**806 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 

@@ -132,7 +132,39 @@ check(
 );
 check("an unknown id never survives", !allIds.includes("F-ZZZ99"));
 check("the consolidation note survives", groups[0].note === "n");
-check("prose yields no groups", parseGroups("I grouped them for you.", KNOWN).length === 0);
+/* Prose used to yield nothing, and "nothing" quietly meant every finding was
+   dropped. Now the model saying something unusable means every finding comes
+   back UNGROUPED — which is the honest outcome: consolidation failed, and
+   here is everything it failed on. */
+const fromProse = parseGroups("I grouped them for you.", KNOWN);
+check("prose yields no GROUPING", fromProse.every((g) => !g.event));
+check(
+  "but every finding still comes back, one per group",
+  fromProse.length === KNOWN.length &&
+    fromProse.flatMap((g) => g.findingIds).sort().join() === KNOWN.slice().sort().join(),
+  "consolidation may be wrong about how things group; it may not lose a finding"
+);
+check(
+  "and each is marked as not grouped rather than left blank",
+  fromProse.every((g) => /Not grouped/.test(g.note ?? "")),
+  "a reviewer has to see it was not grouped, not that it was not considered"
+);
+
+/* The same guarantee on a PARTIAL answer, which is the realistic case. */
+const partial = parseGroups(
+  JSON.stringify({ groups: [{ event: "One thing", findingIds: ["F-AAA11", "F-BBB22"] }] }),
+  KNOWN
+);
+const placed = partial.flatMap((g) => g.findingIds);
+check(
+  "NOTHING IS LOST when the model places only some of them",
+  placed.length === KNOWN.length && new Set(placed).size === KNOWN.length,
+  "a wrongly merged pair HIDES a finding, so an over-long register is the safer error"
+);
+check(
+  "the ones it did place keep their group",
+  partial[0].findingIds.join() === "F-AAA11,F-BBB22"
+);
 check("an empty known-set refuses everything", parseGroups(JSON.stringify({ groups: [{ event: "e", findingIds: ["F-AAA11"] }] }), []).length === 0);
 check(
   "parseGroups returns no rating either",
@@ -236,8 +268,26 @@ check("hazards are persisted", /\n\s+hazards: s\.hazards,/.test(store));
 check("hazard ids are their own namespace", /HZ-\$\{uid\(\)/.test(store));
 check("a hazard can be removed, freeing its findings to regroup", /removeHazard:/.test(store));
 check("the persist key is untouched", /name: "acsa-assurance-v1"/.test(store));
-check("the version was bumped rather than the key renamed", /version: 10,/.test(store));
-check("and every bump has a migration", /if \(from < 9\)/.test(store) && /if \(from < 10\)/.test(store));
+check("the version was bumped rather than the key renamed", /version: 11,/.test(store));
+check(
+  "and every bump has a migration",
+  /if \(from < 9\)/.test(store) && /if \(from < 10\)/.test(store) && /if \(from < 11\)/.test(store)
+);
+check(
+  "a consolidated hazard spans disciplines rather than borrowing the first one's",
+  /disciplines: string\[\];/.test(types) && /systems: string\[\];/.test(types),
+  "the same missing fuse was PF-02 to Electrical and PF-21 to Process Safety"
+);
+check(
+  "and the register can say who raised it, ACSA included",
+  /origin: "consolidated" \| "field" \| "acsa" \| "tpjv";/.test(types),
+  "the closing session is where ACSA add what the check-list missed"
+);
+check(
+  "occurrence history has its own field",
+  /occurrence: string;/.test(types),
+  "four of B170's five likelihood levels are defined by whether it has happened"
+);
 check(
   "the migration does not invent a hazard from a finding",
   /a finding\s*\n?\s*\*?\s*is not a hazard/i.test(store) || /is not a hazard/.test(store)

@@ -237,7 +237,14 @@ export function parseHazards(raw: string): HazardProposal[] {
 
 /** Consolidation. `known` is the set of finding ids actually in scope: a group
  *  naming a finding that does not exist would create a hazard pointing at
- *  nothing, so unknown ids are dropped and a group left with none is refused. */
+ *  nothing, so unknown ids are dropped and a group left with none is refused.
+ *
+ *  AND NOTHING MAY BE LOST. A finding the model simply did not mention comes
+ *  back as its own single-finding group, marked so a reviewer can see it was
+ *  not grouped rather than not considered. Consolidation is allowed to be
+ *  wrong about how things group; it is not allowed to make a finding
+ *  disappear. A wrongly merged pair HIDES a finding, so an over-long register
+ *  is the safer error every time. */
 export function parseGroups(raw: string, known: string[]): HazardProposal[] {
   const j = jsonFrom(raw) as { groups?: unknown } | null;
   const list = Array.isArray(j?.groups) ? j!.groups : [];
@@ -253,6 +260,18 @@ export function parseGroups(raw: string, known: string[]): HazardProposal[] {
     if (!ids.length) continue;
     ids.forEach((id) => seen.add(id));
     out.push({ ...p, findingIds: ids });
+  }
+  /* Whatever the model did not place. */
+  for (const id of known) {
+    if (seen.has(id)) continue;
+    out.push({
+      event: "",
+      description: "",
+      why: "",
+      confidence: "low",
+      findingIds: [id],
+      note: "Not grouped with anything — name the event this finding exposes, or leave it as a hazard of its own.",
+    });
   }
   return out;
 }

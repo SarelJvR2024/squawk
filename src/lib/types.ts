@@ -330,10 +330,18 @@ export interface Hazard {
   /** What control failed, and what it was protecting against. */
   why: string;
   /** The findings this consolidates. A hazard with none is one somebody raised
-   *  directly at the register, which is allowed. */
+   *  directly at the register or on the walk, which is allowed and common. */
   findingIds: string[];
-  discipline: string;
-  system: string;
+  /** PLURAL, and that is the whole point.
+   *
+   *  In the March 2025 KSIA register the same missing diesel cut-out fuse was
+   *  recorded as PF-02 by Electrical and PF-21 by Process Safety: two entries,
+   *  two Unacceptable ratings, one fuse — and closing it would have needed two
+   *  verifications that could disagree. A consolidated hazard therefore spans
+   *  disciplines by nature, and taking the first finding's discipline as the
+   *  hazard's throws away exactly the fact that made it worth consolidating. */
+  disciplines: string[];
+  systems: string[];
   /** B170 001M, the instrument this repo actually carries. Gated by
    *  ratingConfirmed exactly as a finding is: the assistant may propose a
    *  rating, it may never agree one. */
@@ -358,9 +366,29 @@ export interface Hazard {
    *  B170 level 3 and ERM level 2 with neither being wrong, so a carried
    *  likelihood is flagged as an assumption until somebody agrees it. */
   ermLikelihoodAssumed: boolean;
-  /** Where the consolidation came from, and whether a photograph drove it. */
-  source: "consolidated" | "manual";
+  /** Where it came from, and it matters who.
+   *
+   *  `acsa` in particular: the closing session is where ACSA add the hazards
+   *  the check-list missed, and those are reported as theirs. A register that
+   *  cannot say which hazards ACSA raised cannot show that the audit listened. */
+  origin: "consolidated" | "field" | "acsa" | "tpjv";
   note: string;
+  /** ACSA's occurrence history for this event, in their words.
+   *
+   *  Four of B170 001M's five likelihood levels are defined by whether the
+   *  event has happened and how often — "has occurred rarely", "has occurred
+   *  infrequently". That is ACSA's data, not ours, and without it the
+   *  likelihood axis cannot honestly be set. So it gets its own field and its
+   *  own prompt on screen rather than living in somebody's head. */
+  occurrence: string;
+  /** Why the group agreed the cell they agreed. A rating with no reasoning is
+   *  a number nobody can defend eighteen months later. */
+  ratingRationale: string;
+  /** Dated, attributed updates. Same shape as a carried finding's — ACSA's
+   *  Progress/Update is one cell that gets typed over, and this appends. */
+  progress: ProgressNote[];
+  /** Raised in the end-of-week critical review with ACSA. */
+  immediate: boolean;
   /** Set by the post-walk re-read, so a reader can see it was looked at again
    *  and what changed. */
   reassessedAt: number | null;
