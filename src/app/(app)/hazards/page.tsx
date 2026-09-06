@@ -278,21 +278,46 @@ export default function HazardsPage() {
     }
   }
 
+  /* An empty register offers BOTH ways in.
+   *
+   *  It used to offer only "Go to capture", which made consolidation look like
+   *  the sole route to a hazard — and with no findings yet there was no way to
+   *  record one at all. That is wrong twice over. Most hazards are consolidated
+   *  from findings, but a hazard spotted on the walk, or one ACSA raises in the
+   *  closing session, is not a finding first and never becomes one. The type
+   *  has always allowed a hazard with no findings behind it; the screen did
+   *  not. */
   if (!hazards.length && !findings.length) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
         <Empty>
           <IconInbox width={28} height={28} />
-          <div className="max-w-[46ch]">
+          <div className="max-w-[52ch]">
             <b className="mb-1 block font-display text-[14px]" style={{ color: "var(--ink)" }}>
-              Nothing to consolidate yet
+              No hazards yet
             </b>
-            Hazards are built from findings. Raise findings in capture or in the field, then come
-            back and group the ones that describe the same physical thing.
+            A hazard is the <b>event</b> a failed control was protecting against — &ldquo;uncontained
+            fuel release on the apron&rdquo;, not &ldquo;register not signed&rdquo;. It is what
+            carries the rating, because a finding closes and a hazard does not.
+            <br />
+            <br />
+            Most are built by consolidating findings once they exist. One you see on the walk, or
+            one ACSA raises in the closing session, is recorded here directly.
           </div>
-          <Btn className="mt-2" onClick={() => router.push("/capture")}>
-            Go to capture
-          </Btn>
+          <div className="mt-2 flex flex-wrap justify-center gap-2">
+            <Btn
+              variant="primary"
+              onClick={() => {
+                const id = addHazard(blank({ source: "manual" }));
+                setActiveId(id);
+                say(`${id} raised · name the event, then rate it`);
+              }}
+            >
+              Raise a hazard now
+            </Btn>
+            <Btn onClick={() => router.push("/capture")}>Go to capture</Btn>
+            <Btn onClick={() => router.push("/field")}>Go to the walk</Btn>
+          </div>
         </Empty>
       </div>
     );

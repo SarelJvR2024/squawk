@@ -174,6 +174,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
+      {/* One row, and it must FIT.
+       *
+       *  It did not. Measured on the device this is built for, the header
+       *  wanted 1,552px against an 820px portrait iPad and 1,590px against a
+       *  1,024px one — and the app shell clips rather than scrolls, so the
+       *  overflow was not merely awkward, it was gone. In portrait that meant
+       *  Dashboard, Jump to check, **Export**, Reset, the shortcut sheet and
+       *  the TPJV/ACSA switch could not be reached at all. Export is the
+       *  deliverable; an auditor who cannot reach it cannot hand anything over.
+       *
+       *  The rule now: the brand and the right-hand controls are shrink-0 and
+       *  always reachable, and the NAV is the flexible one — min-w-0 so it may
+       *  shrink and overflow-x-auto so every destination stays reachable by
+       *  swipe, which is the ordinary tablet gesture. */}
       <header
         className="flex h-[52px] shrink-0 items-center gap-3 border-b px-3.5"
         style={{ background: "var(--panel)", borderColor: "var(--line)" }}
@@ -200,7 +214,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </span>
         </Link>
 
-        <nav className="flex gap-[2px] rounded-[11px] p-[3px]" style={{ background: "var(--sunken)" }}>
+        <nav
+          className="hide-scrollbar flex min-w-0 flex-1 gap-[2px] overflow-x-auto rounded-[11px] p-[3px]"
+          style={{ background: "var(--sunken)" }}
+        >
           {NAV.map((n) => {
             const active = pathname === n.href;
             /* ACSA is read-only across the audit, but Visual review is where
@@ -262,20 +279,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         <button
           onClick={() => setPalette(true)}
-          className="flex min-w-[150px] items-center gap-[7px] rounded-[11px] border border-transparent px-[10px] py-[6px] text-[11.5px] transition-[var(--t)]"
+          aria-label="Jump to check"
+          className="hidden shrink-0 items-center gap-[7px] rounded-[11px] border border-transparent px-[10px] py-[6px] text-[11.5px] transition-[var(--t)] sm:flex lg:min-w-[150px]"
           style={{ background: "var(--sunken)", color: "var(--ink-3)" }}
         >
           <IconSearch width={13} height={13} />
-          <span className="hidden sm:inline">Jump to check</span>
+          <span className="hidden lg:inline">Jump to check</span>
           <kbd
-            className="ml-auto hidden rounded-[4px] border px-[5px] font-mono text-[8.5px] sm:inline"
+            className="ml-auto hidden rounded-[4px] border px-[5px] font-mono text-[8.5px] lg:inline"
             style={{ background: "var(--panel)", borderColor: "var(--line)" }}
           >
             ⌘K
           </kbd>
         </button>
 
-        <div className="ml-auto flex items-center gap-2.5">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
           {role !== "acsa" && (
             <button
               onClick={() => setExporting(true)}
@@ -309,7 +327,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <IconHelp width={14} height={14} />
           </button>
 
-          <div className="flex gap-[2px] rounded-[8px] p-[2px]" style={{ background: "var(--sunken)" }}>
+          {/* The role simulator is the one control a phone can go without: it
+              exists so somebody can see what ACSA sees, and nobody does that
+              one-handed on a 390px screen. Everything else stays reachable at
+              every width. */}
+          <div className="hidden gap-[2px] rounded-[8px] p-[2px] sm:flex" style={{ background: "var(--sunken)" }}>
             {(["tpjv", "acsa"] as const).map((r) => (
               <button
                 key={r}

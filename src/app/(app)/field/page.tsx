@@ -72,12 +72,19 @@ export default function FieldPage() {
   const assignCapture = useStore((s) => s.assignCapture);
   const discardCapture = useStore((s) => s.discardCapture);
   const addFinding = useStore((s) => s.addFinding);
+  const addHazard = useStore((s) => s.addHazard);
 
   const [area, setArea] = useState<string>("All");
   const [q, setQ] = useState("");
   const [groupBy, setGroupBy] = useState<"area" | "discipline">("area");
   const [tray, setTray] = useState(false);
   const [adhoc, setAdhoc] = useState(false);
+  /* A hazard seen on the walk. It is not a finding first and it never becomes
+     one: nobody wrote up a check-point about it, and consolidating findings
+     afterwards cannot invent it. See the modal below. */
+  const [hazardOpen, setHazardOpen] = useState(false);
+  const [hazEvent, setHazEvent] = useState("");
+  const [hazWhy, setHazWhy] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const [adhocText, setAdhocText] = useState("");
   /* This site's disciplines and areas — a regional airport has no passenger
@@ -406,6 +413,12 @@ export default function FieldPage() {
         <Btn className="flex-1 justify-center sm:flex-none" onClick={() => setAdhoc(true)}>
           + New finding
         </Btn>
+        {/* The walk is where hazards are actually spotted. Until this existed
+            the only route to the register was consolidating findings, which
+            cannot produce a hazard nobody wrote a finding about. */}
+        <Btn className="flex-1 justify-center sm:flex-none" onClick={() => setHazardOpen(true)}>
+          + New hazard
+        </Btn>
         {captures.length > 0 && (
           <Btn onClick={() => setTray(true)} style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}>
             {captures.length} unassigned
@@ -462,6 +475,126 @@ export default function FieldPage() {
             {captures.length === 0 && <Empty>Tray is empty.</Empty>}
             <div className="mt-3 flex justify-end">
               <Btn onClick={() => setTray(false)}>Close</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* a hazard seen on the walk */}
+      {hazardOpen && (
+        <div
+          className="fixed inset-0 z-[80] flex justify-center pt-[10vh]"
+          style={{ background: "rgba(16,10,32,.5)", backdropFilter: "blur(4px)" }}
+          onClick={() => setHazardOpen(false)}
+        >
+          <div
+            className="w-[min(560px,92vw)] rounded-[20px] border p-[22px]"
+            style={{ background: "var(--panel)", borderColor: "var(--line-2)", boxShadow: "var(--e3)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[14px] font-bold">New hazard</h3>
+            <p className="mt-1 mb-3.5 text-[12px]" style={{ color: "var(--ink-2)" }}>
+              The <b>event</b>, not the paperwork. &ldquo;Uncontained fuel release on the apron&rdquo;,
+              not &ldquo;register not signed&rdquo; — the event is what carries the rating, because a
+              finding closes and a hazard does not. It arrives on the register unrated; the group
+              agrees the cell there.
+            </p>
+            <label className="block">
+              <span className="label-xs">The event · under 15 words</span>
+              <input
+                value={hazEvent}
+                onChange={(e) => setHazEvent(e.target.value)}
+                placeholder="Uncontained fuel release on the apron…"
+                className="mt-1 w-full rounded-[11px] border px-3 py-2.5 text-[13px] font-semibold outline-none"
+                style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+              />
+            </label>
+            <label className="mt-3 block">
+              <span className="label-xs">What control failed, and what it was protecting against</span>
+              <textarea
+                value={hazWhy}
+                onChange={(e) => setHazWhy(e.target.value)}
+                placeholder="What you saw, and what it would take to go wrong…"
+                className="mt-1 min-h-[70px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none"
+                style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+              />
+            </label>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="label-xs">Discipline</span>
+                <select
+                  value={adhocDisc}
+                  onChange={(e) => setAdhocDisc(e.target.value)}
+                  className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[12px]"
+                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                >
+                  {disciplines.map((d) => (
+                    <option key={d}>{d}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="label-xs">Location</span>
+                <select
+                  value={adhocArea}
+                  onChange={(e) => setAdhocArea(e.target.value)}
+                  className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[12px]"
+                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                >
+                  {areas.map((a) => (
+                    <option key={a}>{a}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <Btn variant="ghost" onClick={() => setHazardOpen(false)}>
+                Cancel
+              </Btn>
+              <Btn
+                variant="primary"
+                onClick={() => {
+                  if (!hazEvent.trim()) {
+                    say("Name the event first");
+                    return;
+                  }
+                  const id = addHazard({
+                    originVisit: visitId,
+                    event: hazEvent.trim(),
+                    description: "",
+                    why: hazWhy.trim(),
+                    findingIds: [],
+                    discipline: adhocDisc,
+                    system: adhocArea,
+                    /* Unrated, on both instruments, always. The walk names the
+                       event; the group rates it. */
+                    severity: null,
+                    likelihood: null,
+                    ratingConfirmed: false,
+                    ermConsequence: null,
+                    ermLikelihood: null,
+                    ermConfirmed: false,
+                    ermLikelihoodAssumed: false,
+                    source: "manual",
+                    note: `Seen on the walk at ${adhocArea}.`,
+                    reassessedAt: null,
+                    reassessNote: "",
+                    rootCause: "",
+                    action: "",
+                    owner: "",
+                    dueDate: "",
+                    actionStatus: "Open",
+                    createdBy: auditor,
+                  });
+                  setHazEvent("");
+                  setHazWhy("");
+                  setHazardOpen(false);
+                  say(`${id} raised · rate it on the hazard register`);
+                }}
+              >
+                <IconCheck width={14} height={14} />
+                Create hazard
+              </Btn>
             </div>
           </div>
         </div>
