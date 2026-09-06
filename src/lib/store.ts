@@ -29,6 +29,8 @@ import {
   type Visit as ProgrammeVisit,
 } from "./programme";
 import { needsDesk, needsField } from "./verification";
+import { portalIdFor } from "./sites";
+import { nextPhotoRef } from "./photos";
 
 /* The register and the 2025 data are pure lookups and live in ./register, so a
    non-React caller (src/lib/exports.ts) can use them without importing this
@@ -465,7 +467,20 @@ export const useStore = create<State>()(
         addAttachment: (checkId, a) => {
           const r = get().response(checkId);
           get().patch(checkId, {
-            attachments: [...r.attachments, { ...a, id: uid(), createdAt: Date.now() }],
+            attachments: [
+              ...r.attachments,
+              {
+                ...a,
+                id: uid(),
+                /* Assigned here rather than in the component, so a photograph
+                   taken in field mode and one taken at the desk are numbered by
+                   the same rule and cannot collide. */
+                ...(a.kind === "photo"
+                  ? { ref: nextPhotoRef(portalIdFor(get().entity, checkId), r.attachments) }
+                  : {}),
+                createdAt: Date.now(),
+              },
+            ],
           });
         },
 
@@ -675,7 +690,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 7,
+      version: 8,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -842,6 +857,29 @@ export const useStore = create<State>()(
              panel. Nothing already captured changes: the audio and any
              transcript already taken are kept exactly as they are. */
           st.dictation = false;
+        }
+        if (from < 8) {
+          /* Photographs captured before this were keyed only by a random id —
+             `photo-k3j9x2mq` — which appears nowhere a person would look and
+             cannot be cross-referenced from a workbook. Give them the reference
+             they should always have had: the check-point's portal id and a
+             sequence, in the order they were attached.
+
+             This runs per scope, so a photograph keeps the site prefix of the
+             audit it belongs to rather than the entity that happens to be open
+             when the tablet upgrades. */
+          for (const [key, d] of Object.entries(st.byVisit ?? {})) {
+            const entityCode = key.split("/")[0];
+            for (const [checkId, r] of Object.entries(d.responses ?? {})) {
+              const prefix = portalIdFor(entityCode, checkId);
+              let n = 0;
+              r.attachments = (r.attachments ?? []).map((a) =>
+                a.kind === "photo" && !a.ref
+                  ? { ...a, ref: `${prefix}_P${String(++n).padStart(2, "0")}` }
+                  : a
+              );
+            }
+          }
         }
         return st;
       },

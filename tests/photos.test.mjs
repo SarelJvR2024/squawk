@@ -50,6 +50,53 @@ const check = (name, cond, detailText = "") => {
   }
 };
 
+const photosLib = src("lib", "photos.ts");
+const sync = src("lib", "sync.ts");
+const photoRoute = src("app", "api", "photos", "route.ts");
+const store = src("lib", "store.ts");
+const shell = src("components", "AppShell.tsx");
+
+/* ------------------------ Part 0: one name, in every place ---------------- */
+
+/* `KSIA-ELE-001_P01` has to mean one image on the tablet, in the zip, in the
+   blob store, in the workbook and in a Word report. Everything below hangs off
+   that, which is why it is first. */
+
+check(
+  "a photograph is named from the check-point it belongs to",
+  /export function nextPhotoRef\(prefix: string, existing: Attachment\[\]\)/.test(photosLib) &&
+    /_P\$\{String\(highest \+ 1\)\.padStart\(2, "0"\)\}/.test(photosLib),
+  "photo-k3j9x2mq appears nowhere a person would look"
+);
+
+check(
+  "a reference is never reused after a delete",
+  /let highest = 0;/.test(photosLib) &&
+    /highest = Math\.max\(highest, Number\(n\[1\]\)\)/.test(photosLib) &&
+    !/existing\.length \+ 1/.test(photosLib),
+  "P02 coming to mean a second image would re-evidence a March finding with a September photograph"
+);
+
+check(
+  "the name is assigned in the store, not in a screen",
+  /ref: nextPhotoRef\(portalIdFor\(get\(\)\.entity, checkId\), r\.attachments\)/.test(store),
+  "field mode and the check screen must number by the same rule or they collide"
+);
+
+check(
+  "photographs captured before this get their names",
+  /if \(from < 8\)/.test(store) &&
+    /portalIdFor\(entityCode, checkId\)/.test(store) &&
+    /const entityCode = key\.split\("\/"\)\[0\];/.test(store),
+  "and each keeps the site prefix of the audit it belongs to, not whichever is open at upgrade"
+);
+
+check(
+  "naming is a pure module the workbook writer can use",
+  !/"use client"/.test(photosLib) && /export function photoFilename/.test(photosLib),
+  "exports.ts builds a filename and has no business importing a client store to do it"
+);
+
 /* ------------------------------ Part 1: stored small, dated, and for real -- */
 
 check(
@@ -310,6 +357,152 @@ check(
   /uncaptioned > 0 &&/.test(panel),
   ""
 );
+
+/* -------------------- Part 6: it leaves the tablet, and it also stays ------ */
+
+check(
+  "the record copy is private",
+  /access: "private"/.test(photoRoute) && !/access: "public"/.test(photoRoute),
+  "a public blob URL for a national key point is a URL anybody who sees it can keep"
+);
+
+check(
+  "the local copy is never deleted because a record copy exists",
+  !/delBlob|delBlobs|clearAllMedia/.test(sync) && !/delBlob/.test(photoRoute),
+  "an auditor on an apron must not need a network to look at a photograph they took an hour ago"
+);
+
+check(
+  "the object path is validated, not trusted",
+  /const PATH = \/\^\[A-Z0-9\]\{2,6\}/.test(photoRoute) && /PATH\.test\(pathname\)/.test(photoRoute),
+  "a traversal would put audit evidence somewhere nobody looks for it"
+);
+
+check(
+  "the stored name is the name the workbook uses",
+  /addRandomSuffix: false/.test(photoRoute) &&
+    /export function photoObjectPath/.test(photosLib),
+  "a random suffix breaks the one thing the naming exists for"
+);
+
+check(
+  "a retry replaces rather than duplicating",
+  /allowOverwrite: true/.test(photoRoute),
+  "a dropped connection is the common case; two objects for one reference is worse than an overwrite"
+);
+
+check(
+  "without a token the route refuses and the app carries on",
+  /if \(!token\)/.test(photoRoute) && /status: 503/.test(photoRoute) &&
+    /available: !!process\.env\.BLOB_READ_WRITE_TOKEN/.test(photoRoute),
+  ""
+);
+
+check(
+  "the queue is derived from the records, not held beside them",
+  /!a\.cloudUrl/.test(sync) && !/localStorage|idbSet\(/.test(sync),
+  "a separate queue does not survive a flat battery; 'has a blobKey and no cloudUrl' does"
+);
+
+check(
+  "uploads run one at a time",
+  /for \(const \{ checkId, a \} of todo\)/.test(sync) && !/Promise\.all\(todo/.test(sync),
+  "eight parallel uploads on airport wifi is eight timeouts"
+);
+
+check(
+  "it does not try while offline, and resumes when the network returns",
+  /if \(!navigator\.onLine\) break;/.test(sync) && /addEventListener\("online", set\)/.test(sync),
+  ""
+);
+
+check(
+  "a failed upload is recorded on the photograph, not swallowed",
+  /cloudError: e instanceof Error \? e\.message/.test(sync) &&
+    /not sent —/.test(capture),
+  ""
+);
+
+check(
+  "the shell says when evidence is still only on the device",
+  /const sync = usePhotoSync\(\);/.test(shell) && /on device only/.test(shell),
+  "an auditor who captured forty photographs on an apron is entitled to know where they are"
+);
+
+check(
+  "the browser is asked not to evict the audit",
+  /export async function requestPersistentStorage/.test(media) &&
+    /navigator\.storage\.persist\(\)/.test(media) &&
+    /void requestPersistentStorage\(\);/.test(shell),
+  "Safari clears storage for a site not visited for about a week"
+);
+
+check(
+  "and the answer is reported rather than assumed",
+  /export async function isStoragePersisted/.test(media) &&
+    /persisted === false &&/.test(panel),
+  "the browser decides; pretending it agreed is how an audit disappears between site visits"
+);
+
+/* ------------------------- Part 7: the images come out as files ------------ */
+
+check(
+  "there is a zip of the images, separate from the workbook",
+  /export function buildPhotoZip/.test(photosLib) && /zipSync/.test(photosLib),
+  "the index is kilobytes and the evidence is not"
+);
+
+check(
+  "the zip carries a manifest so it reads on its own",
+  /MANIFEST\.csv/.test(photosLib),
+  "a folder of JPEGs separated from the workbook says nothing"
+);
+
+check(
+  "it is built from the stored blobs, not from what the records claim",
+  /const blob = await getBlob\(a\.blobKey!\);/.test(panel) && /if \(!blob\) continue;/.test(panel),
+  "a record pointing at a blob that is not there is the case worth catching"
+);
+
+check(
+  "the workbook's first photograph column is the filename",
+  /\{ header: "File", width: 26 \}/.test(exportsSrc) && /photoFilename\(a\),/.test(exportsSrc),
+  "this column is how somebody reading the workbook finds the actual image"
+);
+
+check(
+  "and every finding lists the files behind it",
+  /\{ header: "Photograph files", width: 44, wrap: true \}/.test(exportsSrc) &&
+    /photosFor\(x, f\.checkId\)\.map\(photoFilename\)\.join\(" · "\)/.test(exportsSrc),
+  ""
+);
+
+check(
+  "the workbook says where each image actually is",
+  /"On the device and in the record store"/.test(exportsSrc) &&
+    /"On the device only"/.test(exportsSrc),
+  "a row that does not say would let somebody assume a copy exists"
+);
+
+/* ---------------- Part 8: the README actually says all of this ------------- */
+
+/* Added because it did not. The vision flag and the storage architecture were
+   reported as documented in a previous round and were not: the script that was
+   meant to write them asserted its way to a failure before it wrote the file,
+   and nothing checked. A doc claim is as checkable as a code claim. */
+const readme = fs.readFileSync(path.join(here, "..", "README.md"), "utf8");
+for (const [what, needle] of [
+  ["the vision flag", "ASSIST_VISION"],
+  ["the record store token", "BLOB_READ_WRITE_TOKEN"],
+  ["a photographs section", "## Photographs"],
+  ["why images stay out of the persist value", "Images never enter the persisted store"],
+  ["that the local copy is never deleted", "Never deleted because a record copy exists"],
+  ["that the record copy is private", 'access: "private"'],
+  ["the naming scheme", "KSIA-ELE-001_P01"],
+  ["that retention is undecided", "Retention — still undecided"],
+]) {
+  check(`README documents ${what}`, readme.includes(needle), needle);
+}
 
 /* ------------------------------------------------------------------ result */
 

@@ -11,6 +11,7 @@ import { BAND_AS_RATING, BAND_META, bandFor, cellCode, movement } from "./risk";
 import { entity as entityOf, PROGRAMME_VISITS } from "./programme";
 import { portalIdFor } from "./sites";
 import { priorFor } from "./register";
+import { photoFilename } from "./photos";
 import type { CellValue, Sheet } from "./xlsx";
 
 /* The exports.
@@ -210,6 +211,9 @@ export function findingsSheet(x: ExportInput): Sheet {
          tells a reader there is evidence but not what it shows, and the
          workbook is where most people will meet it. */
       photosFor(x, f.checkId).length,
+      /* The files, so a reader can go from this row straight to the images in
+         the zip. */
+      photosFor(x, f.checkId).map(photoFilename).join(" · "),
       photosFor(x, f.checkId)
         .map((a) => a.caption?.trim() || "(no caption)")
         .join(" · "),
@@ -246,6 +250,7 @@ export function findingsSheet(x: ExportInput): Sheet {
       { header: "Movement", width: 13 },
       { header: "Origin", width: 26 },
       { header: "Photographs", width: 12 },
+      { header: "Photograph files", width: 44, wrap: true },
       { header: "Photograph captions", width: 60, wrap: true },
       { header: "Raised at visit", width: 14 },
       { header: "Raised by", width: 22 },
@@ -279,7 +284,10 @@ export function photographsSheet(x: ExportInput): Sheet {
     for (const a of r.attachments) {
       if (a.kind !== "photo") continue;
       rows.push([
-        a.id,
+        /* The filename in the zip. This column is how somebody reading the
+           workbook finds the actual photograph. */
+        photoFilename(a),
+        a.ref ?? "",
         portalIdFor(x.entity, c.id),
         c.discipline,
         c.system,
@@ -295,7 +303,12 @@ export function photographsSheet(x: ExportInput): Sheet {
         a.createdBy,
         a.width && a.height ? `${a.width}×${a.height}` : "",
         a.bytes ? Math.round(a.bytes / 1024) : "",
-        a.unavailable ? "No image stored" : "Stored on the capture device",
+        a.unavailable
+          ? "No image stored"
+          : a.cloudUrl
+            ? "On the device and in the record store"
+            : "On the device only",
+        a.cloudUrl ?? "",
       ]);
     }
   }
@@ -303,7 +316,8 @@ export function photographsSheet(x: ExportInput): Sheet {
   return {
     name: "Photographs",
     columns: [
-      { header: "Photograph", width: 14 },
+      { header: "File", width: 26 },
+      { header: "Reference", width: 22 },
       { header: "Check", width: 15 },
       { header: "Discipline", width: 20 },
       { header: "Asset system", width: 26 },
@@ -315,7 +329,8 @@ export function photographsSheet(x: ExportInput): Sheet {
       { header: "Attached by", width: 22 },
       { header: "Dimensions", width: 13 },
       { header: "Size (KB)", width: 10 },
-      { header: "Image", width: 26 },
+      { header: "Where the image is", width: 34 },
+      { header: "Record copy", width: 60 },
     ],
     rows,
   };

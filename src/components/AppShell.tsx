@@ -21,12 +21,15 @@ import { ENTITIES, entity as entityOf } from "@/lib/programme";
 import { needsDesk, needsField } from "@/lib/verification";
 import { useAssistAvailable, useTranscribeAvailable } from "@/lib/assist";
 import { portalIdFor } from "@/lib/sites";
+import { requestPersistentStorage } from "@/lib/media";
+import { usePhotoSync } from "@/lib/sync";
 import ExportPanel from "@/components/ExportPanel";
 import ResetPanel from "@/components/ResetPanel";
 import AuditsPanel from "@/components/AuditsPanel";
 import {
   IconClipboard,
   IconCamera,
+  IconCloud,
   IconGrid,
   IconDownload,
   IconHelp,
@@ -108,6 +111,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (role === "acsa" && pathname !== "/dashboard") router.replace("/dashboard");
   }, [role, pathname, router]);
+
+  /* Ask once, on the way in, before there is anything to lose. The browser may
+     refuse; the export panel reports the answer rather than this pretending it
+     succeeded. */
+  useEffect(() => {
+    void requestPersistentStorage();
+  }, []);
+
+  /* Mounted once, here, so the queue drains whichever screen the auditor is on
+     and keeps going while they capture. */
+  const sync = usePhotoSync();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -293,6 +307,39 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </button>
             ))}
           </div>
+
+          {/* Whether the evidence has left the tablet yet. An auditor who has
+              captured forty photographs on an apron is entitled to know they
+              are still only on the apron. Silent when everything is safely in
+              the record store, which is most of the time. */}
+          {(sync.outstanding > 0 || sync.failed > 0) && (
+            <button
+              onClick={sync.run}
+              disabled={sync.uploading || !sync.online}
+              title={
+                sync.failed
+                  ? "Some photographs could not be sent to the record store. Tap to try again."
+                  : sync.online
+                    ? "Photographs still only on this device. Tap to send them now."
+                    : "Offline — photographs will be sent when there is a network."
+              }
+              className="flex shrink-0 items-center gap-[5px] rounded-[7px] border px-[8px] py-[4px] font-mono text-[9.5px]"
+              style={{
+                background: sync.failed ? "var(--warn-bg)" : "var(--panel)",
+                borderColor: sync.failed ? "var(--warn-line)" : "var(--line-2)",
+                color: sync.failed ? "var(--warn)" : "var(--ink-3)",
+              }}
+            >
+              <IconCloud width={11} height={11} />
+              {sync.uploading
+                ? `sending ${sync.outstanding}`
+                : !sync.online
+                  ? `${sync.outstanding} waiting · offline`
+                  : sync.failed
+                    ? `${sync.failed} failed`
+                    : `${sync.outstanding} on device only`}
+            </button>
+          )}
 
           <div className="flex items-center gap-[9px] border-l pl-[11px]" style={{ borderColor: "var(--line)" }}>
             <div className="relative h-[30px] w-[30px]">
