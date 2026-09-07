@@ -7,7 +7,7 @@
  *  mostly not the people holding the tablet. Until this screen existed, visual
  *  evidence was only reachable by opening the one check that carried it, which
  *  meant a discipline lead reviewing electrical evidence had to know which of
- *  374 checks to open first. Nobody does that, so nobody reviewed.
+ *  324 checks to open first. Nobody does that, so nobody reviewed.
  *
  *  Feedback left here is its own thing. It is not merged into the observation,
  *  which is the auditor's record of what they found, and not into the finding,

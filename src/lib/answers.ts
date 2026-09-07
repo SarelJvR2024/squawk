@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { AnswerLibrary } from "./types";
 
-/* The Answer Library — 11,179 researched options across all 374 checks — is
+/* The Answer Library — 9,836 researched options across all 324 checks — is
    356 kB gzipped. Only the capture and field screens need it, so it is split
    out of checks.json and fetched on first use rather than shipped in the
    initial bundle. One module-level promise means it loads once per session

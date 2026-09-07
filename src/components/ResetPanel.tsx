@@ -152,7 +152,7 @@ export default function ResetPanel({ onClose }: { onClose: () => void }) {
                 not captured state — saying so here stops the obvious worry
                 that resetting throws them away. */}
             <p className="mb-3 text-[11px]" style={{ color: "var(--ink-4)" }}>
-              The 374 check-points, the Answer Library and the 23 March 2025 findings are
+              The 324 check-points, the Answer Library and the 23 March 2025 findings are
               reference data and are never cleared — only what this audit captured.
             </p>
 

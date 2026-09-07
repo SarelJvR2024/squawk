@@ -189,7 +189,7 @@ check(
 check(
   "the audit question set is one tap away",
   /"q", "Ask"/.test(capture) && /filter === "q"/.test(capture),
-  "89 checks carry a question — they should not need hunting for"
+  "80 checks carry a question — they should not need hunting for"
 );
 
 /* --------------------------- Part 4: the auditor can see why ---------------- */
@@ -221,7 +221,7 @@ check(
   "the Checks badge is scoped to the desk list, not the whole register",
   /n\.href === "\/capture"\s*\n?\s*\? `\$\{desk\.done\}\/\$\{desk\.total\}`/.test(shell) &&
     !/CHECKS\.length/.test(shell),
-  "a badge of 374 on a list of 365 cannot be worked down to zero"
+  "a badge of 324 on a list of 315 cannot be worked down to zero"
 );
 
 check(
@@ -236,8 +236,8 @@ check(
   "a desk-done check that still needs the asset seen must stay on the Inspection badge"
 );
 
-/* A bare number does not say which side of the work it counts. "314" beside
-   Checks could be 314 done or 314 left, and the auditor who needs to know is
+/* A bare number does not say which side of the work it counts. "299" beside
+   Checks could be 299 done or 299 left, and the auditor who needs to know is
    the one least able to guess. */
 check(
   "the counts read done of total where there IS a total",

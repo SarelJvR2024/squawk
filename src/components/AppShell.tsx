@@ -37,6 +37,7 @@ import {
   IconGrid,
   IconDownload,
   IconFlag,
+  IconGauge,
   IconHelp,
   IconLock,
   IconLoop,
@@ -64,6 +65,12 @@ const NAV = [
   { href: "/hazards", label: "Hazards", icon: IconFlag },
   { href: "/closure", label: "Follow-up", icon: IconLoop },
   { href: "/dashboard", label: "Dashboard", icon: IconGrid },
+  /* Last, and in the nav rather than behind the shortcut sheet, because the
+     shortcut sheet is hidden below sm — and the phone is exactly the device
+     whose microphone, storage and offline cache somebody needs to check before
+     walking onto an apron. The bar scrolls; an eighth destination costs a swipe
+     and buys the one screen that answers "will this device work". */
+  { href: "/preflight", label: "Pre-flight", icon: IconGauge },
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -114,7 +121,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pct = checks.length ? Math.round((done / checks.length) * 100) : 0;
 
   /* Each nav badge counts what is outstanding in THAT view, not across the
-     register. Capture lists 365 and Field lists 314; a badge of 374 on either
+     register. Capture lists 315 and Field lists 299; a badge of 324 on either
      is a number that cannot be worked down to zero. */
   const desk = useMemo(() => {
     const scope = checks.filter(needsDesk);
@@ -278,8 +285,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               role === "acsa" && n.href !== "/dashboard" && n.href !== "/review";
             const Icon = n.icon;
             /* Counts read DONE OF TOTAL where there is a finite amount of
-               work, because a bare number does not say which it is. "314"
-               beside Capture could be 314 done or 314 left, and the auditor
+               work, because a bare number does not say which it is. "299"
+               beside Capture could be 299 done or 299 left, and the auditor
                who needs to know is the one least able to guess.
                Findings and Hazards stay bare: there is no denominator for how
                many findings an audit ought to find, and inventing one would be

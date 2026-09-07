@@ -53,7 +53,7 @@ export default function FieldPage() {
   const visitId = useVisitId();
   /* The researched walkabout options. Field mode is the walkabout screen and
      was the one place that never showed them — an auditor on the apron got
-     four status buttons while 11,179 reviewed options sat in the library that
+     four status buttons while 9,836 reviewed options sat in the library that
      only the desk screen opened. Loaded once for the session and kept in
      memory, so it survives the wifi dropping. */
   const library = useAnswerLibrary();
@@ -104,7 +104,7 @@ export default function FieldPage() {
   const visible = useMemo(() => {
     const s = q.trim().toLowerCase();
     /* Routed on the register's declared vtype, not on whether someone wrote
-       walkabout text. Both give 314 today; only one of them keeps giving 314
+       walkabout text. Both give 299 today; only one of them keeps giving 299
        if a walkabout line is ever left blank. See src/lib/verification.ts. */
     let list = checksAt(entityCode).filter(needsField);
     if (s) {
@@ -626,7 +626,7 @@ export default function FieldPage() {
           >
             <h3 className="text-[14px] font-bold">New finding</h3>
             <p className="mt-1 mb-3.5 text-[12px]" style={{ color: "var(--ink-2)" }}>
-              For something you spot that is not on the 374-point register. It joins the findings register like any other.
+              For something you spot that is not on the 324-point register. It joins the findings register like any other.
             </p>
             <textarea
               value={adhocText}

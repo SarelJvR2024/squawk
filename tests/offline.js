@@ -140,7 +140,7 @@ const controlled = (page) =>
        /SQUAWK/i.test(rBody), rBody.slice(0, 120).replace(/\n/g, " "));
 
     /* THE TWO LAZY PAYLOADS. Both are fetched on first use rather than shipped
-       in the bundle — 11,179 researched options and 1,506 asset rows that a
+       in the bundle — 9,836 researched options and 1,506 asset rows that a
        tablet on the apron should not pay for until it asks. Which means both
        are only offline-safe if something fetched them while there was still a
        signal. An auditor who never opened an asset picker on wifi and then

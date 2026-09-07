@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
  *     the controls. Capture was below the fold on the exact device it was
  *     designed for.
  *  3. Field mode is the walkabout screen and was the one screen that never
- *     showed the walkabout options. 11,179 researched options sat in a library
+ *     showed the walkabout options. 9,836 researched options sat in a library
  *     only the desk screen opened, and the flag marking which observations
  *     want a photograph rendered nowhere but a desk tooltip.
  *

@@ -139,7 +139,7 @@ check(
 check(
   "the panel says what a reset does not touch",
   /reference data and are never cleared/.test(panel),
-  "the obvious worry is that resetting throws away the 374 checks or the 2025 findings"
+  "the obvious worry is that resetting throws away the 324 checks or the 2025 findings"
 );
 
 check(

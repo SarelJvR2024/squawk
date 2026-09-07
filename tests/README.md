@@ -1,11 +1,12 @@
 # Tests
 
-Twenty-nine suites, no framework. Ten need a running server; nineteen do not.
+Thirty-one suites, no framework. Eleven need a running server; twenty do not.
 **Check each suite's exit status, not its output**: a `for` loop over them
 reports the status of the loop.
 
-All run with plain `node` except `sharepoint.test.mjs` and `merge.test.mjs`,
-which need the alias loader so they can import the app's real modules:
+All run with plain `node` except `sharepoint.test.mjs`, `merge.test.mjs` and
+`figures.test.mjs`, which need the alias loader so they can import the app's
+real modules:
 
 ```
 node --import ./tests/alias.mjs tests/sharepoint.test.mjs
@@ -32,6 +33,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `assets.test.mjs` | no | 21 |
 | `checkscreen.test.mjs` | no | 39 |
 | `merge.test.mjs` | no | 36 |
+| `figures.test.mjs` | no | 7 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 38 |
 | `exports.js` | yes | 32 |
@@ -42,8 +44,9 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `flow.js` | yes | 48 |
 | `offline.js` | yes | 18 |
 | `team.js` | yes | 15 |
+| `preflight.js` | yes | 15 |
 
-**1,060 assertions in total**, every count above verified by running the suite,
+**1,082 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -185,6 +188,33 @@ scrolling underneath, and the header compaction being driven by the scroll
 container rather than by a breakpoint, so it does nothing from `lg` where the
 columns scroll inside themselves.
 
+## `figures.test.mjs`
+
+Does the prose still match the register? It did not.
+
+Rev A2 shrank the check-list from 374 rows to 324 and the app followed it —
+every count on screen is derived. The *words* did not. README, these notes and a
+dozen source-file headers went on quoting a register of 374, a library of
+11,179, a desk-and-field split of 365 and 314, an overlap of 305 and 89 carrying
+a question to ask. Not one was true, and every one was written to be helpful.
+
+```bash
+node --import ./tests/alias.mjs tests/figures.test.mjs
+```
+
+A stale number in a comment is not a typo. This repo's comments are how the next
+person learns why a thing is the way it is, and a header opening with a figure
+15% wrong quietly devalues everything after it — worse here, because a reader
+has no way to tell a stale figure from a deliberate one, and these particular
+figures are the shape of the engagement.
+
+So the suite derives them: it reads `checks.json`, the Answer Library and the
+site table, works out what is true, then reads every markdown file and source
+comment for a number written next to "check-points", "checks" or "options".
+Anything that does not match is a failure naming the file and the line. Years
+are excluded ("Sep 2026 checks" is a visit) and this file is exempt, because it
+quotes the superseded figures to explain them.
+
 ## `merge.test.mjs`
 
 Two auditors, one audit. Squawk keeps the audit in one device's IndexedDB, which
@@ -223,7 +253,7 @@ an emptier copy.
 
 Guards that a check appears where it can actually be answered. The register
 declares per row how each check-point is verified — Evidence, Question, Site
-Physical Verification — and nothing read it: Capture listed all 374 including
+Physical Verification — and nothing read it: Capture listed all 324 including
 the nine an auditor at a desk cannot answer, and Field routed on whether
 someone had written walkabout text.
 
@@ -234,11 +264,12 @@ node tests/portals.test.mjs
 Part 1 parses `checks.json` **independently** of `src/lib/verification.ts`, the
 way the matrix test bands the matrix against its own table — so the counts are
 checked against the data rather than against the module agreeing with itself.
-It caught a real arithmetic error on the first run: the overlap is 305, not the
-303 it is tempting to get from the distribution, because the two
-`Site Physical Verification + Question` rows are desk work as well.
+It caught a real arithmetic error on the first run: the overlap came out two
+short of what the distribution tempts you into, because the
+`Site Physical Verification + Question` rows are desk work as well and it is
+easy to count them once.
 
-The routing it asserts: **desk 365 · field 314 · overlap 305 · desk-only 60 ·
+The routing it asserts: **desk 315 · field 299 · overlap 290 · desk-only 60 ·
 field-only 9 · orphaned 0.** Both failure modes are guarded and they pull in
 opposite directions — blanket duplication makes each list meaningless, and an
 orphaned check is worse because nothing on screen would ever say so.
@@ -258,14 +289,14 @@ Five parts: reachable in the shell and closed to ACSA; two separate scopes;
 media actually deleted (a visit reset sweeps its own blobs, a full reset sweeps
 the whole `squawk-media/` prefix so orphans go too); arm-then-confirm with a
 count of what is about to be lost and disarm-on-scope-change; and reference
-data — the 374 checks, the Answer Library, the 23 seeded findings — never
+data — the 324 checks, the Answer Library, the 23 seeded findings — never
 touched.
 
 ## `completion.test.mjs`
 
 Guards that a check is complete only when every mode it declares has been
 answered. There was one `captured` flag set by whichever screen saved first, so
-for the 305 checks needing both a document review and the asset seen, ticking it
+for the 290 checks needing both a document review and the asset seen, ticking it
 at a desk marked it done — the dashboard counted it, the export said
 "Captured: Yes", and nobody had walked out to look at the pump.
 
@@ -567,6 +598,30 @@ audit and who shared it, every record says when it was written, and **no image
 bytes travel in it**. The second context starts empty, merges the file, and the
 other auditor's work is then in its audit and on its findings screen. Then it
 merges the same file again, because an auditor will.
+
+## `preflight.js`
+
+`/preflight` is the screen that answers "will this device work" before somebody
+is standing on an apron finding out that it does not. Squawk asks a lot of a
+phone — audio, photographs, an audit in IndexedDB, a cached copy of itself, a
+queue pushing evidence to the record store — and any of it can be off, refused
+or full on one particular device.
+
+```bash
+BASE=http://localhost:3000 node tests/preflight.js
+```
+
+Two things make the screen worth having and both are asserted: it reports what
+is **true** about the device it is running on — the worker really registered,
+the database really wrote and read back, the space is in bytes rather than
+adjectives — and **it never asks for a permission nobody pressed a button for**.
+The microphone and camera stay untested until someone taps, because a permission
+granted to get rid of a dialog is not a test that the microphone works.
+
+The microphone is then tested properly in a second browser launched with
+Chromium's fake capture device, the same way `ai.js` records a real voice note:
+a headless browser has no audio hardware, so pressing the button in the first
+context would be testing the sandbox rather than the app.
 
 ## `vision.js`
 

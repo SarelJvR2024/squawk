@@ -140,7 +140,7 @@ async function badge(p, href) {
      capAfter.done === capBefore.done + 1 && capAfter.total === capBefore.total,
      `${capBefore.done}/${capBefore.total} -> ${capAfter.done}/${capAfter.total}`);
   ok("and the denominator is this site's list, not the register",
-     capAfter.total !== null && capAfter.total < 374,
+     capAfter.total !== null && capAfter.total < 324,
      `total=${capAfter.total}`);
   ok("raising a finding shows on the Findings badge",
      (await badge(p, "/findings")).done === 1,

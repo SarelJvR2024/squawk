@@ -221,7 +221,7 @@ export const deskAnswered = (r: Response | undefined) =>
 export const fieldDone = (r: Response | undefined) => !!r?.fieldDoneAt;
 
 /** Complete means every mode the register declares for this check has been
- *  answered — not "somebody pressed Save once". For the 305 checks that need
+ *  answered — not "somebody pressed Save once". For the 290 checks that need
  *  both a document review and the asset seen, one half is half. */
 export function isComplete(checkId: string, r: Response | undefined): boolean {
   if (!r) return false;

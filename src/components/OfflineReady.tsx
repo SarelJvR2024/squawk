@@ -43,7 +43,7 @@ export default function OfflineReady() {
 
 /** Fetch the two lazy payloads while there is still a signal.
  *
- *  The Answer Library (11,179 researched options) and the asset register (1,506
+ *  The Answer Library (9,836 researched options) and the asset register (1,506
  *  rows) are deliberately not in the initial bundle — a tablet coming up on the
  *  apron should not pay for them before it asks. But "on first use" and
  *  "offline-safe" pull against each other: an auditor who never happened to
