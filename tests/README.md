@@ -1,6 +1,6 @@
 # Tests
 
-Twenty-five suites, no framework. Eight need a running server; seventeen do not.
+Twenty-six suites, no framework. Eight need a running server; eighteen do not.
 **Check each suite's exit status, not its output**: a `for` loop over them
 reports the status of the loop.
 
@@ -30,6 +30,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `erm-matrix.test.mjs` | no | 64 |
 | `sharepoint.test.mjs` | no | 58 |
 | `assets.test.mjs` | no | 21 |
+| `checkscreen.test.mjs` | no | 39 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 38 |
 | `exports.js` | yes | 32 |
@@ -39,7 +40,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `record.js` | starts its own | 14 |
 | `flow.js` | yes | 48 |
 
-**946 assertions in total**, every count above verified by running the suite,
+**985 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -152,6 +153,34 @@ Five parts: a `pointer: coarse` floor a mouse never sees; capture never below
 the fold; field mode doing the walkabout it exists for, including the library's
 own "wants a photograph" flag; fewer scrolls; and the two scope bugs this pass
 turned up.
+
+## `checkscreen.test.mjs`
+
+Guards the shape of the check screen after it was cut down to a brief. What was
+there worked and was unreadable: seven panels of equal weight down the left, the
+four compliance buttons at the top of the right-hand column where reading the
+left scrolled them out of sight, and — on a phone — the voice note and camera
+below six groups of chips.
+
+```bash
+node tests/checkscreen.test.mjs
+```
+
+Two kinds of assertion, and the second matters more. First, that the shape is
+the one asked for: question, then standard, then plain reading; the site's
+stricter threshold inside the standard rather than beside it; the compliance
+buttons in the sticky header; the answer box, the voice note, the camera and
+Save pinned together at the foot of the screen; evidence to request leading the
+capture column. Second, THAT NOTHING WAS DROPPED — every field the register
+carries for a check is still rendered somewhere, because a redesign that
+quietly loses the external basis is not a tidier screen, it is a smaller audit.
+
+It also pins the two layout bugs the redesign turned up: the grid taking the
+flex container's leftover height below `lg` while its content spilled out of it,
+which left the pinned bar resting in the middle of the screen with chips
+scrolling underneath, and the header compaction being driven by the scroll
+container rather than by a breakpoint, so it does nothing from `lg` where the
+columns scroll inside themselves.
 
 ## `portals.test.mjs`
 

@@ -26,10 +26,16 @@ const ok=(n,c,x='')=>{c?(pass++,log.push('PASS  '+n)):(fail++,log.push('FAIL  '+
   const t1=await p.locator('body').innerText();
   ok('composer produces a draft from taps', /suggested wording/i.test(t1), t1.slice(0,80).replace(/\n/g,' '));
   ok('draft mentions the requested evidence', /Evidence requested/.test(t1));
+  /* THE OBSERVATION BOX BY NAME, not `textarea` and hope.
+     Raising a finding from an issue chip renders the treatment block, whose
+     "What must happen" field is a textarea earlier in the DOM — so `.first()`
+     had been reading an empty box that was never the record, and the two
+     assertions either side of this one were passing and failing for reasons
+     that had nothing to do with the composer. */
   ok('draft is NOT written into the record until accepted',
-     (await p.locator('textarea').first().inputValue()).indexOf('Evidence requested')===-1);
+     (await p.locator('textarea[aria-label="Observation"]').first().inputValue()).indexOf('Evidence requested')===-1);
   await p.locator('button',{hasText:/^Use it$/}).first().click(); await p.waitForTimeout(600);
-  const v=await p.locator('textarea').first().inputValue();
+  const v=await p.locator('textarea[aria-label="Observation"]').first().inputValue();
   ok('accepting the draft writes it to the record', /Evidence requested/.test(v), v.slice(0,60));
   await p.screenshot({path:'/home/claude/shots/ai-composer.png'});
   ok('no page errors in the composer path', errs.length===0, errs[0]||'');
@@ -44,11 +50,11 @@ const ok=(n,c,x='')=>{c?(pass++,log.push('PASS  '+n)):(fail++,log.push('FAIL  '+
   const t=await p.locator('body').innerText();
   ok('AI buttons appear when a model is configured', /Draft with AI/.test(t) && /Explain this check/.test(t));
   // a failing model must surface an honest message and leave the record alone
-  const before = await p.locator('textarea').first().inputValue();
+  const before = await p.locator('textarea[aria-label="Observation"]').first().inputValue();
   await p.locator('button',{hasText:'Draft with AI'}).first().click();
   let seen=''; for(let i=0;i<40;i++){ await p.waitForTimeout(150); const s=await p.locator('body').innerText(); if(/model service returned|unavailable/i.test(s)){seen=s;break;} }
   ok('a model failure is reported honestly', !!seen, 'no toast seen within 6s');
-  ok('a model failure leaves the record untouched', (await p.locator('textarea').first().inputValue())===before);
+  ok('a model failure leaves the record untouched', (await p.locator('textarea[aria-label="Observation"]').first().inputValue())===before);
   ok('a model failure does not throw', errs.length===0, errs[0]||'');
   // help panel should say a model is connected
   await p.keyboard.press('Escape'); await p.waitForTimeout(200);
@@ -109,7 +115,7 @@ const ok=(n,c,x='')=>{c?(pass++,log.push('PASS  '+n)):(fail++,log.push('FAIL  '+
   ok('no suggested wording is claimed before anyone asked for one',
      !/Suggested wording/.test(after));
   ok('recording a note does not write to the observation',
-     (await p.locator('textarea').first().inputValue()).trim() === '');
+     (await p.locator('textarea[aria-label="Observation"]').first().inputValue()).trim() === '');
   ok('no page errors while recording', errs.length===0, errs[0]||'');
   await p.screenshot({path:'/home/claude/shots/ai-voicenote.png'});
   await ctx.close(); await fb.close();
