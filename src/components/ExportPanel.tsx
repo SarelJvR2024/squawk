@@ -30,6 +30,7 @@ import {
 } from "@/lib/exports";
 import { downloadBytes, downloadText, downloadWorkbook, toCsv, type Sheet } from "@/lib/xlsx";
 import { Btn } from "@/components/ui/primitives";
+import TeamMerge from "@/components/TeamMerge";
 import { IconDownload, IconX } from "@/components/ui/icons";
 
 type Kind =
@@ -319,6 +320,8 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
           </Btn>
         </div>
       </div>
+
+      <TeamMerge />
 
       {error && (
           <div

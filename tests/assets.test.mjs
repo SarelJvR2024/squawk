@@ -174,8 +174,9 @@ check(
 );
 
 check(
-  "the store was NOT versioned for this — absent already means no links",
-  /version: 12,/.test(src("lib", "store.ts")) && /name: "acsa-assurance-v1"/.test(src("lib", "store.ts")),
+  "asset links needed NO migration of their own — absent already means none",
+  !/assetIds/.test(src("lib", "store.ts").split("migrate:")[1] ?? "") &&
+    /name: "acsa-assurance-v1"/.test(src("lib", "store.ts")),
   "a migration that sets undefined to undefined is ceremony"
 );
 

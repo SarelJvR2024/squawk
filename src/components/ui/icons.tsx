@@ -119,6 +119,22 @@ export const IconDownload = (p: SVGProps<SVGSVGElement>) => (
     <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
   </svg>
 );
+/** Bringing another auditor's captures in: an arrow going INTO a tray, the
+ *  mirror of IconDownload, so the pair reads as out and in. */
+export const IconUpload = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...s(p)}>
+    <path d="M12 15V3m0 0L8 7m4-4l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
+/** Two auditors, one audit. */
+export const IconTeam = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...s(p)}>
+    <circle cx="9" cy="8" r="3.2" stroke="currentColor" strokeWidth="1.7" />
+    <path d="M3.5 19a5.5 5.5 0 0111 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    <path d="M16 5.6a3.2 3.2 0 010 4.8M17.5 14.4A5.5 5.5 0 0120.5 19" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+  </svg>
+);
 /* The record copy. A cloud with an up-arrow rather than a tick, because the
    state it usually shows is "not there yet". */
 /** Sync to the portal: a cloud with the arrow going UP, so it cannot be

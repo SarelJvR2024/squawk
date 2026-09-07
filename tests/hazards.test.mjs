@@ -268,7 +268,7 @@ check("hazards are persisted", /\n\s+hazards: s\.hazards,/.test(store));
 check("hazard ids are their own namespace", /HZ-\$\{uid\(\)/.test(store));
 check("a hazard can be removed, freeing its findings to regroup", /removeHazard:/.test(store));
 check("the persist key is untouched", /name: "acsa-assurance-v1"/.test(store));
-check("the version was bumped rather than the key renamed", /version: 12,/.test(store));
+check("the version was bumped rather than the key renamed", /version: 13,/.test(store));
 check(
   "and every bump has a migration",
   [9, 10, 11, 12].every((v) => new RegExp(`if \\(from < ${v}\\)`).test(store))

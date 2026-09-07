@@ -301,6 +301,21 @@ export interface Response {
   fieldDoneBy: string;
   fieldDoneAt: number | null;
   flaggedForField: boolean;
+  /** When this record last changed, on whichever device changed it.
+   *
+   *  THE FIELD THAT MAKES A MERGE POSSIBLE. Two auditors capture the same
+   *  audit on two devices; combining them means knowing, record by record,
+   *  which side is newer. The timestamps that were already here cannot answer
+   *  that — capturedAt, deskDoneAt and fieldDoneAt are only written on commit,
+   *  so an answer typed and not yet saved has nothing to compare, and a
+   *  finding's createdAt says when it was raised rather than when it was last
+   *  edited.
+   *
+   *  Optional, because records captured before this existed do not have one.
+   *  The migration back-fills from the best timestamp each record already
+   *  carried, and the merge reads a missing value as 0 — which is correct:
+   *  anything touched since the upgrade genuinely is newer. */
+  updatedAt?: number;
 }
 
 /* ---------- ACSA's SECOND instrument: the ERM matrix ----------
@@ -451,6 +466,9 @@ export interface Hazard {
   actionStatus: ActionStatus;
   createdAt: number;
   createdBy: string;
+  /** When this record last changed. See the note on Response.updatedAt — it is
+   *  what lets two devices' work be combined without guessing. */
+  updatedAt?: number;
 }
 
 export interface Finding {
@@ -511,6 +529,9 @@ export interface Finding {
   suggestedEvent: string;
   createdAt: number;
   createdBy: string;
+  /** When this record last changed. See the note on Response.updatedAt — it is
+   *  what lets two devices' work be combined without guessing. */
+  updatedAt?: number;
 }
 
 /** One dated entry in a record's history.
@@ -552,6 +573,9 @@ export interface Verification {
   /** Progress at this visit. The timeline across visits is assembled by
    *  historyFor() in carryforward.ts, which reads every visit's copy. */
   progress?: ProgressNote[];
+  /** When this record last changed. See the note on Response.updatedAt — it is
+   *  what lets two devices' work be combined without guessing. */
+  updatedAt?: number;
 }
 
 export interface Capture {

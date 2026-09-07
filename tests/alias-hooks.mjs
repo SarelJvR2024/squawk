@@ -20,9 +20,14 @@ export async function resolve(specifier, context, next) {
   let spec = specifier;
   if (spec.startsWith("@/")) spec = pathToFileURL(path.join(src, spec.slice(2))).href;
 
-  /* Extensionless relative imports: try .ts, then .tsx, then leave it alone
-     and let Node produce its own error, which is more use than ours. */
-  if (/^[./]/.test(spec) && !path.extname(spec)) {
+  /* Extensionless imports: try .ts, then .tsx, then leave it alone and let
+     Node produce its own error, which is more use than ours.
+     
+     `file:` is in the test as well as `.` and `/` because an "@/lib/x" alias
+     has already been rewritten to a file URL by the line above, and without it
+     the header's first promise was only half true — the alias resolved, and
+     then failed to find the module unless the suite spelled out ".ts". */
+  if ((/^[./]/.test(spec) || spec.startsWith("file:")) && !path.extname(spec)) {
     const base = spec.startsWith("file:") ? fileURLToPath(spec) : spec;
     for (const ext of [".ts", ".tsx"]) {
       try {
