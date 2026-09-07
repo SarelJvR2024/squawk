@@ -382,6 +382,71 @@ check(
   "the register carries hazards; a finding in none of them would otherwise just look synced"
 );
 
+/* ---------------------- Part 1d: the stand-in asset register -------------- */
+
+/* The register is not ACSA's yet. Sarel asked for the linking to be built
+   against a stand-in so it is ready and tested for the day it arrives, which
+   puts one obligation on all of it: AN INVENTED ASSET TAG MUST NOT REACH A
+   SYSTEM OF RECORD. It belongs in the workbook, where a person is reading and
+   the SAMPLE- prefix tells them what it is; it does not belong in the portal,
+   where a machine files it against a real finding and nobody looks again. */
+
+check(
+  "a stand-in tag is NOT sent to the portal",
+  sp.sendableAssets(["SAMPLE-KSIA-ELE-A001", "SAMPLE-KSIA-MEC-A004"]).length === 0,
+  "an invented asset number in a system of record is worse than no asset number"
+);
+
+check(
+  "a real tag IS — the guard turns itself off when the register is real",
+  (() => {
+    const out = sp.sendableAssets(["KSIA-ELE-0042", "SAMPLE-KSIA-ELE-A001"]);
+    return out.length === 1 && out[0] === "KSIA-ELE-0042";
+  })()
+);
+
+check(
+  "no links at all is not an error",
+  sp.sendableAssets(undefined).length === 0 && sp.sendableAssets([]).length === 0
+);
+
+check(
+  "the plan SAYS how many links it withheld rather than dropping them quietly",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE, hazards: [HAZARD({ assetIds: ["SAMPLE-KSIA-ELE-A001", "SAMPLE-KSIA-ELE-A002"] })] },
+      NOTHING
+    );
+    return p.skipped.some((s) => s.what === "asset links" && s.count === 2);
+  })(),
+  "silently dropping a field somebody filled in is how a sync stops being trusted"
+);
+
+check(
+  "and the row carries null rather than an empty string for them",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE, hazards: [HAZARD({ assetIds: ["SAMPLE-KSIA-ELE-A001"] })] },
+      NOTHING
+    );
+    return p.findings[0].values.assets === null;
+  })(),
+  "null is dropped by projectFields; an empty string would CLEAR a cell somebody else filled"
+);
+
+check(
+  "a real tag reaches the row",
+  (() => {
+    const p = sp.buildPlan({ ...BASE, hazards: [HAZARD({ assetIds: ["KSIA-ELE-0042"] })] }, NOTHING);
+    return p.findings[0].values.assets === "KSIA-ELE-0042";
+  })()
+);
+
+check(
+  "there is a column candidate for it, so a real register can sync one day",
+  Array.isArray(sp.FIELD_CANDIDATES.assets) && sp.FIELD_CANDIDATES.assets.includes("Assets")
+);
+
 /* -------------------- Part 2: properties the source has to carry ---------- */
 
 check(

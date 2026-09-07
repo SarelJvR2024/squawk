@@ -47,7 +47,7 @@ const CHECK_FIELDS = ["title", "discipline", "assetSystem", "compliance", "obser
 const FINDING_FIELDS = [
   "title", "discipline", "assetSystem", "observation", "severity", "likelihood",
   "riskPriority", "tolerance", "status", "rootCause", "treatment", "owner",
-  "targetDate", "progress", "dateRaised",
+  "targetDate", "progress", "dateRaised", "assets",
 ];
 
 type Stage = "idle" | "reading" | "planned" | "writing" | "done";

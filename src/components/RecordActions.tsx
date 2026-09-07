@@ -39,6 +39,7 @@ import * as erm from "@/lib/erm";
 import { ROOT_CAUSES, responsibleFor } from "@/lib/store";
 import { useAssistAvailable } from "@/lib/assist";
 import { Chip } from "@/components/ui/primitives";
+import AssetPicker from "@/components/AssetPicker";
 import { Btn } from "@/components/ui/primitives";
 import { IconSpark } from "@/components/ui/icons";
 import type {
@@ -63,6 +64,15 @@ export interface RatedRecord {
   owner: string;
   dueDate: string;
   actionStatus: ActionStatus;
+  /** Which physical assets the record is about. Optional everywhere: plenty of
+   *  findings are not about one — a missing register, an appointment nobody
+   *  made. */
+  assetIds?: string[];
+  /** Only to SCOPE the asset picker to what the auditor can plausibly mean.
+   *  A hazard spans disciplines, so it passes its first; an id has to pick one,
+   *  a record does not. */
+  discipline?: string;
+  system?: string;
   /** Hazards only. Absent on findings, which are not rated on ERM. */
   ermConsequence?: ErmConsequence | null;
   ermLikelihood?: ErmLikelihood | null;
@@ -559,6 +569,19 @@ export default function RecordActions({
 
         </>
       )}
+
+      {/* WHICH asset, before WHY it failed. A planner reads the tag first and
+          the root cause second, and capturing them in that order is how the
+          conversation actually goes with the responsible person in the room. */}
+      <div className="mb-3">
+        <AssetPicker
+          entityCode={entityCode}
+          discipline={record.discipline}
+          system={record.system}
+          value={record.assetIds}
+          onChange={(assetIds) => onChange({ assetIds })}
+        />
+      </div>
 
       <div className="mb-2 font-display text-[11px] font-semibold">Root cause</div>
       <div className="flex flex-wrap gap-[5px]">

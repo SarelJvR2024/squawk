@@ -136,6 +136,44 @@ Fonts load from Google Fonts at runtime because the build environment this was
 written in cannot reach `fonts.googleapis.com`. On Vercel you can switch
 `src/app/layout.tsx` back to `next/font/google` for build-time optimisation.
 
+## The asset register — a stand-in, for now
+
+A finding says something is wrong. The **asset** says what it is wrong *with*,
+and that is the half a maintenance planner needs to raise a job card:
+*"corroded busbar"* is a photograph, *"corroded busbar, MV Switchboard 3B"* is
+work.
+
+**ACSA has not supplied the register.** `src/data/assets.sample.json` is a
+stand-in so the linking, the screens and the export are built and tested for
+the day it arrives — 1,506 rows across all ten sites, coherent with the
+register's own disciplines and asset systems.
+
+### Nothing invented reaches a system of record
+
+An invented asset tag filed against a real finding, in a list ACSA reads, is
+worse than no tag at all. Three guards, deliberately redundant:
+
+| | |
+|---|---|
+| **The tag says so** | every id begins with `SAMPLE-`, so a tag pasted into an email or a screenshot announces itself |
+| **The file says so** | `meta.source` is `"sample"`, and the asset panel carries a standing warning while it is |
+| **The sync refuses** | `sendableAssets()` drops them, and the plan reports how many it withheld |
+
+Links **do** reach the workbook, where a person is reading and the prefix tells
+them what they are looking at. They do not reach the portal, where a machine
+files them and nobody looks again.
+
+### Replacing it
+
+Overwrite `src/data/assets.sample.json` in the same shape and set `meta.source`
+to `"acsa"`. **Nothing else changes** — the warning disappears, the sync starts
+sending the tags, and the links captured against sample tags stay exactly where
+they are (they are stored as tags, so they simply stop resolving and show as
+*"not in the register"* until re-linked).
+
+The register is fetched on first use rather than shipped in the initial bundle,
+the same treatment the Answer Library gets and for the same reason.
+
 ## Sync to the portal
 
 Squawk's deliverable is the workbook. The portal is where ACSA and TPJV keep

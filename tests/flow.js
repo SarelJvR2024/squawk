@@ -259,6 +259,36 @@ async function badge(p, href) {
   ok("a cell in the same band that nobody agreed stays a soft tint",
      otherRed.bg !== agreedCell.bg, `${otherRed.bg} vs ${agreedCell.bg}`);
 
+  /* ---------------- 4b. which asset, from the stand-in register -------------
+     ACSA has not supplied the register, so this one is invented and every tag
+     says SAMPLE-. What is asserted here is that the LINKING works and that the
+     screen says what the register is — the guard that keeps these tags out of
+     the portal lives in sharepoint.test.mjs, next to the code that does it. */
+  const assets = p.locator("summary", { hasText: /Assets/ }).first();
+  ok("a finding can say which asset it is about", (await assets.count()) > 0);
+  ok("and says it is optional rather than nagging for it",
+     /none linked — optional/.test(await assets.innerText()),
+     await assets.innerText());
+  await assets.click();
+  await p.waitForTimeout(1500);
+  ok("the screen says the register is a stand-in",
+     (await p.locator("text=Stand-in register.").count()) > 0,
+     "an invented asset tag against a real finding is worse than no tag");
+  const assetRows = p.locator('button:has(b:text-matches("^SAMPLE-"))');
+  ok("it offers this check's own discipline and system first",
+     (await assetRows.count()) > 0,
+     "a King Shaka Electrical finding must not open on a Cape Town chiller");
+  const tag = (await assetRows.first().locator("b").innerText()).trim();
+  await assetRows.first().click();
+  await p.waitForTimeout(700);
+  ok("linking one shows it on the folded summary",
+     (await assets.innerText()).includes(tag),
+     await assets.innerText());
+  ok("and gives it back as a chip that unlinks",
+     (await p.locator(`button[title*="Unlink ${tag}"]`).count()) === 1);
+  await assets.click();
+  await p.waitForTimeout(400);
+
   await p.goto(B + "/dashboard", { waitUntil: "networkidle" });
   await p.waitForTimeout(1600);
   const agreed = {

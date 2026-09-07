@@ -425,6 +425,22 @@ export interface Hazard {
    *  and what changed. */
   reassessedAt: number | null;
   reassessNote: string;
+  /** Which physical assets this is about, by their register tag.
+   *
+   *  A finding says something is wrong; the asset says what it is wrong WITH,
+   *  and that is the half a maintenance planner needs to raise a job card.
+   *
+   *  Plural because one record regularly covers several — "three of the eight
+   *  runway edge fittings" is one finding and three assets — and optional
+   *  because plenty are not about a specific asset at all: a missing register,
+   *  an appointment nobody made, a procedure nobody signed. A required field on
+   *  those would be filled with something untrue.
+   *
+   *  Tags, not object references. The register is a separate file that will be
+   *  replaced wholesale when ACSA supplies the real one, and a link that
+   *  survives that replacement has to be by tag. An id whose row has gone is
+   *  still shown, as itself — see assetsById(). */
+  assetIds?: string[];
   /** Same vocabulary as a finding's — ROOT_CAUSES in src/lib/store.ts. A hazard
    *  built from several findings usually has one cause behind all of them, and
    *  that is the thing the remediation has to address. */
@@ -457,6 +473,22 @@ export interface Finding {
    *  the group has agreed it on the matrix — the audit rates as a group
    *  exercise, so a suggestion must never masquerade as a decision. */
   ratingConfirmed: boolean;
+  /** Which physical assets this is about, by their register tag.
+   *
+   *  A finding says something is wrong; the asset says what it is wrong WITH,
+   *  and that is the half a maintenance planner needs to raise a job card.
+   *
+   *  Plural because one record regularly covers several — "three of the eight
+   *  runway edge fittings" is one finding and three assets — and optional
+   *  because plenty are not about a specific asset at all: a missing register,
+   *  an appointment nobody made, a procedure nobody signed. A required field on
+   *  those would be filled with something untrue.
+   *
+   *  Tags, not object references. The register is a separate file that will be
+   *  replaced wholesale when ACSA supplies the real one, and a link that
+   *  survives that replacement has to be by tag. An id whose row has gone is
+   *  still shown, as itself — see assetsById(). */
+  assetIds?: string[];
   rootCause: string;
   action: string;
   owner: string;

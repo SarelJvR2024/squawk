@@ -838,7 +838,10 @@ export default function HazardsPage() {
                 </label>
 
                 <RecordActions
-                  record={active}
+                  /* A hazard spans disciplines by nature — that is the point
+                     of consolidating — so it lends the picker its FIRST one to
+                     scope by. Search widens it when that is the wrong guess. */
+                  record={{ ...active, discipline: active.disciplines[0], system: active.systems[0] }}
                   entityCode={entityCode}
                   onChange={(patch) => updateHazard(active.id, patch)}
                   onToast={say}
