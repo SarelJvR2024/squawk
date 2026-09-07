@@ -1,6 +1,6 @@
 # Tests
 
-Thirty-one suites, no framework. Eleven need a running server; twenty do not.
+Thirty-two suites, no framework. Twelve need a running server; twenty do not.
 **Check each suite's exit status, not its output**: a `for` loop over them
 reports the status of the loop.
 
@@ -45,8 +45,9 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `offline.js` | yes | 18 |
 | `team.js` | yes | 15 |
 | `preflight.js` | yes | 15 |
+| `shared.js` | starts its own | 38 |
 
-**1,082 assertions in total**, every count above verified by running the suite,
+**1,120 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -622,6 +623,51 @@ The microphone is then tested properly in a second browser launched with
 Chromium's fake capture device, the same way `ai.js` records a real voice note:
 a headless browser has no audio hardware, so pressing the button in the first
 context would be testing the sandbox rather than the app.
+
+## `shared.js`
+
+Several auditors, one audit, over the wire. `merge.test.mjs` proves the rules
+and `team.js` proves the file route; this proves the shared record — two browser
+contexts as two tablets, a real Next server holding the secret key, and **a
+Supabase this suite can turn off on purpose** (`tests/fake-supabase.mjs`, which
+implements the two endpoints the route calls with the same conditional-upsert
+semantics as the SQL migration).
+
+```bash
+node tests/shared.js        # starts everything it needs
+```
+
+Sarel asked for it "in all scenarios with multiple auditors offline and online
+as expected and also test some edge cases and do negative testing", and **the
+negative half is the half that matters**. A sync that works when everything is
+fine is table stakes. What decides whether a team trusts it:
+
+- an **unconfigured deployment says so and refuses to sync** — it never falls
+  open;
+- a wrong passphrase is refused, tells you nothing about the real one, and is
+  never kept on the device;
+- guessing is slowed to a crawl, and one client being throttled does not lock
+  out another;
+- **a row cannot name an audit the request did not authenticate for** — the
+  server re-scopes every row to the audit it authenticated;
+- **a device out of a basement cannot push its stale copy over newer work**;
+- an oversized body is refused rather than stored;
+- offline, the app says so, says nothing is lost, and goes on capturing;
+- work captured with no signal goes up **by itself** when signal returns;
+- when the record is down the app says so plainly, keeps capturing, and
+  recovers on its own;
+- **two auditors who answered the same check in a basement converge** on the
+  later answer when they come up, rather than on whoever synced first;
+- a device whose passphrase has stopped working is told, and the passphrase that
+  stopped working is dropped rather than retried forever;
+- and syncing over and over neither grows the record nor duplicates a finding.
+
+It found two real defects on its first run. An offline device said *"no shared
+record on this deployment"* — because the probe that asks cannot get an answer
+with no network, which is the worst possible wrong answer: it tells an auditor
+in a basement their team is not sharing an audit at all. And a save waited up to
+thirty seconds for the next tick, which is now a debounced sync a couple of
+seconds after the last save.
 
 ## `vision.js`
 

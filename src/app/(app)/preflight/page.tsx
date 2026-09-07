@@ -23,6 +23,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { usePhotoSync } from "@/lib/sync";
+import { useShared } from "@/lib/shared";
 import {
   formatBytes,
   isStoragePersisted,
@@ -61,6 +62,7 @@ export default function PreflightPage() {
   const auditor = useStore((s) => s.auditor);
   const hydrated = useStore((s) => s.hydrated);
   const sync = usePhotoSync();
+  const shared = useShared();
 
   const [sw, setSw] = useState<Row>({ id: "sw", label: "Opens with no signal", state: "checking", value: "" });
   const [store, setStore] = useState<Row>({ id: "idb", label: "This device can store the audit", state: "checking", value: "" });
@@ -306,10 +308,52 @@ export default function PreflightPage() {
     }
   };
 
+  /* The shared record, said in the same shape as everything else here — and
+     first among the network rows, because "is my work reaching the team" is the
+     question an auditor most wants answered before a day's capture, and the one
+     whose wrong answer costs the most. */
+  const sharedRow: Row = {
+    id: "shared",
+    label: "The team sees my work",
+    state:
+      !shared || shared.state === "off"
+        ? "warn"
+        : shared.state === "synced"
+          ? "ok"
+          : shared.state === "error"
+            ? "bad"
+            : "warn",
+    value:
+      !shared || shared.state === "off"
+        ? "No shared record on this deployment"
+        : shared.state === "locked"
+          ? "This device has not joined the audit"
+          : shared.state === "offline"
+            ? "Waiting for signal — nothing is lost"
+            : shared.state === "syncing"
+              ? "Syncing…"
+              : shared.state === "error"
+                ? (shared.lastError ?? "The last sync failed")
+                : `Synced${shared.lastSyncAt ? ` at ${new Date(shared.lastSyncAt).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}` : ""}`,
+    hint:
+      !shared || shared.state === "off"
+        ? "Captures stay on this device. Hand them to whoever is assembling the audit as a file, from Export → Team captures."
+        : shared.state === "locked"
+          ? "Open Export and enter the team passphrase once. Until then this device is auditing on its own."
+          : shared.state === "error"
+            ? "Nothing captured here is lost — it stays on this device and goes up when the record answers again."
+            : undefined,
+    action:
+      shared && shared.state !== "off" && shared.unlocked
+        ? { label: "Sync now", run: shared.syncNow }
+        : undefined,
+  };
+
   const rows: Row[] = [
     sw,
     store,
     space,
+    sharedRow,
     ...api,
     mic ?? {
       id: "mic",

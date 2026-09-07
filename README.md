@@ -30,6 +30,7 @@ Section numbers in code comments point at that document.
 | Voice notes | Always recorded on the device; transcription and write-up are opt-in |
 | Exports | Excel and CSV: register, findings, hazards, closure, evidence request, summary, photographs — plus the images as files |
 | Pre-flight | `/preflight` — microphone, camera, storage, offline cache and the three services, checked on the device before anyone walks onto an apron |
+| Shared record | Supabase, behind a team passphrase — every auditor's work in one audit, syncing by itself, and off entirely unless configured |
 | Team captures | Share a device's work as one file and merge another auditor's; evidence is never overwritten |
 | Word report templates | Not started — design document phase 4 |
 
@@ -133,6 +134,9 @@ npx vercel --prod   # promote to production
 | `TRANSCRIBE_LANGUAGE` | Pins transcription to one language. **Leave unset.** Auto-detection is what carries an auditor switching between English and Afrikaans inside one sentence. |
 | `ASSIST_VISION` | `1` sends photographs to the model. **Unset or `0` and no image byte leaves**, whatever the client sends — the route strips them. Every AI affordance still works on captions alone. |
 | `ASSIST_ENDPOINT` | Where the assist request goes. Defaults to the Anthropic API; point it at an in-tenant endpoint if ACSA's governance requires the data to stay there. Nothing in the UI changes. |
+| `SUPABASE_URL` | Turns the **shared record** on, with the two below. The project URL, e.g. `https://xxxx.supabase.co`. All three or none: any one missing and the route reports itself unavailable and refuses to sync. |
+| `SUPABASE_SECRET_KEY` | The **secret** key (`sb_secret_…`), never the publishable one. It stays on the server; no browser ever sees it, and the table has row-level security on with no policies so the publishable key can do nothing at all. |
+| `SQUAWK_TEAM_PASSPHRASE` | What lets a device join the audit. Five or six unrelated words — somebody will read it to a colleague once and type it on a phone. It is the only thing between a URL and every site's findings and photographs. |
 | `BLOB_TOKEN_VAR` | Names which `*_READ_WRITE_TOKEN` to use, for a project with more than one blob store. Only needed when two are set; see *Checking it is on*. |
 | `NEXT_PUBLIC_GRAPH_CLIENT_ID` | Turns **Sync to the portal** on. The client id of an Entra ID app registration; a public value by design in this flow, **not a credential**. Without it the Sync button is not rendered at all and everything else is unchanged. |
 | `NEXT_PUBLIC_GRAPH_TENANT` | The tenant to sign in against. Defaults to `organizations` (any work account). Pin it to TPJV's tenant id to stop anyone signing in with an unrelated Microsoft account. |
@@ -295,6 +299,7 @@ src/
   lib/
     types.ts          domain model
     merge.ts          combining two auditors' work into one audit
+    shared.ts         the shared record, from the device's side
     risk.ts           ACSA B170 001M matrix — Red / Amber / Green
     erm.ts            ACSA's enterprise risk matrix — declared, and empty
     store.ts          state, persistence, selectors
@@ -408,6 +413,30 @@ tests/                twenty-two suites — see tests/README.md
   the data and reads every markdown file and source comment for a figure written
   next to "check-points", "checks" or "options"; anything that disagrees fails,
   naming the file and the line.
+
+- **The shared record is a sync target, never the source of truth.** Each
+  device captures into its own IndexedDB whether or not Supabase answers, and a
+  deployment with nothing configured behaves exactly like the Squawk that
+  existed before it — the file merge below is still there. What the record adds
+  is that a team is working *one* audit rather than several.
+
+  **No browser ever talks to Supabase.** The obvious build hands the publishable
+  key to the client and leans on row-level security; that is right when every
+  user signs in and a policy can key on who they are. Access here is a shared
+  team passphrase, so there is no per-user identity for a policy to test — and a
+  publishable key in a browser plus a permissive policy is a URL away from every
+  finding and photograph in the programme. Instead the secret key lives in
+  `/api/sync`, the table has RLS on with **no policies at all**, and the
+  passphrase is checked server-side where a client cannot get round it. Same
+  reasoning as `ASSIST_VISION`.
+
+  It never falls open: any of the three variables missing and the route reports
+  itself unavailable and refuses. The merge rules are not reimplemented — rows
+  are shaped into a bundle and handed to the same `src/lib/merge.ts` the export
+  sheet uses, so evidence unions and a contested record resolves identically
+  whether it arrived over the wire or on a memory stick. `tests/shared.js` drives
+  two devices against a Supabase it can switch off, and most of its 31
+  assertions are the negative ones.
 
 - **Two auditors, one audit.** An ACSA audit is done by a team and the audit
   lives in one device's IndexedDB, so until the shared record exists a day's
@@ -769,6 +798,23 @@ megabytes attached and fetch the images when somebody asks. The zip carries a
 `MANIFEST.csv` so it still reads on its own once separated from the workbook —
 which, being a separate download, it will be.
 
+### Turning the shared record on
+
+One step only Sarel can do, once:
+
+1. Create a Supabase project (free tier is enough for an audit).
+2. Open the **SQL editor** and run `supabase/0001_shared_record.sql` from this
+   repo, whole. It creates the table, the index, turns row-level security on
+   with no policies, and adds the conditional-upsert function. It is idempotent.
+3. Set `SUPABASE_URL`, `SUPABASE_SECRET_KEY` and `SQUAWK_TEAM_PASSPHRASE` in
+   Vercel — none of them `NEXT_PUBLIC_` — and redeploy.
+4. On each auditor's device: **Export → Shared record → the passphrase → Join the
+   audit.** Once per device, and it is remembered.
+
+`/preflight` says which of those has happened on the device in front of you.
+Until all of it has, the app is unchanged and captures are handed over as a file
+from the same sheet.
+
 ### Checking it is on
 
 Three probes, in a browser, on whichever deployment you are testing. None ever
@@ -778,6 +824,7 @@ returns a key's value:
 /api/photos      → {"available":true,"via":"SQUAWK_READ_WRITE_TOKEN"}
 /api/assist      → {"available":true,"model":"claude-opus-5","vision":false}
 /api/transcribe  → {"available":true,"model":"scribe_v1"}
+/api/sync        → {"available":true}
 ```
 
 `available: false` means the variable did not reach the *running* deployment —
