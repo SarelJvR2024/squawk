@@ -206,7 +206,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           redefines the surface tokens for everything inside it, so the
           controls below are unchanged and a control added later inherits
           the dark band instead of staying stubbornly light. */}
-      <header className="masthead flex h-[52px] shrink-0 items-center gap-3 border-b px-3.5">
+      {/* MEASURED ON AN iPHONE 12: the nav was 36px wide holding 844px of
+          destinations. It scrolled, technically, but a 36px sliver is not a
+          control — it read as a rendering fault, and the dark masthead made it
+          a black stub. The whole navigation was effectively gone on the device
+          the walkabout is actually done on.
+
+          So below sm the header wraps and the nav takes a full-width row of its
+          own. It costs about 44px of a 664px screen and buys back seven
+          destinations. From sm upward nothing moves: one row, 52px, exactly as
+          measured at 820/1024/1180. */}
+      <header className="masthead flex min-h-[52px] shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b px-3.5 py-1 sm:h-[52px] sm:flex-nowrap sm:py-0">
         <Link href="/dashboard" className="flex min-h-[44px] shrink-0 items-center gap-[9px] no-underline">
           <span
             className="flex h-[27px] w-[27px] items-center justify-center rounded-[8px]"
@@ -230,7 +240,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </Link>
 
         <nav
-          className="hide-scrollbar flex min-w-0 flex-1 gap-[2px] overflow-x-auto rounded-[11px] p-[3px]"
+          className="hide-scrollbar order-last flex w-full min-w-0 shrink-0 basis-full gap-[2px] overflow-x-auto rounded-[11px] p-[3px] sm:order-none sm:w-auto sm:flex-1 sm:basis-auto"
           style={{ background: "var(--sunken)" }}
         >
           {NAV.map((n) => {
@@ -355,7 +365,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               onClick={() => setResetting(true)}
               aria-label="Start again"
               title="Start again — clear captured data for a dry run"
-              className="flex min-h-[44px] items-center gap-[6px] rounded-[8px] border px-[10px] py-[7px] text-[11.5px] transition-[var(--t)]"
+              className="hidden min-h-[44px] items-center gap-[6px] rounded-[8px] border px-[10px] py-[7px] text-[11.5px] transition-[var(--t)] sm:flex"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-3)" }}
             >
               <IconLoop width={13} height={13} />
@@ -363,10 +373,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           )}
 
+          {/* Keyboard shortcuts, on a device with no keyboard — and Start again,
+              which is a dry-run tool nobody wants within reach on an apron.
+              Both hidden below sm so the phone header stays two rows instead of
+              three: on an iPhone SE that is the difference between 155px and
+              107px of a 568px screen. */}
           <button
             onClick={() => setHelp(true)}
             aria-label="Keyboard shortcuts"
-            className="flex min-h-[44px] items-center rounded-[8px] border p-[9px] transition-[var(--t)]"
+            className="hidden min-h-[44px] items-center rounded-[8px] border p-[9px] transition-[var(--t)] sm:flex"
             style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
           >
             <IconHelp width={14} height={14} />
