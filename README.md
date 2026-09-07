@@ -271,9 +271,11 @@ src/
     photos.ts         what a photograph is called, and the export zip
     sync.ts           the queue that gets photographs to the record store
     globals.css       design tokens for both themes
+    manifest.ts       the web manifest — installable, starts at /capture
   components/
     AppShell.tsx      header, nav, cycle strip, command palette, role switch
     CheckDetail.tsx   the check screen — brief left, capture right, answer pinned
+    OfflineReady.tsx  registers the worker, warms the two lazy payloads
     RootCauseAdvice.tsx  candidate causes and, more usefully, what to ask
     HazardAdvice.tsx  the event a finding exposes, named at the check
     RecordActions.tsx the rating and treatment block — findings AND hazards
@@ -381,6 +383,30 @@ tests/                twenty-two suites — see tests/README.md
   finding. `tests/review.test.mjs` enforces it. ACSA's role is read-only
   everywhere else but can comment here, because their engineers answering a
   photograph is the point of the screen.
+
+- **It opens with no signal, and that is tested by cutting the network.**
+  Everything else here about not losing captured work — IndexedDB, photographs
+  surviving a reload, the upload queue waiting for signal — assumed the app had
+  already loaded. `public/sw.js` is what earns that assumption: an auditor
+  airside who closes the tab, or whose phone drops the page from memory, still
+  opens Squawk and reaches everything they captured. Navigations are served from
+  cache and revalidated behind (a stale shell is not dangerous — the audit is in
+  IndexedDB, not the HTML — and nobody mid-walkabout should wait on a network
+  timeout to open a screen); `/_next/static/*` is cache-first because the
+  filenames are content-hashed. `src/app/manifest.ts` makes it installable, and
+  it starts at `/capture` rather than `/`, because `/` is a redirect and a
+  launch that begins with a redirect begins with a network request.
+
+  Four things are deliberately never cached, and each would be a defect rather
+  than a missing optimisation: `/api/*` (a cached availability probe would tell
+  an auditor a model is configured on a deployment where it is not),
+  `/graph-callback` (it carries an authorisation code and a state in its URL),
+  anything cross-origin (the photographs are **not** copied into a second store
+  as a side effect of a routing rule), and the redirecting root. The two lazy
+  payloads — the Answer Library and the asset register — are fetched
+  deliberately after load rather than on first use, because "offline-safe" and
+  "fetched when someone happens to open the right panel" are not the same thing.
+  `tests/offline.js` asserts all of it with the network actually switched off.
 
 - **The check screen is a brief, not a dossier.** The three things an auditor
   opens their mouth with — the question to ask, the standard to audit against,
