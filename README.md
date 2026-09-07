@@ -21,7 +21,7 @@ Section numbers in code comments point at that document.
 | Capture workspace (section 8) | Three-pane workspace, answer chips, real voice and photo capture, progress, ⌘K, keyboard |
 | Field inspection mode | Location-first, researched walkabout options with photo expectation, 44px targets, capture-first tray, ad-hoc findings, offline |
 | Findings and rating | ACSA B170 001M matrix, agreed vs suggested ratings, root cause, owner, due date |
-| Hazards | Consolidation from findings with the photographs behind each group, post-walk re-read, both rating instruments — ACSA's ERM scale not yet supplied |
+| Hazards | Consolidation from findings with the photographs behind each group, post-walk re-read, **both rating instruments live** — B170 001M for the safety event, ACSA's ERM (J050 001FW cl. 9.2.2) for the business risk |
 | Closure | Carry-forward: this site's own 2025 findings plus anything an earlier visit left open, four-way verification, coverage guard, lifecycle |
 | Audits | Every entity × visit in one place; open any, create new ones; the programme file seeds, the app extends |
 | Dashboards | Airport, discipline and a real ten-site portfolio, with movement against 2025 |
@@ -29,6 +29,8 @@ Section numbers in code comments point at that document.
 | AI assistance | Optional and advisory — off unless a key is set |
 | Voice notes | Always recorded on the device; transcription and write-up are opt-in |
 | Exports | Excel and CSV: register, findings, hazards, closure, evidence request, summary, photographs — plus the images as files |
+| Pre-flight | `/preflight` — microphone, camera, storage, offline cache and the three services, checked on the device before anyone walks onto an apron |
+| Team captures | Share a device's work as one file and merge another auditor's; evidence is never overwritten |
 | Word report templates | Not started — design document phase 4 |
 
 ## Stack
@@ -75,14 +77,22 @@ node tests/voice.test.mjs                # a rewrite never overwrites what was s
 node tests/sites.test.mjs                # ten sites, one register, right counts
 node tests/photos.test.mjs               # stored, captioned, and only sent on purpose
 node tests/hazards.test.mjs              # a finding is in at most one hazard
-node tests/erm-matrix.test.mjs           # an unsupplied scale stays unsupplied
+node tests/erm-matrix.test.mjs           # two instruments, and where they disagree
+node tests/merge.test.mjs                # two auditors' work, combined without loss
+node tests/checkscreen.test.mjs          # the brief, and that nothing was dropped
+node tests/figures.test.mjs              # the prose still matches the register
+node tests/assets.test.mjs               # a stand-in tag can never reach the portal
 node tests/vision.js                     # starts its own servers
 node tests/record.js                     # starts its own server
 npm run build && npm start &             # then, against a running server:
 BASE=http://localhost:3000 node tests/e2e.js          # 21 assertions
 BASE=http://localhost:3000 node tests/robustness.js   # 38 assertions
-BASE=http://localhost:3000 node tests/exports.js      # 30 assertions
+BASE=http://localhost:3000 node tests/exports.js      # 32 assertions
 BASE=http://localhost:3000 node tests/persite.js      # 25 assertions, four sites
+BASE=http://localhost:3000 node tests/flow.js         # 48 assertions
+BASE=http://localhost:3000 node tests/offline.js      # 18, with the network cut
+BASE=http://localhost:3000 node tests/team.js         # 15, two devices, one audit
+BASE=http://localhost:3000 node tests/preflight.js    # 15, on a device with no mic
 BASE_NO_KEY=... BASE_WITH_KEY=... node tests/ai.js    # 26 assertions
 ```
 
@@ -294,8 +304,8 @@ src/
     exports.ts        what each export sheet contains
     xlsx.ts           minimal .xlsx writer
   data/
-    checks.json       374 check-points with ACSA mappings and external basis
-    answers.json      11,179 researched options, loaded on demand
+    checks.json       324 check-points with ACSA mappings and external basis
+    answers.json      9,836 researched options, loaded on demand
     priorFindings.json  the 23 March 2025 findings
     programme.json    entities, the 3-year cycle, zones
 tests/                twenty-two suites — see tests/README.md
@@ -378,13 +388,26 @@ tests/                twenty-two suites — see tests/README.md
 
 - **A review comment is not the record.** `/review` shows every photograph and
   voice note per discipline for the airport in view, so a discipline lead can
-  answer evidence without knowing which of 374 checks carries it. Comments
+  answer evidence without knowing which of 324 checks carries it. Comments
   there are never merged into the observation or the finding — an engineer who
   thinks their aside might be quoted in an ACSA report writes a more careful,
   less useful comment, and a report that absorbed one would be misattributing a
   finding. `tests/review.test.mjs` enforces it. ACSA's role is read-only
   everywhere else but can comment here, because their engineers answering a
   photograph is the point of the screen.
+
+- **Every figure in the prose is derived from the register, and checked.** Rev
+  A2 shrank the check-list from 374 rows to 324; the app followed it, because
+  every count on screen is computed. The words did not. This file, the test
+  notes and a dozen source headers went on quoting a register of 374, a library
+  of 11,179, a desk-and-field split of 365 and 314, an overlap of 305, and 89
+  carrying a question to ask. Not one was true. A stale number in a
+  comment is not a typo here — the comments are how the next person learns why
+  something is the way it is, and a reader has no way to tell a stale figure
+  from a deliberate one. `tests/figures.test.mjs` now works the numbers out from
+  the data and reads every markdown file and source comment for a figure written
+  next to "check-points", "checks" or "options"; anything that disagrees fails,
+  naming the file and the line.
 
 - **Two auditors, one audit.** An ACSA audit is done by a team and the audit
   lives in one device's IndexedDB, so until the shared record exists a day's
@@ -460,8 +483,8 @@ tests/                twenty-two suites — see tests/README.md
 - **A check appears where it can be answered.** `vtype` on every register row
   declares Evidence / Question / Site Physical Verification, and
   `src/lib/verification.ts` is the only place that reads it. Capture lists the
-  365 a desk can progress, Field lists the 314 that need the asset seen, they
-  overlap on 305, and nothing is orphaned. The overlap is not duplication —
+  315 a desk can progress, Field lists the 299 that need the asset seen, they
+  overlap on 290, and nothing is orphaned. The overlap is not duplication —
   reading the maintenance record and looking at the pump are two acts on one
   requirement — but a check in a view that cannot progress it is.
   `tests/portals.test.mjs` parses the register independently to check this.

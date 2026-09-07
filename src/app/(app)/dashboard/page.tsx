@@ -40,7 +40,7 @@ import { IconInfo, IconLoop } from "@/components/ui/icons";
 
 type Level = "airport" | "discipline" | "portfolio";
 
-/* 1 of 374 must not read as 0% — an auditor reads that as "nothing started". */
+/* 1 of 324 must not read as 0% — an auditor reads that as "nothing started". */
 function pct(n: number, total: number) {
   if (!total) return "0%";
   const p = (n / total) * 100;

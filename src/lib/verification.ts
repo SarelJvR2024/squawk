@@ -10,7 +10,7 @@
  *  Nothing read it. Capture listed the whole register, including the nine that have
  *  nothing to ask and nothing to collect — an auditor at a desk was handed
  *  rows whose only answer is on an apron. Field mode listed checks that had a
- *  walkabout string, which happens to give the right 314 today but is a proxy:
+ *  walkabout string, which happens to give the right 299 today but is a proxy:
  *  it is true because someone wrote walkabout text, not because the register
  *  says the asset must be seen. If a walkabout line were ever blank the check
  *  would silently stop appearing on the tablet, and nothing would say so.
@@ -89,7 +89,7 @@ export function needsQuestion(check: Check): boolean {
 
 /** Every check reaches at least one view. Nothing in the register may be
  *  unreachable — that is the one invariant this split must not break, and
- *  tests/portals.test.mjs asserts it across all 374. */
+ *  tests/portals.test.mjs asserts it across all 324. */
 export function isRouted(check: Check): boolean {
   return needsDesk(check) || needsField(check);
 }

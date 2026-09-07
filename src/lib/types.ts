@@ -68,7 +68,7 @@ export interface WalkaboutOption {
 
 /** The researched button set for one check (design doc section 7).
  *
- *  This lives in its own file, loaded on demand — 11,179 options across 374
+ *  This lives in its own file, loaded on demand — 9,836 options across 324
  *  checks is 356 kB gzipped, and the dashboard, findings and closure screens
  *  never touch it. See src/lib/answers.ts. */
 export interface AnswerLibrary {
@@ -288,7 +288,7 @@ export interface Response {
    *  vtype declares has been answered. A check needing both a document review
    *  and the asset seen is not captured until both halves are done — before
    *  per-portal tracking existed this flag went true on the first save from
-   *  either screen, so 305 checks could read as complete with nobody having
+   *  either screen, so 290 checks could read as complete with nobody having
    *  looked at the asset. Never set this directly; call commit(id, portal). */
   captured: boolean;
   /** Who and when for the half that COMPLETED the check. */

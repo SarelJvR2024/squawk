@@ -127,6 +127,16 @@ export const IconUpload = (p: SVGProps<SVGSVGElement>) => (
     <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
   </svg>
 );
+/** Pre-flight: a dial with a needle. Not the help question-mark, which is
+ *  already the shortcut sheet — two destinations wearing one icon is two things
+ *  to get wrong on a bar you are reading one-handed. */
+export const IconGauge = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...s(p)}>
+    <path d="M4 17a8 8 0 1116 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    <path d="M12 17l4.2-4.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    <circle cx="12" cy="17" r="1.3" fill="currentColor" />
+  </svg>
+);
 /** Two auditors, one audit. */
 export const IconTeam = (p: SVGProps<SVGSVGElement>) => (
   <svg {...s(p)}>

@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
  *  mostly not the people holding the tablet. Before this screen, visual
  *  evidence was reachable only by opening the single check that carried it —
  *  a discipline lead reviewing electrical evidence had to already know which
- *  of 374 checks to open. Nobody does that, so nobody reviewed.
+ *  of 324 checks to open. Nobody does that, so nobody reviewed.
  *
  *  The rule: a review comment is a conversation ABOUT the evidence. It is never
  *  merged into `Response.observation`, which is the auditor's record of what
