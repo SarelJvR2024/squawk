@@ -321,6 +321,12 @@ export function photographsSheet(x: ExportInput): Sheet {
         c.discipline,
         c.system,
         c.area,
+        /* WHICH asset, as the auditor read it off the plate. Both blank is a
+           legitimate answer — plenty of evidence is not about one asset — so
+           these stay empty rather than shouting the way the caption column
+           does. A missing caption IS a defect; a missing asset is not. */
+        a.assetName?.trim() ?? "",
+        a.assetRef?.trim() ?? "",
         a.caption?.trim() ?? "",
         a.caption?.trim()
           ? a.captionSource === "assistant"
@@ -351,6 +357,8 @@ export function photographsSheet(x: ExportInput): Sheet {
       { header: "Discipline", width: 20 },
       { header: "Asset system", width: 26 },
       { header: "Area", width: 20 },
+      { header: "Asset", width: 28 },
+      { header: "Asset no. / ref", width: 18 },
       { header: "Caption", width: 62, wrap: true },
       { header: "Caption source", width: 30 },
       { header: "Taken", width: 18 },

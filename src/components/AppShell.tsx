@@ -197,10 +197,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
        *  always reachable, and the NAV is the flexible one — min-w-0 so it may
        *  shrink and overflow-x-auto so every destination stays reachable by
        *  swipe, which is the ordinary tablet gesture. */}
-      <header
-        className="flex h-[52px] shrink-0 items-center gap-3 border-b px-3.5"
-        style={{ background: "var(--panel)", borderColor: "var(--line)" }}
-      >
+      {/* The masthead carries no inline colours of its own: `.masthead`
+          redefines the surface tokens for everything inside it, so the
+          controls below are unchanged and a control added later inherits
+          the dark band instead of staying stubbornly light. */}
+      <header className="masthead flex h-[52px] shrink-0 items-center gap-3 border-b px-3.5">
         <Link href="/dashboard" className="flex min-h-[44px] shrink-0 items-center gap-[9px] no-underline">
           <span
             className="flex h-[27px] w-[27px] items-center justify-center rounded-[8px]"

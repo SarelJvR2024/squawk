@@ -131,6 +131,44 @@
   --e3: 0 12px 32px -12px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
+/* ============================================================
+   The masthead.
+   #2D1956 sampled from the ACSA Asset Assurance report, so the screen and
+   the deliverable read as one system.
+
+   It is done by REDEFINING the surface tokens inside the header rather than
+   rewriting twenty inline styles. Custom properties cascade, so every child
+   that already reads var(--ink-2) or var(--panel) picks up the dark-band
+   value with no change of its own — and a control added to the header later
+   inherits it for free instead of staying stubbornly light.
+
+   Every pair below is at or above WCAG AA on the band (measured, not
+   assumed): white 15.16, --ink-2 9.12, --ink-3 5.59, --ink-3 on the nav
+   trough 6.13, and --ink-3 on an active pill 4.59.
+   ============================================================ */
+.masthead {
+  --panel: #3d2470;
+  --sunken: #241348;
+  --rail: #241348;
+  --ink: #ffffff;
+  --ink-2: #cfc3e8;
+  --ink-3: #a396c6;
+  --ink-4: #8878b0;
+  --line: #45307a;
+  --line-2: #56408f;
+  --line-3: #6b529f;
+  /* On the band the accent IS the light: an active pill is a raised purple
+     panel with white on it, and the brand mark inverts to a white tile. */
+  --acc: #ffffff;
+  --acc-2: #ede8f8;
+  --acc-soft: #ffffff26;
+  --acc-line: #6b529f;
+  --on-acc: #2d1956;
+  background: #2d1956;
+  border-color: #45307a;
+  color: var(--ink);
+}
+
 @theme inline {
   --color-bg: var(--bg);
   --color-panel: var(--panel);

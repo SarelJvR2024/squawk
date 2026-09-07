@@ -230,6 +230,27 @@ export interface Attachment {
    *  it. A caption an auditor wrote and one a model proposed are not the same
    *  evidence and the export says which. */
   captionSource?: "auditor" | "assistant";
+  /** WHICH asset this photograph is of — the name on the plate, and its
+   *  number, tag or reference.
+   *
+   *  A caption says what is wrong. These say what it is wrong WITH, and that
+   *  is the half a maintenance planner needs to act: "corroded busbar" is a
+   *  photograph, "corroded busbar, MV Switchboard 3B, tag SW-3B-011" is a job
+   *  card. Written down on the apron with the plate in front of the auditor,
+   *  it is thirty seconds; reconstructed afterwards it is a site visit.
+   *
+   *  BOTH ARE OPTIONAL, deliberately. Plenty of evidence has no single asset
+   *  behind it — a cable trench, a housekeeping shot, a document on a desk —
+   *  and a required field on those would either be left blank and nag or be
+   *  filled with something untrue. An uncaptioned photograph is incomplete; an
+   *  unattributed one is merely not about one asset.
+   *
+   *  Free text, NOT a link to the asset register. The register is not here yet,
+   *  and what the auditor reads off the plate is the evidence either way. When
+   *  the register does arrive these become what a real assetId is matched
+   *  against, and nothing captured now is wasted. */
+  assetName?: string;
+  assetRef?: string;
   /** Measured elapsed seconds. Absent for a photograph. */
   durationSec?: number;
   /** What was actually said, verbatim — typed by the auditor, heard by the

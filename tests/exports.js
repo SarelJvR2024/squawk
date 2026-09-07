@@ -60,6 +60,14 @@ const ok = (n, c, x = "") => {
   await p.waitForTimeout(1600);
   await p.locator('input[aria-label^="Caption for"]').first()
     .fill("Signature column of the register, three rows blank");
+  await p.waitForTimeout(300);
+  /* WHICH asset. The caption says what is wrong; these say what it is wrong
+     with, which is the half a maintenance planner needs. Optional on screen,
+     so this proves they survive to the workbook when someone does fill them. */
+  await p.locator('input[aria-label^="Asset name for"]').first()
+    .fill("MV Switchboard 3B");
+  await p.locator('input[aria-label^="Asset number or reference for"]').first()
+    .fill("SW-3B-011");
   await p.waitForTimeout(600);
   await p.locator("button", { hasText: /^Save$/ }).first().click();
   await p.waitForTimeout(700);
@@ -158,7 +166,7 @@ const ok = (n, c, x = "") => {
   ok("the photographs sheet exports", /photographs/i.test(d4.suggestedFilename()), d4.suggestedFilename());
   ok(
     "its columns are the index, in order, and File comes first",
-    /^\ufeff?File,Reference,Check,Discipline,Asset system,Area,Caption,Caption source,Taken,Attached/.test(head),
+    /^\ufeff?File,Reference,Check,Discipline,Asset system,Area,Asset,Asset no\. \/ ref,Caption,Caption source,Taken,Attached/.test(head),
     head.slice(0, 160)
   );
   ok(
@@ -169,6 +177,9 @@ const ok = (n, c, x = "") => {
   ok("the caption an auditor typed is in the row", /Signature column of the register/.test(csv),
      csv.split("\n")[1]?.slice(0, 140) || "");
   ok("and it is attributed to the auditor, not the assistant", /,Auditor,/.test(csv));
+  ok("the asset the photograph is of reaches the workbook",
+     /MV Switchboard 3B/.test(csv) && /SW-3B-011/.test(csv),
+     csv.split("\n")[1]?.slice(0, 200) || "");
   ok("the check reference is this site's portal id", /,KSIA-[A-Z]{3}-\d{3},/.test(csv),
      csv.split("\n")[1]?.slice(0, 80) || "");
 

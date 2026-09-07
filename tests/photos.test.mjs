@@ -660,6 +660,65 @@ for (const suite of ["record.js", "vision.js"]) {
   );
 }
 
+/* ------------------- Part 9: which asset, not just what is wrong ---------- */
+
+/* The caption says what is wrong. The asset fields say what it is wrong WITH,
+   and that is the half a maintenance planner needs to raise a job card.
+
+   The thing worth protecting here is that they are OPTIONAL. A trench, a
+   housekeeping shot, a document on a desk — none of those is about one asset,
+   and a required field on them gets filled with something untrue, which is
+   worse than blank. So these assertions check as hard for the ABSENCE of
+   nagging as for the presence of the fields. */
+
+check(
+  "an attachment can carry which asset it is of, and its number",
+  /assetName\?: string;/.test(types) && /assetRef\?: string;/.test(types),
+  "a photograph that cannot name its asset is evidence a planner cannot act on"
+);
+
+check(
+  "both are optional in the type",
+  /assetName\?:/.test(types) && /assetRef\?:/.test(types),
+  "a required asset on a trench photograph would be filled with something untrue"
+);
+
+check(
+  "the capture screen offers both, for a photograph",
+  /a\.kind === "photo" && !dead &&/.test(capture) &&
+    /placeholder="Asset \(optional\)"/.test(capture) &&
+    /placeholder="No\. \/ ref"/.test(capture),
+  "a field nobody can see is a field nobody fills"
+);
+
+check(
+  "and does NOT flag a photograph incomplete for leaving them blank",
+  /const uncaptioned = !dead && !caption\.trim\(\);/.test(capture) &&
+    !/uncaptioned[\s\S]{0,200}assetName/.test(capture),
+  "an unattributed photograph is not an incomplete one — only an uncaptioned one is"
+);
+
+check(
+  "the asset inputs are not styled as a warning",
+  !/assetName[\s\S]{0,400}var\(--warn/.test(capture),
+  "warn styling on an optional field is a nag"
+);
+
+check(
+  "the workbook carries both columns, next to the caption",
+  /\{ header: "Asset", width: 28 \}/.test(exportsSrc) &&
+    /\{ header: "Asset no\. \/ ref", width: 18 \}/.test(exportsSrc),
+  "captured on the apron and then not in the deliverable is the same as not captured"
+);
+
+check(
+  "and leaves them blank rather than shouting NO ASSET",
+  /a\.assetName\?\.trim\(\) \?\? ""/.test(exportsSrc) &&
+    /a\.assetRef\?\.trim\(\) \?\? ""/.test(exportsSrc) &&
+    !/NO ASSET/.test(exportsSrc),
+  "NO CAPTION is right because a caption is required; NO ASSET would be wrong"
+);
+
 /* ------------------------------------------------------------------ result */
 
 console.log(failures === 0 ? "\nPHOTOS OK" : `\n${failures} FAILURE${failures > 1 ? "S" : ""}`);

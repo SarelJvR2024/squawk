@@ -714,6 +714,41 @@ function PhotoRow({
             </span>
           )}
 
+          {/* WHICH asset, for a photograph. The caption says what is wrong;
+              this says what it is wrong with, and that is the half a
+              maintenance planner needs to raise a job card.
+
+              Deliberately OPTIONAL and deliberately quiet — smaller, no warn
+              border, no nag. Plenty of evidence has no single asset behind it
+              (a trench, a housekeeping shot, a document on a desk), and a
+              required field on those gets filled with something untrue. It
+              stays visible rather than folded, because a field nobody can see
+              is a field nobody fills, and it is one short row. */}
+          {a.kind === "photo" && !dead && (onUpdate ? (
+            <span className="flex flex-wrap gap-[5px]">
+              <input
+                value={a.assetName ?? ""}
+                onChange={(e) => onUpdate({ assetName: e.target.value })}
+                placeholder="Asset (optional)"
+                aria-label={`Asset name for ${a.name}`}
+                className="min-w-[110px] flex-1 basis-[140px] rounded-[6px] border px-[7px] py-[5px] text-[10.5px] outline-none"
+                style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+              />
+              <input
+                value={a.assetRef ?? ""}
+                onChange={(e) => onUpdate({ assetRef: e.target.value })}
+                placeholder="No. / ref"
+                aria-label={`Asset number or reference for ${a.name}`}
+                className="w-[104px] shrink-0 rounded-[6px] border px-[7px] py-[5px] font-mono text-[10.5px] outline-none"
+                style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+              />
+            </span>
+          ) : (a.assetName || a.assetRef) ? (
+            <span className="text-[10.5px]" style={{ color: "var(--ink-3)" }}>
+              {[a.assetName, a.assetRef].filter(Boolean).join(" · ")}
+            </span>
+          ) : null)}
+
           <span className="flex flex-wrap items-center gap-[6px] font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
             {/* Where this one actually is. "On this device only" is the honest
                 state for most of an audit and is not an error — but an auditor
