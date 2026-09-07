@@ -121,6 +121,27 @@ export const IconDownload = (p: SVGProps<SVGSVGElement>) => (
 );
 /* The record copy. A cloud with an up-arrow rather than a tick, because the
    state it usually shows is "not there yet". */
+/** Sync to the portal: a cloud with the arrow going UP, so it cannot be
+ *  mistaken for the download beside it. */
+export const IconCloudUp = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...s(p)}>
+    <path
+      d="M7 18h10a4 4 0 000-8 6 6 0 00-11.5-1.5A3.5 3.5 0 006 18h1z"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M12 21v-7m0 0l-2.5 2.5M12 14l2.5 2.5"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      transform="rotate(180 12 17.5)"
+    />
+  </svg>
+);
+
 export const IconCloud = (p: SVGProps<SVGSVGElement>) => (
   <svg {...s(p)}>
     <path
