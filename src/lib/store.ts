@@ -2,6 +2,14 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import {
+  BUNDLE_KIND,
+  BUNDLE_VERSION,
+  mergeBundle,
+  refuse,
+  type Bundle,
+  type MergeReport,
+} from "./merge";
 import { useMemo } from "react";
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
 import { clearAllMedia, delBlob, delBlobs } from "./media";
@@ -324,6 +332,12 @@ interface State {
 
   feedbackFor: (checkId: string) => FeedbackNote[];
   addFeedback: (checkId: string, text: string) => void;
+  /** Everything this device holds for the audit in view, ready to hand to
+   *  another auditor. */
+  exportBundle: () => Bundle;
+  /** Merge another auditor's bundle into the audit in view. Returns the report
+   *  on success, or the reason it was refused — never a silent no-op. */
+  importBundle: (b: Bundle) => MergeReport | string;
   toggleFeedbackResolved: (checkId: string, id: string) => void;
   removeFeedback: (checkId: string, id: string) => void;
 
@@ -454,11 +468,20 @@ export const useStore = create<State>()(
 
         response: (checkId) => get().visitData().responses[checkId] ?? emptyResponse(checkId),
 
+        /* EVERY response mutation funnels through here, which is why the
+           merge stamp lives here and nowhere else. setCompliance,
+           toggleEvidence, toggleIssue, setWalkabout, appendObservation, the
+           attachment calls and commit all end up in this one function, so a
+           new one cannot forget to say when it wrote. */
         patch: (checkId, p) =>
           writeScope((d) => ({
             responses: {
               ...d.responses,
-              [checkId]: { ...(d.responses[checkId] ?? emptyResponse(checkId)), ...p },
+              [checkId]: {
+                ...(d.responses[checkId] ?? emptyResponse(checkId)),
+                ...p,
+                updatedAt: Date.now(),
+              },
             },
           })),
 
@@ -572,7 +595,7 @@ export const useStore = create<State>()(
           set((s) => ({
             findings: [
               ...s.findings,
-              { ...f, entity: s.entity, id, createdAt: Date.now() },
+              { ...f, entity: s.entity, id, createdAt: Date.now(), updatedAt: Date.now() },
             ],
           }));
           return id;
@@ -593,6 +616,7 @@ export const useStore = create<State>()(
                       ...(f.progress ?? []),
                       { at: Date.now(), by: who, visit, outcome: null, note: text },
                     ],
+                    updatedAt: Date.now(),
                   }
                 : f
             ),
@@ -602,20 +626,27 @@ export const useStore = create<State>()(
 
         updateFinding: (id, p) =>
           set((s) => ({
-            findings: s.findings.map((f) => (f.id === id ? { ...f, ...p } : f)),
+            findings: s.findings.map((f) =>
+              f.id === id ? { ...f, ...p, updatedAt: Date.now() } : f
+            ),
           })),
 
         addHazard: (h) => {
           const id = `HZ-${uid().toUpperCase().slice(0, 5)}`;
           set((s) => ({
-            hazards: [...s.hazards, { ...h, entity: s.entity, id, createdAt: Date.now() }],
+            hazards: [
+              ...s.hazards,
+              { ...h, entity: s.entity, id, createdAt: Date.now(), updatedAt: Date.now() },
+            ],
           }));
           return id;
         },
 
         updateHazard: (id, p) =>
           set((s) => ({
-            hazards: s.hazards.map((h) => (h.id === id ? { ...h, ...p } : h)),
+            hazards: s.hazards.map((h) =>
+              h.id === id ? { ...h, ...p, updatedAt: Date.now() } : h
+            ),
           })),
 
         removeHazard: (id) =>
@@ -637,7 +668,12 @@ export const useStore = create<State>()(
         verification: (pf) => get().visitData().verifications[pf] ?? emptyVerification(pf),
 
         patchVerification: (pf, p) => {
-          const next = { ...get().verification(pf), ...p, verifiedBy: get().auditor };
+          const next = {
+            ...get().verification(pf),
+            ...p,
+            verifiedBy: get().auditor,
+            updatedAt: Date.now(),
+          };
           writeScope((d) => ({ verifications: { ...d.verifications, [pf]: next } }));
           set({ lastSavedAt: Date.now() });
         },
@@ -664,6 +700,7 @@ export const useStore = create<State>()(
             ...cur,
             progress: [...(cur.progress ?? []), entry],
             verifiedBy: get().auditor,
+            updatedAt: Date.now(),
           };
           writeScope((d) => ({ verifications: { ...d.verifications, [pf]: next } }));
           set({ lastSavedAt: Date.now() });
@@ -690,6 +727,83 @@ export const useStore = create<State>()(
             },
           }));
           set({ lastSavedAt: Date.now() });
+        },
+
+        /* ------------------------------------------------------------------
+           Two auditors, one audit.
+
+           The audit lives in this device's IndexedDB and nowhere else, which
+           is right for an apron with no signal and wrong for a team. Until the
+           shared record exists, this pair is how a day's work comes back
+           together: each auditor exports, one device imports the rest.
+
+           The rules live in src/lib/merge.ts and the important one is that
+           nothing is lost quietly — evidence is unioned rather than
+           overwritten, and where both devices changed the same record the
+           report names it. ------------------------------------------------ */
+
+        exportBundle: () => {
+          const s = get();
+          const d = s.visitData();
+          const mine = (r: { entity: string; originVisit: string }) =>
+            r.entity === s.entity && r.originVisit === s.visit;
+          const findings = s.findings.filter(mine);
+          const hazards = s.hazards.filter(mine);
+          const photographsNotUploaded = Object.values(d.responses).reduce(
+            (n, r) =>
+              n +
+              (r.attachments ?? []).filter((a) => a.kind === "photo" && !a.cloudUrl).length,
+            0
+          );
+          return {
+            meta: {
+              kind: BUNDLE_KIND,
+              version: BUNDLE_VERSION,
+              entity: s.entity,
+              visit: s.visit,
+              exportedBy: s.auditor || "unnamed",
+              exportedAt: Date.now(),
+              counts: {
+                responses: Object.keys(d.responses).length,
+                findings: findings.length,
+                hazards: hazards.length,
+                verifications: Object.keys(d.verifications).length,
+              },
+              photographsNotUploaded,
+            },
+            visit: d,
+            findings,
+            hazards,
+          };
+        },
+
+        importBundle: (b) => {
+          const s = get();
+          const no = refuse(b, { entity: s.entity, visit: s.visit });
+          if (no) return no;
+          /* Findings and hazards are flat across the whole programme, so the
+             merge is handed only this audit's and the rest are carried through
+             untouched — a merge of King Shaka must not reorder Cape Town. */
+          const mine = (r: { entity: string; originVisit: string }) =>
+            r.entity === s.entity && r.originVisit === s.visit;
+          const elsewhere = { findings: s.findings.filter((f) => !mine(f)), hazards: s.hazards.filter((h) => !mine(h)) };
+          const result = mergeBundle(
+            {
+              entity: s.entity,
+              visit: s.visit,
+              visitData: s.visitData(),
+              findings: s.findings.filter(mine),
+              hazards: s.hazards.filter(mine),
+            },
+            b
+          );
+          set((st) => ({
+            byVisit: { ...st.byVisit, [scopeKey(s.entity, s.visit)]: result.visitData },
+            findings: [...elsewhere.findings, ...result.findings],
+            hazards: [...elsewhere.hazards, ...result.hazards],
+            lastSavedAt: Date.now(),
+          }));
+          return result.report;
         },
 
         toggleFeedbackResolved: (checkId, id) =>
@@ -792,7 +906,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 12,
+      version: 13,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -1054,6 +1168,54 @@ export const useStore = create<State>()(
              "nobody has updated it yet". */
           if (Array.isArray(st.findings)) {
             st.findings = st.findings.map((f) => ({ ...f, progress: f.progress ?? [] }));
+          }
+        }
+        if (from < 13) {
+          /* updatedAt, back-filled — the field that makes two devices' work
+             mergeable.
+             
+             It could have been left absent and read as 0, and everything would
+             still merge correctly for anything captured from here on. But an
+             audit half-captured on a tablet right now would then lose every
+             one of its records to an emptier copy on another device, because
+             0 loses to everything. So each record inherits the best timestamp
+             it already carried: for a response the moment it was completed or
+             either half was done, for a finding or a hazard when it was
+             raised, for a verification when it was verified. None of those is
+             exactly "when this last changed" — that is the point of adding the
+             field — but each is the closest true thing already on the record,
+             and it is a great deal closer than zero. */
+          const stamp = (n: unknown) => (typeof n === "number" ? n : 0);
+          if (st.byVisit) {
+            for (const key of Object.keys(st.byVisit)) {
+              const d = st.byVisit[key];
+              if (d?.responses) {
+                for (const id of Object.keys(d.responses)) {
+                  const r = d.responses[id];
+                  r.updatedAt =
+                    r.updatedAt ??
+                    Math.max(stamp(r.capturedAt), stamp(r.deskDoneAt), stamp(r.fieldDoneAt));
+                }
+              }
+              if (d?.verifications) {
+                for (const pf of Object.keys(d.verifications)) {
+                  const v = d.verifications[pf];
+                  v.updatedAt = v.updatedAt ?? stamp(v.verifiedAt);
+                }
+              }
+            }
+          }
+          if (Array.isArray(st.findings)) {
+            st.findings = st.findings.map((f) => ({
+              ...f,
+              updatedAt: f.updatedAt ?? stamp(f.createdAt),
+            }));
+          }
+          if (Array.isArray(st.hazards)) {
+            st.hazards = st.hazards.map((h) => ({
+              ...h,
+              updatedAt: h.updatedAt ?? stamp(h.createdAt),
+            }));
           }
         }
         return st;

@@ -569,8 +569,11 @@ check(
 );
 
 check(
-  "the store version was NOT bumped — portalId absent is the correct default",
-  /version: 12,/.test(src("lib", "store.ts")),
+  "portalId needed NO migration of its own — absent is the correct default",
+  /* `portalId:` the field, not portalIdFor() the helper — which the photograph
+     migration does use, and which is a different thing entirely. */
+  !/portalId\s*[:=]/.test(src("lib", "store.ts").split("migrate:")[1] ?? "") &&
+    /name: "acsa-assurance-v1"/.test(src("lib", "store.ts")),
   "a migration that sets undefined to undefined is ceremony, and the persist key must never move"
 );
 

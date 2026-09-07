@@ -280,9 +280,11 @@ src/
     HazardAdvice.tsx  the event a finding exposes, named at the check
     RecordActions.tsx the rating and treatment block — findings AND hazards
     ExportPanel.tsx   the export sheet
+    TeamMerge.tsx     share a device's captures, merge another's
     ui/               primitives and icons
   lib/
     types.ts          domain model
+    merge.ts          combining two auditors' work into one audit
     risk.ts           ACSA B170 001M matrix — Red / Amber / Green
     erm.ts            ACSA's enterprise risk matrix — declared, and empty
     store.ts          state, persistence, selectors
@@ -383,6 +385,29 @@ tests/                twenty-two suites — see tests/README.md
   finding. `tests/review.test.mjs` enforces it. ACSA's role is read-only
   everywhere else but can comment here, because their engineers answering a
   photograph is the point of the screen.
+
+- **Two auditors, one audit.** An ACSA audit is done by a team and the audit
+  lives in one device's IndexedDB, so until the shared record exists a day's
+  work comes back together by hand: each auditor shares a `.squawk.json` bundle
+  from the export sheet, and one device merges the rest. The rules are in
+  `src/lib/merge.ts` and three of them are load-bearing. **A bundle from another
+  airport or another visit is refused, not warned about** — Cape Town's captures
+  inside King Shaka's visit is a mistake nobody catches until the report is with
+  ACSA. **Where both devices changed the same record the newer wins and the
+  report names it**, because a merge that quietly drops somebody's afternoon is
+  worse than one that refuses. And **evidence is unioned, never overwritten**: a
+  photograph on the losing side of a last-write-wins is still a photograph of a
+  defect, so two auditors who photographed the same thing end up with both.
+
+  Photographs travel as references. A bundle carrying image bytes would run to
+  hundreds of megabytes and could not be sent, so the records travel and the
+  images are read from the record store where the upload queue has already put
+  them — and both the share button and the merge report say how many have not
+  got there yet, because finding that out at report time is a bad afternoon.
+  `updatedAt` on every record is what makes any of it possible; store version 13
+  back-fills it from the best timestamp each record already carried.
+  `tests/merge.test.mjs` runs the real module, `tests/team.js` drives two
+  browser contexts as two tablets.
 
 - **It opens with no signal, and that is tested by cutting the network.**
   Everything else here about not losing captured work — IndexedDB, photographs

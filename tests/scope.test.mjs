@@ -83,7 +83,10 @@ check(
 
 check(
   "the store stamps the entity onto a finding rather than trusting the caller",
-  /\{ \.\.\.f, entity: s\.entity, id, createdAt: Date\.now\(\) \}/.test(store),
+  /* Not anchored to the end of the literal: the record also carries an
+     updatedAt now, and what this is guarding is that the ENTITY comes from the
+     store rather than from whatever the caller passed. */
+  /\{ \.\.\.f, entity: s\.entity, id, createdAt: Date\.now\(\)/.test(store),
   "a screen that forgot to pass it would file the finding at the wrong airport"
 );
 

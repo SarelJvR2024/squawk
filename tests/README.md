@@ -1,11 +1,11 @@
 # Tests
 
-Twenty-seven suites, no framework. Nine need a running server; eighteen do not.
+Twenty-nine suites, no framework. Ten need a running server; nineteen do not.
 **Check each suite's exit status, not its output**: a `for` loop over them
 reports the status of the loop.
 
-All run with plain `node` except `sharepoint.test.mjs`, which needs the alias
-loader so it can import the app's real modules:
+All run with plain `node` except `sharepoint.test.mjs` and `merge.test.mjs`,
+which need the alias loader so they can import the app's real modules:
 
 ```
 node --import ./tests/alias.mjs tests/sharepoint.test.mjs
@@ -31,6 +31,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `sharepoint.test.mjs` | no | 58 |
 | `assets.test.mjs` | no | 21 |
 | `checkscreen.test.mjs` | no | 39 |
+| `merge.test.mjs` | no | 36 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 38 |
 | `exports.js` | yes | 32 |
@@ -40,8 +41,9 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `record.js` | starts its own | 14 |
 | `flow.js` | yes | 48 |
 | `offline.js` | yes | 18 |
+| `team.js` | yes | 15 |
 
-**1,009 assertions in total**, every count above verified by running the suite,
+**1,060 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -182,6 +184,40 @@ which left the pinned bar resting in the middle of the screen with chips
 scrolling underneath, and the header compaction being driven by the scroll
 container rather than by a breakpoint, so it does nothing from `lg` where the
 columns scroll inside themselves.
+
+## `merge.test.mjs`
+
+Two auditors, one audit. Squawk keeps the audit in one device's IndexedDB, which
+is right for an apron with no signal and wrong for a team — and a team is what
+does an ACSA audit. Until the shared record exists, a day's work comes back
+together by each auditor sharing a bundle and one device merging the rest.
+
+```bash
+node --import ./tests/alias.mjs tests/merge.test.mjs
+```
+
+**The one suite that runs the real module rather than reading it**, because
+`src/lib/merge.ts` is pure: state in, state out. Every assertion is the actual
+function deciding. The ones that matter are not about what merges but about what
+must never be lost:
+
+- **Evidence is unioned, not overwritten.** A photograph on the losing side of a
+  last-write-wins is still a photograph of a defect at a national key point.
+  Dropping it would be destroying evidence to settle a clash of timestamps.
+- **An append-only log stays append-only**, and a note both devices already held
+  is not doubled.
+- **Merging the same file twice changes nothing**, because an auditor will do
+  that.
+- **A bundle from the wrong audit is refused, not warned about.** Cape Town's
+  captures inside King Shaka's visit is a mistake nobody catches until the
+  report is with ACSA.
+
+Its last section reads the store instead, for the claims that are about wiring
+rather than logic: that every mutation stamps `updatedAt`, that `importBundle`
+refuses before it writes, that a merge of one airport cannot reach another's
+records, and that the version 13 migration back-fills rather than defaulting a
+half-captured tablet to zero — 0 loses to everything, so it would have lost to
+an emptier copy.
 
 ## `portals.test.mjs`
 
@@ -514,6 +550,23 @@ where it is not), not the OAuth redirect (it carries a code and a state in its
 URL), nothing cross-origin (the photographs are not copied into a second store
 as a side effect of a routing rule), and not the redirecting root (handing a
 redirected response to a navigation is a hard error in every browser).
+
+## `team.js`
+
+The same hand-over, driven for real. `merge.test.mjs` proves the rules; this
+proves the whole route, because the rules being right is no use if the file
+never leaves the first device or never arrives at the second.
+
+```bash
+BASE=http://localhost:3000 node tests/team.js
+```
+
+Two browser contexts as two tablets. The first captures a check, raises a
+finding and shares its captures; the file is read and checked — it names its
+audit and who shared it, every record says when it was written, and **no image
+bytes travel in it**. The second context starts empty, merges the file, and the
+other auditor's work is then in its audit and on its findings screen. Then it
+merges the same file again, because an auditor will.
 
 ## `vision.js`
 
