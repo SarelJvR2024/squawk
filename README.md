@@ -124,6 +124,9 @@ npx vercel --prod   # promote to production
 | `ASSIST_VISION` | `1` sends photographs to the model. **Unset or `0` and no image byte leaves**, whatever the client sends — the route strips them. Every AI affordance still works on captions alone. |
 | `ASSIST_ENDPOINT` | Where the assist request goes. Defaults to the Anthropic API; point it at an in-tenant endpoint if ACSA's governance requires the data to stay there. Nothing in the UI changes. |
 | `BLOB_TOKEN_VAR` | Names which `*_READ_WRITE_TOKEN` to use, for a project with more than one blob store. Only needed when two are set; see *Checking it is on*. |
+| `NEXT_PUBLIC_GRAPH_CLIENT_ID` | Turns **Sync to the portal** on. The client id of an Entra ID app registration; a public value by design in this flow, **not a credential**. Without it the Sync button is not rendered at all and everything else is unchanged. |
+| `NEXT_PUBLIC_GRAPH_TENANT` | The tenant to sign in against. Defaults to `organizations` (any work account). Pin it to TPJV's tenant id to stop anyone signing in with an unrelated Microsoft account. |
+| `NEXT_PUBLIC_GRAPH_SITE` | The SharePoint site the portal lives at, e.g. `tpjv.sharepoint.com/sites/ACSA-Asset-Assurance`. |
 | `SQUAWK_READ_WRITE_TOKEN` | Turns the **record copy** on: every photograph is also written to Vercel Blob, privately. This is the live deployment's name — the store `squawk-blob` was created with the custom prefix `SQUAWK`, and **Vercel generates the value; you never type it**. The route accepts any `*_READ_WRITE_TOKEN`, so the default `BLOB_READ_WRITE_TOKEN` works too, and `GET /api/photos` reports which name it found. Without one the app is unchanged — capture, caption, export, all local — and says on screen that photographs are on the device only. |
 
 Setting any of these is a **data-governance decision, not a technical one** —
@@ -132,6 +135,88 @@ see *Photographs*, *Voice notes* and *AI assistance* below.
 Fonts load from Google Fonts at runtime because the build environment this was
 written in cannot reach `fonts.googleapis.com`. On Vercel you can switch
 `src/app/layout.tsx` back to `next/font/google` for build-time optimisation.
+
+## Sync to the portal
+
+Squawk's deliverable is the workbook. The portal is where ACSA and TPJV keep
+the same audit as a living list, and **Sync** writes this visit's capture
+straight into it — as the signed-in auditor, not as a service account, so the
+portal's own history says who did it.
+
+### What it writes
+
+| Portal | Gets |
+|---|---|
+| **Check-points** list | one row per check somebody actually answered, keyed on `Title` = the check-point id |
+| **Findings** list | one row per **hazard**, keyed on `Title`, plus a status and progress update on every prior finding verified this visit |
+| **Evidence** library | every photograph, into `Evidence/<Site name> <ICAO>/`, named by its own reference |
+
+`Title` is the join in both directions. That is the register's own instruction:
+
+> `checkpoints[].id` is the portal key (Check-points list, Title column);
+> `priorFindings2025[].portalId` is the Findings list Title. Keep both
+> unchanged in Squawk so results can sync back.
+
+**Hazards, not findings.** Only a hazard carries the ERM rating, and the
+portal rates on ERM. That is also the model: the same missing diesel cut-out
+fuse was PF-02 for Electrical and PF-21 for Process Safety in March 2025 — two
+rows, two ratings, one fuse. The hazard is the event, and it is what persists
+year on year. Syncing findings would put the duplication back. A finding in no
+hazard is counted in the plan and **not** written, so it cannot look synced
+when it is not.
+
+### What it refuses to write
+
+- **A rating nobody agreed.** The hazard goes across; the severity, likelihood,
+  priority and tolerance are left null unless `ermConfirmed`. A suggestion is
+  indistinguishable from a judgement once it is in a list the Audit & Risk
+  Committee reads.
+- **A blank compliance.** A check nobody answered is skipped entirely. Writing
+  `""` turns "we did not get to it" into "we looked and it was fine".
+- **A second copy of anything.** Every row is matched on `Title` and PATCHed if
+  it is there. A hazard remembers the `portalId` it was given on its first
+  successful create, so the next visit updates it.
+
+### Why it asks you to look first
+
+Sign in → read the portal → **read the plan** → then a button that writes.
+Until that last button, the app has issued nothing but `GET`s. The plan shows
+every row that would be added or changed, every field that has no column to go
+in, and everything deliberately left out with the reason.
+
+### The columns are read at run time, never hardcoded
+
+SharePoint's internal column names are not its display names — "Risk priority"
+can be `field_7` — and writing to a guessed name returns `200 OK` having stored
+nothing, which is the worst failure available because it looks like it worked.
+So the internal names are read off the lists on every run and matched by
+display name. A field with no column is reported in the plan and skipped.
+
+### Setting it up (Sarel)
+
+One Entra ID app registration in TPJV's tenant:
+
+1. **App registrations → New registration.** Any name.
+2. **Redirect URI: Single-page application (SPA)** — this matters, SPA is what
+   enables PKCE without a secret and the CORS the token call needs. Add
+   `https://<your-domain>/graph-callback`, and the same on
+   `http://localhost:3000` if you want it locally.
+3. **API permissions →** Microsoft Graph → **Delegated** → `Sites.ReadWrite.All`.
+   Grant admin consent.
+4. **Do not create a client secret.** There is nowhere to put one and nothing
+   wants it.
+5. Set `NEXT_PUBLIC_GRAPH_CLIENT_ID`, `NEXT_PUBLIC_GRAPH_SITE` and (recommended)
+   `NEXT_PUBLIC_GRAPH_TENANT` in Vercel, and redeploy.
+
+**No credential is ever typed into Squawk and none is stored in it.** The
+access token lives in the tab's memory for as long as the tab is open and is
+never written to `localStorage`, IndexedDB or the store — a reload signs you
+out. That is deliberate: this is a tablet carried around a national key point,
+and a bearer token for the evidence library on it is worth more than the
+tablet. Signing in again is one button, once, at the end of an audit.
+
+The scope is **delegated**: the sync can do exactly what the signed-in auditor
+could do by hand in a browser, and Graph enforces that, not this code.
 
 ## Project structure
 

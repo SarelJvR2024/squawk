@@ -343,6 +343,17 @@ export type ErmPriority = "I" | "II" | "III";
  *  language frequently describe one physical thing. */
 export interface Hazard {
   id: string;
+  /** The Title this hazard has in the portal's Findings list, once it has been
+   *  there.
+   *
+   *  Set by the SharePoint sync on the first successful create and never
+   *  changed afterwards. It is what makes a second sync an UPDATE rather than
+   *  a duplicate: without it, every sync would mint a new id and the register
+   *  would grow a fresh copy of the same hazard at every visit.
+   *
+   *  Absent means "not in the portal yet", which is the honest state for a
+   *  hazard raised an hour ago on a walk. */
+  portalId?: string;
   entity: string;
   originVisit: string;
   /** Under 15 words. The event, not the finding. */

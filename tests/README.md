@@ -1,8 +1,15 @@
 # Tests
 
-Twenty-three suites, no framework — all run with plain `node`. Eight need a
-running server; fifteen do not. **Check each suite's exit status, not its output**: a
-`for` loop over them reports the status of the loop.
+Twenty-four suites, no framework. Eight need a running server; sixteen do not.
+**Check each suite's exit status, not its output**: a `for` loop over them
+reports the status of the loop.
+
+All run with plain `node` except `sharepoint.test.mjs`, which needs the alias
+loader so it can import the app's real modules:
+
+```
+node --import ./tests/alias.mjs tests/sharepoint.test.mjs
+```
 
 | Suite | Needs a server | Assertions run |
 |---|---|---|
@@ -21,6 +28,7 @@ running server; fifteen do not. **Check each suite's exit status, not its output
 | `photos.test.mjs` | no | 103 |
 | `hazards.test.mjs` | no | 113 |
 | `erm-matrix.test.mjs` | no | 64 |
+| `sharepoint.test.mjs` | no | 51 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 38 |
 | `exports.js` | yes | 32 |
@@ -30,7 +38,7 @@ running server; fifteen do not. **Check each suite's exit status, not its output
 | `record.js` | starts its own | 14 |
 | `flow.js` | yes | 38 |
 
-**828 assertions in total**, every count above verified by running the suite,
+**879 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 

@@ -25,12 +25,15 @@ import { portalIdFor } from "@/lib/sites";
 import { requestPersistentStorage } from "@/lib/media";
 import { usePhotoSync } from "@/lib/sync";
 import ExportPanel from "@/components/ExportPanel";
+import { SyncPanel } from "@/components/SyncPanel";
+import { graphConfigured } from "@/lib/graph";
 import ResetPanel from "@/components/ResetPanel";
 import AuditsPanel from "@/components/AuditsPanel";
 import {
   IconClipboard,
   IconCamera,
   IconCloud,
+  IconCloudUp,
   IconGrid,
   IconDownload,
   IconFlag,
@@ -93,6 +96,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const setDictation = useStore((s) => s.setDictation);
   const [help, setHelp] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [audits, setAudits] = useState(false);
   const [q, setQ] = useState("");
@@ -156,6 +160,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         setPalette(false);
         setHelp(false);
         setExporting(false);
+        setSyncing(false);
         setResetting(false);
         setAudits(false);
         return;
@@ -314,6 +319,26 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </button>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+          {/* Sync sits beside Export because they are the same act at different
+              destinations — the workbook goes to a person, this goes to the
+              portal. Hidden entirely where no portal is configured: a button
+              that can only ever explain why it does not work is clutter on a
+              header that has already been measured down to the pixel.
+
+              ACSA is read-only across the audit, so no sync for them either —
+              the portal is where their copy comes FROM. */}
+          {role !== "acsa" && graphConfigured() && (
+            <button
+              onClick={() => setSyncing(true)}
+              title="Send this visit's capture to the SharePoint portal"
+              className="flex items-center gap-[6px] rounded-[8px] border px-[10px] py-[7px] text-[11.5px] transition-[var(--t)]"
+              style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+            >
+              <IconCloudUp width={13} height={13} />
+              <span className="hidden lg:inline">Sync</span>
+            </button>
+          )}
+
           {role !== "acsa" && (
             <button
               onClick={() => setExporting(true)}
@@ -696,6 +721,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       {exporting && <ExportPanel onClose={() => setExporting(false)} />}
+      {syncing && <SyncPanel onClose={() => setSyncing(false)} />}
       {resetting && <ResetPanel onClose={() => setResetting(false)} />}
       {audits && <AuditsPanel onClose={() => setAudits(false)} />}
 
