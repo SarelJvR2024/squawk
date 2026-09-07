@@ -184,11 +184,16 @@ export default function FieldPage() {
             style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
           >
             <IconSearch width={14} height={14} style={{ color: "var(--ink-3)" }} />
+            {/* The search box on the walkabout screen is how an auditor finds
+                the check for the thing in front of them, and it measured 24px
+                — the only control on any screen still under the target. The
+                wrapper carries the border, so the height goes on the input. */}
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search any check, anywhere…"
-              className="w-full border-none bg-transparent text-[13px] outline-none"
+              aria-label="Search any check"
+              className="min-h-[40px] w-full border-none bg-transparent text-[13px] outline-none"
             />
           </div>
           <div className="no-scrollbar flex gap-[6px] overflow-x-auto pb-[2px]">
