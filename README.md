@@ -273,7 +273,7 @@ src/
     globals.css       design tokens for both themes
   components/
     AppShell.tsx      header, nav, cycle strip, command palette, role switch
-    CheckDetail.tsx   the check screen — reference left, capture right
+    CheckDetail.tsx   the check screen — brief left, capture right, answer pinned
     RootCauseAdvice.tsx  candidate causes and, more usefully, what to ask
     HazardAdvice.tsx  the event a finding exposes, named at the check
     RecordActions.tsx the rating and treatment block — findings AND hazards
@@ -381,6 +381,22 @@ tests/                twenty-two suites — see tests/README.md
   finding. `tests/review.test.mjs` enforces it. ACSA's role is read-only
   everywhere else but can comment here, because their engineers answering a
   photograph is the point of the screen.
+
+- **The check screen is a brief, not a dossier.** The three things an auditor
+  opens their mouth with — the question to ask, the standard to audit against,
+  and a plain reading of what is actually being checked — are the top of the
+  reference column, in that order, with this site's stricter threshold inside
+  the standard rather than beside it. Everything else the register carries for
+  a check (ACSA's procedure wording, the records it names, the evidence it
+  expects, the external instrument, the walkabout line, any conflict between
+  documents) sits behind tabs in a bounded, scrolling panel below them: kept in
+  full, one tap away, and no longer deciding where the question is on the
+  screen. The four compliance buttons are in the sticky header, so reading the
+  left column no longer scrolls the answer off the right. And the answer box,
+  the voice note, the camera and Save are pinned together at the foot of the
+  screen at every scroll position — on a phone they used to be below six groups
+  of chips. `tests/checkscreen.test.mjs` asserts both the new shape and, field
+  by field, that nothing was dropped to get it.
 
 - **The tablet is the device, not a narrow desktop.** The touch floor lives in
   one `@media (pointer: coarse)` block in `globals.css` — 44px targets, 16px
