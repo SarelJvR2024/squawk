@@ -199,13 +199,23 @@ check(
 
 check(
   "THE ACTION BAR CLEARS THE HOME INDICATOR",
-  /paddingBottom: "calc\(0\.625rem \+ env\(safe-area-inset-bottom\)\)"/.test(sticky),
+  /paddingBottom: "calc\(0\.625rem \+ var\(--sticky-safe\)\)"/.test(sticky) &&
+    /--sticky-safe: env\(safe-area-inset-bottom\);/.test(css),
   "bottom-0 on an iPhone puts Save & next under the one bit of screen furniture nobody can move"
 );
 
 check(
-  "and env() is used, so it costs nothing on a device without one",
-  /env\(safe-area-inset-bottom\)/.test(sticky) && !/@supports/.test(sticky)
+  "and only ONE of the two bottom bars pads for it",
+  /--sticky-safe: 0px;/.test(css) && /--bottom-nav: calc\(56px \+ env\(safe-area-inset-bottom\)\)/.test(css),
+  "both padding would float the action bar on 34px of nothing"
+);
+
+check(
+  "the action bar sits ABOVE the bottom nav, not behind it",
+  /bottom: "var\(--bottom-nav\)"/.test(sticky) &&
+    /* the CODE, not the prose describing it — this assertion tripped on its
+       own file's header comment the first time it was written */
+    !/className="sticky bottom-0/.test(sticky)
 );
 
 check(
@@ -213,6 +223,44 @@ check(
   /hidden max-w-\[78ch\] text-\[12\.5px\] sm:block/.test(field) &&
     /mt-\[7px\] hidden text-\[10\.5px\] leading-\[1\.5\] sm:block/.test(field),
   "preamble, toggle, search and a category note filled all 664px and the first check-point sat below the fold"
+);
+
+check(
+  "NAVIGATION IS UNDER THE THUMB ON A PHONE",
+  /\.app-nav \{[\s\S]{0,200}position: fixed;[\s\S]{0,200}bottom: 0;/.test(css) &&
+    /@media \(max-width: 639\.98px\)/.test(css),
+  "seven destinations pinned to the top of a 664px screen, on a walkabout done one-handed"
+);
+
+check(
+  "and it is the SAME nav element, not a second copy of the links",
+  (shell.match(/<nav/g) || []).length === 1,
+  "two navs is two sets of counts to keep in step and two things to get wrong"
+);
+
+check(
+  "the scrolling content and the toasts both clear it",
+  /\.app-scroll \{\s*padding-bottom: var\(--bottom-nav\);/.test(css) &&
+    /\.toast-bottom \{\s*bottom: calc\(22px \+ var\(--bottom-nav\)\);/.test(css),
+  "a row you can see and cannot press"
+);
+
+check(
+  "the active destination keeps its label, the others give up theirs",
+  /className=\{active \? "" : "hidden sm:inline"\}>\{n\.label\}/.test(shell),
+  "seven full labels needed 485px of a 390px bar; three fitted and the rest were a swipe nobody would make"
+);
+
+check(
+  "pull-to-refresh cannot reload the app mid-walkabout",
+  /overscroll-behavior-y: contain;/.test(css),
+  "over-scrolling upward is not a rare accident on a list you scroll for 168,000 pixels"
+);
+
+check(
+  "and the 300ms double-tap delay is gone from everything tappable",
+  /touch-action: manipulation;/.test(css) && /-webkit-tap-highlight-color: transparent;/.test(css),
+  "a third of a second of nothing after every answer is what makes an app feel broken"
 );
 
 /* ------------------------------------------------------------------ result */

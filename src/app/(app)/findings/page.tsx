@@ -79,7 +79,7 @@ export default function FindingsPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+    <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
       <div className="mx-auto w-full max-w-[1240px] px-5 pt-5 pb-16">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -286,7 +286,7 @@ export default function FindingsPage() {
 
       {toast && (
         <div
-          className="fixed bottom-[22px] left-1/2 z-[100] -translate-x-1/2 rounded-[11px] px-[15px] py-2.5 text-[12px] font-medium"
+          className="toast-bottom fixed left-1/2 z-[100] -translate-x-1/2 rounded-[11px] px-[15px] py-2.5 text-[12px] font-medium"
           style={{ background: "var(--ink)", color: "var(--bg)", boxShadow: "var(--e3)" }}
         >
           {toast}

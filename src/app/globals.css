@@ -229,6 +229,32 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* PULL-TO-REFRESH IS A RELOAD, and a reload in the middle of a walkabout
+     throws away nothing (the store is in IndexedDB) but does throw away where
+     the auditor was, what was half-typed, and thirty seconds. On a list you
+     scroll for 168,000 pixels, over-scrolling upward is not a rare accident —
+     it is what happens every time you reach the top. */
+  overscroll-behavior-y: contain;
+}
+
+/* Two touch behaviours that are only wrong on a phone.
+ *
+ *  `manipulation` drops the 300ms wait iOS keeps in case a tap becomes a
+ *  double-tap-to-zoom. On a check-list where every answer is a tap, a third of
+ *  a second of nothing after each one is what makes an app feel broken rather
+ *  than slow.
+ *
+ *  The tap highlight is a grey box the size of the element, drawn on touch and
+ *  fading after. Every control here already has its own :active and hover
+ *  treatment, so the highlight is a second, uglier one on top. */
+button,
+a,
+[role="button"],
+select,
+summary,
+label {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 h1,
@@ -366,4 +392,71 @@ h4 {
 }
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* ============================================================
+   THE BOTTOM BAR, on a phone only.
+
+   Navigation belongs under the thumb. The walkabout is done one-handed on a
+   phone — often with a torch in the other hand — and seven destinations pinned
+   to the TOP of a 664px screen means shifting grip every time you move between
+   the check-list and the findings. Below sm the nav leaves the header's flow
+   and fixes to the bottom of the viewport; from sm it is a flex child of the
+   header again and nothing about the tablet layout changes.
+
+   --bottom-nav is the height it occupies, published as a variable so the two
+   things that must clear it — the scrolling content and the sticky action bar
+   — do not each guess. It is 0 everywhere the bar is not fixed, so those rules
+   are no-ops on a tablet.
+   ============================================================ */
+:root {
+  --bottom-nav: 0px;
+  /* Who pads for the home indicator. With no bottom bar the sticky action bar
+     is the lowest thing on screen and does it; with one, the bar does it and
+     the action bar above must NOT, or it floats on 34px of nothing. */
+  --sticky-safe: env(safe-area-inset-bottom);
+}
+
+@media (max-width: 639.98px) {
+  :root {
+    --bottom-nav: calc(56px + env(safe-area-inset-bottom));
+    --sticky-safe: 0px;
+  }
+
+  .app-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    border-radius: 0;
+    border-top: 1px solid var(--line);
+    padding: 5px 8px calc(5px + env(safe-area-inset-bottom));
+    /* Distributed rather than packed: seven destinations across the full width
+       is a bar, five packed at the left is a leftover. */
+    justify-content: space-between;
+    box-shadow: 0 -6px 16px -10px rgba(0, 0, 0, 0.5);
+  }
+
+  /* The tablet's padding is generous because the tablet has room. Seven
+     destinations across 390px do not, and the 44px tap target is set by the
+     bar's own height, not by this — so the horizontal padding is the one thing
+     here that can give without costing anything. */
+  .app-nav a {
+    padding-inline: 8px;
+    gap: 4px;
+  }
+}
+
+/* The last row of any scrolling list has to clear the bar, or it is a row you
+   can see and cannot press. */
+.app-scroll {
+  padding-bottom: var(--bottom-nav);
+}
+
+/* A toast lands above the bottom bar, not behind it. 22px from the bottom of
+   the viewport was right when the bottom of the viewport was the bottom of the
+   content. */
+.toast-bottom {
+  bottom: calc(22px + var(--bottom-nav));
 }

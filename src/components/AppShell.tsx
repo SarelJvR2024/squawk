@@ -240,7 +240,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </Link>
 
         <nav
-          className="hide-scrollbar order-last flex w-full min-w-0 shrink-0 basis-full gap-[2px] overflow-x-auto rounded-[11px] p-[3px] sm:order-none sm:w-auto sm:flex-1 sm:basis-auto"
+          className="app-nav hide-scrollbar order-last flex w-full min-w-0 shrink-0 basis-full gap-[2px] overflow-x-auto rounded-[11px] p-[3px] sm:order-none sm:w-auto sm:flex-1 sm:basis-auto"
           style={{ background: "var(--sunken)" }}
         >
           {NAV.map((n) => {
@@ -295,7 +295,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 }}
               >
                 <Icon width={13} height={13} />
-                {n.label}
+                {/* On the bottom bar all seven destinations have to fit across
+                    390px, and seven full labels do not — three fitted and the
+                    rest were a swipe nobody would think to make. The ACTIVE one
+                    keeps its label so you always know where you are; the others
+                    are their icon and their count, which is what a bottom bar
+                    has always been. Full labels return at sm. */}
+                <span className={active ? "" : "hidden sm:inline"}>{n.label}</span>
                 {badge !== "" && badge !== 0 && (
                   <span
                     className="rounded-full px-[5px] font-mono text-[9px]"

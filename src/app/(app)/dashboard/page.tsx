@@ -157,7 +157,7 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+    <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
       <div className="mx-auto w-full max-w-[1180px] px-5 pt-5 pb-16">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>

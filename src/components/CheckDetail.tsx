@@ -158,7 +158,7 @@ export default function CheckDetail({
   const voice = r.attachments.find((x) => x.kind === "voice");
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+    <div className="app-scroll flex min-w-0 flex-1 flex-col overflow-y-auto">
       {/* sticky context header */}
       <div
         className="sticky top-0 z-[6] border-b px-5 pt-[11px] pb-2.5"

@@ -34,8 +34,13 @@ const ok = (n, c, x = "") => {
  *  number being asked about. */
 async function figure(p, label) {
   return p.evaluate((l) => {
+    /* NOT IN THE HEADER. The nav labels are spans carrying exactly these
+       words — "Findings", "Hazards" — and once the bottom bar gave the active
+       destination its own <span>, this helper matched the nav link first,
+       walked up to the masthead and read the brand: every figure came back
+       "Squawk". The KPI is in the page, so look there. */
     const span = [...document.querySelectorAll("span")].find(
-      (e) => e.textContent?.trim() === l && e.children.length === 0
+      (e) => e.textContent?.trim() === l && e.children.length === 0 && !e.closest("header")
     );
     const b = span?.closest("div")?.querySelector("b");
     return b ? b.textContent?.trim() : null;

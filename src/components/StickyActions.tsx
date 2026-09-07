@@ -16,9 +16,13 @@
  *  thumb the whole time.
  *
  *  So it lives here, once, and every screen that records something uses it.
- *  `sticky bottom-0` rather than `fixed`: it pins while the panel it belongs to
- *  is on screen and releases when the panel ends, so two of them on one page
- *  cannot fight, and it never floats over a screen it has nothing to do with. */
+ *  STICKY rather than fixed: it pins while the panel it belongs to is on screen
+ *  and releases when the panel ends, so two of them on one page cannot fight,
+ *  and it never floats over a screen it has nothing to do with.
+ *
+ *  It pins to --bottom-nav rather than to zero. On a phone the navigation is a
+ *  fixed bar along the bottom, and a zero offset would park Save & next behind
+ *  it; on a tablet the variable is 0 and this is the old behaviour exactly. */
 
 import type { ReactNode } from "react";
 
@@ -34,14 +38,17 @@ export default function StickyActions({
 }) {
   return (
     <div
-      className="sticky bottom-0 z-[7] -mx-[17px] mt-4 flex flex-wrap items-center justify-between gap-3 border-t px-[17px] pt-2.5"
+      className="sticky z-[7] -mx-[17px] mt-4 flex flex-wrap items-center justify-between gap-3 border-t px-[17px] pt-2.5"
       style={{
-        /* THE HOME INDICATOR. On an iPhone the bottom ~34pt of the screen
-           belongs to the system, and a bar pinned to bottom-0 puts Save & next
-           underneath it — the button an auditor presses most, behind the one
-           piece of screen furniture they cannot move. env() resolves to 0 on
-           every device without one, so this costs nothing anywhere else. */
-        paddingBottom: "calc(0.625rem + env(safe-area-inset-bottom))",
+        /* Above the bottom bar on a phone, and at the bottom of the viewport
+           everywhere else — --bottom-nav is 0 where there is no bar.
+           
+           THE HOME INDICATOR is padded for by whichever of the two is lowest
+           on the screen. Pinned to a bare bottom-0 on an iPhone, Save & next —
+           the most-pressed button in the app — sat underneath the one piece of
+           screen furniture nobody can move. */
+        bottom: "var(--bottom-nav)",
+        paddingBottom: "calc(0.625rem + var(--sticky-safe))",
         background: "var(--panel)",
         borderColor: "var(--line)",
         boxShadow: "0 -4px 16px -8px rgba(22,16,40,.14)",

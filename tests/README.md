@@ -18,7 +18,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `scope.test.mjs` | no | 46 |
 | `carryforward.test.mjs` | no | 31 |
 | `review.test.mjs` | no | 22 |
-| `tablet.test.mjs` | no | 25 |
+| `tablet.test.mjs` | no | 32 |
 | `portals.test.mjs` | no | 31 |
 | `reset.test.mjs` | no | 17 |
 | `completion.test.mjs` | no | 19 |
@@ -38,7 +38,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `record.js` | starts its own | 14 |
 | `flow.js` | yes | 38 |
 
-**895 assertions in total**, every count above verified by running the suite,
+**902 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
