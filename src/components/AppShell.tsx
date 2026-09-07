@@ -305,7 +305,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <button
           onClick={() => setPalette(true)}
           aria-label="Jump to check"
-          className="hidden shrink-0 items-center gap-[7px] rounded-[11px] border border-transparent px-[10px] py-[6px] text-[11.5px] transition-[var(--t)] sm:flex lg:min-w-[150px]"
+          className="hidden min-h-[44px] shrink-0 items-center gap-[7px] rounded-[11px] border border-transparent px-[10px] py-[6px] text-[11.5px] transition-[var(--t)] sm:flex lg:min-w-[150px]"
           style={{ background: "var(--sunken)", color: "var(--ink-3)" }}
         >
           <IconSearch width={13} height={13} />
@@ -331,7 +331,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <button
               onClick={() => setSyncing(true)}
               title="Send this visit's capture to the SharePoint portal"
-              className="flex items-center gap-[6px] rounded-[8px] border px-[10px] py-[7px] text-[11.5px] transition-[var(--t)]"
+              className="flex min-h-[44px] items-center gap-[6px] rounded-[8px] border px-[10px] py-[7px] text-[11.5px] transition-[var(--t)]"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
             >
               <IconCloudUp width={13} height={13} />
@@ -342,7 +342,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {role !== "acsa" && (
             <button
               onClick={() => setExporting(true)}
-              className="flex items-center gap-[6px] rounded-[8px] border px-[10px] py-[7px] text-[11.5px] transition-[var(--t)]"
+              className="flex min-h-[44px] items-center gap-[6px] rounded-[8px] border px-[10px] py-[7px] text-[11.5px] transition-[var(--t)]"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
             >
               <IconDownload width={13} height={13} />
@@ -355,7 +355,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               onClick={() => setResetting(true)}
               aria-label="Start again"
               title="Start again — clear captured data for a dry run"
-              className="flex items-center gap-[6px] rounded-[8px] border px-[10px] py-[7px] text-[11.5px] transition-[var(--t)]"
+              className="flex min-h-[44px] items-center gap-[6px] rounded-[8px] border px-[10px] py-[7px] text-[11.5px] transition-[var(--t)]"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-3)" }}
             >
               <IconLoop width={13} height={13} />
@@ -366,7 +366,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => setHelp(true)}
             aria-label="Keyboard shortcuts"
-            className="rounded-[8px] border p-[9px] transition-[var(--t)]"
+            className="flex min-h-[44px] items-center rounded-[8px] border p-[9px] transition-[var(--t)]"
             style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
           >
             <IconHelp width={14} height={14} />
@@ -381,7 +381,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <button
                 key={r}
                 onClick={() => setRole(r)}
-                className="rounded-[6px] px-[10px] py-[5px] font-mono text-[10px] font-semibold transition-[var(--t)]"
+                className="min-h-[44px] rounded-[6px] px-[10px] py-[5px] font-mono text-[10px] font-semibold transition-[var(--t)]"
                 style={{
                   background: role === r ? "var(--acc)" : "transparent",
                   color: role === r ? "var(--on-acc)" : "var(--ink-3)",
@@ -439,15 +439,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 {pct}%
               </span>
             </div>
-            <div className="hidden md:block">
-              <b className="block font-mono text-[12px] leading-[1.2] font-semibold tnum">
+            {/* Stacked under the count, the auditor picker measured TWELVE
+                pixels tall — the smallest control in the app, in the header, on
+                a tablet. Side by side it can be 44px without the header growing
+                past its 52. */}
+            <div className="hidden items-center gap-[7px] md:flex">
+              <b className="font-mono text-[12px] leading-[1.2] font-semibold tnum">
                 {done}/{checks.length}
               </b>
               <select
                 value={auditor}
                 onChange={(e) => setAuditor(e.target.value)}
-                className="max-w-[120px] border-none bg-transparent text-[9px] outline-none"
-                style={{ color: "var(--ink-3)" }}
+                aria-label="Auditor"
+                className="min-h-[44px] max-w-[132px] rounded-[8px] border px-[7px] text-[10.5px] outline-none"
+                style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
               >
                 {AUDITORS.map((a) => (
                   <option key={a}>{a}</option>
