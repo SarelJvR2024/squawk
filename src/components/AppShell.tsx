@@ -24,6 +24,7 @@ import { useAssistAvailable, useTranscribeAvailable } from "@/lib/assist";
 import { portalIdFor } from "@/lib/sites";
 import { requestPersistentStorage } from "@/lib/media";
 import { usePhotoSync } from "@/lib/sync";
+import { useShared } from "@/lib/shared";
 import ExportPanel from "@/components/ExportPanel";
 import { SyncPanel } from "@/components/SyncPanel";
 import { graphConfigured } from "@/lib/graph";
@@ -85,6 +86,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const findings = useVisitFindings();
   const hazards = useVisitHazards();
   const entityCode = useEntityCode();
+  const shared = useShared();
+  /* Only the states a person can actually do something about. "Waiting for
+     signal" is not one of them — an auditor in a basement does not need a dot
+     telling them they are in a basement. */
+  const sharedNeedsYou = shared?.state === "locked" || shared?.state === "error";
   const visitId = useVisitId();
   const setEntity = useStore((s) => s.setEntity);
   const setVisit = useStore((s) => s.setVisit);
@@ -326,7 +332,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   pointerEvents: disabled ? "none" : "auto",
                 }}
               >
-                <Icon width={13} height={13} />
+                <span className="relative flex shrink-0">
+                  <Icon width={13} height={13} />
+                  {/* A dot on Pre-flight when the shared record needs a person:
+                      this device has not been let into the audit yet, or its
+                      last sync failed. It goes HERE rather than in the masthead
+                      because the masthead's controls are hidden below sm, and a
+                      phone is where an auditor most needs to know that their
+                      afternoon is not reaching the team. */}
+                  {n.href === "/preflight" && sharedNeedsYou && (
+                    <span
+                      aria-hidden
+                      className="absolute -top-[3px] -right-[3px] h-[6px] w-[6px] rounded-full"
+                      style={{ background: "var(--warn)" }}
+                    />
+                  )}
+                </span>
                 {/* On the bottom bar all seven destinations have to fit across
                     390px, and seven full labels do not — three fitted and the
                     rest were a swipe nobody would think to make. The ACTIVE one
