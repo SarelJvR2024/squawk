@@ -16,6 +16,10 @@ import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const risk = fs.readFileSync(path.join(here, "..", "src", "lib", "risk.ts"), "utf8");
+/* Imported as well as read: the notation decision below is about what the code
+   RETURNS, and a regex over the source cannot tell a flipped format from a
+   flipped lookup. risk.ts only type-imports, so it loads under plain node. */
+const R = await import("../src/lib/risk.ts");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -88,6 +92,52 @@ for (const l of LIKELIHOOD) {
 /* The generic scale that was here before. If any of it comes back, something
    has been paraphrased and the register will be scored against the wrong
    definitions. */
+/* ------------------- Notation: severity-first, and only for SHOW ------------
+
+   B170 001M's own tables write the cell likelihood-first. Prince's register
+   writes no combined cell at all — two separate labelled fields. The only
+   place one is PRINTED is the generated dashboard and the Cluster 3 report,
+   and they print it severity-first. Sarel settled it: follow the register and
+   the dashboard.
+
+   The danger in that change is not the format. It is that RED and AMBER are
+   KEYED on a cell string, so flipping the printed form without decoupling the
+   lookup would have made every lookup miss and banded all 25 cells Green — a
+   silent inversion of the entire instrument, with no error anywhere. These
+   assertions exist to make that impossible to do by accident. */
+
+check(
+  "a cell PRINTS severity-first, the way the dashboard prints it",
+  R.cellCode("A - Catastrophic", "5 - Frequent") === "A5" &&
+    R.cellCode("C - Major", "4 - Occasional") === "C4" &&
+    R.cellCode("D - Minor", "3 - Remote") === "D3",
+  String(R.cellCode("A - Catastrophic", "5 - Frequent"))
+);
+
+check(
+  "and the BAND DOES NOT COME FROM THAT STRING",
+  R.bandFor("A - Catastrophic", "5 - Frequent") === "Red" &&
+    R.bandFor("A - Catastrophic", "3 - Remote") === "Red" &&
+    R.bandFor("E - Negligible", "1 - Extremely Improbable") === "Green",
+  "flipping the printed form must not be able to move a single cell"
+);
+
+check(
+  "the 6 / 12 / 7 split survives the notation change",
+  (() => {
+    const tally = { Red: 0, Amber: 0, Green: 0 };
+    for (const s of R.SEVERITIES) for (const l of R.LIKELIHOODS) tally[R.bandFor(s, l)]++;
+    return tally.Red === 6 && tally.Amber === 12 && tally.Green === 7;
+  })(),
+  "the whole instrument, counted after the change"
+);
+
+check(
+  "the lookup key is internal and is NOT exported",
+  R.bandKey === undefined && /function bandKey\(/.test(risk),
+  "an exported lookup key is one somebody prints by mistake"
+);
+
 const BANNED = [
   "B - Critical",
   "C - Significant",

@@ -2,9 +2,29 @@ import type { Severity, Likelihood, Band } from "./types";
 
 /** ACSA B170 001M risk matrix.
  *
- *  Severity A–E × Likelihood 1–5, written likelihood-first in ACSA's own
- *  documents (e.g. "3A"). Clause 4.6 states only these matrices may be used
- *  and that the SACAA Director of Civil Aviation will accept no other format.
+ *  Severity A–E × Likelihood 1–5. Clause 4.6 states only these matrices may be
+ *  used and that the SACAA Director of Civil Aviation will accept no other
+ *  format.
+ *
+ *  NOTATION: SEVERITY-FIRST — "B4", not "4B".
+ *
+ *  B170 001M's own tables write the cell likelihood-first. The portal does not
+ *  write a combined cell at all: Prince's register carries severity and
+ *  likelihood as two separate labelled fields, in ERM's wording rather than
+ *  this file's — see src/lib/sharepoint.ts, which is the one place allowed to
+ *  hold both vocabularies. The only place a combined cell is actually PRINTED
+ *  is the generated dashboard and the Cluster 3 report, and those print it
+ *  severity-first: "B4 · I", "C4 · I", "D3 · II".
+ *
+ *  Sarel settled it: follow the register and the dashboard. So the app prints
+ *  what the reader of the report will see.
+ *
+ *  THE BAND LOOKUP DOES NOT USE THE PRINTED FORM. `bandKey` below is internal
+ *  and stays likelihood-first, which is how the sets have always been written
+ *  and verified. That is deliberate: the notation is unsettled enough to have
+ *  changed once, and a matrix whose 6/12/7 split depends on a display decision
+ *  is a matrix that can be silently inverted by a formatting change. Flip
+ *  `cellCode` again tomorrow and the bands cannot move.
  *
  *  Red   (Unacceptable) = 5A 5B 5C 4A 4B 3A          → Avoidance
  *  Amber (mitigate)     = 5D 5E 4C 4D 4E 3B 3C 3D 2A 2B 2C 1A → Reduction
@@ -86,16 +106,24 @@ export function likeNumber(l: Likelihood | null): string {
 }
 
 /** ACSA writes the cell likelihood-first: likelihood number then severity letter. */
+/** How a cell is PRINTED: severity-first, per the register and the dashboard. */
 export function cellCode(s: Severity | null, l: Likelihood | null): string | null {
   if (!s || !l) return null;
+  return `${sevLetter(s)}${likeNumber(l)}`;
+}
+
+/** How a cell is LOOKED UP. Internal, likelihood-first, never displayed — see
+ *  the header. The RED and AMBER sets are keyed this way and are not to be
+ *  re-keyed to follow a notation decision. */
+function bandKey(s: Severity, l: Likelihood): string {
   return `${likeNumber(l)}${sevLetter(s)}`;
 }
 
 export function bandFor(s: Severity | null, l: Likelihood | null): Band | null {
-  const code = cellCode(s, l);
-  if (!code) return null;
-  if (RED.has(code)) return "Red";
-  if (AMBER.has(code)) return "Amber";
+  if (!s || !l) return null;
+  const key = bandKey(s, l);
+  if (RED.has(key)) return "Red";
+  if (AMBER.has(key)) return "Amber";
   return "Green";
 }
 

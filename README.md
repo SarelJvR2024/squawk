@@ -300,10 +300,25 @@ tests/                twenty-two suites — see tests/README.md
 ## Notes for whoever picks this up
 
 - **The risk matrix is ACSA's, not a generic one.** `src/lib/risk.ts` implements
-  B170 001M: severity A–E × likelihood 1–5, cells written likelihood-first
-  (`3A`), banded Red / Amber / Green. Clause 4.6 states no other format is
-  accepted by the SACAA Director of Civil Aviation. Do not "simplify" this to
-  I/II/III. The unit test exists to stop exactly that.
+  B170 001M: severity A–E × likelihood 1–5, banded Red / Amber / Green. Clause
+  4.6 states no other format is accepted by the SACAA Director of Civil
+  Aviation. Do not "simplify" this to I/II/III. The unit test exists to stop
+  exactly that.
+
+- **Cells are printed severity-first (`B4`), and the band does not come from
+  that string.** B170 001M's own tables write the cell likelihood-first; the
+  portal writes no combined cell at all, carrying severity and likelihood as
+  two separate fields; and the generated dashboard and the Cluster 3 report
+  print it severity-first. Sarel settled it: follow the register and the
+  dashboard, so the app prints what the report's reader will see.
+
+  The band is looked up on an internal, likelihood-first key that is never
+  displayed. That decoupling is the point: `RED` and `AMBER` are keyed on a
+  cell string, so flipping the printed form without it would have made every
+  lookup miss and banded all 25 cells Green — the whole instrument silently
+  inverted, with no error anywhere. `risk-matrix.test.mjs` asserts the printed
+  form, the bands, and the 6 / 12 / 7 split independently, so the notation can
+  change again without the matrix being able to move.
 
 - **A suggested rating is not a rating.** An issue button carries a suggested
   severity and likelihood, but the audit rates as a group exercise, so a finding
