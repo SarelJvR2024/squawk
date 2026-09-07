@@ -293,7 +293,7 @@ function CaptureInner() {
 
       {toast && (
         <div
-          className="fixed bottom-[22px] left-1/2 z-[100] flex -translate-x-1/2 items-center gap-2 rounded-[11px] px-[15px] py-2.5 text-[12px] font-medium"
+          className="toast-bottom fixed left-1/2 z-[100] flex -translate-x-1/2 items-center gap-2 rounded-[11px] px-[15px] py-2.5 text-[12px] font-medium"
           style={{ background: "var(--ink)", color: "var(--bg)", boxShadow: "var(--e3)" }}
         >
           {toast}

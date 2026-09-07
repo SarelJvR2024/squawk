@@ -13,10 +13,13 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7f6fb" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f0d18" },
-  ],
+  /* The masthead's own colour, not the page's.
+     
+     On iOS the status bar sits directly above the masthead and takes its tint
+     from here. Against #f7f6fb the dark bar ended at the notch with a light
+     strip above it — a seam across the top of the app on the device it is used
+     on. Same value in both schemes because the masthead is #2D1956 in both. */
+  themeColor: "#2d1956",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
