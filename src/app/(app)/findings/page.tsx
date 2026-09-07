@@ -60,7 +60,10 @@ export default function FindingsPage() {
 
   if (findings.length === 0) {
     return (
-      <div className="flex flex-1 items-center justify-center p-8">
+      /* The empty state is an early return, so it does not get the scroller's
+         padding — and its "Go to capture" button is the only thing on the
+         screen. It has to clear the bottom bar like everything else. */
+      <div className="app-scroll flex flex-1 items-center justify-center p-8">
         <Empty>
           <IconInbox width={28} height={28} />
           <div className="max-w-[46ch]">

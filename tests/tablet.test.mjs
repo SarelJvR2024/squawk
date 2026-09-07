@@ -263,6 +263,23 @@ check(
   "a third of a second of nothing after every answer is what makes an app feel broken"
 );
 
+check(
+  "the walkabout's search box is a real target",
+  /min-h-\[40px\] w-full border-none bg-transparent text-\[13px\]/.test(field),
+  "24px, and it is how an auditor finds the check for the thing in front of them"
+);
+
+check(
+  "the EMPTY states clear the bottom bar too",
+  /app-scroll flex flex-1 items-center justify-center p-8/.test(
+    src("app", "(app)", "findings", "page.tsx")
+  ) &&
+    /app-scroll flex flex-1 items-center justify-center p-8/.test(
+      src("app", "(app)", "hazards", "page.tsx")
+    ),
+  "they are early returns, so they miss the scroller's padding — and their one button is the whole screen"
+);
+
 /* ------------------------------------------------------------------ result */
 
 console.log(
