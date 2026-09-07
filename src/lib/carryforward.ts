@@ -127,6 +127,33 @@ function fromCarried(f: Finding): Outstanding {
   };
 }
 
+/** Does this item carry work into the visit, or is it only context?
+ *
+ *  The brief put it exactly right: an item rated Acceptable required no
+ *  mitigation, so there is nothing to verify was implemented. It is still
+ *  useful CONTEXT on its own check-point — the asset was looked at and found
+ *  sound — but it is not work, and a closure list that mixes the two makes the
+ *  real number look bigger than it is. ACSA's own Cluster 3 report counts on
+ *  the same basis.
+ *
+ *  ONE STRING, TWO MEANINGS, and they must not be conflated:
+ *
+ *    "Not audited" on a PRIOR RATING means ACSA did not audit that asset
+ *    system in March 2025 — E&DM at King Shaka, for one. There is no baseline,
+ *    so there is nothing to verify. Context.
+ *
+ *    "Not audited" on a CARRIED FINDING means WE raised it on an earlier visit
+ *    and nobody ever agreed a rating for it. That is an open question, not a
+ *    settled one, and it carries. Treating it as context would let an unrated
+ *    finding quietly leave the closure list by never being rated — which is the
+ *    opposite of what an audit tool should do.
+ *
+ *  Hence the check is on Acceptable alone, and the second case is deliberately
+ *  NOT included. */
+export function carriesWork(item: Outstanding): boolean {
+  return item.rating !== "Acceptable";
+}
+
 /** Everything this entity has left open coming into the visit in view.
  *
  *  Seeded items appear only at the entity and after the visit they belong to,

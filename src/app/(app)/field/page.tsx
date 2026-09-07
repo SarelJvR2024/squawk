@@ -18,7 +18,7 @@ import {
 import { locationAxis } from "@/lib/programme";
 import { portalIdFor } from "@/lib/sites";
 import type { Check, Compliance } from "@/lib/types";
-import { Btn, Chip, Empty, Panel, Pill } from "@/components/ui/primitives";
+import { Btn, Chip, Empty, Pill } from "@/components/ui/primitives";
 import { AttachmentStrip, PhotoButton, PhotoThumb, VoiceNoteButton } from "@/components/Capture";
 import { useAnswerLibrary } from "@/lib/answers";
 import { assist, transcriptContext, useAssistAvailable } from "@/lib/assist";

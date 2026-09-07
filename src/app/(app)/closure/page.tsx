@@ -12,7 +12,7 @@ import {
   useVisitFindings,
   useVisitId,
 } from "@/lib/store";
-import { currentRatingOf, useHistory, useOutstanding, visitsOpen } from "@/lib/carryforward";
+import { carriesWork, currentRatingOf, useHistory, useOutstanding, visitsOpen } from "@/lib/carryforward";
 import ItemTimeline from "@/components/ItemTimeline";
 import { PROGRAMME_VISITS } from "@/lib/programme";
 import { movement } from "@/lib/risk";
@@ -30,7 +30,7 @@ const OUTCOMES: { key: VerificationOutcome; label: string; Icon: typeof IconChec
 const ratingTone = (r: string) =>
   r === "Unacceptable" ? "bad" : r === "Tolerable" ? "warn" : r === "Acceptable" ? "good" : "neutral";
 
-type Filter = "all" | "priority" | "unverified" | "repeat" | "carried" | "nocover";
+type Filter = "all" | "priority" | "unverified" | "repeat" | "carried" | "nocover" | "context";
 
 export default function ClosurePage() {
   const router = useRouter();
@@ -57,6 +57,11 @@ export default function ClosurePage() {
   )[0];
 
   const [filter, setFilter] = useState<Filter>("all");
+  /* The closure conversation happens with ONE discipline in the room. O.R.
+     Tambo carries 33 open items; fifteen rows of somebody else's assets is
+     what derails the meeting, and the Electrical lead scrolling past Civil to
+     find their own is the failure mode this prevents. */
+  const [discipline, setDiscipline] = useState<string>("all");
   const [activePf, setActivePf] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -76,6 +81,13 @@ export default function ClosurePage() {
 
   const list = useMemo(() => {
     let l = outstanding;
+    /* CONTEXT IS NOT WORK, so it is not in the list by default. An item rated
+       Acceptable needed no mitigation, so there is nothing to verify was
+       implemented — counting it as outstanding makes the real number look
+       bigger than it is. It is not hidden: the chip below says how many there
+       are and shows them. */
+    l = filter === "context" ? l.filter((p) => !carriesWork(p)) : l.filter(carriesWork);
+    if (discipline !== "all") l = l.filter((p) => p.discipline === discipline);
     if (filter === "priority") l = l.filter((p) => p.rating === "Unacceptable" || p.rating === "Tolerable");
     if (filter === "unverified") l = l.filter((p) => !verifications[p.key]?.outcome);
     if (filter === "repeat") l = l.filter((p) => verifications[p.key]?.outcome === "Open - repeat");
@@ -83,12 +95,21 @@ export default function ClosurePage() {
     if (filter === "nocover")
       l = l.filter((p) => checksOf(entityCode, p.discipline, p.system).length === 0);
     return l;
-  }, [entityCode, filter, verifications, outstanding]);
+  }, [entityCode, filter, discipline, verifications, outstanding]);
 
   const active = list.find((p) => p.key === activePf) ?? list[0];
   const v = active ? verifications[active.key] : undefined;
   /* Read across every visit, not just this one — see historyFor(). */
   const history = useHistory(active?.key ?? "");
+
+  const carries = useMemo(() => outstanding.filter(carriesWork), [outstanding]);
+  const context = useMemo(() => outstanding.filter((p) => !carriesWork(p)), [outstanding]);
+  /* The disciplines actually present in what carries, so the picker never
+     offers a discipline with nothing behind it. */
+  const disciplines = useMemo(
+    () => [...new Set(carries.map((p) => p.discipline))].sort(),
+    [carries]
+  );
 
   const counts = {
     closed: outstanding.filter((p) => verifications[p.key]?.outcome === "Closed").length,
@@ -163,15 +184,40 @@ export default function ClosurePage() {
           </div>
         </Panel>
 
+        {disciplines.length > 1 && (
+          <div className="mb-2 flex flex-wrap items-center gap-[6px]">
+            <span className="label-xs" style={{ color: "var(--ink-3)" }}>
+              Discipline
+            </span>
+            {["all", ...disciplines].map((d) => (
+              <button
+                key={d}
+                onClick={() => setDiscipline(d)}
+                className="min-h-[44px] rounded-full border px-[11px] py-[5px] text-[11.5px] transition-[var(--t)]"
+                style={
+                  discipline === d
+                    ? { background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }
+                    : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
+                }
+              >
+                {d === "all" ? `All ${carries.length}` : `${d} (${carries.filter((p) => p.discipline === d).length})`}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="mb-3 flex flex-wrap gap-[6px]">
           {(
             [
-              ["all", `All ${outstanding.length}`],
+              ["all", `Carries work (${carries.length})`],
               ["priority", "Was Unacceptable / Tolerable"],
               ["unverified", "Not yet verified"],
               ["repeat", "Repeats"],
               ["carried", `Carried forward (${counts.carried})`],
               ["nocover", "Not covered this visit"],
+              ...(context.length
+                ? ([["context", `Context only (${context.length})`]] as [Filter, string][])
+                : []),
             ] as [Filter, string][]
           ).map(([k, label]) => (
             <button

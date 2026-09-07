@@ -112,13 +112,20 @@ export default function CheckDetail({
   const pf = priorFor(entityCode, check.discipline, check.system);
   const longTitle = check.requirement.length > 140;
 
-  /* Suggestions belong to the check that produced them. */
-  useEffect(() => {
+  /* Suggestions belong to the check that produced them.
+     
+     Cleared during render rather than in an effect, so the new check never
+     paints carrying the previous one's proposed answer — even for one frame.
+     A suggested observation flashing under the wrong check-point is not a
+     cosmetic bug on an audit tool. */
+  const [shownFor, setShownFor] = useState(check.id);
+  if (shownFor !== check.id) {
+    setShownFor(check.id);
     setDraft(null);
     setExplained(null);
     setThinking(null);
     setTitleOpen(false);
-  }, [check.id]);
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

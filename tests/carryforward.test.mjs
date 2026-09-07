@@ -170,6 +170,83 @@ check(
   ""
 );
 
+/* ------------------- Closure carries only what carries -------------------- */
+
+/* The brief said: of the 23 March 2025 findings, seven were rated Acceptable
+   or not audited, so sixteen actually carry.
+
+   THAT SPLIT DOES NOT EXIST IN THIS REPOSITORY'S DATA, and the first two
+   assertions are what establishes it rather than my say-so. Rev A2 separates
+   the two lists the brief's dataset conflated: priorFindings carries only
+   items that needed mitigation, and the Acceptable / Not audited rows live in
+   priorRatings, which is the per-asset-system position, not work.
+
+   So the mechanism is built and correct, and at KSIA, ORTIA and CTIA it
+   currently selects everything. It starts doing real work the moment a
+   Squawk-raised finding is rated Acceptable and carried. */
+
+const priorFindings = JSON.parse(
+  fs.readFileSync(path.join(here, "..", "src", "data", "priorFindings.json"), "utf8")
+);
+const priorRatings = JSON.parse(
+  fs.readFileSync(path.join(here, "..", "src", "data", "priorRatings.json"), "utf8")
+);
+
+check(
+  "no seeded prior FINDING is Acceptable — every one of them carries work",
+  priorFindings.length === 78 &&
+    priorFindings.every((f) => f.tolerance === "Tolerable" || f.tolerance === "Unacceptable"),
+  `${priorFindings.length} findings, tolerances ${[...new Set(priorFindings.map((f) => f.tolerance))].join("/")}`
+);
+
+check(
+  "Acceptable and Not audited live on prior RATINGS, which are a different list",
+  priorRatings.some((r) => r.rating === "Acceptable") &&
+    priorRatings.some((r) => r.rating === "Not audited"),
+  "the brief's 7-of-23 came from a dataset that had not separated the two"
+);
+
+check(
+  "there is a predicate for it, and it turns on Acceptable",
+  /export function carriesWork\(item: Outstanding\): boolean \{\s*return item\.rating !== "Acceptable";/.test(cf),
+  "an item that needed no mitigation has nothing to verify was implemented"
+);
+
+check(
+  'and it deliberately does NOT let "Not audited" off',
+  /Not audited" on a CARRIED FINDING/.test(cf) && !/rating !== "Not audited"/.test(cf),
+  "on a carried finding that string means nobody agreed a rating — an open question, not a settled one"
+);
+
+check(
+  "the closure list shows what carries by default, and context only on request",
+  /filter === "context" \? l\.filter\(\(p\) => !carriesWork\(p\)\) : l\.filter\(carriesWork\)/.test(closure)
+);
+
+check(
+  "context is offered, not hidden — and only when there is some",
+  /context\.length[\s\S]{0,120}Context only \(\$\{context\.length\}\)/.test(closure),
+  "silently dropping rows is how a closure list stops being trusted"
+);
+
+check(
+  "the list can be filtered to one discipline",
+  /const \[discipline, setDiscipline\] = useState<string>\("all"\)/.test(closure) &&
+    /discipline !== "all"\) l = l\.filter\(\(p\) => p\.discipline === discipline\)/.test(closure),
+  "the closure conversation happens with one discipline in the room"
+);
+
+check(
+  "and the picker only offers disciplines that have something behind them",
+  /new Set\(carries\.map\(\(p\) => p\.discipline\)\)/.test(closure),
+  "an empty tab is a dead end somebody taps once and stops trusting"
+);
+
+check(
+  "the discipline chips are 44px, like everything else an auditor taps",
+  /min-h-\[44px\] rounded-full border px-\[11px\]/.test(closure)
+);
+
 /* ------------------------------------------------------------------ result */
 
 console.log(

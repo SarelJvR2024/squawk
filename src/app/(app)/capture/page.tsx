@@ -46,17 +46,26 @@ function CaptureInner() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  /* deep link from the command palette */
-  useEffect(() => {
-    const id = params.get("check");
-    if (!id) return;
-    const c = checksAt(entityCode).find((x) => x.id === id);
-    if (!c) return;
-    setDiscipline(c.discipline);
-    setSystem(c.system);
-    setFilter("all");
-    setActiveId(c.id);
-  }, [params, entityCode]);
+  /* Deep link from the command palette.
+     
+     Reconciled DURING RENDER rather than in an effect. React re-runs the
+     component immediately without committing, so the workspace paints once, on
+     the linked check — an effect painted the old check first and corrected it a
+     frame later, which on a tablet is a visible flash of the wrong row.
+     `linkedTo` remembers which link has been honoured, so an auditor who
+     navigates away afterwards is not dragged back to it on every render. */
+  const linked = params.get("check");
+  const [linkedTo, setLinkedTo] = useState<string | null>(null);
+  if (linked && linked !== linkedTo) {
+    setLinkedTo(linked);
+    const c = checksAt(entityCode).find((x) => x.id === linked);
+    if (c) {
+      setDiscipline(c.discipline);
+      setSystem(c.system);
+      setFilter("all");
+      setActiveId(c.id);
+    }
+  }
 
   /* The audit workspace lists what a desk can actually progress — a check to
      ask about or collect a document for. The nine checks whose only mode is
@@ -80,12 +89,16 @@ function CaptureInner() {
     return list;
   }, [deskChecks, filter, responses, entityCode]);
 
+  /* `activeId` is READ in exactly one place — here — and everything downstream
+     uses `active`. An effect used to copy the fallback back into `activeId`,
+     which was a cascading render doing no work.
+
+     It also had a cost. Filtering a check out of view snapped `activeId` to the
+     top of the list permanently, so clearing the filter left you at the top
+     instead of back on the check you were working on. Now the id survives the
+     filter and the fallback is purely a display choice. */
   const active: Check | undefined =
     visible.find((c) => c.id === activeId) ?? visible[0];
-
-  useEffect(() => {
-    if (active && active.id !== activeId) setActiveId(active.id);
-  }, [active, activeId]);
 
   useEffect(() => {
     if (!toast) return;
