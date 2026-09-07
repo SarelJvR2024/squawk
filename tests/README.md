@@ -1,6 +1,6 @@
 # Tests
 
-Twenty-six suites, no framework. Eight need a running server; eighteen do not.
+Twenty-seven suites, no framework. Nine need a running server; eighteen do not.
 **Check each suite's exit status, not its output**: a `for` loop over them
 reports the status of the loop.
 
@@ -39,8 +39,9 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `vision.js` | starts its own | 23 |
 | `record.js` | starts its own | 14 |
 | `flow.js` | yes | 48 |
+| `offline.js` | yes | 18 |
 
-**991 assertions in total**, every count above verified by running the suite,
+**1,009 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -483,6 +484,36 @@ nothing else in the suite would notice.
 
 **Run it after any change to how a figure is derived** — the store's selectors,
 the dashboard, closure, or anything that reads `ratingConfirmed`.
+
+## `offline.js`
+
+The suite that answers the question the rest of the repo assumed: **does the app
+open with no signal?** Everything else about not losing captured work — the
+IndexedDB store, photographs surviving a reload, the sync queue waiting for
+signal — took for granted that the app had already loaded. It had not earned
+that. Before the service worker, an auditor airside who closed the tab, or whose
+phone dropped the page from memory (iOS does this aggressively), got a browser
+error page and could not reach a single thing they had captured.
+
+```bash
+BASE=http://localhost:3000 node tests/offline.js
+```
+
+So it loads the app, **cuts the network with `context.setOffline(true)`**, and
+drives it. Reading the source would prove a service-worker file exists, which is
+a different claim. It checks the cold start, a second screen from its own URL,
+the bare address (a redirect, and therefore the one most likely to break), that
+work captured before the signal went is still on screen, and that both lazy
+payloads — the Answer Library and the asset register — are reachable with no
+signal.
+
+It also asserts the things that must **not** be cached, each of which would be a
+defect rather than a missing optimisation: no `/api` response (a cached
+availability probe would tell an auditor a model is configured on a deployment
+where it is not), not the OAuth redirect (it carries a code and a state in its
+URL), nothing cross-origin (the photographs are not copied into a second store
+as a side effect of a routing rule), and not the redirecting root (handing a
+redirected response to a navigation is a hard error in every browser).
 
 ## `vision.js`
 
