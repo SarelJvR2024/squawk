@@ -33,13 +33,21 @@ export function Pill({
   );
 }
 
-export function Dot({ tone }: { tone: Tone | "pending" }) {
+export function Dot({ tone, hollow = false }: { tone: Tone | "pending"; hollow?: boolean }) {
   const bg =
     tone === "pending" ? "var(--line-3)" : toneVars[tone as Tone].fg;
+  /* HOLLOW means answered but not saved: the colour already says what the
+     answer is, the ring says it is not committed yet. A different colour would
+     have been a fourth thing to learn; an outline of the colour you are about
+     to get reads as "on its way" without a legend. */
   return (
     <span
       className="mt-[5px] h-[7px] w-[7px] shrink-0 rounded-full"
-      style={{ background: bg, transition: "var(--t)" }}
+      style={{
+        background: hollow ? "transparent" : bg,
+        boxShadow: hollow ? `inset 0 0 0 2px ${bg}` : "none",
+        transition: "var(--t)",
+      }}
     />
   );
 }

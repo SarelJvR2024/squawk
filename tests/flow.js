@@ -108,8 +108,32 @@ async function badge(p, href) {
   await p.waitForTimeout(300);
   await p.locator("text=Issues found").first().locator("xpath=../..").locator("button").first().click();
   await p.waitForTimeout(600);
+
+  /* ANSWERED, NOT YET SAVED. Every tap writes to the store as it happens and
+     Save is what stamps deskDoneAt — so the difference was always knowable and
+     nothing showed it. Walking a discipline and saving at the end, the check
+     you had just answered looked identical to one you had never opened, and an
+     answer that is never saved is an answer that never happened. */
+  const beforeSave = (await p.locator("text=/desk done ·/").first().innerText()).replace(/\s+/g, " ");
+  ok("an answered check that is NOT saved is counted separately",
+     /1 to save/.test(beforeSave), beforeSave);
+  const hollow = () =>
+    p.evaluate(() =>
+      [...document.querySelectorAll("span")].filter(
+        (n) => /rounded-full/.test(String(n.className)) && n.style.boxShadow?.includes("inset")
+      ).length
+    );
+  ok("and its dot is hollow — the colour is the answer, the fill is the save",
+     (await hollow()) === 1, String(await hollow()));
+  ok("it is NOT counted as desk done", /^0 desk done/.test(beforeSave), beforeSave);
+
   await p.locator("button", { hasText: /^Save$/ }).first().click();
   await p.waitForTimeout(800);
+
+  const afterSave = (await p.locator("text=/desk done ·/").first().innerText()).replace(/\s+/g, " ");
+  ok("saving fills the dot and clears the to-save count",
+     (await hollow()) === 0 && !/to save/.test(afterSave) && /^1 desk done/.test(afterSave),
+     afterSave);
 
   const capAfter = await badge(p, "/capture");
   ok("capturing a check moves the Checks badge UP — it counts done, not left",

@@ -37,9 +37,9 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `persite.js` | yes | 25 |
 | `vision.js` | starts its own | 17 |
 | `record.js` | starts its own | 14 |
-| `flow.js` | yes | 44 |
+| `flow.js` | yes | 48 |
 
-**942 assertions in total**, every count above verified by running the suite,
+**946 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 

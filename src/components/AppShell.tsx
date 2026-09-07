@@ -229,13 +229,38 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <path d="M5 13l4 4L19 6" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </span>
-          <span>
-            <b className="block font-display text-[13px] leading-[1.2] font-bold" style={{ color: "var(--ink)" }}>
-              Squawk
-            </b>
-            <span className="font-mono text-[8.5px] tracking-[0.07em]" style={{ color: "var(--ink-3)" }}>
-              {entityOf(entityCode).short} · {visitLabel.toUpperCase()}
+          {/* THE AUDIT IS THE HEADLINE, not the app name.
+              
+              This was the other way round: "Squawk" at 13px bold over the site
+              and visit at 8.5px. But nobody needs telling which app they are
+              in, and the one question the masthead has to answer without being
+              asked is WHICH AUDIT AM I CAPTURING AGAINST — ten sites and six
+              visits each, all of which look identical once you are inside a
+              check. Capturing a day's work against the wrong visit is not
+              recoverable by anyone who does not know it happened.
+              
+              So the hierarchy is inverted and the visit carries the accent:
+              the site code is the constant, the visit is the thing that can be
+              wrong. */}
+          <span className="min-w-0">
+            <span
+              className="block font-mono text-[8.5px] leading-[1.1] tracking-[0.09em]"
+              style={{ color: "var(--ink-3)" }}
+            >
+              SQUAWK
             </span>
+            <b className="flex items-center gap-[6px] font-display text-[13.5px] leading-[1.25] font-bold whitespace-nowrap">
+              <span style={{ color: "var(--ink)" }}>{entityOf(entityCode).short}</span>
+              {/* A chip, not a colour: inside the masthead --acc IS white, so
+                  colouring the visit would have painted it the same as the site
+                  code beside it. The chip separates them on any ground. */}
+              <span
+                className="rounded-[6px] px-[7px] py-[1px] text-[12.5px]"
+                style={{ background: "var(--acc-soft)", color: "var(--ink)" }}
+              >
+                {visitLabel}
+              </span>
+            </b>
           </span>
         </Link>
 
