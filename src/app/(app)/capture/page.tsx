@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   checksAt,
+  deskAnswered,
   disciplinesAt,
   checksOf,
   priorFor,
@@ -113,17 +114,27 @@ function CaptureInner() {
     if (next) setActiveId(next.id);
   };
 
-  const dotTone = (c: Check) => {
+  /* The colour is the ANSWER; whether the dot is filled is whether it is
+     SAVED. An answered-but-unsaved check used to look exactly like one nobody
+     had opened, and an answer that is never saved is an answer that never
+     happened. */
+  const answerTone = (c: Check) => {
     const r = responses[c.id];
-    if (!deskDone(r)) return "pending" as const;
-    return r.compliance === "NC"
+    return r?.compliance === "NC"
       ? ("bad" as const)
-      : r.compliance === "C"
+      : r?.compliance === "C"
         ? ("good" as const)
-        : r.compliance === "NV"
+        : r?.compliance === "NV"
           ? ("warn" as const)
           : ("neutral" as const);
   };
+  const dotTone = (c: Check) => {
+    const r = responses[c.id];
+    if (!deskDone(r) && !deskAnswered(r)) return "pending" as const;
+    return answerTone(c);
+  };
+  const dotHollow = (c: Check) => deskAnswered(responses[c.id]);
+  const unsaved = visible.filter((c) => deskAnswered(responses[c.id])).length;
 
   return (
     <>
@@ -236,6 +247,15 @@ function CaptureInner() {
           <div className="mt-[2px] text-[10px]" style={{ color: "var(--ink-3)" }}>
             {visible.filter((c) => deskDone(responses[c.id])).length} desk done ·{" "}
             {visible.filter((c) => !deskDone(responses[c.id])).length} open
+            {/* Called out in the warn colour rather than folded into "open":
+                these are answered and one press from done, which is a
+                different piece of work from a check nobody has looked at. */}
+            {unsaved > 0 && (
+              <>
+                {" · "}
+                <b style={{ color: "var(--warn)" }}>{unsaved} to save</b>
+              </>
+            )}
           </div>
         </div>
 
@@ -259,7 +279,7 @@ function CaptureInner() {
                 }}
               >
                 {on && <span className="absolute inset-y-0 left-0 w-[2.5px]" style={{ background: "var(--acc)" }} />}
-                <Dot tone={dotTone(c)} />
+                <Dot tone={dotTone(c)} hollow={dotHollow(c)} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
                     {portalIdFor(entityCode, c.id)} · {c.system}

@@ -187,6 +187,28 @@ const checkById = new Map(CHECKS.map((c) => [c.id, c]));
 
 /** Has the desk half been answered? */
 export const deskDone = (r: Response | undefined) => !!r?.deskDoneAt;
+
+/** ANSWERED BUT NOT SAVED.
+ *
+ *  Every tap writes to the store as it happens — compliance, an evidence chip,
+ *  a photograph, a typed observation — and Save is what stamps `deskDoneAt`.
+ *  So a half-finished check is already distinguishable from an untouched one;
+ *  nothing was showing it.
+ *
+ *  That gap is the one an auditor pays for. Walking a discipline, tapping
+ *  answers as you go and saving at the end, the list looked identical for the
+ *  check you had just answered and the check you had never opened — and an
+ *  answer that is never saved is an answer that never happened. This is the
+ *  count of what still needs verifying and saving. */
+export const deskAnswered = (r: Response | undefined) =>
+  !r?.deskDoneAt &&
+  !!(
+    r?.compliance ||
+    r?.observation?.trim() ||
+    r?.evidencePicked?.length ||
+    r?.issuesPicked?.length ||
+    r?.attachments?.length
+  );
 /** Has the field half been answered? */
 export const fieldDone = (r: Response | undefined) => !!r?.fieldDoneAt;
 
