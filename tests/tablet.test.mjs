@@ -29,6 +29,8 @@ const css = src("app", "globals.css");
 const detail = src("components", "CheckDetail.tsx");
 const field = src("app", "(app)", "field", "page.tsx");
 const capture = src("components", "Capture.tsx");
+const shell = src("components", "AppShell.tsx");
+const sticky = src("components", "StickyActions.tsx");
 
 let failures = 0;
 const check = (name, cond, detailText = "") => {
@@ -160,6 +162,57 @@ check(
   "field mode's zone note names the entity in view",
   !/CURRENT_ENTITY/.test(field),
   ""
+);
+
+/* ------------------------ And the phone, for the walkabout ---------------- */
+
+/* The site walkabout is done on a PHONE, not the tablet — nobody carries an
+   iPad up a ladder. Measured on an iPhone 12 (390x664) before any of this:
+
+     the nav was 36px wide holding 844px of destinations
+
+   It scrolled, technically. A 36px sliver is not a control, it reads as a
+   rendering fault, and against the dark masthead it was a black stub. The
+   whole navigation was effectively gone on the device the screen is for. */
+
+check(
+  "below sm the header wraps so the nav gets a row of its own",
+  /masthead flex min-h-\[52px\] shrink-0 flex-wrap[\s\S]{0,80}sm:h-\[52px\] sm:flex-nowrap/.test(shell),
+  "36px of navigation on the device the walkabout is actually done on"
+);
+
+check(
+  "and the nav claims that whole row, going back to a flex child from sm",
+  /order-last flex w-full min-w-0 shrink-0 basis-full[\s\S]{0,90}sm:order-none sm:w-auto sm:flex-1 sm:basis-auto/.test(shell)
+);
+
+check(
+  "the keyboard-shortcut button is not offered on a device with no keyboard",
+  /aria-label="Keyboard shortcuts"[\s\S]{0,140}hidden min-h-\[44px\][\s\S]{0,80}sm:flex/.test(shell),
+  "it and Start again were the third header row on an iPhone SE"
+);
+
+check(
+  "nor is Start again — a dry-run tool nobody wants within reach on an apron",
+  /aria-label="Start again"[\s\S]{0,220}hidden min-h-\[44px\]/.test(shell)
+);
+
+check(
+  "THE ACTION BAR CLEARS THE HOME INDICATOR",
+  /paddingBottom: "calc\(0\.625rem \+ env\(safe-area-inset-bottom\)\)"/.test(sticky),
+  "bottom-0 on an iPhone puts Save & next under the one bit of screen furniture nobody can move"
+);
+
+check(
+  "and env() is used, so it costs nothing on a device without one",
+  /env\(safe-area-inset-bottom\)/.test(sticky) && !/@supports/.test(sticky)
+);
+
+check(
+  "the walkabout's prose is kept off the phone's first screen",
+  /hidden max-w-\[78ch\] text-\[12\.5px\] sm:block/.test(field) &&
+    /mt-\[7px\] hidden text-\[10\.5px\] leading-\[1\.5\] sm:block/.test(field),
+  "preamble, toggle, search and a category note filled all 664px and the first check-point sat below the fold"
 );
 
 /* ------------------------------------------------------------------ result */

@@ -142,7 +142,13 @@ export default function FieldPage() {
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-[18px] font-bold">Site walkabout</h2>
-            <p className="mt-1 max-w-[78ch] text-[12.5px]" style={{ color: "var(--ink-2)" }}>
+            {/* Prose that orients somebody the first time and costs them a
+                scroll every time after. On a 664px phone the preamble, the
+                toggle, the search box and the category note filled the whole
+                first screen and the first check-point sat below the fold — on
+                the screen whose entire job is the check-points. Kept from sm
+                upward, where the room exists. */}
+            <p className="mt-1 hidden max-w-[78ch] text-[12.5px] sm:block" style={{ color: "var(--ink-2)" }}>
               Nothing here assumes an order. Filter by where you are standing, search anything, or
               capture first and assign it later.
             </p>
@@ -205,7 +211,7 @@ export default function FieldPage() {
           </div>
           {axis.kind === "area" && (
             <div
-              className="mt-[7px] text-[10.5px] leading-[1.5]"
+              className="mt-[7px] hidden text-[10.5px] leading-[1.5] sm:block"
               style={{ color: "var(--ink-3)" }}
             >
               These are the register&rsquo;s categories, not physical zones — {entity.short} zone

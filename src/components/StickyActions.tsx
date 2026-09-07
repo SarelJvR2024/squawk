@@ -34,8 +34,14 @@ export default function StickyActions({
 }) {
   return (
     <div
-      className="sticky bottom-0 z-[7] -mx-[17px] mt-4 flex flex-wrap items-center justify-between gap-3 border-t px-[17px] py-2.5"
+      className="sticky bottom-0 z-[7] -mx-[17px] mt-4 flex flex-wrap items-center justify-between gap-3 border-t px-[17px] pt-2.5"
       style={{
+        /* THE HOME INDICATOR. On an iPhone the bottom ~34pt of the screen
+           belongs to the system, and a bar pinned to bottom-0 puts Save & next
+           underneath it — the button an auditor presses most, behind the one
+           piece of screen furniture they cannot move. env() resolves to 0 on
+           every device without one, so this costs nothing anywhere else. */
+        paddingBottom: "calc(0.625rem + env(safe-area-inset-bottom))",
         background: "var(--panel)",
         borderColor: "var(--line)",
         boxShadow: "0 -4px 16px -8px rgba(22,16,40,.14)",
