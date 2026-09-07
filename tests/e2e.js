@@ -97,9 +97,15 @@ function ok(n,c,extra=''){ if(c){pass++;log.push('PASS  '+n);} else {fail++;log.
   await page.goto(B+'/capture', {waitUntil:'networkidle'}); await page.waitForTimeout(700);
   await page.keyboard.press('Meta+k');
   await page.waitForTimeout(400);
-  let paletteOpen = await page.locator('input[placeholder*="earch" i]').first().isVisible().catch(()=>false);
+  /* The PALETTE's own field, by name. This used to take the first input whose
+     placeholder contained "search", which was fine until the screen grew a
+     second one — the asset picker's, inside a folded <details>, earlier in the
+     DOM and never visible. The palette was opening the whole time; the
+     assertion was looking at the wrong box. */
+  const palette = () => page.locator('input[aria-label="Jump to check"]');
+  let paletteOpen = await palette().isVisible().catch(()=>false);
   if(!paletteOpen){ await page.keyboard.press('Control+k'); await page.waitForTimeout(400);
-    paletteOpen = await page.locator('input[placeholder*="earch" i]').first().isVisible().catch(()=>false); }
+    paletteOpen = await palette().isVisible().catch(()=>false); }
   ok('command palette opens', paletteOpen);
   if(paletteOpen){ await page.keyboard.type('earth'); await page.waitForTimeout(500);
     const pal = await page.locator('body').innerText();

@@ -61,6 +61,16 @@ const iso = (s: string) => (s ? new Date(`${s}T00:00:00`) : null);
 const docs = (c: Check) =>
   c.acsaDocs.map((d) => `${d.doc}${d.clause ? ` cl. ${d.clause}` : ""}`).join("; ");
 
+/** Asset links, as tags, for a workbook cell.
+ *
+ *  Tags only — the register is a separate file that gets replaced wholesale,
+ *  and a name copied into the workbook would go stale the day it is. Blank
+ *  where nothing is linked: plenty of findings are not about one asset, so an
+ *  empty cell here is a legitimate answer and not an omission. */
+function assetCell(ids: string[] | undefined): string {
+  return (ids ?? []).join(", ");
+}
+
 export interface ExportInput {
   /** The entity and visit this export is of. Not optional — an export that
    *  cannot name its own subject should not be produced. */
@@ -213,6 +223,7 @@ export function findingsSheet(x: ExportInput): Sheet {
       /* And the suggestion, kept separate so nobody mistakes one for the other. */
       suggested ?? "",
       agreed ? "Agreed by the audit team" : "Suggested — not yet agreed",
+      assetCell(f.assetIds),
       f.rootCause,
       f.action,
       f.owner,
@@ -267,6 +278,7 @@ export function findingsSheet(x: ExportInput): Sheet {
       { header: "Strategy (B170 001M)", width: 44, wrap: true },
       { header: "Suggested cell (not agreed)", width: 20 },
       { header: "Rating state", width: 26 },
+      { header: "Assets", width: 34, wrap: true },
       { header: "Root cause", width: 26 },
       { header: "Remediation action", width: 58, wrap: true },
       { header: "Owner", width: 30 },
@@ -469,6 +481,7 @@ export function hazardsSheet(x: ExportInput): Sheet {
           ? "Suggested — not yet agreed"
           : "Not rated on ERM",
       h.ratingRationale,
+      assetCell(h.assetIds),
       h.rootCause,
       h.action,
       h.owner,
@@ -525,6 +538,7 @@ export function hazardsSheet(x: ExportInput): Sheet {
       { header: "Combined Assurance Coverage Plan (cl. 9.1.2)", width: 38, wrap: true },
       { header: "ERM rating state", width: 48, wrap: true },
       { header: "Why the cell was agreed", width: 50, wrap: true },
+      { header: "Assets", width: 34, wrap: true },
       { header: "Root cause", width: 26 },
       { header: "Treatment", width: 58, wrap: true },
       { header: "Owner", width: 30 },

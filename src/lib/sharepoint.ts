@@ -160,6 +160,7 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
   auditor: ["Auditor", "Assessed by", "Captured by"],
   assessedOn: ["Assessed on", "Date assessed", "Assessed"],
   reference: ["Reference", "Source"],
+  assets: ["Assets", "Asset", "Asset tag", "Asset ID", "Equipment"],
 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -421,6 +422,7 @@ export function buildPlan(
         owner: h.owner ?? "",
         targetDate: h.dueDate || null,
         progress: flattenProgress(h.progress),
+        assets: sendableAssets(h.assetIds).join(", ") || null,
         dateRaised: h.createdAt ? new Date(h.createdAt).toISOString() : null,
       },
       summary: agreed
@@ -433,6 +435,17 @@ export function buildPlan(
       what: "hazard ratings",
       why: "nobody has agreed the ERM cell — the hazard syncs, the rating does not",
       count: unrated,
+    });
+  }
+  const withheldAssets = x.hazards.reduce(
+    (n, h) => n + (h.assetIds ?? []).length - sendableAssets(h.assetIds).length,
+    0
+  );
+  if (withheldAssets) {
+    skipped.push({
+      what: "asset links",
+      why: "they are SAMPLE- tags from the stand-in register — they go in the workbook, never into a system of record",
+      count: withheldAssets,
     });
   }
   if (unconsolidatedFindings) {
@@ -474,6 +487,22 @@ export function buildPlan(
   }
 
   return { checkpoints, findings, evidence, skipped, folder: evidenceFolder(x.entity) };
+}
+
+/** Asset links that are safe to send.
+ *
+ *  A `SAMPLE-` tag is a stand-in invented so the linking could be built before
+ *  ACSA supplied the register. It belongs in the workbook, where a person is
+ *  reading and the prefix tells them what it is. It does NOT belong in the
+ *  portal, where a machine files it against a real finding and nobody looks at
+ *  it again — an invented asset number in a system of record is worse than no
+ *  asset number at all.
+ *
+ *  So the sync drops them, and the plan says how many it dropped. When the real
+ *  register arrives its tags carry no prefix and this returns them untouched;
+ *  the guard turns itself off. */
+export function sendableAssets(ids: string[] | undefined): string[] {
+  return (ids ?? []).filter((id) => !id.startsWith("SAMPLE-"));
 }
 
 /** Totals for the confirm line, so nobody presses a button that says "Sync"

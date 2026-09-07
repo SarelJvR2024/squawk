@@ -589,6 +589,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 autoFocus
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
+                /* Named, not just placeheld. The placeholder is built from the
+                   site and its check count so it is different on every screen,
+                   which makes it useless to a screen reader announcing the
+                   field and useless to a test trying to find it. */
+                aria-label="Jump to check"
                 placeholder={`Search ${entityOf(entityCode).short}'s ${checks.length} checks — ID, wording, system or ACSA figure…`}
                 className="w-full border-none bg-transparent text-[14.5px] outline-none"
               />
