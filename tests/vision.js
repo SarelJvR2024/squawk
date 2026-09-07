@@ -38,13 +38,17 @@ const ok = (n, c, x = "") => {
 
 /* ---- the stub the route thinks is Anthropic ---- */
 const seen = [];
+const ANSWER = { content: [{ type: "text", text: "stub answer" }] };
+/* What the stub replies with. A decline is an HTTP 200 with no text, so the
+   only way to exercise the route's handling of one is to have the stub say it. */
+let stubReply = ANSWER;
 const stub = http.createServer((req, res) => {
   let body = "";
   req.on("data", (c) => (body += c));
   req.on("end", () => {
     seen.push(body);
     res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ content: [{ type: "text", text: "stub answer" }] }));
+    res.end(JSON.stringify(stubReply));
   });
 });
 
@@ -182,6 +186,45 @@ const imageBlocks = (raw) => {
     ok("images come before the instruction",
        (() => { const c = JSON.parse(seen[0]).messages[0].content;
                 return c[0].type === "image" && c[c.length - 1].type === "text"; })());
+
+    /* ---------- the model, and the budget a thinking model needs ----------
+     *
+     *  The same stub, read for what the route ASKED for rather than for what it
+     *  forwarded. Opus 5 thinks before it writes, and both of the things that
+     *  makes necessary are invisible from the outside: a token budget the
+     *  thinking has to fit inside as well as the answer, and an effort level
+     *  matched to whether the task is wording or judgement. A budget that was
+     *  right for a non-thinking model truncates a JSON answer mid-object and
+     *  returns nothing, which reads as "the model is broken". */
+    seen.length = 0;
+    await post(NO_VISION_PORT, { task: "observation", context: "Certificates seen on site." });
+    const wording = JSON.parse(seen[0]);
+    ok("the request names the configured model", wording.model === "claude-opus-5",
+       String(wording.model));
+    ok("a wording task is asked to think lightly",
+       wording.output_config?.effort === "low", JSON.stringify(wording.output_config));
+
+    seen.length = 0;
+    await post(NO_VISION_PORT, { task: "hazard", context: "Bund wall cracked through." });
+    const judgement = JSON.parse(seen[0]);
+    ok("naming the hazard behind a finding is not a wording task, and is not asked as one",
+       judgement.output_config?.effort === "medium", JSON.stringify(judgement.output_config));
+    ok("THE BUDGET LEAVES ROOM FOR THE THINKING AS WELL AS THE ANSWER",
+       judgement.max_tokens >= 4000, String(judgement.max_tokens));
+
+    /* A decline and an empty response are both 200s with no text, and they have
+       different remedies — one is reworded or done by hand, the other retried.
+       Reporting them the same way tells an auditor the wrong thing. */
+    seen.length = 0;
+    stubReply = { stop_reason: "refusal", stop_details: { category: "cyber" }, content: [] };
+    const refused = await post(NO_VISION_PORT, { task: "observation", context: "x" });
+    const refusedBody = await refused.json();
+    ok("a decline is reported as a decline, not as an empty answer",
+       refused.status === 502 && /declined/i.test(refusedBody.error ?? ""),
+       refusedBody.error ?? "");
+    ok("and it names the category, so it can be told from a fault",
+       /cyber/.test(refusedBody.error ?? ""), refusedBody.error ?? "");
+    stubReply = ANSWER;
 
     /* ---------- the caps ---------- */
     seen.length = 0;

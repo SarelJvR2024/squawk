@@ -117,7 +117,7 @@ npx vercel --prod   # promote to production
 | Variable | Effect |
 |---|---|
 | `ANTHROPIC_API_KEY` | Turns the AI assistance on. Without it the endpoint reports itself unavailable and every AI affordance disappears; the app is fully usable either way. |
-| `ASSIST_MODEL` | Overrides the model id. Defaults to `claude-sonnet-4-5`. |
+| `ASSIST_MODEL` | Overrides the model id. Defaults to `claude-opus-5` ($5 / $25 per million input / output tokens). Set it to `claude-sonnet-5` ($2 / $10) if the bill matters more than the judgement. |
 | `ELEVENLABS_API_KEY` | Turns **Transcribe** on for voice notes. Without it a note is still recorded, kept and played back; its text is typed by hand. |
 | `TRANSCRIBE_MODEL` | Overrides the transcription model id. Defaults to `scribe_v1`. |
 | `TRANSCRIBE_LANGUAGE` | Pins transcription to one language. **Leave unset.** Auto-detection is what carries an auditor switching between English and Afrikaans inside one sentence. |
@@ -702,7 +702,7 @@ returns a key's value:
 
 ```
 /api/photos      → {"available":true,"via":"SQUAWK_READ_WRITE_TOKEN"}
-/api/assist      → {"available":true,"model":"claude-sonnet-4-5","vision":false}
+/api/assist      → {"available":true,"model":"claude-opus-5","vision":false}
 /api/transcribe  → {"available":true,"model":"scribe_v1"}
 ```
 

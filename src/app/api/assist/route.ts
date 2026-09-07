@@ -33,8 +33,20 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+const MODEL = process.env.ASSIST_MODEL ?? "claude-opus-5";
 
-const MODEL = process.env.ASSIST_MODEL ?? "claude-sonnet-4-5";
+/* How hard the model is asked to think, per task.
+ *
+ *  Opus 5 thinks by default — omitting `thinking` runs it adaptively — and
+ *  effort is the lever that decides how much. The split is by what the task
+ *  actually is: turning tapped chips into a sentence is wording, and wording
+ *  does not repay deliberation. Naming the hazard a finding exposes, or the
+ *  root cause behind it, is judgement, and that is the whole reason a model is
+ *  in this app at all.
+ *
+ *  Nothing here is agreed by the model either way. Every one of these is a
+ *  proposal an auditor accepts, edits or ignores. */
+const JUDGEMENT: Task[] = ["rating", "rootcause", "hazard", "consolidate", "reassess"];
 
 /** Where the request actually goes.
  *
@@ -245,7 +257,13 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: task === "narrative" ? 1200 : 500,
+        /* Headroom, not a target — the prompts are what keep the answers
+           short, and output is billed on what is generated rather than on the
+           ceiling. It has to be headroom now: a thinking model spends part of
+           this budget before it writes a word, and 500 was enough to have
+           truncated the JSON tasks mid-object and returned nothing. */
+        max_tokens: task === "narrative" ? 8000 : 4000,
+        output_config: { effort: JUDGEMENT.includes(task) ? "medium" : "low" },
         system: SYSTEM,
         messages: [
           {
@@ -278,7 +296,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const json = (await r.json()) as { content?: { type: string; text?: string }[] };
+    const json = (await r.json()) as {
+      content?: { type: string; text?: string }[];
+      stop_reason?: string;
+      stop_details?: { category?: string | null } | null;
+    };
+
+    /* A decline is a 200 with no text, and "the model returned nothing" would
+       describe it wrongly — it returned an answer, and the answer was no. Say
+       which it was, because the two have different remedies: a decline is
+       reworded or done by hand, an empty response is retried. */
+    if (json.stop_reason === "refusal") {
+      const cat = json.stop_details?.category;
+      console.error("assist refusal", cat ?? "(no category)");
+      return Response.json(
+        {
+          error: `The model declined this request${cat ? ` (${cat})` : ""}. Write it yourself, or reword what you are asking about.`,
+        },
+        { status: 502 }
+      );
+    }
+
     const text = (json.content ?? [])
       .filter((c) => c.type === "text")
       .map((c) => c.text ?? "")

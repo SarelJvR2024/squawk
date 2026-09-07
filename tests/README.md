@@ -36,11 +36,11 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `exports.js` | yes | 32 |
 | `ai.js` | yes, two of them | 26 |
 | `persite.js` | yes | 25 |
-| `vision.js` | starts its own | 17 |
+| `vision.js` | starts its own | 23 |
 | `record.js` | starts its own | 14 |
 | `flow.js` | yes | 48 |
 
-**985 assertions in total**, every count above verified by running the suite,
+**991 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -493,6 +493,15 @@ and a server that refuses to forward them look identical from outside until you
 look. With `ASSIST_VISION` unset it asserts no image block *and* no image byte
 reached the network; with it on, that all three arrived in the documented shape,
 and that over-cap requests are refused rather than truncated.
+
+The same stub also answers what the route ASKED for, which is where the model
+choice is checked: that the request names the configured model, that a wording
+task and a judgement task are sent at different effort levels, and that the
+token budget leaves room for a thinking model to think before it answers — a
+budget sized for a non-thinking model truncates a JSON answer mid-object and
+returns nothing, which reads on screen as "the model is broken". And because a
+decline arrives as an HTTP 200 with no text, the stub can be told to send one,
+so the route's handling of it is exercised rather than assumed.
 
 It starts and stops its own servers — nothing needs to be running first — using
 `ASSIST_ENDPOINT` to point the route at the stub.
