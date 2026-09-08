@@ -27,7 +27,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { mergeBundle, refuse, summarise, BUNDLE_KIND } from "@/lib/merge";
+import { mergeBundle, refuse, summarise, duplicateFindings, BUNDLE_KIND } from "@/lib/merge";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -219,6 +219,101 @@ check("the right audit is not refused", refuse(bundle(), HERE) === null);
   check(
     "the log comes back in the order it happened",
     out.findings[0].progress.every((n, i, a) => i === 0 || a[i - 1].at <= n.at)
+  );
+}
+
+/* ------------------------- one defect, raised twice ----------------------- */
+
+/* Two auditors both open KSIA-ELE-014 and both tap "no annual maintenance
+   record". Each device mints its own random id, the merge keys on id, and the
+   audit now counts one defect twice: twice in the register, rated twice, twice
+   in what reaches ACSA. Nothing about that is visible — over the shared record
+   the merge report is not even shown.
+
+   REPORTED, NEVER COMBINED. The same button is legitimately raised once per
+   switch room, and folding those together would destroy a real finding at a
+   national key point — a worse failure than the duplicate it tidied. */
+{
+  const dup = (id, extra = {}) => ({
+    id, entity: "KSIA", originVisit: "2026-09", updatedAt: T,
+    checkId: "KSIA-ELE-014", issueIndex: 3,
+    title: "No annual switchgear maintenance record", ...extra,
+  });
+
+  const out = mergeBundle(
+    mine({ findings: [dup("F-AAAAA")] }),
+    bundle({ findings: [dup("F-BBBBB")] })
+  );
+
+  check(
+    "ONE DEFECT RAISED ON TWO DEVICES IS KEPT AS TWO FINDINGS, not silently folded",
+    out.findings.length === 2,
+    out.findings.map((f) => f.id).join(", ")
+  );
+  check(
+    "and it is REPORTED, so somebody is asked to settle it",
+    out.report.duplicates.length === 1 &&
+      out.report.duplicates[0].ids.length === 2 &&
+      out.report.duplicates[0].ids.includes("F-AAAAA") &&
+      out.report.duplicates[0].ids.includes("F-BBBBB"),
+    JSON.stringify(out.report.duplicates)
+  );
+  check(
+    "the report names the check, so it can be gone and looked at",
+    out.report.duplicates[0]?.checkId === "KSIA-ELE-014",
+    out.report.duplicates[0]?.checkId
+  );
+  check(
+    "and carries what each says it is about — which is how the two cases are told apart",
+    JSON.stringify(out.report.duplicates[0]?.assets) === JSON.stringify([[], []]),
+    JSON.stringify(out.report.duplicates[0]?.assets)
+  );
+  check(
+    "the one line everybody reads says it too",
+    /possible duplicate/.test(summarise(out.report)),
+    summarise(out.report)
+  );
+
+  /* THE CASE THAT MUST NOT FIRE. Two switch rooms, one issue button: that is
+     two findings and the asset tags are the whole point of them. */
+  const two = duplicateFindings([
+    dup("F-AAAAA", { assetIds: ["SAMPLE-KSIA-ELE-A001"] }),
+    dup("F-BBBBB", { assetIds: ["SAMPLE-KSIA-ELE-A002"] }),
+  ]);
+  check(
+    "two different assets still group — the app asks, it never decides",
+    two.length === 1 &&
+      JSON.stringify(two[0].assets) ===
+        JSON.stringify([["SAMPLE-KSIA-ELE-A001"], ["SAMPLE-KSIA-ELE-A002"]]),
+    JSON.stringify(two)
+  );
+
+  check(
+    "a different issue button on the same check is NOT a duplicate",
+    duplicateFindings([dup("F-AAAAA"), dup("F-BBBBB", { issueIndex: 4 })]).length === 0
+  );
+  check(
+    "nor the same button on a different check",
+    duplicateFindings([dup("F-AAAAA"), dup("F-BBBBB", { checkId: "KSIA-ELE-015" })]).length === 0
+  );
+  check(
+    "and two ad-hoc findings are never grouped — a person typed those in their own words",
+    duplicateFindings([
+      dup("F-AAAAA", { issueIndex: null, adHoc: true }),
+      dup("F-BBBBB", { issueIndex: null, adHoc: true }),
+    ]).length === 0
+  );
+
+  /* A duplicate somebody has already looked at and kept must not be raised
+     again on every sync. A system that repeats a settled question gets muted. */
+  const again = mergeBundle(
+    mine({ findings: [dup("F-AAAAA"), dup("F-BBBBB")] }),
+    bundle({ findings: [dup("F-AAAAA"), dup("F-BBBBB")] })
+  );
+  check(
+    "A DUPLICATE ALREADY IN THE AUDIT IS NOT RAISED AGAIN EVERY TIME TWO DEVICES SYNC",
+    again.report.duplicates.length === 0,
+    JSON.stringify(again.report.duplicates)
   );
 }
 

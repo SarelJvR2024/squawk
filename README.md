@@ -473,6 +473,21 @@ tests/                thirty-three suites — see tests/README.md
   the round trip so a slow connection does not read as a wrong clock, and says
   what a wrong one costs.
 
+- **One defect raised twice is flagged, never folded together.** Two auditors
+  both tap the same issue button on the same check; each device mints its own
+  random `F-XXXXX`; the merge keys on id and keeps both. The audit now counts
+  one defect twice — rated twice, and twice in what reaches ACSA.
+
+  Combining them automatically would be the worse mistake. "No single line
+  diagram displayed" is one finding **per switch room**, and `assetIds` is how
+  those are told apart; folding them together destroys a real finding at a
+  national key point. So `duplicateFindings()` is only ever used to **ask**: the
+  merge report names the pair, and the Findings screen marks each row with the
+  other's id, because over the shared record the merge report is never shown and
+  the list is the only place the two are ever side by side. Only pairs a merge
+  just brought together are raised — one somebody has already looked at and kept
+  must not come back on every sync.
+
 - **Two auditors, one audit.** An ACSA audit is done by a team and the audit
   lives in one device's IndexedDB, so until the shared record exists a day's
   work comes back together by hand: each auditor shares a `.squawk.json` bundle

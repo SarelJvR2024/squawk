@@ -479,6 +479,55 @@ const syncNow = async (page) => {
     ok("and they agree on the LATER answer, not on whoever synced first",
        aFinal === "N/A", `${aFinal} — B answered second`);
 
+    /* ========= both auditors raised the SAME issue, in the basement ========
+
+       Two auditors both open the check and both tap the same issue button.
+       Each device mints its own random id, the merge keys on id, and one
+       defect is now in the audit twice — rated twice, and twice in what
+       reaches ACSA. Over the shared record this happens with nothing shown at
+       all: the merge report is only rendered for a file merge.
+
+       It is never folded together, because the same button is legitimately
+       raised once per switch room. It is FLAGGED, on the screen where the two
+       are side by side and a person can settle it. */
+    await A.ctx.setOffline(true);
+    await B.ctx.setOffline(true);
+
+    const raiseIssue = async (page) => {
+      await page.keyboard.press("2");                       // Non-compliant
+      await page.waitForTimeout(400);
+      await page
+        .locator("text=Issues found")
+        .first()
+        .locator("xpath=../..")
+        .locator("button")
+        .first()
+        .click();
+      await page.waitForTimeout(600);
+      await page.locator("button", { hasText: /^Save$/ }).first().click();
+      await page.waitForTimeout(700);
+    };
+    await raiseIssue(A.page);
+    await raiseIssue(B.page);
+
+    await A.ctx.setOffline(false);
+    await B.ctx.setOffline(false);
+    await syncNow(A.page);
+    await syncNow(B.page);
+    await syncNow(A.page);
+    await A.page.waitForTimeout(1200);
+
+    await A.page.goto(BASE + "/findings", { waitUntil: "networkidle" });
+    await A.page.waitForTimeout(1800);
+    const findingsText = await A.page.locator("body").innerText();
+    ok("ONE DEFECT RAISED BY TWO AUDITORS IS FLAGGED, not counted twice in silence",
+       /also raised as F-[A-Z0-9]+ — same issue, same check/.test(findingsText),
+       findingsText.slice(0, 260).replace(/\n/g, " · "));
+    ok("and BOTH findings are still there — the app asks, it never decides",
+       (findingsText.match(/also raised as/g) ?? []).length === 2,
+       `${(findingsText.match(/also raised as/g) ?? []).length} rows flagged; ` +
+         "folding two switch rooms into one would destroy a real finding");
+
     /* =================== the passphrase is changed on them ================= */
     const D = await auditor(browser, "Auditor D");
     await D.page.evaluate(() =>
@@ -507,12 +556,26 @@ const syncNow = async (page) => {
     ok("syncing over and over does not grow the record",
        supa.rows.size === before, `${before} -> ${supa.rows.size}`);
 
-    const findingIds = await A.page.evaluate(() => {
-      const raw = document.body.innerText.match(/F-[A-Z0-9]{5}/g) ?? [];
-      return raw;
+    /* Read the RECORD, not the screen. The rendered text names a finding's
+       duplicate alongside it — deliberately, so the two can be settled — so an
+       id appearing twice on the page is a feature, while an id appearing twice
+       in the store is the bug this assertion is actually about. */
+    const findingIds = await A.page.evaluate(async () => {
+      const raw = await new Promise((resolve) => {
+        const open = indexedDB.open("keyval-store");
+        open.onsuccess = () => {
+          const db = open.result;
+          const req = db.transaction("keyval").objectStore("keyval").get("acsa-assurance-v1");
+          req.onsuccess = () => resolve(req.result ?? null);
+          req.onerror = () => resolve(null);
+        };
+        open.onerror = () => resolve(null);
+      });
+      if (!raw) return [];
+      return (JSON.parse(raw).state.findings ?? []).map((f) => f.id);
     });
     ok("nor duplicate what is already there",
-       findingIds.length === new Set(findingIds).size,
+       findingIds.length > 0 && findingIds.length === new Set(findingIds).size,
        findingIds.join(", "));
 
     for (const who of [A, B, C]) {

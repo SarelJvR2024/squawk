@@ -32,7 +32,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `sharepoint.test.mjs` | no | 58 |
 | `assets.test.mjs` | no | 21 |
 | `checkscreen.test.mjs` | no | 39 |
-| `merge.test.mjs` | no | 36 |
+| `merge.test.mjs` | no | 46 |
 | `figures.test.mjs` | no | 7 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 38 |
@@ -45,10 +45,10 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `offline.js` | yes | 18 |
 | `team.js` | yes | 15 |
 | `preflight.js` | yes | 18 |
-| `shared.js` | starts its own | 41 |
+| `shared.js` | starts its own | 43 |
 | `a11y.js` | yes | 46 |
 
-**1,173 assertions in total**, every count above verified by running the suite,
+**1,185 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -243,6 +243,16 @@ must never be lost:
 - **A bundle from the wrong audit is refused, not warned about.** Cape Town's
   captures inside King Shaka's visit is a mistake nobody catches until the
   report is with ACSA.
+- **One defect raised by two auditors is reported, never folded together.** Both
+  tap the same issue button on the same check; each device mints its own random
+  id; the merge keys on id and keeps both, so the audit counts one defect twice
+  — rated twice, and twice in what reaches ACSA. Combining them would be worse
+  than the duplicate: "no single line diagram displayed" is one finding *per
+  switch room*, and the asset tags are how they are told apart. Folding those
+  together destroys a real finding at a national key point. So the rule is only
+  ever used to **ask** — and only about pairs the merge just brought together,
+  because a duplicate somebody has already looked at and kept must not be raised
+  again on every sync. A system that repeats a settled question gets muted.
 
 Its last section reads the store instead, for the claims that are about wiring
 rather than logic: that every mutation stamps `updatedAt`, that `importBundle`
@@ -676,6 +686,8 @@ fine is table stakes. What decides whether a team trusts it:
 - **a check captured on one tablet is never invisible to the rest of the team**,
   even when one auditor's push is still committing while another is handed a
   cursor past it;
+- **one defect raised by two auditors is flagged rather than counted twice**,
+  and both findings survive — the app asks, it never decides;
 - and syncing over and over neither grows the record nor duplicates a finding.
 
 The commit-time one is worth reading in full. Postgres reads `now()` at a
