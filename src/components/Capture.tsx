@@ -61,6 +61,27 @@ export interface CapturedMedia {
 const TAP =
   "inline-flex h-[44px] items-center justify-center gap-[7px] rounded-[11px] border px-[13px] text-[12px] font-semibold transition-[var(--t)] active:translate-y-[1px] disabled:opacity-40 disabled:cursor-not-allowed";
 
+/** What to say when this device cannot store a capture.
+ *
+ *  EVIDENCE THAT WAS NOT STORED MUST NEVER BE SILENT. Both write paths used to
+ *  be `await putBlob(...)` followed straight by onCaptured(...), with no catch:
+ *  a full tablet meant the promise rejected, the attachment was never added,
+ *  and the auditor — who had just pressed the shutter on a defect at a national
+ *  key point — saw nothing at all. No error, no photograph, no reason to
+ *  believe anything had gone wrong. They would walk on.
+ *
+ *  A quota is the case that will actually happen, so it gets its own sentence
+ *  and a way out rather than a shrug. */
+function whyItFailed(err: unknown): string {
+  const name = err instanceof Error ? err.name : "";
+  if (name === "QuotaExceededError" || /quota/i.test(String(err))) {
+    return "No room left on this device — it was NOT stored. Open Export, download this audit's photographs, then clear them and take it again.";
+  }
+  return `This device could not store it — it was NOT saved. ${
+    err instanceof Error && err.message ? err.message : "Try again."
+  }`;
+}
+
 /* ---------- voice ---------- */
 
 export function VoiceNoteButton({
@@ -78,6 +99,7 @@ export function VoiceNoteButton({
      visible place. */
   const dictationOn = useDictationEnabled();
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
   /* Assume the control is available until the client can actually check.
      The server cannot know, and guessing "unavailable" would both mismatch on
      hydration and flash a disabled button at an auditor who has a microphone. */
@@ -100,27 +122,38 @@ export function VoiceNoteButton({
     }
     setBusy(true);
     dict.stop();
-    const result = await rec.stop();
-    if (result) {
-      const blobKey = `voice-${uid()}`;
-      await putBlob(blobKey, result.blob);
-      onCaptured({
-        kind: "voice",
-        name: `${entityCode}-voice-${new Date()
-          .toISOString()
-          .slice(11, 19)
-          .replace(/:/g, "")}.${extensionFor(result.mimeType)}`,
-        blobKey,
-        mimeType: result.mimeType,
-        durationSec: result.durationSec,
-        /* Only what the engine actually heard. Empty is a correct answer. */
-        transcript: (dictationOn && dict.transcript.trim()) || undefined,
-        transcriptSource:
-          dictationOn && dict.transcript.trim() ? "browser" : undefined,
-      });
+    try {
+      const result = await rec.stop();
+      if (result) {
+        const blobKey = `voice-${uid()}`;
+        await putBlob(blobKey, result.blob);
+        onCaptured({
+          kind: "voice",
+          name: `${entityCode}-voice-${new Date()
+            .toISOString()
+            .slice(11, 19)
+            .replace(/:/g, "")}.${extensionFor(result.mimeType)}`,
+          blobKey,
+          mimeType: result.mimeType,
+          durationSec: result.durationSec,
+          /* Only what the engine actually heard. Empty is a correct answer. */
+          transcript: (dictationOn && dict.transcript.trim()) || undefined,
+          transcriptSource:
+            dictationOn && dict.transcript.trim() ? "browser" : undefined,
+        });
+        setFailed(null);
+      }
+    } catch (err) {
+      /* Said out loud, and kept on screen. A note that was recorded and then
+         not stored is worse than one never taken: the auditor believes they
+         have it. */
+      setFailed(whyItFailed(err));
+    } finally {
+      dict.reset();
+      /* In a finally, because a throw between here and setBusy(false) used to
+         leave the button stuck mid-record with nothing said. */
+      setBusy(false);
     }
-    dict.reset();
-    setBusy(false);
   }
 
   if (!supported) {
@@ -186,6 +219,13 @@ export function VoiceNoteButton({
           <IconX width={14} height={14} />
         </button>
       )}
+      {failed && (
+        /* role=alert: a capture that was not stored has to reach somebody who
+           is looking at the apron rather than at the tablet. */
+        <span role="alert" className="text-[10.5px] font-semibold" style={{ color: "var(--bad)" }}>
+          {failed}
+        </span>
+      )}
       {rec.error && (
         <span className="text-[10.5px]" style={{ color: "var(--bad)" }}>
           {rec.error}
@@ -235,6 +275,7 @@ export function PhotoButton({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const entityCode = useEntityCode();
+  const [failed, setFailed] = useState<string | null>(null);
 
   return (
     <>
@@ -250,27 +291,51 @@ export function PhotoButton({
           /* Let the same photograph be taken twice in a row — without this the
              input holds the previous value and fires nothing. */
           e.target.value = "";
+          let stored = 0;
+          const lost: string[] = [];
           for (const file of files) {
-            /* Downscaled and re-encoded before it is stored. A phone photo is
-               4-12 MB as taken; twenty of those fill the tablet's quota and the
-               audit stops mid-morning. See preparePhoto in src/lib/media.ts. */
-            const prepared = await preparePhoto(file);
-            const blobKey = `photo-${uid()}`;
-            await putBlob(blobKey, prepared.blob);
-            onCaptured({
-              kind: "photo",
-              name: file.name || `${entityCode}-photo.${extensionFor(prepared.mimeType)}`,
-              blobKey,
-              mimeType: prepared.mimeType,
-              thumbDataUrl: prepared.thumbDataUrl || undefined,
-              width: prepared.width || undefined,
-              height: prepared.height || undefined,
-              bytes: prepared.bytes,
-              takenAt: prepared.takenAt ?? undefined,
-              /* Deliberately empty. An uncaptioned photograph reads as
-                 incomplete until a person says what it shows. */
-              caption: "",
-            });
+            try {
+              /* Downscaled and re-encoded before it is stored. A phone photo is
+                 4-12 MB as taken; twenty of those fill the tablet's quota and
+                 the audit stops mid-morning. See preparePhoto in
+                 src/lib/media.ts. */
+              const prepared = await preparePhoto(file);
+              const blobKey = `photo-${uid()}`;
+              await putBlob(blobKey, prepared.blob);
+              onCaptured({
+                kind: "photo",
+                name: file.name || `${entityCode}-photo.${extensionFor(prepared.mimeType)}`,
+                blobKey,
+                mimeType: prepared.mimeType,
+                thumbDataUrl: prepared.thumbDataUrl || undefined,
+                width: prepared.width || undefined,
+                height: prepared.height || undefined,
+                bytes: prepared.bytes,
+                takenAt: prepared.takenAt ?? undefined,
+                /* Deliberately empty. An uncaptioned photograph reads as
+                   incomplete until a person says what it shows. */
+                caption: "",
+              });
+              stored++;
+            } catch (err) {
+              /* PER FILE, and the loop goes on. Selecting eight photographs and
+                 having the second one fail used to abort the rest as well — six
+                 more photographs of a defect gone, with nothing said. */
+              lost.push(file.name || "a photograph");
+              setFailed(whyItFailed(err));
+            }
+          }
+          /* One clear line when SOME got through, because "3 stored, 2 not" is
+             the only version of this an auditor can act on. When none did, the
+             message from the catch already says why, and saying "0 stored" over
+             the top of it would be noise. */
+          if (lost.length && stored > 0) {
+            setFailed(
+              `${stored} stored, ${lost.length} NOT stored (${lost.join(", ")}). ` +
+                "Open Export, download this audit's photographs, then clear them and take these again."
+            );
+          } else if (!lost.length) {
+            setFailed(null);
           }
         }}
       />
@@ -297,6 +362,19 @@ export function PhotoButton({
         <IconCamera width={15} height={15} />
         {compact ? null : (label ?? "Photo")}
       </button>
+      {failed && (
+        /* Kept until the next capture succeeds rather than flashed for two
+           seconds: an auditor mid-walk is looking at a switch room, not at the
+           tablet, and a photograph that was not stored is not a notification —
+           it is a thing they have to go back and do again. */
+        <span
+          role="alert"
+          className="max-w-[34ch] text-[10.5px] leading-[1.4] font-semibold"
+          style={{ color: "var(--bad)" }}
+        >
+          {failed}
+        </span>
+      )}
     </>
   );
 }

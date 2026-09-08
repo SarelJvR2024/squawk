@@ -26,7 +26,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `audits.test.mjs` | no | 18 |
 | `voice.test.mjs` | no | 37 |
 | `sites.test.mjs` | no | 41 |
-| `photos.test.mjs` | no | 103 |
+| `photos.test.mjs` | no | 112 |
 | `hazards.test.mjs` | no | 113 |
 | `erm-matrix.test.mjs` | no | 64 |
 | `sharepoint.test.mjs` | no | 58 |
@@ -48,7 +48,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 43 |
 | `a11y.js` | yes | 46 |
 
-**1,186 assertions in total**, every count above verified by running the suite,
+**1,195 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -452,6 +452,21 @@ whether it is **sent** (`ASSIST_VISION`, enforced in the route).
 ```bash
 node tests/photos.test.mjs
 ```
+
+It also covers a fourth thing, which is what happens when a capture **cannot**
+be stored. Both write paths were `await putBlob(...)` followed straight by
+`onCaptured(...)`, with no catch: on a full tablet the promise rejected, the
+attachment was never added, and the auditor — who had just pressed the shutter
+on a defect at a national key point — saw nothing at all. No error, no
+photograph, no reason to think anything had gone wrong. They walk on. Selecting
+eight photographs and having the second fail took the other six with it.
+
+A quota is the case that will actually happen: this is a phone, on a long day,
+holding an audit and a few hundred photographs. So it is named as itself and
+given a way out, the guard sits **inside** the loop so one bad file cannot drop
+the rest, the count of what was lost is said in words an auditor can act on, and
+the voice path releases its button in a `finally` so a throw cannot strand it
+mid-record. Nine assertions, all of which fail against the code as it was.
 
 **Run it after any edit to `src/lib/media.ts`, `src/components/Capture.tsx`,
 `RootCauseAdvice.tsx` or `src/app/api/assist/route.ts`.**

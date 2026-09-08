@@ -473,6 +473,21 @@ tests/                thirty-three suites — see tests/README.md
   the round trip so a slow connection does not read as a wrong clock, and says
   what a wrong one costs.
 
+- **A capture that could not be stored is never silent.** Both write paths were
+  `await putBlob(...)` and then `onCaptured(...)`, with no catch. On a full
+  tablet the promise rejected, the attachment was never added, and an auditor who
+  had just pressed the shutter on a defect saw **nothing** — no error, no
+  photograph, no reason to think anything had gone wrong. Eight photographs
+  selected with the second one failing lost the other six too.
+
+  A quota is the case that will actually happen on a phone holding an audit and a
+  few hundred photographs, so it is named as itself and given a way out rather
+  than a shrug; the guard is **inside** the loop; the message says how many were
+  lost and that they were **NOT stored**, in those words, because an auditor must
+  never walk away believing they have evidence they do not have; and it stays on
+  screen rather than flashing, since the person is looking at a switch room
+  rather than at the tablet.
+
 - **One defect raised twice is flagged, never folded together.** Two auditors
   both tap the same issue button on the same check; each device mints its own
   random `F-XXXXX`; the merge keys on id and keeps both. The audit now counts
