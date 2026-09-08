@@ -1,6 +1,14 @@
 const { chromium } = require("playwright");
 const fs = require("fs");
 const B = process.env.BASE || "http://localhost:3000";
+
+/** The answer library is TABBED — Evidence, Likely answers, Issues, Walkabout,
+ *  Snippets — so a panel has to be opened before its chips are in the DOM. The
+ *  five used to be stacked, which ran well past a tablet's height; the counts
+ *  on the tabs are what keep a tapped panel legible while it is closed. */
+const openTab = (page, label) =>
+  page.locator('button[role="tab"]', { hasText: label }).first().click();
+const panelChip = (page, key) => page.locator(`[data-panel="${key}"] button`).first();
 /* A real 1x1 JPEG — small enough to inline, real enough to decode. */
 const PIXEL_JPEG =
   "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==";
@@ -26,21 +34,11 @@ const ok = (n, c, x = "") => {
   await p.waitForTimeout(2200);
   await p.keyboard.press("2"); // Non-compliant
   await p.waitForTimeout(300);
-  await p
-    .locator("text=Evidence to request")
-    .first()
-    .locator("xpath=../..")
-    .locator("button")
-    .first()
-    .click();
+  await openTab(p, "Evidence to request");
+  await panelChip(p, "evidence").click();
   await p.waitForTimeout(300);
-  await p
-    .locator("text=Issues found")
-    .first()
-    .locator("xpath=../..")
-    .locator("button")
-    .first()
-    .click();
+  await openTab(p, "Issues found");
+  await panelChip(p, "issues").click();
   await p.waitForTimeout(500);
   /* The OBSERVATION field by its placeholder, not "the first textarea".
      The check screen now carries a collapsed treatment block per raised

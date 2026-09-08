@@ -1,5 +1,13 @@
 const { chromium } = require('playwright');
 const B = process.env.BASE || 'http://localhost:3000';
+
+/** The answer library is TABBED — Evidence, Likely answers, Issues, Walkabout,
+ *  Snippets — so a panel has to be opened before its chips are in the DOM. The
+ *  five used to be stacked, which ran well past a tablet's height; the counts
+ *  on the tabs are what keep a tapped panel legible while it is closed. */
+const openTab = (page, label) =>
+  page.locator('button[role="tab"]', { hasText: label }).first().click();
+const panelChip = (page, key) => page.locator(`[data-panel="${key}"] button`).first();
 let pass=0, fail=0; const log=[];
 function ok(n,c,extra=''){ if(c){pass++;log.push('PASS  '+n);} else {fail++;log.push('FAIL  '+n+(extra?'  ['+extra+']':''));} }
 
@@ -32,9 +40,11 @@ function ok(n,c,extra=''){ if(c){pass++;log.push('PASS  '+n);} else {fail++;log.
   ok('keyboard 1 selects Compliant', !!bg1, bg1);
 
   // 3 issue chip raises a finding
-  const issueSection = page.locator('text=Issues found').first();
+  const issueSection = page.locator('button[role="tab"]', { hasText: 'Issues found' }).first();
   ok('issues section present', await issueSection.isVisible().catch(()=>false));
-  const issueChip = issueSection.locator('xpath=../..').locator('button').first();
+  await openTab(page, 'Issues found');
+  await page.waitForTimeout(300);
+  const issueChip = panelChip(page, 'issues');
   const chipText = await issueChip.innerText().catch(()=>'');
   await issueChip.click();
   await page.waitForTimeout(500);

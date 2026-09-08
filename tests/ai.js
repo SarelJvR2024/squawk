@@ -1,6 +1,14 @@
 const B0 = process.env.BASE_NO_KEY || 'http://localhost:3000';
 const B1 = process.env.BASE_WITH_KEY || B0;
 const { chromium } = require('playwright');
+
+/** The answer library is TABBED — Evidence, Likely answers, Issues, Walkabout,
+ *  Snippets — so a panel has to be opened before its chips are in the DOM. The
+ *  five used to be stacked, which ran well past a tablet's height; the counts
+ *  on the tabs are what keep a tapped panel legible while it is closed. */
+const openTab = (page, label) =>
+  page.locator('button[role="tab"]', { hasText: label }).first().click();
+const panelChip = (page, key) => page.locator(`[data-panel="${key}"] button`).first();
 let pass=0,fail=0; const log=[];
 const ok=(n,c,x='')=>{c?(pass++,log.push('PASS  '+n)):(fail++,log.push('FAIL  '+n+(x?'  ['+x+']':'')))};
 (async()=>{
@@ -20,8 +28,8 @@ const ok=(n,c,x='')=>{c?(pass++,log.push('PASS  '+n)):(fail++,log.push('FAIL  '+
   ok('composer with nothing tapped says so', /Nothing tapped/.test(t0), t0.slice(0,80).replace(/\n/g,' '));
   // now tap a status + evidence + issue, then compose
   await p.keyboard.press('2'); await p.waitForTimeout(400);
-  await p.locator('text=Evidence to request').first().locator('xpath=../..').locator('button').first().click(); await p.waitForTimeout(400);
-  await p.locator('text=Issues found').first().locator('xpath=../..').locator('button').first().click(); await p.waitForTimeout(600);
+  await openTab(p, 'Evidence to request'); await panelChip(p, 'evidence').click(); await p.waitForTimeout(400);
+  await openTab(p, 'Issues found'); await panelChip(p, 'issues').click(); await p.waitForTimeout(600);
   await p.locator('button',{hasText:'Compose from taps'}).first().click(); await p.waitForTimeout(700);
   const t1=await p.locator('body').innerText();
   ok('composer produces a draft from taps', /suggested wording/i.test(t1), t1.slice(0,80).replace(/\n/g,' '));

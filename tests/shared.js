@@ -26,6 +26,14 @@ const BARE_PORT = 3903; // the same build with nothing configured
 const PASS = "harbour-cassette-nine-lantern-drift";
 const BASE = `http://127.0.0.1:${APP_PORT}`;
 
+/** The answer library is TABBED — Evidence, Likely answers, Issues, Walkabout,
+ *  Snippets — so a panel has to be opened before its chips are in the DOM. The
+ *  five used to be stacked, which ran well past a tablet's height; the counts
+ *  on the tabs are what keep a tapped panel legible while it is closed. */
+const openTab = (page, label) =>
+  page.locator('button[role="tab"]', { hasText: label }).first().click();
+const panelChip = (page, key) => page.locator(`[data-panel="${key}"] button`).first();
+
 let pass = 0, fail = 0;
 const log = [];
 const ok = (n, c, x = "") => {
@@ -496,13 +504,8 @@ const syncNow = async (page) => {
     const raiseIssue = async (page) => {
       await page.keyboard.press("2");                       // Non-compliant
       await page.waitForTimeout(400);
-      await page
-        .locator("text=Issues found")
-        .first()
-        .locator("xpath=../..")
-        .locator("button")
-        .first()
-        .click();
+      await openTab(page, "Issues found");
+      await panelChip(page, "issues").click();
       await page.waitForTimeout(600);
       await page.locator("button", { hasText: /^Save$/ }).first().click();
       await page.waitForTimeout(700);

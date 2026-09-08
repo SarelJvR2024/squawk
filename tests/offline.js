@@ -24,6 +24,14 @@
 const { chromium } = require("playwright");
 const B = process.env.BASE || "http://localhost:3000";
 
+/** The answer library is TABBED — Evidence, Likely answers, Issues, Walkabout,
+ *  Snippets — so a panel has to be opened before its chips are in the DOM. The
+ *  five used to be stacked, which ran well past a tablet's height; the counts
+ *  on the tabs are what keep a tapped panel legible while it is closed. */
+const openTab = (page, label) =>
+  page.locator('button[role="tab"]', { hasText: label }).first().click();
+const panelChip = (page, key) => page.locator(`[data-panel="${key}"] button`).first();
+
 let pass = 0, fail = 0;
 const log = [];
 const ok = (n, c, x = "") => {
@@ -70,7 +78,9 @@ const controlled = (page) =>
     await page.waitForTimeout(1200);
     await page.keyboard.press("2");
     await page.waitForTimeout(300);
-    const issue = page.locator("text=Issues found").first().locator("xpath=../..").locator("button").first();
+    await openTab(page, "Issues found");
+    await page.waitForTimeout(300);
+    const issue = panelChip(page, "issues");
     if (await issue.count()) {
       await issue.click();
       await page.waitForTimeout(600);

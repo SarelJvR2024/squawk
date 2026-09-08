@@ -16,7 +16,7 @@ import {
 import { portalIdFor } from "@/lib/sites";
 import { needsDesk, needsQuestion } from "@/lib/verification";
 import CheckDetail from "@/components/CheckDetail";
-import { Dot, Empty, Pill, Track } from "@/components/ui/primitives";
+import { Dot, Empty, Pill } from "@/components/ui/primitives";
 import { IconInbox } from "@/components/ui/icons";
 import type { Check } from "@/lib/types";
 
@@ -48,7 +48,7 @@ function CaptureInner() {
   const [toast, setToast] = useState<string | null>(null);
 
   /* Deep link from the command palette.
-     
+
      Reconciled DURING RENDER rather than in an effect. React re-runs the
      component immediately without committing, so the workspace paints once, on
      the linked check — an effect painted the old check first and corrected it a
@@ -189,12 +189,30 @@ function CaptureInner() {
           <span>Asset systems</span>
           <span>{systemsOf(entityCode, discipline).length}</span>
         </div>
+        {/* ONE LINE EACH, because thirteen of these was a scroll.
+
+            Each system used to be a card about 60px tall — name on its own
+            line, then a progress track, then a count. Building & Facilities has
+            thirteen systems and Electrical sixteen, so choosing one meant
+            scrolling a sidebar to find what is, in the end, a filter.
+
+            A horizontal chip row was tried first and was WORSE: this column is
+            210px wide, so "Electricity Distribution System" wrapped to three
+            lines inside its own chip and the row was taller than the card. The
+            height was never in the layout direction — it was in the stacking of
+            name, track and count. Put those on one line and the same thirteen
+            systems fit without scrolling at all.
+
+            Nothing is lost: the count still says how far along, the track is now
+            the row's own underline, and a system carrying a prior finding still
+            says so. */}
         {systemsOf(entityCode, discipline).map((sys) => {
           const cs = checksOf(entityCode, discipline, sys).filter(needsDesk);
           const done = cs.filter((c) => deskDone(responses[c.id])).length;
           const nc = cs.filter((c) => responses[c.id]?.compliance === "NC").length;
           const pf = priorFor(entityCode, discipline, sys);
           const on = system === sys;
+          const pct = cs.length ? (done / cs.length) * 100 : 0;
           return (
             <button
               key={sys}
@@ -202,28 +220,34 @@ function CaptureInner() {
                 setSystem(on ? null : sys);
                 setActiveId(null);
               }}
-              className="relative mb-[1px] w-full rounded-[11px] border px-[9px] py-2 text-left transition-[var(--t)]"
+              aria-pressed={on}
+              title={`${sys} — ${done} of ${cs.length} done${nc > 0 ? `, ${nc} non-compliant` : ""}${
+                pf ? `, carries ${pf.key} from the last visit` : ""
+              }`}
+              className="relative mb-[1px] flex w-full items-center gap-[5px] overflow-hidden rounded-[9px] border px-[8px] py-[6px] text-left transition-[var(--t)]"
               style={{
-                background: on ? "var(--panel)" : "transparent",
-                borderColor: on ? "var(--line)" : "transparent",
-                boxShadow: on ? "var(--e1)" : "none",
+                background: on ? "var(--acc-soft)" : "transparent",
+                borderColor: on ? "var(--acc-line)" : "transparent",
+                color: on ? "var(--acc)" : "var(--ink-2)",
               }}
             >
-              {on && (
-                <span
-                  className="absolute top-[9px] bottom-[9px] left-0 w-[2.5px] rounded-[2px]"
-                  style={{ background: "var(--acc)" }}
-                />
-              )}
-              <div className="mb-1.5 flex items-center justify-between gap-1.5">
-                <b className="text-[11.5px] font-semibold">{sys}</b>
-                {pf && <Pill tone={RATING_TONE[pf.rating]}>{pf.key}</Pill>}
-              </div>
-              <Track pct={cs.length ? (done / cs.length) * 100 : 0} />
-              <div className="mt-[5px] font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+              <b className="min-w-0 flex-1 truncate text-[11px] font-semibold">{sys}</b>
+              {pf && <Pill tone={RATING_TONE[pf.rating]}>{pf.key}</Pill>}
+              <span
+                className="shrink-0 font-mono text-[9px]"
+                style={{ color: on ? "var(--acc)" : "var(--ink-4)" }}
+              >
                 {done}/{cs.length}
-                {nc > 0 && ` · ${nc} NC`}
-              </div>
+                {nc > 0 && ` · ${nc}NC`}
+              </span>
+              {/* The track, as the row's own underline — the same information
+                  the stacked card carried, in none of the height. */}
+              <span className="absolute inset-x-0 bottom-0 h-[2px]" style={{ background: "var(--line-2)" }}>
+                <span
+                  className="block h-full"
+                  style={{ width: `${pct}%`, background: on ? "var(--acc)" : "var(--good)" }}
+                />
+              </span>
             </button>
           );
         })}
