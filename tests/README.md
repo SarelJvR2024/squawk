@@ -1,6 +1,6 @@
 # Tests
 
-Thirty-three suites, no framework. Thirteen need a running server; twenty do not.
+Thirty-four suites, no framework. Thirteen need a running server; twenty-one do not.
 **Check each suite's exit status, not its output**: a `for` loop over them
 reports the status of the loop.
 
@@ -16,7 +16,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 |---|---|---|
 | `risk-matrix.test.mjs` | no | 41 |
 | `capture.test.mjs` | no | 28 |
-| `scope.test.mjs` | no | 46 |
+| `scope.test.mjs` | no | 48 |
 | `carryforward.test.mjs` | no | 31 |
 | `review.test.mjs` | no | 22 |
 | `tablet.test.mjs` | no | 34 |
@@ -25,7 +25,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `completion.test.mjs` | no | 19 |
 | `audits.test.mjs` | no | 18 |
 | `voice.test.mjs` | no | 37 |
-| `sites.test.mjs` | no | 41 |
+| `sites.test.mjs` | no | 42 |
 | `photos.test.mjs` | no | 112 |
 | `hazards.test.mjs` | no | 113 |
 | `erm-matrix.test.mjs` | no | 64 |
@@ -34,7 +34,8 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `checkscreen.test.mjs` | no | 48 |
 | `merge.test.mjs` | no | 48 |
 | `figures.test.mjs` | no | 7 |
-| `e2e.js` | yes | 21 |
+| `home.test.mjs` | no | 51 |
+| `e2e.js` | yes | 22 |
 | `robustness.js` | yes | 38 |
 | `exports.js` | yes | 32 |
 | `ai.js` | yes, two of them | 26 |
@@ -46,9 +47,9 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `team.js` | yes | 15 |
 | `preflight.js` | yes | 18 |
 | `shared.js` | starts its own | 43 |
-| `a11y.js` | yes | 46 |
+| `a11y.js` | yes | 51 |
 
-**1,218 assertions in total**, every count above verified by running the suite,
+**1,278 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -225,6 +226,50 @@ comment for a number written next to "check-points", "checks" or "options".
 Anything that does not match is a failure naming the file and the line. Years
 are excluded ("Sep 2026 checks" is a visit) and this file is exempt, because it
 quotes the superseded figures to explain them.
+
+## `home.test.mjs`
+
+Guards the landing screen at `/home`. The app used to open in the capture
+workspace — a discipline rail, a chip grid and 315 rows of work, before anything
+had said which audit you were in or what was waiting.
+
+```bash
+node tests/home.test.mjs
+```
+
+Five parts, and each one guards a failure that a screenshot cannot show.
+
+**It lands.** `/` redirects to `/home`, the brand mark returns to it, the screen
+names itself in the shell's one `h1`, and it is precached so a bookmark opens it
+with no signal. The manifest still starts at `/capture`, asserted here as well
+as in `offline.js`: `start_url` must be a real screen, because a launch that
+begins with a redirect begins with a network request.
+
+**Every number is derived.** No literal 324, 319, 200, 315, 299, 290 or 3,086 in
+what the screen renders — comments are stripped first, because the prose in this
+repo explains where a figure comes from and quotes it while doing so. The
+checklist comes from `checksAt`, the two halves from `needsDesk` / `needsField`,
+"started" from captured work rather than a flag, and anything across audits from
+`useAuditProgress` rather than a reach into `byVisit`.
+
+**It is not a second dashboard.** The compliance breakdown, the B170 001M heat
+map, movement against 2025 and the portfolio table are `/dashboard`'s, and the
+suite asserts both that this screen does not repeat them and that the dashboard
+still has them — otherwise it would go on passing against a screen that had
+moved.
+
+**Its map matches the system.** The flow strip's seven `href`s are real route
+directories and its labels are the navigation's own labels, in the order an
+audit uses them. A landing page confidently pointing at a 404 is worse than no
+map.
+
+**It renders honestly.** The clock is read through `useSyncExternalStore` with 0
+as its server snapshot, so nothing the clock touches differs between the
+server's HTML and the first client render; every status dot says what its colour
+means; and the calendar strip's scroller is positioned. That last one is not
+cosmetic — unpositioned, its ten cards counted toward the *document's* scroll
+area and the whole shell panned 1,244px sideways on a phone while looking
+perfectly correct. `e2e.js` asserts the viewport itself does not move.
 
 ## `merge.test.mjs`
 

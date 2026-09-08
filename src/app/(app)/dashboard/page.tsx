@@ -16,21 +16,10 @@ import {
   useVisitFindings,
   useVisitId,
 } from "@/lib/store";
-import { ENTITIES, PROGRAMME_VISITS } from "@/lib/programme";
+import { auditWindow, ENTITIES, PROGRAMME_VISITS } from "@/lib/programme";
 import { LIKELIHOODS, SEVERITIES, bandFor, movement } from "@/lib/risk";
 import { currentRatingOf } from "@/lib/carryforward";
 import { Panel, Pill, Track } from "@/components/ui/primitives";
-
-/** "15–18 Sep 2026". The audit window comes off the register's own calendar. */
-function auditWindow(from: string, to: string): string {
-  const M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const [fy, fm, fd] = from.split("-");
-  const [, tm, td] = to.split("-");
-  const day = (d: string) => String(Number(d));
-  return fm === tm
-    ? `${day(fd)}–${day(td)} ${M[Number(tm) - 1]} ${fy}`
-    : `${day(fd)} ${M[Number(fm) - 1]} – ${day(td)} ${M[Number(tm) - 1]} ${fy}`;
-}
 import { IconInfo, IconLoop } from "@/components/ui/icons";
 
 /* The entity list, the visit cycle and the (still empty) zone names live in

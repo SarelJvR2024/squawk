@@ -22,7 +22,7 @@
 
 const { chromium } = require("playwright");
 const B = process.env.BASE || "http://localhost:3000";
-const PAGES = ["/capture", "/field", "/findings", "/hazards", "/closure", "/dashboard", "/review", "/preflight"];
+const PAGES = ["/home", "/capture", "/field", "/findings", "/hazards", "/closure", "/dashboard", "/review", "/preflight"];
 
 let pass = 0, fail = 0;
 const log = [];

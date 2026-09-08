@@ -50,6 +50,26 @@ export const CURRENT_VISIT_ID = programme.currentVisit;
 /** checkId → zone name. Empty until the site walk-down is done. */
 const ZONE_MAP = programme.zoneMap as Record<string, string>;
 
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+/** "15–18 Sep 2026" — a site's audit window, off the register's own calendar.
+ *
+ *  Written twice would be written differently twice: the dashboard's portfolio
+ *  table and the home screen's programme strip both print this, and a window
+ *  that reads "15–18 Sep 2026" on one screen and "15 Sep – 18 Sep 2026" on the
+ *  other reads as two different facts about the same audit. */
+export function auditWindow(from: string, to: string): string {
+  const [fy, fm, fd] = from.split("-");
+  const [, tm, td] = to.split("-");
+  const day = (d: string) => String(Number(d));
+  return fm === tm
+    ? `${day(fd)}–${day(td)} ${MONTHS[Number(tm) - 1]} ${fy}`
+    : `${day(fd)} ${MONTHS[Number(fm) - 1]} – ${day(td)} ${MONTHS[Number(tm) - 1]} ${fy}`;
+}
+
 export function entity(code: string = CURRENT_ENTITY_CODE): Entity {
   return ENTITIES.find((e) => e.code === code) ?? ENTITIES[0];
 }

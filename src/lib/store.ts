@@ -1383,6 +1383,106 @@ export function usePortfolio(): PortfolioRow[] {
   );
 }
 
+/** Every audit that holds work, and how far it has got.
+ *
+ *  The SECOND — and last — selector that reads across scopes, and it exists for
+ *  the same reason usePortfolio does: a screen that needs this must not reach
+ *  into byVisit itself, or the rule that screens read in scope becomes a
+ *  convention with a hole in it.
+ *
+ *  It is not usePortfolio with different columns. That one rolls up per ENTITY,
+ *  deliberately, because the network view compares sites. This one is per
+ *  ENTITY AND VISIT, because an audit is a site ON a visit — King Shaka's March
+ *  and September work rolled into one row would report a visit as further along
+ *  than it is, which is the single thing an orientation screen must not do.
+ *
+ *  `checks` is this site's checklist — 324, 319 or 200 — never the register,
+ *  and `complete` is the store's own derived flag, so a check needing both a
+ *  document review and the asset seen counts only once both halves are done. */
+export interface AuditProgress {
+  entity: string;
+  visit: string;
+  checks: number;
+  complete: number;
+  findings: number;
+  hazards: number;
+  /** Photographs and voice notes attached to answers, plus the capture tray. */
+  media: number;
+  /** The most recent thing anybody did in this audit, or 0 for one that exists
+   *  in the programme and has never been opened. */
+  lastActivityAt: number;
+}
+
+export function useAuditProgress(): AuditProgress[] {
+  const byVisit = useStore((s) => s.byVisit);
+  const findings = useStore((s) => s.findings);
+  const hazards = useStore((s) => s.hazards);
+  return useMemo(() => {
+    const rows = new Map<string, AuditProgress>();
+    const row = (entityCode: string, visitId: string): AuditProgress => {
+      const k = scopeKey(entityCode, visitId);
+      let r = rows.get(k);
+      if (!r) {
+        r = {
+          entity: entityCode,
+          visit: visitId,
+          checks: checksAt(entityCode).length,
+          complete: 0,
+          findings: 0,
+          hazards: 0,
+          media: 0,
+          lastActivityAt: 0,
+        };
+        rows.set(k, r);
+      }
+      return r;
+    };
+    const touch = (r: AuditProgress, at: number | null | undefined) => {
+      if (at && at > r.lastActivityAt) r.lastActivityAt = at;
+    };
+
+    for (const [key, d] of Object.entries(byVisit)) {
+      const [entityCode, visitId] = key.split("/");
+      if (!entityCode || !visitId) continue;
+      const r = row(entityCode, visitId);
+      for (const resp of Object.values(d.responses)) {
+        if (resp.captured) r.complete++;
+        r.media += resp.attachments.length;
+        touch(r, resp.updatedAt);
+        touch(r, resp.capturedAt);
+        touch(r, resp.deskDoneAt);
+        touch(r, resp.fieldDoneAt);
+      }
+      for (const v of Object.values(d.verifications)) {
+        touch(r, v.updatedAt);
+        touch(r, v.verifiedAt);
+      }
+      for (const c of d.captures) {
+        r.media++;
+        touch(r, c.createdAt);
+      }
+    }
+    for (const f of findings) {
+      const r = row(f.entity, f.originVisit);
+      r.findings++;
+      touch(r, f.updatedAt);
+      touch(r, f.createdAt);
+    }
+    for (const h of hazards) {
+      const r = row(h.entity, h.originVisit);
+      r.hazards++;
+      touch(r, h.updatedAt);
+      touch(r, h.createdAt);
+    }
+    return [...rows.values()].sort(
+      (a, b) =>
+        b.lastActivityAt - a.lastActivityAt ||
+        a.entity.localeCompare(b.entity) ||
+        a.visit.localeCompare(b.visit)
+    );
+  }, [byVisit, findings, hazards]);
+}
+
 /** Hooks, so a screen cannot forget to pass the entity. */
 export function useChecks(): Check[] {
   return checksAt(useStore((s) => s.entity));

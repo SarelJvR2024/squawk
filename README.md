@@ -14,6 +14,7 @@ Section numbers in code comments point at that document.
 
 | Area | State |
 |---|---|
+| Home screen | `/home` — what is next, which audits are open and how far, the Round 1 calendar, what was just done, and the seven screens in order |
 | Design system (section 5 interface standard) | Implemented as CSS tokens and primitives, light and dark |
 | Data model (section 6) | Typed domain model, local-first store over IndexedDB |
 | Seed data | **Rev A2 all sites (06 Sep 2026): 324 check-points × 10 sites = 3,086**, 6 disciplines, 99 ACSA documents mapped, 33 site variants, **78 open 2025 findings** and 66 asset-system ratings across three airports |
@@ -317,7 +318,7 @@ could do by hand in a browser, and Graph enforces that, not this code.
 ```
 src/
   app/
-    (app)/            capture · field · review · findings · hazards · closure · dashboard
+    (app)/            home · capture · field · review · findings · hazards · closure · dashboard
     api/assist/       the AI endpoint — text out, never audio or images
     api/transcribe/   voice-note transcription — the only route audio leaves by
   lib/
@@ -359,6 +360,18 @@ tests/                thirty-three suites — see tests/README.md
 ```
 
 ## Notes for whoever picks this up
+
+- **The app opens at `/home` in a browser and at `/capture` when installed, and
+  that is deliberate.** `/home` is the orientation screen — what is next, which
+  audits hold work and how far, the Round 1 calendar, what was just done, and
+  the seven screens in the order the work uses them. `/dashboard` stays the
+  analytical view and the two must not converge: findings, ratings, the B170
+  001M profile and movement against 2025 belong there and appear nowhere on
+  `/home`. The manifest's `start_url` is still `/capture` because it must be a
+  real screen rather than a redirect — a launch that begins with a network
+  request fails on an apron — so the auditor who taps the installed icon is
+  mid-audit and lands in the work, and the one typing the address is arriving
+  and lands in the orientation. `tests/home.test.mjs` holds both halves of that.
 
 - **The risk matrix is ACSA's, not a generic one.** `src/lib/risk.ts` implements
   B170 001M: severity A–E × likelihood 1–5, banded Red / Amber / Green. Clause

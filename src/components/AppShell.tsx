@@ -240,7 +240,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         Skip to the audit
       </a>
       <header className="masthead flex min-h-[52px] shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b px-3.5 py-1 sm:h-[52px] sm:flex-nowrap sm:py-0">
-        <Link href="/dashboard" className="flex min-h-[44px] shrink-0 items-center gap-[9px] no-underline">
+        {/* The brand mark goes HOME, which is the one thing everybody already
+            expects it to do — and it is why /home needs no ninth destination in
+            a nav that is already 767px of bar inside an 820px portrait iPad.
+            For ACSA it stays on the dashboard: their role is read-only across
+            the audit and the shell redirects them there anyway, so pointing
+            their only header link at a screen that bounces would be a link
+            that visibly does nothing. */}
+        <Link
+          href={role === "acsa" ? "/dashboard" : "/home"}
+          className="flex min-h-[44px] shrink-0 items-center gap-[9px] no-underline"
+        >
           <span
             className="flex h-[27px] w-[27px] items-center justify-center rounded-[8px]"
             style={{
@@ -666,8 +676,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           this app must never be ambiguous about. */}
       <main id="work" className="flex min-h-0 flex-1">
         <h1 className="sr-only">
-          {NAV.find((n) => n.href === pathname)?.label ?? "Squawk"} — {entityOf(entityCode).short}{" "}
-          {visitLabel}
+          {/* /home is reached from the brand mark rather than the nav, so it has
+              no NAV row to take a label from — and "Squawk — KSIA Sep 2026" is
+              the app's name where every other screen names the work. */}
+          {pathname === "/home"
+            ? "Home"
+            : (NAV.find((n) => n.href === pathname)?.label ?? "Squawk")}{" "}
+          — {entityOf(entityCode).short} {visitLabel}
         </h1>
         {children}
       </main>
