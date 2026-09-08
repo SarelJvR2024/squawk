@@ -280,11 +280,17 @@ export function useSharedRecord(): SharedRecord {
          four records, over and over, which reads as churn nobody can explain.
          What an auditor wants to know is what arrived that they did not have. */
       let changed = 0;
+      /* A refusal is a string. It means NOTHING was applied — the bundle named
+         an audit this device is no longer in, which happens if somebody
+         switches airport or visit while a sync is in flight. */
+      let refused: string | null = null;
       if (rows.length) {
         /* Same rules as the file merge — evidence unioned, newer wins, and a
            record both sides changed reported rather than swallowed. */
         const report = importBundle(bundleFromRows(entity, visit, rows));
-        if (typeof report !== "string") {
+        if (typeof report === "string") {
+          refused = report;
+        } else {
           changed =
             report.responses.added.length +
             report.responses.updated.length +
@@ -298,7 +304,12 @@ export function useSharedRecord(): SharedRecord {
             report.progressAdded;
         }
       }
-      if (json.cursor) local.set(cursorKey(entity, visit), json.cursor);
+      /* THE CURSOR MOVES ONLY IF THE ROWS WERE APPLIED — the same rule as the
+         push watermark below, which already said it: a failed sync must
+         re-send, not skip. Advancing past rows a refused merge threw away
+         would mean this device never pulls them again, and another auditor's
+         afternoon would simply never appear on it. */
+      if (json.cursor && !refused) local.set(cursorKey(entity, visit), json.cursor);
       /* Only move the push watermark once the write is acknowledged. A failed
          sync must re-send, not skip. */
       if (records.length) {
@@ -309,8 +320,10 @@ export function useSharedRecord(): SharedRecord {
       }
       setMoved({ pushed: json.written ?? 0, pulled: changed });
       setLastSyncAt(Date.now());
-      setLastError(null);
-      setSyncState("synced");
+      /* Said, not swallowed. The next sync will fetch the same rows again and
+         apply them once the device is back on the audit they belong to. */
+      setLastError(refused);
+      setSyncState(refused ? "error" : "synced");
     } catch {
       setLastError("Could not reach the shared record.");
       setSyncState("error");

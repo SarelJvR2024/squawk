@@ -441,6 +441,13 @@ tests/                thirty-three suites — see tests/README.md
   two devices against a Supabase it can switch off, and most of its 41
   assertions are the negative ones.
 
+  **A refused merge does not advance the pull cursor.** Rows are pulled, merged,
+  and the server's cursor is stored — but if the merge is refused because the
+  bundle names an audit this device is no longer in (somebody switched airport
+  while a sync was in flight), nothing was applied, and moving the cursor anyway
+  means those rows are never pulled again. Same rule as the push watermark,
+  which already said it in words: a failed sync must re-send, not skip.
+
   **The pull cursor is deliberately held a minute behind the newest row.**
   Postgres reads `now()` at a transaction's START and makes its rows visible at
   its COMMIT, so a push that takes a moment lands carrying a timestamp from

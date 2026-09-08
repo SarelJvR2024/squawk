@@ -413,6 +413,7 @@ check("the right audit is not refused", refuse(bundle(), HERE) === null);
  */
 
 const store = fs.readFileSync(path.join(here, "..", "src", "lib", "store.ts"), "utf8");
+const sharedLib = fs.readFileSync(path.join(here, "..", "src", "lib", "shared.ts"), "utf8");
 
 check(
   "EVERY RESPONSE MUTATION STAMPS THE TIME, because they all funnel through patch()",
@@ -433,6 +434,29 @@ for (const [fn, why] of [
   const body = store.split(`${fn}:`).pop()?.slice(0, 600) ?? "";
   check(`${fn} says when it wrote — ${why}`, /updatedAt: Date\.now\(\)/.test(body));
 }
+
+/* A REFUSED MERGE MUST NOT ADVANCE THE PULL CURSOR.
+ *
+ *  The shared record pulls rows, hands them to importBundle, and stores the
+ *  cursor the server sent back. If the merge is REFUSED — the bundle names an
+ *  audit this device is no longer in, which happens when somebody switches
+ *  airport or visit while a sync is in flight — nothing is applied, and moving
+ *  the cursor anyway means those rows are never pulled again. Another auditor's
+ *  afternoon would simply never appear on that device, with nothing said.
+ *
+ *  The push watermark two lines below already had this rule and said so in
+ *  words: a failed sync must re-send, not skip. The pull cursor did not. */
+check(
+  "a REFUSED merge does not advance the pull cursor",
+  /if \(json\.cursor && !refused\)/.test(sharedLib),
+  "advancing past rows a refusal threw away is the same silent loss by another door"
+);
+check(
+  "and the refusal is said rather than swallowed",
+  /setLastError\(refused\)/.test(sharedLib) &&
+    /setSyncState\(refused \? "error" : "synced"\)/.test(sharedLib),
+  "a sync that quietly did nothing reads exactly like one that worked"
+);
 
 check(
   "importBundle REFUSES BEFORE IT WRITES",

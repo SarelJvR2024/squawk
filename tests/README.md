@@ -32,7 +32,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `sharepoint.test.mjs` | no | 58 |
 | `assets.test.mjs` | no | 21 |
 | `checkscreen.test.mjs` | no | 39 |
-| `merge.test.mjs` | no | 46 |
+| `merge.test.mjs` | no | 48 |
 | `figures.test.mjs` | no | 7 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 38 |
@@ -48,7 +48,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 43 |
 | `a11y.js` | yes | 46 |
 
-**1,195 assertions in total**, every count above verified by running the suite,
+**1,197 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -254,8 +254,16 @@ must never be lost:
   because a duplicate somebody has already looked at and kept must not be raised
   again on every sync. A system that repeats a settled question gets muted.
 
-Its last section reads the store instead, for the claims that are about wiring
-rather than logic: that every mutation stamps `updatedAt`, that `importBundle`
+Its last section reads the store and `src/lib/shared.ts` instead, for the claims
+that are about wiring rather than logic — including that **a refused merge does
+not advance the pull cursor**. The shared record pulls rows, merges them, and
+stores the cursor the server sent back; if the merge is refused because the
+bundle names an audit the device is no longer in (somebody switched airport
+mid-sync), nothing is applied, and moving the cursor anyway means those rows are
+never pulled again. Another auditor's afternoon would never appear on that
+device, with nothing said. The push watermark two lines below already had the
+rule and said it in words — *a failed sync must re-send, not skip* — and the
+pull cursor did not. Also: that every mutation stamps `updatedAt`, that `importBundle`
 refuses before it writes, that a merge of one airport cannot reach another's
 records, and that the version 13 migration back-fills rather than defaulting a
 half-captured tablet to zero — 0 loses to everything, so it would have lost to
