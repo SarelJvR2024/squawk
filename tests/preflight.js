@@ -68,12 +68,49 @@ const ok = (n, c, x = "") => {
        /Microphone[\s\S]{0,80}Not tested/.test(body),
        "opening a diagnostic must not throw a permission prompt at somebody");
     ok("nor the camera", /Camera[\s\S]{0,80}Not tested/.test(body));
-    ok("and both offer the test", 
+    ok("and both offer the test",
        (await page.locator("button", { hasText: /Test microphone/ }).count()) === 1 &&
        (await page.locator("button", { hasText: /Test camera/ }).count()) === 1);
 
     ok("nothing it did changed the audit",
        /0\/315/.test(body), (body.match(/0\/\d+/g) ?? []).join(" "));
+
+    /* ---------------- the clock, which decides who wins a clash ----------
+
+       Two auditors who answer the same check settle it on whichever device
+       says it answered LAST. That is the right rule with right clocks and a
+       silent thief with a wrong one, so pre-flight has to say so. The check
+       must also be honest in both directions: a device with a good clock is
+       not allowed to cry wolf. */
+    const clockOf = (t) =>
+      t.evaluate(() => {
+        const m = document.body.innerText.match(/This device's clock[\s\S]{0,200}/);
+        return (m ? m[0] : "").replace(/\n/g, " · ");
+      });
+
+    ok("a device with a right clock is told so, and not warned for nothing",
+       /to within/i.test(await clockOf(page)),
+       await clockOf(page));
+
+    /* Now a tablet whose clock is an hour fast — someone else's timezone, or a
+       device that has been off for a week. Date.now() is overridden before any
+       of the app's script runs, so the page genuinely believes it. */
+    const skewed = await browser.newContext({ viewport: { width: 390, height: 800 } });
+    await skewed.addInitScript(() => {
+      const real = Date.now;
+      Date.now = () => real() + 3600 * 1000;
+    });
+    const sp = await skewed.newPage();
+    await sp.goto(B + "/preflight", { waitUntil: "networkidle" });
+    await sp.waitForTimeout(3500);
+    const skewText = await clockOf(sp);
+    ok("A TABLET WITH A WRONG CLOCK IS TOLD, in minutes rather than milliseconds",
+       /1 hour ahead of the server|60 minutes ahead of the server/.test(skewText),
+       skewText);
+    ok("and told what it costs — that it quietly wins or loses every clash",
+       /wins or loses every clash/.test(await sp.locator("body").innerText()),
+       "a wrong clock nobody explains is a wrong clock nobody fixes");
+    await skewed.close();
 
     await ctx.close();
 

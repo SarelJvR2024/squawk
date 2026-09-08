@@ -44,11 +44,11 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `flow.js` | yes | 49 |
 | `offline.js` | yes | 18 |
 | `team.js` | yes | 15 |
-| `preflight.js` | yes | 15 |
+| `preflight.js` | yes | 18 |
 | `shared.js` | starts its own | 41 |
 | `a11y.js` | yes | 46 |
 
-**1,170 assertions in total**, every count above verified by running the suite,
+**1,173 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -624,6 +624,18 @@ The microphone is then tested properly in a second browser launched with
 Chromium's fake capture device, the same way `ai.js` records a real voice note:
 a headless browser has no audio hardware, so pressing the button in the first
 context would be testing the sandbox rather than the app.
+
+**The clock row is the one worth understanding.** Two auditors who answer the
+same check settle it on whichever device says it answered LAST — every
+contested record, over the wire and in the file merge alike, resolves on the
+`updatedAt` stamped by the device that made the edit. That is the right rule
+with right clocks and a silent thief with a wrong one: a tablet running ten
+minutes fast wins every clash it is part of, including against a better answer
+somebody gave afterwards, and nothing about it is visible to anyone. The suite
+drives a context whose `Date.now()` is an hour fast (overridden before any of
+the app's script runs, so the page genuinely believes it) and requires the
+screen to say so **in minutes rather than milliseconds** and to say what it
+costs. It also requires a device with a good clock not to cry wolf.
 
 ## `shared.js`
 

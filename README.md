@@ -95,7 +95,7 @@ BASE=http://localhost:3000 node tests/persite.js      # 25 assertions, four site
 BASE=http://localhost:3000 node tests/flow.js         # 49 assertions
 BASE=http://localhost:3000 node tests/offline.js      # 18, with the network cut
 BASE=http://localhost:3000 node tests/team.js         # 15, two devices, one audit
-BASE=http://localhost:3000 node tests/preflight.js    # 15, on a device with no mic
+BASE=http://localhost:3000 node tests/preflight.js    # 18, no mic, and a clock an hour fast
 BASE=http://localhost:3000 node tests/a11y.js         # 46, contrast and the keyboard
 BASE_NO_KEY=... BASE_WITH_KEY=... node tests/ai.js    # 26 assertions
 ```
@@ -461,6 +461,17 @@ tests/                thirty-three suites — see tests/README.md
   stamped each row at write time, in order: it was **better behaved than
   Postgres**, and so proved something that was not true. It now stamps once per
   transaction and can be told to hold a push open.
+
+  **The other clock is the device's own, and it decides who wins.** Every
+  contested record — over the wire and in the file merge alike — resolves on the
+  `updatedAt` stamped by the device that made the edit. That is the right rule
+  as long as the clocks are right, and a silent thief when one is not: a tablet
+  running ten minutes fast wins every clash it is part of, including against a
+  better answer somebody gave afterwards. The merge is not the thing to change —
+  the file route has no server to ask. What was missing was a device ever being
+  *told*, so `/preflight` now measures this tablet against the server, subtracts
+  the round trip so a slow connection does not read as a wrong clock, and says
+  what a wrong one costs.
 
 - **Two auditors, one audit.** An ACSA audit is done by a team and the audit
   lives in one device's IndexedDB, so until the shared record exists a day's
