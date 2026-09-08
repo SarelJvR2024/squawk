@@ -719,6 +719,83 @@ check(
   "NO CAPTION is right because a caption is required; NO ASSET would be wrong"
 );
 
+/* ------------- a capture that was NOT stored is never silent -------------- */
+
+/* Both write paths were `await putBlob(...)` followed straight by
+   onCaptured(...), with no catch. A full tablet meant the promise rejected, the
+   attachment was never added, and the auditor — who had just pressed the
+   shutter on a defect at a national key point — saw NOTHING. No error, no
+   photograph, no reason to think anything had gone wrong. They walk on.
+
+   A quota is the case that will actually happen: this is a phone, on a long
+   day, holding an audit and a few hundred photographs. */
+
+const photoHandler = capture.slice(
+  capture.indexOf("for (const file of files)"),
+  capture.indexOf("aria-label={label ?? \"Take a photograph\"}")
+);
+
+check(
+  "STORING A PHOTOGRAPH CANNOT FAIL SILENTLY — the write is guarded",
+  /try \{/.test(photoHandler) && /catch \(err\)/.test(photoHandler),
+  "await putBlob() with no catch means a full tablet drops evidence and says nothing"
+);
+check(
+  "and the guard is INSIDE the loop, so one bad file does not drop the rest",
+  photoHandler.indexOf("try {") > photoHandler.indexOf("for (const file of files)"),
+  "eight photographs selected and the second one failing must not lose the other six"
+);
+check(
+  "a failure is put on the screen, not just into the console",
+  /setFailed\(whyItFailed\(err\)\)/.test(photoHandler),
+  "console.error is not a person being told"
+);
+check(
+  "the message says HOW MANY were lost when some got through",
+  /NOT stored/.test(capture) && /\$\{stored\} stored/.test(capture),
+  '"3 stored, 2 not" is the only version of this an auditor can act on'
+);
+/* Scoped to the photo button's own render. role="alert" appears elsewhere in
+   this file, so an unscoped match would pass whether or not the notice exists —
+   an assertion that cannot fail is not one. */
+const photoRender = capture.slice(
+  capture.indexOf('aria-label={label ?? "Take a photograph"}'),
+  capture.indexOf("/* ---------- rendering what was captured ---------- */")
+);
+check(
+  "the notice is an alert, so it reaches somebody looking at the switch room",
+  /role="alert"/.test(photoRender) && /\{failed\}/.test(photoRender),
+  "a message nobody is looking at is not a message"
+);
+
+check(
+  "A QUOTA IS NAMED AS ITSELF, with a way out rather than a shrug",
+  /QuotaExceededError/.test(capture) &&
+    /No room left on this device/.test(capture) &&
+    /download this audit's photographs/.test(capture),
+  "the one failure that will actually happen deserves its own sentence"
+);
+check(
+  "and every message says the capture was NOT stored, in those words",
+  (capture.match(/NOT stored|NOT saved/g) ?? []).length >= 2,
+  "an auditor must never be left thinking they have a photograph they do not have"
+);
+
+const voiceHandler = capture.slice(
+  capture.indexOf("const result = await rec.stop()"),
+  capture.indexOf("if (!supported)")
+);
+check(
+  "a voice note that cannot be stored says so too",
+  /catch \(err\)/.test(voiceHandler) && /setFailed\(whyItFailed\(err\)\)/.test(voiceHandler),
+  "a note recorded and then not stored is worse than one never taken"
+);
+check(
+  "and the record button is released in a FINALLY, so a throw cannot strand it",
+  /finally \{/.test(voiceHandler) && /setBusy\(false\)/.test(voiceHandler),
+  "a button stuck mid-record with nothing said is the same failure wearing a different hat"
+);
+
 /* ------------------------------------------------------------------ result */
 
 console.log(failures === 0 ? "\nPHOTOS OK" : `\n${failures} FAILURE${failures > 1 ? "S" : ""}`);

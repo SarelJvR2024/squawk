@@ -177,6 +177,36 @@ export default function TeamMerge() {
             </div>
           )}
 
+          {report.duplicates.length > 0 && (
+            /* Above the contested list on purpose. A record both devices
+               changed resolved itself — the newer won, and the older is there
+               to look at. A duplicate has NOT resolved: one defect is sitting
+               in the audit twice, and it will be rated twice and reach ACSA
+               twice unless somebody settles it. */
+            <div
+              className="mt-2 rounded-[11px] border px-2.5 py-2 text-[11px]"
+              style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}
+            >
+              <b>
+                {report.duplicates.length} possible duplicate
+                {report.duplicates.length === 1 ? "" : "s"}
+              </b>{" "}
+              — the same issue button on the same check, raised on both devices. Kept as
+              separate findings, because the same button is legitimately raised once per
+              asset. Open Findings and settle them, or one defect is counted twice.
+              <ul className="mt-1.5 flex flex-col gap-[3px]">
+                {report.duplicates.map((d) => (
+                  <li key={`${d.checkId}-${d.issueIndex}`} className="font-mono text-[10.5px]">
+                    {d.ids.join(" + ")} · {d.checkId}
+                    {d.assets.some((a) => a.length > 0)
+                      ? ` · ${d.assets.map((a) => (a.length ? a.join("/") : "no asset")).join(" vs ")}`
+                      : " · neither names an asset"}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {report.contested.length > 0 && (
             /* Named, not summarised. Somebody has to be able to go and look. */
             <details className="group mt-2">

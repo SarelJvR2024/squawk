@@ -90,7 +90,7 @@ const controlled = (page) =>
       }
       return out;
     });
-    ok("the seven screens are in the cache", 
+    ok("the seven screens are in the cache",
        ["/capture", "/findings", "/hazards", "/closure", "/dashboard", "/field", "/review"]
          .every((p) => cached.some((u) => new URL(u).pathname === p)),
        String(cached.filter((u) => !u.includes("/_next/")).length) + " non-asset entries");
@@ -184,6 +184,42 @@ const controlled = (page) =>
     ok("an API call offline FAILS rather than returning a stale answer",
        apiOffline === "failed", apiOffline);
 
+    await ctx.setOffline(false);
+
+    /* ------------- THE DAY AFTER A DEPLOY, ON AN APRON ------------------
+
+       The one that was open. A deploy lands; the auditor opens the app with
+       signal and is served the cached shell instantly while the NEW html is
+       written behind them; they walk out and lose signal; iOS drops the tab;
+       they reopen — and get a shell asking for chunk filenames nobody ever
+       fetched. Content-hashed assets cannot go stale, but they can be ABSENT,
+       and absent offline is a blank page airside with the whole audit sitting
+       unreachable in IndexedDB.
+
+       Driven, not argued: the navigation is answered with html naming a build
+       this device cannot fetch, and then the network is cut. A shell one build
+       AHEAD of its own chunks is worse than one behind, which merely works. */
+    await ctx.route("**/capture", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body:
+          "<!doctype html><html><head><script src=\"/_next/static/chunks/from-a-build-we-cannot-fetch.js\" defer></script></head>" +
+          "<body><div id=\"__next\"></div></body></html>",
+      })
+    );
+    await page.reload({ waitUntil: "networkidle" });
+    await page.waitForTimeout(2500);
+    await ctx.unroute("**/capture");
+
+    await ctx.setOffline(true);
+    await page.reload({ waitUntil: "domcontentloaded" }).catch(() => undefined);
+    await page.waitForTimeout(2500);
+    const afterDeploy = (await page.locator("body").innerText().catch(() => "")).trim();
+    ok("THE APP STILL OPENS OFFLINE AFTER A DEPLOY IT COULD NOT FINISH FETCHING",
+       /KSIA|capture|check/i.test(afterDeploy),
+       `body was ${JSON.stringify(afterDeploy.slice(0, 80))} — a shell one build ahead of its ` +
+         "own chunks is a blank page on an apron");
     await ctx.setOffline(false);
   } catch (e) {
     fail++;

@@ -48,6 +48,15 @@ interface Row {
   action?: { label: string; run: () => void };
 }
 
+/** A gap in seconds, said the way somebody would say it out loud. */
+function describeSeconds(s: number): string {
+  if (s < 90) return `${Math.round(s)} seconds`;
+  const m = Math.round(s / 60);
+  if (m < 90) return `${m} minute${m === 1 ? "" : "s"}`;
+  const h = Math.round(m / 60);
+  return `${h} hour${h === 1 ? "" : "s"}`;
+}
+
 const TONE: Record<State, { fg: string; bg: string; line: string; word: string }> = {
   ok: { fg: "var(--good)", bg: "var(--good-bg)", line: "var(--good-line)", word: "Ready" },
   warn: { fg: "var(--warn)", bg: "var(--warn-bg)", line: "var(--warn-line)", word: "Check" },
@@ -70,6 +79,7 @@ export default function PreflightPage() {
   const [mic, setMic] = useState<Row | null>(null);
   const [cam, setCam] = useState<Row | null>(null);
   const [api, setApi] = useState<Row[]>([]);
+  const [clock, setClock] = useState<Row>({ id: "clock", label: "This device's clock", state: "checking", value: "" });
   /* Bumped to re-run every probe. A diagnostic screen has to be able to say
      "and now?" without a reload losing the microphone and camera results. */
   const [nonce, setNonce] = useState(0);
@@ -198,6 +208,59 @@ export default function PreflightPage() {
     };
   }, [recheck]);
 
+  /* ------------------------------------------------------------ the clock */
+  /* WHOEVER'S CLOCK IS AHEAD WINS.
+
+     Every contested record is resolved on the updatedAt stamped by the device
+     that made the edit — that is true over the wire and true of the file merge,
+     and it is the right rule as long as the clocks are right. A tablet running
+     ten minutes fast wins every clash it is part of, including against a better
+     answer somebody gave afterwards, and nothing about that is visible to
+     anybody. This is the one screen where a device is asked to prove itself, so
+     this is where it gets told.
+
+     The round trip is subtracted before judging: a slow connection must not
+     read as a wrong clock. */
+  const clockRow = useCallback(async (): Promise<Row> => {
+    try {
+      const sent = Date.now();
+      const r = await fetch("/api/sync", { cache: "no-store" });
+      const j = (await r.json()) as { now?: string };
+      const received = Date.now();
+      if (!j.now) throw new Error("no clock");
+      const server = Date.parse(j.now);
+      if (!Number.isFinite(server)) throw new Error("unreadable clock");
+      /* The server read its clock somewhere inside the round trip; the middle
+         is the best estimate, and half the trip is the worst this can be out
+         by for reasons that are not the clock. */
+      const skew = Math.round((sent + received) / 2 - server) / 1000;
+      const off = Math.abs(skew);
+      const way = skew > 0 ? "ahead of" : "behind";
+      const state: State = off > 120 ? "bad" : off > 20 ? "warn" : "ok";
+      return {
+        id: "clock",
+        label: "This device's clock",
+        state,
+        value:
+          state === "ok"
+            ? `Right, to within ${Math.max(1, Math.round(off))}s`
+            : `${describeSeconds(off)} ${way} the server`,
+        hint:
+          state === "ok"
+            ? undefined
+            : "Two auditors who answer the same check settle it on whichever device says it answered LAST — so a wrong clock here quietly wins or loses every clash this tablet is part of. Set the date and time to network-provided in the device's settings, then check again.",
+      };
+    } catch {
+      return {
+        id: "clock",
+        label: "This device's clock",
+        state: "warn",
+        value: "No answer — this device is offline",
+        hint: "Expected with no signal, and capture is unaffected. Check it once where there is a network: a wrong clock decides who wins a contested check.",
+      };
+    }
+  }, []);
+
   /* ------------------------------------------------------------- the APIs */
   const apiRows = useCallback(async (): Promise<Row[]> => {
     const probes: { path: string; label: string; needed: string }[] = [
@@ -237,17 +300,24 @@ export default function PreflightPage() {
   useEffect(() => {
     let live = true;
     void (async () => {
-      const [a, b, c, d] = await Promise.all([swRow(), storeRow(), spaceRow(), apiRows()]);
+      const [a, b, c, d, e] = await Promise.all([
+        swRow(),
+        storeRow(),
+        spaceRow(),
+        apiRows(),
+        clockRow(),
+      ]);
       if (!live) return;
       setSw(a);
       setStore(b);
       setSpace(c);
       setApi(d);
+      setClock(e);
     })();
     return () => {
       live = false;
     };
-  }, [swRow, storeRow, spaceRow, apiRows, nonce]);
+  }, [swRow, storeRow, spaceRow, apiRows, clockRow, nonce]);
 
   /* ------------------------------------------- the two that ask for consent */
   const testMic = async () => {
@@ -353,7 +423,11 @@ export default function PreflightPage() {
     sw,
     store,
     space,
+    /* Next to the shared record on purpose: they are the two rows about
+       working alongside other people, and the clock only matters because
+       somebody else is answering the same checks. */
     sharedRow,
+    clock,
     ...api,
     mic ?? {
       id: "mic",
@@ -377,7 +451,10 @@ export default function PreflightPage() {
   return (
     <div className="app-scroll flex min-w-0 flex-1 flex-col overflow-y-auto px-5 py-5">
       <div className="mx-auto w-full max-w-[760px]">
-        <h1 className="font-display text-[19px] font-bold">Pre-flight</h1>
+        {/* h2, not h1: the shell already puts one h1 on every screen naming
+            the screen and the audit, and a second h1 makes the outline lie
+            about which of the two is the page. */}
+        <h2 className="font-display text-[19px] font-bold">Pre-flight</h2>
         <p className="mt-1 max-w-[62ch] text-[12.5px] leading-[1.6]" style={{ color: "var(--ink-2)" }}>
           Ten seconds on the device you are going to audit with, before you are standing on an
           apron. Every row says what to do about it, not just that it is red.

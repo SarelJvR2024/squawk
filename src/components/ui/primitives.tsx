@@ -33,7 +33,23 @@ export function Pill({
   );
 }
 
-export function Dot({ tone, hollow = false }: { tone: Tone | "pending"; hollow?: boolean }) {
+export function Dot({
+  tone,
+  hollow = false,
+  label,
+}: {
+  tone: Tone | "pending";
+  hollow?: boolean;
+  /** What this colour MEANS, for anyone who cannot see it.
+   *
+   *  A dot is the fastest thing on the screen to read and the only thing on it
+   *  that says nothing at all to a screen reader — and roughly one man in
+   *  twelve cannot separate the red one from the green one either. The label is
+   *  per call site rather than derived from the tone, because the same three
+   *  colours mean a rating band on Findings, a verification outcome on
+   *  Follow-up and whether an answer is saved on Capture. */
+  label?: string;
+}) {
   const bg =
     tone === "pending" ? "var(--line-3)" : toneVars[tone as Tone].fg;
   /* HOLLOW means answered but not saved: the colour already says what the
@@ -42,13 +58,18 @@ export function Dot({ tone, hollow = false }: { tone: Tone | "pending"; hollow?:
      to get reads as "on its way" without a legend. */
   return (
     <span
-      className="mt-[5px] h-[7px] w-[7px] shrink-0 rounded-full"
+      className="mt-[5px] flex h-[7px] w-[7px] shrink-0 rounded-full"
+      title={label}
       style={{
         background: hollow ? "transparent" : bg,
         boxShadow: hollow ? `inset 0 0 0 2px ${bg}` : "none",
         transition: "var(--t)",
       }}
-    />
+    >
+      {/* The full stop matters: the row beside this reads "F-PRZCN · Electrical",
+          and without it the two text nodes are announced as "AmberF-PRZCN". */}
+      {label ? <span className="sr-only">{label}. </span> : null}
+    </span>
   );
 }
 

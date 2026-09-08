@@ -85,6 +85,35 @@ export interface MergeReport {
   /** Photographs that arrived with no image this device can show — they had
    *  not reached the record store when the bundle was made. */
   photographsWithoutImage: number;
+  /** Findings that came from the SAME issue button on the SAME check but were
+   *  raised on different devices, so they carry different ids and both survive.
+   *
+   *  REPORTED, NEVER COMBINED. The same issue button is legitimately raised
+   *  twice — "no single line diagram displayed" is one finding per switch room,
+   *  and the asset tags are how they are told apart. Silently folding those two
+   *  together would destroy a real finding at a national key point, which is
+   *  worse than the duplicate it was trying to tidy. A person decides; this
+   *  only makes sure a person is asked.
+   *
+   *  Only pairs this merge BROUGHT TOGETHER are listed. One already sitting in
+   *  the audit, that somebody has looked at and kept, must not be raised again
+   *  every time two devices sync. */
+  duplicates: Duplicate[];
+}
+
+/** Two or more findings that look like one defect. */
+export interface Duplicate {
+  checkId: string;
+  issueIndex: number;
+  /** The finding titles are identical by construction — they came from the same
+   *  issue button — so one is enough to say what it is about. */
+  title: string;
+  /** Every finding in the group, in the order the audit holds them. */
+  ids: string[];
+  /** What each one says it is about, in the same order as `ids`. This is the
+   *  fastest way to tell the two cases apart: different tags mean two real
+   *  findings, no tags at all means somebody has to go and look. */
+  assets: string[][];
 }
 
 export interface Counts {
@@ -175,6 +204,7 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
     progressAdded: 0,
     contested: [],
     photographsWithoutImage: 0,
+    duplicates: [],
   };
 
   /* ---------------------------------------------------------- responses --- */
@@ -266,6 +296,14 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
   const findings = mergeRecords(mine.findings, theirs.findings, report.findings, "finding", report);
   const hazards = mergeRecords(mine.hazards, theirs.hazards, report.hazards, "hazard", report);
 
+  /* Only the pairs THIS merge brought together. A duplicate already sitting in
+     the audit — one somebody has looked at and decided to keep, because it is
+     two switch rooms and not one — must not be raised again every time two
+     devices sync. A system that repeats a question you have answered is one
+     you stop reading. */
+  const arriving = new Set(report.findings.added);
+  report.duplicates = duplicateFindings(findings).filter((d) => d.ids.some((id) => arriving.has(id)));
+
   /* Photographs whose bytes are on neither this device nor the record store.
      Counted from what actually arrived, not from the exporter's claim. */
   const arrived = [
@@ -331,6 +369,47 @@ function mergeRecords<T extends { id: string; updatedAt?: number; progress?: Pro
   return order.map((id) => byId.get(id)!).filter(Boolean);
 }
 
+/** Findings that look like ONE defect raised twice.
+ *
+ *  The rule is the pair that identifies an issue button: the check it is on and
+ *  which button it was. Two devices tapping the same button mint two random
+ *  ids, so the merge — which keys on id — keeps both, and the audit counts one
+ *  defect twice: twice in the register, rated twice, twice in what reaches
+ *  ACSA.
+ *
+ *  This NEVER combines them, and that is deliberate rather than cautious. The
+ *  same button is legitimately raised twice: "no single line diagram displayed"
+ *  is one finding per switch room. Folding those together would destroy a real
+ *  finding, which is a worse failure than the duplicate. So the rule is only
+ *  ever used to ASK.
+ *
+ *  Ad-hoc findings (issueIndex null) are never grouped — they were typed by a
+ *  person, and two people describing the same defect in their own words is not
+ *  something a key can detect.
+ */
+export function duplicateFindings(findings: Finding[]): Duplicate[] {
+  const groups = new Map<string, Finding[]>();
+  for (const f of findings) {
+    if (!f.checkId || f.issueIndex === null || f.issueIndex === undefined) continue;
+    const key = `${f.checkId}|${f.issueIndex}`;
+    const g = groups.get(key);
+    if (g) g.push(f);
+    else groups.set(key, [f]);
+  }
+  const out: Duplicate[] = [];
+  for (const g of groups.values()) {
+    if (g.length < 2) continue;
+    out.push({
+      checkId: g[0].checkId as string,
+      issueIndex: g[0].issueIndex as number,
+      title: g[0].title,
+      ids: g.map((f) => f.id),
+      assets: g.map((f) => f.assetIds ?? []),
+    });
+  }
+  return out;
+}
+
 /** One line an auditor can read without unfolding anything. */
 export function summarise(r: MergeReport): string {
   const n = (c: Counts) => c.added.length + c.updated.length;
@@ -342,5 +421,10 @@ export function summarise(r: MergeReport): string {
   const tail = r.contested.length
     ? ` · ${r.contested.length} both devices had changed`
     : "";
-  return `Merged from ${r.from}: ${bits.join(", ")}${tail}`;
+  /* Said in the one line, not folded away in a panel: a defect counted twice
+     reaches ACSA as two, and the line is the only part everybody reads. */
+  const dup = r.duplicates.length
+    ? ` · ${r.duplicates.length} possible duplicate${r.duplicates.length === 1 ? "" : "s"} to look at`
+    : "";
+  return `Merged from ${r.from}: ${bits.join(", ")}${tail}${dup}`;
 }

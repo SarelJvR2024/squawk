@@ -1,6 +1,6 @@
 # Tests
 
-Thirty-two suites, no framework. Twelve need a running server; twenty do not.
+Thirty-three suites, no framework. Thirteen need a running server; twenty do not.
 **Check each suite's exit status, not its output**: a `for` loop over them
 reports the status of the loop.
 
@@ -26,13 +26,13 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `audits.test.mjs` | no | 18 |
 | `voice.test.mjs` | no | 37 |
 | `sites.test.mjs` | no | 41 |
-| `photos.test.mjs` | no | 103 |
+| `photos.test.mjs` | no | 112 |
 | `hazards.test.mjs` | no | 113 |
 | `erm-matrix.test.mjs` | no | 64 |
 | `sharepoint.test.mjs` | no | 58 |
 | `assets.test.mjs` | no | 21 |
 | `checkscreen.test.mjs` | no | 39 |
-| `merge.test.mjs` | no | 36 |
+| `merge.test.mjs` | no | 48 |
 | `figures.test.mjs` | no | 7 |
 | `e2e.js` | yes | 21 |
 | `robustness.js` | yes | 38 |
@@ -41,13 +41,14 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `persite.js` | yes | 25 |
 | `vision.js` | starts its own | 23 |
 | `record.js` | starts its own | 14 |
-| `flow.js` | yes | 48 |
-| `offline.js` | yes | 18 |
+| `flow.js` | yes | 49 |
+| `offline.js` | yes | 19 |
 | `team.js` | yes | 15 |
-| `preflight.js` | yes | 15 |
-| `shared.js` | starts its own | 38 |
+| `preflight.js` | yes | 18 |
+| `shared.js` | starts its own | 43 |
+| `a11y.js` | yes | 46 |
 
-**1,120 assertions in total**, every count above verified by running the suite,
+**1,197 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -242,9 +243,27 @@ must never be lost:
 - **A bundle from the wrong audit is refused, not warned about.** Cape Town's
   captures inside King Shaka's visit is a mistake nobody catches until the
   report is with ACSA.
+- **One defect raised by two auditors is reported, never folded together.** Both
+  tap the same issue button on the same check; each device mints its own random
+  id; the merge keys on id and keeps both, so the audit counts one defect twice
+  — rated twice, and twice in what reaches ACSA. Combining them would be worse
+  than the duplicate: "no single line diagram displayed" is one finding *per
+  switch room*, and the asset tags are how they are told apart. Folding those
+  together destroys a real finding at a national key point. So the rule is only
+  ever used to **ask** — and only about pairs the merge just brought together,
+  because a duplicate somebody has already looked at and kept must not be raised
+  again on every sync. A system that repeats a settled question gets muted.
 
-Its last section reads the store instead, for the claims that are about wiring
-rather than logic: that every mutation stamps `updatedAt`, that `importBundle`
+Its last section reads the store and `src/lib/shared.ts` instead, for the claims
+that are about wiring rather than logic — including that **a refused merge does
+not advance the pull cursor**. The shared record pulls rows, merges them, and
+stores the cursor the server sent back; if the merge is refused because the
+bundle names an audit the device is no longer in (somebody switched airport
+mid-sync), nothing is applied, and moving the cursor anyway means those rows are
+never pulled again. Another auditor's afternoon would never appear on that
+device, with nothing said. The push watermark two lines below already had the
+rule and said it in words — *a failed sync must re-send, not skip* — and the
+pull cursor did not. Also: that every mutation stamps `updatedAt`, that `importBundle`
 refuses before it writes, that a merge of one airport cannot reach another's
 records, and that the version 13 migration back-fills rather than defaulting a
 half-captured tablet to zero — 0 loses to everything, so it would have lost to
@@ -442,6 +461,21 @@ whether it is **sent** (`ASSIST_VISION`, enforced in the route).
 node tests/photos.test.mjs
 ```
 
+It also covers a fourth thing, which is what happens when a capture **cannot**
+be stored. Both write paths were `await putBlob(...)` followed straight by
+`onCaptured(...)`, with no catch: on a full tablet the promise rejected, the
+attachment was never added, and the auditor — who had just pressed the shutter
+on a defect at a national key point — saw nothing at all. No error, no
+photograph, no reason to think anything had gone wrong. They walk on. Selecting
+eight photographs and having the second fail took the other six with it.
+
+A quota is the case that will actually happen: this is a phone, on a long day,
+holding an audit and a few hundred photographs. So it is named as itself and
+given a way out, the guard sits **inside** the loop so one bad file cannot drop
+the rest, the count of what was lost is said in words an auditor can act on, and
+the voice path releases its button in a `finally` so a throw cannot strand it
+mid-record. Nine assertions, all of which fail against the code as it was.
+
 **Run it after any edit to `src/lib/media.ts`, `src/components/Capture.tsx`,
 `RootCauseAdvice.tsx` or `src/app/api/assist/route.ts`.**
 
@@ -575,6 +609,19 @@ work captured before the signal went is still on screen, and that both lazy
 payloads — the Answer Library and the asset register — are reachable with no
 signal.
 
+**The day after a deploy is its own scenario**, and it found a real one. The
+navigation strategy is cache-first-then-revalidate, so a deploy lands, the
+auditor opens the app with signal and is served the cached shell instantly while
+the new html is written behind them, they walk out and lose signal, iOS drops
+the tab — and they reopen to a shell asking for chunk filenames nobody ever
+fetched. Content-hashed assets cannot go *stale*, but they can be **absent**,
+and absent offline is a blank page airside with the whole audit sitting
+unreachable in IndexedDB: the exact failure the worker exists to prevent,
+arriving by a different door. The suite drives it — the navigation is answered
+with html naming a build the device cannot fetch, then the network is cut — and
+requires the app to still open. A shell one build **ahead** of its own chunks is
+worse than one behind, which merely works.
+
 It also asserts the things that must **not** be cached, each of which would be a
 defect rather than a missing optimisation: no `/api` response (a cached
 availability probe would tell an auditor a model is configured on a deployment
@@ -624,6 +671,18 @@ Chromium's fake capture device, the same way `ai.js` records a real voice note:
 a headless browser has no audio hardware, so pressing the button in the first
 context would be testing the sandbox rather than the app.
 
+**The clock row is the one worth understanding.** Two auditors who answer the
+same check settle it on whichever device says it answered LAST — every
+contested record, over the wire and in the file merge alike, resolves on the
+`updatedAt` stamped by the device that made the edit. That is the right rule
+with right clocks and a silent thief with a wrong one: a tablet running ten
+minutes fast wins every clash it is part of, including against a better answer
+somebody gave afterwards, and nothing about it is visible to anyone. The suite
+drives a context whose `Date.now()` is an hour fast (overridden before any of
+the app's script runs, so the page genuinely believes it) and requires the
+screen to say so **in minutes rather than milliseconds** and to say what it
+costs. It also requires a device with a good clock not to cry wolf.
+
 ## `shared.js`
 
 Several auditors, one audit, over the wire. `merge.test.mjs` proves the rules
@@ -631,7 +690,7 @@ and `team.js` proves the file route; this proves the shared record — two brows
 contexts as two tablets, a real Next server holding the secret key, and **a
 Supabase this suite can turn off on purpose** (`tests/fake-supabase.mjs`, which
 implements the two endpoints the route calls with the same conditional-upsert
-semantics as the SQL migration).
+and commit-time semantics as the SQL migration).
 
 ```bash
 node tests/shared.js        # starts everything it needs
@@ -660,7 +719,27 @@ fine is table stakes. What decides whether a team trusts it:
   later answer when they come up, rather than on whoever synced first;
 - a device whose passphrase has stopped working is told, and the passphrase that
   stopped working is dropped rather than retried forever;
+- **a check captured on one tablet is never invisible to the rest of the team**,
+  even when one auditor's push is still committing while another is handed a
+  cursor past it;
+- **one defect raised by two auditors is flagged rather than counted twice**,
+  and both findings survive — the app asks, it never decides;
 - and syncing over and over neither grows the record nor duplicates a finding.
+
+The commit-time one is worth reading in full. Postgres reads `now()` at a
+transaction's START and makes its rows visible at its COMMIT, so a slow push
+lands carrying a timestamp from before it began — older than a cursor another
+device may already hold. That device excludes those rows from every pull it ever
+makes again, and the slow device will not re-send them, because its own push
+watermark has moved on. Nothing reports a problem; the workbook is just short.
+It takes one push overlapping another, so it appears at three auditors rather
+than two, and the fix is to hold the cursor a minute behind the newest row.
+
+**The suite could not have caught it as first written.** `fake-supabase.mjs`
+stamped each row at write time, in order — *better behaved than Postgres*, and
+so it proved something that was not true. It now stamps once per transaction and
+takes a `__lag` control that holds a push open before it commits, which is the
+only way the race can be expressed at all.
 
 It found two real defects on its first run. An offline device said *"no shared
 record on this deployment"* — because the probe that asks cannot get an answer
@@ -735,6 +814,35 @@ BASE_NO_KEY=http://localhost:3000 BASE_WITH_KEY=http://localhost:3001 node tests
 Neither key has to be valid — invalid ones exercise the failure paths, which are
 the branches worth testing. The transcription *success* path cannot be tested
 without a real key and is the one thing here that has never run.
+
+## `a11y.js`
+
+Can this be used by somebody who cannot see it — or, far more often here, cannot
+see it *well*? Squawk is read on a tablet held at arm's length on an apron at
+midday, where low-contrast grey is invisible to everybody, and roughly one man in
+twelve cannot separate the red dot from the green one.
+
+```bash
+BASE=http://localhost:3000 node tests/a11y.js
+```
+
+It computes the contrast of every ink step against every surface it can land on,
+in **both** themes, from the tokens as the browser actually resolves them — not
+from the hex values in the stylesheet — and drives all eight screens looking for
+a control nobody could name, a field nobody could label, a missing landmark or
+heading, and colour carrying meaning on its own.
+
+On its first run it found: no `main` landmark anywhere, no `h1` on seven of the
+eight screens, no skip link, two unlabelled fields on Follow-up, seven status
+dots that said nothing at all, and four light-theme tokens below WCAG AA — two
+of them at 2.34:1 and 3.23:1, used for 9px hint text.
+
+The dot assertion is the one worth understanding. A small round span passes if it
+says what its colour means, **or** if it is marked `aria-hidden` *and the row it
+sits in says the state in words anyway* — a green dot beside "23 findings" is a
+second reading of something already written. `aria-hidden` on its own is not a
+pass; that would let any dot be silenced with one attribute, which is the exact
+failure the assertion exists to catch.
 
 ## Exit status
 

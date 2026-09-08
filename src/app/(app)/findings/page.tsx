@@ -12,6 +12,7 @@ import {
 } from "@/lib/store";
 import { assist, findingContext } from "@/lib/assist";
 import { BAND_META, bandFor, cellCode } from "@/lib/risk";
+import { duplicateFindings } from "@/lib/merge";
 import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
 import RecordActions from "@/components/RecordActions";
 import StickyActions from "@/components/StickyActions";
@@ -47,6 +48,24 @@ export default function FindingsPage() {
     if (filter === "repeat") l = l.filter((f) => f.priorRating);
     return l;
   }, [findings, filter, discipline]);
+
+  /* ONE DEFECT COUNTED TWICE reaches ACSA as two.
+
+     Two auditors who both tap the same issue button on the same check each
+     mint a finding with its own random id, and the merge — which keys on id —
+     keeps both. Over the shared record that happens silently: the merge report
+     is only shown for a file merge, so nothing would ever say it out loud.
+
+     Flagged, never folded together. The same button is legitimately raised
+     twice — one per switch room — and the asset tags are how they are told
+     apart. */
+  const duplicateOf = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const d of duplicateFindings(findings)) {
+      for (const id of d.ids) m.set(id, d.ids.filter((x) => x !== id));
+    }
+    return m;
+  }, [findings]);
 
   const active: Finding | undefined = list.find((f) => f.id === activeId) ?? list[0];
 
@@ -172,12 +191,26 @@ export default function FindingsPage() {
                     style={{ borderColor: "var(--line)", background: on ? "var(--acc-soft)" : "transparent" }}
                   >
                     {on && <span className="absolute inset-y-0 left-0 w-[2.5px]" style={{ background: "var(--acc)" }} />}
-                    <Dot tone={band === "Red" ? "bad" : band === "Amber" ? "warn" : band === "Green" ? "good" : "pending"} />
+                    <Dot
+                      tone={band === "Red" ? "bad" : band === "Amber" ? "warn" : band === "Green" ? "good" : "pending"}
+                      label={band ?? "Not rated"}
+                    />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
                         {f.id} · {f.discipline}
                         {f.adHoc ? " · ad-hoc" : ""}
                       </span>
+                      {/* In the row, not behind a panel: this is the moment the
+                          two are side by side in a list, which is where a
+                          person can actually settle it. */}
+                      {duplicateOf.has(f.id) && (
+                        <span
+                          className="mt-[2px] block truncate font-mono text-[9px] font-semibold"
+                          style={{ color: "var(--warn)" }}
+                        >
+                          also raised as {duplicateOf.get(f.id)!.join(", ")} — same issue, same check
+                        </span>
+                      )}
                       <span className="mt-[1px] block truncate text-[11.5px]">{f.description}</span>
                     </span>
                     {band && (

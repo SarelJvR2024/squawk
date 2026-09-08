@@ -59,7 +59,7 @@ npm run build && npm start
 
 ## Tests
 
-Twenty-two suites, no framework, all plain `node`. See `tests/README.md` — and
+Thirty-three suites, no framework, all plain `node`. See `tests/README.md` — and
 check each suite's **exit status**, not the output: a `for` loop over them
 reports the status of the loop, not of the suites.
 
@@ -83,17 +83,20 @@ node tests/merge.test.mjs                # two auditors' work, combined without 
 node tests/checkscreen.test.mjs          # the brief, and that nothing was dropped
 node tests/figures.test.mjs              # the prose still matches the register
 node tests/assets.test.mjs               # a stand-in tag can never reach the portal
+node tests/sharepoint.test.mjs           # nothing reaches the tenant by accident
 node tests/vision.js                     # starts its own servers
 node tests/record.js                     # starts its own server
+node tests/shared.js                     # starts its own server and a fake Supabase
 npm run build && npm start &             # then, against a running server:
 BASE=http://localhost:3000 node tests/e2e.js          # 21 assertions
 BASE=http://localhost:3000 node tests/robustness.js   # 38 assertions
 BASE=http://localhost:3000 node tests/exports.js      # 32 assertions
 BASE=http://localhost:3000 node tests/persite.js      # 25 assertions, four sites
-BASE=http://localhost:3000 node tests/flow.js         # 48 assertions
-BASE=http://localhost:3000 node tests/offline.js      # 18, with the network cut
+BASE=http://localhost:3000 node tests/flow.js         # 49 assertions
+BASE=http://localhost:3000 node tests/offline.js      # 19, with the network cut
 BASE=http://localhost:3000 node tests/team.js         # 15, two devices, one audit
-BASE=http://localhost:3000 node tests/preflight.js    # 15, on a device with no mic
+BASE=http://localhost:3000 node tests/preflight.js    # 18, no mic, and a clock an hour fast
+BASE=http://localhost:3000 node tests/a11y.js         # 46, contrast and the keyboard
 BASE_NO_KEY=... BASE_WITH_KEY=... node tests/ai.js    # 26 assertions
 ```
 
@@ -313,7 +316,7 @@ src/
     answers.json      9,836 researched options, loaded on demand
     priorFindings.json  the 23 March 2025 findings
     programme.json    entities, the 3-year cycle, zones
-tests/                twenty-two suites — see tests/README.md
+tests/                thirty-three suites — see tests/README.md
 ```
 
 ## Notes for whoever picks this up
@@ -435,8 +438,77 @@ tests/                twenty-two suites — see tests/README.md
   are shaped into a bundle and handed to the same `src/lib/merge.ts` the export
   sheet uses, so evidence unions and a contested record resolves identically
   whether it arrived over the wire or on a memory stick. `tests/shared.js` drives
-  two devices against a Supabase it can switch off, and most of its 31
+  two devices against a Supabase it can switch off, and most of its 41
   assertions are the negative ones.
+
+  **A refused merge does not advance the pull cursor.** Rows are pulled, merged,
+  and the server's cursor is stored — but if the merge is refused because the
+  bundle names an audit this device is no longer in (somebody switched airport
+  while a sync was in flight), nothing was applied, and moving the cursor anyway
+  means those rows are never pulled again. Same rule as the push watermark,
+  which already said it in words: a failed sync must re-send, not skip.
+
+  **The pull cursor is deliberately held a minute behind the newest row.**
+  Postgres reads `now()` at a transaction's START and makes its rows visible at
+  its COMMIT, so a push that takes a moment lands carrying a timestamp from
+  before it began. A device handed a cursor in that window would exclude the
+  slow device's rows from every pull it ever made again — and the slow device
+  will not re-send them, because its own push watermark has moved on. A check
+  captured on one tablet would simply never appear on another, and nothing
+  anywhere would report a problem; the workbook would just be short.
+
+  It takes one push overlapping another, so it shows up at three auditors
+  rather than two. Overlapping the cursor costs a re-read of the last minute of
+  the team's work per sync, which is free because the merge is idempotent —
+  newer wins, evidence unions — and the reported "pulled" count is the number of
+  records that actually *changed* on this device, so a caught-up tablet does not
+  claim it pulled four records over and over.
+
+  This was invisible to the suite for a while because `tests/fake-supabase.mjs`
+  stamped each row at write time, in order: it was **better behaved than
+  Postgres**, and so proved something that was not true. It now stamps once per
+  transaction and can be told to hold a push open.
+
+  **The other clock is the device's own, and it decides who wins.** Every
+  contested record — over the wire and in the file merge alike — resolves on the
+  `updatedAt` stamped by the device that made the edit. That is the right rule
+  as long as the clocks are right, and a silent thief when one is not: a tablet
+  running ten minutes fast wins every clash it is part of, including against a
+  better answer somebody gave afterwards. The merge is not the thing to change —
+  the file route has no server to ask. What was missing was a device ever being
+  *told*, so `/preflight` now measures this tablet against the server, subtracts
+  the round trip so a slow connection does not read as a wrong clock, and says
+  what a wrong one costs.
+
+- **A capture that could not be stored is never silent.** Both write paths were
+  `await putBlob(...)` and then `onCaptured(...)`, with no catch. On a full
+  tablet the promise rejected, the attachment was never added, and an auditor who
+  had just pressed the shutter on a defect saw **nothing** — no error, no
+  photograph, no reason to think anything had gone wrong. Eight photographs
+  selected with the second one failing lost the other six too.
+
+  A quota is the case that will actually happen on a phone holding an audit and a
+  few hundred photographs, so it is named as itself and given a way out rather
+  than a shrug; the guard is **inside** the loop; the message says how many were
+  lost and that they were **NOT stored**, in those words, because an auditor must
+  never walk away believing they have evidence they do not have; and it stays on
+  screen rather than flashing, since the person is looking at a switch room
+  rather than at the tablet.
+
+- **One defect raised twice is flagged, never folded together.** Two auditors
+  both tap the same issue button on the same check; each device mints its own
+  random `F-XXXXX`; the merge keys on id and keeps both. The audit now counts
+  one defect twice — rated twice, and twice in what reaches ACSA.
+
+  Combining them automatically would be the worse mistake. "No single line
+  diagram displayed" is one finding **per switch room**, and `assetIds` is how
+  those are told apart; folding them together destroys a real finding at a
+  national key point. So `duplicateFindings()` is only ever used to **ask**: the
+  merge report names the pair, and the Findings screen marks each row with the
+  other's id, because over the shared record the merge report is never shown and
+  the list is the only place the two are ever side by side. Only pairs a merge
+  just brought together are raised — one somebody has already looked at and kept
+  must not come back on every sync.
 
 - **Two auditors, one audit.** An ACSA audit is done by a team and the audit
   lives in one device's IndexedDB, so until the shared record exists a day's
@@ -484,6 +556,20 @@ tests/                twenty-two suites — see tests/README.md
   deliberately after load rather than on first use, because "offline-safe" and
   "fetched when someone happens to open the right panel" are not the same thing.
   `tests/offline.js` asserts all of it with the network actually switched off.
+
+  **A shell is never stored ahead of the build it points at.** Cache-first
+  revalidation left one door open, and it is the day after a deploy: the auditor
+  opens the app with signal and is served the cached shell instantly while the
+  new html is written behind them; they walk out and lose signal; the phone drops
+  the tab; they reopen — and get a shell asking for chunk filenames nobody ever
+  fetched, because only the html was revalidated. Content-hashed assets cannot go
+  *stale*, but they can be **absent**, and absent offline is a blank page airside
+  with the whole audit sitting unreachable in IndexedDB. So an updated shell is
+  promoted only once every asset it names can be served offline; a shell one
+  build *ahead* of its own chunks is worse than one behind, which merely works.
+  The first copy of a screen needs no such gate — the page is about to request
+  those chunks itself — because making a first paint wait on a whole build would
+  charge an apron for a problem only deploys have.
 
 - **The check screen is a brief, not a dossier.** The three things an auditor
   opens their mouth with — the question to ask, the standard to audit against,
@@ -968,3 +1054,26 @@ on. That is Q4 and it is not settled. If
 ACSA's governance requires data to stay in their tenant, point
 `src/app/api/assist/route.ts` and `src/app/api/transcribe/route.ts` at
 in-tenant endpoints; nothing in the UI changes.
+
+## Reading it in the sun
+
+Squawk is read on a tablet held at arm's length on an apron at midday. That is
+the accessibility problem here, and it is not a minority one: low-contrast grey
+in direct sun is invisible to everybody, and roughly one man in twelve cannot
+separate the red dot from the green one.
+
+Four light-theme tokens were below WCAG AA when this was measured — `--ink-4` at
+**2.34:1** and, in dark, **3.23:1**, both used at 9 to 11.5px. The ink ladder is
+now 18.3 / 7.6 / 6.8 / 5.2 on a panel: four steps that still read as four steps,
+none of them unreadable. `--good` and `--warn` moved a shade for the same
+reason.
+
+Alongside that: a `main` landmark and one `h1` per screen naming the screen and
+the audit (both supplied by `AppShell`, so a page adds an `h2`, not a second
+`h1`); a skip link as the first thing the keyboard reaches; and every status dot
+either saying what its colour means or marked `aria-hidden` because the row it
+sits in already says it in words.
+
+`tests/a11y.js` computes all of this from the tokens **as the browser resolves
+them**, in both themes, and drives all eight screens. It fails if a token drifts
+back under AA or a dot goes quiet.

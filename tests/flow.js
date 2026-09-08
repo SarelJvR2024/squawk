@@ -255,9 +255,22 @@ async function badge(p, href) {
   const cell = p.locator("button[aria-label*=' by likelihood ']").first();
   ok("the findings screen offers the B170 001M matrix", (await cell.count()) > 0);
   /* Agree 5A on EVERY finding — the worst cell, so the effect is unambiguous. */
-  const rows = await p.locator("button", { hasText: /^F-/ }).count();
+  /* Match the row by the element that actually carries the id, not by the
+     button's text STARTING with it. The status dot before it now carries an
+     sr-only word saying what its colour means, so the row's text begins
+     "Amber. F-PRZCN …" — an anchored /^F-/ silently matched nothing, the loop
+     ran once over no row, and the assertion that a rating moves the dashboard
+     failed for a reason that had nothing to do with ratings.
+     Finding ids are letters, not digits: F-PRZCN, not F-001. */
+  const ROW = 'button:has(span.font-mono:text-matches("^F-[A-Z0-9]"))';
+  const rows = await p.locator(ROW).count();
+  /* And say so out loud when it matches nothing, rather than looping once over
+     a row that is not there — the silence is what made the last failure read
+     as a broken dashboard. */
+  ok("the findings the walkthrough raised are on the screen to be rated",
+     rows > 0, `${rows} rows matched ${ROW}`);
   for (let i = 0; i < Math.max(rows, 1); i++) {
-    const row = p.locator("button", { hasText: /^F-/ }).nth(i);
+    const row = p.locator(ROW).nth(i);
     if (await row.count()) { await row.click(); await p.waitForTimeout(400); }
     await p.locator('button[aria-label^="Severity A - Catastrophic by likelihood 5"]').first().click();
     await p.waitForTimeout(500);

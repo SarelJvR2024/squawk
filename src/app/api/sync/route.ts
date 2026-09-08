@@ -98,7 +98,32 @@ export async function GET() {
     /* Whether a shared record exists for this deployment. Says nothing about
        what it holds and nothing about the passphrase. */
     available: configured(),
+    /* The server's clock, so a device can find out whether its own is wrong.
+
+       Every contested record — over the wire and in the file merge alike — is
+       resolved on the updatedAt stamped by the DEVICE that made the edit. A
+       tablet running ten minutes fast therefore wins every clash it is part of,
+       including against a better answer somebody else gave afterwards, and
+       nothing about that is visible to anyone. The merge is right; what was
+       missing was a device ever being told its clock is wrong.
+
+       Sent whether or not a shared record is configured, because the file merge
+       has exactly the same dependence on device clocks and a team passing a
+       memory stick around deserves the same warning. */
+    now: new Date().toISOString(),
   });
+}
+
+/** How far behind the newest row the cursor is held. Longer than any push
+ *  transaction could plausibly stay open; short enough that the re-read is a
+ *  rounding error on an audit's traffic. */
+const OVERLAP_MS = 60_000;
+
+/** A cursor, moved back by the overlap. Anything unparseable is returned as it
+ *  came: a cursor this route cannot read is one it must not silently narrow. */
+function rewind(at: string): string {
+  const t = Date.parse(at);
+  return Number.isFinite(t) ? new Date(t - OVERLAP_MS).toISOString() : at;
 }
 
 export async function POST(req: NextRequest) {
@@ -219,12 +244,32 @@ export async function POST(req: NextRequest) {
     }
     const rows = (await res.json()) as Row[];
 
+    /* Optional on the row type, because a record store that stopped sending it
+       must leave the cursor where it was rather than reset it to the start. */
+    const newest = rows.length ? rows[rows.length - 1].server_at : undefined;
+
     return Response.json({
       records: rows,
       /* The cursor to send next time. Held by the caller rather than the server,
          because the server keeps no per-device state — a device that is wiped
-         and set up again simply syncs from the beginning. */
-      cursor: rows.length ? rows[rows.length - 1].server_at : since,
+         and set up again simply syncs from the beginning.
+
+         IT IS DELIBERATELY BEHIND THE NEWEST ROW BY A MINUTE, and that is the
+         whole of it: Postgres reads now() at a transaction's START and makes
+         its rows visible at its COMMIT, so a push that takes a moment lands
+         carrying a timestamp from before it began. A device handed a cursor in
+         that window would exclude the slow device's rows from every pull it
+         ever made again — and the slow device will not re-send them, because
+         its own push watermark has moved on. A check captured on one tablet
+         would simply never appear on another, with nothing anywhere reporting
+         a problem.
+
+         Overlapping costs a re-read of the last minute of the team's work on
+         each sync. That is affordable because the merge is idempotent — newer
+         wins, evidence is unioned — so a row arriving twice changes nothing the
+         second time. Losing a captured check at a national key point is not
+         affordable at all. */
+      cursor: newest ? rewind(newest) : since,
       written,
       pulled: rows.length,
     });
