@@ -438,8 +438,29 @@ tests/                thirty-three suites — see tests/README.md
   are shaped into a bundle and handed to the same `src/lib/merge.ts` the export
   sheet uses, so evidence unions and a contested record resolves identically
   whether it arrived over the wire or on a memory stick. `tests/shared.js` drives
-  two devices against a Supabase it can switch off, and most of its 31
+  two devices against a Supabase it can switch off, and most of its 41
   assertions are the negative ones.
+
+  **The pull cursor is deliberately held a minute behind the newest row.**
+  Postgres reads `now()` at a transaction's START and makes its rows visible at
+  its COMMIT, so a push that takes a moment lands carrying a timestamp from
+  before it began. A device handed a cursor in that window would exclude the
+  slow device's rows from every pull it ever made again — and the slow device
+  will not re-send them, because its own push watermark has moved on. A check
+  captured on one tablet would simply never appear on another, and nothing
+  anywhere would report a problem; the workbook would just be short.
+
+  It takes one push overlapping another, so it shows up at three auditors
+  rather than two. Overlapping the cursor costs a re-read of the last minute of
+  the team's work per sync, which is free because the merge is idempotent —
+  newer wins, evidence unions — and the reported "pulled" count is the number of
+  records that actually *changed* on this device, so a caught-up tablet does not
+  claim it pulled four records over and over.
+
+  This was invisible to the suite for a while because `tests/fake-supabase.mjs`
+  stamped each row at write time, in order: it was **better behaved than
+  Postgres**, and so proved something that was not true. It now stamps once per
+  transaction and can be told to hold a push open.
 
 - **Two auditors, one audit.** An ACSA audit is done by a team and the audit
   lives in one device's IndexedDB, so until the shared record exists a day's

@@ -272,10 +272,31 @@ export function useSharedRecord(): SharedRecord {
       }
 
       const rows = json.records ?? [];
+      /* How many of the pulled rows CHANGED something on this device.
+
+         The cursor deliberately overlaps — see the note in /api/sync — so the
+         last minute of the team's work comes back on every sync. Reporting the
+         raw row count would leave a device that has caught up saying it pulled
+         four records, over and over, which reads as churn nobody can explain.
+         What an auditor wants to know is what arrived that they did not have. */
+      let changed = 0;
       if (rows.length) {
         /* Same rules as the file merge — evidence unioned, newer wins, and a
            record both sides changed reported rather than swallowed. */
-        importBundle(bundleFromRows(entity, visit, rows));
+        const report = importBundle(bundleFromRows(entity, visit, rows));
+        if (typeof report !== "string") {
+          changed =
+            report.responses.added.length +
+            report.responses.updated.length +
+            report.findings.added.length +
+            report.findings.updated.length +
+            report.hazards.added.length +
+            report.hazards.updated.length +
+            report.verifications.added.length +
+            report.verifications.updated.length +
+            report.attachmentsAdded +
+            report.progressAdded;
+        }
       }
       if (json.cursor) local.set(cursorKey(entity, visit), json.cursor);
       /* Only move the push watermark once the write is acknowledged. A failed
@@ -286,7 +307,7 @@ export function useSharedRecord(): SharedRecord {
           String(records.reduce((n, r) => Math.max(n, r.updated_at), since))
         );
       }
-      setMoved({ pushed: json.written ?? 0, pulled: rows.length });
+      setMoved({ pushed: json.written ?? 0, pulled: changed });
       setLastSyncAt(Date.now());
       setLastError(null);
       setSyncState("synced");

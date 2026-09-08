@@ -45,10 +45,10 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `offline.js` | yes | 18 |
 | `team.js` | yes | 15 |
 | `preflight.js` | yes | 15 |
-| `shared.js` | starts its own | 38 |
+| `shared.js` | starts its own | 41 |
 | `a11y.js` | yes | 46 |
 
-**1,167 assertions in total**, every count above verified by running the suite,
+**1,170 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -632,7 +632,7 @@ and `team.js` proves the file route; this proves the shared record — two brows
 contexts as two tablets, a real Next server holding the secret key, and **a
 Supabase this suite can turn off on purpose** (`tests/fake-supabase.mjs`, which
 implements the two endpoints the route calls with the same conditional-upsert
-semantics as the SQL migration).
+and commit-time semantics as the SQL migration).
 
 ```bash
 node tests/shared.js        # starts everything it needs
@@ -661,7 +661,25 @@ fine is table stakes. What decides whether a team trusts it:
   later answer when they come up, rather than on whoever synced first;
 - a device whose passphrase has stopped working is told, and the passphrase that
   stopped working is dropped rather than retried forever;
+- **a check captured on one tablet is never invisible to the rest of the team**,
+  even when one auditor's push is still committing while another is handed a
+  cursor past it;
 - and syncing over and over neither grows the record nor duplicates a finding.
+
+The commit-time one is worth reading in full. Postgres reads `now()` at a
+transaction's START and makes its rows visible at its COMMIT, so a slow push
+lands carrying a timestamp from before it began — older than a cursor another
+device may already hold. That device excludes those rows from every pull it ever
+makes again, and the slow device will not re-send them, because its own push
+watermark has moved on. Nothing reports a problem; the workbook is just short.
+It takes one push overlapping another, so it appears at three auditors rather
+than two, and the fix is to hold the cursor a minute behind the newest row.
+
+**The suite could not have caught it as first written.** `fake-supabase.mjs`
+stamped each row at write time, in order — *better behaved than Postgres*, and
+so it proved something that was not true. It now stamps once per transaction and
+takes a `__lag` control that holds a push open before it commits, which is the
+only way the race can be expressed at all.
 
 It found two real defects on its first run. An offline device said *"no shared
 record on this deployment"* — because the probe that asks cannot get an answer

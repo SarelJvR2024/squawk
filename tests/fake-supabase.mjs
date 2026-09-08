@@ -11,9 +11,19 @@
  *    GET  /rest/v1/squawk_records    everything in one audit after a cursor,
  *                                    ordered by the SERVER's clock
  *
- *  Plus two controls the real thing does not have: __reset to empty it between
- *  scenarios, and __fail to make it answer 500 so the app's behaviour when the
- *  record is down can be driven rather than argued about.
+ *  Plus three controls the real thing does not have: __reset to empty it
+ *  between scenarios, __fail to make it answer 500 so the app's behaviour when
+ *  the record is down can be driven rather than argued about, and __lag to hold
+ *  a push open before it commits.
+ *
+ *  __lag exists because this fake was, for a while, BETTER BEHAVED THAN
+ *  POSTGRES, and so proved something that was not true. Postgres stamps
+ *  now() at the transaction's START and makes the rows visible at its COMMIT.
+ *  A push that takes 400ms therefore lands carrying a timestamp from before it
+ *  began — possibly older than a cursor another device was handed in the
+ *  meantime, which is how a captured check can become permanently invisible to
+ *  the rest of the team. Stamping per row at write time, in order, as this
+ *  originally did, makes that race impossible to express.
  */
 
 import http from "node:http";
@@ -23,6 +33,7 @@ export function fakeSupabase(port = 3901) {
   const rows = new Map();
   let seq = 0;
   let failing = false;
+  let lagMs = 0;
   const stamp = () => new Date(Date.UTC(2026, 8, 8) + ++seq).toISOString();
   const key = (r) => `${r.entity}|${r.visit}|${r.kind}|${r.id}`;
 
@@ -46,6 +57,13 @@ export function fakeSupabase(port = 3901) {
         failing = url.searchParams.get("on") !== "0";
         return send(200, { failing });
       }
+      /* Hold the NEXT push open for this many milliseconds before its rows
+         become visible — a slow transaction, which is the only condition under
+         which the commit-time race can be seen. */
+      if (url.pathname === "/__lag") {
+        lagMs = Number(url.searchParams.get("ms") ?? 0) || 0;
+        return send(200, { lagMs });
+      }
       if (url.pathname === "/__rows") {
         return send(200, [...rows.values()]);
       }
@@ -68,14 +86,26 @@ export function fakeSupabase(port = 3901) {
           const seen = deduped.get(k);
           if (!seen || r.updated_at > seen.updated_at) deduped.set(k, r);
         }
-        let written = 0;
+        /* ONE stamp for the whole batch, taken now — now() is constant within
+           a transaction and is read at its start, not at its commit. */
+        const at = stamp();
+        const winners = [];
         for (const [k, r] of deduped) {
           const cur = rows.get(k);
           if (cur && r.updated_at <= cur.updated_at) continue; // the WHERE clause
-          rows.set(k, { ...r, server_at: stamp() });
-          written++;
+          winners.push([k, { ...r, server_at: at }]);
         }
-        return send(200, written);
+        const commit = () => {
+          for (const [k, r] of winners) rows.set(k, r);
+        };
+        if (lagMs) {
+          const held = lagMs;
+          lagMs = 0; // one push only, so a scenario cannot leak into the next
+          setTimeout(commit, held);
+        } else {
+          commit();
+        }
+        return send(200, winners.length);
       }
 
       if (req.method === "GET" && url.pathname === "/rest/v1/squawk_records") {

@@ -264,6 +264,53 @@ const syncNow = async (page) => {
     });
     ok("an oversized body is refused rather than stored", huge.status() === 413, String(huge.status()));
 
+    /* ---- THE COMMIT-TIME RACE, which is how a team silently loses work ----
+
+       Postgres reads now() at a transaction's START and makes its rows visible
+       at its COMMIT. A push that takes a moment therefore lands carrying a
+       timestamp from before it began. If another device is handed a cursor in
+       that window, the slow device's rows are older than the cursor and are
+       excluded from every pull that device will ever make again — and it will
+       not re-push them, because its own watermark has moved on.
+
+       Three auditors is where this stops being theoretical: it needs one push
+       to overlap another. That is an ordinary afternoon on an apron. */
+    await api.request.get(`${supa.url}/__reset`);
+
+    const sync = (since, records) =>
+      api.request
+        .post(`${BASE}/api/sync`, {
+          headers: { "x-forwarded-for": "203.0.113.44" },
+          data: { passphrase: PASS, entity: "KSIA", visit: "2026-09", since, records },
+        })
+        .then((r) => r.json());
+
+    const row = (id, at) => ({ kind: "response", id, updated_at: at, payload: { checkId: id } });
+
+    /* Auditor A's push is held open for 800ms — it is stamped now, it commits
+       later. Auditor C's is instant and lands in between. */
+    await api.request.get(`${supa.url}/__lag?ms=800`);
+    await sync(null, [row("RACE-SLOW", 1000)]);
+    await sync(null, [row("RACE-FAST", 1000)]);
+
+    /* Auditor B pulls in the window: only C's row exists, so B's cursor moves
+       past A's stamp while A's work is still in flight. */
+    const bFirst = await sync(null, []);
+    ok("the slow auditor's push has not landed yet, so B cannot see it",
+       !bFirst.records.some((r) => r.id === "RACE-SLOW"),
+       bFirst.records.map((r) => r.id).join(","));
+
+    await new Promise((r) => setTimeout(r, 1200)); // A commits
+
+    const inTable = [...supa.rows.values()].some((r) => r.id === "RACE-SLOW");
+    ok("and it IS in the record — nothing was lost server-side", inTable);
+
+    const bSecond = await sync(bFirst.cursor, []);
+    ok("A CAPTURED CHECK IS NEVER INVISIBLE TO THE REST OF THE TEAM",
+       bSecond.records.some((r) => r.id === "RACE-SLOW"),
+       `B pulled [${bSecond.records.map((r) => r.id).join(",") || "nothing"}] with cursor ${bFirst.cursor} — ` +
+         "a check captured on one tablet that no other tablet will ever pull again");
+
     await api.request.get(`${supa.url}/__reset`);
     await api.close();
 
