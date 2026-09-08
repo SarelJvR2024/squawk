@@ -27,7 +27,6 @@ import { usePhotoSync } from "@/lib/sync";
 import { useShared } from "@/lib/shared";
 import ExportPanel from "@/components/ExportPanel";
 import { SyncPanel } from "@/components/SyncPanel";
-import { graphConfigured } from "@/lib/graph";
 import ResetPanel from "@/components/ResetPanel";
 import AuditsPanel from "@/components/AuditsPanel";
 import {
@@ -408,13 +407,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
           {/* Sync sits beside Export because they are the same act at different
               destinations — the workbook goes to a person, this goes to the
-              portal. Hidden entirely where no portal is configured: a button
-              that can only ever explain why it does not work is clutter on a
-              header that has already been measured down to the pixel.
+              portal.
 
-              ACSA is read-only across the audit, so no sync for them either —
-              the portal is where their copy comes FROM. */}
-          {role !== "acsa" && graphConfigured() && (
+              IT USED TO BE HIDDEN until a portal was configured, on the
+              reasoning that a button which can only explain why it does not
+              work is clutter. That is true of a button and false of a SETUP,
+              and the setup is where this feature sat for weeks: nobody could
+              see whether the sync existed, what it wanted, or how far along it
+              was, because the one screen that knows all three was behind the
+              thing it was waiting for. It opens a readiness list now — five
+              steps, each done, to do with what to do about it, or not checked
+              yet — so an unconfigured deployment is a screen you can act on
+              rather than an absence you have to ask about.
+
+              ACSA is read-only across the audit, so no sync for them — the
+              portal is where their copy comes FROM. */}
+          {role !== "acsa" && (
             <button
               onClick={() => setSyncing(true)}
               title="Send this visit's capture to the SharePoint portal"

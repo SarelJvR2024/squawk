@@ -165,6 +165,51 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
+/** WHAT THE PORTAL HAS TO LOOK LIKE, in one place.
+ *
+ *  The lists Squawk writes to, the columns it needs in each, and the names it
+ *  will accept for them used to be three facts in two files: the field lists
+ *  sat in SyncPanel, the list-name patterns were regexes inline in its reader,
+ *  and FIELD_CANDIDATES was here. Whoever builds the SharePoint site needs all
+ *  three and has to be told them EXACTLY — a column called something Squawk
+ *  does not recognise is silently skipped — so they are one export now, and the
+ *  readiness screen renders them from this rather than from a list somebody
+ *  typed out beside it. */
+
+/** By display name, because internal names are `field_7` and nobody builds a
+ *  list to those. A space is allowed where a hyphen is: SharePoint's own new-
+ *  list dialog will happily produce "Check points". */
+export const LIST_NAMES = {
+  checkpoints: /^check[-\s]?points?$/i,
+  findings: /^findings?$/i,
+  /** Not anchored: this one matches a library's name loosely on purpose —
+      "Documents", "Shared Documents" and "Evidence" are all the same thing
+      here, and a site has exactly one of them worth writing photographs to. */
+  evidence: /document|shared|evidence/i,
+} as const;
+
+export const CHECK_FIELDS = [
+  "title", "discipline", "assetSystem", "compliance", "observation", "auditor", "assessedOn",
+] as const;
+
+export const FINDING_FIELDS = [
+  "title", "discipline", "assetSystem", "observation", "severity", "likelihood",
+  "riskPriority", "tolerance", "status", "rootCause", "treatment", "owner",
+  "targetDate", "progress", "dateRaised", "assets",
+] as const;
+
+/** The column contract, for a person to build against: the name to create, and
+ *  the other names that would also be matched. Derived from FIELD_CANDIDATES,
+ *  so a change to what the sync looks for changes what the screen asks for. */
+export function columnContract(
+  fields: readonly string[]
+): { key: string; create: string; alsoAccepts: string[] }[] {
+  return fields.map((key) => {
+    const names = FIELD_CANDIDATES[key] ?? [];
+    return { key, create: names[0] ?? key, alsoAccepts: names.slice(1) };
+  });
+}
+
 export interface FieldMap {
   /** logical name -> the list's INTERNAL column name. */
   resolved: Record<string, string>;

@@ -29,7 +29,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `photos.test.mjs` | no | 112 |
 | `hazards.test.mjs` | no | 113 |
 | `erm-matrix.test.mjs` | no | 64 |
-| `sharepoint.test.mjs` | no | 58 |
+| `sharepoint.test.mjs` | no | 70 |
 | `assets.test.mjs` | no | 21 |
 | `checkscreen.test.mjs` | no | 48 |
 | `merge.test.mjs` | no | 48 |
@@ -48,7 +48,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 43 |
 | `a11y.js` | yes | 46 |
 
-**1,206 assertions in total**, every count above verified by running the suite,
+**1,218 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 

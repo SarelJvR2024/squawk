@@ -232,6 +232,45 @@ when it is not.
   it is there. A hazard remembers the `portalId` it was given on its first
   successful create, so the next visit updates it.
 
+### The Sync button is always there, and it opens a readiness list
+
+It used to render only where a portal was already configured, on the reasoning
+that a button which can only explain why it does not work is clutter. That is
+true of a button and false of a **setup** — and the setup is where this feature
+sat: not broken, invisible. Nobody could see whether the sync existed, what it
+wanted, or how far along it was, because the one screen that knows all three
+was behind the thing it was waiting for.
+
+So the button is always offered (except to ACSA), and it opens five steps, each
+either done, to do with what to do about it, or not checked yet because the step
+before it has not passed:
+
+1. this deployment knows where the portal is
+2. you are signed in to Microsoft
+3. the site resolves
+4. the two lists and the evidence library are there
+5. every field has a column to go in
+
+Not-checked-yet is not a failure and does not look like one. Half of setting
+this up is knowing which half is somebody else's problem.
+
+Two details that are there because they are how this actually fails: the
+redirect URI it tells you to register is built from `window.location.origin`,
+so it is the exact string this deployment will send rather than one typed from
+memory; and it says out loud that `NEXT_PUBLIC_*` is read at **build** time, so
+setting the variable without redeploying changes nothing and looks identical.
+
+### What the SharePoint site has to contain, from one source
+
+The lists to create, the columns each needs and the alternative names that would
+also be matched are one export in `src/lib/sharepoint.ts` — `LIST_NAMES`,
+`CHECK_FIELDS`, `FINDING_FIELDS` and `columnContract()` — and the readiness
+screen renders them from it. Whoever builds the site builds it from that screen.
+A screen restating the names in its own words would be a second copy to keep in
+step with the matcher, and the cost of them disagreeing is a column that exists
+and is silently never written. `tests/sharepoint.test.mjs` builds a list from
+the contract and asserts the matcher then reports nothing missing.
+
 ### Why it asks you to look first
 
 Sign in → read the portal → **read the plan** → then a button that writes.
