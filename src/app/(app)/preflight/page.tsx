@@ -377,7 +377,10 @@ export default function PreflightPage() {
   return (
     <div className="app-scroll flex min-w-0 flex-1 flex-col overflow-y-auto px-5 py-5">
       <div className="mx-auto w-full max-w-[760px]">
-        <h1 className="font-display text-[19px] font-bold">Pre-flight</h1>
+        {/* h2, not h1: the shell already puts one h1 on every screen naming
+            the screen and the audit, and a second h1 makes the outline lie
+            about which of the two is the page. */}
+        <h2 className="font-display text-[19px] font-bold">Pre-flight</h2>
         <p className="mt-1 max-w-[62ch] text-[12.5px] leading-[1.6]" style={{ color: "var(--ink-2)" }}>
           Ten seconds on the device you are going to audit with, before you are standing on an
           apron. Every row says what to do about it, not just that it is red.

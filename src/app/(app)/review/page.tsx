@@ -297,6 +297,7 @@ export default function ReviewPage() {
                               ? "warn"
                               : "neutral"
                       }
+                      label={it.response.compliance ?? "Not captured"}
                     />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>

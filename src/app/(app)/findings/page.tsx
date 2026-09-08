@@ -172,7 +172,10 @@ export default function FindingsPage() {
                     style={{ borderColor: "var(--line)", background: on ? "var(--acc-soft)" : "transparent" }}
                   >
                     {on && <span className="absolute inset-y-0 left-0 w-[2.5px]" style={{ background: "var(--acc)" }} />}
-                    <Dot tone={band === "Red" ? "bad" : band === "Amber" ? "warn" : band === "Green" ? "good" : "pending"} />
+                    <Dot
+                      tone={band === "Red" ? "bad" : band === "Amber" ? "warn" : band === "Green" ? "good" : "pending"}
+                      label={band ?? "Not rated"}
+                    />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
                         {f.id} · {f.discipline}

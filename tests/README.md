@@ -1,6 +1,6 @@
 # Tests
 
-Thirty-two suites, no framework. Twelve need a running server; twenty do not.
+Thirty-three suites, no framework. Thirteen need a running server; twenty do not.
 **Check each suite's exit status, not its output**: a `for` loop over them
 reports the status of the loop.
 
@@ -41,13 +41,14 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `persite.js` | yes | 25 |
 | `vision.js` | starts its own | 23 |
 | `record.js` | starts its own | 14 |
-| `flow.js` | yes | 48 |
+| `flow.js` | yes | 49 |
 | `offline.js` | yes | 18 |
 | `team.js` | yes | 15 |
 | `preflight.js` | yes | 15 |
 | `shared.js` | starts its own | 38 |
+| `a11y.js` | yes | 46 |
 
-**1,120 assertions in total**, every count above verified by running the suite,
+**1,167 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -735,6 +736,35 @@ BASE_NO_KEY=http://localhost:3000 BASE_WITH_KEY=http://localhost:3001 node tests
 Neither key has to be valid — invalid ones exercise the failure paths, which are
 the branches worth testing. The transcription *success* path cannot be tested
 without a real key and is the one thing here that has never run.
+
+## `a11y.js`
+
+Can this be used by somebody who cannot see it — or, far more often here, cannot
+see it *well*? Squawk is read on a tablet held at arm's length on an apron at
+midday, where low-contrast grey is invisible to everybody, and roughly one man in
+twelve cannot separate the red dot from the green one.
+
+```bash
+BASE=http://localhost:3000 node tests/a11y.js
+```
+
+It computes the contrast of every ink step against every surface it can land on,
+in **both** themes, from the tokens as the browser actually resolves them — not
+from the hex values in the stylesheet — and drives all eight screens looking for
+a control nobody could name, a field nobody could label, a missing landmark or
+heading, and colour carrying meaning on its own.
+
+On its first run it found: no `main` landmark anywhere, no `h1` on seven of the
+eight screens, no skip link, two unlabelled fields on Follow-up, seven status
+dots that said nothing at all, and four light-theme tokens below WCAG AA — two
+of them at 2.34:1 and 3.23:1, used for 9px hint text.
+
+The dot assertion is the one worth understanding. A small round span passes if it
+says what its colour means, **or** if it is marked `aria-hidden` *and the row it
+sits in says the state in words anyway* — a green dot beside "23 findings" is a
+second reading of something already written. `aria-hidden` on its own is not a
+pass; that would let any dot be silenced with one attribute, which is the exact
+failure the assertion exists to catch.
 
 ## Exit status
 

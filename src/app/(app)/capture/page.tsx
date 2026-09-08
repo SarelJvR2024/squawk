@@ -279,7 +279,17 @@ function CaptureInner() {
                 }}
               >
                 {on && <span className="absolute inset-y-0 left-0 w-[2.5px]" style={{ background: "var(--acc)" }} />}
-                <Dot tone={dotTone(c)} hollow={dotHollow(c)} />
+                <Dot
+                  tone={dotTone(c)}
+                  hollow={dotHollow(c)}
+                  label={
+                    dotHollow(c)
+                      ? "Answered, not saved"
+                      : deskDone(responses[c.id])
+                        ? "Saved"
+                        : "Not answered"
+                  }
+                />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
                     {portalIdFor(entityCode, c.id)} · {c.system}

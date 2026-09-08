@@ -638,7 +638,10 @@ export default function HazardsPage() {
                       }}
                     >
                       <span className="flex items-center gap-[6px]">
-                        <Dot tone={h.ratingConfirmed && band ? BAND_META[band].tone : "pending"} />
+                        <Dot
+                          tone={h.ratingConfirmed && band ? BAND_META[band].tone : "pending"}
+                          label={h.ratingConfirmed && band ? `${band} — ${BAND_META[band].label}` : "Not rated"}
+                        />
                         <span className="font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>
                           {h.id}
                         </span>

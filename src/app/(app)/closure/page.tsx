@@ -255,6 +255,7 @@ export default function ClosurePage() {
                       tone={
                         o === "Closed" ? "good" : o === "Open - repeat" ? "bad" : o ? "warn" : "pending"
                       }
+                      label={o ?? "Not verified yet"}
                     />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
@@ -400,6 +401,7 @@ export default function ClosurePage() {
                 value={v?.evidence ?? ""}
                 onChange={(e) => patchVerification(active.key, { evidence: e.target.value })}
                 placeholder="What proves it was fixed…"
+                aria-label="Evidence that it was fixed"
                 className="min-h-[70px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
                 style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
               />
@@ -443,6 +445,7 @@ export default function ClosurePage() {
                     }
                   }}
                   placeholder="What moved, in one line…"
+                  aria-label="Progress note"
                   className="min-w-0 flex-1 rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
                   style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
                 />
@@ -505,6 +508,7 @@ export default function ClosurePage() {
                                     ? "warn"
                                     : "neutral"
                           }
+                        label={rr?.compliance ?? "Not captured"}
                         />
                         <span className="min-w-0 flex-1">
                           <span className="block font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>

@@ -229,6 +229,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           own. It costs about 44px of a 664px screen and buys back seven
           destinations. From sm upward nothing moves: one row, 52px, exactly as
           measured at 820/1024/1180. */}
+      {/* Straight to the work, for anyone driving this from the keyboard. Seven
+          destinations plus the audit switcher is a lot of tabbing to reach the
+          first check. Invisible until it is focused, which is the only time it
+          is of use to anybody. */}
+      <a
+        href="#work"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:rounded-[8px] focus:px-3 focus:py-2 focus:text-[12px] focus:font-semibold"
+        style={{ background: "var(--panel)", color: "var(--acc)", boxShadow: "var(--e2)" }}
+      >
+        Skip to the audit
+      </a>
       <header className="masthead flex min-h-[52px] shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b px-3.5 py-1 sm:h-[52px] sm:flex-nowrap sm:py-0">
         <Link href="/dashboard" className="flex min-h-[44px] shrink-0 items-center gap-[9px] no-underline">
           <span
@@ -243,7 +254,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </svg>
           </span>
           {/* THE AUDIT IS THE HEADLINE, not the app name.
-              
+
               This was the other way round: "Squawk" at 13px bold over the site
               and visit at 8.5px. But nobody needs telling which app they are
               in, and the one question the masthead has to answer without being
@@ -251,7 +262,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               visits each, all of which look identical once you are inside a
               check. Capturing a day's work against the wrong visit is not
               recoverable by anyone who does not know it happened.
-              
+
               So the hierarchy is inverted and the visit carries the accent:
               the site code is the constant, the visit is the thing that can be
               wrong. */}
@@ -355,6 +366,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     are their icon and their count, which is what a bottom bar
                     has always been. Full labels return at sm. */}
                 <span className={active ? "" : "hidden sm:inline"}>{n.label}</span>
+                {/* The dot above is aria-hidden — a decoration on the icon — so
+                    the thing it is telling you has to be here, in words, or a
+                    screen-reader user never learns their afternoon is not
+                    reaching the team. */}
+                {n.href === "/preflight" && sharedNeedsYou && (
+                  <span className="sr-only">— the shared record needs you</span>
+                )}
                 {badge !== "" && badge !== 0 && (
                   <span
                     className="rounded-full px-[5px] font-mono text-[9px]"
@@ -594,7 +612,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   : undefined
               }
             >
+              {/* Decorative, and allowed to be: the note beside it already says
+                  the state in words — "23 findings", "not audited", "this
+                  visit", "scheduled" — so the colour is a second reading of
+                  something written, not the only carrier of it. */}
               <span
+                aria-hidden
                 className="h-[7px] w-[7px] rounded-full"
                 style={{
                   background:
@@ -623,7 +646,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         ))}
       </div>
 
-      <div className="flex min-h-0 flex-1">{children}</div>
+      {/* A landmark, and the one heading each screen was missing.
+
+          Every screen started at an h2 — the check's own title on Capture, a
+          section title elsewhere, nothing at all on Findings and Hazards — so
+          somebody navigating by headings had no top of the document to start
+          from, and no way to skip the seven-destination nav to reach the work.
+          The heading is visually hidden because the screens are already
+          titled by the masthead for a sighted auditor; it names the screen AND
+          the audit, because "Findings" without the airport is the one thing
+          this app must never be ambiguous about. */}
+      <main id="work" className="flex min-h-0 flex-1">
+        <h1 className="sr-only">
+          {NAV.find((n) => n.href === pathname)?.label ?? "Squawk"} — {entityOf(entityCode).short}{" "}
+          {visitLabel}
+        </h1>
+        {children}
+      </main>
 
       {palette && (
         <div

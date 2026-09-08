@@ -1082,6 +1082,10 @@ export default function CheckDetail({
             {/* Both halves, named. "Captured" on a check that also needs the
                 asset seen would be a claim nobody has earned yet. */}
             <span
+              /* Decorative: the words immediately after it say the same thing —
+                 "complete · Sarel", "desk done", "not captured yet". The colour
+                 is there to be read at a glance, not to be the only reading. */
+              aria-hidden
               className="h-[6px] w-[6px] rounded-full"
               style={{
                 background: r.captured

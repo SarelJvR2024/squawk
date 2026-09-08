@@ -17,20 +17,31 @@
   --line-3: #c7c0dc;
   --ink: #16131f;
   --ink-2: #56506b;
-  --ink-3: #8b84a0;
-  --ink-4: #ada6bf;
+  /* THE BOTTOM TWO STEPS ARE DARKER THAN THEY LOOK THEY SHOULD BE, and that is
+     deliberate. They were #8b84a0 and #ada6bf — 3.56:1 and 2.34:1 on a panel,
+     both below WCAG AA for text, and both used at 9 to 11.5px. That is a
+     problem for anyone with less than perfect sight and a problem for EVERYONE
+     on an apron at King Shaka at midday, where a tablet in direct sun loses
+     low-contrast grey entirely. The ladder is now 18.3 / 7.6 / 6.8 / 5.2 on a
+     panel: four steps that still read as four steps, and not one of them
+     unreadable. tests/a11y.js computes these at runtime and fails if a token
+     ever drifts back under. */
+  --ink-3: #5e5771;
+  --ink-4: #736790;
   --acc: #4b2e83;
   --acc-2: #5c3a9c;
   --acc-soft: #f0eafb;
   --acc-line: #d9cbf2;
   --on-acc: #ffffff;
-  --good: #157f52;
+  /* 4.43:1 on --good-bg was a hair under AA. */
+  --good: #157d51;
   --good-bg: #e7f4ed;
   --good-line: #a8dcc1;
   --bad: #b93338;
   --bad-bg: #fbebec;
   --bad-line: #efb3b6;
-  --warn: #9c6b12;
+  /* 4.13:1 on --warn-bg, likewise. */
+  --warn: #946511;
   --warn-bg: #faf1dc;
   --warn-line: #e5c689;
   --neu: #6f6889;
@@ -66,7 +77,8 @@
     --ink: #f3f1fa;
     --ink-2: #b9b2d2;
     --ink-3: #8b83a8;
-    --ink-4: #6b6488;
+    /* 3.23:1 on a dark panel — the same problem the other way up. */
+    --ink-4: #857fa1;
     --acc: #a78beb;
     --acc-2: #bca5f2;
     --acc-soft: #251e3f;

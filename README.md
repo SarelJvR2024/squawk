@@ -59,7 +59,7 @@ npm run build && npm start
 
 ## Tests
 
-Twenty-two suites, no framework, all plain `node`. See `tests/README.md` — and
+Thirty-three suites, no framework, all plain `node`. See `tests/README.md` — and
 check each suite's **exit status**, not the output: a `for` loop over them
 reports the status of the loop, not of the suites.
 
@@ -83,17 +83,20 @@ node tests/merge.test.mjs                # two auditors' work, combined without 
 node tests/checkscreen.test.mjs          # the brief, and that nothing was dropped
 node tests/figures.test.mjs              # the prose still matches the register
 node tests/assets.test.mjs               # a stand-in tag can never reach the portal
+node tests/sharepoint.test.mjs           # nothing reaches the tenant by accident
 node tests/vision.js                     # starts its own servers
 node tests/record.js                     # starts its own server
+node tests/shared.js                     # starts its own server and a fake Supabase
 npm run build && npm start &             # then, against a running server:
 BASE=http://localhost:3000 node tests/e2e.js          # 21 assertions
 BASE=http://localhost:3000 node tests/robustness.js   # 38 assertions
 BASE=http://localhost:3000 node tests/exports.js      # 32 assertions
 BASE=http://localhost:3000 node tests/persite.js      # 25 assertions, four sites
-BASE=http://localhost:3000 node tests/flow.js         # 48 assertions
+BASE=http://localhost:3000 node tests/flow.js         # 49 assertions
 BASE=http://localhost:3000 node tests/offline.js      # 18, with the network cut
 BASE=http://localhost:3000 node tests/team.js         # 15, two devices, one audit
 BASE=http://localhost:3000 node tests/preflight.js    # 15, on a device with no mic
+BASE=http://localhost:3000 node tests/a11y.js         # 46, contrast and the keyboard
 BASE_NO_KEY=... BASE_WITH_KEY=... node tests/ai.js    # 26 assertions
 ```
 
@@ -313,7 +316,7 @@ src/
     answers.json      9,836 researched options, loaded on demand
     priorFindings.json  the 23 March 2025 findings
     programme.json    entities, the 3-year cycle, zones
-tests/                twenty-two suites — see tests/README.md
+tests/                thirty-three suites — see tests/README.md
 ```
 
 ## Notes for whoever picks this up
@@ -968,3 +971,26 @@ on. That is Q4 and it is not settled. If
 ACSA's governance requires data to stay in their tenant, point
 `src/app/api/assist/route.ts` and `src/app/api/transcribe/route.ts` at
 in-tenant endpoints; nothing in the UI changes.
+
+## Reading it in the sun
+
+Squawk is read on a tablet held at arm's length on an apron at midday. That is
+the accessibility problem here, and it is not a minority one: low-contrast grey
+in direct sun is invisible to everybody, and roughly one man in twelve cannot
+separate the red dot from the green one.
+
+Four light-theme tokens were below WCAG AA when this was measured — `--ink-4` at
+**2.34:1** and, in dark, **3.23:1**, both used at 9 to 11.5px. The ink ladder is
+now 18.3 / 7.6 / 6.8 / 5.2 on a panel: four steps that still read as four steps,
+none of them unreadable. `--good` and `--warn` moved a shade for the same
+reason.
+
+Alongside that: a `main` landmark and one `h1` per screen naming the screen and
+the audit (both supplied by `AppShell`, so a page adds an `h2`, not a second
+`h1`); a skip link as the first thing the keyboard reaches; and every status dot
+either saying what its colour means or marked `aria-hidden` because the row it
+sits in already says it in words.
+
+`tests/a11y.js` computes all of this from the tokens **as the browser resolves
+them**, in both themes, and drives all eight screens. It fails if a token drifts
+back under AA or a dot goes quiet.
