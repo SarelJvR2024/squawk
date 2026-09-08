@@ -33,9 +33,13 @@ import { getBlob } from "@/lib/media";
 import * as graph from "@/lib/graph";
 import {
   buildPlan,
+  columnContract,
   mapFields,
   planTotals,
   projectFields,
+  CHECK_FIELDS,
+  FINDING_FIELDS,
+  LIST_NAMES,
   type FieldMap,
   type PlannedRow,
   type SyncPlan,
@@ -43,14 +47,17 @@ import {
 import { Btn } from "@/components/ui/primitives";
 import { IconX } from "@/components/ui/icons";
 
-const CHECK_FIELDS = ["title", "discipline", "assetSystem", "compliance", "observation", "auditor", "assessedOn"];
-const FINDING_FIELDS = [
-  "title", "discipline", "assetSystem", "observation", "severity", "likelihood",
-  "riskPriority", "tolerance", "status", "rootCause", "treatment", "owner",
-  "targetDate", "progress", "dateRaised", "assets",
-];
-
 type Stage = "idle" | "reading" | "planned" | "writing" | "done";
+
+/** A readiness step: done, not done and here is what to do, or not checked yet
+ *  because the step before it has not passed. "waiting" is not a failure and
+ *  must not look like one — half of setting this up is knowing which half is
+ *  your problem. */
+interface Step {
+  label: string;
+  state: "ok" | "todo" | "waiting";
+  detail: string;
+}
 
 interface Resolved {
   siteId: string;
@@ -107,15 +114,15 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       const site = await graph.resolveSite();
       const all = await graph.lists(site.id);
       const find = (want: RegExp) => all.find((l) => want.test(l.displayName));
-      const checkList = find(/^check-?points?$/i);
-      const findingList = find(/^findings?$/i);
+      const checkList = find(LIST_NAMES.checkpoints);
+      const findingList = find(LIST_NAMES.findings);
 
       let checkPart: Resolved["checkList"] = null;
       let findPart: Resolved["findingList"] = null;
       const existing = { checkpoints: new Map<string, string>(), findings: new Map<string, string>() };
 
       if (checkList) {
-        const map = mapFields(await graph.columns(site.id, checkList.id), CHECK_FIELDS);
+        const map = mapFields(await graph.columns(site.id, checkList.id), [...CHECK_FIELDS]);
         checkPart = { id: checkList.id, map };
         for (const it of await graph.items(site.id, checkList.id, ["Title"])) {
           const t = String(it.fields.Title ?? "");
@@ -123,7 +130,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
         }
       }
       if (findingList) {
-        const map = mapFields(await graph.columns(site.id, findingList.id), FINDING_FIELDS);
+        const map = mapFields(await graph.columns(site.id, findingList.id), [...FINDING_FIELDS]);
         findPart = { id: findingList.id, map };
         for (const it of await graph.items(site.id, findingList.id, ["Title"])) {
           const t = String(it.fields.Title ?? "");
@@ -131,7 +138,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
         }
       }
 
-      const drive = (await graph.drives(site.id)).find((d) => /document|shared|evidence/i.test(d.name))
+      const drive = (await graph.drives(site.id)).find((d) => LIST_NAMES.evidence.test(d.name))
         ?? (await graph.drives(site.id))[0];
 
       setResolved({
@@ -222,6 +229,70 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
     ...(resolved?.findingList?.map.missing ?? []).map((m) => `Findings · ${m}`),
   ];
 
+  /* WHAT IS READY AND WHAT IS NOT, as a list rather than as an absence.
+   *
+   *  This screen used to be unreachable until the whole thing worked: the
+   *  masthead hid the Sync button unless the deployment was configured, on the
+   *  reasoning that a button which can only explain why it does not work is
+   *  clutter. That is true of a button. It is not true of a SETUP, and the
+   *  setup is where this feature has been stuck — nobody could see whether the
+   *  sync existed, what it wanted, or how far along it was, because the one
+   *  screen that knows all three was behind the thing it was waiting for.
+   *
+   *  So the button is always there now and this is what it opens: five steps,
+   *  each either done, not done with what to do about it, or not checked yet
+   *  because the step before it has not passed. Nothing here writes; nothing
+   *  here even reads until you ask it to. */
+  const steps: Step[] = [
+    {
+      label: "This deployment knows where the portal is",
+      state: configured ? "ok" : "todo",
+      detail: configured
+        ? `${graph.GRAPH_SITE}`
+        : `Set ${graph.graphMissing().join(" and ")} in Vercel and redeploy. These are read at BUILD time, so setting them without a new deploy changes nothing.`,
+    },
+    {
+      label: "You are signed in to Microsoft",
+      state: !configured ? "waiting" : who ? "ok" : "todo",
+      detail: who
+        ? `${who} — held in this tab only, never written to the device.`
+        : "Sign in below. Squawk writes as you, not as itself, so the portal's history shows a person.",
+    },
+    {
+      label: "The site resolves",
+      state: !who ? "waiting" : resolved ? "ok" : "todo",
+      detail: resolved
+        ? `${resolved.lists.length} list${resolved.lists.length === 1 ? "" : "s"} on it`
+        : "Press “Read the portal” — everything up to the last button is a GET.",
+    },
+    {
+      label: "The two lists and the evidence library are there",
+      state: !resolved
+        ? "waiting"
+        : resolved.checkList && resolved.findingList && resolved.driveId
+          ? "ok"
+          : "todo",
+      detail: !resolved
+        ? "Checked when the portal is read."
+        : [
+            resolved.checkList ? null : "no list matching Check-points",
+            resolved.findingList ? null : "no list matching Findings",
+            resolved.driveId ? null : "no document library to put photographs in",
+          ]
+            .filter(Boolean)
+            .join(" · ") || `Check-points, Findings and a library — all found.`,
+    },
+    {
+      label: "Every field has a column to go in",
+      state: !resolved ? "waiting" : missing.length === 0 ? "ok" : "todo",
+      detail: !resolved
+        ? "Checked when the portal is read."
+        : missing.length === 0
+          ? "Nothing will be silently dropped."
+          : `${missing.length} field${missing.length === 1 ? "" : "s"} would be skipped: ${missing.join(", ")}. Add the columns below, or accept the gap — the plan will keep saying so.`,
+    },
+  ];
+
   return (
     <div
       className="fixed inset-0 z-[80] flex justify-center overflow-y-auto py-[8vh]"
@@ -240,19 +311,88 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
+        <p className="mb-3 text-[12px] leading-[1.55]" style={{ color: "var(--ink-2)" }}>
+          Writes this visit&apos;s capture into the SharePoint lists, as <b>you</b> — not as
+          Squawk — so the portal&apos;s history shows who did it. Nothing is written until you
+          have read the plan and pressed the last button.
+        </p>
+
+        {/* --- readiness ------------------------------------------------ */}
+        <ol className="mb-3">
+          {steps.map((st, i) => (
+            <li
+              key={st.label}
+              className="flex gap-[9px] border-b py-[7px] last:border-b-0"
+              style={{ borderColor: "var(--line)" }}
+            >
+              <span
+                aria-hidden="true"
+                className="mt-[1px] flex h-[16px] w-[16px] shrink-0 items-center justify-center rounded-full font-mono text-[9px]"
+                style={
+                  st.state === "ok"
+                    ? { background: "var(--good-bg)", color: "var(--good)" }
+                    : st.state === "todo"
+                      ? { background: "var(--warn-bg)", color: "var(--warn)" }
+                      : { background: "var(--sunken)", color: "var(--ink-4)" }
+                }
+              >
+                {st.state === "ok" ? "✓" : st.state === "todo" ? "!" : i + 1}
+              </span>
+              <span className="min-w-0 flex-1">
+                <b className="block text-[11.5px] font-semibold">
+                  {st.label}
+                  {/* The state in words as well as in colour. */}
+                  <span className="ml-[6px] font-mono text-[9px] font-normal" style={{ color: "var(--ink-4)" }}>
+                    {st.state === "ok" ? "DONE" : st.state === "todo" ? "TO DO" : "NOT CHECKED YET"}
+                  </span>
+                </b>
+                <span className="mt-[1px] block text-[11px] leading-[1.5]" style={{ color: "var(--ink-3)" }}>
+                  {st.detail}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ol>
+
         {!configured ? (
-          <p className="text-[12px] leading-[1.55]" style={{ color: "var(--ink-2)" }}>
-            This deployment has no portal configured, so there is nothing to sync to. Set{" "}
-            <code className="font-mono text-[11px]">{graph.graphMissing().join("</code>, <code>")}</code> and
-            redeploy. Everything else in Squawk works without it — the workbook export is unaffected.
-          </p>
+          <>
+            <Note tone="plain">
+              Everything else in Squawk works without this — the workbook export is unaffected. The
+              sync needs one Entra ID app registration in the tenant that owns the site, and it never
+              involves a client secret: it signs the auditor in and writes as them.
+            </Note>
+            <ol className="mb-3 list-decimal pl-5 text-[11.5px] leading-[1.6]" style={{ color: "var(--ink-2)" }}>
+              <li>
+                Entra ID → App registrations → New registration.
+              </li>
+              <li>
+                Redirect URI: <b>Single-page application (SPA)</b> — not Web —{" "}
+                <code className="font-mono text-[10.5px]">
+                  {typeof window === "undefined" ? "https://…" : window.location.origin}/graph-callback
+                </code>
+                . SPA is what allows PKCE without a secret and the CORS the token call needs.
+              </li>
+              <li>
+                API permissions → Microsoft Graph → <b>Delegated</b> →{" "}
+                <code className="font-mono text-[10.5px]">Sites.ReadWrite.All</code> → grant admin
+                consent.
+              </li>
+              <li>Do not create a client secret. There is nowhere to put one.</li>
+              <li>
+                Set{" "}
+                {graph.graphMissing().map((v, i, all) => (
+                  <span key={v}>
+                    <code className="font-mono text-[10.5px]">{v}</code>
+                    {i < all.length - 2 ? ", " : i === all.length - 2 ? " and " : ""}
+                  </span>
+                ))}{" "}
+                in Vercel, then <b>redeploy</b>. They are read at build time — changing the variable
+                without a new deploy changes nothing.
+              </li>
+            </ol>
+          </>
         ) : (
           <>
-            <p className="mb-3 text-[12px] leading-[1.55]" style={{ color: "var(--ink-2)" }}>
-              Writes this visit&apos;s capture into the SharePoint lists, as <b>you</b> — not as
-              Squawk — so the portal&apos;s history shows who did it. Nothing is written until you
-              have read the plan and pressed the last button.
-            </p>
 
             {/* --- sign in ------------------------------------------------ */}
             <div
@@ -390,8 +530,68 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
             )}
           </>
         )}
+
+        {/* The contract, in every state — before setup because it is what the
+            site has to be built to, and after because it is what a missing
+            column means. */}
+        <Contract />
       </div>
     </div>
+  );
+}
+
+/** WHAT THE SITE HAS TO CONTAIN, rendered from the same constants the sync
+ *  matches on. Whoever builds the lists needs this exactly, and a screen that
+ *  restated it in its own words would be a second copy to keep in step. */
+function Contract() {
+  const rows = [
+    { list: "Check-points", alsoNamed: "Checkpoints · Check point · Check points", fields: columnContract(CHECK_FIELDS) },
+    { list: "Findings", alsoNamed: "Finding", fields: columnContract(FINDING_FIELDS) },
+  ];
+  return (
+    <details className="mt-1">
+      <summary className="cursor-pointer text-[11.5px]" style={{ color: "var(--acc)" }}>
+        What the SharePoint site has to contain
+      </summary>
+      <div className="mt-2 text-[11px] leading-[1.55]" style={{ color: "var(--ink-2)" }}>
+        <p className="mb-2">
+          Two lists and one document library, found by <b>display name</b>. <b>Title</b> is the join
+          key in both lists — it is what makes a second sync update rather than duplicate. A column
+          Squawk cannot find is reported in the plan and skipped, never guessed; a read-only or
+          computed column counts as absent.
+        </p>
+        {rows.map((r) => (
+          <div key={r.list} className="mb-2.5">
+            <b className="block text-[11.5px]">
+              List: {r.list}{" "}
+              <span className="font-mono text-[9.5px] font-normal" style={{ color: "var(--ink-4)" }}>
+                or {r.alsoNamed}
+              </span>
+            </b>
+            <ul className="mt-1 pl-0">
+              {r.fields.map((f) => (
+                <li key={f.key} className="py-[1px]">
+                  <span className="font-mono text-[10.5px]">{f.create}</span>
+                  {f.alsoAccepts.length > 0 && (
+                    <span className="text-[10px]" style={{ color: "var(--ink-4)" }}>
+                      {" "}· or {f.alsoAccepts.join(" · ")}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+        <p>
+          Photographs go to a document library whose name contains <b>Document</b>, <b>Shared</b> or{" "}
+          <b>Evidence</b>, in a folder named for the site.
+        </p>
+        <p className="mt-2" style={{ color: "var(--ink-3)" }}>
+          Start every column as text, and dates as Date. A Choice column rejects any value not in its
+          own list, which fails the write for the whole row — easier to tighten later than to debug.
+        </p>
+      </div>
+    </details>
   );
 }
 

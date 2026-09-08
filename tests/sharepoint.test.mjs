@@ -544,7 +544,14 @@ check(
 
 check(
   "no internal column name is hardcoded anywhere",
-  !/field_\d/.test(spSrc) && !/field_\d/.test(panel) && /FIELD_CANDIDATES/.test(spSrc),
+  /* THE CODE, not the comments. sharepoint.ts now explains in prose that an
+     internal name looks like `field_7` and that nobody builds a list to one —
+     and this assertion, reading the raw file, failed on the very sentence
+     promising the code does not contain them. Same trap the header of this
+     suite describes for the token, one file along. */
+  !/field_\d/.test(codeOnly(spSrc)) &&
+    !/field_\d/.test(codeOnly(panel)) &&
+    /FIELD_CANDIDATES/.test(spSrc),
   "SharePoint internal names are not display names and are not guessable"
 );
 
@@ -555,7 +562,109 @@ check(
 
 check(
   "ACSA cannot sync — the portal is where their copy comes from",
-  /role !== "acsa" && graphConfigured\(\)/.test(shell)
+  /role !== "acsa" && \(/.test(shell) && /SyncPanel/.test(shell)
+);
+
+/* ------------------------- the setup is a screen, not an absence ---------- */
+
+/* THE BUTTON IS NO LONGER GATED ON THE THING IT SETS UP.
+ *
+ *  It used to render only where a portal was already configured, which meant
+ *  the one screen that knows what the setup needs was behind the setup. That
+ *  is where this feature sat: not broken, invisible. */
+check(
+  "the Sync button is offered whether or not a portal is configured yet",
+  !/graphConfigured\(\)/.test(shell),
+  "hiding it hid the only screen that says what is missing"
+);
+
+check(
+  "and the panel opens on a readiness list, not on a dead end",
+  /const steps: Step\[\]/.test(panel) &&
+    /state: configured \? "ok" : "todo"/.test(panel),
+  ""
+);
+
+check(
+  "a step that has not been reached says so rather than reading as a failure",
+  /"ok" \| "todo" \| "waiting"/.test(panel) && /NOT CHECKED YET/.test(panel),
+  "half of setting this up is knowing which half is your problem"
+);
+
+check(
+  "the state is in words as well as in colour",
+  /DONE.*TO DO.*NOT CHECKED YET|"DONE"[\s\S]{0,120}"TO DO"/.test(panel),
+  ""
+);
+
+check(
+  "the redirect URI it tells you to register is the one this deployment actually uses",
+  /window\.location\.origin\}\/graph-callback/.test(panel),
+  "a redirect URI typed from memory is the single most common way this fails"
+);
+
+check(
+  "it says the variables are read at BUILD time",
+  /build time/i.test(panel) && /redeploy/i.test(panel),
+  "setting them without a new deploy changes nothing, and looks identical"
+);
+
+/* --------------- one source of truth for what the portal must look like --- */
+
+check(
+  "the list names, the fields and the column names are all exported from one place",
+  /export const LIST_NAMES/.test(spSrc) &&
+    /export const CHECK_FIELDS/.test(spSrc) &&
+    /export const FINDING_FIELDS/.test(spSrc) &&
+    /export function columnContract/.test(spSrc),
+  ""
+);
+
+check(
+  "the reader matches lists with those names rather than its own regexes",
+  /LIST_NAMES\.checkpoints/.test(panel) &&
+    /LIST_NAMES\.findings/.test(panel) &&
+    /LIST_NAMES\.evidence/.test(panel) &&
+    !/\/\^check-\?points\?\$\/i/.test(panel),
+  "two copies of the name would drift, and the drift would be silent"
+);
+
+check(
+  "a list called \"Check points\" — which is what SharePoint's own dialog produces — is matched",
+  sp.LIST_NAMES.checkpoints.test("Check points") &&
+    sp.LIST_NAMES.checkpoints.test("Check-points") &&
+    sp.LIST_NAMES.checkpoints.test("Checkpoints") &&
+    !sp.LIST_NAMES.checkpoints.test("Check-points archive"),
+  ""
+);
+
+/* THE CONTRACT IS DERIVED, NOT RESTATED. Whoever builds the SharePoint site
+   builds it from this screen; a screen that listed the column names in its own
+   words would be a second copy to keep in step with the matcher, and the cost
+   of them disagreeing is a column that exists and is silently never written. */
+const contract = sp.columnContract(sp.CHECK_FIELDS);
+check(
+  "the column contract names exactly the fields the sync maps, in order",
+  contract.length === sp.CHECK_FIELDS.length &&
+    contract.every((c, i) => c.key === sp.CHECK_FIELDS[i]),
+  ""
+);
+check(
+  "every name it tells you to create is one the matcher would actually accept",
+  contract.every((c) => (sp.FIELD_CANDIDATES[c.key] ?? [])[0] === c.create) &&
+    contract.every((c) =>
+      c.alsoAccepts.every((n) => (sp.FIELD_CANDIDATES[c.key] ?? []).includes(n))
+    ),
+  "a contract that asks for a column the sync does not look for is worse than none"
+);
+check(
+  "and the map built from those very names resolves every field",
+  (() => {
+    const columns = contract.map((c) => ({ name: `field_${c.key}`, displayName: c.create }));
+    const map = sp.mapFields(columns, [...sp.CHECK_FIELDS]);
+    return map.missing.length === 0;
+  })(),
+  "build the site to the screen and nothing should be reported missing"
 );
 
 check(
