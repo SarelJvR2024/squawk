@@ -10,9 +10,16 @@
  *
  *  Sarel's brief was specific: the question to ask, the threshold, and a plain
  *  explanation are the three things that must be unmissable; everything else is
- *  reference and needs a better way in than a stack; the compliance buttons
- *  belong in the header where they are always visible; and knowing what
- *  evidence to ask for is the most important thing on the capture side.
+ *  reference and needs a better way in than a stack; and knowing what evidence
+ *  to ask for is the most important thing on the capture side.
+ *
+ *  THEN HE USED IT, and the second brief was just as specific: it is still too
+ *  busy, the compliance buttons are too big and should go down to the pinned
+ *  bar where there is open space, the ACSA background and the answer chips
+ *  should be ONE space with tabs at the top rather than two columns, and the
+ *  only things that should never move are a short line saying what to ask and
+ *  what evidence is needed. So the two columns are one tabbed panel now, and
+ *  the compliance buttons live in the same pinned bar as Save.
  *
  *  So this suite asserts two different kinds of thing, and the second matters
  *  more than the first:
@@ -53,17 +60,40 @@ const at = (needle) => codeOnly.indexOf(needle);
 /* ------------------------------- the brief -------------------------------- */
 
 check(
-  "the question is the first thing in the reference column",
-  at("Ask ACSA") > at("{/* reference column */}".replace(/\/\*[\s\S]*?\*\//, "")) ||
-    at("Ask ACSA") > 0,
-  "it is the first thing an auditor says out loud"
+  "THE QUESTION AND THE EVIDENCE NEEDED ARE NOT IN A TAB",
+  at("{check.question}") < at('role="tablist"') &&
+    at("{evidenceLine}") < at('role="tablist"') &&
+    at("{evidenceLine}") > at("{check.question}"),
+  "the two lines the conversation starts from are the two that must never move"
 );
 
 check(
-  "and the order is question, then standard, then plain reading",
-  at("Ask ACSA") < at("The standard to audit against") &&
-    at("The standard to audit against") < at("In plain English"),
-  `${at("Ask ACSA")} / ${at("The standard to audit against")} / ${at("In plain English")}`
+  "the question is whole at rest, and one line only once the screen has been scrolled",
+  /stuck \? " line-clamp-1" : ""[\s\S]{0,200}\{check\.question\}/.test(codeOnly) &&
+    !/truncate[^"]*"[\s\S]{0,200}\{check\.question\}/.test(codeOnly),
+  "reading half of what you are about to ask is worse than a third line — but a pinned line on a phone is a line of the check you cannot see"
+);
+
+check(
+  "the brief and the tabs are pinned with the check's identity, not left to scroll",
+  at('className="relative z-[6] sm:sticky sm:top-0"') < at("{check.question}") &&
+    at("{check.question}") < at('role="tablist"') &&
+    at('role="tablist"') < at('role="tabpanel"'),
+  "a strip scrolled under the pinned answer bar cannot be pressed at all"
+);
+
+check(
+  "the evidence line is one line, and says where the rest of it is",
+  /truncate[\s\S]{0,120}\{evidenceLine\}/.test(codeOnly) &&
+    /setPanel\("acsa"\)/.test(codeOnly) &&
+    /all of it/.test(codeOnly),
+  "the longest evidence sentence in the register runs to 606 characters"
+);
+
+check(
+  "and the order in the panels is standard, then plain reading",
+  at("The standard to audit against") < at("In plain English"),
+  `${at("The standard to audit against")} / ${at("In plain English")}`
 );
 
 check(
@@ -95,18 +125,33 @@ check(
 
 /* ------------------------ the answer, always on screen -------------------- */
 
-const header = codeOnly.slice(at('className="sticky top-0 z-[6]'), at("{needsField(check) && ("));
+const header = codeOnly.slice(at('className="relative z-[6] sm:sticky'), at("{needsField(check) && ("));
+const pinnedBar = codeOnly.slice(at('className="sticky bottom-0 z-[7]"'));
 
 check(
-  "THE FOUR COMPLIANCE BUTTONS ARE IN THE STICKY HEADER",
-  /STATUSES\.map/.test(header) && /setCompliance\(check\.id/.test(header),
-  "reading the left column used to scroll the answer off the right"
+  "THE FOUR COMPLIANCE BUTTONS ARE IN THE PINNED BOTTOM BAR, WITH SAVE",
+  /STATUSES\.map/.test(pinnedBar) && /setCompliance\(check\.id/.test(pinnedBar),
+  "they were the biggest thing on the screen and they were above the material the decision is made from"
 );
 
 check(
-  "they are two by two on a phone and a row wherever four labels fit",
-  /grid min-w-0 flex-1 grid-cols-2 gap-\[5px\] sm:flex sm:flex-wrap/.test(codeOnly),
-  "four full labels do not fit 350px and wrapped three-then-one"
+  "and they are gone from the header, not copied into two places",
+  !/STATUSES\.map/.test(header),
+  "two sets of compliance buttons is two things to keep in step"
+);
+
+check(
+  "the bar is still pinned, so the answer is on screen at every scroll position",
+  /className="sticky bottom-0 z-\[7\]"/.test(codeOnly),
+  "moving them down is only safe because this bar does not scroll away"
+);
+
+check(
+  "four across on a phone, carrying ACSA's own code, and the full word everywhere else",
+  /grid min-w-\[250px\] flex-1 grid-cols-4 gap-\[5px\] sm:flex sm:flex-wrap/.test(codeOnly) &&
+    /<span className="sm:hidden">\{key\}<\/span>/.test(codeOnly) &&
+    /aria-label=\{label\}/.test(codeOnly),
+  "four full labels wrap to two rows at 390px, and the full word must still reach a screen reader"
 );
 
 check(
@@ -196,13 +241,14 @@ check(
   "a zero on every check is noise on the one thing that must stand out"
 );
 check(
-  "and the strip WRAPS rather than scrolling sideways",
-  /flex flex-wrap gap-\[5px\]"\n\s*>/.test(codeOnly) || /aria-label="Answer library"[\s\S]{0,600}flex-wrap/.test(codeOnly),
-  "a tab pushed off the right edge is a panel nobody knows is there"
+  "the strip WRAPS wherever there is room, and scrolls sideways only on a phone",
+  /sm:flex-wrap sm:overflow-visible/.test(codeOnly) &&
+    /overflow-x-auto border-b px-5/.test(codeOnly),
+  "a tab pushed off the right edge is a panel nobody knows is there — but five rows of PINNED strip is most of a 664px phone"
 );
 
 check(
-  "the old Status block is gone from the capture column, not duplicated",
+  "there is exactly ONE set of compliance buttons in the file",
   (codeOnly.match(/STATUSES\.map/g) || []).length === 1,
   "two sets of compliance buttons is two things to keep in step"
 );
@@ -239,48 +285,55 @@ check(
 
 /* ------------------------------- the tabs --------------------------------- */
 
+/* ONE STRIP, TWO GROUPS: what the auditor DOES with the check, then what the
+   auditor READS to do it. Both are `panels.push`, which is what makes the
+   merge real rather than two strips drawn next to each other. */
+check(
+  "the doing and the reading are tabs in the same list",
+  (codeOnly.match(/group: "do"/g) || []).length >= 5 &&
+    (codeOnly.match(/group: "read"/g) || []).length >= 4,
+  "five capture panels and four reference panels, in one strip"
+);
+
 check(
   "a tab exists only where the register carries that field",
-  (codeOnly.match(/refTabs\.push\(\{/g) || []).length === 6,
-  "six optional fields, six conditional tabs — a thin check shows two, not six empty ones"
+  /if \(check\.basis\)\n\s*panels\.push/.test(codeOnly) &&
+    /if \(pf\?\.note\)\n\s*panels\.push/.test(codeOnly) &&
+    /check\.acsaRequirement \|\|\n?\s*check\.acsaEvidence\.length > 0/.test(codeOnly),
+  "a thin check shows the tabs it has, not empty ones"
 );
 
 check(
-  "the reference body is bounded and scrolls",
-  /max-h-\[34vh\] overflow-y-auto/.test(codeOnly),
-  "one register row runs to 569 characters; unbounded it puts the brief off the screen"
+  "THE OPEN TAB IS RESOLVED AGAINST WHAT EXISTS, not trusted",
+  /const openKey = panels\.some\(\(t\) => t\.key === panel\) \? panel : panels\[0\]\.key;/.test(codeOnly),
+  "a key carried from the last check must never open a panel this one does not have"
 );
 
 check(
-  "THE TAB INDEX IS CLAMPED, not trusted",
-  /const refTab = Math\.min\(tab, Math\.max\(0, refTabs\.length - 1\)\);/.test(codeOnly),
-  "a check with two tabs must never index a third it does not have"
+  "and it is deliberately NOT reset when the check changes",
+  !/setPanel\("evidence"\);/.test(codeOnly.slice(at("if (shownFor !== check.id)"), at("useEffect(() => {"))),
+  "an auditor walking a discipline works the same panel check after check"
 );
 
 check(
-  "and it resets with the check, in render, not in an effect",
-  /setTab\(0\);/.test(codeOnly) && at("setTab(0);") < at("useEffect(() => {"),
-  "the next check must not paint carrying the previous one's open tab"
+  "the panel takes the whole width and scrolls inside itself from lg",
+  /lg:min-h-0 lg:flex-1 lg:overflow-y-auto/.test(codeOnly) &&
+    /role="tabpanel"/.test(codeOnly),
+  "below lg the whole screen scrolls, and flex-1 there spilled the content out of a short box"
 );
 
 check(
   "the tabs are reachable to a screen reader as tabs",
-  /role="tablist"/.test(codeOnly) && /role="tab"/.test(codeOnly) && /aria-selected=\{refTab === i\}/.test(codeOnly)
+  /role="tablist"/.test(codeOnly) && /role="tab"/.test(codeOnly) && /aria-selected=\{on\}/.test(codeOnly)
 );
 
 /* ---------------------- the two layout bugs this turned up ---------------- */
 
 check(
-  "THE GRID SIZES TO ITS CONTENT BELOW lg",
-  /className="grid grid-cols-1 lg:min-h-0 lg:flex-1 lg:grid-cols-/.test(codeOnly),
-  "flex-1 gave it the leftover height, its content spilled, and the pinned bar came to rest mid-screen"
-);
-
-check(
   "the header compacts only where the screen actually scrolls",
   /const onScroll = \(\) => setStuck\(el\.scrollTop > 24\);/.test(codeOnly) &&
     /stuck && !titleOpen/.test(codeOnly),
-  "from lg the columns scroll inside themselves, so stuck stays false and the full title stays"
+  "from lg the panel scrolls inside itself, so stuck stays false and the full title stays"
 );
 
 check(

@@ -168,8 +168,8 @@ check(
 
 check(
   "the audit workspace filters to desk-verifiable checks",
-  /checksOf\(entityCode, discipline, system\)\.filter\(needsDesk\)/.test(capture),
-  ""
+  /checksOf\(entityCode, discipline\)\.filter\(needsDesk\)/.test(capture),
+  "the systems are a tree in the list now, not a filter on it — the discipline is what the walk covers"
 );
 
 check(

@@ -82,18 +82,22 @@ check(
 
 /* ------------------------------------- Part 2: capture is not below the fold */
 
+/* The two panes are ONE now. An iPad in landscape is 1180px and the check was
+   spending 508px of it on a system rail and a check list beside the panes; the
+   navigator is one column and the check screen is one tabbed panel, so nothing
+   has to be ordered around a stack that no longer happens. */
 check(
-  "the check screen goes two-pane at lg, not xl",
-  /lg:grid-cols-\[minmax\(0,1fr\)_minmax\(0,1\.08fr\)\]/.test(detail) &&
-    !/xl:grid-cols-\[minmax/.test(detail),
-  "an iPad in landscape is 1180px and was stacking"
+  "the check screen is one panel that takes the width, not two panes",
+  !/lg:grid-cols-\[minmax\(0,1fr\)_minmax\(0,1\.08fr\)\]/.test(detail) &&
+    /role="tabpanel"[\s\S]{0,400}lg:min-h-0 lg:flex-1 lg:overflow-y-auto/.test(detail),
+  "two columns each with their own tab strip was the busyness Sarel named"
 );
 
 check(
-  "capture comes first when the panes stack",
-  /order-1 px-5[\s\S]{0,60}?lg:order-2/.test(detail) &&
-    /order-2 border-b[\s\S]{0,80}?lg:order-1/.test(detail),
-  "the reference column is first in the DOM and would otherwise sit above the controls"
+  "capture comes first in the strip, so it is what an auditor lands on",
+  detail.indexOf('group: "do"') < detail.indexOf('group: "read"') &&
+    /useState\("evidence"\)/.test(detail),
+  "the reference used to be first in the DOM and sat above the controls when the panes stacked"
 );
 
 check(

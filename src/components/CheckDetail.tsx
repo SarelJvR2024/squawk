@@ -109,8 +109,18 @@ export default function CheckDetail({
   const [thinking, setThinking] = useState<null | "observation" | "explain">(null);
   const [explained, setExplained] = useState<string | null>(null);
   const [titleOpen, setTitleOpen] = useState(false);
-  const [tab, setTab] = useState(0);
-  const [capTab, setCapTab] = useState("evidence");
+  /* ONE open panel, by key.
+   *
+   *  It used to be two pieces of state — an index into the reference extracts
+   *  on the left and a key into the capture panels on the right — because
+   *  there were two columns. There is one now, so there is one.
+   *
+   *  It is deliberately NOT reset when the check changes. An auditor walking a
+   *  discipline works the same panel check after check — evidence, evidence,
+   *  evidence — and being thrown back to the first tab on every Save & next is
+   *  a press per check for the whole walk. A key that this check does not
+   *  carry falls back to the first one it does. */
+  const [panel, setPanel] = useState("evidence");
   /* Whether this screen has been scrolled at all.
    *
    *  From lg the two columns scroll inside themselves and this container never
@@ -153,7 +163,6 @@ export default function CheckDetail({
     setExplained(null);
     setThinking(null);
     setTitleOpen(false);
-    setTab(0);
   }
 
   useEffect(() => {
@@ -192,52 +201,545 @@ export default function CheckDetail({
     if (advance) onNext();
   };
 
-  /* The extracts, as tabs rather than a stack.
+  /* ONE TABBED SPACE, not two columns of stacked panels.
    *
-   *  Nothing has been dropped and nothing has been shortened — the procedure
-   *  wording, the records ACSA names, the evidence it expects, the external
-   *  standard, the walkabout line and any conflict between documents are all
-   *  still here in full. What changed is that they no longer decide where the
-   *  question is on the screen. A tab only exists where the register actually
-   *  carries that field, so a thin check shows two tabs, not six empty ones. */
-  const refTabs: { key: string; label: string; body: React.ReactNode }[] = [];
-  if (check.acsaRequirement)
-    refTabs.push({
-      key: "procedure",
-      label: "ACSA procedure",
-      body: <RefText>{check.acsaRequirement}</RefText>,
-    });
-  if (check.acsaEvidence.length > 0)
-    refTabs.push({
-      key: "records",
-      label: "Records ACSA names",
+   *  What stood here was a reference column and a capture column, each with
+   *  its own tab strip inside it: ACSA's wording on the left, the chips on the
+   *  right, and the four compliance buttons above both. It was everything the
+   *  register holds about a check, on screen at once, and the complaint about
+   *  it was exactly right — you could not see what you needed to see.
+   *
+   *  Now there is one strip and one panel, and the panel gets the whole width.
+   *  Two groups of tabs, because they are two different activities: what the
+   *  auditor DOES on this check, then what the auditor READS to do it. The
+   *  question to ask and the evidence needed stay out of the tabs entirely —
+   *  they are the two lines the conversation actually starts from, so they sit
+   *  above the strip and never move.
+   *
+   *  NOTHING WAS DROPPED. Every field the register carries is still rendered,
+   *  in full, in one of these panels. */
+  type PanelDef = {
+    key: string;
+    label: string;
+    badge?: string;
+    group: "do" | "read";
+    body: React.ReactNode;
+  };
+  const panels: PanelDef[] = [];
+
+  /* --------------------------------------------------- what the auditor does
+     THE COUNT ON EACH TAB IS NOT DECORATION. One panel on screen at a time
+     means the rest are off it, and a tab that only said "Evidence to request"
+     would hide the fact that three were picked. The badge is what keeps the
+     state of the whole check legible while only one panel is open. */
+  if (a) {
+    panels.push({
+      key: "evidence",
+      label: "Evidence to request",
+      badge: `${r.evidencePicked.length}/${a.EO.length}`,
+      group: "do",
       body: (
-        <ul
-          className="list-disc pl-4 text-[12.5px] leading-[1.7]"
-          style={{ color: "var(--ink-2)" }}
-        >
-          {check.acsaEvidence.map((e, i) => (
-            <li key={i}>{e}</li>
-          ))}
-        </ul>
+        <>
+          <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+            tap what you asked for
+          </div>
+          <div className="chip-row flex flex-wrap gap-[5px]">
+            {a.EO.map((e, i) => (
+              <Chip
+                key={i}
+                kind="evidence"
+                selected={r.evidencePicked.includes(i)}
+                title={e.hint}
+                onClick={() => toggleEvidence(check.id, i)}
+              >
+                {r.evidencePicked.includes(i) && <IconCheck width={12} height={12} />}
+                {e.label}
+              </Chip>
+            ))}
+          </div>
+        </>
       ),
     });
-  if (check.evidenceExpected)
-    refTabs.push({
-      key: "expected",
-      label: "Evidence expected",
-      body: <RefText>{check.evidenceExpected}</RefText>,
+
+    if (a.AO.length > 0)
+      panels.push({
+        key: "answers",
+        label: "Likely answers",
+        group: "do",
+        body: (
+          <>
+            <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+              sets status &amp; seeds the note
+            </div>
+            <div className="chip-row flex flex-wrap gap-[5px]">
+              {a.AO.map((x, i) => (
+                <Chip
+                  key={i}
+                  onClick={() => {
+                    setCompliance(check.id, x.sets);
+                    appendObservation(check.id, x.observation);
+                  }}
+                >
+                  {x.label}
+                </Chip>
+              ))}
+            </div>
+          </>
+        ),
+      });
+
+    panels.push({
+      key: "issues",
+      label: "Issues found",
+      /* Only when something was raised. A zero on every check would be noise
+         on the one thing that must stand out when it is not zero. */
+      ...(r.issuesPicked.length > 0 ? { badge: String(r.issuesPicked.length) } : {}),
+      group: "do",
+      body: (
+        <>
+          <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+            raises a finding · suggests severity
+          </div>
+          <div className="chip-row flex flex-wrap gap-[5px]">
+            {a.IO.map((x, i) => {
+              const band = bandFor(x.severity_hint, x.likelihood_hint);
+              return (
+                <Chip
+                  key={i}
+                  kind="issue"
+                  selected={r.issuesPicked.includes(i)}
+                  title={band ? `${band} — ${BAND_META[band].label}` : undefined}
+                  onClick={() => {
+                    const picked = r.issuesPicked.includes(i);
+                    toggleIssue(check.id, i, {
+                      checkId: check.id,
+                      discipline: check.discipline,
+                      system: check.system,
+                      area: check.area,
+                      title: x.label,
+                      description: x.finding,
+                      issueIndex: i,
+                      severity: x.severity_hint,
+                      likelihood: x.likelihood_hint,
+                      ratingConfirmed: false,
+                      rootCause: "",
+                      action: "",
+                      owner: "",
+                      dueDate: "",
+                      actionStatus: "Open",
+                      originVisit: visitId,
+                      priorRating: pf?.rating ?? null,
+                      suggestedEvent: "",
+                      progress: [],
+                      adHoc: false,
+                      createdBy: auditor,
+                    });
+                    if (!picked) {
+                      appendObservation(check.id, x.finding);
+                      onSaved(
+                        `Finding raised · ${x.severity_hint.charAt(0)}${x.likelihood_hint.charAt(0)}${band ? ` → ${BAND_META[band].label}` : ""}`
+                      );
+                    }
+                  }}
+                >
+                  {x.label}
+                  <span className="font-mono text-[8.5px] opacity-70">
+                    {x.likelihood_hint.charAt(0)}
+                    {x.severity_hint.charAt(0)}
+                  </span>
+                </Chip>
+              );
+            })}
+          </div>
+
+          {/* Root-cause advice for what this check has actually raised. It
+              sits here, next to the issue chips, because this is the moment
+              the auditor is still standing in front of the responsible person
+              — the questions are only useful before everyone leaves the room.
+              Same component as the findings screen. */}
+          {raised.map((f) => (
+            <div
+              key={f.id}
+              className="mt-[9px] rounded-[10px] border px-[10px] py-[8px]"
+              style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+            >
+              <div className="flex flex-wrap items-center gap-[6px]">
+                <span className="text-[11px] font-semibold">{f.title}</span>
+                {f.rootCause ? (
+                  <Pill tone="accent">{f.rootCause}</Pill>
+                ) : (
+                  <Pill tone="warn">No root cause</Pill>
+                )}
+              </div>
+              <RootCauseAdvice
+                finding={f}
+                check={check}
+                attachments={r.attachments}
+                onPick={(rc) => {
+                  updateFinding(f.id, { rootCause: rc });
+                  onSaved(`Root cause set · ${rc}`);
+                }}
+              />
+              {/* And the other half of the same moment: what event does this
+                  expose? Named here, it gives the hazard register something a
+                  person wrote to consolidate from. */}
+              <HazardAdvice
+                finding={f}
+                check={check}
+                attachments={r.attachments}
+                onAccept={(event) => {
+                  updateFinding(f.id, { suggestedEvent: event });
+                  onSaved(`Hazard noted · ${event}`);
+                }}
+              />
+
+              {/* The four fields ACSA's dashboards carry, on the screen where
+                  the issue was raised. The compliance session settles the
+                  check, confirms last cycle's finding and captures the root
+                  cause in ONE conversation with the responsible person in the
+                  room. Making the auditor navigate away is how the second and
+                  third get postponed and then never had.
+                  Folded, because a check can raise several findings and an
+                  open block each would bury the chips above it. The summary
+                  line says what is outstanding, so nothing has to be opened to
+                  find that out. */}
+              <details className="group mt-[7px]">
+                <summary
+                  className="flex cursor-pointer list-none items-center gap-1.5 py-[3px] text-[10.5px] select-none"
+                  style={{ color: "var(--ink-3)" }}
+                >
+                  <span className="transition-transform group-open:rotate-90">›</span>
+                  Treatment ·{" "}
+                  {[
+                    !f.rootCause && "no root cause",
+                    !f.action && "no action",
+                    !f.owner && "no owner",
+                    !f.dueDate && "no date",
+                  ].filter(Boolean).join(", ") || "complete"}
+                  {f.progress?.length ? ` · ${f.progress.length} update${f.progress.length === 1 ? "" : "s"}` : ""}
+                </summary>
+                <div className="mt-1.5">
+                  <RecordActions
+                    record={f}
+                    entityCode={entityCode}
+                    showRating={false}
+                    progress={f.progress}
+                    onProgress={(n) => {
+                      addFindingProgress(f.id, n);
+                      onSaved("Progress recorded");
+                    }}
+                    onChange={(patch) => updateFinding(f.id, patch)}
+                    onToast={onSaved}
+                  />
+                </div>
+              </details>
+            </div>
+          ))}
+        </>
+      ),
     });
-  if (check.walkabout)
-    refTabs.push({
-      key: "walkabout",
-      label: "Walkabout",
-      body: <RefText>{check.walkabout}</RefText>,
+
+    if (a.WO.length > 0)
+      panels.push({
+        key: "walkabout",
+        label: "Walkabout",
+        ...(r.walkaboutPicked !== null ? { badge: "1" } : {}),
+        group: "do",
+        body: (
+          <>
+            {/* The register's own walkabout instruction had a tab of its own in
+                the reference column, one tap from chips about the same walk.
+                It is the lead line of the walk now, which is where an auditor
+                would read it. */}
+            {check.walkabout && (
+              <div
+                className="mb-2.5 rounded-[9px] border px-[10px] py-[8px]"
+                style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+              >
+                <div className="label-xs">What the register says to look at</div>
+                <div className="mt-1">
+                  <RefText>{check.walkabout}</RefText>
+                </div>
+              </div>
+            )}
+            <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+              what the eye settles on
+            </div>
+            <div className="chip-row flex flex-wrap gap-[5px]">
+              {a.WO.map((w, i) => (
+                <Chip
+                  key={i}
+                  selected={r.walkaboutPicked === i}
+                  onClick={() => setWalkabout(check.id, i, w.sets)}
+                >
+                  {w.label}
+                  {w.photo ? " 📷" : ""}
+                </Chip>
+              ))}
+            </div>
+          </>
+        ),
+      });
+
+    if (a.OS.length > 0)
+      panels.push({
+        key: "snippets",
+        label: "Snippets",
+        group: "do",
+        body: (
+          <>
+            <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+              tap to add to the note
+            </div>
+            <div className="chip-row flex flex-wrap gap-[5px]">
+              {a.OS.map((sn, i) => (
+                <Chip key={i} onClick={() => appendObservation(check.id, sn)}>
+                  + {sn}
+                </Chip>
+              ))}
+            </div>
+          </>
+        ),
+      });
+  } else if (check.optionCount > 0) {
+    /* The library is fetched on first use, not bundled. The tab is declared
+       now, holding a skeleton, so the strip does not gain a tab and jump the
+       open panel sideways the moment the fetch lands. */
+    panels.push({
+      key: "evidence",
+      label: "Evidence to request",
+      group: "do",
+      body: (
+        <div aria-busy="true" aria-label="Loading the answer library">
+          {[6, 5, 5].map((n, row) => (
+            <div key={row} className="mb-3.5">
+              <div
+                className="mb-[7px] h-[9px] w-[110px] rounded-full"
+                style={{ background: "var(--line-2)", opacity: 0.7 }}
+              />
+              <div className="chip-row flex flex-wrap gap-[5px]">
+                {Array.from({ length: n }, (_, i) => (
+                  <div
+                    key={i}
+                    className="h-[27px] rounded-full"
+                    style={{
+                      width: `${88 + ((i * 37) % 96)}px`,
+                      background: "var(--line-2)",
+                      opacity: 0.55,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ),
     });
+  } else {
+    panels.push({
+      key: "evidence",
+      label: "Evidence to request",
+      group: "do",
+      body: (
+        <Panel tone="warn">
+          <div className="text-[12px]" style={{ color: "var(--warn)" }}>
+            No researched options exist for this check yet — capture by typing.
+          </div>
+        </Panel>
+      ),
+    });
+  }
+
+  /* -------------------------------------------------- what the auditor reads
+     The standard, the site's override of it, and ACSA's own words for it, in
+     ONE panel. Three panels made them three subjects; they are one subject,
+     and the auditor needs all three in a single glance before saying a number
+     out loud. */
+  panels.push({
+    key: "standard",
+    label: "The standard",
+    group: "read",
+    body: (
+      <>
+        <div className="label-xs">The standard to audit against</div>
+        <div className="mt-1 max-w-[92ch] text-[13.5px] leading-[1.5] font-semibold">
+          {check.target || "—"}
+        </div>
+
+        {check.siteVariant && (
+          /* 33 checks carry a threshold stricter than the network default at
+             this site. It goes above ACSA's network wording, not in a tooltip
+             — an auditor who reads the network figure and misses this one
+             audits against the wrong standard. */
+          <div
+            className="mt-2.5 rounded-[9px] border px-[10px] py-[8px]"
+            style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)" }}
+          >
+            <div className="label-xs" style={{ color: "var(--warn)" }}>
+              {check.siteVariant.site} applies here — this overrides the network default
+            </div>
+            <div
+              className="mt-1 text-[12.5px] leading-[1.55] whitespace-pre-line"
+              style={{ color: "var(--warn)" }}
+            >
+              {check.siteVariant.note}
+            </div>
+          </div>
+        )}
+
+        {check.acsaThreshold ? (
+          <div
+            className="mt-2.5 rounded-[9px] border px-[10px] py-[8px]"
+            style={{ background: "var(--acc-soft)", borderColor: "var(--acc-line)" }}
+          >
+            <div className="label-xs" style={{ color: "var(--acc)" }}>
+              ACSA states ·{" "}
+              {check.acsaDocs
+                .map((d) => `${d.doc}${d.clause ? ` cl. ${d.clause}` : ""}`)
+                .join("; ")}
+            </div>
+            <div className="mt-1 text-[12.5px] leading-[1.55]" style={{ color: "var(--acc)" }}>
+              {check.acsaThreshold}
+            </div>
+          </div>
+        ) : (
+          /* Silence on screen reads as "nothing to see here". It is the
+             opposite: where ACSA's own documents set no threshold, there is no
+             standard to audit against, and that is itself the finding. Say it,
+             rather than leaving a gap the auditor has to notice. */
+          <div
+            className="mt-2.5 rounded-[9px] border px-[10px] py-[8px]"
+            style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)" }}
+          >
+            <div className="label-xs" style={{ color: "var(--warn)" }}>
+              ACSA states no threshold
+            </div>
+            <div className="mt-1 text-[12.5px] leading-[1.55]" style={{ color: "var(--warn)" }}>
+              {check.acsaDocs.length > 0
+                ? `${check.acsaDocs
+                    .map((d) => d.doc)
+                    .join(", ")} covers this but sets no interval, limit or acceptance value. Compliance cannot be assessed against a stated standard — raise the absence itself.`
+                : "No ACSA document covering this check has been identified. There is no internal standard to audit against — raise the absence itself."}
+            </div>
+          </div>
+        )}
+      </>
+    ),
+  });
+
+  /* Reading a procedure back in plain English is the one thing on this screen
+     a rule cannot do. It reads only this check's own fields — nothing it says
+     is new information, and nothing it says is evidence. The tab is always
+     here so the strip keeps its shape; what fills it depends on whether a
+     model is configured. */
+  panels.push({
+    key: "plain",
+    label: "In plain English",
+    group: "read",
+    body: (
+      <>
+        <div className="label-xs">
+          In plain English{explained ? " · AI reading, not evidence" : ""}
+        </div>
+        {explained ? (
+          <div className="relative">
+            <div className="mt-1 max-w-[92ch] pr-6 text-[12.5px] leading-[1.55]" style={{ color: "var(--ink-2)" }}>
+              {explained}
+            </div>
+            <button
+              onClick={() => setExplained(null)}
+              aria-label="Dismiss the explanation"
+              className="absolute -top-[3px] right-0 rounded-[6px] p-1"
+              style={{ color: "var(--ink-4)" }}
+            >
+              <IconX width={13} height={13} />
+            </button>
+          </div>
+        ) : aiOn ? (
+          <button
+            disabled={thinking === "explain"}
+            onClick={async () => {
+              setThinking("explain");
+              try {
+                setExplained(await assist("explain", checkContext(check)));
+              } catch (err) {
+                onSaved(err instanceof Error ? err.message : "The assistant is unavailable");
+              } finally {
+                setThinking(null);
+              }
+            }}
+            className="mt-1.5 flex items-center gap-[6px] rounded-[8px] border px-[11px] py-[6px] text-[11px] transition-[var(--t)] disabled:opacity-55"
+            style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+          >
+            <IconSpark width={13} height={13} />
+            {thinking === "explain" ? "Reading…" : "Explain this check"}
+          </button>
+        ) : (
+          <div className="mt-1 text-[12px] leading-[1.55]" style={{ color: "var(--ink-3)" }}>
+            No model is configured on this build, so there is no plain reading to offer here.
+            ACSA&apos;s own wording is under ACSA wording.
+          </div>
+        )}
+      </>
+    ),
+  });
+
+  /* ACSA's own words, in full: what the procedure requires, the records it
+     names, the evidence it expects, and any place its own documents disagree.
+     Four tabs in the old reference column, four headed sections in one now —
+     they are read together or not at all, and the panel has the whole width to
+     set them side by side. */
+  if (
+    check.acsaRequirement ||
+    check.acsaEvidence.length > 0 ||
+    check.evidenceExpected ||
+    check.acsaConflict
+  )
+    panels.push({
+      key: "acsa",
+      label: "ACSA wording",
+      group: "read",
+      body: (
+        <div className="grid gap-[14px] lg:grid-cols-2">
+          {check.acsaRequirement && (
+            <section>
+              <div className="label-xs mb-1">What ACSA&apos;s procedure requires</div>
+              <RefText>{check.acsaRequirement}</RefText>
+            </section>
+          )}
+          {check.acsaEvidence.length > 0 && (
+            <section>
+              <div className="label-xs mb-1">Records ACSA names</div>
+              <ul className="list-disc pl-4 text-[12.5px] leading-[1.7]" style={{ color: "var(--ink-2)" }}>
+                {check.acsaEvidence.map((e, i) => (
+                  <li key={i}>{e}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {check.evidenceExpected && (
+            <section>
+              <div className="label-xs mb-1">Evidence expected</div>
+              <RefText>{check.evidenceExpected}</RefText>
+            </section>
+          )}
+          {check.acsaConflict && (
+            <section>
+              <div className="label-xs mb-1" style={{ color: "var(--warn)" }}>
+                Where ACSA&apos;s own documents disagree
+              </div>
+              <RefText>{check.acsaConflict}</RefText>
+            </section>
+          )}
+        </div>
+      ),
+    });
+
   if (check.basis)
-    refTabs.push({
+    panels.push({
       key: "basis",
       label: "External basis",
+      group: "read",
       body: (
         <>
           {check.basisConfidence === "medium" && (
@@ -261,63 +763,67 @@ export default function CheckDetail({
         </>
       ),
     });
-  if (check.acsaConflict)
-    refTabs.push({
-      key: "conflict",
-      label: "Document issue",
-      body: <RefText>{check.acsaConflict}</RefText>,
+
+  if (pf?.note)
+    panels.push({
+      key: "prior",
+      label: `${pf.key} · 2025`,
+      group: "read",
+      body: (
+        <>
+          <div className="label-xs" style={{ color: "var(--warn)" }}>
+            {pf.key} follow-up · carried from 2025
+            {/* A derived rating was computed from that site's own portal
+                findings rather than published as a rating, and says so rather
+                than borrowing an authority nobody gave it. */}
+            {pf.derived && " · derived from the 2025 findings"}
+          </div>
+          <div className="mt-1 max-w-[92ch] text-[12.5px] leading-[1.55]" style={{ color: "var(--warn)" }}>
+            {pf.note}
+          </div>
+        </>
+      ),
     });
-  /* Clamped rather than trusted: the tab index resets with the check, but a
-     check with two tabs must never index a third one it does not have. */
-  const refTab = Math.min(tab, Math.max(0, refTabs.length - 1));
 
-  /* THE CAPTURE PANELS, AS TABS.
+  /* Falls back to the first panel rather than showing nothing: which panels
+     exist depends on this check's own fields and on what the library holds for
+     it, and the auditor arrives with one already chosen. */
+  const openKey = panels.some((t) => t.key === panel) ? panel : panels[0].key;
+  const open = panels.find((t) => t.key === openKey)!;
 
-     Evidence, likely answers, issues, walkabout and snippets were five stacked
-     groups of chips. Together they run well past a tablet's height, so an
-     auditor answering a check scrolled through everything they had already
-     tapped to reach the next thing — and the answer box at the bottom moved
-     further away with every one of them.
-
-     THE COUNT ON EACH TAB IS NOT DECORATION. One panel on screen at a time
-     means four panels off it, and a tab that only said "Evidence to request"
-     would hide the fact that three were picked. The badge is what keeps the
-     state of the whole check visible while only one panel is: what has been
-     chosen is legible without opening anything. */
-  const capTabs: { key: string; label: string; badge?: string }[] = a
-    ? [
-        {
-          key: "evidence",
-          label: "Evidence to request",
-          badge: `${r.evidencePicked.length}/${a.EO.length}`,
-        },
-        ...(a.AO.length > 0 ? [{ key: "answers", label: "Likely answers" }] : []),
-        {
-          key: "issues",
-          label: "Issues found",
-          /* Only when something was raised. A zero on every check would be
-             noise on the one thing that must stand out when it is not zero. */
-          ...(r.issuesPicked.length > 0 ? { badge: String(r.issuesPicked.length) } : {}),
-        },
-        ...(a.WO.length > 0
-          ? [{ key: "walkabout", label: "Walkabout", ...(r.walkaboutPicked !== null ? { badge: "1" } : {}) }]
-          : []),
-        ...(a.OS.length > 0 ? [{ key: "snippets", label: "Snippets" }] : []),
-      ]
-    : [];
-  /* Falls back to the first tab rather than showing nothing: which panels exist
-     depends on what the library holds for THIS check, and the auditor moves
-     between checks with a tab already chosen. */
-  const capKey = capTabs.some((t) => t.key === capTab) ? capTab : (capTabs[0]?.key ?? "evidence");
+  /* The evidence line that stays above the tabs. The register's own sentence
+     where it has one, ACSA's named records where it does not — one line, with
+     the whole of it a tap away under ACSA wording. */
+  const evidenceLine =
+    check.evidenceExpected || (check.acsaEvidence.length > 0 ? check.acsaEvidence.join(" · ") : "");
 
   const photos = r.attachments.filter((x) => x.kind === "photo").length;
   const voice = r.attachments.find((x) => x.kind === "voice");
 
   return (
     <div ref={scrollRef} className="app-scroll flex min-w-0 flex-1 flex-col overflow-y-auto">
-      {/* sticky context header */}
+      {/* EVERYTHING THAT MUST NOT MOVE, IN ONE PINNED BLOCK: which check this
+          is, what to ask, what evidence is needed, and the tabs that choose
+          what fills the rest of the screen.
+
+          The tab strip used to sit in the scrolling body. On a tablet that was
+          invisible — the body scrolls inside itself there and the strip never
+          moves anyway — but on a phone the whole screen scrolls, and a strip
+          scrolled to the foot of it sits UNDER the pinned answer bar, where it
+          cannot be pressed. "Tabs at the top so I don't need to scroll" is not
+          true of a strip you have to scroll to. */}
+      <div className="relative z-[6] sm:sticky sm:top-0" style={{ background: "var(--panel)" }}>
       <div
-        className="sticky top-0 z-[6] border-b px-5 pt-[11px] pb-2.5"
+        /* PINNED AS A BLOCK FROM sm, and only the identity below it.
+
+           On a 390px phone this block measured 308px with the answer bar at
+           292 — between them there was no check left on the screen at all.
+           Nothing here is worth less than the others; there is simply not room
+           to pin all of it on a phone, so below sm only the line saying WHICH
+           CHECK THIS IS stays, and the brief and the strip scroll with the
+           rest. They are near the top of the scroll, which on a phone is where
+           a thumb starts. */
+        className="sticky top-0 z-[6] border-b px-5 pt-[11px] pb-2.5 sm:static"
         style={{ background: "var(--panel)", borderColor: "var(--line)" }}
       >
         {/* ONE LINE THAT SCROLLS on a phone, wrapping only where there is
@@ -384,41 +890,6 @@ export default function CheckDetail({
             {titleOpen ? "Show less" : "Show the full wording"}
           </button>
         )}
-
-        {/* THE ANSWER LIVES IN THE HEADER, which is sticky — so the four
-            buttons are on screen whatever the auditor has scrolled to.
-
-            They used to be the first thing in the capture column, which meant
-            reading a long extract on the left scrolled the answer away on the
-            right, and answering meant scrolling back up to a control you could
-            no longer see. The status is the one thing on this screen that is
-            true of the whole check rather than of a part of it, so it belongs
-            with the check's identity, not inside one of the two columns. */}
-        <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-[6px]">
-          <span className="label-xs hidden shrink-0 sm:block" style={{ color: "var(--ink-3)" }}>
-            Status
-          </span>
-          {/* Two by two on a phone, one row wherever four labelled buttons
-              fit. Four full labels do not fit 350px and wrapped three-then-one,
-              which reads as a rendering fault rather than a choice. */}
-          <div className="grid min-w-0 flex-1 grid-cols-2 gap-[5px] sm:flex sm:flex-wrap">
-            {STATUSES.map(({ key, label, Icon, tone }) => (
-              <button
-                key={key}
-                onClick={() => setCompliance(check.id, r.compliance === key ? null : key)}
-                className="flex min-h-[44px] flex-1 items-center justify-center gap-[6px] rounded-[10px] border-[1.5px] px-[7px] font-display text-[11px] font-semibold whitespace-nowrap transition-[var(--t)] sm:px-[10px] sm:text-[11.5px]"
-                style={toneStyle(tone, r.compliance === key)}
-              >
-                {/* The tick goes, not the word. Four labelled buttons fit one
-                    390px row without their icons and wrap to two rows with
-                    them, and a second 50px row of pinned header costs more
-                    than the icon is worth. */}
-                <Icon width={14} height={14} className="hidden sm:block" />
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {needsField(check) && (
@@ -431,561 +902,155 @@ export default function CheckDetail({
         </div>
       )}
 
-      {/* Two panes from lg, not xl. An iPad in landscape is 1180px wide and was
-          falling to a single column, which stacked the entire reference column
-          — basis, thresholds, ACSA documents — above the capture controls. On
-          anything narrower the order below puts capture first instead. */}
-      {/* `flex-1` only from lg, and this is a bug fix, not a tidy-up.
+      {/* THE TWO LINES THE CONVERSATION STARTS FROM, above the tabs and out
+          of them. Everything else about this check is one tap away; these two
+          are what the auditor says out loud and what they are there to
+          collect, so they never move and are never behind a tab.
 
-          From lg each column scrolls inside itself, so the grid must take the
-          leftover height and stop — that is what flex-1 with min-h-0 does.
-          Below lg the whole screen scrolls and the grid has to be as tall as
-          its content; flex-1 gave it the leftover height instead, its content
-          spilled out of a 115px box, and the sticky bar — which can only stick
-          within its parent's content box — came to rest in the MIDDLE of the
-          screen with chips scrolling underneath it. */}
-      <div className="grid grid-cols-1 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)]">
-        {/* reference column */}
+          The question is not clamped — half the register carries none at all
+          and the longest runs to three lines, which is cheap next to reading
+          only half of what you are about to ask. The evidence sentence is one
+          line, because the longest runs to 606 characters; the whole of it is
+          under ACSA wording, one press away, and the line says so. */}
+      {(check.question || evidenceLine) && (
         <div
-          className="order-2 border-b px-[18px] pt-4 pb-[18px] lg:order-1 lg:overflow-y-auto lg:border-r lg:border-b-0 lg:pb-[90px]"
-          style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
+          className="border-b px-5 py-[8px]"
+          style={{ background: "var(--focus-surface)", borderColor: "var(--line)" }}
         >
-          {/* THE BRIEF — the three things an auditor opens their mouth with.
-
-              What stood here was seven panels of equal weight: the question,
-              the threshold, ACSA's quote, a document conflict, a plain reading,
-              the walkabout line, and a folded pile of extracts. All of it is
-              real material and none of it was ordered by how the conversation
-              actually runs. The question is first because it is the first thing
-              said. The standard is second because it is what the answer gets
-              measured against. The plain reading is third because it is what
-              gets said when the reply is "why are you asking?". Everything else
-              is reference — kept in full, one tap away, below. */}
-
           {check.question && (
-            <Panel tone="accent" className="mb-[9px]">
-              <div className="label-xs" style={{ color: "var(--acc)" }}>
-                Ask ACSA
-              </div>
-              <div
-                className="mt-1 text-[14px] leading-[1.45] font-semibold"
+            <div className="flex items-baseline gap-2">
+              <span className="label-xs shrink-0 pt-[2px]" style={{ color: "var(--acc)" }}>
+                Ask
+              </span>
+              <span
+                /* Full at rest — half a question is worse than a third line —
+                   and one line once the screen has been scrolled, which is the
+                   same bargain the title makes and for the same reason: on a
+                   phone every pinned line is a line of the check you cannot
+                   see. It comes back by scrolling to the top. */
+                className={`min-w-0 max-w-[92ch] text-[13.5px] leading-[1.4] font-semibold${
+                  stuck ? " line-clamp-1" : ""
+                }`}
                 style={{ color: "var(--acc)" }}
               >
                 {check.question}
-              </div>
-            </Panel>
-          )}
-
-          {/* The standard, the site's override of it, and ACSA's own words for
-              it, in ONE panel. Three panels made them three subjects; they are
-              one subject, and the auditor needs all three in a single glance
-              before saying a number out loud. */}
-          <Panel className="mb-[9px]">
-            <div className="label-xs">The standard to audit against</div>
-            <div className="mt-1 text-[13.5px] leading-[1.5] font-semibold">
-              {check.target || "—"}
+              </span>
             </div>
-
-            {check.siteVariant && (
-              /* 33 checks carry a threshold stricter than the network default at
-                 this site. It goes above ACSA's network wording, not in a
-                 tooltip — an auditor who reads the network figure and misses
-                 this one audits against the wrong standard. */
-              <div
-                className="mt-2.5 rounded-[9px] border px-[10px] py-[8px]"
-                style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)" }}
-              >
-                <div className="label-xs" style={{ color: "var(--warn)" }}>
-                  {check.siteVariant.site} applies here — this overrides the network default
-                </div>
-                <div
-                  className="mt-1 text-[12.5px] leading-[1.55] whitespace-pre-line"
-                  style={{ color: "var(--warn)" }}
-                >
-                  {check.siteVariant.note}
-                </div>
-              </div>
-            )}
-
-            {check.acsaThreshold ? (
-              <div
-                className="mt-2.5 rounded-[9px] border px-[10px] py-[8px]"
-                style={{ background: "var(--acc-soft)", borderColor: "var(--acc-line)" }}
-              >
-                <div className="label-xs" style={{ color: "var(--acc)" }}>
-                  ACSA states ·{" "}
-                  {check.acsaDocs
-                    .map((d) => `${d.doc}${d.clause ? ` cl. ${d.clause}` : ""}`)
-                    .join("; ")}
-                </div>
-                {/* Bounded, because a handful of these run to a dozen lines of
-                    quoted clause and the panel below them is the plain reading
-                    of the same thing. Every word is still here; the ones past
-                    the tenth line are a scroll away rather than a screenful. */}
-                <div
-                  className="mt-1 max-h-[240px] overflow-y-auto text-[12.5px] leading-[1.55]"
-                  style={{ color: "var(--acc)" }}
-                >
-                  {check.acsaThreshold}
-                </div>
-              </div>
-            ) : (
-              /* Silence on screen reads as "nothing to see here". It is the
-                 opposite: where ACSA's own documents set no threshold, there is
-                 no standard to audit against, and that is itself the finding.
-                 Say it, rather than leaving a gap the auditor has to notice. */
-              <div
-                className="mt-2.5 rounded-[9px] border px-[10px] py-[8px]"
-                style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)" }}
-              >
-                <div className="label-xs" style={{ color: "var(--warn)" }}>
-                  ACSA states no threshold
-                </div>
-                <div className="mt-1 text-[12.5px] leading-[1.55]" style={{ color: "var(--warn)" }}>
-                  {check.acsaDocs.length > 0
-                    ? `${check.acsaDocs
-                        .map((d) => d.doc)
-                        .join(", ")} covers this but sets no interval, limit or acceptance value. Compliance cannot be assessed against a stated standard — raise the absence itself.`
-                    : "No ACSA document covering this check has been identified. There is no internal standard to audit against — raise the absence itself."}
-                </div>
-              </div>
-            )}
-          </Panel>
-
-          {/* Reading a procedure back in plain English is the one thing on this
-              screen a rule cannot do. It reads only this check's own fields —
-              nothing it says is new information, and nothing it says is
-              evidence. The slot is always here so the brief keeps its shape;
-              what fills it depends on whether a model is configured. */}
-          <Panel className="mb-[9px]">
-            <div className="label-xs">
-              In plain English{explained ? " · AI reading, not evidence" : ""}
-            </div>
-            {explained ? (
-              <div className="relative">
-                <div
-                  className="mt-1 pr-6 text-[12.5px] leading-[1.55]"
-                  style={{ color: "var(--ink-2)" }}
-                >
-                  {explained}
-                </div>
-                <button
-                  onClick={() => setExplained(null)}
-                  aria-label="Dismiss the explanation"
-                  className="absolute -top-[3px] right-0 rounded-[6px] p-1"
-                  style={{ color: "var(--ink-4)" }}
-                >
-                  <IconX width={13} height={13} />
-                </button>
-              </div>
-            ) : aiOn ? (
-              <button
-                disabled={thinking === "explain"}
-                onClick={async () => {
-                  setThinking("explain");
-                  try {
-                    setExplained(await assist("explain", checkContext(check)));
-                  } catch (err) {
-                    onSaved(err instanceof Error ? err.message : "The assistant is unavailable");
-                  } finally {
-                    setThinking(null);
-                  }
-                }}
-                className="mt-1.5 flex items-center gap-[6px] rounded-[8px] border px-[11px] py-[6px] text-[11px] transition-[var(--t)] disabled:opacity-55"
-                style={{
-                  background: "var(--panel)",
-                  borderColor: "var(--line-2)",
-                  color: "var(--ink-2)",
-                }}
-              >
-                <IconSpark width={13} height={13} />
-                {thinking === "explain" ? "Reading…" : "Explain this check"}
-              </button>
-            ) : (
-              <div className="mt-1 text-[12px] leading-[1.55]" style={{ color: "var(--ink-3)" }}>
-                No model is configured on this build, so there is no plain reading to offer here.
-                ACSA&apos;s own wording is under Reference below.
-              </div>
-            )}
-          </Panel>
-
-          {pf?.note && (
-            <Panel tone="warn" className="mb-[9px]">
-              <div className="label-xs" style={{ color: "var(--warn)" }}>
-                {pf.key} follow-up · carried from 2025
-                {/* A derived rating was computed from that site's own portal
-                    findings rather than published as a rating, and says so
-                    rather than borrowing an authority nobody gave it. */}
-                {pf.derived && " · derived from the 2025 findings"}
-              </div>
-              <div className="mt-1 text-[12.5px] leading-[1.55]" style={{ color: "var(--warn)" }}>
-                {pf.note}
-              </div>
-            </Panel>
           )}
-
-          {/* THE REFERENCE — everything else the register holds, in full.
-
-              It was a stack of panels plus a fold called "Full reference", so
-              the column's length depended on how much research a check happened
-              to attract and the brief sat somewhere in the middle of it. Tabs
-              give it a fixed footprint and one tap to any of it: the extracts
-              are exactly as long as they were, they simply no longer decide
-              where the question is on the screen. */}
-          {refTabs.length > 0 && (
-            <div
-              className="rounded-[11px] border"
-              style={{ background: "var(--panel)", borderColor: "var(--line)" }}
+          {evidenceLine && (
+            <button
+              onClick={() => setPanel("acsa")}
+              title={evidenceLine}
+              className="mt-[3px] flex w-full items-baseline gap-2 text-left"
             >
-              <div
-                role="tablist"
-                aria-label="Reference extracts"
-                className="flex gap-[5px] overflow-x-auto border-b px-[9px] py-[8px]"
-                style={{ borderColor: "var(--line)" }}
+              <span className="label-xs shrink-0">Evidence</span>
+              <span className="min-w-0 flex-1 truncate text-[12px]" style={{ color: "var(--ink-2)" }}>
+                {evidenceLine}
+              </span>
+              <span
+                className="shrink-0 font-mono text-[9px] tracking-[.04em] uppercase"
+                style={{ color: "var(--acc)" }}
               >
-                {refTabs.map((t, i) => (
+                all of it
+              </span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ONE STRIP, TWO GROUPS. What the auditor does with this check, then
+          what the auditor reads to do it — separated by a gap rather than a
+          heading, because eleven pills under two headings is a heading per
+          three pills.
+
+          It wraps rather than scrolling sideways. The whole reason the counts
+          are on the tabs is so nothing tapped is hidden — a strip that pushes
+          the last two off the right edge hides them again, and a horizontal
+          scrollbar is the least likely thing on the screen to be noticed. */}
+      <div
+        /* WRAPS from sm, and scrolls sideways below it. The counts are on the
+           tabs so that nothing tapped is hidden by a closed panel, and a strip
+           that pushes the last two off the right edge hides them again — so on
+           anything with room, it wraps. A 390px phone has no such room: eleven
+           pills wrap to five rows, and five rows of PINNED strip is most of
+           what is left after the answer bar. */
+        className="flex items-center gap-x-[14px] gap-y-[5px] overflow-x-auto border-b px-5 py-[8px] whitespace-nowrap sm:flex-wrap sm:overflow-visible"
+        style={{ background: "var(--panel)", borderColor: "var(--line)" }}
+      >
+        {(["do", "read"] as const).map((group) => {
+          const mine = panels.filter((t) => t.group === group);
+          if (mine.length === 0) return null;
+          return (
+            <div
+              key={group}
+              role="tablist"
+              aria-label={group === "do" ? "Answer library" : "Reference"}
+              className="flex shrink-0 gap-[5px] sm:flex-wrap"
+            >
+              {mine.map((t) => {
+                const on = openKey === t.key;
+                return (
                   <button
                     key={t.key}
                     role="tab"
-                    aria-selected={refTab === i}
-                    onClick={() => setTab(i)}
-                    className="shrink-0 rounded-full border px-[11px] py-[6px] font-display text-[10.5px] font-semibold whitespace-nowrap transition-[var(--t)]"
+                    aria-selected={on}
+                    onClick={() => setPanel(t.key)}
+                    className="flex shrink-0 items-center gap-[5px] rounded-full border px-[11px] py-[6px] font-display text-[10.5px] font-semibold whitespace-nowrap transition-[var(--t)]"
                     style={
-                      refTab === i
-                        ? {
-                            background: "var(--acc)",
-                            borderColor: "var(--acc)",
-                            color: "var(--on-acc)",
-                          }
-                        : {
-                            background: "var(--panel)",
-                            borderColor: "var(--line-2)",
-                            color: "var(--ink-2)",
-                          }
+                      on
+                        ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
+                        : group === "do"
+                          ? { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
+                          : /* Reference reads quieter than capture: same shape,
+                               no border weight, so the eye lands on the doing
+                               first and the reading is there when it is
+                               wanted. */
+                            { background: "var(--sunken)", borderColor: "transparent", color: "var(--ink-3)" }
                     }
                   >
                     {t.label}
+                    {t.badge && (
+                      <span
+                        className="rounded-full px-[5px] font-mono text-[9px]"
+                        style={
+                          on
+                            ? { background: "var(--on-acc)", color: "var(--acc)" }
+                            : { background: "var(--acc-soft)", color: "var(--acc)" }
+                        }
+                      >
+                        {t.badge}
+                      </span>
+                    )}
                   </button>
-                ))}
-              </div>
-              {/* Bounded and scrolling. One register row runs to 569 characters
-                  and the longest basis is longer still; unbounded, a single tab
-                  would put the brief off the top of the screen again. */}
-              <div className="max-h-[34vh] overflow-y-auto px-[13px] py-[11px] lg:max-h-[46vh]">
-                {refTabs[refTab].body}
-              </div>
+                );
+              })}
             </div>
-          )}
-        </div>
+          );
+        })}
+      </div>
+      </div>
 
-        {/* capture column */}
-        <div
-          className="order-1 px-5 pt-4 pb-[18px] lg:order-2 lg:pb-[90px] lg:overflow-y-auto"
-          style={{ background: "var(--focus-surface)" }}
-        >
-          {a ? (
-            <>
-              {/* One strip, five panels, and the counts so nothing tapped is
-                  hidden by the four that are closed. */}
-              <div
-                role="tablist"
-                aria-label="Answer library"
-                /* WRAPS rather than scrolls sideways. The whole reason the
-                   counts are on the tabs is so nothing tapped is hidden — a
-                   strip that pushes Walkabout and Snippets off the right edge
-                   hides them again, and a horizontal scrollbar is the least
-                   likely thing on the screen to be noticed. Two rows of tabs
-                   cost 28px; a panel nobody knows is there costs the walk. */
-                className="mb-3 flex flex-wrap gap-[5px]"
-              >
-                {capTabs.map((t) => {
-                  const on = capKey === t.key;
-                  return (
-                    <button
-                      key={t.key}
-                      role="tab"
-                      aria-selected={on}
-                      onClick={() => setCapTab(t.key)}
-                      className="flex shrink-0 items-center gap-[5px] rounded-full border px-[11px] py-[6px] font-display text-[10.5px] font-semibold whitespace-nowrap transition-[var(--t)]"
-                      style={
-                        on
-                          ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
-                          : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
-                      }
-                    >
-                      {t.label}
-                      {t.badge && (
-                        <span
-                          className="rounded-full px-[5px] font-mono text-[9px]"
-                          style={
-                            on
-                              ? { background: "var(--on-acc)", color: "var(--acc)" }
-                              : { background: "var(--acc-soft)", color: "var(--acc)" }
-                          }
-                        >
-                          {t.badge}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+      {/* THE PANEL — the whole width, and from lg the whole leftover height,
+          scrolling inside itself.
 
-              <div role="tabpanel" data-panel={capKey} className="mb-4">
-              {capKey === "evidence" && (
-                <>
-                  <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                    tap what you asked for
-                  </div>
-                <div className="chip-row flex flex-wrap gap-[5px]">
-                  {a.EO.map((e, i) => (
-                    <Chip
-                      key={i}
-                      kind="evidence"
-                      selected={r.evidencePicked.includes(i)}
-                      title={e.hint}
-                      onClick={() => toggleEvidence(check.id, i)}
-                    >
-                      {r.evidencePicked.includes(i) && <IconCheck width={12} height={12} />}
-                      {e.label}
-                    </Chip>
-                  ))}
-                </div>
-                </>
-              )}
-              {capKey === "answers" && (
-                <>
-                  <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                    sets status &amp; seeds the note
-                  </div>
-                  <div className="chip-row flex flex-wrap gap-[5px]">
-                    {a.AO.map((x, i) => (
-                      <Chip
-                        key={i}
-                        onClick={() => {
-                          setCompliance(check.id, x.sets);
-                          appendObservation(check.id, x.observation);
-                        }}
-                      >
-                        {x.label}
-                      </Chip>
-                    ))}
-                  </div>
-                </>
-              )}
-              {capKey === "issues" && (
-                <>
-                  <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                    raises a finding · suggests severity
-                  </div>
-                <div className="chip-row flex flex-wrap gap-[5px]">
-                  {a.IO.map((x, i) => {
-                    const band = bandFor(x.severity_hint, x.likelihood_hint);
-                    return (
-                      <Chip
-                        key={i}
-                        kind="issue"
-                        selected={r.issuesPicked.includes(i)}
-                        title={band ? `${band} — ${BAND_META[band].label}` : undefined}
-                        onClick={() => {
-                          const picked = r.issuesPicked.includes(i);
-                          toggleIssue(check.id, i, {
-                            checkId: check.id,
-                            discipline: check.discipline,
-                            system: check.system,
-                            area: check.area,
-                            title: x.label,
-                            description: x.finding,
-                            issueIndex: i,
-                            severity: x.severity_hint,
-                            likelihood: x.likelihood_hint,
-                            ratingConfirmed: false,
-                            rootCause: "",
-                            action: "",
-                            owner: "",
-                            dueDate: "",
-                            actionStatus: "Open",
-                            originVisit: visitId,
-                            priorRating: pf?.rating ?? null,
-                            suggestedEvent: "",
-                            progress: [],
-                            adHoc: false,
-                            createdBy: auditor,
-                          });
-                          if (!picked) {
-                            appendObservation(check.id, x.finding);
-                            onSaved(
-                              `Finding raised · ${x.severity_hint.charAt(0)}${x.likelihood_hint.charAt(0)}${band ? ` → ${BAND_META[band].label}` : ""}`
-                            );
-                          }
-                        }}
-                      >
-                        {x.label}
-                        <span className="font-mono text-[8.5px] opacity-70">
-                          {x.likelihood_hint.charAt(0)}
-                          {x.severity_hint.charAt(0)}
-                        </span>
-                      </Chip>
-                    );
-                  })}
-                </div>
-
-                {/* Root-cause advice for what this check has actually raised.
-                    It sits here, next to the issue chips, because this is the
-                    moment the auditor is still standing in front of the
-                    responsible person — the questions are only useful before
-                    everyone leaves the room. Same component as the findings
-                    screen. */}
-                {raised.map((f) => (
-                  <div
-                    key={f.id}
-                    className="mt-[9px] rounded-[10px] border px-[10px] py-[8px]"
-                    style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-                  >
-                    <div className="flex flex-wrap items-center gap-[6px]">
-                      <span className="text-[11px] font-semibold">{f.title}</span>
-                      {f.rootCause ? (
-                        <Pill tone="accent">{f.rootCause}</Pill>
-                      ) : (
-                        <Pill tone="warn">No root cause</Pill>
-                      )}
-                    </div>
-                    <RootCauseAdvice
-                      finding={f}
-                      check={check}
-                      attachments={r.attachments}
-                      onPick={(rc) => {
-                        updateFinding(f.id, { rootCause: rc });
-                        onSaved(`Root cause set · ${rc}`);
-                      }}
-                    />
-                    {/* And the other half of the same moment: what event does
-                        this expose? Named here, it gives the hazard register
-                        something a person wrote to consolidate from. */}
-                    <HazardAdvice
-                      finding={f}
-                      check={check}
-                      attachments={r.attachments}
-                      onAccept={(event) => {
-                        updateFinding(f.id, { suggestedEvent: event });
-                        onSaved(`Hazard noted · ${event}`);
-                      }}
-                    />
-
-                    {/* The four fields ACSA's dashboards carry, on the screen
-                        where the issue was raised.
-                        The compliance session settles the check, confirms last
-                        cycle's finding and captures the root cause in ONE
-                        conversation with the responsible person in the room.
-                        Making the auditor navigate away is how the second and
-                        third get postponed and then never had.
-                        Folded, because a check can raise several findings and
-                        an open block each would bury the chips above it. The
-                        summary line says what is outstanding, so nothing has
-                        to be opened to find that out. */}
-                    <details className="group mt-[7px]">
-                      <summary
-                        className="flex cursor-pointer list-none items-center gap-1.5 py-[3px] text-[10.5px] select-none"
-                        style={{ color: "var(--ink-3)" }}
-                      >
-                        <span className="transition-transform group-open:rotate-90">›</span>
-                        Treatment ·{" "}
-                        {[
-                          !f.rootCause && "no root cause",
-                          !f.action && "no action",
-                          !f.owner && "no owner",
-                          !f.dueDate && "no date",
-                        ].filter(Boolean).join(", ") || "complete"}
-                        {f.progress?.length ? ` · ${f.progress.length} update${f.progress.length === 1 ? "" : "s"}` : ""}
-                      </summary>
-                      <div className="mt-1.5">
-                        <RecordActions
-                          record={f}
-                          entityCode={entityCode}
-                          showRating={false}
-                          progress={f.progress}
-                          onProgress={(n) => {
-                            addFindingProgress(f.id, n);
-                            onSaved("Progress recorded");
-                          }}
-                          onChange={(patch) => updateFinding(f.id, patch)}
-                          onToast={onSaved}
-                        />
-                      </div>
-                    </details>
-                  </div>
-                ))}
-                </>
-              )}
-              {capKey === "walkabout" && (
-                <>
-                  <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                    what the eye settles on
-                  </div>
-                  <div className="chip-row flex flex-wrap gap-[5px]">
-                    {a.WO.map((w, i) => (
-                      <Chip
-                        key={i}
-                        selected={r.walkaboutPicked === i}
-                        onClick={() => setWalkabout(check.id, i, w.sets)}
-                      >
-                        {w.label}
-                        {w.photo ? " 📷" : ""}
-                      </Chip>
-                    ))}
-                  </div>
-                </>
-              )}
-              {capKey === "snippets" && (
-                <>
-                  <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                    tap to add to the note
-                  </div>
-              <div className="chip-row flex flex-wrap gap-[5px]">
-                {a.OS.map((sn, i) => (
-                  <Chip key={i} onClick={() => appendObservation(check.id, sn)}>
-                    + {sn}
-                  </Chip>
-                ))}
-              </div>
-                </>
-              )}
-              </div>
-            </>
-          ) : check.optionCount > 0 ? (
-            /* The library is loading (it is fetched on first use, not bundled).
-               A skeleton keeps the layout from jumping when the chips arrive. */
-            <div className="mb-4" aria-busy="true" aria-label="Loading the answer library">
-              {[6, 5, 5].map((n, row) => (
-                <div key={row} className="mb-3.5">
-                  <div
-                    className="mb-[7px] h-[9px] w-[110px] rounded-full"
-                    style={{ background: "var(--line-2)", opacity: 0.7 }}
-                  />
-                  <div className="chip-row flex flex-wrap gap-[5px]">
-                    {Array.from({ length: n }, (_, i) => (
-                      <div
-                        key={i}
-                        className="h-[27px] rounded-full"
-                        style={{
-                          width: `${88 + ((i * 37) % 96)}px`,
-                          background: "var(--line-2)",
-                          opacity: 0.55,
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <Panel tone="warn" className="mb-4">
-              <div className="text-[12px]" style={{ color: "var(--warn)" }}>
-                No researched options exist for this check yet — capture by typing.
-              </div>
-            </Panel>
-          )}
-        </div>
+          `flex-1` only from lg, and that is a bug fix, not a tidy-up. From lg
+          the panel scrolls inside itself, so it must take the leftover height
+          and stop — that is what flex-1 with min-h-0 does. Below lg the whole
+          screen scrolls and the panel has to be as tall as its content;
+          flex-1 gave it the leftover height instead, its content spilled out
+          of a short box, and the sticky bar — which can only stick within its
+          parent's content box — came to rest in the MIDDLE of the screen. */}
+      <div
+        role="tabpanel"
+        data-panel={openKey}
+        /* No deep bottom padding at lg any more: the panel is its own
+           scroller and the pinned bar is a sibling below it, not something
+           floating over its last line. Below lg the whole screen scrolls and
+           the bar is the last thing in it, so the same holds. */
+        className="px-5 pt-[13px] pb-[18px] lg:min-h-0 lg:flex-1 lg:overflow-y-auto"
+        style={{ background: open.group === "do" ? "var(--focus-surface)" : "var(--sunken)" }}
+      >
+        {open.body}
       </div>
 
       {/* THE ANSWER BOX, PINNED — and the actions that commit it, with it.
@@ -1164,9 +1229,18 @@ export default function CheckDetail({
           </div>
         </div>
 
-        {/* the actions */}
+        {/* THE ANSWER, AND WHAT COMMITS IT, IN THE SAME PINNED BAR.
+
+            The four compliance buttons used to sit in the sticky header, above
+            two columns. They were the biggest thing on the screen and they
+            were at the top of it, which put a decision above the material the
+            decision is made from, and made the header a third of a tablet.
+
+            Down here they are still on screen at every scroll position — this
+            bar is pinned too — they are under the thumb rather than across the
+            screen from Save, and the check gets the height back. */}
         <div
-          className="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-2.5"
+          className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t px-5 py-2.5"
           style={{
             background: "var(--panel)",
             borderColor: "var(--line)",
@@ -1204,6 +1278,34 @@ export default function CheckDetail({
             {r.issuesPicked.length > 0 &&
               ` · ${r.issuesPicked.length} finding${r.issuesPicked.length > 1 ? "s" : ""}`}
           </div>
+          {/* Two by two on a phone, one row wherever four labelled buttons
+              fit. Four full labels do not fit 350px and wrapped three-then-one,
+              which reads as a rendering fault rather than a choice. */}
+          <div className="grid min-w-[250px] flex-1 grid-cols-4 gap-[5px] sm:flex sm:flex-wrap">
+            {STATUSES.map(({ key, label, Icon, tone }) => (
+              <button
+                key={key}
+                onClick={() => setCompliance(check.id, r.compliance === key ? null : key)}
+                /* The full word, always, to a screen reader — the phone shows
+                   the code to fit four targets across 390px, and "C" read out
+                   loud is not an answer anybody should have to decode. */
+                aria-label={label}
+                className="flex min-h-[44px] flex-1 items-center justify-center gap-[6px] rounded-[10px] border-[1.5px] px-[7px] font-display text-[11px] font-semibold whitespace-nowrap transition-[var(--t)] sm:px-[10px] sm:text-[11.5px]"
+                style={toneStyle(tone, r.compliance === key)}
+              >
+                <Icon width={14} height={14} />
+                {/* ACSA's own code on a phone, the word everywhere else.
+                    Four full labels wrap to two rows at 390px, and a second
+                    50px band of pinned bar is 50px of check nobody can see —
+                    on a screen where the bar already takes 290 of 664. C, NC,
+                    N/A and NV are not an abbreviation invented here: they are
+                    what the record stores and what the export column says. */}
+                <span className="sm:hidden">{key}</span>
+                <span className="hidden sm:inline">{label}</span>
+              </button>
+            ))}
+          </div>
+
           <div className="flex gap-[7px]">
             <Btn icon onClick={onPrev} aria-label="Previous">
               <IconLeft width={14} height={14} />

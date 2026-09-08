@@ -571,29 +571,43 @@ tests/                thirty-three suites — see tests/README.md
   those chunks itself — because making a first paint wait on a whole build would
   charge an apron for a problem only deploys have.
 
-- **The check screen is a brief, not a dossier.** The three things an auditor
-  opens their mouth with — the question to ask, the standard to audit against,
-  and a plain reading of what is actually being checked — are the top of the
-  reference column, in that order, with this site's stricter threshold inside
-  the standard rather than beside it. Everything else the register carries for
-  a check (ACSA's procedure wording, the records it names, the evidence it
-  expects, the external instrument, the walkabout line, any conflict between
-  documents) sits behind tabs in a bounded, scrolling panel below them: kept in
-  full, one tap away, and no longer deciding where the question is on the
-  screen. The four compliance buttons are in the sticky header, so reading the
-  left column no longer scrolls the answer off the right. And the answer box,
-  the voice note, the camera and Save are pinned together at the foot of the
-  screen at every scroll position — on a phone they used to be below six groups
-  of chips. `tests/checkscreen.test.mjs` asserts both the new shape and, field
-  by field, that nothing was dropped to get it.
+- **The check screen is a brief, not a dossier — and one space, not two
+  columns.** Two lines never move: what to ask, and what evidence is needed.
+  Everything else the register carries for a check (the standard to audit
+  against with this site's stricter threshold inside it, a plain reading, ACSA's
+  procedure wording, the records it names, the evidence it expects, the external
+  instrument, the walkabout line, any conflict between documents) is a tab in
+  ONE panel that gets the whole width and scrolls inside itself — kept in full,
+  one tap away, and no longer deciding where the question is on the screen. The
+  tabs come in two groups in one strip: what the auditor *does* with this check
+  (the evidence, likely answers, issues, walkabout and snippet chips, each
+  carrying a count so nothing tapped is hidden by a panel that is closed), then
+  what the auditor *reads* to do it. The four compliance buttons are in the
+  pinned bottom bar with Save rather than at the top of the screen: they are
+  still on screen at every scroll position, under the thumb rather than across
+  the screen from what commits them, and the check gets the height back. The
+  answer box, the voice note and the camera are pinned in the same bar — on a
+  phone they used to be below six groups of chips.
+  `tests/checkscreen.test.mjs` asserts both the shape and, field by field, that
+  nothing was dropped to get it.
+
+- **The navigator is one column, not two.** The asset systems were a 210px rail
+  that *filtered* a 298px list of checks: a hierarchy the auditor had to infer
+  by watching the second column change, for 508px of a 1280px tablet. The
+  systems are now the list, with their checks nested under them and every group
+  collapsible. Save & next still walks the whole discipline, never just the open
+  group — the tree decides what is on the screen, never what is next — and when
+  the walk crosses into a shut system the tree opens it. It also starts at `md`
+  rather than `lg`, so a 768px tablet can finally change discipline; the
+  discipline select used to live in the `lg`-only rail.
 
 - **The tablet is the device, not a narrow desktop.** The touch floor lives in
   one `@media (pointer: coarse)` block in `globals.css` — 44px targets, 16px
   fields so iOS does not zoom the page in mid-capture — rather than a second
-  set of components; a mouse sees none of it. The check screen goes two-pane at
-  `lg`, because an iPad in landscape is 1180px and was stacking the entire
-  reference column above the controls, and when it does stack capture is
-  ordered first. `tests/tablet.test.mjs` enforces it.
+  set of components; a mouse sees none of it. The check screen is one panel that
+  takes the width at every size — an iPad in landscape is 1180px, and two panes
+  beside a rail and a check list left the check itself about 500px of it.
+  `tests/tablet.test.mjs` enforces it.
 
 - **A check appears where it can be answered.** `vtype` on every register row
   declares Evidence / Question / Site Physical Verification, and

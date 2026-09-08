@@ -30,12 +30,22 @@ function ok(n,c,extra=''){ if(c){pass++;log.push('PASS  '+n);} else {fail++;log.
   // 1 capture loads
   await page.goto(B+'/capture', {waitUntil:'networkidle'});
   await page.waitForTimeout(900);
-  ok('capture page loads', await page.locator('text=Status').first().isVisible().catch(()=>false));
+  /* The four compliance buttons, which is the one control this screen exists
+     to offer. It used to look for the word "Status" — the label beside them
+     when they lived in the header; they are in the pinned bar with Save now
+     and the label went with the move, so the check was asserting the presence
+     of a caption rather than of the answer. */
+  /* BY ACCESSIBLE NAME, not by rendered text. The button carries ACSA's code
+     for narrow screens and the full word for wide ones, and both spans are in
+     the DOM at every width — one of them merely display:none — so matching on
+     text sees "NCNon-compliant" and matches nothing. `aria-label` is the full
+     word at every width, which is also what a screen reader is told. */
+  ok('capture page loads', await page.locator('button[aria-label="Non-compliant"]').first().isVisible().catch(()=>false));
 
   // 2 status via keyboard
   await page.keyboard.press('1');
   await page.waitForTimeout(300);
-  const compBtn = page.locator('button', {hasText:/^Compliant$/}).first();
+  const compBtn = page.locator('button[aria-label="Compliant"]').first();
   const bg1 = await compBtn.evaluate(el=>getComputedStyle(el).borderColor).catch(()=>'');
   ok('keyboard 1 selects Compliant', !!bg1, bg1);
 
