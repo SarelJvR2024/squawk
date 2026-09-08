@@ -3,6 +3,14 @@ const { chromium } = require('playwright');
    it and the downscale path actually runs. */
 const PIXEL_JPEG = '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==';
 const B = process.env.BASE || 'http://localhost:3000';
+
+/** The answer library is TABBED — Evidence, Likely answers, Issues, Walkabout,
+ *  Snippets — so a panel has to be opened before its chips are in the DOM. The
+ *  five used to be stacked, which ran well past a tablet's height; the counts
+ *  on the tabs are what keep a tapped panel legible while it is closed. */
+const openTab = (page, label) =>
+  page.locator('button[role="tab"]', { hasText: label }).first().click();
+const panelChip = (page, key) => page.locator(`[data-panel="${key}"] button`).first();
 let pass=0, fail=0; const log=[];
 const ok=(n,c,x='')=>{ c?(pass++,log.push('PASS  '+n)):(fail++,log.push('FAIL  '+n+(x?'  ['+x+']':''))); };
 const fresh = async (ctx) => { const p = await ctx.newPage(); return p; };
@@ -69,8 +77,9 @@ const fresh = async (ctx) => { const p = await ctx.newPage(); return p; };
     const ctx = await browser.newContext({viewport:{width:1440,height:900}});
     const p = await ctx.newPage();
     await p.goto(B+'/capture',{waitUntil:'networkidle'}); await p.waitForTimeout(1800);
-    const sec = p.locator('text=Issues found').first();
-    const chip = sec.locator('xpath=../..').locator('button').first();
+    await openTab(p, 'Issues found');
+    await p.waitForTimeout(300);
+    const chip = panelChip(p, 'issues');
     await chip.click(); await p.waitForTimeout(500);
     let n1 = await p.evaluate(()=>document.querySelector('a[href="/findings"]')?.innerText||'');
     await chip.click(); await p.waitForTimeout(500);              // untoggle

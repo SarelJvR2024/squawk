@@ -18,6 +18,14 @@ const { chromium } = require("playwright");
  */
 
 const B = process.env.BASE || "http://localhost:3000";
+
+/** The answer library is TABBED — Evidence, Likely answers, Issues, Walkabout,
+ *  Snippets — so a panel has to be opened before its chips are in the DOM. The
+ *  five used to be stacked, which ran well past a tablet's height; the counts
+ *  on the tabs are what keep a tapped panel legible while it is closed. */
+const openTab = (page, label) =>
+  page.locator('button[role="tab"]', { hasText: label }).first().click();
+const panelChip = (page, key) => page.locator(`[data-panel="${key}"] button`).first();
 let pass = 0, fail = 0;
 const log = [];
 const ok = (n, c, x = "") => {
@@ -95,18 +103,14 @@ async function badge(p, href) {
      chips arrive after the page does. Wait for the chips themselves — a fixed
      timeout passes on a warm run and fails on a cold one, which is a flake
      this suite would then have to argue about. */
-  await p.locator("text=Issues found").first().waitFor({ timeout: 60000 });
-  await p
-    .locator("text=Issues found")
-    .first()
-    .locator("xpath=../..")
-    .locator("button")
-    .first()
-    .waitFor({ timeout: 60000 });
+  await p.locator('button[role="tab"]', { hasText: "Issues found" }).first().waitFor({ timeout: 60000 });
+  await openTab(p, "Issues found");
+  await panelChip(p, "issues").waitFor({ timeout: 60000 });
   const capBefore = await badge(p, "/capture");
   await p.keyboard.press("2");                       // Non-compliant
   await p.waitForTimeout(300);
-  await p.locator("text=Issues found").first().locator("xpath=../..").locator("button").first().click();
+  await openTab(p, "Issues found");
+  await panelChip(p, "issues").click();
   await p.waitForTimeout(600);
 
   /* ANSWERED, NOT YET SAVED. Every tap writes to the store as it happens and
@@ -210,14 +214,15 @@ async function badge(p, href) {
      above and why that was correct. Electricity Distribution System has
      KSIA-ELE-P03, rated Tolerable — so a Red agreed there must read Worsened. */
   await p.goto(B + "/capture", { waitUntil: "networkidle" });
-  await p.locator("text=Issues found").first().waitFor({ timeout: 60000 });
+  await p.locator('button[role="tab"]', { hasText: "Issues found" }).first().waitFor({ timeout: 60000 });
   await p.locator("text=Electricity Distribution").first().click();
   await p.waitForTimeout(700);
-  await p.locator("text=Issues found").first().locator("xpath=../..").locator("button").first()
-    .waitFor({ timeout: 60000 });
+  await openTab(p, "Issues found");
+  await panelChip(p, "issues").waitFor({ timeout: 60000 });
   await p.keyboard.press("2");
   await p.waitForTimeout(300);
-  await p.locator("text=Issues found").first().locator("xpath=../..").locator("button").first().click();
+  await openTab(p, "Issues found");
+  await panelChip(p, "issues").click();
   await p.waitForTimeout(600);
   await p.locator("button", { hasText: /^Save$/ }).first().click();
   await p.waitForTimeout(700);

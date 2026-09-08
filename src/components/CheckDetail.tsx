@@ -29,7 +29,7 @@ import {
   IconWand,
   IconX,
 } from "@/components/ui/icons";
-import { Btn, Chip, Field, Panel, Pill } from "@/components/ui/primitives";
+import { Btn, Chip, Panel, Pill } from "@/components/ui/primitives";
 
 const STATUSES: { key: Compliance; label: string; Icon: typeof IconCheck; tone: string }[] = [
   { key: "C", label: "Compliant", Icon: IconCheck, tone: "good" },
@@ -110,6 +110,7 @@ export default function CheckDetail({
   const [explained, setExplained] = useState<string | null>(null);
   const [titleOpen, setTitleOpen] = useState(false);
   const [tab, setTab] = useState(0);
+  const [capTab, setCapTab] = useState("evidence");
   /* Whether this screen has been scrolled at all.
    *
    *  From lg the two columns scroll inside themselves and this container never
@@ -140,7 +141,7 @@ export default function CheckDetail({
   const longTitle = check.requirement.length > 140;
 
   /* Suggestions belong to the check that produced them.
-     
+
      Cleared during render rather than in an effect, so the new check never
      paints carrying the previous one's proposed answer — even for one frame.
      A suggested observation flashing under the wrong check-point is not a
@@ -270,6 +271,45 @@ export default function CheckDetail({
      check with two tabs must never index a third one it does not have. */
   const refTab = Math.min(tab, Math.max(0, refTabs.length - 1));
 
+  /* THE CAPTURE PANELS, AS TABS.
+
+     Evidence, likely answers, issues, walkabout and snippets were five stacked
+     groups of chips. Together they run well past a tablet's height, so an
+     auditor answering a check scrolled through everything they had already
+     tapped to reach the next thing — and the answer box at the bottom moved
+     further away with every one of them.
+
+     THE COUNT ON EACH TAB IS NOT DECORATION. One panel on screen at a time
+     means four panels off it, and a tab that only said "Evidence to request"
+     would hide the fact that three were picked. The badge is what keeps the
+     state of the whole check visible while only one panel is: what has been
+     chosen is legible without opening anything. */
+  const capTabs: { key: string; label: string; badge?: string }[] = a
+    ? [
+        {
+          key: "evidence",
+          label: "Evidence to request",
+          badge: `${r.evidencePicked.length}/${a.EO.length}`,
+        },
+        ...(a.AO.length > 0 ? [{ key: "answers", label: "Likely answers" }] : []),
+        {
+          key: "issues",
+          label: "Issues found",
+          /* Only when something was raised. A zero on every check would be
+             noise on the one thing that must stand out when it is not zero. */
+          ...(r.issuesPicked.length > 0 ? { badge: String(r.issuesPicked.length) } : {}),
+        },
+        ...(a.WO.length > 0
+          ? [{ key: "walkabout", label: "Walkabout", ...(r.walkaboutPicked !== null ? { badge: "1" } : {}) }]
+          : []),
+        ...(a.OS.length > 0 ? [{ key: "snippets", label: "Snippets" }] : []),
+      ]
+    : [];
+  /* Falls back to the first tab rather than showing nothing: which panels exist
+     depends on what the library holds for THIS check, and the auditor moves
+     between checks with a tab already chosen. */
+  const capKey = capTabs.some((t) => t.key === capTab) ? capTab : (capTabs[0]?.key ?? "evidence");
+
   const photos = r.attachments.filter((x) => x.kind === "photo").length;
   const voice = r.attachments.find((x) => x.kind === "voice");
 
@@ -347,7 +387,7 @@ export default function CheckDetail({
 
         {/* THE ANSWER LIVES IN THE HEADER, which is sticky — so the four
             buttons are on screen whatever the auditor has scrolled to.
-            
+
             They used to be the first thing in the capture column, which meant
             reading a long extract on the left scrolled the answer away on the
             right, and answering meant scrolling back up to a control you could
@@ -396,7 +436,7 @@ export default function CheckDetail({
           — basis, thresholds, ACSA documents — above the capture controls. On
           anything narrower the order below puts capture first instead. */}
       {/* `flex-1` only from lg, and this is a bug fix, not a tidy-up.
-          
+
           From lg each column scrolls inside itself, so the grid must take the
           leftover height and stop — that is what flex-1 with min-h-0 does.
           Below lg the whole screen scrolls and the grid has to be as tall as
@@ -585,7 +625,7 @@ export default function CheckDetail({
           )}
 
           {/* THE REFERENCE — everything else the register holds, in full.
-              
+
               It was a stack of panels plus a fold called "Full reference", so
               the column's length depended on how much research a check happened
               to attract and the brief sat somewhere in the middle of it. Tabs
@@ -645,7 +685,58 @@ export default function CheckDetail({
         >
           {a ? (
             <>
-              <Field label="Evidence to request" hint={`${r.evidencePicked.length}/${a.EO.length}`}>
+              {/* One strip, five panels, and the counts so nothing tapped is
+                  hidden by the four that are closed. */}
+              <div
+                role="tablist"
+                aria-label="Answer library"
+                /* WRAPS rather than scrolls sideways. The whole reason the
+                   counts are on the tabs is so nothing tapped is hidden — a
+                   strip that pushes Walkabout and Snippets off the right edge
+                   hides them again, and a horizontal scrollbar is the least
+                   likely thing on the screen to be noticed. Two rows of tabs
+                   cost 28px; a panel nobody knows is there costs the walk. */
+                className="mb-3 flex flex-wrap gap-[5px]"
+              >
+                {capTabs.map((t) => {
+                  const on = capKey === t.key;
+                  return (
+                    <button
+                      key={t.key}
+                      role="tab"
+                      aria-selected={on}
+                      onClick={() => setCapTab(t.key)}
+                      className="flex shrink-0 items-center gap-[5px] rounded-full border px-[11px] py-[6px] font-display text-[10.5px] font-semibold whitespace-nowrap transition-[var(--t)]"
+                      style={
+                        on
+                          ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
+                          : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
+                      }
+                    >
+                      {t.label}
+                      {t.badge && (
+                        <span
+                          className="rounded-full px-[5px] font-mono text-[9px]"
+                          style={
+                            on
+                              ? { background: "var(--on-acc)", color: "var(--acc)" }
+                              : { background: "var(--acc-soft)", color: "var(--acc)" }
+                          }
+                        >
+                          {t.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div role="tabpanel" data-panel={capKey} className="mb-4">
+              {capKey === "evidence" && (
+                <>
+                  <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                    tap what you asked for
+                  </div>
                 <div className="chip-row flex flex-wrap gap-[5px]">
                   {a.EO.map((e, i) => (
                     <Chip
@@ -660,10 +751,13 @@ export default function CheckDetail({
                     </Chip>
                   ))}
                 </div>
-              </Field>
-
-              {a.AO.length > 0 && (
-                <Field label="Likely answers" hint="sets status & seeds the note">
+                </>
+              )}
+              {capKey === "answers" && (
+                <>
+                  <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                    sets status &amp; seeds the note
+                  </div>
                   <div className="chip-row flex flex-wrap gap-[5px]">
                     {a.AO.map((x, i) => (
                       <Chip
@@ -677,10 +771,13 @@ export default function CheckDetail({
                       </Chip>
                     ))}
                   </div>
-                </Field>
+                </>
               )}
-
-              <Field label="Issues found" hint="raises a finding · suggests severity">
+              {capKey === "issues" && (
+                <>
+                  <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                    raises a finding · suggests severity
+                  </div>
                 <div className="chip-row flex flex-wrap gap-[5px]">
                   {a.IO.map((x, i) => {
                     const band = bandFor(x.severity_hint, x.likelihood_hint);
@@ -818,10 +915,13 @@ export default function CheckDetail({
                     </details>
                   </div>
                 ))}
-              </Field>
-
-              {a.WO.length > 0 && (
-                <Field label="Walkabout" hint="what the eye settles on">
+                </>
+              )}
+              {capKey === "walkabout" && (
+                <>
+                  <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                    what the eye settles on
+                  </div>
                   <div className="chip-row flex flex-wrap gap-[5px]">
                     {a.WO.map((w, i) => (
                       <Chip
@@ -834,8 +934,23 @@ export default function CheckDetail({
                       </Chip>
                     ))}
                   </div>
-                </Field>
+                </>
               )}
+              {capKey === "snippets" && (
+                <>
+                  <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                    tap to add to the note
+                  </div>
+              <div className="chip-row flex flex-wrap gap-[5px]">
+                {a.OS.map((sn, i) => (
+                  <Chip key={i} onClick={() => appendObservation(check.id, sn)}>
+                    + {sn}
+                  </Chip>
+                ))}
+              </div>
+                </>
+              )}
+              </div>
             </>
           ) : check.optionCount > 0 ? (
             /* The library is loading (it is fetched on first use, not bundled).
@@ -869,21 +984,6 @@ export default function CheckDetail({
                 No researched options exist for this check yet — capture by typing.
               </div>
             </Panel>
-          )}
-
-          {a && a.OS.length > 0 && (
-            /* The snippets stay HERE, with the other taps, not in the pinned
-               box below. They are things to choose, like every other chip on
-               this side; the box below is where what you chose gets written. */
-            <Field label="Observation snippets" hint="tap to add to the note">
-              <div className="chip-row flex flex-wrap gap-[5px]">
-                {a.OS.map((sn, i) => (
-                  <Chip key={i} onClick={() => appendObservation(check.id, sn)}>
-                    + {sn}
-                  </Chip>
-                ))}
-              </div>
-            </Field>
           )}
         </div>
       </div>

@@ -20,6 +20,14 @@ const os = require("node:os");
 const path = require("node:path");
 const B = process.env.BASE || "http://localhost:3000";
 
+/** The answer library is TABBED — Evidence, Likely answers, Issues, Walkabout,
+ *  Snippets — so a panel has to be opened before its chips are in the DOM. The
+ *  five used to be stacked, which ran well past a tablet's height; the counts
+ *  on the tabs are what keep a tapped panel legible while it is closed. */
+const openTab = (page, label) =>
+  page.locator('button[role="tab"]', { hasText: label }).first().click();
+const panelChip = (page, key) => page.locator(`[data-panel="${key}"] button`).first();
+
 let pass = 0, fail = 0;
 const log = [];
 const ok = (n, c, x = "") => {
@@ -47,7 +55,9 @@ const openExport = async (page) => {
 
     await a.keyboard.press("2");
     await a.waitForTimeout(300);
-    const issue = a.locator("text=Issues found").first().locator("xpath=../..").locator("button").first();
+    await openTab(a, "Issues found");
+    await a.waitForTimeout(300);
+    const issue = panelChip(a, "issues");
     const issueText = await issue.innerText().catch(() => "");
     await issue.click();
     await a.waitForTimeout(500);
@@ -77,7 +87,7 @@ const openExport = async (page) => {
        (bundle.meta?.exportedBy ?? "").length > 0, bundle.meta?.exportedBy);
     ok("and it is named so a person can tell whose it is",
        /captures/.test(download.suggestedFilename()), download.suggestedFilename());
-    ok("it carries the check that was answered", 
+    ok("it carries the check that was answered",
        Object.keys(bundle.visit?.responses ?? {}).length >= 1,
        String(Object.keys(bundle.visit?.responses ?? {}).length));
     ok("and the finding that was raised", (bundle.findings ?? []).length >= 1,

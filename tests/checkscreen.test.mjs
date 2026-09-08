@@ -169,11 +169,36 @@ check(
 
 /* -------------------------- evidence leads the capture -------------------- */
 
+/* The five capture panels are now TABS, so "first in the column" means first in
+   the strip AND the one open before anybody taps anything. */
 check(
   "EVIDENCE TO REQUEST IS THE FIRST THING IN THE CAPTURE COLUMN",
-  at('label="Evidence to request"') < at('label="Likely answers"') &&
-    at('label="Evidence to request"') < at('label="Issues found"'),
+  at('key: "evidence"') < at('key: "answers"') && at('key: "evidence"') < at('key: "issues"'),
   "Sarel: the most important there is to know what evidence to ask for"
+);
+check(
+  "and it is the tab already open, not one to go and find",
+  /useState\("evidence"\)/.test(codeOnly),
+  "a default of anything else buries the thing he named as most important"
+);
+
+/* THE COUNTS ARE THE PRICE OF TABBING. One panel on screen means four off it,
+   and a tab that only said "Evidence to request" would hide that three were
+   picked. Without the badges this change trades scrolling for blindness. */
+check(
+  "EVERY TAB CAN SAY WHAT HAS BEEN TAPPED IN IT",
+  /badge: `\$\{r\.evidencePicked\.length\}\/\$\{a\.EO\.length\}`/.test(codeOnly),
+  "evidence says picked-of-total, because both halves matter"
+);
+check(
+  "issues count only when there IS one",
+  /r\.issuesPicked\.length > 0 \? \{ badge: String\(r\.issuesPicked\.length\) \}/.test(codeOnly),
+  "a zero on every check is noise on the one thing that must stand out"
+);
+check(
+  "and the strip WRAPS rather than scrolling sideways",
+  /flex flex-wrap gap-\[5px\]"\n\s*>/.test(codeOnly) || /aria-label="Answer library"[\s\S]{0,600}flex-wrap/.test(codeOnly),
+  "a tab pushed off the right edge is a panel nobody knows is there"
 );
 
 check(
