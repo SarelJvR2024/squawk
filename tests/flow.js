@@ -215,7 +215,22 @@ async function badge(p, href) {
      KSIA-ELE-P03, rated Tolerable — so a Red agreed there must read Worsened. */
   await p.goto(B + "/capture", { waitUntil: "networkidle" });
   await p.locator('button[role="tab"]', { hasText: "Issues found" }).first().waitFor({ timeout: 60000 });
-  await p.locator("text=Electricity Distribution").first().click();
+  /* TWO PRESSES NOW, and they are two different things. The asset systems used
+     to be a rail that FILTERED the check list, so pressing one both chose the
+     system and moved the workspace onto its first check. They are collapsible
+     groups in the check list itself now: pressing the system OPENS it, and the
+     check under it is what the workspace follows.
+
+     That is deliberate — opening a system to look at it must not move the
+     check you are part-way through answering — and it is exactly what this
+     suite was silently getting wrong. Pressing the system alone left the
+     workspace on the AGL check from step 2, so the issue chip pressed below
+     toggled the SAME finding back OFF, and the findings screen was then
+     empty for a reason that had nothing to do with ratings. */
+  const eds = p.locator('[data-system="Electricity Distribution System"]');
+  await eds.locator("button").first().click();
+  await p.waitForTimeout(400);
+  await eds.locator("button[data-check]").first().click();
   await p.waitForTimeout(700);
   await openTab(p, "Issues found");
   await panelChip(p, "issues").waitFor({ timeout: 60000 });

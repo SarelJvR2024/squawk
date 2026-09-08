@@ -31,7 +31,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `erm-matrix.test.mjs` | no | 64 |
 | `sharepoint.test.mjs` | no | 58 |
 | `assets.test.mjs` | no | 21 |
-| `checkscreen.test.mjs` | no | 39 |
+| `checkscreen.test.mjs` | no | 48 |
 | `merge.test.mjs` | no | 48 |
 | `figures.test.mjs` | no | 7 |
 | `e2e.js` | yes | 21 |
@@ -48,7 +48,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 43 |
 | `a11y.js` | yes | 46 |
 
-**1,197 assertions in total**, every count above verified by running the suite,
+**1,206 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -164,31 +164,40 @@ turned up.
 
 ## `checkscreen.test.mjs`
 
-Guards the shape of the check screen after it was cut down to a brief. What was
-there worked and was unreadable: seven panels of equal weight down the left, the
+Guards the shape of the check screen after it was cut down to a brief, and then
+again after Sarel used the brief and said it was still too busy. What was there
+first worked and was unreadable: seven panels of equal weight down the left, the
 four compliance buttons at the top of the right-hand column where reading the
 left scrolled them out of sight, and — on a phone — the voice note and camera
-below six groups of chips.
+below six groups of chips. What replaced it was two columns, each with its own
+tab strip, and compliance buttons big enough to be the first thing on the
+screen. It is one tabbed panel now, with the compliance buttons in the pinned
+bar beside Save.
 
 ```bash
 node tests/checkscreen.test.mjs
 ```
 
 Two kinds of assertion, and the second matters more. First, that the shape is
-the one asked for: question, then standard, then plain reading; the site's
-stricter threshold inside the standard rather than beside it; the compliance
-buttons in the sticky header; the answer box, the voice note, the camera and
-Save pinned together at the foot of the screen; evidence to request leading the
-capture column. Second, THAT NOTHING WAS DROPPED — every field the register
-carries for a check is still rendered somewhere, because a redesign that
-quietly loses the external basis is not a tidier screen, it is a smaller audit.
+the one asked for: the question to ask and the evidence needed outside the tabs
+entirely, pinned with the check's identity so neither can be scrolled away; one
+tab strip in two groups, doing before reading; the site's stricter threshold
+inside the standard rather than beside it; the compliance buttons in the pinned
+bar with Save, at 44px, and in exactly one place in the file; the answer box,
+the voice note and the camera pinned with them; evidence to request leading the
+strip and open by default. Second, THAT NOTHING WAS DROPPED — every field the
+register carries for a check is still rendered somewhere, because a redesign
+that quietly loses the external basis is not a tidier screen, it is a smaller
+audit.
 
-It also pins the two layout bugs the redesign turned up: the grid taking the
+It also pins the layout bugs the two redesigns turned up: the grid taking the
 flex container's leftover height below `lg` while its content spilled out of it,
 which left the pinned bar resting in the middle of the screen with chips
-scrolling underneath, and the header compaction being driven by the scroll
-container rather than by a breakpoint, so it does nothing from `lg` where the
-columns scroll inside themselves.
+scrolling underneath; the header compaction being driven by the scroll container
+rather than by a breakpoint, so it does nothing from `lg` where the panel
+scrolls inside itself; and the tab strip left in the scrolling body, which on a
+phone came to rest UNDER the pinned answer bar where it could not be pressed at
+all.
 
 ## `figures.test.mjs`
 
