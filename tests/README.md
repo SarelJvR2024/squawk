@@ -42,13 +42,13 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `vision.js` | starts its own | 23 |
 | `record.js` | starts its own | 14 |
 | `flow.js` | yes | 49 |
-| `offline.js` | yes | 18 |
+| `offline.js` | yes | 19 |
 | `team.js` | yes | 15 |
 | `preflight.js` | yes | 18 |
 | `shared.js` | starts its own | 43 |
 | `a11y.js` | yes | 46 |
 
-**1,185 assertions in total**, every count above verified by running the suite,
+**1,186 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -585,6 +585,19 @@ the bare address (a redirect, and therefore the one most likely to break), that
 work captured before the signal went is still on screen, and that both lazy
 payloads — the Answer Library and the asset register — are reachable with no
 signal.
+
+**The day after a deploy is its own scenario**, and it found a real one. The
+navigation strategy is cache-first-then-revalidate, so a deploy lands, the
+auditor opens the app with signal and is served the cached shell instantly while
+the new html is written behind them, they walk out and lose signal, iOS drops
+the tab — and they reopen to a shell asking for chunk filenames nobody ever
+fetched. Content-hashed assets cannot go *stale*, but they can be **absent**,
+and absent offline is a blank page airside with the whole audit sitting
+unreachable in IndexedDB: the exact failure the worker exists to prevent,
+arriving by a different door. The suite drives it — the navigation is answered
+with html naming a build the device cannot fetch, then the network is cut — and
+requires the app to still open. A shell one build **ahead** of its own chunks is
+worse than one behind, which merely works.
 
 It also asserts the things that must **not** be cached, each of which would be a
 defect rather than a missing optimisation: no `/api` response (a cached

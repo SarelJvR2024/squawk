@@ -93,7 +93,7 @@ BASE=http://localhost:3000 node tests/robustness.js   # 38 assertions
 BASE=http://localhost:3000 node tests/exports.js      # 32 assertions
 BASE=http://localhost:3000 node tests/persite.js      # 25 assertions, four sites
 BASE=http://localhost:3000 node tests/flow.js         # 49 assertions
-BASE=http://localhost:3000 node tests/offline.js      # 18, with the network cut
+BASE=http://localhost:3000 node tests/offline.js      # 19, with the network cut
 BASE=http://localhost:3000 node tests/team.js         # 15, two devices, one audit
 BASE=http://localhost:3000 node tests/preflight.js    # 18, no mic, and a clock an hour fast
 BASE=http://localhost:3000 node tests/a11y.js         # 46, contrast and the keyboard
@@ -534,6 +534,20 @@ tests/                thirty-three suites — see tests/README.md
   deliberately after load rather than on first use, because "offline-safe" and
   "fetched when someone happens to open the right panel" are not the same thing.
   `tests/offline.js` asserts all of it with the network actually switched off.
+
+  **A shell is never stored ahead of the build it points at.** Cache-first
+  revalidation left one door open, and it is the day after a deploy: the auditor
+  opens the app with signal and is served the cached shell instantly while the
+  new html is written behind them; they walk out and lose signal; the phone drops
+  the tab; they reopen — and get a shell asking for chunk filenames nobody ever
+  fetched, because only the html was revalidated. Content-hashed assets cannot go
+  *stale*, but they can be **absent**, and absent offline is a blank page airside
+  with the whole audit sitting unreachable in IndexedDB. So an updated shell is
+  promoted only once every asset it names can be served offline; a shell one
+  build *ahead* of its own chunks is worse than one behind, which merely works.
+  The first copy of a screen needs no such gate — the page is about to request
+  those chunks itself — because making a first paint wait on a whole build would
+  charge an apron for a problem only deploys have.
 
 - **The check screen is a brief, not a dossier.** The three things an auditor
   opens their mouth with — the question to ask, the standard to audit against,

@@ -132,15 +132,35 @@ self.addEventListener("fetch", (event) => {
 async function navigation(event, req, url) {
   const cache = await caches.open(SHELL);
   const key = new Request(url.origin + url.pathname);
+  const hit = await cache.match(key);
 
   const fromNetwork = fetch(req)
-    .then((res) => {
-      if (res.ok) cache.put(key, res.clone());
+    .then(async (res) => {
+      if (!res.ok) return res;
+      /* A SHELL IS NEVER STORED AHEAD OF THE BUILD IT POINTS AT.
+       *
+       *  This is the bug that door was left open by. A deploy lands; the
+       *  auditor opens the app with signal and is served the cached shell
+       *  instantly while the NEW html is written behind them; they walk out to
+       *  the apron and lose signal; iOS drops the tab; they reopen — and now
+       *  get the new shell, which asks for chunk filenames that were never
+       *  fetched, because only the html was revalidated. Content-hashed assets
+       *  cannot go stale, but they can be ABSENT, and absent offline is a blank
+       *  page airside with the whole audit sitting unreachable in IndexedDB.
+       *  Exactly the failure this file exists to prevent, arriving by a
+       *  different door.
+       *
+       *  So an update is promoted only once the build it names can actually be
+       *  served. The first copy of a screen needs no such gate: the page is
+       *  about to request those chunks itself and cacheFirst will store them,
+       *  and making a first paint wait on the whole build would be paying an
+       *  apron for a problem that only deploys have. */
+      if (hit) await promote(cache, key, res.clone());
+      else await cache.put(key, res.clone());
       return res;
     })
     .catch(() => null);
 
-  const hit = await cache.match(key);
   if (hit) {
     event.waitUntil(fromNetwork);
     return hit;
@@ -152,6 +172,39 @@ async function navigation(event, req, url) {
   return (
     res ?? (await cache.match(new Request(url.origin + "/capture"))) ?? Response.error()
   );
+}
+
+/** Store a newer shell ONLY if every asset it names can be served offline.
+ *
+ *  Returns false and leaves the previous shell in place otherwise — a shell one
+ *  build ahead of its own chunks is worse than a shell one build behind, which
+ *  is merely old and works.
+ *
+ *  Assets already held are skipped, so the steady state is a text parse and a
+ *  few cache lookups; only a real deploy does any fetching. */
+async function promote(cache, key, res) {
+  let html;
+  try {
+    html = await res.clone().text();
+  } catch (err) {
+    return false;
+  }
+  const urls = [...new Set(html.match(/\/_next\/static\/[^"'\s>\\)]+/g) ?? [])];
+  const assets = await caches.open(ASSETS);
+  for (const u of urls) {
+    if (await assets.match(u)) continue;
+    let fresh = null;
+    try {
+      fresh = await fetch(u);
+    } catch (err) {
+      fresh = null;
+    }
+    /* One asset short is a blank page, so it is all of them or none. */
+    if (!fresh || !fresh.ok) return false;
+    await assets.put(u, fresh.clone());
+  }
+  await cache.put(key, res);
+  return true;
 }
 
 /** Content-hashed and immutable. If it is in the cache it is correct. */
