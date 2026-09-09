@@ -266,6 +266,17 @@ check(
 /* And the row of filter chips that used to sit under it is gone entirely — the
    list is a tree grouped by discipline now, so a discipline filter chip was a
    second control doing the tree's job, at about 50px of a 664px screen. */
+/* A SCREEN IS CALLED WHAT ITS TAB CALLS IT.
+   The navigation says "Inspection"; this heading said "Site walkabout", so an
+   auditor told to go to Inspection arrived somewhere apparently else. Same
+   defect the home screen's flow-strip test caught on the HIRA rename, on a
+   screen nothing was checking. */
+check(
+  "the Inspection screen names itself as the navigation names it",
+  /<h2 className="text-\[18px\] font-bold">\s*\n\s*Inspection/.test(field),
+  "the audit method's word for the session is kept as the subtitle, not as the title"
+);
+
 check(
   "the filter chip row is not back",
   !/All \$\{groupBy === "area"/.test(field),

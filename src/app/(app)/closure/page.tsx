@@ -132,9 +132,29 @@ export default function ClosurePage() {
      question in front of the same asset, and splitting them by where they came
      from would ask it twice. */
   const grouped = useMemo(() => {
+    const key = (p: { system: string }) => p.system?.trim() || "No asset system recorded";
+    /* THE COUNT IS OF EVERYTHING THE ASSET SYSTEM CARRIES, not of what the
+       chip filter left standing. "2/3" that changes meaning when somebody
+       presses "Repeats" is not progress, it is arithmetic about a filter — and
+       this screen's whole job is telling a discipline lead how much of their
+       own asset system is still undecided. Scoped to the discipline in the
+       room, because that genuinely changes whose work it is; not to the chips,
+       which only change what is being looked at. */
+    const carriedHere = outstanding
+      .filter(carriesWork)
+      .filter((p) => discipline === "all" || p.discipline === discipline);
+    const totals = new Map<string, { done: number; total: number }>();
+    for (const p of carriedHere) {
+      const k = key(p);
+      const t = totals.get(k) ?? { done: 0, total: 0 };
+      t.total++;
+      if (verifications[p.key]?.outcome) t.done++;
+      totals.set(k, t);
+    }
+
     const by = new Map<string, typeof list>();
     for (const p of list) {
-      const k = p.system?.trim() || "No asset system recorded";
+      const k = key(p);
       const g = by.get(k);
       if (g) g.push(p);
       else by.set(k, [p]);
@@ -143,11 +163,11 @@ export default function ClosurePage() {
       .map(([sys, items]) => ({
         sys,
         items,
-        done: items.filter((p) => verifications[p.key]?.outcome).length,
-        total: items.length,
+        done: totals.get(sys)?.done ?? items.filter((p) => verifications[p.key]?.outcome).length,
+        total: totals.get(sys)?.total ?? items.length,
       }))
       .sort((a, b) => a.sys.localeCompare(b.sys));
-  }, [list, verifications]);
+  }, [list, verifications, outstanding, discipline]);
 
   /* Everything opens by default. This is a worklist to burn down, not a tree
      to explore: an auditor arriving at a closed list has to press every group

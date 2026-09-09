@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   areasAt,
@@ -90,6 +90,27 @@ export default function FieldPage() {
      does on a walk. Collapsing HIDES; nothing is discarded, because every
      control writes straight to the store on change. */
   const [openItem, setOpenItem] = useState<string | null>(null);
+
+  /* WHERE A STICKY GROUP HEADER HAS TO STOP.
+     The filter bar is sticky at top 0. A group header also sticky at top 0
+     slides underneath it and is invisible for exactly as long as it is
+     supposed to be useful — which is worse than not sticking at all, and it
+     would have looked like the feature was working from any screenshot taken
+     while a group header happened to be below the fold.
+     So the bar is measured. Its height changes with the width (the caveat is
+     one line on a phone and three on a tablet) and with the axis, so it is
+     observed rather than read once. */
+  const barRef = useRef<HTMLDivElement>(null);
+  const [barH, setBarH] = useState(0);
+  useEffect(() => {
+    const el = barRef.current;
+    if (!el) return;
+    const measure = () => setBarH(el.getBoundingClientRect().height);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const [tray, setTray] = useState(false);
   /* Things seen on the walk that the register does not cover. Kept in its own
      list rather than mixed into `visible`: an ad-hoc item has no check-point
@@ -236,7 +257,16 @@ export default function FieldPage() {
     <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
       <div className="mx-auto w-full max-w-[1180px] px-4 pt-4 pb-24 sm:px-6">
         <div className="mb-3">
-          <h2 className="text-[18px] font-bold">Site walkabout</h2>
+          {/* NAMED AS THE TAB NAMES IT. The navigation says "Inspection" and
+              this heading said "Site walkabout" — an auditor told to go to
+              Inspection landed on a screen called something else, which is the
+              same defect the home screen's own test caught on the HIRA rename.
+              The walkabout wording is kept as the subtitle, because it is what
+              the audit method calls this session and it says what the screen
+              is for in a way "Inspection" does not. */}
+          <h2 className="text-[18px] font-bold">
+            Inspection <span style={{ color: "var(--ink-3)" }}>· the site walkabout</span>
+          </h2>
           {/* Prose that orients somebody the first time and costs them a
               scroll every time after. On a 664px phone the preamble, the
               toggle, the search box and the category note filled the whole
@@ -258,6 +288,7 @@ export default function FieldPage() {
             screenful. It is in the bar now, first, because it is the one that
             changes what everything below it means. */}
         <div
+          ref={barRef}
           className="sticky top-0 z-10 -mx-4 mb-3 border-b px-4 py-2.5 sm:-mx-6 sm:px-6"
           style={{ background: "var(--bg)", borderColor: "var(--line)" }}
         >
@@ -462,6 +493,7 @@ export default function FieldPage() {
                     open={gOpen}
                     onToggle={() => toggle(g.top)}
                     sticky
+                    stickyTop={barH}
                     title={`${g.top} — ${g.done} of ${g.total} seen`}
                   />
                   {gOpen &&
