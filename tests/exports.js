@@ -236,9 +236,15 @@ const ok = (n, c, x = "") => {
     "it carries BOTH rating instruments, each by its own axis name",
     /Severity \(B170 001M\)/.test(hhead) &&
       /Likelihood \(B170 001M\)/.test(hhead) &&
-      /Consequence \(ACSA ERM\)/.test(hhead) &&
+      /* IMPACT for the ERM axis, decided 9 September 2026. The property is
+         unchanged — two instruments, two axis names, neither borrowing the
+         other's word. "Consequence" was cl. 9.2.2's own term and accurate, but
+         it did not tell the two instruments apart at a glance, which is the
+         job this name has to do in a workbook somebody reads a year later. */
+      /Impact \(ACSA ERM\)/.test(hhead) &&
+      !/Consequence \(ACSA ERM\)/.test(hhead) &&
       /Likelihood \(ACSA ERM\)/.test(hhead),
-    "B170 has SEVERITY and ERM has CONSEQUENCE — they run in opposite " +
+    "B170 has SEVERITY and ERM has IMPACT — they run in opposite " +
       "directions and are not the same axis: " + hhead.slice(0, 200)
   );
   ok(

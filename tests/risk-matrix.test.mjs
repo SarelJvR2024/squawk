@@ -138,6 +138,22 @@ check(
   "an exported lookup key is one somebody prints by mistake"
 );
 
+/* THE LABELS THAT MUST NOT COME BACK — in BOTH the forms they exist in.
+ *
+ *  These nine are ACSA's real ERM words, and they were on B170's axis once.
+ *  They are written two ways in the wild and the ban has to cover both, or it
+ *  only catches the leak it happened to see first:
+ *
+ *    · A–E lettered, lower case — the compliance check-list template's form,
+ *      and the form the register's `scales` block carries.
+ *    · 1–5 numbered, title case — J050 001FW cl. 9.2.2's own form, which is
+ *      what src/lib/erm.ts legitimately holds. A leak from erm.ts into this
+ *      file would arrive looking like THAT, and the original list could not
+ *      see it.
+ *
+ *  Both lists are checked against risk.ts only. erm.ts must contain the second
+ *  set — tests/erm-matrix.test.mjs asserts that it does, and asserts the
+ *  reverse direction this file does not cover. */
 const BANNED = [
   "B - Critical",
   "C - Significant",
@@ -148,6 +164,14 @@ const BANNED = [
   "3 - Likely",
   "4 - Highly likely",
   "5 - Expected",
+  /* the framework's own numbering, which is what erm.ts actually holds */
+  "5 - Catastrophic",
+  "4 - Critical",
+  "3 - Significant",
+  "2 - Moderate",
+  "1 - Minor",
+  "1 - Not Likely",
+  "4 - Highly Likely",
 ];
 for (const b of BANNED) {
   check(`the generic label "${b}" has not returned`, !risk.includes(`"${b}"`));

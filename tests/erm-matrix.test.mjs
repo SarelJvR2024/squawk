@@ -121,6 +121,56 @@ check(
   !/\bERM\b/.test(riskSrc.replace(/\/\*[\s\S]*?\*\//g, ""))
 );
 
+/* ---- CONTAMINATION RUNS BOTH WAYS, and only one way was tested -------------
+
+   tests/risk-matrix.test.mjs bans ERM's nine labels from risk.ts. That guards
+   the direction the June defect actually travelled — ERM's words onto B170's
+   axis, where level 3 read "Likely" and ACSA's B170 level 3 means the opposite.
+
+   Nothing guarded the return trip. B170's words on the ERM axis would be just
+   as wrong and rather harder to notice, because ERM's likelihood is a
+   probability band: "3 - Remote" sitting where "3 - Likely (25%–54%)" belongs
+   reads like a definition rather than a mistake.
+
+   These eight words are B170's alone — no level of the ERM scale uses any of
+   them — so a bare-word match is safe here. The four that DO collide
+   (Catastrophic, Minor, Likely, Slight) are asserted below on the full label
+   including its index, never on the word, because both instruments use them at
+   different levels and a bare-word test passes when the label is wrong. */
+const B170_ONLY_WORDS = [
+  "Hazardous",
+  "Major",
+  "Negligible",
+  "Extremely Improbable",
+  "Improbable",
+  "Remote",
+  "Occasional",
+  "Frequent",
+];
+for (const w of B170_ONLY_WORDS) {
+  check(
+    `B170's "${w}" has not reached the ERM instrument`,
+    !new RegExp(`\\b${w}\\b`).test(ermCode),
+    "comments may discuss the other instrument; the code may not carry its words"
+  );
+}
+
+/* The colliding four, on the full label. "Minor" is the dangerous one: it is
+   B170 severity D and ERM consequence 1, so the bare word is true of both and
+   proves nothing about either. */
+for (const label of ["D - Minor", "A - Catastrophic", "E - Negligible", "3 - Remote"]) {
+  check(
+    `the B170 label "${label}" is not in the ERM module`,
+    !erm.includes(`"${label}"`)
+  );
+}
+for (const label of ["5 - Catastrophic", "1 - Minor", "3 - Likely", "2 - Slight"]) {
+  check(
+    `the ERM label "${label}" IS in the ERM module, where it belongs`,
+    erm.includes(`"${label}"`)
+  );
+}
+
 /* The five cells. Computed here from both instruments rather than asserted as
    a remembered number, so the day either grid is edited this says so. */
 const RED = new Set(["5A", "5B", "5C", "4A", "4B", "3A"]);
