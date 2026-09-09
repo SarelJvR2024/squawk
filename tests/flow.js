@@ -397,7 +397,12 @@ async function badge(p, href) {
      fresh device there was no way to record a hazard at all. */
   await p.goto(B + "/field", { waitUntil: "networkidle" });
   await p.waitForTimeout(2000);
-  const newHazard = p.locator("button", { hasText: /New hazard/ });
+  /* BY WHAT IT DOES, not by the word it used to carry. The bottom bar was
+     rebuilt around "Add item" as its primary and the two secondary buttons
+     lost their "+ New " prefixes to make room at 375px — the hazard path is
+     unchanged, only shorter to read. Matched loosely so the next tightening of
+     that bar does not fail a test about hazards. */
+  const newHazard = p.locator("button", { hasText: /^\+?\s*(New )?[Hh]azard$/ });
   ok("the walk offers a way to raise a hazard where it is seen",
      (await newHazard.count()) > 0);
   await newHazard.first().click();

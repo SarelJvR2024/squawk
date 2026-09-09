@@ -241,10 +241,35 @@ check(
 );
 
 check(
-  "the walkabout's prose is kept off the phone's first screen",
-  /hidden max-w-\[78ch\] text-\[12\.5px\] sm:block/.test(field) &&
-    /mt-\[7px\] hidden text-\[10\.5px\] leading-\[1\.5\] sm:block/.test(field),
+  "the walkabout's preamble is kept off the phone's first screen",
+  /hidden max-w-\[78ch\] text-\[12\.5px\] sm:block/.test(field),
   "preamble, toggle, search and a category note filled all 664px and the first check-point sat below the fold"
+);
+
+/* THE CAVEAT IS THE EXCEPTION, and it took a defect to see why.
+   It used to carry `hidden ... sm:block` alongside the preamble, on the same
+   reasoning — prose, costs a scroll, hide it on a phone. But it is not prose:
+   it is the sentence saying the location axis is not really locations, and the
+   register's `area` column it falls back on holds 133 values of which a third
+   are not places ("Appointments", "Documentation", "Lessons learnt"). Hiding it
+   below sm meant the auditor most likely to read "Appointments" as somewhere
+   to walk to was the only one never told it is not. So the phone gets a short
+   version and the tablet the full one; neither gets nothing. */
+check(
+  "the zone caveat renders at 375px, shortened rather than hidden",
+  /register&rsquo;s categories, not physical zones\./.test(field) &&
+    /<span className="sm:hidden">/.test(field) &&
+    !/mt-\[7px\] hidden text-\[10\.5px\] leading-\[1\.5\] sm:block/.test(field),
+  "a caveat nobody on a phone can read is a caveat that is not there"
+);
+
+/* And the row of filter chips that used to sit under it is gone entirely — the
+   list is a tree grouped by discipline now, so a discipline filter chip was a
+   second control doing the tree's job, at about 50px of a 664px screen. */
+check(
+  "the filter chip row is not back",
+  !/All \$\{groupBy === "area"/.test(field),
+  "the tree is the filter; two controls for one job is how they drift apart"
 );
 
 check(

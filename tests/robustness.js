@@ -241,6 +241,83 @@ const fresh = async (ctx) => { const p = await ctx.newPage(); return p; };
     await ctx.close();
   }
 
+  // ---------- SEEN ON THE WALK ----------
+  /* The three things that would be silently wrong rather than visibly broken.
+     Each one looks correct from a screenshot when it is not:
+
+     · An ad-hoc item that gated on the ACSA asset register would simply have
+       no add button on a device where the register never arrived, which is
+       every device today — the register is a Contract Data 25.2 deliverable
+       that is still outstanding and may not land this round.
+     · A collapse that discarded unsaved text loses evidence with no error and
+       no trace, on the field whose whole point is that it is hard to retype.
+     · A completion figure that counted walk items would keep counting, keep
+       looking plausible, and be wrong by however many we happened to find. */
+  {
+    const ctx = await browser.newContext({viewport:{width:375,height:664}});
+    const p = await ctx.newPage();
+    const bad=[]; p.on('pageerror',e=>bad.push(String(e)));
+
+    await p.goto(B+'/field',{waitUntil:'networkidle'}); await p.waitForTimeout(1600);
+
+    /* The denominator BEFORE anything is added. Read off the screen rather
+       than assumed, so the assertion is about what an auditor sees. */
+    const before = (await p.locator('body').innerText()).match(/(\d+)\/(\d+)/);
+    const denomBefore = before ? before[2] : null;
+
+    const add = p.locator('button', { hasText: /^Add item$/ }).first();
+    ok('the add control is on the screen at 375px with no asset register loaded',
+       await add.isVisible().catch(()=>false));
+    const box = await add.boundingBox();
+    ok('and it is at least 56px tall', !!box && box.height >= 56, box ? String(box.height) : 'no box');
+
+    await add.click(); await p.waitForTimeout(500);
+    await p.locator('textarea').first().fill('Bund wall cracked through at the day tank.');
+    await p.locator('button', { hasText: /^Record it$/ }).first().click();
+    await p.waitForTimeout(900);
+
+    const after = await p.locator('body').innerText();
+    ok('an item can be recorded with a description alone', /Bund wall cracked through/.test(after));
+    ok('it is marked as not being one of the register check-points',
+       /seen on the walk/i.test(after));
+    ok('its id cannot be mistaken for a check-point id', /WALK-/.test(after));
+
+    const denomAfter = (after.match(/(\d+)\/(\d+)/)||[])[2];
+    ok('THE COMPLETION DENOMINATOR DID NOT MOVE',
+       denomBefore !== null && denomAfter === denomBefore,
+       `${denomBefore} -> ${denomAfter}`);
+    ok('and the walk count is stated separately', /\+\s*1 seen on the walk/.test(after));
+
+    /* Collapse must HIDE, never discard. Typed into the observation, collapsed
+       by tapping the row, re-expanded, and read back. */
+    /* The group WRAPPER carries data-group; the thing that opens it is the
+       button inside. Clicking the wrapper hits whatever is under the cursor,
+       which after the first group opens is a check row. */
+    await p.locator('[data-group] > button').first().click(); await p.waitForTimeout(400);
+    await p.locator('[data-system] > button').first().click(); await p.waitForTimeout(400);
+    const row = p.locator('[data-check] button[aria-expanded]').first();
+    await row.click(); await p.waitForTimeout(500);
+    const note = p.locator('[data-check] textarea').first();
+    const typed = 'Coupler worn past the wear mark; photographed from the north side.';
+    await note.fill(typed);
+    await p.waitForTimeout(400);
+    await row.click(); await p.waitForTimeout(400);
+    ok('collapsing an item hides its controls', (await p.locator('[data-check] textarea').count()) === 0);
+    await row.click(); await p.waitForTimeout(500);
+    const back = await p.locator('[data-check] textarea').first().inputValue();
+    ok('COLLAPSING AND RE-EXPANDING LOSES NOTHING', back === typed, back.slice(0,40));
+
+    /* And it survived the round trip to storage, not just to React state. */
+    await p.reload({waitUntil:'networkidle'}); await p.waitForTimeout(1600);
+    const persisted = await p.locator('body').innerText();
+    ok('the walk item is still there after a reload', /Bund wall cracked through/.test(persisted));
+
+    ok('no horizontal scroll on the inspection screen at 375px',
+       !(await p.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)));
+    ok('no page errors on the walk path', bad.length===0, bad[0]||'');
+    await ctx.close();
+  }
+
   console.log(log.join('\n'));
   console.log(`\n${pass} passed, ${fail} failed`);
   await browser.close();

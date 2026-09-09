@@ -205,3 +205,12 @@ export const IconMore = (p: SVGProps<SVGSVGElement>) => (
     <circle cx="18.5" cy="12" r="1.9" fill="currentColor" />
   </svg>
 );
+
+/** A plus. The add action on the Inspection screen, where it is always
+ *  accompanied by the word — an icon alone on the one control that must be
+ *  found while walking is a guess an auditor should not have to make. */
+export const IconPlus = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...s(p)}>
+    <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+  </svg>
+);
