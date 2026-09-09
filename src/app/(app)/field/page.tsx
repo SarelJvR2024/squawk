@@ -274,6 +274,10 @@ export default function FieldPage() {
                           {portalIdFor(entityCode, c.id)}
                         </span>
                         <Pill>{groupBy === "area" ? c.discipline.split(" ")[0] : c.area}</Pill>
+                        {/* The asset system, alongside the id and the
+                            discipline: the three things that place a finding
+                            without opening anything. */}
+                        {c.system && c.system !== c.area && <Pill>{c.system}</Pill>}
                         {(() => {
                           /* The 2025 rating for THIS site's asset system. It used
                              to be a column on the register row, which meant every
@@ -289,12 +293,70 @@ export default function FieldPage() {
                             </Pill>
                           ))}
                       </div>
+                      {/* THE REGISTER'S OWN WORDS LEAD. VERBATIM.
+
+                          This line used to read `c.walkabout ?? c.requirement`
+                          — TPJV's walkabout guidance as the heading, with the
+                          check-point's actual requirement only as a fallback
+                          when we had not written one. That is the provenance
+                          split inverted, and it is not a cosmetic problem:
+
+                          · A finding must cite the check-point it came from.
+                            An auditor reading our words, with the numbered
+                            check nowhere in the heading, cannot trace one back
+                            without opening a spreadsheet.
+                          · ACSA can contest a finding raised against wording
+                            ACSA has never seen. They cannot contest one raised
+                            against their own register row.
+                          · Our guidance READS as invented, because in the
+                            strict sense it is: it is a proposal, not a
+                            requirement. Leading with it made the whole screen
+                            look generated.
+
+                          Not summarised, not truncated, not title-cased. If
+                          it runs to three lines it runs to three lines — a
+                          neat heading generated from ACSA's check is the same
+                          defect wearing a different hat. */}
                       <button
                         onClick={() => router.push(`/capture?check=${c.id}`)}
-                        className="mb-2.5 block text-left text-[12px] leading-[1.42] hover:underline"
+                        className="mb-2 block text-left text-[13px] leading-[1.4] font-semibold hover:underline"
                       >
-                        {c.walkabout ?? c.requirement}
+                        {c.requirement?.trim() ? (
+                          c.requirement
+                        ) : (
+                          /* Never fall back to the walkabout. A check-point
+                             with no requirement text is a defect in the
+                             register worth surfacing, not a hole to paper over
+                             with our own words. */
+                          <span style={{ color: "var(--warn)" }}>
+                            {portalIdFor(entityCode, c.id)} — the register carries no check text for
+                            this check-point
+                          </span>
+                        )}
                       </button>
+
+                      {/* OURS, AND IT SAYS SO. Smaller, lighter, and under a
+                          label naming the author — the export column calls it
+                          "Walkabout instruction", but a column header does not
+                          have to say whose instruction it is and a heading an
+                          auditor reads on an apron does.
+
+                          25 of the 324 check-points have no walkabout written.
+                          An empty one renders nothing at all: no placeholder,
+                          no "N/A", no labelled empty box. */}
+                      {c.walkabout?.trim() && (
+                        <div
+                          className="mb-2.5 rounded-[9px] border-l-[2px] pl-[9px]"
+                          style={{ borderColor: "var(--line-2)" }}
+                        >
+                          <div className="label-xs" style={{ color: "var(--ink-4)" }}>
+                            TPJV walkabout — physical check
+                          </div>
+                          <div className="mt-[2px] text-[11.5px] leading-[1.45]" style={{ color: "var(--ink-3)" }}>
+                            {c.walkabout}
+                          </div>
+                        </div>
+                      )}
                       {/* What the eye settles on, in the words the library
                           researched — tapped instead of typed, because typing
                           on an apron is what stops people capturing. Above the
