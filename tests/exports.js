@@ -8,6 +8,18 @@ const B = process.env.BASE || "http://localhost:3000";
  *  on the tabs are what keep a tapped panel legible while it is closed. */
 const openTab = (page, label) =>
   page.locator('button[role="tab"]', { hasText: label }).first().click();
+
+/* EXPORT LIVES IN THE "MORE" MENU NOW. Sync, Export, Start again and the
+   shortcuts sheet stood in the masthead at every width for the whole audit —
+   four controls you reach for once a day, taking a third of the header from
+   the two used constantly. Opening the menu first is the real interaction, so
+   it is what these suites do. */
+const openExport = async (page) => {
+  await page.locator("button", { hasText: /^More$/ }).first().click();
+  await page.waitForTimeout(400);
+  await page.locator('[role="menuitem"]', { hasText: "Export the workbook" }).first().click();
+  await page.waitForTimeout(700);
+};
 const panelChip = (page, key) => page.locator(`[data-panel="${key}"] button`).first();
 /* A real 1x1 JPEG — small enough to inline, real enough to decode. */
 const PIXEL_JPEG =
@@ -122,8 +134,7 @@ const ok = (n, c, x = "") => {
   // --- export ---
   await p.goto(B + "/capture", { waitUntil: "networkidle" });
   await p.waitForTimeout(1500);
-  await p.locator("button", { hasText: /^Export$/ }).first().click();
-  await p.waitForTimeout(700);
+  await openExport(p);
   const panel = await p.locator("body").innerText();
   ok("export panel opens and states the position", /check-points captured/.test(panel), panel.slice(0, 100).replace(/\n/g, " "));
 
@@ -288,10 +299,23 @@ const ok = (n, c, x = "") => {
   // --- ACSA role must not see the export control ---
   await p.keyboard.press("Escape");
   await p.waitForTimeout(300);
-  await p.locator("button", { hasText: /^ACSA$/ }).first().click();
+  /* The role is a pill showing the CURRENT role that opens the switch, not two
+     buttons side by side — the role is state, and state a menu hides is state
+     an auditor discovers by finding half the app disabled. */
+  await p.locator('button[aria-label^="Viewing as"]').first().click();
+  await p.waitForTimeout(400);
+  await p.locator('[role="menuitem"]', { hasText: "Read-only" }).first().click();
   await p.waitForTimeout(900);
-  const acsa = await p.locator("button", { hasText: /^Export$/ }).count();
+  /* Opened, and counted INSIDE the menu. Counting a hidden control would read
+     zero whatever the role is, which is a green assertion that proves
+     nothing. */
+  await p.locator("button", { hasText: /^More$/ }).first().click();
+  await p.waitForTimeout(400);
+  const acsa = await p.locator('[role="menuitem"]', { hasText: "Export the workbook" }).count();
   ok("ACSA read-only role has no export control", acsa === 0, "count=" + acsa);
+  const shortcuts = await p.locator('[role="menuitem"]', { hasText: "Keyboard shortcuts" }).count();
+  ok("but the menu is still there and still says what the keys do", shortcuts === 1,
+     "an empty menu would read as a broken one");
 
   console.log(log.join("\n"));
   console.log(`\n${pass} passed, ${fail} failed`);

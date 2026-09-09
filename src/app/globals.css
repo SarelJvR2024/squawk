@@ -143,6 +143,28 @@
   --e3: 0 12px 32px -12px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
+/* A MENU THAT HANGS OFF THE DARK BAND BUT BELONGS TO THE PAGE.
+
+   The masthead redefines --panel and its neighbours so every control inside
+   it inherits the band's palette — which is exactly right for a control, and
+   exactly wrong for a popover, which is a piece of the page that happens to be
+   anchored to the header. Left alone it arrives dark on a light app.
+
+   Resolved HERE, on :root, against whichever palette the root is currently
+   using — so both themes stay correct and no value is written twice. Because
+   the substitution happens on :root, .masthead's later redefinition of --panel
+   cannot reach back and change it. */
+:root {
+  --menu-bg: var(--panel);
+  --menu-line: var(--line-2);
+  --menu-ink: var(--ink);
+  --menu-ink-2: var(--ink-3);
+  --menu-hover: var(--sunken);
+  --menu-acc: var(--acc);
+  --menu-acc-soft: var(--acc-soft);
+  --menu-warn: var(--warn);
+}
+
 /* ============================================================
    The masthead.
    #2D1956 sampled from the ACSA Asset Assurance report, so the screen and

@@ -653,6 +653,35 @@ tests/                thirty-three suites — see tests/README.md
   rather than `lg`, so a 768px tablet can finally change discipline; the
   discipline select used to live in the `lg`-only rail.
 
+- **Four header controls are one menu.** Sync, Export, Start again and the
+  keyboard-shortcut sheet each held a slot in the masthead, on every screen, for
+  the whole audit — four controls reached for once a day, taking about a third
+  of a 1280px header from the two used constantly: which check you are on, and
+  jumping to another. They are behind **More** now, a word rather than a bare
+  glyph, and each row carries a line saying what it does: "Reset" and "Start
+  again" are the same button and only one of them mentions that it clears
+  captured work. Start again sits last, under a rule, in the warn colour — it
+  used to be one press from Export, which is save-my-work beside
+  destroy-my-work on a tablet being carried around a substation.
+
+  The menu is offered at **every** width. Reset and the shortcut sheet were
+  hidden below `sm` to keep a phone header at two rows; Export and Sync were
+  not, so a menu hidden on a phone would have removed exporting from a phone
+  altogether. One slot at every width is what made the grouping worth doing.
+
+  **The role stays out of it.** `TPJV` / `ACSA` is not an action, it is state —
+  ACSA is read-only, with no capture, no Export and no Sync. An auditor who does
+  not notice the role does not go looking in a menu; they find that half the app
+  has quietly stopped working. So a pill says which role is live at all times
+  and opens the switch when pressed.
+
+  Popovers anchored to the masthead read their surfaces from `--menu-*`, not
+  `--panel`. The header redefines the surface tokens for the dark band, which is
+  right for a control inside it and wrong for a panel belonging to the page —
+  left alone the menu arrived dark purple on a light app. The `--menu-*` pair is
+  resolved on `:root`, so both themes stay correct and no value is written
+  twice.
+
 - **The tablet is the device, not a narrow desktop.** The touch floor lives in
   one `@media (pointer: coarse)` block in `globals.css` — 44px targets, 16px
   fields so iOS does not zoom the page in mid-capture — rather than a second

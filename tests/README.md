@@ -19,9 +19,9 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `scope.test.mjs` | no | 48 |
 | `carryforward.test.mjs` | no | 31 |
 | `review.test.mjs` | no | 22 |
-| `tablet.test.mjs` | no | 34 |
+| `tablet.test.mjs` | no | 35 |
 | `portals.test.mjs` | no | 31 |
-| `reset.test.mjs` | no | 17 |
+| `reset.test.mjs` | no | 18 |
 | `completion.test.mjs` | no | 19 |
 | `audits.test.mjs` | no | 18 |
 | `voice.test.mjs` | no | 37 |
@@ -37,7 +37,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `home.test.mjs` | no | 51 |
 | `e2e.js` | yes | 22 |
 | `robustness.js` | yes | 38 |
-| `exports.js` | yes | 32 |
+| `exports.js` | yes | 33 |
 | `ai.js` | yes, two of them | 26 |
 | `persite.js` | yes | 25 |
 | `vision.js` | starts its own | 23 |
@@ -49,7 +49,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 43 |
 | `a11y.js` | yes | 51 |
 
-**1,278 assertions in total**, every count above verified by running the suite,
+**1,281 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 

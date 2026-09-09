@@ -95,9 +95,16 @@ async function auditor(browser, name, { unlock = true } = {}) {
 const sheetUp = (page) =>
   page.locator("text=Team captures").first().isVisible().catch(() => false);
 
+/* EXPORT LIVES IN THE "MORE" MENU NOW. Sync, Export, Start again and the
+   shortcuts sheet stood in the masthead at every width for the whole audit —
+   four controls you reach for once a day, taking a third of the header from
+   the two used constantly. Opening the menu first is the real interaction, so
+   it is what these suites do. */
 const openExport = async (page) => {
   if (await sheetUp(page)) return;
-  await page.locator("button", { hasText: /^Export$/ }).first().click();
+  await page.locator("button", { hasText: /^More$/ }).first().click();
+  await page.waitForTimeout(400);
+  await page.locator('[role="menuitem"]', { hasText: "Export the workbook" }).first().click();
   await page.waitForTimeout(900);
 };
 const closeSheet = async (page) => {
