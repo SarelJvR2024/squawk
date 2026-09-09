@@ -529,7 +529,7 @@ export function hazardsSheet(x: ExportInput): Sheet {
       { header: "Strategy (B170 001M)", width: 44, wrap: true },
       { header: "Suggested cell (not agreed)", width: 20 },
       { header: "B170 001M rating state", width: 26 },
-      { header: "Consequence (ACSA ERM)", width: 18 },
+      { header: "Impact (ACSA ERM)", width: 18 },
       { header: "Likelihood (ACSA ERM)", width: 18 },
       { header: "ERM cell", width: 10 },
       { header: "ERM priority", width: 12 },

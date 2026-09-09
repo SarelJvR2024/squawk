@@ -433,13 +433,26 @@ check("there is a Hazards sheet", /export function hazardsSheet/.test(exportsSrc
 check("it is in the full workbook", /hazardsSheet\(x\),/.test(exportsSrc));
 check("and available on its own", /kind: "hazards"/.test(panel));
 check("the panel passes the hazards through", /\n\s+hazards,/.test(panel));
+/* The ERM axis is called IMPACT on every user-facing surface, decided
+   9 September 2026. Not Severity — that word is genuinely B170's, and sharing
+   it is how the two axes get read as one. Not Consequence either, which is
+   cl. 9.2.2's own word and was what this column said until that decision: it
+   is accurate but it does not distinguish the two instruments on sight, which
+   is the whole job the name has to do here.
+
+   The property this assertion guards has not changed — two instruments, two
+   separately named axes, neither borrowing the other's word. Only the word
+   chosen for the second one has. The TYPE is still ErmConsequence and is not
+   renamed: a type renamed to match a label is churn, and the label is the part
+   a person reads. */
 check(
   "both instruments have their own columns, named by their own axes",
   /Severity \(B170 001M\)/.test(exportsSrc) &&
-    /Consequence \(ACSA ERM\)/.test(exportsSrc) &&
+    /Impact \(ACSA ERM\)/.test(exportsSrc) &&
+    !/Consequence \(ACSA ERM\)/.test(exportsSrc) &&
     /B170 001M rating state/.test(exportsSrc) &&
     /ERM rating state/.test(exportsSrc),
-  "B170 has severity and ERM has consequence — they are not the same axis"
+  "B170 has severity and ERM has impact — they are not the same axis"
 );
 check(
   "an unagreed B170 001M rating goes to its own column, marked",

@@ -286,7 +286,7 @@ export default function RecordActions({
               Why this is a second instrument, not a second opinion
             </summary>
             <div className="mt-1 text-[10.5px] leading-[1.5]" style={{ color: "var(--ink-3)" }}>
-              Consequence runs 5 to 1, the opposite direction to B170 001M&rsquo;s A to E, and this
+              Impact runs 5 to 1, the opposite direction to B170 001M&rsquo;s A to E, and this
               likelihood is a <b>probability</b> where B170&rsquo;s is occurrence history. The two
               instruments disagree on five cells by design. Nothing here is derived from the rating
               above without you agreeing it. Clause 9.1.2: priorities I and II enter ACSA&rsquo;s
@@ -294,7 +294,7 @@ export default function RecordActions({
             </div>
           </details>
 
-          {/* Consequence down, likelihood across, exactly as cl. 9.2.2 prints
+          {/* Impact down, likelihood across, exactly as cl. 9.2.2 prints
               it. One tap sets both and agrees them, the same gesture the B170
               matrix uses — and it clears the assumed-likelihood flag, because
               a cell somebody tapped is not a carried number. */}
@@ -306,7 +306,7 @@ export default function RecordActions({
                     className="pr-1.5 text-right font-mono text-[8px] font-medium"
                     style={{ color: "var(--ink-4)" }}
                   >
-                    C&nbsp;&darr;
+                    Impact&nbsp;&darr;
                   </th>
                   {erm.ERM_LIKELIHOODS.map((l) => (
                     <th
@@ -345,7 +345,7 @@ export default function RecordActions({
                                 ermLikelihoodAssumed: false,
                               })
                             }
-                            aria-label={`Consequence ${c} by likelihood ${l} — priority ${p}, ${erm.ERM_PRIORITY_META[p].tolerance}`}
+                            aria-label={`Impact ${c} by likelihood ${l} — priority ${p}, ${erm.ERM_PRIORITY_META[p].tolerance}`}
                             className="h-[36px] w-[52px] rounded-[8px] border-[1.5px] font-mono text-[10px] font-semibold transition-[var(--t)]"
                             style={{
                               background:
