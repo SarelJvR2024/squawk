@@ -22,7 +22,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `risk-matrix.test.mjs` | no | 41 |
 | `capture.test.mjs` | no | 28 |
 | `scope.test.mjs` | no | 48 |
-| `carryforward.test.mjs` | no | 31 |
+| `carryforward.test.mjs` | no | 46 |
 | `review.test.mjs` | no | 22 |
 | `tablet.test.mjs` | no | 35 |
 | `portals.test.mjs` | no | 31 |
@@ -42,7 +42,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `home.test.mjs` | no | 51 |
 | `adhoc.test.mjs` | no | 43 |
 | `e2e.js` | yes | 22 |
-| `robustness.js` | yes | 38 |
+| `robustness.js` | yes | 50 |
 | `exports.js` | yes | 33 |
 | `ai.js` | yes, two of them | 26 |
 | `persite.js` | yes | 25 |
@@ -55,7 +55,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 43 |
 | `a11y.js` | yes | 51 |
 
-**1,281 assertions in total**, every count above verified by running the suite,
+**1,350 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 
@@ -130,6 +130,67 @@ outstanding and a closed finding stops carrying; an unagreed rating carries as
 "Not audited" rather than becoming a decision by surviving; closure reads the
 real list and closing an item closes the finding behind it; and no visit label
 or site name is hardcoded into the screen.
+
+A sixth part guards the timeline — every carried item's life across every
+visit, drawn as a shape. **A blank cell is the defect it exists for.** A visit
+at which the entity was not audited reads, if it is left empty, as *nothing was
+wrong*; it means the opposite. On the data we hold, two of King Shaka's six
+visits are `skipped`, so two of six cells on every carried finding are exactly
+this case. So: `timelineFor` gives every visit a cell where `historyFor`
+deliberately drops the empty ones (a narrative and a shape want opposite
+things, and both are in the file, documented); a skipped visit is checked
+*before* the item's own dates, because nobody attended it whenever it fell; it
+renders as hatching and says "NOT AUDITED" to a screen reader; and a visit that
+happened with nothing recorded is `carried`, which is a worse fact than either
+and the one an ageing figure counts.
+
+It also guards two things that are easy to get subtly wrong. The lifecycle
+palette is not the rating palette — `--bad` and `--warn` mean Unacceptable and
+Tolerable everywhere in this product, and a closed finding is not "green"
+— so `repeat` is the only state allowed a band colour. And `visitsSurvived()`
+must agree with `visitsOpen()`: it excludes skipped visits (nobody was there,
+so nothing was survived) and the visit being decided now (an item is not shown
+as having survived the meeting it is sitting in). Two figures counting one
+thing differently on one screen is how a screen stops being believed.
+
+## `adhoc.test.mjs`
+
+Guards the record for something seen on the walk that the register does not
+cover, and the one number it must never touch.
+
+```bash
+node tests/adhoc.test.mjs
+```
+
+An ad-hoc inspection item is the most valuable record in an audit and the most
+dangerous one to file carelessly. Valuable because nobody asked for it: the
+register is 324 check-points ACSA wrote, and the defect standing in front of an
+auditor that nobody put on the list is regularly the finding worth having.
+Dangerous because it looks exactly like one of the 324 unless something stops
+it — and the moment "312 of 324" can become "313 of 324" by somebody recording
+an observation, every completion figure this product publishes is a number
+nobody can reconcile.
+
+Eight parts, mostly about separation: the record exists and its discipline and
+asset system are nullable, because an unattributed observation is a real state
+and a required field would be filled with a guess; the id series is `WALK-` and
+random rather than sequential, because two devices both minting WALK-03 would
+merge into one record and lose an observation; it is scoped per visit and
+absent-means-empty, so no persisted visit needs a migration; deleting one takes
+its photographs with it; it survives a merge and the shared record; **neither
+`useAuditProgress` nor `usePortfolio` may so much as mention it**, asserted on
+the code because the day somebody helpfully adds walk items to the completion
+figure nothing else would notice; every export sheet says which it is and the
+walk sheet is never folded into the register sheet; and only the description
+blocks a save.
+
+The eighth part is the outcome control. An outcome is not a rating: the four
+inspection buttons used to fill with `--bad` and `--warn`, so a Fail rendered
+in the colour of an Unacceptable rating and a Later in the colour of a
+Tolerable one. Those tokens are banned from the control, state is carried by an
+icon and a word as well as a fill, and the same segment tapped twice clears the
+outcome — a status set by mistake that cannot be unset turns a blank "not
+captured" into an untrue Pass.
 
 ## `review.test.mjs`
 

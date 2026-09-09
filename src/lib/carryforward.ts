@@ -411,11 +411,23 @@ export function timelineFor(
  *  after the one that raised it, at which it was not closed.
  *
  *  Measured in visits rather than days because the cycle is two visits a year:
- *  "survived three visits" says what "412 days" cannot. Skipped visits do not
- *  count — nobody was there, so the item did not survive anything. */
-export function visitsSurvived(cells: TimelineCell[]): number {
+ *  "survived three visits" says what "412 days" cannot.
+ *
+ *  TWO EXCLUSIONS, and both matter because this figure has to agree with
+ *  visitsOpen() above — two numbers on one screen counting the same thing
+ *  differently is how a screen stops being believed:
+ *
+ *  · A SKIPPED visit does not count. Nobody was there, so the item did not
+ *    survive anything; it was simply not looked at. King Shaka's Sep 2025 and
+ *    Mar 2026 are both skipped, so a finding raised in Mar 2025 has survived
+ *    nothing yet however long it has been open.
+ *  · THE CURRENT VISIT does not count. It is being decided now — an item is
+ *    not shown as having survived the meeting it is sitting in. It starts
+ *    counting once this visit is behind it. */
+export function visitsSurvived(cells: TimelineCell[], currentVisit: string): number {
   let n = 0;
   for (const c of cells) {
+    if (c.visit >= currentVisit) return n;
     if (c.state === "closed") return n;
     if (c.state === "carried" || c.state === "partial" || c.state === "repeat" || c.state === "notVerified") n++;
   }

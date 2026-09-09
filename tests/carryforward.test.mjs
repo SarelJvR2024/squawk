@@ -247,6 +247,105 @@ check(
   /min-h-\[44px\] rounded-full border px-\[11px\]/.test(closure)
 );
 
+/* ------------------------------------- the timeline: every audit, as a shape */
+
+/* A BLANK CELL IS THE DEFECT THIS SECTION GUARDS.
+ *
+ * A visit at which this entity was not audited reads, if it is left empty, as
+ * "nothing was wrong". It means the opposite — nobody looked, so nothing about
+ * the item can be claimed for that visit. King Shaka's Sep 2025 and Mar 2026
+ * are both `skipped` in programme.json, so on the data we actually hold, two of
+ * six cells on every carried finding are exactly this case. Get it wrong and
+ * the most damning fact on the screen renders as a clean sheet. */
+
+const strip = src("components", "VisitStrip.tsx");
+
+check(
+  "timelineFor gives EVERY visit a cell",
+  /return visits\.map\(\(v\) => \{/.test(cf) && !/\.filter\(\(e\)[\s\S]{0,40}!== null\)[\s\S]{0,200}timelineFor/.test(cf),
+  "historyFor drops empty visits on purpose; a timeline may not, because in a shape the gaps are the information"
+);
+check(
+  "a skipped visit is marked not-audited",
+  /if \(v\.state === "skipped"\) return \{ \.\.\.base, state: "notAudited" as const \};/.test(cf)
+);
+check(
+  "and it is checked BEFORE the item's own dates",
+  cf.indexOf('state: "notAudited"') < cf.indexOf('state: "before"'),
+  "a visit nobody attended is not audited even where it falls after the finding was raised"
+);
+check(
+  "not-audited renders as hatching, never as an empty cell",
+  /case "notAudited":[\s\S]{0,300}repeating-linear-gradient/.test(strip)
+);
+check(
+  "and it says so to a screen reader",
+  /notAudited: "NOT AUDITED — nobody looked"/.test(strip)
+);
+check(
+  "a visit that happened with nothing recorded is CARRIED, not not-audited",
+  /return \{ \.\.\.base, state: "carried" as const \};/.test(cf),
+  "an item nobody answered at a visit that did happen is a worse fact than one nobody could answer"
+);
+
+/* THE RATING PALETTE IS NOT THE LIFECYCLE PALETTE. #C73830 and #D58F0D mean
+   Unacceptable and Tolerable everywhere in this product. A closed finding is
+   not "green" and an open one is not "red" — they are states, not ratings, and
+   borrowing the band colours here makes every genuine rating on the screen less
+   legible. Repeat is the single exception the design allows. */
+const stripCode = strip.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+check(
+  "only the repeat state may use a band colour",
+  (stripCode.match(/var\(--bad\)/g) ?? []).length === 2 &&
+    !/var\(--warn\)/.test(stripCode) &&
+    !/var\(--good\)/.test(stripCode),
+  "repeat is the finding that matters most and the only one allowed to raise its voice"
+);
+check(
+  "state is carried by fill and shape as well",
+  /linear-gradient\(to top/.test(strip) && /border: "2px solid/.test(strip)
+);
+
+/* TWO FIGURES COUNTING ONE THING MUST AGREE. visitsOpen() and visitsSurvived()
+   both answer "how long has this been open"; a screen showing 0 in one place
+   and 1 in another is a screen nobody believes twice. */
+check(
+  "visitsSurvived excludes the visit being decided now",
+  /if \(c\.visit >= currentVisit\) return n;/.test(cf),
+  "an item is not shown as having survived the meeting it is sitting in"
+);
+check(
+  "and it excludes visits nobody attended",
+  !/notAudited[\s\S]{0,80}n\+\+/.test(cf),
+  "nobody was there, so the item did not survive anything"
+);
+check(
+  "the closure screen passes it the visit in view",
+  /visitsSurvived\(cells, visitId\)/.test(closure)
+);
+
+/* --------------------------------------------- grouped by asset system */
+
+check(
+  "the follow-up list groups by asset system",
+  /No asset system recorded/.test(closure) && /grouped\.map\(\(g\) => \{/.test(closure),
+  "the close-out conversation is held about a switchboard, not about a list of finding numbers"
+);
+check(
+  "an item with no asset system gets an explicit bucket, not a guess",
+  /p\.system\?\.trim\(\) \|\| "No asset system recorded"/.test(closure)
+);
+check(
+  "the coverage guard is on the row, not only in the detail pane",
+  /not covered this visit/.test(closure),
+  "closure cannot be evidenced against a check nobody is doing, and the person deciding needs to know before they decide"
+);
+check(
+  "the legend is on the screen",
+  /visits, oldest first:/.test(closure),
+  "a shape nobody can read is decoration"
+);
+
 /* ------------------------------------------------------------------ result */
 
 console.log(

@@ -378,7 +378,7 @@ export default function ClosurePage() {
                         const o = verifications[p.key]?.outcome;
                         const on = p.key === active?.key;
                         const cells = timelines.get(p.key) ?? [];
-                        const survived = visitsSurvived(cells);
+                        const survived = visitsSurvived(cells, visitId);
                         const covered = checksOf(entityCode, p.discipline, p.system).length > 0;
                         return (
                           <button

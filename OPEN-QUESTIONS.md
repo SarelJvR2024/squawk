@@ -139,6 +139,18 @@ Each of these is a judgement I made and would defend, not an oversight.
 - **`bandFor()` coerces an out-of-range cell to Green** where `ermPriority()`
   returns null. Carried from the rating audit. Changing it is a one-line fix and
   a behaviour change on a rating function, so it waits for a word from you.
+- **The Checks screen still tints its compliance buttons with the band
+  colours, and the Inspection screen no longer does.** `CheckDetail.tsx`'s
+  `toneStyle()` fills a selected status with `--bad-bg`/`--bad`,
+  `--warn-bg`/`--warn` and so on — a soft tint rather than the solid band fill,
+  but the same hues, on a control that is a compliance status and not a rating.
+  The Inspection screen's new segmented control deliberately does not, and the
+  two screens now disagree. I did not change the Checks screen: it was not in
+  any of the four specs, you reviewed and approved that layout recently, and
+  changing it unasked would undo work you signed off. **Two capture screens
+  showing a status two ways is worse than either way**, so this needs a call
+  rather than a preference — either the Checks screen adopts the brand palette,
+  or the Inspection screen goes back to the tints and I write down why.
 - **The Visual review screen does not show walk photographs.** `/review` builds
   its list from `checksAt(entity)` and each check's `Response.attachments`, so a
   photograph attached to a `WALK-xxxxx` item is not in it — an engineer who was
