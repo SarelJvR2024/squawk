@@ -7,6 +7,7 @@ import {
   disciplinesAt,
   useEntityCode,
   useResponses,
+  useAdhoc,
   useStore,
   useVisitFindings,
 } from "@/lib/store";
@@ -17,6 +18,7 @@ import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
 import RecordActions from "@/components/RecordActions";
 import StickyActions from "@/components/StickyActions";
 import RootCauseAdvice from "@/components/RootCauseAdvice";
+import { AttachmentStrip } from "@/components/Capture";
 import { IconCheck, IconInbox, IconLeft, IconLoop } from "@/components/ui/icons";
 import type { Finding } from "@/lib/types";
 
@@ -27,6 +29,7 @@ export default function FindingsPage() {
   const findings = useVisitFindings();
   const entityCode = useEntityCode();
   const responses = useResponses();
+  const adhocItems = useAdhoc();
   const updateFinding = useStore((s) => s.updateFinding);
   const addFindingProgress = useStore((s) => s.addFindingProgress);
 
@@ -245,6 +248,69 @@ export default function FindingsPage() {
                 )}
               </div>
               <h3 className="mb-3 text-[14.5px] leading-[1.35] font-bold">{active.description}</h3>
+
+              {/* WHERE IT CAME FROM, WHEN IT CAME OFF THE WALK.
+                  A finding raised from an ad-hoc item has no check-point behind
+                  it, so every link this pane normally offers is dead: no
+                  register text to quote, no evidence expected, and — the one
+                  that matters — no photographs, because the photographs are
+                  attached to the observation rather than to the finding.
+
+                  Without this block the flow reads as broken: record what you
+                  saw with three photographs, raise the finding, open the
+                  findings register, and the finding is there with nothing
+                  behind it. The observation is looked up rather than stored as
+                  a second link, because AdHocItem.findingId already holds the
+                  relation and a second copy of it is a second thing to keep
+                  true. */}
+              {(() => {
+                const from = adhocItems.find((a) => a.findingId === active.id);
+                if (!from) return null;
+                return (
+                  <div
+                    className="mb-3.5 rounded-[12px] border p-3"
+                    style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
+                  >
+                    <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                      <Pill tone="accent">SEEN ON THE WALK</Pill>
+                      <span className="font-mono text-[10px]" style={{ color: "var(--ink-4)" }}>
+                        {from.id}
+                      </span>
+                      {from.area && (
+                        <span className="font-mono text-[10px]" style={{ color: "var(--ink-4)" }}>
+                          {from.area}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => router.push("/field")}
+                        className="ml-auto text-[11.5px] font-semibold underline"
+                        style={{ color: "var(--acc)" }}
+                      >
+                        Open on the walk
+                      </button>
+                    </div>
+                    <div className="text-[12px] leading-[1.5]" style={{ color: "var(--ink-2)" }}>
+                      This is not one of the {checksAt(entityCode).length} check-points. It was
+                      recorded on site as something the register does not cover, and it is reported
+                      that way — here, and in every export.
+                    </div>
+                    {from.note.trim() && (
+                      <div className="mt-1.5 text-[12px] leading-[1.5]" style={{ color: "var(--ink-3)" }}>
+                        {from.note}
+                      </div>
+                    )}
+                    {from.attachments.length > 0 ? (
+                      <div className="mt-2.5">
+                        <AttachmentStrip attachments={from.attachments} thumbSize={40} />
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-[11.5px]" style={{ color: "var(--warn)" }}>
+                        No photograph or voice note was attached to the observation.
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* One rating and treatment block, shared with the hazard
                   register. See src/components/RecordActions.tsx — a second copy

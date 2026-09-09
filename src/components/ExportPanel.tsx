@@ -7,6 +7,7 @@ import {
   useResponses,
   useEntityCode,
   useVerifications,
+  useAdhoc,
   useVisitFindings,
   useVisitHazards,
   useVisitId,
@@ -104,6 +105,7 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
   const responses = useResponses();
   const findings = useVisitFindings();
   const hazards = useVisitHazards();
+  const adhoc = useAdhoc();
   const verifications = useVerifications();
   const entityCode = useEntityCode();
   const [budget, setBudget] = useState({ count: 0, bytes: 0 });
@@ -197,6 +199,7 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
         responses,
         findings,
         hazards,
+        adhoc,
         prior: priorFindingsAt(entityCode),
         verifications,
         library,

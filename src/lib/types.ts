@@ -629,3 +629,63 @@ export interface FeedbackNote {
    *  that erases itself is no use at the next visit. */
   resolvedAt: number | null;
 }
+
+/** SOMETHING SEEN ON THE WALK THAT THE REGISTER DOES NOT COVER.
+ *
+ *  The 324 check-points are what ACSA asked us to look at. They are not
+ *  everything there is to see, and the most valuable thing in an audit is
+ *  regularly the thing nobody thought to put on the list. Until this existed
+ *  an auditor standing in front of an undocumented defect had two options —
+ *  raise a Finding, which demands a discipline, a title and eventually a
+ *  rating, or lose it. Ten seconds of typing on an apron is the budget, so
+ *  most of them were lost.
+ *
+ *  IT IS NOT ONE OF THE 324, AND NOTHING MAY LET IT LOOK LIKE ONE.
+ *
+ *  · Its own id series — WALK-xxxxx, which no register row can collide with.
+ *    Random rather than sequential for the same reason findings are: two
+ *    auditors on two devices both minting WALK-03 would merge into one record
+ *    and lose an observation, and the merge keys on id.
+ *  · It creates no Response, so it cannot reach the completion figure. That
+ *    figure counts responses to register checks and nothing else — a "312 of
+ *    324" reading must not become 313 because somebody recorded an
+ *    observation.
+ *  · Every export says which it is.
+ *
+ *  Almost everything is optional on purpose. An unattributed observation is a
+ *  real state and forcing a discipline on it produces a lie; a half-captured
+ *  item completed back at the hotel is worth infinitely more than a lost one.
+ *  The description is the one thing that cannot be blank, because an item with
+ *  no description is not a record of anything. */
+export interface AdHocItem {
+  /** WALK-xxxxx. Never a register id. */
+  id: string;
+  /** Same vocabulary as a Hazard's, deliberately — a parallel origin
+   *  vocabulary is how two words come to mean the same thing and neither can
+   *  be reported on. "consolidated" is absent because an ad-hoc item is by
+   *  definition not consolidated from anything. */
+  origin: "field" | "acsa" | "tpjv";
+  /** What you found. Required. */
+  description: string;
+  /** Optional, and null is a real answer. */
+  discipline: string | null;
+  /** The register asset system, where the auditor can name one. Null is
+   *  common and honest: plenty of what is worth recording is not about a
+   *  system on our list, and that is itself evidence about the register. */
+  system: string | null;
+  /** Where it was seen, in whatever words are true. Free text, because zone
+   *  names do not exist yet and the register's categories are not places. */
+  area: string;
+  /** Same four values as a check's, so the control and the vocabulary are the
+   *  same everywhere. Usually NC. Not forced. */
+  outcome: Compliance | null;
+  note: string;
+  attachments: Attachment[];
+  /** Set when somebody raises a finding from this item, so the observation and
+   *  the finding stay attached rather than becoming two accounts of one thing.
+   *  Null until then, which is the normal state on the walk. */
+  findingId: string | null;
+  createdAt: number;
+  createdBy: string;
+  updatedAt?: number;
+}

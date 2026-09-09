@@ -1,4 +1,5 @@
 import type {
+  AdHocItem,
   AnswerLibrary,
   Attachment,
   Check,
@@ -83,6 +84,12 @@ export interface ExportInput {
    *  or a fixture written before the register existed — still produces a
    *  workbook, with an empty Hazards sheet rather than a crash. */
   hazards?: Hazard[];
+  /** Things seen on the walk that the register does not cover. Optional for
+   *  the same reason hazards are — an older caller still produces a workbook.
+   *  They are NEVER folded into the register sheet or the completion figure:
+   *  the whole value of an ad-hoc observation is that it was not on the list,
+   *  and a row that cannot say so is a row that misrepresents our coverage. */
+  adhoc?: AdHocItem[];
   prior: PriorFinding[];
   verifications: Record<string, Verification>;
   /** Loaded lazily; when absent the evidence and issue labels fall back to indices. */
@@ -356,6 +363,43 @@ export function photographsSheet(x: ExportInput): Sheet {
             ? "On the device and in the record store"
             : "On the device only",
         a.cloudUrl ?? "",
+        "Register check-point",
+      ]);
+    }
+  }
+  /* Photographs attached to something seen on the walk. Same sheet, because a
+     reader looking for an image should not have to know which of two places it
+     was captured from — and the last column says which it was. */
+  for (const item of x.adhoc ?? []) {
+    for (const a of item.attachments) {
+      if (a.kind !== "photo") continue;
+      rows.push([
+        photoFilename(a),
+        a.ref ?? "",
+        item.id,
+        item.discipline ?? "",
+        item.system ?? "",
+        item.area,
+        a.assetName?.trim() ?? "",
+        a.assetRef?.trim() ?? "",
+        a.caption?.trim() ?? "",
+        a.caption?.trim()
+          ? a.captionSource === "assistant"
+            ? "Assistant, accepted by the auditor"
+            : "Auditor"
+          : "NO CAPTION",
+        when(a.takenAt) ?? "",
+        when(a.createdAt),
+        a.createdBy,
+        a.width && a.height ? `${a.width}×${a.height}` : "",
+        a.bytes ? Math.round(a.bytes / 1024) : "",
+        a.unavailable
+          ? "No image stored"
+          : a.cloudUrl
+            ? "On the device and in the record store"
+            : "On the device only",
+        a.cloudUrl ?? "",
+        "Seen on the walk — NOT one of the register check-points",
       ]);
     }
   }
@@ -380,6 +424,63 @@ export function photographsSheet(x: ExportInput): Sheet {
       { header: "Size (KB)", width: 10 },
       { header: "Where the image is", width: 34 },
       { header: "Record copy", width: 60 },
+      { header: "Source", width: 46 },
+    ],
+    rows,
+  };
+}
+
+/* --------------------------------------------------------- seen on the walk */
+
+/** One row per thing seen on the walk that the register does not cover.
+ *
+ *  ITS OWN SHEET, and that is the point rather than a filing convenience. An
+ *  ad-hoc observation put on the register sheet would be a 325th row on a
+ *  324-row deliverable, and every count anybody took off that sheet would be
+ *  wrong by however many we happened to see. Here it is unambiguous: this is
+ *  what we found that nobody asked us to look for.
+ *
+ *  A cluster of these in one discipline is evidence about the check-list, not
+ *  about the airport. Nothing computes that yet; the data is kept clean enough
+ *  that it can be asked later. */
+export function walkSheet(x: ExportInput): Sheet {
+  const rows = (x.adhoc ?? []).map((a) => [
+    a.id,
+    ORIGIN_TEXT[a.origin],
+    /* Blank is a real answer on all three. An observation nobody could
+       attribute to a discipline is a normal state on a walk, and forcing one
+       would put a guess in a client deliverable. */
+    a.discipline ?? "",
+    a.system ?? "",
+    a.area,
+    a.description,
+    a.outcome ? STATUS_WORD[a.outcome] : "",
+    a.note,
+    a.attachments.filter((t) => t.kind === "photo").length,
+    a.attachments.filter((t) => t.kind === "voice").length,
+    /* Whether this observation became a finding. Empty means it has not — which
+       is legitimate, and visible, rather than lost. */
+    a.findingId ?? "",
+    when(a.createdAt),
+    a.createdBy,
+  ]);
+
+  return {
+    name: "Seen on the walk",
+    columns: [
+      { header: "Item", width: 14 },
+      { header: "Origin", width: 34 },
+      { header: "Discipline", width: 20 },
+      { header: "Asset system", width: 26 },
+      { header: "Where", width: 26 },
+      { header: "What was found", width: 66, wrap: true },
+      { header: "Outcome", width: 16 },
+      { header: "Notes", width: 50, wrap: true },
+      { header: "Photographs", width: 12 },
+      { header: "Voice notes", width: 12 },
+      { header: "Raised as finding", width: 18 },
+      { header: "Recorded", width: 18 },
+      { header: "Recorded by", width: 22 },
     ],
     rows,
   };
@@ -693,6 +794,12 @@ export function summarySheet(x: ExportInput): Sheet {
        therefore reads higher than the register's count by design. */
     const hs = (x.hazards ?? []).filter((h) => h.disciplines.includes(d));
     const hAgreed = hs.filter((h) => h.ratingConfirmed);
+    /* ITS OWN COLUMN, never added to Check-points or to Complete. "312 of 324"
+       must not become "313 of 324" because somebody recorded an observation —
+       the denominator is ACSA's list and the numerator has to be answers to it.
+       Shown alongside so both numbers are readable at once, which is the whole
+       ask: what we were sent to look at, and what we found anyway. */
+    const walk = (x.adhoc ?? []).filter((a) => a.discipline === d);
     return [
       d,
       cs.length,
@@ -710,6 +817,7 @@ export function summarySheet(x: ExportInput): Sheet {
       hs.length,
       hAgreed.length,
       hAgreed.filter((h) => bandFor(h.severity, h.likelihood) === "Red").length,
+      walk.length,
     ];
   });
 
@@ -732,6 +840,7 @@ export function summarySheet(x: ExportInput): Sheet {
       { header: "Hazards", width: 9 },
       { header: "Hazard rating agreed", width: 19 },
       { header: "Hazards red", width: 12 },
+      { header: "Seen on the walk (not in the 324)", width: 28 },
     ],
     rows,
   };
@@ -776,10 +885,18 @@ export function aboutSheet(x: ExportInput): Sheet {
         ).length,
       ],
       ["2025 findings verified", `${verified} of ${x.prior.length}`],
+      [
+        "Seen on the walk (NOT part of the check-points in scope)",
+        (x.adhoc ?? []).length,
+      ],
       ["", ""],
       [
         "A blank status",
         "means the check-point has not been captured. It does not mean compliant.",
+      ],
+      [
+        "Seen on the walk",
+        "Things the audit team found on site that the check-list does not cover. They are on their own sheet and in their own count, and they are DELIBERATELY excluded from Check-points in scope and from Complete: the completion figure is answers to ACSA's list, and an observation nobody asked for must not move it. Their identifiers begin WALK- and can never be confused with a check-point. Where several of them fall in one discipline, that is worth reading as evidence about the check-list rather than about the airport.",
       ],
       [
         "Suggested vs agreed ratings",
@@ -826,6 +943,7 @@ export function fullWorkbook(x: ExportInput): Sheet[] {
     findingsSheet(x),
     hazardsSheet(x),
     closureSheet(x),
+    walkSheet(x),
     evidenceRequestSheet(x),
     photographsSheet(x),
   ];

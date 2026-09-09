@@ -283,6 +283,18 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
     ...(theirs.visit.captures ?? []).filter((c) => !captureIds.has(c.id)),
   ];
 
+  /* Things seen on the walk. Union by id, newer wins — the same rule findings
+     get, without a report bucket of its own: an ad-hoc item has no progress log
+     to reconcile and no issue button to be a duplicate of, so there is nothing
+     for a person to arbitrate. Losing one silently is the only failure worth
+     guarding, and unioning by id is what prevents it. */
+  const adhocById = new Map((mine.visitData.adhoc ?? []).map((a) => [a.id, a]));
+  for (const t of theirs.visit.adhoc ?? []) {
+    const m = adhocById.get(t.id);
+    if (!m || (t.updatedAt ?? 0) > (m.updatedAt ?? 0)) adhocById.set(t.id, t);
+  }
+  const adhoc = [...adhocById.values()];
+
   const feedback = { ...(mine.visitData.feedback ?? {}) };
   for (const [checkId, notes] of Object.entries(theirs.visit.feedback ?? {})) {
     const seen = new Set((feedback[checkId] ?? []).map((n) => n.id));
@@ -323,7 +335,7 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
   }
 
   return {
-    visitData: { responses, verifications, captures, feedback },
+    visitData: { responses, verifications, captures, feedback, adhoc },
     findings,
     hazards,
     report,

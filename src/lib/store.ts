@@ -14,6 +14,7 @@ import { useMemo } from "react";
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
 import { clearAllMedia, delBlob, delBlobs } from "./media";
 import type {
+  AdHocItem,
   Attachment,
   Capture,
   Check,
@@ -160,6 +161,13 @@ export interface VisitData {
    *  correctly as "nobody has commented yet". Bumping the version to add a
    *  field that is absent-means-empty would risk a migration for no gain. */
   feedback?: Record<string, FeedbackNote[]>;
+  /** Things seen on the walk that the register does not cover. Optional for
+   *  the same reason `feedback` is: an older persisted visit simply has none,
+   *  which reads correctly as "nobody recorded any". Absent-means-empty is the
+   *  one shape change that does not need a version bump, and inventing a
+   *  migration to write `[]` into every historical visit would be a risk taken
+   *  for no gain. */
+  adhoc?: AdHocItem[];
 }
 
 const EMPTY_VISIT: VisitData = Object.freeze({
@@ -167,6 +175,7 @@ const EMPTY_VISIT: VisitData = Object.freeze({
   verifications: Object.freeze({}) as Record<string, Verification>,
   captures: Object.freeze([]) as unknown as Capture[],
   feedback: Object.freeze({}) as Record<string, FeedbackNote[]>,
+  adhoc: Object.freeze([]) as unknown as AdHocItem[],
 });
 
 function emptyResponse(checkId: string): Response {
@@ -340,6 +349,15 @@ interface State {
   importBundle: (b: Bundle) => MergeReport | string;
   toggleFeedbackResolved: (checkId: string, id: string) => void;
   removeFeedback: (checkId: string, id: string) => void;
+
+  /** Things seen on the walk. See AdHocItem — these are NOT part of the 324
+   *  and no count may treat them as though they were. */
+  adhoc: () => AdHocItem[];
+  addAdhoc: (a: Omit<AdHocItem, "id" | "createdAt">) => string;
+  updateAdhoc: (id: string, p: Partial<AdHocItem>) => void;
+  removeAdhoc: (id: string) => void;
+  addAdhocAttachment: (id: string, a: Omit<Attachment, "id" | "createdAt">) => void;
+  removeAdhocAttachment: (id: string, attachmentId: string) => void;
 
   addCapture: (c: Omit<Capture, "id" | "createdAt">) => void;
   assignCapture: (captureId: string, checkId: string) => void;
@@ -824,6 +842,73 @@ export const useStore = create<State>()(
             },
           })),
 
+        /* ---------- things seen on the walk ----------
+
+           Scoped to the visit like a response, because an observation made at
+           King Shaka in September is not something Cape Town has to account
+           for. Stored as a list rather than a map: there is no natural key,
+           and the order they were recorded in is the order they were seen. */
+
+        adhoc: () => get().visitData().adhoc ?? [],
+
+        addAdhoc: (a) => {
+          /* WALK-, and random. A sequential number would read better and merge
+             worse: two auditors on two devices would both mint WALK-03, the
+             merge keys on id, and one of the two observations would vanish
+             without anything saying so. Same reason findings are F-xxxxx. */
+          const id = `WALK-${uid().toUpperCase().slice(0, 5)}`;
+          writeScope((d) => ({
+            adhoc: [...(d.adhoc ?? []), { ...a, id, createdAt: Date.now(), updatedAt: Date.now() }],
+          }));
+          set({ lastSavedAt: Date.now() });
+          return id;
+        },
+
+        updateAdhoc: (id, p) =>
+          writeScope((d) => ({
+            adhoc: (d.adhoc ?? []).map((x) =>
+              x.id === id ? { ...x, ...p, updatedAt: Date.now() } : x
+            ),
+          })),
+
+        removeAdhoc: (id) => {
+          /* The bytes go with it. An orphaned blob is invisible and counts
+             against the storage budget forever. */
+          const item = (get().visitData().adhoc ?? []).find((x) => x.id === id);
+          const keys = (item?.attachments ?? []).map((a) => a.blobKey).filter(Boolean) as string[];
+          if (keys.length) void delBlobs(keys);
+          writeScope((d) => ({ adhoc: (d.adhoc ?? []).filter((x) => x.id !== id) }));
+        },
+
+        addAdhocAttachment: (id, a) => {
+          const item = (get().visitData().adhoc ?? []).find((x) => x.id === id);
+          if (!item) return;
+          get().updateAdhoc(id, {
+            attachments: [
+              ...item.attachments,
+              {
+                ...a,
+                id: uid(),
+                /* The item's own id is the prefix, so a walk photograph reads
+                   WALK-A3F2K_P01 and can never be mistaken in the zip for one
+                   attached to a register check-point. */
+                ...(a.kind === "photo" ? { ref: nextPhotoRef(id, item.attachments) } : {}),
+                createdAt: Date.now(),
+              },
+            ],
+          });
+        },
+
+        removeAdhocAttachment: (id, attachmentId) => {
+          const item = (get().visitData().adhoc ?? []).find((x) => x.id === id);
+          if (!item) return;
+          const a = item.attachments.find((x) => x.id === attachmentId);
+          if (a?.blobKey) void delBlob(a.blobKey);
+          get().updateAdhoc(id, {
+            attachments: item.attachments.filter((x) => x.id !== attachmentId),
+          });
+        },
+
         addCapture: (c) =>
           writeScope((d) => ({
             captures: [...d.captures, { ...c, id: `CAP-${uid()}`, createdAt: Date.now() }],
@@ -874,6 +959,7 @@ export const useStore = create<State>()(
                 v.attachments.map((a) => a.blobKey)
               ),
               ...data.captures.map((c) => c.blobKey),
+              ...(data.adhoc ?? []).flatMap((x) => x.attachments.map((a) => a.blobKey)),
             ].filter((k): k is string => !!k);
             if (keys.length) void delBlobs(keys);
           }
@@ -1303,8 +1389,12 @@ export const useResponses = () => useVisitData().responses;
 export const useVerifications = () => useVisitData().verifications;
 export const useCaptures = () => useVisitData().captures;
 export const useFeedback = () => useVisitData().feedback ?? EMPTY_FEEDBACK;
+/** Things seen on the walk at the entity and visit in view. NOT part of the
+ *  324 — see AdHocItem, and every count that touches these. */
+export const useAdhoc = () => useVisitData().adhoc ?? EMPTY_ADHOC;
 
 const EMPTY_FEEDBACK: Record<string, FeedbackNote[]> = Object.freeze({});
+const EMPTY_ADHOC: AdHocItem[] = Object.freeze([]) as unknown as AdHocItem[];
 
 /** Findings raised on the visit currently in view. */
 export function useVisitFindings(): Finding[] {
