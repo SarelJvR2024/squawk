@@ -33,15 +33,27 @@ const check = (name, cond, detail = "") => {
 
 check(
   "there is a Reset control in the shell",
-  /onClick=\{\(\) => setResetting\(true\)\}/.test(shell) && /ResetPanel/.test(shell),
+  /setResetting\(true\)/.test(shell) && /ResetPanel/.test(shell),
   "prompting Claude is not a reset mechanism for someone mid-dry-run"
+);
+
+/* IT IS IN THE "MORE" MENU NOW, under a rule, named for what it does.
+   It stood in the masthead all day beside Export — a control that clears
+   captured work, one press from a control that saves it, on a tablet being
+   carried. In the menu it is last, separated, and labelled "Start again ·
+   Clear captured work for a dry run" rather than the single word "Reset",
+   which says nothing about what is destroyed. */
+check(
+  "Start again is a menu item, not a button standing in the header all day",
+  /label="Start again"/.test(shell) &&
+    /Clear captured work for a dry run/.test(shell) &&
+    !/<span className="hidden lg:inline">Reset<\/span>/.test(shell),
+  ""
 );
 
 check(
   "ACSA cannot reset the audit",
-  /\{role !== "acsa" && \(\s*\n?\s*<button\s*\n?\s*onClick=\{\(\) => setResetting\(true\)\}/.test(
-    shell
-  ),
+  /\{role !== "acsa" && \(\s*\n?\s*<>[\s\S]{0,900}?setResetting\(true\)/.test(shell),
   "their role is read-only everywhere else"
 );
 

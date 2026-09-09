@@ -190,15 +190,33 @@ check(
   /order-last flex w-full min-w-0 shrink-0 basis-full[\s\S]{0,90}sm:order-none sm:w-auto sm:flex-1 sm:basis-auto/.test(shell)
 );
 
+/* FOUR HEADER CONTROLS BECAME ONE MENU.
+   Sync, Export, Start again and the shortcuts sheet each held a slot in the
+   masthead all day. Reset and the shortcuts sheet were hidden below sm to keep
+   an iPhone SE header at two rows rather than three — 107px of a 568px screen
+   instead of 155px. They are all in "More" now, which costs ONE slot, so the
+   phone gets the two that matter back rather than losing the other two. */
 check(
-  "the keyboard-shortcut button is not offered on a device with no keyboard",
-  /aria-label="Keyboard shortcuts"[\s\S]{0,140}hidden min-h-\[44px\][\s\S]{0,80}sm:flex/.test(shell),
-  "it and Start again were the third header row on an iPhone SE"
+  "the four header actions are one menu, so the phone header stays two rows",
+  /aria-haspopup="menu"/.test(shell) &&
+    /label="Keyboard shortcuts"/.test(shell) &&
+    /label="Start again"/.test(shell) &&
+    /label="Export the workbook"/.test(shell) &&
+    /label="Sync to the portal"/.test(shell),
+  "four slots for controls used once a day, on every screen, all audit"
 );
 
 check(
-  "nor is Start again — a dry-run tool nobody wants within reach on an apron",
-  /aria-label="Start again"[\s\S]{0,220}hidden min-h-\[44px\]/.test(shell)
+  "and the menu itself is offered at EVERY width — Export and Sync were never phone-only losses",
+  /className="relative">\s*\n\s*<button\s*\n\s*onClick=\{\(\) => \{ setMore/.test(shell),
+  "a menu hidden below sm would have taken exporting from a phone away entirely"
+);
+
+/* The role simulator stays the one control a phone can go without: it exists
+   so somebody can see what ACSA sees, and nobody does that one-handed. */
+check(
+  "the role pill is still desk-and-tablet only",
+  /className="relative hidden sm:block">\s*\n\s*<button\s*\n\s*onClick=\{\(\) => \{ setRoleOpen/.test(shell)
 );
 
 check(

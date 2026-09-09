@@ -30,6 +30,7 @@ const checkDetail = src("components", "CheckDetail.tsx");
    store's raw slices instead of the scoped hooks, it is showing whatever the
    last scope happened to be. */
 const screens = [
+  ["home/page.tsx", src("app", "(app)", "home", "page.tsx")],
   ["capture/page.tsx", src("app", "(app)", "capture", "page.tsx")],
   ["field/page.tsx", src("app", "(app)", "field", "page.tsx")],
   ["findings/page.tsx", src("app", "(app)", "findings", "page.tsx")],

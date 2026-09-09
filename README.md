@@ -14,6 +14,7 @@ Section numbers in code comments point at that document.
 
 | Area | State |
 |---|---|
+| Home screen | `/home` — what is next, which audits are open and how far, the Round 1 calendar, what was just done, and the seven screens in order |
 | Design system (section 5 interface standard) | Implemented as CSS tokens and primitives, light and dark |
 | Data model (section 6) | Typed domain model, local-first store over IndexedDB |
 | Seed data | **Rev A2 all sites (06 Sep 2026): 324 check-points × 10 sites = 3,086**, 6 disciplines, 99 ACSA documents mapped, 33 site variants, **78 open 2025 findings** and 66 asset-system ratings across three airports |
@@ -317,7 +318,7 @@ could do by hand in a browser, and Graph enforces that, not this code.
 ```
 src/
   app/
-    (app)/            capture · field · review · findings · hazards · closure · dashboard
+    (app)/            home · capture · field · review · findings · hazards · closure · dashboard
     api/assist/       the AI endpoint — text out, never audio or images
     api/transcribe/   voice-note transcription — the only route audio leaves by
   lib/
@@ -359,6 +360,18 @@ tests/                thirty-three suites — see tests/README.md
 ```
 
 ## Notes for whoever picks this up
+
+- **The app opens at `/home` in a browser and at `/capture` when installed, and
+  that is deliberate.** `/home` is the orientation screen — what is next, which
+  audits hold work and how far, the Round 1 calendar, what was just done, and
+  the seven screens in the order the work uses them. `/dashboard` stays the
+  analytical view and the two must not converge: findings, ratings, the B170
+  001M profile and movement against 2025 belong there and appear nowhere on
+  `/home`. The manifest's `start_url` is still `/capture` because it must be a
+  real screen rather than a redirect — a launch that begins with a network
+  request fails on an apron — so the auditor who taps the installed icon is
+  mid-audit and lands in the work, and the one typing the address is arriving
+  and lands in the orientation. `tests/home.test.mjs` holds both halves of that.
 
 - **The risk matrix is ACSA's, not a generic one.** `src/lib/risk.ts` implements
   B170 001M: severity A–E × likelihood 1–5, banded Red / Amber / Green. Clause
@@ -639,6 +652,35 @@ tests/                thirty-three suites — see tests/README.md
   the walk crosses into a shut system the tree opens it. It also starts at `md`
   rather than `lg`, so a 768px tablet can finally change discipline; the
   discipline select used to live in the `lg`-only rail.
+
+- **Four header controls are one menu.** Sync, Export, Start again and the
+  keyboard-shortcut sheet each held a slot in the masthead, on every screen, for
+  the whole audit — four controls reached for once a day, taking about a third
+  of a 1280px header from the two used constantly: which check you are on, and
+  jumping to another. They are behind **More** now, a word rather than a bare
+  glyph, and each row carries a line saying what it does: "Reset" and "Start
+  again" are the same button and only one of them mentions that it clears
+  captured work. Start again sits last, under a rule, in the warn colour — it
+  used to be one press from Export, which is save-my-work beside
+  destroy-my-work on a tablet being carried around a substation.
+
+  The menu is offered at **every** width. Reset and the shortcut sheet were
+  hidden below `sm` to keep a phone header at two rows; Export and Sync were
+  not, so a menu hidden on a phone would have removed exporting from a phone
+  altogether. One slot at every width is what made the grouping worth doing.
+
+  **The role stays out of it.** `TPJV` / `ACSA` is not an action, it is state —
+  ACSA is read-only, with no capture, no Export and no Sync. An auditor who does
+  not notice the role does not go looking in a menu; they find that half the app
+  has quietly stopped working. So a pill says which role is live at all times
+  and opens the switch when pressed.
+
+  Popovers anchored to the masthead read their surfaces from `--menu-*`, not
+  `--panel`. The header redefines the surface tokens for the dark band, which is
+  right for a control inside it and wrong for a panel belonging to the page —
+  left alone the menu arrived dark purple on a light app. The `--menu-*` pair is
+  resolved on `:root`, so both themes stay correct and no value is written
+  twice.
 
 - **The tablet is the device, not a narrow desktop.** The touch floor lives in
   one `@media (pointer: coarse)` block in `globals.css` — 44px targets, 16px

@@ -34,8 +34,15 @@ const ok = (n, c, x = "") => {
   c ? (pass++, log.push("PASS  " + n)) : (fail++, log.push("FAIL  " + n + (x ? "  [" + x + "]" : "")));
 };
 
+/* EXPORT LIVES IN THE "MORE" MENU NOW. Sync, Export, Start again and the
+   shortcuts sheet stood in the masthead at every width for the whole audit —
+   four controls you reach for once a day, taking a third of the header from
+   the two used constantly. Opening the menu first is the real interaction, so
+   it is what these suites do. */
 const openExport = async (page) => {
-  await page.locator("button", { hasText: /^Export$/ }).first().click();
+  await page.locator("button", { hasText: /^More$/ }).first().click();
+  await page.waitForTimeout(400);
+  await page.locator('[role="menuitem"]', { hasText: "Export the workbook" }).first().click();
   await page.waitForTimeout(700);
 };
 

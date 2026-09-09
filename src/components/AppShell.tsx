@@ -41,8 +41,10 @@ import {
   IconHelp,
   IconLock,
   IconLoop,
+  IconMore,
   IconPin,
   IconSearch,
+  IconTeam,
 } from "@/components/ui/icons";
 import { Pill } from "@/components/ui/primitives";
 
@@ -110,6 +112,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [exporting, setExporting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [resetting, setResetting] = useState(false);
+  /* The two masthead popovers. Only one is ever open — opening either closes
+     the other, because two overlapping panels hanging off one header is a
+     thing to dismiss twice. */
+  const [more, setMore] = useState(false);
+  const [roleOpen, setRoleOpen] = useState(false);
   const [audits, setAudits] = useState(false);
   const [q, setQ] = useState("");
 
@@ -175,6 +182,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         setSyncing(false);
         setResetting(false);
         setAudits(false);
+        /* The masthead popovers close on Escape like everything else here. A
+           panel that can only be dismissed by finding its own button again is
+           one an auditor learns to avoid opening. */
+        setMore(false);
+        setRoleOpen(false);
         return;
       }
       if (!typing && e.key === "?") setHelp(true);
@@ -240,7 +252,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         Skip to the audit
       </a>
       <header className="masthead flex min-h-[52px] shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b px-3.5 py-1 sm:h-[52px] sm:flex-nowrap sm:py-0">
-        <Link href="/dashboard" className="flex min-h-[44px] shrink-0 items-center gap-[9px] no-underline">
+        {/* The brand mark goes HOME, which is the one thing everybody already
+            expects it to do — and it is why /home needs no ninth destination in
+            a nav that is already 767px of bar inside an 820px portrait iPad.
+            For ACSA it stays on the dashboard: their role is read-only across
+            the audit and the shell redirects them there anyway, so pointing
+            their only header link at a screen that bounces would be a link
+            that visibly does nothing. */}
+        <Link
+          href={role === "acsa" ? "/dashboard" : "/home"}
+          className="flex min-h-[44px] shrink-0 items-center gap-[9px] no-underline"
+        >
           <span
             className="flex h-[27px] w-[27px] items-center justify-center rounded-[8px]"
             style={{
@@ -405,91 +427,167 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </button>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
-          {/* Sync sits beside Export because they are the same act at different
-              destinations — the workbook goes to a person, this goes to the
-              portal.
+          {/* FIVE CONTROLS BECAME ONE BUTTON AND A PILL.
+              Sync, Export, Reset and the shortcuts sheet stood in the masthead
+              at every width, on every screen, for the whole audit. All four are
+              things you reach for once a day at most — three of them at the END
+              of an audit — and together they took about a third of a 1280px
+              header from the two things that are used constantly: which check
+              you are on, and jumping to another one.
 
-              IT USED TO BE HIDDEN until a portal was configured, on the
-              reasoning that a button which can only explain why it does not
-              work is clutter. That is true of a button and false of a SETUP,
-              and the setup is where this feature sat for weeks: nobody could
-              see whether the sync existed, what it wanted, or how far along it
-              was, because the one screen that knows all three was behind the
-              thing it was waiting for. It opens a readiness list now — five
-              steps, each done, to do with what to do about it, or not checked
-              yet — so an unconfigured deployment is a screen you can act on
-              rather than an absence you have to ask about.
+              They are behind "More" now. It is a WORD, not a bare glyph: an
+              icon alone is one more thing to learn, and the 40px a label costs
+              is cheaper than a control nobody finds.
 
-              ACSA is read-only across the audit, so no sync for them — the
-              portal is where their copy comes FROM. */}
-          {role !== "acsa" && (
+              THE ROLE STAYS OUT HERE, because it is not an action — it is
+              state, and it changes what the whole app will do. ACSA is
+              read-only: no capture, no Export, no Sync. An auditor who does not
+              notice they are in ACSA mode does not go looking in a menu; they
+              find that half the app has quietly stopped working. So the pill
+              says which role is live at all times, and opens the switch when
+              pressed. */}
+          {/* AT EVERY WIDTH, unlike the four controls it replaced.
+
+              Reset and the shortcuts sheet used to be hidden below sm to keep
+              the phone header at two rows instead of three — but Export and
+              Sync were NOT, and putting all four behind a menu that was itself
+              hidden on a phone would have taken an auditor's ability to export
+              or sync from a phone away entirely. One button costs one slot at
+              every width, which is what made the menu worth having. */}
+          <div className="relative">
             <button
-              onClick={() => setSyncing(true)}
-              title="Send this visit's capture to the SharePoint portal"
+              onClick={() => { setMore((v) => !v); setRoleOpen(false); }}
+              aria-expanded={more}
+              aria-haspopup="menu"
               className="flex min-h-[44px] items-center gap-[6px] rounded-[8px] border px-[10px] py-[7px] text-[11.5px] transition-[var(--t)]"
-              style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+              style={{
+                background: more ? "var(--acc-soft)" : "var(--panel)",
+                borderColor: more ? "var(--acc-line)" : "var(--line-2)",
+                color: more ? "var(--acc)" : "var(--ink-2)",
+              }}
             >
-              <IconCloudUp width={13} height={13} />
-              <span className="hidden lg:inline">Sync</span>
+              <IconMore width={14} height={14} />
+              More
             </button>
-          )}
 
-          {role !== "acsa" && (
+            {more && (
+              <>
+                {/* Catches the press that closes it, at the size of the screen.
+                    A menu that only closes on its own button is a menu you have
+                    to learn to escape. */}
+                <div
+                  className="fixed inset-0 z-[70]"
+                  onClick={() => setMore(false)}
+                  aria-hidden="true"
+                />
+                <div
+                  role="menu"
+                  aria-label="More"
+                  className="absolute right-0 top-[calc(100%+7px)] z-[75] w-[268px] overflow-hidden rounded-[13px] border p-[5px]"
+                  style={{
+                    background: "var(--menu-bg)",
+                    borderColor: "var(--menu-line)",
+                    boxShadow: "var(--e3)",
+                  }}
+                >
+                  {/* ACSA is read-only across the audit: the portal is where
+                      their copy comes FROM, and there is nothing for them to
+                      export or start again. The menu is then the shortcuts
+                      sheet alone, which is still worth a menu — it is the only
+                      place that says the keys exist. */}
+                  {role !== "acsa" && (
+                    <MoreItem
+                      icon={<IconCloudUp width={14} height={14} />}
+                      label="Sync to the portal"
+                      hint="Send this visit to SharePoint, as you"
+                      onClick={() => { setMore(false); setSyncing(true); }}
+                    />
+                  )}
+                  {role !== "acsa" && (
+                    <MoreItem
+                      icon={<IconDownload width={14} height={14} />}
+                      label="Export the workbook"
+                      hint="The register, findings, hazards and photographs"
+                      onClick={() => { setMore(false); setExporting(true); }}
+                    />
+                  )}
+                  <MoreItem
+                    icon={<IconHelp width={14} height={14} />}
+                    label="Keyboard shortcuts"
+                    hint="What the keys do, on a device that has them"
+                    onClick={() => { setMore(false); setHelp(true); }}
+                  />
+                  {role !== "acsa" && (
+                    <>
+                      <div className="my-[4px] h-px" style={{ background: "var(--menu-line)" }} />
+                      {/* Last, under a rule, and named for what it does rather
+                          than for the word Reset — this one clears captured
+                          work, and it is in the same menu as Export. */}
+                      <MoreItem
+                        icon={<IconLoop width={14} height={14} />}
+                        label="Start again"
+                        hint="Clear captured work for a dry run"
+                        tone="warn"
+                        onClick={() => { setMore(false); setResetting(true); }}
+                      />
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* The role, always legible, one press to change. */}
+          <div className="relative hidden sm:block">
             <button
-              onClick={() => setExporting(true)}
-              className="flex min-h-[44px] items-center gap-[6px] rounded-[8px] border px-[10px] py-[7px] text-[11.5px] transition-[var(--t)]"
-              style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+              onClick={() => { setRoleOpen((v) => !v); setMore(false); }}
+              aria-expanded={roleOpen}
+              aria-haspopup="menu"
+              aria-label={`Viewing as ${role === "acsa" ? "ACSA" : "TPJV"} — change`}
+              className="flex min-h-[44px] items-center gap-[6px] rounded-[8px] border px-[10px] py-[7px] font-mono text-[10px] font-semibold transition-[var(--t)]"
+              style={
+                role === "acsa"
+                  ? { background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }
+                  : { background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }
+              }
             >
-              <IconDownload width={13} height={13} />
-              <span className="hidden md:inline">Export</span>
+              {role === "acsa" ? "ACSA" : "TPJV"}
             </button>
-          )}
 
-          {role !== "acsa" && (
-            <button
-              onClick={() => setResetting(true)}
-              aria-label="Start again"
-              title="Start again — clear captured data for a dry run"
-              className="hidden min-h-[44px] items-center gap-[6px] rounded-[8px] border px-[10px] py-[7px] text-[11.5px] transition-[var(--t)] sm:flex"
-              style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-3)" }}
-            >
-              <IconLoop width={13} height={13} />
-              <span className="hidden lg:inline">Reset</span>
-            </button>
-          )}
-
-          {/* Keyboard shortcuts, on a device with no keyboard — and Start again,
-              which is a dry-run tool nobody wants within reach on an apron.
-              Both hidden below sm so the phone header stays two rows instead of
-              three: on an iPhone SE that is the difference between 155px and
-              107px of a 568px screen. */}
-          <button
-            onClick={() => setHelp(true)}
-            aria-label="Keyboard shortcuts"
-            className="hidden min-h-[44px] items-center rounded-[8px] border p-[9px] transition-[var(--t)] sm:flex"
-            style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
-          >
-            <IconHelp width={14} height={14} />
-          </button>
-
-          {/* The role simulator is the one control a phone can go without: it
-              exists so somebody can see what ACSA sees, and nobody does that
-              one-handed on a 390px screen. Everything else stays reachable at
-              every width. */}
-          <div className="hidden gap-[2px] rounded-[8px] p-[2px] sm:flex" style={{ background: "var(--sunken)" }}>
-            {(["tpjv", "acsa"] as const).map((r) => (
-              <button
-                key={r}
-                onClick={() => setRole(r)}
-                className="min-h-[44px] rounded-[6px] px-[10px] py-[5px] font-mono text-[10px] font-semibold transition-[var(--t)]"
-                style={{
-                  background: role === r ? "var(--acc)" : "transparent",
-                  color: role === r ? "var(--on-acc)" : "var(--ink-3)",
-                }}
-              >
-                {r.toUpperCase()}
-              </button>
-            ))}
+            {roleOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-[70]"
+                  onClick={() => setRoleOpen(false)}
+                  aria-hidden="true"
+                />
+                <div
+                  role="menu"
+                  aria-label="Viewing as"
+                  className="absolute right-0 top-[calc(100%+7px)] z-[75] w-[268px] overflow-hidden rounded-[13px] border p-[5px]"
+                  style={{
+                    background: "var(--menu-bg)",
+                    borderColor: "var(--menu-line)",
+                    boxShadow: "var(--e3)",
+                  }}
+                >
+                  <MoreItem
+                    icon={<IconTeam width={14} height={14} />}
+                    label="TPJV"
+                    hint="Capture, export and sync — the full audit"
+                    selected={role !== "acsa"}
+                    onClick={() => { setRoleOpen(false); setRole("tpjv"); }}
+                  />
+                  <MoreItem
+                    icon={<IconLock width={14} height={14} />}
+                    label="ACSA"
+                    hint="Read-only: what the client sees, nothing captured"
+                    selected={role === "acsa"}
+                    onClick={() => { setRoleOpen(false); setRole("acsa"); }}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           {/* Whether the evidence has left the tablet yet. An auditor who has
@@ -666,8 +764,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           this app must never be ambiguous about. */}
       <main id="work" className="flex min-h-0 flex-1">
         <h1 className="sr-only">
-          {NAV.find((n) => n.href === pathname)?.label ?? "Squawk"} — {entityOf(entityCode).short}{" "}
-          {visitLabel}
+          {/* /home is reached from the brand mark rather than the nav, so it has
+              no NAV row to take a label from — and "Squawk — KSIA Sep 2026" is
+              the app's name where every other screen names the work. */}
+          {pathname === "/home"
+            ? "Home"
+            : (NAV.find((n) => n.href === pathname)?.label ?? "Squawk")}{" "}
+          — {entityOf(entityCode).short} {visitLabel}
         </h1>
         {children}
       </main>
@@ -866,5 +969,59 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
     </div>
+  );
+}
+
+/** One row in a masthead menu: an icon, what it does, and a line saying what
+ *  that means. The hint is not decoration — "Reset" and "Start again" are the
+ *  same button, and only one of them tells you it clears captured work. */
+function MoreItem({
+  icon,
+  label,
+  hint,
+  onClick,
+  tone,
+  selected,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  hint: string;
+  onClick: () => void;
+  tone?: "warn";
+  selected?: boolean;
+}) {
+  return (
+    <button
+      role="menuitem"
+      onClick={onClick}
+      /* --menu-* rather than --panel and friends: this row renders inside the
+         masthead, which redefines those for the dark band. See globals.css. */
+      className="flex w-full min-h-[44px] items-start gap-[9px] rounded-[9px] px-[9px] py-[8px] text-left transition-[var(--t)] hover:bg-[var(--menu-hover)]"
+      style={selected ? { background: "var(--menu-acc-soft)" } : undefined}
+    >
+      <span
+        className="mt-[1px] shrink-0"
+        style={{ color: tone === "warn" ? "var(--menu-warn)" : selected ? "var(--menu-acc)" : "var(--menu-ink-2)" }}
+      >
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span
+          className="block text-[11.5px] font-semibold"
+          style={{ color: tone === "warn" ? "var(--menu-warn)" : selected ? "var(--menu-acc)" : "var(--menu-ink)" }}
+        >
+          {label}
+        </span>
+        <span className="mt-[1px] block text-[10.5px] leading-[1.45]" style={{ color: "var(--menu-ink-2)" }}>
+          {hint}
+        </span>
+      </span>
+      {/* The current role says so in a word, not only by its tint. */}
+      {selected && (
+        <span className="mt-[2px] shrink-0 font-mono text-[9px]" style={{ color: "var(--menu-acc)" }}>
+          NOW
+        </span>
+      )}
+    </button>
   );
 }

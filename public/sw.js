@@ -43,16 +43,19 @@ const VERSION = "squawk-v1";
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 
-/* The seven screens, precached on install so the FIRST offline launch works
-   rather than the second.
+/* The screens, precached on install so the FIRST offline launch works rather
+   than the second. /home is one of them: it is where the bare address lands,
+   so an auditor who reopens from a bookmark with no signal must find it here
+   rather than an error page.
  *
- *  `/` IS DELIBERATELY NOT ONE OF THEM. It is a server redirect to /capture, so
- *  caching it stores the redirected response under the key "/" — and handing a
- *  response with the redirected flag set back to a navigation is a hard error
- *  in every browser, which would have turned the home screen into a blank page
- *  on exactly the launch this file exists to make work. The manifest starts at
+ *  `/` IS DELIBERATELY NOT ONE OF THEM. It is a server redirect, so caching it
+ *  stores the redirected response under the key "/" — and handing a response
+ *  with the redirected flag set back to a navigation is a hard error in every
+ *  browser, which would have turned the landing screen into a blank page on
+ *  exactly the launch this file exists to make work. The manifest starts at
  *  /capture, and a bare `/` typed offline falls back to it below. */
 const ROUTES = [
+  "/home",
   "/capture",
   "/field",
   "/findings",

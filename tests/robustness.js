@@ -124,7 +124,14 @@ const fresh = async (ctx) => { const p = await ctx.newPage(); return p; };
     const ctx = await browser.newContext({viewport:{width:1440,height:900}});
     const p = await ctx.newPage();
     await p.goto(B+'/dashboard',{waitUntil:'networkidle'}); await p.waitForTimeout(1400);
-    await p.locator('button', {hasText:/^ACSA$/}).first().click(); await p.waitForTimeout(900);
+    /* The role is a pill showing the CURRENT role, opening the switch — not
+       two buttons side by side. It stayed out of the "More" menu on purpose:
+       the role is state, and state a menu hides is state an auditor finds out
+       about by discovering half the app disabled. */
+    await p.locator('button[aria-label^="Viewing as"]').first().click();
+    await p.waitForTimeout(400);
+    await p.locator('[role="menuitem"]', {hasText:'Read-only'}).first().click();
+    await p.waitForTimeout(900);
     const t = await p.locator('body').innerText();
     ok('ACSA role shows a read-only banner', /read-only|view only|cannot edit/i.test(t), t.slice(0,120).replace(/\n/g,' '));
     await p.goto(B+'/capture',{waitUntil:'networkidle'}); await p.waitForTimeout(1400);

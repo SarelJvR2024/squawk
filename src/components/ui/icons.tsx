@@ -195,3 +195,13 @@ export const IconSpark = (p: SVGProps<SVGSVGElement>) => (
     <path d="M18.5 16.5l.7 1.7 1.7.7-1.7.7-.7 1.7-.7-1.7-1.7-.7 1.7-.7.7-1.7z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
   </svg>
 );
+
+/** Three dots. The universal "there is more here", and the only thing on the
+ *  masthead that has to be understood without a label at 390px. */
+export const IconMore = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...s(p)}>
+    <circle cx="5.5" cy="12" r="1.9" fill="currentColor" />
+    <circle cx="12" cy="12" r="1.9" fill="currentColor" />
+    <circle cx="18.5" cy="12" r="1.9" fill="currentColor" />
+  </svg>
+);

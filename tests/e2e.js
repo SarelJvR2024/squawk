@@ -142,6 +142,16 @@ function ok(n,c,extra=''){ if(c){pass++;log.push('PASS  '+n);} else {fail++;log.
   const oflow2 = await m.evaluate(()=>document.documentElement.scrollWidth - document.documentElement.clientWidth);
   ok('capture has no horizontal overflow at 390px', oflow2<=2, 'overflow='+oflow2);
   await m.screenshot({path:'/home/claude/shots/mobile-capture.png'});
+  /* The home screen's ten-site calendar strip is the widest thing in the app.
+     Unpositioned, its cards counted toward the DOCUMENT's scroll area rather
+     than the strip's: the layout looked right and the whole shell, masthead
+     included, panned 1,244px into empty space on a phone. So this asserts what
+     the eye cannot — that the VIEWPORT does not move. */
+  await m.goto(B+'/home', {waitUntil:'networkidle'}); await m.waitForTimeout(1200);
+  const oflow3 = await m.evaluate(()=>{ window.scrollTo(2000,0); const x = window.scrollX; window.scrollTo(0,0);
+    return {o: document.documentElement.scrollWidth - document.documentElement.clientWidth, x}; });
+  ok('the home screen does not pan sideways at 390px', oflow3.o<=2 && oflow3.x===0, 'overflow='+oflow3.o+' scrollX='+oflow3.x);
+  await m.screenshot({path:'/home/claude/shots/mobile-home.png'});
 
   // 15 dark mode
   const d = await ctx.newPage(); await d.emulateMedia({colorScheme:'dark'});

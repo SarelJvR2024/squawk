@@ -228,6 +228,7 @@ check(
    reaches for the whole register, its numbers are for a site that does not
    exist. */
 const screens = [
+  ["home/page.tsx", src("app", "(app)", "home", "page.tsx")],
   ["capture/page.tsx", src("app", "(app)", "capture", "page.tsx")],
   ["field/page.tsx", src("app", "(app)", "field", "page.tsx")],
   ["review/page.tsx", src("app", "(app)", "review", "page.tsx")],
