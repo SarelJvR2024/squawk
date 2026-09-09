@@ -12,8 +12,18 @@ import {
   useVisitFindings,
   useVisitId,
 } from "@/lib/store";
-import { carriesWork, currentRatingOf, useHistory, useOutstanding, visitsOpen } from "@/lib/carryforward";
+import {
+  carriesWork,
+  currentRatingOf,
+  timelineFor,
+  useHistory,
+  useOutstanding,
+  visitsOpen,
+  visitsSurvived,
+} from "@/lib/carryforward";
 import ItemTimeline from "@/components/ItemTimeline";
+import VisitStrip from "@/components/VisitStrip";
+import GroupRow from "@/components/ui/GroupRow";
 import { PROGRAMME_VISITS } from "@/lib/programme";
 import { movement } from "@/lib/risk";
 import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
@@ -97,6 +107,54 @@ export default function ClosurePage() {
     return l;
   }, [entityCode, filter, discipline, verifications, outstanding]);
 
+  /* Every visit this entity has, oldest first — including the ones marked
+     `skipped`, which is exactly the point: a visit that did not happen has to
+     appear on the timeline as not audited rather than be left out and read as
+     a clean sheet. */
+  const entityVisits = useMemo(
+    () => PROGRAMME_VISITS.filter((v) => v.entity === entityCode),
+    [entityCode]
+  );
+  const byVisit = useStore((s) => s.byVisit);
+  const timelines = useMemo(() => {
+    const m = new Map<string, ReturnType<typeof timelineFor>>();
+    for (const p of outstanding) {
+      m.set(p.key, timelineFor(byVisit, entityCode, visitId, p, entityVisits));
+    }
+    return m;
+  }, [byVisit, entityCode, visitId, outstanding, entityVisits]);
+
+  /* GROUPED BY ASSET SYSTEM, because that is the unit the close-out
+     conversation is actually held in — the discipline lead answers for a
+     switchboard, not for a list of finding numbers — and it is the unit ACSA
+     rates and compares year on year. Every prior audit's items are in here
+     together: a 2025 finding and one this app raised in 2026 are the same
+     question in front of the same asset, and splitting them by where they came
+     from would ask it twice. */
+  const grouped = useMemo(() => {
+    const by = new Map<string, typeof list>();
+    for (const p of list) {
+      const k = p.system?.trim() || "No asset system recorded";
+      const g = by.get(k);
+      if (g) g.push(p);
+      else by.set(k, [p]);
+    }
+    return [...by.entries()]
+      .map(([sys, items]) => ({
+        sys,
+        items,
+        done: items.filter((p) => verifications[p.key]?.outcome).length,
+        total: items.length,
+      }))
+      .sort((a, b) => a.sys.localeCompare(b.sys));
+  }, [list, verifications]);
+
+  /* Everything opens by default. This is a worklist to burn down, not a tree
+     to explore: an auditor arriving at a closed list has to press every group
+     before seeing any work, which is the opposite of what the screen is for.
+     Collapsing is for putting a finished system away. */
+  const [collapsed, setCollapsed] = useState<string[]>([]);
+
   const active = list.find((p) => p.key === activePf) ?? list[0];
   const v = active ? verifications[active.key] : undefined;
   /* Read across every visit, not just this one — see historyFor(). */
@@ -131,9 +189,9 @@ export default function ClosurePage() {
       <div className="mx-auto w-full max-w-[1240px] px-5 pt-5 pb-16">
         <div className="mb-4">
           <h2 className="text-[18px] font-bold">
-            Outstanding at {entity.short} · closure verification
+            Follow-up at {entity.short} · every earlier audit, by asset system
           </h2>
-          <p className="mt-1 max-w-[78ch] text-[12.5px]" style={{ color: "var(--ink-2)" }}>
+          <p className="mt-1 hidden max-w-[78ch] text-[12.5px] sm:block" style={{ color: "var(--ink-2)" }}>
             {outstanding.length === 0 ? (
               <>Nothing is outstanding at {entity.name} coming into {visitLabel}.</>
             ) : (
@@ -142,13 +200,44 @@ export default function ClosurePage() {
                 visits — {outstanding.length - counts.carried} from the 2025 audit,{" "}
                 {counts.carried} raised in this system and never closed.{" "}
                 {outstanding.length - counts.unverified} of {outstanding.length} verified on{" "}
-                {visitLabel}.
+                {visitLabel}. Grouped by asset system, with each item&rsquo;s life across every visit
+                beside it — so what can be closed, and on what evidence, is a question about one
+                asset rather than about a list of numbers.
               </>
             )}
           </p>
         </div>
 
-        <div className="mb-3.5 grid grid-cols-2 gap-[9px] md:grid-cols-5">
+        {/* THE FIVE FIGURES, TWICE, AND THAT IS DELIBERATE.
+            As cards they are the first thing on a laptop and they earn it —
+            the close-out meeting opens on them. At 375px the same five cards
+            filled the entire first screen and pushed every item of actual work
+            below the fold, on a screen whose job is working through items. So
+            the phone gets the same five numbers as one line it can read at a
+            glance and scroll past in one gesture. */}
+        <div
+          className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[11px] border px-3 py-2 font-mono text-[10.5px] sm:hidden"
+          style={{ background: "var(--panel)", borderColor: "var(--line)" }}
+        >
+          {(
+            [
+              [counts.closed, "closed", "good"],
+              [counts.partial, "partial", "warn"],
+              [counts.repeat, "repeat", "bad"],
+              [counts.unverified, "not verified", "neu"],
+              [counts.carried, "carried", "acc"],
+            ] as [number, string, string][]
+          ).map(([n, label, tone]) => (
+            <span key={label} className="flex items-baseline gap-1">
+              <b className="tnum text-[13px]" style={{ color: `var(--${tone})` }}>
+                {n}
+              </b>
+              <span style={{ color: "var(--ink-3)" }}>{label}</span>
+            </span>
+          ))}
+        </div>
+
+        <div className="mb-3.5 hidden grid-cols-2 gap-[9px] sm:grid md:grid-cols-5">
           {[
             ["Verified closed", counts.closed, "good"],
             ["Partially closed", counts.partial, "warn"],
@@ -172,7 +261,7 @@ export default function ClosurePage() {
           ))}
         </div>
 
-        <Panel tone="accent" className="mb-3.5">
+        <Panel tone="accent" className="mb-3.5 hidden sm:block">
           <div className="flex items-start gap-2.5 text-[11.5px]" style={{ color: "var(--acc)" }}>
             <IconLoop width={14} height={14} style={{ marginTop: 1 }} />
             <span>
@@ -235,38 +324,113 @@ export default function ClosurePage() {
           ))}
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-[320px_minmax(0,1fr)]">
+        {/* THE LEGEND, because a shape nobody can read is decoration. Stated
+            once, above the list, rather than as a tooltip on every cell. */}
+        <div
+          className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-[11px] border px-3 py-2 font-mono text-[9.5px]"
+          style={{ background: "var(--panel)", borderColor: "var(--line)", color: "var(--ink-3)" }}
+        >
+          <span style={{ color: "var(--ink-4)" }}>{entityVisits.length} visits, oldest first:</span>
+          {(
+            [
+              ["raised", "raised"],
+              ["carried", "still open"],
+              ["partial", "partially closed"],
+              ["closed", "closed"],
+              ["repeat", "found again"],
+              ["notAudited", "NOT AUDITED"],
+            ] as const
+          ).map(([state, word]) => (
+            <span key={state} className="flex items-center gap-1.5">
+              <VisitStrip
+                cells={[{ visit: state, label: word, state, by: "", at: null, evidence: "" }]}
+                size={11}
+              />
+              {word}
+            </span>
+          ))}
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[380px_minmax(0,1fr)]">
           <div className="overflow-hidden rounded-[15px] border" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
             {list.length === 0 ? (
               <Empty>Nothing matches this filter.</Empty>
             ) : (
-              list.map((p) => {
-                const o = verifications[p.key]?.outcome;
-                const on = p.key === active?.key;
+              grouped.map((g) => {
+                const open = !collapsed.includes(g.sys);
                 return (
-                  <button
-                    key={p.key}
-                    onClick={() => setActivePf(p.key)}
-                    className="relative flex w-full items-start gap-2 border-b px-[11px] py-[9px] text-left transition-[var(--t)]"
-                    style={{ borderColor: "var(--line)", background: on ? "var(--acc-soft)" : "transparent" }}
-                  >
-                    {on && <span className="absolute inset-y-0 left-0 w-[2.5px]" style={{ background: "var(--acc)" }} />}
-                    <Dot
-                      tone={
-                        o === "Closed" ? "good" : o === "Open - repeat" ? "bad" : o ? "warn" : "pending"
+                  <div key={g.sys} data-system={g.sys}>
+                    <GroupRow
+                      label={g.sys}
+                      done={g.done}
+                      total={g.total}
+                      open={open}
+                      holds={active?.system === g.sys}
+                      onToggle={() =>
+                        setCollapsed((c) =>
+                          c.includes(g.sys) ? c.filter((x) => x !== g.sys) : [...c, g.sys]
+                        )
                       }
-                      label={o ?? "Not verified yet"}
+                      title={`${g.sys} — ${g.done} of ${g.total} decided this visit`}
                     />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                        {p.key} · {p.system} · {p.originLabel}
-                      </span>
-                      <span className="mt-[1px] block truncate text-[11.5px]">{p.finding}</span>
-                    </span>
-                    <span className="mt-[2px]">
-                      <Pill tone={ratingTone(p.rating)}>{p.rating.slice(0, 4).toUpperCase()}</Pill>
-                    </span>
-                  </button>
+                    {open &&
+                      g.items.map((p) => {
+                        const o = verifications[p.key]?.outcome;
+                        const on = p.key === active?.key;
+                        const cells = timelines.get(p.key) ?? [];
+                        const survived = visitsSurvived(cells);
+                        const covered = checksOf(entityCode, p.discipline, p.system).length > 0;
+                        return (
+                          <button
+                            key={p.key}
+                            data-item={p.key}
+                            onClick={() => setActivePf(p.key)}
+                            className="relative flex w-full items-start gap-2 border-b px-[11px] py-[9px] text-left transition-[var(--t)]"
+                            style={{ borderColor: "var(--line)", background: on ? "var(--acc-soft)" : "transparent" }}
+                          >
+                            {on && <span className="absolute inset-y-0 left-0 w-[2.5px]" style={{ background: "var(--acc)" }} />}
+                            <Dot
+                              tone={
+                                o === "Closed" ? "good" : o === "Open - repeat" ? "bad" : o ? "warn" : "pending"
+                              }
+                              label={o ?? "Not verified yet"}
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                                {p.key} · {p.originLabel}
+                              </span>
+                              <span className="mt-[1px] block truncate text-[11.5px]">{p.finding}</span>
+                              {/* EVERY AUDIT, AS A SHAPE. The pattern is the
+                                  point: closed then open again is a repeat and
+                                  the eye catches it before the row is read, and
+                                  a visit nobody audited is hatched rather than
+                                  blank. */}
+                              <span className="mt-[5px] flex flex-wrap items-center gap-2">
+                                <VisitStrip cells={cells} />
+                                {survived > 0 && (
+                                  <span className="font-mono text-[9px]" style={{ color: "var(--warn)" }}>
+                                    survived {survived} visit{survived === 1 ? "" : "s"}
+                                  </span>
+                                )}
+                                {/* THE COVERAGE GUARD, on the row rather than
+                                    only in the detail pane. Closure cannot be
+                                    evidenced against a check nobody is doing,
+                                    and the person deciding needs to know that
+                                    before they decide, not after. */}
+                                {!covered && (
+                                  <span className="font-mono text-[9px]" style={{ color: "var(--bad)" }}>
+                                    not covered this visit
+                                  </span>
+                                )}
+                              </span>
+                            </span>
+                            <span className="mt-[2px]">
+                              <Pill tone={ratingTone(p.rating)}>{p.rating.slice(0, 4).toUpperCase()}</Pill>
+                            </span>
+                          </button>
+                        );
+                      })}
+                  </div>
                 );
               })
             )}

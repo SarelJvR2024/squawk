@@ -20,16 +20,17 @@ Section numbers in code comments point at that document.
 | Seed data | **Rev A2 all sites (06 Sep 2026): 324 check-points × 10 sites = 3,086**, 6 disciplines, 99 ACSA documents mapped, 33 site variants, **78 open 2025 findings** and 66 asset-system ratings across three airports |
 | Answer Library (section 7) | **Complete — all 324 checks, re-keyed to Rev A2** |
 | Capture workspace (section 8) | Three-pane workspace, answer chips, real voice and photo capture, progress, ⌘K, keyboard |
-| Field inspection mode | Location-first, researched walkabout options with photo expectation, 44px targets, capture-first tray, ad-hoc findings, offline |
+| Field inspection mode | Two-level tree — discipline (or location) → asset system → check-points — collapsed rows, one item open at a time, one segmented outcome control, a full-width comment field, researched walkabout options with photo expectation, 56px add button, capture-first tray, offline |
+| Things seen on the walk | `WALK-xxxxx` — an inspection item the register does not cover, with photographs, a voice note, an outcome and an optional asset system. **Never counted toward the 324**, on its own export sheet, and one tap from becoming a finding |
 | Findings and rating | ACSA B170 001M matrix, agreed vs suggested ratings, root cause, owner, due date |
-| Hazards | Consolidation from findings with the photographs behind each group, post-walk re-read, **both rating instruments live** — B170 001M for the safety event, ACSA's ERM (J050 001FW cl. 9.2.2) for the business risk |
-| Closure | Carry-forward: this site's own 2025 findings plus anything an earlier visit left open, four-way verification, coverage guard, lifecycle |
+| HIRA | Consolidation from findings with the photographs behind each group, post-walk re-read, **both rating instruments live** — B170 001M for the safety event, ACSA's ERM (J050 001FW cl. 9.2.2) for the business risk |
+| Follow-up | Every earlier audit in one place, grouped by asset system: this site's own 2025 findings plus anything an earlier visit left open, each with its life across every visit as a strip — raised, still open, partially closed, closed, found again, and **not audited shown explicitly rather than left blank**. Four-way verification, coverage guard, lifecycle |
 | Audits | Every entity × visit in one place; open any, create new ones; the programme file seeds, the app extends |
 | Dashboards | Airport, discipline and a real ten-site portfolio, with movement against 2025 |
 | Visual review | All photographs and voice notes per discipline per airport, with an engineer feedback thread |
 | AI assistance | Optional and advisory — off unless a key is set |
 | Voice notes | Always recorded on the device; transcription and write-up are opt-in |
-| Exports | Excel and CSV: register, findings, hazards, closure, evidence request, summary, photographs — plus the images as files |
+| Exports | Excel and CSV: register, findings, hazards, closure, seen on the walk, evidence request, summary, photographs — plus the images as files |
 | Pre-flight | `/preflight` — microphone, camera, storage, offline cache and the three services, checked on the device before anyone walks onto an apron |
 | Shared record | Supabase, behind a team passphrase — every auditor's work in one audit, syncing by itself, and off entirely unless configured |
 | Team captures | Share a device's work as one file and merge another auditor's; evidence is never overwritten |
@@ -319,6 +320,8 @@ could do by hand in a browser, and Graph enforces that, not this code.
 src/
   app/
     (app)/            home · capture · field · review · findings · hazards · closure · dashboard
+                      (the tabs read Checks · Inspection · Review · Findings · HIRA · Follow-up ·
+                       Dashboard — labels changed, routes deliberately did not)
     api/assist/       the AI endpoint — text out, never audio or images
     api/transcribe/   voice-note transcription — the only route audio leaves by
   lib/
@@ -336,6 +339,11 @@ src/
     RootCauseAdvice.tsx  candidate causes and, more usefully, what to ask
     HazardAdvice.tsx  the event a finding exposes, named at the check
     RecordActions.tsx the rating and treatment block — findings AND hazards
+    AddItemSheet.tsx  record something the register does not cover, in ten seconds
+    OutcomeControl.tsx  Pass · Fail · N/A · Later — one segmented control, brand
+                      palette only, because an outcome is not a rating
+    VisitStrip.tsx    one carried item across every audit, as a shape
+    ui/GroupRow.tsx   the collapsible group header, shared by every screen that groups
     ExportPanel.tsx   the export sheet
     TeamMerge.tsx     share a device's captures, merge another's
     ui/               primitives and icons
@@ -356,7 +364,7 @@ src/
     answers.json      9,836 researched options, loaded on demand
     priorFindings.json  the 23 March 2025 findings
     programme.json    entities, the 3-year cycle, zones
-tests/                thirty-three suites — see tests/README.md
+tests/                thirty-five suites — see tests/README.md
 ```
 
 ## Notes for whoever picks this up

@@ -329,3 +329,95 @@ export function useHistory(portalId: string): HistoryEntry[] {
     [byVisit, entityCode, visitId, portalId, visits]
   );
 }
+
+/* ------------------------------------------------- one item, every audit */
+
+/** What one carried item looked like at one audit.
+ *
+ *  `notAudited` is the state this exists for. A visit at which this entity was
+ *  not audited must never render as a blank cell: a blank reads as *nothing
+ *  was wrong* and it means the opposite — we do not know. The programme file
+ *  already records those visits as `skipped`, so the honest answer is in the
+ *  data and only the rendering was throwing it away.
+ *
+ *  `carried` is the other one worth naming. A visit that happened, at which
+ *  nobody recorded anything against this item, is not the same as a visit that
+ *  did not happen — it means the item was open and went unanswered, which is a
+ *  worse fact than either and the one an ageing figure is counting. */
+export type TimelineState =
+  | "before"
+  | "raised"
+  | "carried"
+  | "partial"
+  | "closed"
+  | "repeat"
+  | "notVerified"
+  | "notAudited"
+  | "scheduled";
+
+export interface TimelineCell {
+  visit: string;
+  label: string;
+  state: TimelineState;
+  /** Who recorded the outcome at that visit, where one was recorded. */
+  by: string;
+  at: number | null;
+  evidence: string;
+}
+
+const STATE_OF: Record<VerificationOutcome, TimelineState> = {
+  Closed: "closed",
+  "Partially closed": "partial",
+  "Open - repeat": "repeat",
+  "Not verified": "notVerified",
+};
+
+/** The whole life of one carried item, one cell per visit, oldest first.
+ *
+ *  Every visit gets a cell — including the ones with nothing recorded and the
+ *  ones that never happened. `historyFor` above deliberately drops empty
+ *  visits, because it renders a narrative of what was said and an empty entry
+ *  says nothing; this renders a SHAPE, and in a shape the gaps are the
+ *  information. Both are right for what they do; they must not be merged. */
+export function timelineFor(
+  byVisit: Record<string, VisitData>,
+  entityCode: string,
+  currentVisit: string,
+  item: Outstanding,
+  visits: { id: string; label: string; state?: string }[]
+): TimelineCell[] {
+  return visits.map((v) => {
+    const rec = byVisit[scopeKey(entityCode, v.id)]?.verifications?.[item.key];
+    const base = {
+      visit: v.id,
+      label: v.label,
+      by: rec?.verifiedBy ?? "",
+      at: rec?.verifiedAt ?? null,
+      evidence: rec?.evidence ?? "",
+    };
+    /* Order matters. A skipped visit is "not audited" even where it sits after
+       the item was raised — nobody looked, so nothing about the item can be
+       claimed for it. */
+    if (v.state === "skipped") return { ...base, state: "notAudited" as const };
+    if (v.id < item.originVisit) return { ...base, state: "before" as const };
+    if (v.id === item.originVisit) return { ...base, state: "raised" as const };
+    if (rec?.outcome) return { ...base, state: STATE_OF[rec.outcome] };
+    if (v.id > currentVisit) return { ...base, state: "scheduled" as const };
+    return { ...base, state: "carried" as const };
+  });
+}
+
+/** How many visits this item has SURVIVED — visits that actually happened,
+ *  after the one that raised it, at which it was not closed.
+ *
+ *  Measured in visits rather than days because the cycle is two visits a year:
+ *  "survived three visits" says what "412 days" cannot. Skipped visits do not
+ *  count — nobody was there, so the item did not survive anything. */
+export function visitsSurvived(cells: TimelineCell[]): number {
+  let n = 0;
+  for (const c of cells) {
+    if (c.state === "closed") return n;
+    if (c.state === "carried" || c.state === "partial" || c.state === "repeat" || c.state === "notVerified") n++;
+  }
+  return n;
+}

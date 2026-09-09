@@ -64,7 +64,14 @@ const NAV = [
   { href: "/field", label: "Inspection", icon: IconPin },
   { href: "/review", label: "Review", icon: IconCamera },
   { href: "/findings", label: "Findings", icon: IconLoop },
-  { href: "/hazards", label: "Hazards", icon: IconFlag },
+  /* HIRA, not "Hazards" and never "Risks".
+     It names the instrument: B170 001M IS a Hazard Identification and Risk
+     Assessment, and that is the language SACAA expects to see. "Risks" was the
+     alternative and is the one word that cannot be used here — the asset system
+     carries ACSA's ERM business-risk rating, and two things called risk, rated
+     on two different matrices and going to two different committees, is exactly
+     how the last round of confusion started. The route stays /hazards. */
+  { href: "/hazards", label: "HIRA", icon: IconFlag },
   { href: "/closure", label: "Follow-up", icon: IconLoop },
   { href: "/dashboard", label: "Dashboard", icon: IconGrid },
   /* Last, and in the nav rather than behind the shortcut sheet, because the
