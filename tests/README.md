@@ -24,7 +24,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `scope.test.mjs` | no | 48 |
 | `carryforward.test.mjs` | no | 46 |
 | `review.test.mjs` | no | 22 |
-| `tablet.test.mjs` | no | 38 |
+| `tablet.test.mjs` | no | 40 |
 | `portals.test.mjs` | no | 31 |
 | `reset.test.mjs` | no | 18 |
 | `completion.test.mjs` | no | 19 |
@@ -55,7 +55,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 43 |
 | `a11y.js` | yes | 51 |
 
-**1,353 assertions in total**, every count above verified by running the suite,
+**1,355 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong before that
 was done.
 

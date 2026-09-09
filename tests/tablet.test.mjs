@@ -271,6 +271,26 @@ check(
    auditor told to go to Inspection arrived somewhere apparently else. Same
    defect the home screen's flow-strip test caught on the HIRA rename, on a
    screen nothing was checking. */
+/* A STICKY HEADER INSIDE AN `overflow-hidden` BOX NEVER STICKS.
+   `overflow: hidden` makes an element its own scroll container, so a
+   position:sticky child sticks within THAT box — and the tree wrapper is
+   taller than the viewport and cannot itself scroll, so the group header
+   scrolled away in silence. It looked identical to a header that had not
+   reached its stopping point yet, which is why this is asserted rather than
+   eyeballed: the screenshot that caught it only caught it because the header
+   was expected and absent. */
+check(
+  "the inspection tree does not clip its own sticky group headers",
+  /className="rounded-\[13px\] border"/.test(field) &&
+    !/overflow-hidden rounded-\[13px\]/.test(field),
+  "the square corner where the first group row meets the border is the price of a header that works"
+);
+check(
+  "the group header stops below the sticky filter bar, not under it",
+  /stickyTop=\{barH\}/.test(field) && /new ResizeObserver\(measure\)/.test(field),
+  "measured rather than a constant: the bar's height changes with the width and with the axis"
+);
+
 check(
   "the Inspection screen names itself as the navigation names it",
   /<h2 className="text-\[18px\] font-bold">\s*\n\s*Inspection/.test(field),

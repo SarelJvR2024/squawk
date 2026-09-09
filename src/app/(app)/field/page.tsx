@@ -479,7 +479,16 @@ export default function FieldPage() {
              system, and small marks for what is attached. Everything else is
              one tap away and unchanged when it gets there. */
           <div
-            className="overflow-hidden rounded-[13px] border"
+            /* NO `overflow-hidden` HERE, however much the rounded corners want
+               it. `overflow: hidden` makes an element its own scroll
+               container, so a `position: sticky` group header inside it sticks
+               within THIS box rather than within the page scroller — and since
+               this box is taller than the viewport and cannot itself scroll,
+               the header never sticks at all. It scrolled away silently, which
+               looked exactly like a header that had not reached its stopping
+               point yet. The square corner where the first group row meets the
+               border is the price, and it is worth paying. */
+            className="rounded-[13px] border"
             style={{ background: "var(--panel)", borderColor: "var(--line)" }}
           >
             {tree.map((g) => {
