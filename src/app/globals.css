@@ -249,9 +249,18 @@
   box-sizing: border-box;
 }
 
+/* THE DOCUMENT DOES NOT SCROLL. Every screen scrolls inside `.app-scroll`,
+   under a masthead, an audit strip and a navigation that are fixed furniture —
+   so a document scroll can only ever be a bug, and when one appeared it took
+   the entire chrome off the top of the screen with it. See the note on the
+   shell root in src/components/AppShell.tsx for the sr-only defect that caused
+   it. This is the belt to that fix's braces: with no scroll to give, nothing
+   that escapes the shell can move the app. */
 html,
 body {
   height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {

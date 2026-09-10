@@ -685,6 +685,27 @@ function VoiceRow({
  *  *Describe this photo* is a proposal and nothing else: it fills the field,
  *  marks the caption as the assistant's, and waits. The auditor edits it or
  *  types over it, and editing it hands authorship back to them. */
+/** ONE DATALIST, ONE ID, RENDERED ONCE PER SCREEN.
+ *
+ *  A photograph's location box offers the same suggestions as the inspection's
+ *  own — the site's areas plus every place already named on this walk — and a
+ *  <datalist> is addressed by id, so it cannot be re-rendered per photograph
+ *  without duplicating the id eight times on one page. The screen renders
+ *  <LocationOptions> once and every location box on it points here. A screen
+ *  that renders none still works: `list` naming an element that is not there is
+ *  an input with no suggestions, not an error. */
+export const LOCATION_LIST_ID = "squawk-locations";
+
+export function LocationOptions({ values }: { values: string[] }) {
+  return (
+    <datalist id={LOCATION_LIST_ID}>
+      {values.map((v) => (
+        <option key={v} value={v} />
+      ))}
+    </datalist>
+  );
+}
+
 function PhotoRow({
   a,
   onRemove,
@@ -709,6 +730,9 @@ function PhotoRow({
   const caption = a.caption ?? "";
   const uncaptioned = !dead && !caption.trim();
   const size = compact ? 40 : 52;
+  /* Shut by default — see the comment on the panel itself. */
+  const [details, setDetails] = useState(false);
+  const filled = [a.location, a.assetName, a.assetRef].filter(Boolean).join(" · ");
 
   async function describe() {
     if (!a.blobKey || !onUpdate) return;
@@ -797,42 +821,78 @@ function PhotoRow({
             </span>
           )}
 
-          {/* WHICH asset, for a photograph. The caption says what is wrong;
-              this says what it is wrong with, and that is the half a
+          {/* WHICH asset AND WHERE, for a photograph — FOLDED, and that is the
+              change. The caption says what is wrong; these say what it is wrong
+              with and where to go and find it, which together are what a
               maintenance planner needs to raise a job card.
 
-              Deliberately OPTIONAL and deliberately quiet — smaller, no warn
-              border, no nag. Plenty of evidence has no single asset behind it
-              (a trench, a housekeeping shot, a document on a desk), and a
-              required field on those gets filled with something untrue. It
-              stays visible rather than folded, because a field nobody can see
-              is a field nobody fills, and it is one short row. */}
+              They used to render open, three inputs stacked under the caption
+              on every photograph. Sarel, looking at the phone: the boxes are
+              very busy. He is right — four fields per photograph, times the
+              several photographs one check-point carries, is a wall of empty
+              boxes standing between the auditor and the next check. They are
+              one tap away instead, and the summary line below says what is in
+              them, so nothing is hidden — a field with a value states it
+              without being opened.
+
+              All three are OPTIONAL and stay optional. Plenty of evidence has
+              no single asset behind it (a trench, a housekeeping shot, a
+              document on a desk), and a required field on those gets filled
+              with something untrue. Location is the exception in spirit — it is
+              filled for you from the inspection at the moment of capture, so
+              the common case costs nothing and the rare case is editable. */}
           {a.kind === "photo" && !dead && (onUpdate ? (
-            <span className="flex flex-wrap gap-[5px]">
-              <input
-                value={a.assetName ?? ""}
-                onChange={(e) => onUpdate({ assetName: e.target.value })}
-                placeholder="Asset (optional)"
-                aria-label={`Asset name for ${a.name}`}
-                className="min-w-[110px] flex-1 basis-[140px] rounded-[6px] border px-[7px] py-[5px] text-[10.5px] outline-none"
-                style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
-              />
-              <input
-                value={a.assetRef ?? ""}
-                onChange={(e) => onUpdate({ assetRef: e.target.value })}
-                placeholder="No. / ref"
-                aria-label={`Asset number or reference for ${a.name}`}
-                className="w-[104px] shrink-0 rounded-[6px] border px-[7px] py-[5px] font-mono text-[10.5px] outline-none"
-                style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
-              />
-            </span>
-          ) : (a.assetName || a.assetRef) ? (
+            details && (
+              <span className="flex flex-wrap gap-[5px]">
+                <input
+                  value={a.location ?? ""}
+                  onChange={(e) => onUpdate({ location: e.target.value })}
+                  list={LOCATION_LIST_ID}
+                  placeholder="Where it was taken"
+                  aria-label={`Where ${a.name} was taken`}
+                  className="min-w-[130px] flex-1 basis-[100%] rounded-[6px] border px-[7px] py-[5px] text-[10.5px] outline-none"
+                  style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+                />
+                <input
+                  value={a.assetName ?? ""}
+                  onChange={(e) => onUpdate({ assetName: e.target.value })}
+                  placeholder="Asset (optional)"
+                  aria-label={`Asset name for ${a.name}`}
+                  className="min-w-[110px] flex-1 basis-[140px] rounded-[6px] border px-[7px] py-[5px] text-[10.5px] outline-none"
+                  style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+                />
+                <input
+                  value={a.assetRef ?? ""}
+                  onChange={(e) => onUpdate({ assetRef: e.target.value })}
+                  placeholder="No. / ref"
+                  aria-label={`Asset number or reference for ${a.name}`}
+                  className="w-[104px] shrink-0 rounded-[6px] border px-[7px] py-[5px] font-mono text-[10.5px] outline-none"
+                  style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+                />
+              </span>
+            )
+          ) : (a.location || a.assetName || a.assetRef) ? (
             <span className="text-[10.5px]" style={{ color: "var(--ink-3)" }}>
-              {[a.assetName, a.assetRef].filter(Boolean).join(" · ")}
+              {[a.location, a.assetName, a.assetRef].filter(Boolean).join(" · ")}
             </span>
           ) : null)}
 
           <span className="flex flex-wrap items-center gap-[6px] font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+            {/* THE FOLD, and it says what is behind it. When the fields carry
+                values it reads them out, so a closed panel never hides a fact —
+                it just stops three empty boxes being furniture. */}
+            {a.kind === "photo" && !dead && onUpdate && (
+              <button
+                type="button"
+                onClick={() => setDetails((v) => !v)}
+                aria-expanded={details}
+                className="rounded-[5px] px-[5px] py-[3px] font-mono text-[9px] underline-offset-2 hover:underline"
+                style={{ color: filled ? "var(--ink-3)" : "var(--acc)" }}
+              >
+                {filled ? filled : details ? "hide asset & location" : "+ asset & location"}
+              </button>
+            )}
+            {!onUpdate && a.location && <span>{a.location}</span>}
             {/* Where this one actually is. "On this device only" is the honest
                 state for most of an audit and is not an error — but an auditor
                 is entitled to see it rather than assume a copy exists

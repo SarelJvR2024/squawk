@@ -256,7 +256,16 @@ export default function AddItemSheet({
               <div className="mt-2 flex justify-end gap-2">
                 <PhotoButton
                   compact
-                  onCaptured={(m) => addAdhocAttachment(item.id, { ...m, createdBy: auditor })}
+                  onCaptured={(m) =>
+                    addAdhocAttachment(item.id, {
+                      ...m,
+                      /* WHERE IT WAS TAKEN, WITHOUT AN EXTRA TAP. The camera is
+                         always where the auditor is, so it inherits the item's
+                         own location; editable per photograph afterwards. */
+                      location: value.area.trim(),
+                      createdBy: auditor,
+                    })
+                  }
                 />
                 <VoiceNoteButton
                   compact

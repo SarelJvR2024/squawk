@@ -46,16 +46,45 @@ interface Item {
 
 /* ---------- media ---------- */
 
+/* WHAT A PHOTOGRAPH CAN BE DRAWN FROM, IN ORDER, and the middle one is the
+   whole fix here.
+
+   Three sources, and only one of them crosses between devices:
+     url            the full image, out of THIS device's IndexedDB blob store.
+                    A blobKey is a pointer into local storage — see
+                    src/lib/media.ts — so it resolves on the device that took
+                    the photograph and nowhere else, ever.
+     thumbDataUrl   the small inline preview, which lives INSIDE the persisted
+                    JSON and therefore rides the shared record to every other
+                    device on the audit.
+     dataUrl        legacy inline bytes from before the media store. Read,
+                    never written.
+
+   This screen listed the first and the third and skipped the second, so a
+   photograph taken on the phone showed on the phone and showed as "no image
+   stored" on the laptop — while the thumbnail that had crossed sat unread in
+   the same record. Sarel found it on the first day he used two devices. The
+   Capture screen has always had the fallback (src/components/Capture.tsx); this
+   one had drifted from it.
+
+   And the placeholder was WRONG when it did fire. "Captured before this worked"
+   is the v4 migration's meaning — `unavailable`, set once, on records that
+   genuinely predate real capture. A photograph whose bytes are on another
+   device is not that, and telling an auditor their evidence is corrupt old data
+   when it is one sync away is worse than telling them nothing. Two states, two
+   sentences. */
 function Photo({ a, onOpen }: { a: Attachment; onOpen?: () => void }) {
   const { url, missing } = useBlobUrl(a.blobKey);
-  const src = url ?? a.dataUrl ?? null;
-  if (a.unavailable || (missing && !a.dataUrl)) {
+  const src = url ?? a.thumbDataUrl ?? a.dataUrl ?? null;
+  if (a.unavailable || (missing && !a.thumbDataUrl && !a.dataUrl)) {
     return (
       <div
-        className="flex aspect-[4/3] w-full items-center justify-center rounded-[11px] border text-[10.5px]"
+        className="flex aspect-[4/3] w-full items-center justify-center rounded-[11px] border px-2 text-center text-[10.5px] leading-[1.4]"
         style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-4)" }}
       >
-        no image stored — captured before this worked
+        {a.unavailable
+          ? "no image stored — captured before this worked"
+          : "the image is on the device that took it"}
       </div>
     );
   }
@@ -81,7 +110,13 @@ function Photo({ a, onOpen }: { a: Attachment; onOpen?: () => void }) {
 
 function Lightbox({ a, onClose }: { a: Attachment; onClose: () => void }) {
   const { url } = useBlobUrl(a.blobKey);
-  const src = url ?? a.dataUrl ?? null;
+  /* Same chain as the tile, and it has to be — a tile that paints from the
+     thumbnail and a lightbox that does not is a photograph you can see until
+     you tap it. The thumbnail is small and will look it blown up; a small
+     picture of the evidence beats a black rectangle, and the line under it
+     says which device holds the full one. */
+  const src = url ?? a.thumbDataUrl ?? a.dataUrl ?? null;
+  const thumbOnly = !url && !!a.thumbDataUrl;
   return (
     <div
       className="fixed inset-0 z-[110] flex items-center justify-center p-5"
@@ -89,8 +124,15 @@ function Lightbox({ a, onClose }: { a: Attachment; onClose: () => void }) {
       onClick={onClose}
     >
       {src && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt={a.name} className="max-h-full max-w-full rounded-[13px]" />
+        <div className="flex max-h-full max-w-full flex-col items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt={a.name} className="max-h-full max-w-full rounded-[13px]" />
+          {thumbOnly && (
+            <span className="text-[11px]" style={{ color: "rgba(255,255,255,.72)" }}>
+              Preview only — the full image is on the device that took it.
+            </span>
+          )}
+        </div>
       )}
       <button
         onClick={onClose}

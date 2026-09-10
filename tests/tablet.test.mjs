@@ -135,7 +135,11 @@ check(
    passes on a reordering, which is backwards. */
 check(
   "tapping an option records it and its status, as FIELD work",
-  /setWalkabout\(c\.id, i, w\.sets\);[\s\S]{0,900}?commit\(c\.id, "field"\);/.test(field),
+  /* 2026-09-10: the commit goes through `saveField`, which writes the
+     inspection's location and then commits the field half. Same assertion —
+     tapping a researched option still credits the FIELD half in the same
+     handler — following the call through the helper. */
+  /setWalkabout\(c\.id, i, w\.sets\);[\s\S]{0,900}?saveField\(c\.id\);/.test(field),
   "tapped not typed, and credited to the half the tablet can actually answer"
 );
 
@@ -159,10 +163,29 @@ check(
 
 /* ------------------------------------------------- Part 4: less scrolling */
 
+/* RETIRED 2026-09-10, and replaced rather than deleted.
+   This asserted the card grid the "Seen on the walk" section used — a block of
+   ad-hoc items above the register, three across on a tablet. That section is
+   gone: Sarel asked for walk items to be filed into the asset system they
+   belong to rather than shown at the top, so they are rows in the same list as
+   the check-points now and there is no grid left to be three-up. What the
+   assertion was really protecting — that a tablet in landscape shows more work
+   per screen and not fewer — is protected by the row list itself, so the test
+   moves to the property that replaced it. */
 check(
-  "field cards go three-up at lg rather than xl",
-  /sm:grid-cols-2 lg:grid-cols-3/.test(field),
-  "more cards per screen on a tablet in landscape is fewer scrolls"
+  "walk items are rows in the asset system, not a block above the register",
+  /data-walk=\{it\.id\}/.test(field) &&
+    /for \(const it of walkVisible\) bucket\(it\.system\?\.trim\(\) \|\| NO_SYSTEM\)\.walk\.push\(it\);/.test(
+      field
+    ) &&
+    !/Seen on the walk · not part of the/.test(field),
+  "an item filed somewhere else entirely is one the auditor does not see again until the export"
+);
+
+check(
+  "and a walk item says it is not one of ACSA's, in words and not by colour",
+  /ADDED ON THE WALK/.test(field),
+  "a row that looks like one of the 324 while being none of those things is the most misleading thing this screen could render"
 );
 
 /* --------------------------- Part 5: the scope bugs this pass turned up */
@@ -305,7 +328,12 @@ check(
 
 check(
   "the Inspection screen names itself as the navigation names it",
-  /<h2 className="text-\[18px\] font-bold">\s*\n\s*Inspection/.test(field),
+  /* 2026-09-10: 16px on a phone, 18px from sm. The subtitle wrapped the
+     heading onto a second line at 375px, which is 22px of a 664px screen spent
+     restating the tab name — so it is desk-only and the title shrank with it.
+     The assertion is unchanged in substance: the screen is called what the
+     navigation calls it. */
+  /<h2 className="text-\[16px\] font-bold sm:text-\[18px\]">\s*\n\s*Inspection/.test(field),
   "the audit method's word for the session is kept as the subtitle, not as the title"
 );
 
@@ -355,7 +383,11 @@ check(
 
 check(
   "the walkabout's search box is a real target",
-  /min-h-\[40px\] w-full border-none bg-transparent text-\[13px\]/.test(field),
+  /* 2026-09-10: `min-w-0` was added when the discipline filter came to share
+     this row — without it the flex child refuses to shrink and the search box
+     pushes the filter off the edge on a 375px screen. The 40px is the part
+     under test and it is untouched. */
+  /min-h-\[40px\] w-full min-w-0 border-none bg-transparent text-\[13px\]/.test(field),
   "24px, and it is how an auditor finds the check for the thing in front of them"
 );
 

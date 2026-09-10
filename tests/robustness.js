@@ -278,8 +278,20 @@ const fresh = async (ctx) => { const p = await ctx.newPage(); return p; };
 
     const after = await p.locator('body').innerText();
     ok('an item can be recorded with a description alone', /Bund wall cracked through/.test(after));
+    /* 2026-09-10: the mark moved onto the row itself. Walk items used to be a
+       block above the register under the heading "Seen on the walk · not part
+       of the 324"; Sarel asked for them to be filed into the asset system they
+       belong to, so each row now carries the mark instead. Same invariant —
+       a row that is not one of ACSA's check-points says so, in words. */
     ok('it is marked as not being one of the register check-points',
-       /seen on the walk/i.test(after));
+       /added on the walk/i.test(after));
+
+    /* AND THE AUDITOR CAN SEE IT. The asset systems are shut by default, so
+       filing it correctly and showing nothing was a real defect for exactly
+       one build: the toast said it was recorded and the screen looked
+       identical. Saving opens the group it landed in. */
+    ok('recording it opens the group it landed in',
+       /Bund wall cracked through/.test(after));
     ok('its id cannot be mistaken for a check-point id', /WALK-/.test(after));
 
     const denomAfter = (after.match(/(\d+)\/(\d+)/)||[])[2];
@@ -295,11 +307,12 @@ const fresh = async (ctx) => { const p = await ctx.newPage(); return p; };
        testing either way: type into the observation, dismiss, reopen, read it
        back. Every control writes straight to the store, so nothing is held in
        a draft that a dismissal could drop. */
-    /* The group WRAPPER carries data-group; the thing that opens it is the
-       button inside. Clicking the wrapper hits whatever is under the cursor,
-       which after the first group opens is a check row. */
+    /* ONE LEVEL, NOT TWO, since 2026-09-10: the discipline came out of the tree
+       and became the filter above it, so the same element carries both
+       data-group and data-system and there is one header to open, not two.
+       Opening it twice would shut it again. The wrapper carries the attribute;
+       the thing that opens it is the button inside. */
     await p.locator('[data-group] > button').first().click(); await p.waitForTimeout(400);
-    await p.locator('[data-system] > button').first().click(); await p.waitForTimeout(400);
     const row = p.locator('[data-check] button').first();
     await row.click(); await p.waitForTimeout(600);
     ok('a check opens in a sheet', await p.locator('[role="dialog"]').isVisible());
@@ -320,8 +333,16 @@ const fresh = async (ctx) => { const p = await ctx.newPage(); return p; };
 
     /* And it survived the round trip to storage, not just to React state. */
     await p.reload({waitUntil:'networkidle'}); await p.waitForTimeout(1600);
+    /* Through the search, because a reload puts every group back shut — which
+       groups are open is session state, deliberately, and the record is what
+       has to survive. The search opens everything it matches, so this reads
+       the item back off the screen rather than out of the store. */
+    await p.locator('input[aria-label="Search any check"]').fill('Bund wall');
+    await p.waitForTimeout(600);
     const persisted = await p.locator('body').innerText();
     ok('the walk item is still there after a reload', /Bund wall cracked through/.test(persisted));
+    await p.locator('input[aria-label="Search any check"]').fill('');
+    await p.waitForTimeout(300);
 
     ok('no horizontal scroll on the inspection screen at 375px',
        !(await p.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)));

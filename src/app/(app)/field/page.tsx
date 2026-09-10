@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   areasAt,
   checksAt,
@@ -19,13 +18,20 @@ import {
 } from "@/lib/store";
 import { locationAxis } from "@/lib/programme";
 import { portalIdFor } from "@/lib/sites";
-import type { Check } from "@/lib/types";
+import type { AdHocItem, Check, Response } from "@/lib/types";
 import { Btn, Chip, Empty, Pill } from "@/components/ui/primitives";
 import AddItemSheet from "@/components/AddItemSheet";
 import GroupRow from "@/components/ui/GroupRow";
 import Sheet from "@/components/ui/Sheet";
 import OutcomeControl, { OUTCOMES } from "@/components/OutcomeControl";
-import { AttachmentStrip, PhotoButton, PhotoThumb, VoiceNoteButton } from "@/components/Capture";
+import {
+  AttachmentStrip,
+  LOCATION_LIST_ID,
+  LocationOptions,
+  PhotoButton,
+  PhotoThumb,
+  VoiceNoteButton,
+} from "@/components/Capture";
 import { useAnswerLibrary } from "@/lib/answers";
 import { assist, transcriptContext, useAssistAvailable } from "@/lib/assist";
 import { modeLabels, needsField } from "@/lib/verification";
@@ -40,8 +46,42 @@ import {
   IconX,
 } from "@/components/ui/icons";
 
+/* EXPLICIT BUCKETS, NEVER HIDDEN ROWS AND NEVER A GUESS.
+   A check with no asset system, no location or no discipline is a real state
+   and the auditor has to see it; dropping it would quietly shrink the list, and
+   the count under it, with nothing saying so. Named once so the filter, the
+   tree and the sort all mean the same thing by them. */
+const NO_SYSTEM = "No asset system recorded";
+const NO_AREA = "No location recorded";
+const NO_DISCIPLINE = "No discipline recorded";
+
+/** THE LAST PLACE THIS AUDIT NAMED.
+ *
+ *  An auditor who opens Inspection, walks off to Findings and comes back is in
+ *  the same room they were in a minute ago; making them type it again is the
+ *  thing the location field exists to stop. Read off the record rather than out
+ *  of storage, because the record is the only thing that survives the device
+ *  being handed to the other auditor.
+ *
+ *  Read ONCE, as the initial value of the running location — not watched. It is
+ *  where you are NOW, and a write by any other control must not drag it
+ *  somewhere else under the auditor mid-walk. */
+function lastLocationIn(responses: Record<string, Response | undefined>): string {
+  let best = "";
+  let bestAt = -1;
+  for (const r of Object.values(responses)) {
+    const loc = r?.location?.trim();
+    if (!loc) continue;
+    const at = r?.updatedAt ?? 0;
+    if (at >= bestAt) {
+      bestAt = at;
+      best = loc;
+    }
+  }
+  return best;
+}
+
 export default function FieldPage() {
-  const router = useRouter();
   const responses = useResponses();
   const captures = useCaptures();
   const visitId = useVisitId();
@@ -79,6 +119,34 @@ export default function FieldPage() {
      that is. Flip the default back the day real zones land; that is a
      one-line change and this comment is the note to do it. */
   const [groupBy, setGroupBy] = useState<"area" | "discipline">("discipline");
+  /* THE TOP LEVEL IS A FILTER NOW, NOT A ROW YOU OPEN.
+     It was the first level of the tree: six discipline rows, and every one of
+     them had to be opened before an asset system was even visible. Sarel, on
+     the phone: "it will be better if the top layer of the hierarchy is a filter
+     and not an expansion". He is right, and the reason is that the top level is
+     not something an auditor browses — they know which discipline they are
+     walking, they know it before they unlock the screen, and making them press
+     it every session buys nothing.
+
+     So the discipline (or, on the flip, the location) picks the subject and the
+     tree underneath is asset system → checks, one level to open instead of two.
+     "" is every one of them, which is the honest default: nothing is hidden
+     until the auditor chooses to hide it.
+
+     A select rather than a chip strip, deliberately. The chip strip is what
+     this screen had before the tree and it is why it was removed: 133 register
+     categories in a horizontally scrolling row is not a filter anybody can use,
+     and it cost about 50px of a 664px screen permanently. A select is one
+     40px control at any list length, and on a phone it opens as the platform's
+     own picker. */
+  const [filter, setFilter] = useState("");
+  /* WHERE THE AUDITOR IS STANDING, carried across checks.
+     Typed once per place, offered on every inspection opened after it, written
+     to the record on commit. See the Location field in the sheet — the whole
+     point is that a walk through one switch room costs one location, not
+     eleven. Session state: it is where you are NOW, and the records keep their
+     own copies. */
+  const [here, setHere] = useState(() => lastLocationIn(useStore.getState().visitData().responses));
   /* Which groups are open. "top" and "top|system" — one flat set for both
      levels, because a key can only mean one of them. Session state, per the
      brief: remembered while the screen is open, not persisted. */
@@ -141,9 +209,76 @@ export default function FieldPage() {
     setTimeout(() => setToast(null), 2400);
   };
 
-  /* Everything checkable on site here. The tree groups it; the search cuts
-     across the tree entirely, because the auditor standing in front of a thing
-     wants the check for THAT thing and does not care which group it is in. */
+  /* SAVING A CHECK WRITES WHERE IT WAS DONE.
+     The location box shows the running location before it is on the record —
+     the auditor did not type it on THIS check, so writing it the moment the
+     sheet opened would put a place on a record they only looked at. It lands on
+     commit instead, which is the moment the auditor says this inspection
+     happened. Every path that commits the field half goes through here, so
+     there is no route that saves a check and loses where it was. */
+  const saveField = (id: string) => {
+    const existing = responses[id]?.location?.trim();
+    if (!existing && here.trim()) patch(id, { location: here.trim() });
+    commit(id, "field");
+  };
+
+  /* WHAT THE LOCATION BOXES SUGGEST — the inspection's and every photograph's,
+     from one list. Places this walk has already named come FIRST, because on a
+     walk the next location is nearly always one of the last few; the site's
+     register categories follow, with the caveat the Add-item sheet already
+     carries about half of them not being places at all. */
+  const knownLocations = useMemo(() => {
+    const seen: string[] = [];
+    const push = (v: string | undefined | null) => {
+      const t = v?.trim();
+      if (t && !seen.includes(t)) seen.push(t);
+    };
+    for (const r of Object.values(responses)) {
+      push(r?.location);
+      for (const a of r?.attachments ?? []) push(a.location);
+    }
+    for (const it of adhocItems) {
+      push(it.area);
+      for (const a of it.attachments) push(a.location);
+    }
+    for (const a of areas) push(a);
+    return seen;
+  }, [responses, adhocItems, areas]);
+
+  /* THE TOP-LEVEL VALUE A CHECK BELONGS TO, on whichever axis is live. One
+     function so the filter, the option list and the ad-hoc rule cannot drift
+     apart — three places deciding "which discipline is this" separately is how
+     a filter comes to hide a row it was never asked to hide. */
+  const topOf = useMemo(
+    () => (c: Check) =>
+      groupBy === "area" ? c.area?.trim() || NO_AREA : c.discipline?.trim() || NO_DISCIPLINE,
+    [groupBy]
+  );
+
+  /* Every value the filter can take, off the WHOLE register for this site
+     rather than off what is currently showing — a filter whose options change
+     as you use it cannot be undone. */
+  const tops = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of checksAt(entityCode).filter(needsField)) set.add(topOf(c));
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [entityCode, topOf]);
+
+  /* A FILTER THAT DOES NOT EXIST ON THIS AXIS FILTERS NOTHING.
+     Flipping the axis clears it, but a filter can also stop existing under it —
+     a site switched underneath the screen, a register re-cut. Derived rather
+     than corrected in an effect: a value the list cannot honour is read as "all
+     of them", which shows everything, where clearing it a render later would
+     flash an empty screen first. */
+  const activeFilter = filter && tops.includes(filter) ? filter : "";
+
+  /* Everything checkable on site here, after the filter and the search.
+
+     THE SEARCH BEATS THE FILTER, and that is deliberate. An auditor standing in
+     front of a thing types what it is; if the discipline filter then hid it
+     because they had set the filter twenty minutes ago in another building,
+     the answer would be "no results" for a check that exists. So a search runs
+     across the whole register and the strip under the bar says so. */
   const visible = useMemo(() => {
     const s = q.trim().toLowerCase();
     /* Routed on the register's declared vtype, not on whether someone wrote
@@ -157,55 +292,78 @@ export default function FieldPage() {
           .includes(s)
       );
     }
+    if (activeFilter) return list.filter((c) => topOf(c) === activeFilter);
     return list;
-  }, [entityCode, q]);
+  }, [entityCode, q, activeFilter, topOf]);
 
-  /* THE TREE. Two levels on both axes:
-       discipline → asset system → items      (the default)
-       location   → asset system → items      (the flip)
-
-     The asset system is the second level on BOTH, and that is deliberate
-     rather than symmetrical for its own sake: the asset system is the unit
-     ACSA rates, reports and compares year on year, so it is the level an
-     auditor should be reading their own work at whichever way they came into
-     it.
-
-     Counts are of everything a group HOLDS, not of what the search left
-     standing — see GroupRow. An empty group is not rendered at all; a group
-     that opens onto nothing is a row that only wastes a press. */
-  const tree = useMemo(() => {
-    const tops = new Map<string, Map<string, Check[]>>();
-    for (const c of visible) {
-      /* An explicit bucket, never a hidden row and never a guess. A check with
-         no location under the location axis is a real state and the auditor
-         needs to see it; dropping it would quietly shrink the list. */
-      const top =
-        groupBy === "area" ? (c.area?.trim() || "No location recorded") : c.discipline;
-      const sys = c.system?.trim() || "No asset system recorded";
-      let systems = tops.get(top);
-      if (!systems) tops.set(top, (systems = new Map()));
-      const list = systems.get(sys);
-      if (list) list.push(c);
-      else systems.set(sys, [c]);
+  /* The walk items the current filter and search should show. Same two rules as
+     the register list, plus one of its own: an item with no discipline and no
+     location is NEVER hidden by a filter on either — a filter that hides an
+     unattributed observation makes the one record nobody can re-derive the
+     easiest one to lose. */
+  const walkVisible = useMemo(() => {
+    const q2 = q.trim().toLowerCase();
+    if (q2) {
+      return adhocItems.filter((it) =>
+        `${it.id} ${it.description} ${it.note} ${it.area} ${it.discipline ?? ""} ${it.system ?? ""}`
+          .toLowerCase()
+          .includes(q2)
+      );
     }
+    if (!activeFilter) return adhocItems;
+    return adhocItems.filter((it) => {
+      const own = (groupBy === "area" ? it.area : it.discipline)?.trim();
+      return !own || own === activeFilter;
+    });
+  }, [adhocItems, q, activeFilter, groupBy]);
+
+  /* THE TREE, NOW ONE LEVEL DEEP: asset system → the work under it.
+
+     The discipline (or the place) came out of the tree and became the filter
+     above it — see the note on `filter`. What is left is the level that earns
+     an expansion: the asset system is the unit ACSA rates, reports and compares
+     year on year, so it is the level an auditor should be reading their own
+     work at.
+
+     AD-HOC ITEMS SIT IN IT, and that is the second change. They had their own
+     block above the register, on the reasoning that an item with no check-point
+     behind it must not look like one of the 324. The reasoning was sound and
+     the placement was wrong: what the auditor wants when they are standing at a
+     pump station is everything about that pump station, and a walk item filed
+     somewhere else entirely is a finding they will not see again until the
+     export. So it is filed under its asset system with the rest of the work and
+     carries a mark saying it was added by hand.
+
+     The COUNTS still ignore them completely. `done` and `total` are of
+     check-points; a walk item is reported beside the fraction, never inside it,
+     because a denominator that grows as you work is not a denominator. */
+  const tree = useMemo(() => {
+    const systems = new Map<string, { checks: Check[]; walk: AdHocItem[] }>();
+    const bucket = (key: string) => {
+      let b = systems.get(key);
+      if (!b) systems.set(key, (b = { checks: [], walk: [] }));
+      return b;
+    };
+    for (const c of visible) bucket(c.system?.trim() || NO_SYSTEM).checks.push(c);
+    /* An explicit bucket, never a hidden row. A walk item recorded without an
+       asset system is a real state — most are, because the auditor recording
+       one is looking at something the register does not cover. */
+    for (const it of walkVisible) bucket(it.system?.trim() || NO_SYSTEM).walk.push(it);
     const doneOf = (cs: Check[]) => cs.filter((c) => fieldDone(responses[c.id])).length;
-    return [...tops.entries()]
-      .map(([top, systems]) => {
-        const groups = [...systems.entries()].map(([sys, checks]) => ({
-          sys,
-          checks,
-          done: doneOf(checks),
-          total: checks.length,
-        }));
-        return {
-          top,
-          systems: groups,
-          done: groups.reduce((n, g) => n + g.done, 0),
-          total: groups.reduce((n, g) => n + g.total, 0),
-        };
-      })
-      .sort((a, b) => a.top.localeCompare(b.top));
-  }, [visible, groupBy, responses]);
+    return [...systems.entries()]
+      .map(([sys, b]) => ({
+        sys,
+        checks: b.checks,
+        walk: b.walk,
+        done: doneOf(b.checks),
+        total: b.checks.length,
+      }))
+      /* The unattributed bucket last, wherever its name would sort. It is a
+         residue, not an asset system, and it must not head the list. */
+      .sort((a, b) =>
+        a.sys === NO_SYSTEM ? 1 : b.sys === NO_SYSTEM ? -1 : a.sys.localeCompare(b.sys)
+      );
+  }, [visible, walkVisible, responses]);
 
   /* How many findings each check has raised, so the collapsed row can say so
      without opening. Counted once for the list rather than filtered per row. */
@@ -232,23 +390,6 @@ export default function FieldPage() {
   const searching = q.trim().length > 0;
   const isOpen = (key: string) => searching || expanded.includes(key);
 
-  /* The walk items the current filter and search should show. Same axis as the
-     register list, and the same rule: a search finds anything, anywhere. An
-     item with no discipline or no location is NEVER hidden by a filter on
-     either — a filter that hides an unattributed observation makes the one
-     record nobody can re-derive the easiest one to lose. */
-  const walkVisible = useMemo(() => {
-    const q2 = q.trim().toLowerCase();
-    if (q2) {
-      return adhocItems.filter((it) =>
-        `${it.id} ${it.description} ${it.note} ${it.area} ${it.discipline ?? ""} ${it.system ?? ""}`
-          .toLowerCase()
-          .includes(q2)
-      );
-    }
-    return adhocItems;
-  }, [adhocItems, q]);
-
   /* Zones come from the programme file. Until ACSA gives us real ones the axis
      falls back to the register's categories, and the strip below says so. */
   const axis = locationAxis(entityCode);
@@ -258,7 +399,7 @@ export default function FieldPage() {
   return (
     <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
       <div className="mx-auto w-full max-w-[1180px] px-4 pt-4 pb-24 sm:px-6">
-        <div className="mb-3">
+        <div className="mb-2 sm:mb-3">
           {/* NAMED AS THE TAB NAMES IT. The navigation says "Inspection" and
               this heading said "Site walkabout" — an auditor told to go to
               Inspection landed on a screen called something else, which is the
@@ -266,8 +407,14 @@ export default function FieldPage() {
               The walkabout wording is kept as the subtitle, because it is what
               the audit method calls this session and it says what the screen
               is for in a way "Inspection" does not. */}
-          <h2 className="text-[18px] font-bold">
-            Inspection <span style={{ color: "var(--ink-3)" }}>· the site walkabout</span>
+          <h2 className="text-[16px] font-bold sm:text-[18px]">
+            Inspection{" "}
+            {/* The subtitle wrapped the heading onto a second line at 375px,
+                which is 22px of a 664px screen spent restating the tab name.
+                Desk only, where it costs nothing. */}
+            <span className="hidden sm:inline" style={{ color: "var(--ink-3)" }}>
+              · the site walkabout
+            </span>
           </h2>
           {/* Prose that orients somebody the first time and costs them a
               scroll every time after. On a 664px phone the preamble, the
@@ -316,8 +463,11 @@ export default function FieldPage() {
                 onClick={() => {
                   setGroupBy(g);
                   /* A new axis has different groups, so nothing that was open
-                     under the old one still means anything. */
+                     under the old one still means anything — and the filter is
+                     a discipline on one axis and a place on the other, so it
+                     means nothing either. */
                   setExpanded([]);
+                  setFilter("");
                 }}
                 className="flex min-h-[38px] flex-1 items-center justify-center gap-[6px] rounded-[8px] px-3 font-display text-[11.5px] font-semibold transition-[var(--t)] sm:min-h-[40px]"
                 style={{
@@ -343,11 +493,45 @@ export default function FieldPage() {
             </span>
           </div>
 
+          <div className="mb-1.5 flex items-stretch gap-2">
+          {/* THE TOP LEVEL, AS A FILTER. It was six rows of the tree that every
+              auditor opened and closed on every visit to this screen. It is one
+              control now, and the tree under it starts at the asset system.
+
+              It shares its row with the search rather than taking one of its
+              own: measured at 375px this bar was already 122px of a 664px
+              screen after the last trim, and a third row would put back most of
+              what that trim bought. */}
+          <select
+            value={activeFilter}
+            onChange={(e) => {
+              setFilter(e.target.value);
+              /* Different subject, different systems — nothing that was open
+                 under the last one still means anything. */
+              setExpanded([]);
+            }}
+            aria-label={groupBy === "area" ? "Filter by location" : "Filter by discipline"}
+            title={activeFilter || (groupBy === "area" ? "Every location" : "Every discipline")}
+            className="w-[124px] shrink-0 rounded-[11px] border px-2 text-[11.5px] outline-none sm:w-[210px]"
+            style={{
+              minHeight: 42,
+              background: activeFilter ? "var(--acc-soft)" : "var(--panel)",
+              borderColor: activeFilter ? "var(--acc-line)" : "var(--line-2)",
+              color: activeFilter ? "var(--acc)" : "var(--ink-2)",
+            }}
+          >
+            <option value="">{groupBy === "area" ? "All locations" : "All disciplines"}</option>
+            {tops.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
           <div
-            className="mb-1.5 flex items-center gap-2 rounded-[11px] border px-3 py-1 sm:py-2"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-[11px] border px-3 py-1 sm:py-2"
             style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
           >
-            <IconSearch width={14} height={14} style={{ color: "var(--ink-3)" }} />
+            <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
             {/* The search box on the walkabout screen is how an auditor finds
                 the check for the thing in front of them, and it measured 24px
                 — the only control on any screen still under the target. The
@@ -355,11 +539,23 @@ export default function FieldPage() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search any check, anywhere…"
+              placeholder="Search anywhere…"
               aria-label="Search any check"
-              className="min-h-[40px] w-full border-none bg-transparent text-[13px] outline-none"
+              className="min-h-[40px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
             />
           </div>
+          </div>
+          {/* SAID OUT LOUD, because otherwise it looks like the filter broke.
+              A search runs across the whole register — it has to, or the check
+              for the thing in front of the auditor is missing because of a
+              filter they set in another building — and the row count jumping
+              past the filter needs one line of explanation. */}
+          {searching && activeFilter && (
+            <div className="mb-1.5 text-[10.5px]" style={{ color: "var(--ink-3)" }}>
+              Searching every {groupBy === "area" ? "location" : "discipline"}, not just{" "}
+              <b>{activeFilter}</b>.
+            </div>
+          )}
           {/* THE FILTER CHIP ROW IS GONE, AND THAT IS THE POINT.
               It was a row of discipline names that filtered a flat list. The
               list is now a tree grouped BY discipline, so the chips were a
@@ -410,70 +606,6 @@ export default function FieldPage() {
           </div>
         </div>
 
-        {/* SEEN ON THE WALK — its own section, above the register, and marked.
-            Not folded in among the check-points: an ad-hoc item has no
-            check-point behind it, no ACSA requirement to quote and no place in
-            the completion figure, and a row that looks like one of the 324
-            while being none of those things is the single most misleading thing
-            this screen could render. */}
-        {walkVisible.length > 0 && (
-          <div className="mb-3">
-            <div className="flex items-center justify-between px-1 pt-3 pb-1.5">
-              <span className="label-xs" style={{ color: "var(--acc)" }}>
-                Seen on the walk · not part of the {checksAt(entityCode).length}
-              </span>
-              <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                {walkVisible.length}
-              </span>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {walkVisible.map((it) => {
-                const photos = it.attachments.filter((a) => a.kind === "photo").length;
-                const voices = it.attachments.filter((a) => a.kind === "voice").length;
-                const outcome = OUTCOMES.find((o) => o.key === it.outcome);
-                return (
-                  <button
-                    key={it.id}
-                    data-walk={it.id}
-                    onClick={() => {
-                      setEditingId(it.id);
-                      setSheetOpen(true);
-                    }}
-                    className="rounded-[13px] border-[1.5px] border-dashed p-3 text-left transition-[var(--t)]"
-                    style={{ background: "var(--panel)", borderColor: "var(--acc)" }}
-                  >
-                    <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
-                      <span className="font-mono text-[9.5px]" style={{ color: "var(--acc)" }}>
-                        {it.id}
-                      </span>
-                      <Pill tone="accent">SEEN ON THE WALK</Pill>
-                      {it.discipline && <Pill>{it.discipline.split(" ")[0]}</Pill>}
-                      {it.system && <Pill>{it.system}</Pill>}
-                      {it.findingId && <Pill tone="warn">{it.findingId}</Pill>}
-                    </div>
-                    <div className="mb-1.5 text-[13px] leading-[1.4] font-semibold">
-                      {it.description}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
-                      {/* The outcome in words, never colour alone — and never in
-                          the rating palette. An outcome is not a band. */}
-                      <span style={{ color: outcome ? "var(--acc)" : "var(--ink-4)" }}>
-                        {outcome ? outcome.label : "no outcome yet"}
-                      </span>
-                      {it.area && <span>{it.area}</span>}
-                      {photos > 0 && <span>{photos} photo{photos === 1 ? "" : "s"}</span>}
-                      {voices > 0 && <span>{voices} voice</span>}
-                      {photos === 0 && voices === 0 && (
-                        <span style={{ color: "var(--warn)" }}>no evidence attached</span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {visible.length === 0 && walkVisible.length === 0 ? (
           <Empty>
             <IconInbox width={26} height={26} />
@@ -483,18 +615,15 @@ export default function FieldPage() {
             </div>
           </Empty>
         ) : (
-          /* THE TREE. Group → asset system → collapsed rows.
+          /* THE LIST. Asset system → the work under it, and the work is both
+             kinds: the register's check-points and the things we found that it
+             does not cover, in one place, in the order somebody standing at the
+             asset would want them.
 
-             What it replaces: every item rendered its full answer set, its
-             four status cards, its capture buttons and its attachment strip at
-             once, three across on a tablet and one across on a phone. Ten
-             items was a scroll of several screens, and finding the right
-             inspection took longer than doing it.
-
-             A collapsed row carries only what identifies the work: the
-             outcome, the id, the check text clamped to two lines, the asset
-             system, and small marks for what is attached. Everything else is
-             one tap away and unchanged when it gets there. */
+             A collapsed row carries only what identifies the work: the outcome,
+             the id, the wording clamped to two lines, and small marks for what
+             is attached. Everything else is one tap away and unchanged when it
+             gets there. */
           <div
             /* NO `overflow-hidden` HERE, however much the rounded corners want
                it. `overflow: hidden` makes an element its own scroll
@@ -509,184 +638,264 @@ export default function FieldPage() {
             style={{ background: "var(--panel)", borderColor: "var(--line)" }}
           >
             {tree.map((g) => {
-              const gOpen = isOpen(g.top);
+              const gOpen = isOpen(g.sys);
+              /* The 2025 rating for this asset system at THIS site. Looked up
+                 by the discipline the checks actually carry rather than by the
+                 filter, because on the location axis the filter is a place and
+                 a place has no discipline. */
+              const pf = priorFor(entityCode, g.checks[0]?.discipline ?? "", g.sys);
               return (
-                <div key={g.top} data-group={g.top}>
+                <div key={g.sys} data-group={g.sys} data-system={g.sys}>
                   <GroupRow
-                    label={g.top}
+                    label={g.sys}
                     done={g.done}
                     total={g.total}
                     open={gOpen}
-                    onToggle={() => toggle(g.top)}
+                    onToggle={() => toggle(g.sys)}
                     sticky
                     stickyTop={barH}
-                    title={`${g.top} — ${g.done} of ${g.total} seen`}
-                  />
-                  {gOpen &&
-                    g.systems.map((sub) => {
-                      const key = `${g.top}|${sub.sys}`;
-                      const sOpen = isOpen(key);
-                      /* The 2025 rating for this asset system at THIS site.
-                         Looked up by the discipline the checks actually carry
-                         rather than by the group's label, because on the
-                         location axis the group is a place and a place has no
-                         discipline. */
-                      const pf = priorFor(entityCode, sub.checks[0]?.discipline ?? "", sub.sys);
-                      return (
-                        <div key={key} data-system={sub.sys}>
-                          <GroupRow
-                            label={sub.sys}
-                            done={sub.done}
-                            total={sub.total}
-                            open={sOpen}
-                            depth={1}
-                            onToggle={() => toggle(key)}
+                    title={`${g.sys} — ${g.done} of ${g.total} seen${
+                      g.walk.length ? `, plus ${g.walk.length} added by hand` : ""
+                    }`}
+                  >
+                    {pf && <Pill tone="warn">{pf.key}</Pill>}
+                    {/* BESIDE THE FRACTION, NEVER INSIDE IT. Walk items are
+                        counted separately and said separately, because adding
+                        them would make the denominator a number that grows as
+                        you work. */}
+                    {g.walk.length > 0 && (
+                      <Pill tone="accent">+{g.walk.length}</Pill>
+                    )}
+                  </GroupRow>
+                  {gOpen && (
+                    <>
+                      {g.checks.map((c) => {
+                        const r = responses[c.id];
+                        const attachments = r?.attachments ?? [];
+                        const photos = attachments.filter((a) => a.kind === "photo");
+                        const voices = attachments.filter((a) => a.kind === "voice");
+                        const wo = library?.[c.id]?.WO ?? [];
+                        const picked = r?.walkaboutPicked;
+                        const needsPhoto =
+                          picked != null && wo[picked]?.photo === true && photos.length === 0;
+                        /* The row no longer expands in place — tapping it opens
+                           the check in a sheet. It still marks itself as the one
+                           that is open, because the sheet is dismissible and
+                           coming back to a list with nothing highlighted loses
+                           your place. */
+                        const itemOpen = openItem === c.id;
+                        const outcome = OUTCOMES.find((o) => o.key === r?.compliance);
+                        const raised = findingsHere.get(c.id) ?? 0;
+                        return (
+                          <div
+                            key={c.id}
+                            data-check={c.id}
+                            className="border-b"
+                            style={{ borderColor: "var(--line)" }}
                           >
-                            {pf && <Pill tone="warn">{pf.key}</Pill>}
-                          </GroupRow>
-                          {sOpen &&
-                            sub.checks.map((c) => {
-                              const r = responses[c.id];
-                              const attachments = r?.attachments ?? [];
-                              const photos = attachments.filter((a) => a.kind === "photo");
-                              const voices = attachments.filter((a) => a.kind === "voice");
-                              const wo = library?.[c.id]?.WO ?? [];
-                              const picked = r?.walkaboutPicked;
-                              const needsPhoto =
-                                picked != null && wo[picked]?.photo === true && photos.length === 0;
-                              /* The row no longer expands in place — tapping
-                                 it opens the check in a sheet. It still marks
-                                 itself as the one that is open, because the
-                                 sheet is dismissible and coming back to a list
-                                 with nothing highlighted loses your place. */
-                              const itemOpen = openItem === c.id;
-                              const outcome = OUTCOMES.find((o) => o.key === r?.compliance);
-                              const raised = findingsHere.get(c.id) ?? 0;
-                              return (
-                                <div
-                                  key={c.id}
-                                  data-check={c.id}
-                                  className="border-b"
-                                  style={{ borderColor: "var(--line)" }}
+                            {/* THE COLLAPSED ROW. Full width, one tap. */}
+                            <button
+                              onClick={() => setOpenItem(c.id)}
+                              aria-haspopup="dialog"
+                              aria-expanded={itemOpen}
+                              className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left"
+                              style={{
+                                background: itemOpen ? "var(--acc-soft)" : "transparent",
+                                minHeight: 56,
+                                /* Recedes once the asset has been SEEN — the field half,
+                                   never the derived `captured` flag. A row must not fade
+                                   because somebody read a document at a desk: 290 of the
+                                   324 need both halves, and greying on the wrong one tells
+                                   an auditor on the apron that work they still have to do
+                                   is finished. */
+                                opacity: fieldDone(r) && !itemOpen ? 0.62 : 1,
+                              }}
+                            >
+                              {/* The outcome mark. BLANK WHEN NOT CAPTURED, and
+                                  blank means exactly that — never compliant.
+                                  Carried by the icon and the word underneath, so
+                                  it survives sunlight and a colour-blind
+                                  reader. */}
+                              <span
+                                className="mt-[1px] flex w-[34px] shrink-0 flex-col items-center gap-[2px]"
+                                style={{ color: outcome ? "var(--acc)" : "var(--ink-4)" }}
+                              >
+                                {outcome ? (
+                                  <outcome.Icon width={15} height={15} />
+                                ) : (
+                                  <span
+                                    aria-hidden="true"
+                                    className="block h-[13px] w-[13px] rounded-full border-[1.5px] border-dashed"
+                                    style={{ borderColor: "var(--line-2)" }}
+                                  />
+                                )}
+                                <span className="font-mono text-[8px] leading-none">
+                                  {outcome ? outcome.label : "—"}
+                                </span>
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="mb-[3px] flex flex-wrap items-center gap-1.5">
+                                  <span className="font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
+                                    {portalIdFor(entityCode, c.id)}
+                                  </span>
+                                  {/* THE OTHER HALF, said on the row. 290 of the
+                                      324 need a document review as well as the
+                                      asset seen. An auditor who ticks the walk
+                                      and moves on, with nothing saying the check
+                                      also wants evidence off a desk, leaves it
+                                      half answered — and the completion figure
+                                      will say so weeks later with no
+                                      explanation. "Physical" is dropped because
+                                      every row here is physical. */}
+                                  {modeLabels(c)
+                                    .filter((m) => m !== "Physical")
+                                    .map((m) => (
+                                      <Pill key={m} tone="accent">
+                                        {m.toUpperCase()}
+                                      </Pill>
+                                    ))}
+                                </span>
+                                {/* CLAMPED, NOT SHORTENED. The register's own
+                                    words, whole, in the DOM — two lines of them
+                                    until the row is opened. Storing or rendering
+                                    a tidied version of ACSA's check text is the
+                                    defect pass 1 fixed and this must not
+                                    reintroduce it. */}
+                                <span
+                                  className="block text-[12.5px] leading-[1.4] font-semibold"
+                                  style={{
+                                    display: "-webkit-box",
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: "vertical",
+                                    overflow: "hidden",
+                                  }}
                                 >
-                                  {/* THE COLLAPSED ROW. Full width, one tap. */}
-                                  <button
-                                    onClick={() => setOpenItem(c.id)}
-                                    aria-haspopup="dialog"
-                                    aria-expanded={itemOpen}
-                                    className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left"
-                                    style={{
-                                      background: itemOpen ? "var(--acc-soft)" : "transparent",
-                                      minHeight: 56,
-                                      /* Recedes once the asset has been SEEN — the field half,
-                                         never the derived `captured` flag. A row must not fade
-                                         because somebody read a document at a desk: 290 of the
-                                         324 need both halves, and greying on the wrong one tells
-                                         an auditor on the apron that work they still have to do
-                                         is finished. */
-                                      opacity: fieldDone(r) && !itemOpen ? 0.62 : 1,
-                                    }}
-                                  >
-                                    {/* The outcome mark. BLANK WHEN NOT
-                                        CAPTURED, and blank means exactly that
-                                        — never compliant. Carried by the icon
-                                        and the word underneath, so it survives
-                                        sunlight and a colour-blind reader. */}
-                                    <span
-                                      className="mt-[1px] flex w-[34px] shrink-0 flex-col items-center gap-[2px]"
-                                      style={{ color: outcome ? "var(--acc)" : "var(--ink-4)" }}
-                                    >
-                                      {outcome ? (
-                                        <outcome.Icon width={15} height={15} />
-                                      ) : (
-                                        <span
-                                          aria-hidden="true"
-                                          className="block h-[13px] w-[13px] rounded-full border-[1.5px] border-dashed"
-                                          style={{ borderColor: "var(--line-2)" }}
-                                        />
-                                      )}
-                                      <span className="font-mono text-[8px] leading-none">
-                                        {outcome ? outcome.label : "—"}
-                                      </span>
+                                  {c.requirement?.trim() ? (
+                                    c.requirement
+                                  ) : (
+                                    <span style={{ color: "var(--warn)" }}>
+                                      {portalIdFor(entityCode, c.id)} — the register carries no
+                                      check text for this check-point
                                     </span>
-                                    <span className="min-w-0 flex-1">
-                                      <span className="mb-[3px] flex flex-wrap items-center gap-1.5">
-                                        <span className="font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
-                                          {portalIdFor(entityCode, c.id)}
-                                        </span>
-                                        {c.system && c.system !== sub.sys && <Pill>{c.system}</Pill>}
-                                        {/* THE OTHER HALF, said on the row.
-                                            290 of the 324 need a document
-                                            review as well as the asset seen.
-                                            An auditor who ticks the walk and
-                                            moves on, with nothing saying the
-                                            check also wants evidence off a
-                                            desk, leaves it half answered — and
-                                            the completion figure will say so
-                                            weeks later with no explanation.
-                                            "Physical" is dropped because every
-                                            row here is physical. */}
-                                        {modeLabels(c)
-                                          .filter((m) => m !== "Physical")
-                                          .map((m) => (
-                                            <Pill key={m} tone="accent">
-                                              {m.toUpperCase()}
-                                            </Pill>
-                                          ))}
-                                      </span>
-                                      {/* CLAMPED, NOT SHORTENED. The register's
-                                          own words, whole, in the DOM — two
-                                          lines of them until the row is
-                                          opened. Storing or rendering a tidied
-                                          version of ACSA's check text is the
-                                          defect pass 1 fixed and this must not
-                                          reintroduce it. */}
-                                      <span
-                                        className="block text-[12.5px] leading-[1.4] font-semibold"
-                                        /* Always two lines now. The row is a
-                                           row; the whole wording is in the
-                                           sheet, un-clamped, one tap away. */
-                                        style={{
-                                          display: "-webkit-box",
-                                          WebkitLineClamp: 2,
-                                          WebkitBoxOrient: "vertical",
-                                          overflow: "hidden",
-                                        }}
-                                      >
-                                        {c.requirement?.trim() ? (
-                                          c.requirement
-                                        ) : (
-                                          <span style={{ color: "var(--warn)" }}>
-                                            {portalIdFor(entityCode, c.id)} — the register carries no
-                                            check text for this check-point
-                                          </span>
-                                        )}
-                                      </span>
-                                      <span
-                                        className="mt-[3px] flex flex-wrap items-center gap-2 font-mono text-[9px]"
-                                        style={{ color: "var(--ink-4)" }}
-                                      >
-                                        {photos.length > 0 && <span>{photos.length}📷</span>}
-                                        {voices.length > 0 && <span>{voices.length}🎙</span>}
-                                        {r?.observation?.trim() && <span>note</span>}
-                                        {raised > 0 && (
-                                          <span style={{ color: "var(--warn)" }}>
-                                            {raised} finding{raised === 1 ? "" : "s"}
-                                          </span>
-                                        )}
-                                        {needsPhoto && (
-                                          <span style={{ color: "var(--warn)" }}>photo expected</span>
-                                        )}
-                                      </span>
+                                  )}
+                                </span>
+                                <span
+                                  className="mt-[3px] flex flex-wrap items-center gap-2 font-mono text-[9px]"
+                                  style={{ color: "var(--ink-4)" }}
+                                >
+                                  {r?.location?.trim() && <span>{r.location}</span>}
+                                  {photos.length > 0 && <span>{photos.length}📷</span>}
+                                  {voices.length > 0 && <span>{voices.length}🎙</span>}
+                                  {r?.observation?.trim() && <span>note</span>}
+                                  {raised > 0 && (
+                                    <span style={{ color: "var(--warn)" }}>
+                                      {raised} finding{raised === 1 ? "" : "s"}
                                     </span>
-                                  </button>
+                                  )}
+                                  {needsPhoto && (
+                                    <span style={{ color: "var(--warn)" }}>photo expected</span>
+                                  )}
+                                </span>
+                              </span>
+                            </button>
+                          </div>
+                        );
+                      })}
 
-                                </div>
-                              );
-                            })}
-                        </div>
-                      );
-                    })}
+                      {/* ADDED BY HAND, FILED WITH THE REST OF THE WORK.
+                          Same row shape as a check-point, in the same asset
+                          system, because that is where somebody standing at the
+                          asset will look for it — and marked, at the front of
+                          the row, because it is NOT one of the 324: it has no
+                          ACSA requirement behind it, no threshold to quote, and
+                          no place in the completion figure. The mark is an icon
+                          AND the words "added on the walk", never colour alone.
+                          The border stays dashed for the same reason. */}
+                      {g.walk.map((it) => {
+                        const photos = it.attachments.filter((a) => a.kind === "photo").length;
+                        const voices = it.attachments.filter((a) => a.kind === "voice").length;
+                        const outcome = OUTCOMES.find((o) => o.key === it.outcome);
+                        return (
+                          <div
+                            key={it.id}
+                            data-walk={it.id}
+                            className="border-b"
+                            style={{ borderColor: "var(--line)" }}
+                          >
+                            <button
+                              onClick={() => {
+                                setEditingId(it.id);
+                                setSheetOpen(true);
+                              }}
+                              aria-haspopup="dialog"
+                              className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left"
+                              style={{ minHeight: 56 }}
+                            >
+                              <span
+                                className="mt-[1px] flex w-[34px] shrink-0 flex-col items-center gap-[2px]"
+                                style={{ color: outcome ? "var(--acc)" : "var(--ink-4)" }}
+                              >
+                                {outcome ? (
+                                  <outcome.Icon width={15} height={15} />
+                                ) : (
+                                  <span
+                                    aria-hidden="true"
+                                    className="block h-[13px] w-[13px] rounded-full border-[1.5px] border-dashed"
+                                    style={{ borderColor: "var(--line-2)" }}
+                                  />
+                                )}
+                                <span className="font-mono text-[8px] leading-none">
+                                  {outcome ? outcome.label : "—"}
+                                </span>
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="mb-[3px] flex flex-wrap items-center gap-1.5">
+                                  {/* THE MARK. An icon and a word, together —
+                                      one row in a list of check-points that is
+                                      not a check-point has to say so in a way
+                                      that survives a greyscale printout. */}
+                                  <span
+                                    className="flex items-center gap-[3px] rounded-[5px] border border-dashed px-[5px] py-[1px] font-mono text-[8.5px]"
+                                    style={{ borderColor: "var(--acc)", color: "var(--acc)" }}
+                                    title="Added on the walk — not one of ACSA's check-points, and not counted in the completion figure"
+                                  >
+                                    <IconPlus width={9} height={9} />
+                                    ADDED ON THE WALK
+                                  </span>
+                                  <span className="font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
+                                    {it.id}
+                                  </span>
+                                  {it.findingId && <Pill tone="warn">{it.findingId}</Pill>}
+                                </span>
+                                <span
+                                  className="block text-[12.5px] leading-[1.4] font-semibold"
+                                  style={{
+                                    display: "-webkit-box",
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: "vertical",
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  {it.description}
+                                </span>
+                                <span
+                                  className="mt-[3px] flex flex-wrap items-center gap-2 font-mono text-[9px]"
+                                  style={{ color: "var(--ink-4)" }}
+                                >
+                                  {it.area && <span>{it.area}</span>}
+                                  {photos > 0 && <span>{photos}📷</span>}
+                                  {voices > 0 && <span>{voices}🎙</span>}
+                                  {photos === 0 && voices === 0 && (
+                                    <span style={{ color: "var(--warn)" }}>no evidence attached</span>
+                                  )}
+                                </span>
+                              </span>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
                 </div>
               );
             })}
@@ -1023,22 +1232,61 @@ export default function FieldPage() {
             subtitle="ACSA check-point · the register's wording"
             footer={
               <>
-                {/* A link, not a button: it leaves the walk for the desk
-                    screen, which is the opposite of what the primary does, and
-                    two buttons of equal weight in a footer is a choice nobody
-                    asked the auditor to make. */}
-                <button
-                  onClick={() => router.push(`/capture?check=${c.id}`)}
-                  className="min-h-[44px] shrink-0 text-left text-[11.5px] font-semibold hover:underline"
-                  style={{ color: "var(--acc)" }}
-                >
-                  Full check-point →
-                </button>
+                {/* THE CAMERA AND THE MICROPHONE LIVE HERE NOW.
+                    They were in the body, under the observation box, in a row
+                    of their own. Sarel, on the phone: they make the boxes very
+                    busy. They did — the body of a check already carries the
+                    register's wording, our walkabout instruction, up to eleven
+                    researched answers, an outcome, a location and a comment,
+                    and two more controls in the middle of that reads as one
+                    more thing to scroll past rather than a tool.
+
+                    In the footer they are the opposite: pinned, never scrolled
+                    away, one thumb-reach from the Save they sit beside, and out
+                    of the reading order entirely. Icon-only with an aria-label
+                    — a camera and a microphone are the two glyphs on earth that
+                    need no word, and the room they free goes to the primary.
+
+                    "Full check-point →" WAS HERE AND IS GONE, at Sarel's
+                    instruction. It left the walk for the desk screen mid-walk,
+                    which is the opposite of what this screen is for; everything
+                    it went to fetch — ACSA's requirement, the threshold, the
+                    document and clause — is on the desk screen when the desk
+                    half is done. */}
+                <span className="flex shrink-0 items-center gap-2">
+                  <PhotoButton
+                    compact
+                    className="min-h-[44px] w-[44px] justify-center"
+                    onCaptured={(m) => {
+                      addAttachment(c.id, {
+                        ...m,
+                        /* WHERE IT WAS TAKEN, WITHOUT A SINGLE EXTRA TAP.
+                           The camera is always where the auditor is, so the
+                           photograph inherits the inspection's location — or,
+                           before one has been typed on this check, the running
+                           one from the last place they named. Editable per
+                           photograph, because one inspection can carry evidence
+                           from two places. */
+                        location: r?.location?.trim() || here,
+                        createdBy: auditor,
+                      });
+                      say(`Photo added to ${portalIdFor(entityCode, c.id)}`);
+                    }}
+                  />
+                  <VoiceNoteButton
+                    compact
+                    className="min-h-[44px] w-[44px] justify-center"
+                    onCaptured={(m) => {
+                      addAttachment(c.id, { ...m, createdBy: auditor });
+                      say(`Voice note added to ${portalIdFor(entityCode, c.id)}`);
+                    }}
+                  />
+                </span>
                 {next ? (
                   <Btn
                     variant="primary"
                     onClick={() => {
-                      commit(c.id, "field");
+                      saveField(c.id);
                       setOpenItem(next.id);
                       say(`Saved · ${portalIdFor(entityCode, next.id)}`);
                     }}
@@ -1050,7 +1298,7 @@ export default function FieldPage() {
                   <Btn
                     variant="primary"
                     onClick={() => {
-                      commit(c.id, "field");
+                      saveField(c.id);
                       setOpenItem(null);
                       say(`Saved · ${c.system} done`);
                     }}
@@ -1098,7 +1346,7 @@ export default function FieldPage() {
                          replacement for this. Dropping it here would have made
                          every check cost an extra press, which is the opposite
                          of the complaint that started this change. */
-                      commit(c.id, "field");
+                      saveField(c.id);
                       say(
                         w.photo && photos.length === 0
                           ? `${portalIdFor(entityCode, c.id)} — ${w.label}. Photograph expected.`
@@ -1136,13 +1384,50 @@ export default function FieldPage() {
               onChange={(nextOutcome) => {
                 setCompliance(c.id, nextOutcome);
                 if (nextOutcome) {
-                  commit(c.id, "field");
+                  saveField(c.id);
                   say(`${c.id} — ${OUTCOMES.find((o) => o.key === nextOutcome)?.label}`);
                 }
               }}
               size={52}
               idPrefix={`out-${c.id}`}
             />
+
+            {/* WHERE, AND IT IS TYPED ONCE PER PLACE.
+                The register's `area` column cannot answer this — it is a
+                CATEGORY, 133 of them at KSIA, and a third are not places at all
+                ("Appointments", "Documentation", "Lessons learnt"). A finding
+                nobody can walk back to is a finding nobody can close, so the
+                inspection carries where the auditor was standing, in their own
+                words, with the site's areas offered as suggestions and none of
+                them forced.
+
+                THE RUNNING LOCATION is the part that makes it usable on a walk.
+                Type "north switch room" on the first check and every check
+                opened after it offers the same, so a switch room with eleven
+                check-points in it costs one location and not eleven. It is
+                offered, not written: what is on the record is what the auditor
+                left in the box when they saved. */}
+            <label className="mt-4 block">
+              <span className="label-xs" style={{ color: "var(--ink-4)" }}>
+                Where you are standing
+              </span>
+              <input
+                value={r?.location ?? here}
+                onChange={(e) => {
+                  patch(c.id, { location: e.target.value });
+                  setHere(e.target.value);
+                }}
+                list={LOCATION_LIST_ID}
+                placeholder="Stand 12, north switch room, Pier B roof…"
+                className="mt-1 min-h-[44px] w-full rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none"
+                style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+              />
+              {!r?.location && here && (
+                <span className="mt-1 block text-[10.5px]" style={{ color: "var(--ink-4)" }}>
+                  Carried from the last place you named — it goes on the record when you save.
+                </span>
+              )}
+            </label>
 
             <label className="mt-4 block">
               <span className="label-xs" style={{ color: "var(--ink-4)" }}>
@@ -1156,27 +1441,6 @@ export default function FieldPage() {
                 style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
               />
             </label>
-
-            {/* The toolbar under the field, right aligned. Camera and
-                microphone are together for reachability and NOT because they
-                are the same kind of thing — the microphone fills the field
-                above, the camera attaches evidence to the check. */}
-            <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
-              <PhotoButton
-                compact
-                label="Photo"
-                onCaptured={(m) => {
-                  addAttachment(c.id, { ...m, createdBy: auditor });
-                  say(`Photo added to ${c.id}`);
-                }}
-              />
-              <VoiceNoteButton
-                onCaptured={(m) => {
-                  addAttachment(c.id, { ...m, createdBy: auditor });
-                  say(`Voice note added to ${c.id}`);
-                }}
-              />
-            </div>
 
             {attachments.length > 0 && (
               <div className="mt-2.5">
@@ -1223,11 +1487,30 @@ export default function FieldPage() {
            is: filtered to Electrical, they are almost certainly recording
            something electrical. A pre-fill is editable and a requirement is
            not, and that is the whole difference. */
-        presetDiscipline={groupBy === "discipline" && expanded.length === 1 ? expanded[0] : null}
-        presetArea={groupBy === "area" && expanded.length === 1 ? expanded[0] : ""}
-        onSaved={(_id, message) => say(message)}
+        /* Pre-filled from the filter and from where the auditor said they are.
+           A pre-fill is editable and a requirement is not, and that is the
+           whole difference. */
+        presetDiscipline={groupBy === "discipline" ? activeFilter || null : null}
+        presetArea={here || (groupBy === "area" ? activeFilter : "")}
+        /* AND IT OPENS THE GROUP IT LANDED IN.
+           The asset systems are shut by default, so recording something seen
+           on the walk used to file it correctly and show the auditor nothing —
+           the toast said WALK-xxxxx recorded and the screen looked exactly as
+           it had a second earlier. An auditor who cannot see what they just
+           recorded records it again. Caught by tests/robustness.js, which
+           looks for the description on screen after saving. */
+        onSaved={(id, message) => {
+          const item = useStore.getState().adhoc().find((a) => a.id === id);
+          const key = item?.system?.trim() || NO_SYSTEM;
+          setExpanded((e) => (e.includes(key) ? e : [...e, key]));
+          say(message);
+        }}
       />
 
+
+      {/* One datalist for every location box on this screen — the inspection's
+          and every photograph's. See LocationOptions. */}
+      <LocationOptions values={knownLocations} />
 
       {toast && (
         <div
