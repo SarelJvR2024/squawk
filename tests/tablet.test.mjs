@@ -93,10 +93,16 @@ check(
   "two columns each with their own tab strip was the busyness Sarel named"
 );
 
+/* The strip is three groups now — The requirement, then the Answer library,
+   then Reference — and the screen opens on ACSA's own requirement rather than
+   on our evidence list (Sarel, 10 Sep). What this assertion has always been
+   guarding is unchanged and is the part that matters on a tablet: the CAPTURE
+   tabs come before the rest of the reference material, so an auditor is not
+   scrolling past four pages of background to reach the controls. */
 check(
-  "capture comes first in the strip, so it is what an auditor lands on",
+  "capture comes before the reference in the strip",
   detail.indexOf('group: "do"') < detail.indexOf('group: "read"') &&
-    /useState\("evidence"\)/.test(detail),
+    /\(\["acsa", "do", "read"\] as const\)/.test(detail),
   "the reference used to be first in the DOM and sat above the controls when the panes stacked"
 );
 

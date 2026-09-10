@@ -85,9 +85,17 @@ export function Btn({
   children,
   ...rest
 }: BtnProps) {
+  /* 44px, and it is the primitive rather than the call sites that has to say
+     so. Measured on the check screen's pinned bar: Save was 38px, Previous and
+     Next were 38 by 34 — the four controls that commit an answer, all under the
+     target, sitting immediately beside four compliance buttons that were 44.
+     The header's controls were raised to 44 once already and the primitive was
+     not, so every other Btn in the app quietly stayed small: 67 of them.
+     Growing it here can only ever make a target bigger. */
   const base =
-    "inline-flex items-center gap-[7px] font-display font-semibold text-[12px] rounded-[11px] transition-[var(--t)] active:translate-y-[1px] disabled:opacity-40 disabled:cursor-not-allowed";
-  const pad = icon ? "p-[9px] rounded-[8px]" : "px-[15px] py-[9px]";
+    "inline-flex min-h-[44px] items-center gap-[7px] font-display font-semibold text-[12px] rounded-[11px] transition-[var(--t)] active:translate-y-[1px] disabled:opacity-40 disabled:cursor-not-allowed";
+  /* An icon-only button is square at the same height, not a 34px sliver. */
+  const pad = icon ? "min-w-[44px] justify-center p-[9px] rounded-[10px]" : "px-[15px] py-[9px]";
   const styles =
     variant === "primary"
       ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)", boxShadow: "var(--e1)" }

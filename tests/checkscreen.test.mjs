@@ -148,7 +148,7 @@ check(
 
 check(
   "four across on a phone, carrying ACSA's own code, and the full word everywhere else",
-  /grid min-w-\[250px\] flex-1 grid-cols-4 gap-\[5px\] sm:flex sm:flex-wrap/.test(codeOnly) &&
+  /grid min-w-\[300px\] flex-1 grid-cols-4 gap-\[5px\]/.test(codeOnly) &&
     /<span className="sm:hidden">\{key\}<\/span>/.test(codeOnly) &&
     /aria-label=\{label\}/.test(codeOnly),
   "four full labels wrap to two rows at 390px, and the full word must still reach a screen reader"
@@ -184,8 +184,8 @@ check(
 
 check(
   "and pads for the home indicator where nothing below it does",
-  /paddingBottom: "calc\(0\.625rem \+ var\(--sticky-safe\)\)"/.test(pinned),
-  ""
+  /paddingBottom: "calc\([\d.]+rem \+ var\(--sticky-safe\)\)"/.test(pinned),
+  "the rule is that it pads at all; the figure moves when the bar's own spacing does"
 );
 
 check(
@@ -194,10 +194,25 @@ check(
   "a pinned six-line box leaves two lines of check above it on a phone"
 );
 
+/* THE TOOLBAR MOVED DOWN, and the reason it scrolls did not move with it.
+   Compose, Draft, Voice and Photo used to be their own row above the
+   observation field; they are in the answer bar now, beside the compliance
+   buttons, because three stacked strips of furniture between the box you type
+   in and the buttons that answer the check was one strip too many. On a phone
+   they are still ONE ROW THAT SCROLLS rather than two that wrap: at 44px a
+   wrapped toolbar is a second 50px band off a 664px screen for the whole
+   session, and this bar already spends better than a third of it. */
 check(
   "the toolbar scrolls sideways rather than wrapping to a second 50px band",
-  /flex flex-nowrap items-center gap-\[6px\] overflow-x-auto \[&>\*\]:shrink-0/.test(codeOnly),
+  /flex w-full flex-nowrap items-center gap-\[6px\] overflow-x-auto sm:w-auto sm:overflow-visible \[&>\*\]:shrink-0/.test(
+    codeOnly
+  ),
   ""
+);
+check(
+  "and it sits in the answer bar, not above the observation field",
+  pinned.indexOf("Compose from taps") > pinned.indexOf("THE ANSWER, AND WHAT COMMITS IT"),
+  "Sarel asked for these on the same row as Compliant / Non-compliant"
 );
 
 check(
@@ -221,9 +236,27 @@ check(
   at('key: "evidence"') < at('key: "answers"') && at('key: "evidence"') < at('key: "issues"'),
   "Sarel: the most important there is to know what evidence to ask for"
 );
+
+/* A DECISION OF SAREL'S THAT HE LATER REVERSED, and both halves are recorded
+   because a test that quietly forgets the first one is a test that cannot
+   explain itself.
+     Then: "the most important there is to know what evidence to ask for", so
+     Evidence to request opened by default.
+     Now (10 Sep): "The first tab should be ACSA requirements/threshold —
+     exactly the requirement/threshold from the ACSA register."
+   Evidence to request is still first in the ANSWER LIBRARY, which is what the
+   assertion above guards. What changed is that ACSA's own requirement is no
+   longer behind five tabs of our material: it is its own group, rendered
+   first, and it is what the screen opens on. You read the requirement, then
+   you go and collect the evidence for it. */
+check(
+  "ACSA's own requirement is the first tab in the strip",
+  at('group: "acsa"') > 0 && /\(\["acsa", "do", "read"\] as const\)/.test(codeOnly),
+  "it was fourth in Reference, behind five tabs of TPJV's own material"
+);
 check(
   "and it is the tab already open, not one to go and find",
-  /useState\("evidence"\)/.test(codeOnly),
+  /useState\("standard"\)/.test(codeOnly),
   "a default of anything else buries the thing he named as most important"
 );
 

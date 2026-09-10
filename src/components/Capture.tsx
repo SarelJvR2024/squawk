@@ -87,9 +87,14 @@ function whyItFailed(err: unknown): string {
 export function VoiceNoteButton({
   onCaptured,
   compact = false,
+  className = "",
 }: {
   onCaptured: (m: CapturedMedia) => void;
   compact?: boolean;
+  /* So a caller can stretch it in a grid cell, as PhotoButton already allows.
+     It lands on the wrapper AND the button, because the wrapper is what a
+     grid or flex parent actually measures. */
+  className?: string;
 }) {
   const rec = useRecorder();
   const dict = useDictation();
@@ -174,13 +179,13 @@ export function VoiceNoteButton({
   }
 
   return (
-    <span className="inline-flex items-center gap-2">
+    <span className={`inline-flex items-center gap-2 ${className}`}>
       <button
         type="button"
         onClick={toggle}
         disabled={busy || rec.state === "requesting"}
         aria-label={recording ? "Stop recording" : "Record a voice note"}
-        className={TAP}
+        className={`${TAP} ${className}`}
         style={
           recording
             ? { background: "var(--bad)", borderColor: "var(--bad)", color: "#fff" }
