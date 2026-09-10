@@ -70,6 +70,25 @@ const PORTFOLIO = sitesRaw.sites.reduce((n, s) => n + checksFor(s.entityCode, ch
 const VARIANTS = checks.filter((c) => c.siteVariant).length;
 const QUESTIONS = checks.filter(needsQuestion).length;
 
+/* The register review (2026-09-10) counts one more thing the prose now quotes:
+   the checks whose evidenceExpected is too thin to say what makes them
+   compliant. Derived here, like everything else, so the day somebody writes a
+   real evidence line for one of them the figure in the prose goes stale and
+   this suite says so — which is the whole point of the file. */
+const evidenceOf = (c) =>
+  Array.isArray(c.evidenceExpected) ? c.evidenceExpected.join(" ") : String(c.evidenceExpected ?? "");
+const STUBS = checks.filter((c) => evidenceOf(c).trim().length < 40).length;
+const NO_EVIDENCE = checks.filter((c) => evidenceOf(c).trim() === "").length;
+
+/* And the review's own two headline figures, read off the review file rather
+   than typed into the prose beside it. OPEN-QUESTIONS.md quotes both, and they
+   move every time a gap is written or resolved. */
+const reviewRaw = JSON.parse(
+  fs.readFileSync(path.join(root, "src", "data", "source", "register-review.json"), "utf8")
+);
+const GAPPED = Object.values(reviewRaw).filter((r) => r.gaps).length;
+const GAP_NOTES = Object.values(reviewRaw).reduce((n, r) => n + (r.gaps?.length ?? 0), 0);
+
 console.log(
   `      register: ${TOTAL} checks · desk ${DESK} · field ${FIELD} · both ${BOTH} · ${OPTIONS} options\n` +
     `      portfolio: ${PORTFOLIO} across ${sitesRaw.sites.length} sites · ${VARIANTS} site variants · ${QUESTIONS} with a question\n`
@@ -89,13 +108,20 @@ check(
 
 /* --------------------- what the words say it is --------------------------- */
 
-const ALLOWED = new Set([TOTAL, DESK, FIELD, BOTH, OPTIONS, PORTFOLIO, VARIANTS, QUESTIONS]);
+const ALLOWED = new Set([
+  TOTAL, DESK, FIELD, BOTH, OPTIONS, PORTFOLIO, VARIANTS, QUESTIONS,
+  STUBS, NO_EVIDENCE, GAPPED, GAP_NOTES,
+]);
 const fmt = (n) => n.toLocaleString("en-US");
 
 /* Every file whose prose is allowed to quote a register figure. */
 const FILES = [
   "README.md",
   "tests/README.md",
+  /* Added 2026-09-10 with the register review, which put three derived counts
+     into this file's prose. A figure Sarel reads and acts on is exactly the
+     kind this suite exists to keep true. */
+  "OPEN-QUESTIONS.md",
   ...walk(path.join(root, "src")),
   ...walk(path.join(root, "tests")).filter((f) => /\.(mjs|js)$/.test(f)),
   /* This file quotes the superseded figures to explain what went wrong, which

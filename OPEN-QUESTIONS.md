@@ -291,3 +291,100 @@ the check compliance, not from the 2025 rating. The screen says so on the page.
 If Sarel wants a *suggested* cell proposed from the evidence — worst confirmed
 finding band, say — that is easy and it must arrive as a suggestion the group
 taps to accept, never as a value that counts unagreed. Say the word.
+
+---
+
+## 10. The register review — 324 checks classified, and what it found (2026-09-10)
+
+Sarel's instruction: *"critically look at it whether it requires a discussion to
+confirm compliance or an actual piece of evidence like a COC or something that
+need to be inspected physically… it feels like there is too many checks in
+multiple categories… let record exactly what should be inspected and what we are
+looking for as evidence to make the check compliant"* — and, narrowing it,
+*"is it something physical like an asset, a colour, a vent etc then its something
+to go see."* Vocabulary agreed in conversation: **Document / Asset / Practice**,
+with *"agree, go ahead."*
+
+Every one of the 324 is classified. The workbook is `KSIA-register-review.xlsx`,
+built by `register-review.mjs` from `src/data/source/register-review.json`.
+**Nothing in `checks.json` has been changed** — this is the argument, not the
+edit. `checkpoints[].id` is untouched, as always.
+
+| | Document | Asset | Practice |
+|---|---|---|---|
+| All 324 | 180 | 114 | 30 |
+| Mechanical (113) | 85 | 25 | 3 |
+| Civil (56) | 13 | 38 | 5 |
+| Electrical (54) | 28 | 19 | 7 |
+| Building & Facilities (38) | 14 | 19 | 5 |
+| Process Safety & Risk (37) | 20 | 11 | 6 |
+| Energy & Demand (26) | 20 | 2 | 4 |
+
+**The threshold is not a fourth category.** 274 of the 324 carry a measurable
+physical figure, so a "Specification" category would swallow the register and
+say nothing. It is an attribute of nearly every check and it belongs in what
+makes the check compliant.
+
+**The current `vtype` tag is not carrying information.** It reads *Site Physical
+Verification* on 299 of 324 and *Evidence* on 313. Every Physical check does have
+walkabout text — 287 distinct ones — so the data is not lazy; the tag simply
+records what activities happen on an audit, not what decides compliance. That is
+why Sarel's instinct that there are "too many checks in multiple categories" is
+right: almost every check is in every category.
+
+**181 checks carry at least one gap note, 227 notes in total:**
+
+- **98 · evidence not stated.** 95 checks have an `evidenceExpected` under 40
+  characters — *"Inspection; programme"*, *"Test records"*, *"LI certificates;
+  register"* — and **9 of those are simply empty**. Every one of the 95 now
+  carries a written line saying what actually makes the check compliant, and a
+  test fails if one is ever left falling back to the stub.
+- **56 · duplicate or overlap.** CIV-008 is CIV-001 word for word under a
+  different asset system. MEC-105 is MEC-016 word for word. Earth leakage is
+  asked six times (MEC-012, 052, 064, 087, 092, 102); wiring-diagram-and-CoC five
+  times. The pavement condition set repeats once per surface — runway, taxiway,
+  apron — as 013/030/039, 016/032/041, 017/033/042, 018/034/043.
+- **No threshold to test against.** MEC-001 asks for an air-flow test ACSA's
+  own manual never requires (D080 025M asks only for motor running current).
+  MEC-033 asks for a PrEng structural report the register's own `acsaEvidence`
+  field records as *"(none required by D080 029M)"*. CIV-018 has no figure for how
+  big an edge step is a failure.
+- **8 · conflict in the source** — read these first, below.
+- **30 · no threshold to test against**, **10 · more than one check in the row**,
+  **10 · the question does the check's work**, **5 · wrong content on the row**,
+  **6 · noted as correctly having nothing to inspect.**
+
+**The five conflicts are the ones to read first**, because auditing to the
+register as written would pass a non-compliant installation:
+
+1. **MEC-037** — the check says the fuel piping pressure test is 3-yearly.
+   D060 021M cl. 4.17.5 says that at **FALE (King Shaka) it is YEARLY**. Auditing
+   to 3 years passes an installation two years overdue.
+2. **MEC-075** — check says deluge/control valve service 3-yearly; ACSA says
+   yearly.
+3. **MEC-077** — check says annual flow/pressure tests; ACSA says valve station
+   flow and pressure **monthly**.
+4. **MEC-038** — check names ASME B31.3; ACSA names API/IP 1540 plus JIG.
+5. **MEC-091** — a *sewer sump* gas monitor check filed under **Gas Hot Water
+   Facility**, copied whole from MEC-086. Four of that system's five checks are
+   copy-pastes from elsewhere; MEC-095 (LPG) is the only real one.
+
+**65 split-or-merge candidates** are listed on their own sheet.
+
+**What is Sarel's to decide, and it blocks the re-cut:**
+
+1. **Does the register shrink?** Acting on the 56 duplicate notes and the 65
+   split/merge proposals takes 324 down towards roughly 250. Fewer checks is a
+   shorter audit and a cleaner trend — but a check ACSA's own template carries
+   and Squawk does not is a conversation with the client. **My recommendation:
+   merge the exact duplicates (CIV-008, MEC-105 and the six earth-leakage rows),
+   leave the per-surface repeats alone** — runway, taxiway and apron genuinely
+   are three walks, and a single check scoped to a surface would lose the
+   three-way comparison the dashboard draws.
+2. **Where a check asks for evidence ACSA does not require** (MEC-001, MEC-033
+   and 28 others) — is that a finding against the site, or a gap in ACSA's own
+   manual? They are opposite outcomes for the same observation and only Sarel can
+   set the rule. It is task #52's real question.
+3. **Do the three categories go into `checks.json` as a field?** That is a schema
+   change to the master data and it is his call. It costs a `version` bump and a
+   migration; nothing reads it yet.

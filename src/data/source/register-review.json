@@ -1,0 +1,2473 @@
+{
+ "KSIA-ELE-001": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "DoEL registered-person certificates matched to scope; the walk names who is actually on the AGL circuits and checks their expiry."
+ },
+ "KSIA-ELE-002": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Approved as-builts referencing Annex 14 Ch.8; the walk confirms the designated isolation/maintenance points exist and are usable."
+ },
+ "KSIA-ELE-003": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "An original signed CoC, not a reprint; the walk finds alterations since its date not covered by a supplementary."
+ },
+ "KSIA-ELE-004": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Signage present, legible and SANS 1186-1 compliant in every AGL room and outstation cabinet. Nothing documentary settles it.",
+  "gaps": [
+   "NO evidence stated"
+  ],
+  "proof": "Statutory notices and SANS 1186-1 signage present, legible and undamaged at every AGL electrical room and remote outstation cabinet, naming the CURRENT appointees and policy revision — a notice carrying a departed GMR 2(1) appointee is not a notice. Checked daily per D060 023M cl. 4.7.4, warning signage weekly, with the substation logbook signed off."
+ },
+ "KSIA-ELE-005": {
+  "by": "Practice",
+  "inspect": "none",
+  "why": "Gaps in the daily log over weekends, and entries batched afterwards rather than signed at the time. The log's EXISTENCE is not the test."
+ },
+ "KSIA-ELE-006": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "Measured changeover time against the Annex 14 limit for the facility's category.",
+  "gaps": [
+   "the row's own question asks what the aerodrome's certified lighting category IS — the limit cannot be applied without it"
+  ]
+ },
+ "KSIA-ELE-007": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Fault log and spares register against the serviceability target; the walk counts spares against the lamp types actually in use."
+ },
+ "KSIA-ELE-008": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "A funded plan classifying assets by criticality; the walk spot-checks older assets against what the plan says should have happened by now."
+ },
+ "KSIA-ELE-009": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Lamp outage within limits is settled on the runway, ideally at night.",
+  "gaps": [
+   "evidence stub: 'Inspection & test records'"
+  ],
+  "split": "photometric inspection, outage limits, switch-over and CCR maintenance are four tests",
+  "proof": "MALMS photometric output within limits and lamp outage inside the allowed count for the pattern, the Planned AGL Maintenance Programme M&E 077 worked to date, and the secondary-power switch-over measured at 1 second for every CAT II/III element (inner 300 m approach, threshold, end, centreline, touchdown zone) on the monthly on-load test with the change-over time actually recorded."
+ },
+ "KSIA-ELE-010": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Route markers matching the buried route, joint boxes not paved over, accessibility to each part.",
+  "gaps": [
+   "NO evidence stated"
+  ],
+  "proof": "Cable routes to SANS 10198 with route markers present and matching the buried route, joint boxes not paved or backfilled over, the separation distances the standard requires actually measured on site, and every part reachable for inspection and replacement without dismantling something else. Commissioning test records for new MV/LV cabling and the as-built single line diagram behind it."
+ },
+ "KSIA-ELE-011": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "The requirement is that the diagram is DISPLAYED in the room — a physical fact.",
+  "gaps": [
+   "evidence stub: 'Drawings; protection study'"
+  ],
+  "split": "a displayed diagram (Asset) and an applied protection grading study (Document) are different tests",
+  "proof": "A single-line diagram physically displayed and legible in EACH switch room, its revision date later than the most recent network change and reflecting the current Normal Open Point, plus a protection grading study whose settings an electrician can show applied in the relays — confirmed against design yearly with outage."
+ },
+ "KSIA-ELE-012": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Markers intact and not paved over; signs of unauthorised joints.",
+  "gaps": [
+   "evidence stub: 'Cable records; inspection'"
+  ],
+  "split": "route condition (Asset) and thermography/test records (Document)",
+  "proof": "Route markers and trench covers intact, not paved over and matching the route drawing; no unrecorded joint and no sign of unmarked excavation; and the yearly thermographic scan of bus bars, breaker frames, contacts, arc-chutes and insulation blocks with every flagged hot spot carrying a closed work order."
+ },
+ "KSIA-ELE-013": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Compare the single-line diagram against actual breaker positions. An abnormal configuration is a state, not a record.",
+  "gaps": [
+   "evidence stub: 'Load readings; SLD verification'"
+  ],
+  "proof": "Switch and breaker positions on site matching the Normal Open Point on the single-line diagram, no equipment carrying load above its nameplate rating, and the measured values inside ACSA's stated limits — power factor at least 0.95 at the point of delivery, 50 Hz ±2.5%, MV volt drop ±5%. This is kick-off risk item 6.5.1 and an abnormal configuration left standing is the finding."
+ },
+ "KSIA-ELE-014": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Four certificates within 12 months per breaker, showing measured values against OEM tolerance; the walk reads the serial to prove they are THIS breaker's."
+ },
+ "KSIA-ELE-015": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A signed report showing actual results for all six checks, not a checklist of ticks."
+ },
+ "KSIA-ELE-016": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Condition assessment and a capital plan entry; the walk reads the nameplate date and looks for degraded condition."
+ },
+ "KSIA-ELE-017": {
+  "by": "Practice",
+  "inspect": "examine",
+  "why": "'Available AND USED' is the requirement. Tests whether the register is maintained when someone leaves and whether LOTO is actually applied.",
+  "gaps": [
+   "evidence stub"
+  ],
+  "split": "switching authority (Practice) and arc-flash PPE condition (Asset) in one row"
+ },
+ "KSIA-ELE-018": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Rooms physically separate, each with its own access control rather than a shared key across risk classes.",
+  "gaps": [
+   "NO evidence stated"
+  ],
+  "proof": "MV breaker, transformer, LV, generator and battery/UPS rooms each physically separate, each with its own access control rather than a shared key across risk classes, each containing only its designated equipment, oil-filled units with containment and fire-sealed penetrations. NOTE: ACSA states no numeric fire rating and no bund percentage for these rooms, so the compliance test is separation and containment as built, against the layout drawing."
+ },
+ "KSIA-ELE-019": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Ventilation actually running rather than merely installed; rodent and corrosion free; drainage present."
+ },
+ "KSIA-ELE-020": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Measure the clearance around switchgear and busbars against the NRS 060 table. A tape measure decides it.",
+  "gaps": [
+   "NO evidence stated"
+  ],
+  "proof": "Clearance around MV/LV switchgear and busbars measured on site and at or above the NRS 060 figure for the installed voltage class, no storage or clutter inside it, doors serviceable, lockable and unobstructed, and exactly one door or gate left unlocked for emergency egress while work is in progress."
+ },
+ "KSIA-ELE-021": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "A plan that references the actual rooms on site rather than a generic site-wide document, plus drill records."
+ },
+ "KSIA-ELE-022": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Displayed at all times, legible, revision-dated. A physical fact about a wall.",
+  "gaps": [
+   "NO evidence stated"
+  ],
+  "proof": "The latest revision of the substation diagram displayed, legible, dated and revision-numbered, reflecting the current Normal Open Point, and matching the switching configuration found during the walkdown. Inspected daily with corrective action raised where it is out of date."
+ },
+ "KSIA-ELE-023": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Door not propped open, signage legible, HVAC running, no unrelated storage.",
+  "gaps": [
+   "evidence stub: 'Site inspection'"
+  ],
+  "proof": "Door access-controlled and not propped, keys issued through the key register with receipt on return, statutory signage present and legible, ventilation actually running, no unrelated storage, and MV/LV/UPS/CCR separated where practical — with the substation logbook showing all sixteen daily checks signed off."
+ },
+ "KSIA-ELE-024": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Thermography, earthing resistance and oil test reports within period; the walk looks for discolouration and melted insulation.",
+  "gaps": [
+   "evidence stub: 'Test reports'"
+  ],
+  "proof": "Thermographic survey within the year with every hot spot closed out; earth resistance measured and recorded at the yearly transformer major maintenance; and transformer oil DGA/BDV within period with PCB content not more than 20 mg/kg in reclaimed oil and undetectable in unused oil, determined per IEC 61619 to SANS 555. NOTE: ACSA states no numeric earth resistance value, so the test is that a measured figure exists and is trended, against the design value."
+ },
+ "KSIA-ELE-025": {
+  "by": "Practice",
+  "inspect": "none",
+  "why": "The question is decisive: a complete log of tests that were START-AND-IDLE rather than ON-LOAD is a complete record of the wrong test."
+ },
+ "KSIA-ELE-026": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "A pressure/leak integrity certificate for the underground pipework.",
+  "gaps": [
+   "the row's own question asks whether leak detection is by actual pressure test or only consumption reconciliation — those are different assurances"
+  ]
+ },
+ "KSIA-ELE-027": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Signage present and legible in the zones the assessment identifies, specifying the right protection."
+ },
+ "KSIA-ELE-028": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "MHI declaration or written confirmation of being below threshold; the walk confirms the tank capacity matches the volume assessed."
+ },
+ "KSIA-ELE-029": {
+  "by": "Practice",
+  "inspect": "examine",
+  "why": "Whether staff entering the generator room during operation ACTUALLY wear the issued protection. Issue records prove issue, not use."
+ },
+ "KSIA-ELE-030": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "The cut-out and e-stop located, labelled, unobstructed. A March 2025 Unacceptable finding sat here.",
+  "proof": "A fuel cut-out or isolation device and an emergency stop at each generator, both clearly labelled, unobstructed and reachable WITHOUT approaching the generator itself, with the fuel line shut-off valve checked to operate freely weekly and the stop solenoid checked on the monthly record.",
+  "gaps": [
+   "evidence stub: \"Physical inspection; drawings\""
+  ]
+ },
+ "KSIA-ELE-031": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Weekly/monthly entries without gaps and an annual load-bank test; the walk compares the hour-meter to what is logged.",
+  "gaps": [
+   "evidence stub: 'Generator test logs'"
+  ],
+  "proof": "Weekly off-load runs of at least five minutes and monthly on-load runs of at least fifteen minutes, with no gaps in the logbook, the hour-meter reading consistent with what is logged, the change-over time recorded on each on-load test, and an annual load-bank test plus fuel sample analysis for every generator — not just the main one."
+ },
+ "KSIA-ELE-032": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "ATS test records showing switch-over within design; the walk finds a recent test or service tag on the cabinet.",
+  "gaps": [
+   "evidence stub: 'ATS test records'"
+  ],
+  "proof": "A tested ATS with the measured change-over time at or under the design figure for the load it feeds — 1 second for every CAT II/III AGL element. A test record with no time on it does not answer this check."
+ },
+ "KSIA-ELE-033": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Bund cracked or full of rainwater, spill kit missing, visible leaks.",
+  "gaps": [
+   "evidence stub"
+  ],
+  "split": "bund condition and alarms (Asset) vs fuel quality tests (Document)",
+  "proof": "Bund intact, not cracked and not full of rainwater (which is capacity gone), sized to at least 110% of the largest container, level alarms proven on the weekly alarm check, a stocked and accessible spill kit, no leaks or staining, and the annual bulk-tank bottom and primary-filter samples analysed for contamination."
+ },
+ "KSIA-ELE-034": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "Current-year oil report with prior years for trending.",
+  "gaps": [
+   "the row's own question asks whether DGA was actually done or only basic tests — a different assurance"
+  ]
+ },
+ "KSIA-ELE-035": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Oil level, leaks and staining, silica gel colour, bushings, cooling fins. All read at the transformer.",
+  "gaps": [
+   "evidence stub: 'Inspection records'"
+  ],
+  "proof": "Oil level in band with no leaks or staining, silica gel the right colour, bushings and cooling fins undamaged and clean, Buchholz and temperature protection warning and trip functionality tested at the yearly major maintenance with outage, and the measured loading inside the nameplate rating."
+ },
+ "KSIA-ELE-036": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Impedance/capacity and discharge test certificates — a discharge test is verified by certificate, not observed; the walk looks for swelling, leakage, corrosion.",
+  "gaps": [
+   "evidence stub"
+  ],
+  "proof": "Battery impedance or capacity results and a full-duration autonomy discharge test within period, alarms proven to reach the monitoring point, and the UPS room temperature inside the battery manufacturer's specification — recorded on the annual service alongside cell readings, charger voltage, inverter output and the bypass switch test."
+ },
+ "KSIA-ELE-037": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "The flight-check report itself, within the facility's interval — not ground maintenance records standing in for it."
+ },
+ "KSIA-ELE-038": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "Each parameter against the Annex 10 tolerance table for the facility's category."
+ },
+ "KSIA-ELE-039": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Calibration certificates per sensor within validity; the walk reads each sensor's tag date against its certificate."
+ },
+ "KSIA-ELE-040": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "A lux survey measured at the actual task points, within the two-year re-survey interval."
+ },
+ "KSIA-ELE-041": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Dark or uneven apron areas at night, and high-mast base/foundation condition.",
+  "gaps": [
+   "evidence stub: 'Lux measurements; inspection'"
+  ],
+  "proof": "Measured lux readings on the specified grid at or above 20 LUX per ICAO Annex 14 §5.3.24, taken monthly, with uniformity across the apron rather than an average that hides a dark stand; high-mast structures and foundations inspected for corrosion and cracking; landside and parking lighting operational."
+ },
+ "KSIA-ELE-042": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Monthly function and annual full-duration tests logged; the walk actually isolates a fitting to see it switch on.",
+  "gaps": [
+   "evidence stub: 'Test register'"
+  ],
+  "proof": "Monthly function tests and an annual full-duration test logged per fitting, six-monthly integrity testing of the back-up supply with a light output measurement, daily escape-route clearance checks, and fittings found undamaged and unobstructed on the walk."
+ },
+ "KSIA-ELE-043": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Service certificates and quarterly test logs; the walk reads the panel for faults and the cylinder gauges.",
+  "gaps": [
+   "evidence stub"
+  ],
+  "split": "detection servicing, suppression cylinder checks and room-integrity testing are three tests",
+  "proof": "Fire detection inspected weekly and maintained monthly with the panel showing no standing fault, quarterly functional tests logged, gas suppression maintained yearly with each cylinder's weight, gas type, inspection date and next service recorded, cylinders within their 10-yearly hydrostatic test, and a room-integrity (door fan) test proving the enclosure will hold the concentration."
+ },
+ "KSIA-ELE-044": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Licence current and matching the machine's serial; RPO appointed.",
+  "gaps": [
+   "evidence stub: 'Licence; survey reports'"
+  ],
+  "proof": "Current Department of Health radiation registration verified annually and matching each machine's serial number, an appointed Radiation Protection Officer whom staff can name and whose appointment record matches, tri-monthly leakage survey and calibration certificates, and deregistration records for any machine removed."
+ },
+ "KSIA-ELE-045": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Test certificates within period; the walk checks bonding cables at a fuelling point are intact and not corroded or disconnected.",
+  "gaps": [
+   "evidence stub: 'Test certificates'"
+  ],
+  "proof": "Earth resistance and lightning-protection test certificates within period, and bonding at airside structures and fuelling points physically intact, uncorroded and connected with a test tag showing a recent date. NOTE: ACSA states no numeric ohm value, so the test is a measured figure against the design value and its trend — not the absence of one."
+ },
+ "KSIA-ELE-046": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Training records and DoEL registration; the walk asks staff what training they had and cross-checks the register."
+ },
+ "KSIA-ELE-047": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "As-builts and CoCs referencing the SANS 10142-1 edition current when the work was done; the walk finds undocumented changes."
+ },
+ "KSIA-ELE-048": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Notices present, legible, not faded or damaged, at each electrical room and work point.",
+  "gaps": [
+   "NO evidence stated"
+  ],
+  "proof": "As ELE-004, across every general electrical room and work point: statutory notices, SANS 1186-1 signage, circuit labels and legend cards present, legible and current, checked daily, warning signs and safety devices confirmed present and correctly positioned."
+ },
+ "KSIA-ELE-049": {
+  "by": "Practice",
+  "inspect": "none",
+  "why": "As ELE-005 for the general installation: gaps in the log and batched sign-off are the finding."
+ },
+ "KSIA-ELE-050": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Enclosure panels left open or unlocked after maintenance; barrier voltage ratings against the installed class."
+ },
+ "KSIA-ELE-051": {
+  "by": "Practice",
+  "inspect": "examine",
+  "why": "The question is the test — is LOTO bypassed 'for a quick job'. Lockable isolators existing is necessary and not sufficient."
+ },
+ "KSIA-ELE-052": {
+  "by": "Practice",
+  "inspect": "none",
+  "why": "Whether each SWMS is specific to the job's hazards or one generic document reused. A file full of identical SWMSs passes a document test and fails this one."
+ },
+ "KSIA-ELE-053": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "A current GMR 2.1 appointment naming someone still on the roster, plus a dated functional test log."
+ },
+ "KSIA-ELE-054": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Guards fitted over rotating parts and live terminals, not removed or propped open."
+ },
+ "KSIA-MEC-001": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A measured L/s per person on a dated test report. The walk only proves the fan is running and that the space is the space that was tested.",
+  "gaps": [
+   "ACSA requires only a six-monthly MOTOR RUNNING CURRENT — no air-flow rate, velocity or L/s figure anywhere in D080 025M. The check asks for a test ACSA's own manual does not call for."
+  ],
+  "proof": "Independent air-flow test for the space, measured fresh-air rate against the >7.5 L/s/person target, with the space classified as it is actually used — an office re-let as a concourse invalidates the report."
+ },
+ "KSIA-MEC-002": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Air changes per hour is a calculation from a measured extract rate and the room's real volume. Neither is visible.",
+  "gaps": [
+   "ACSA states no extraction rate or air-change requirement — only motor running current"
+  ],
+  "proof": "ACH report with the room volume used, the measured extract flow, and the calculated ACH — with the volume matching the actual room."
+ },
+ "KSIA-MEC-003": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "The required extraction rate comes from the fire engineering design; only a commissioning certificate can show the fan achieves it.",
+  "gaps": [
+   "ACSA's threshold is a 3-monthly auxiliary activation test, not a flow rate"
+  ],
+  "proof": "Approved smoke control design stating the rate for the zone, plus a functional test certificate showing the fan reached it when triggered BY the fire alarm, not standalone."
+ },
+ "KSIA-MEC-004": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Grease depth in a duct is the fact, and it is behind an access panel. The certificate says the run was cleaned; the panel says whether it was cleaned end to end.",
+  "proof": "Deep-clean certificate per SANS 1850:2003 at an interval not exceeding six months, with before/after photographs or a deposit-depth reading covering the full duct run to the discharge point."
+ },
+ "KSIA-MEC-005": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A seized vent is visible on the roof, but what fails this check is a blanket 'all vents OK' sign-off with no per-unit entry.",
+  "gaps": [
+   "no acsaThreshold — no monthly roof-vent test interval is stated anywhere in the source"
+  ],
+  "proof": "Monthly log with a per-unit reference and pass/fail, and a roof sample turning freely without seizure or corrosion."
+ },
+ "KSIA-MEC-006": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A damper closes or it does not, and only a functional test says so. The walk finds the ones painted over or sealed above a ceiling.",
+  "proof": "Test record per damper reference showing full closure and reset, cross-referenced to the fire safety file — and a located sample with its access panel still openable and the blade not painted shut."
+ },
+ "KSIA-MEC-007": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A Certificate of Conformity under PER reg 17 is the only proof. The walk matches the plant-room reference on it to the pipework actually installed.",
+  "proof": "Current CoC from an Approved Inspection Authority, and no unrecorded modification — new branches or welds — since its date."
+ },
+ "KSIA-MEC-008": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A Legionella result is a laboratory number. The walk exists to count towers, because a certificate for one tower on a site with three is the failure.",
+  "gaps": [
+   "no acsaThreshold at all — SANS 10147 cl. 6.1.6.1 is named in the evidence but no ACSA interval is quoted"
+  ],
+  "proof": "A dated clearance certificate within 12 months for EACH water-cooled or evaporative system, with sampling points that match the plant on site."
+ },
+ "KSIA-MEC-009": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "An EIR reg 6 Certificate of Compliance signed by a registered person. The walk looks for circuits added since.",
+  "proof": "Current CoC in the latest SANS 10142-1 format naming the registered person, matching the as-installed wiring with no un-certified additions."
+ },
+ "KSIA-MEC-010": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A drawing is compliant when it matches the installation, which is only knowable by tracing circuits against it.",
+  "proof": "Dated, version-controlled as-built set — 1 electronic and 3 hard copies per D100MAN cl. 9.2 — with panel labelling in the plant room matching it, not the original design issue never updated."
+ },
+ "KSIA-MEC-011": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "An interface test is a record of a response that has already happened. What matters is whether the HVAC plant moved, or only the fire panel logged.",
+  "proof": "Quarterly record showing the alarm triggered and the HVAC response observed, cross-referenced to a cause-and-effect matrix covering every interface zone."
+ },
+ "KSIA-MEC-012": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "The trip current and time are on a drawing and in a test record. The walk reads the installed device's rating and looks for a bypass.",
+  "gaps": [
+   "no standalone earth-leakage test interval in ACSA — it rides on the yearly COC cycle",
+   "this identical check appears six times in the register: MEC-012, 052, 064, 087, 092, 102"
+  ],
+  "split": "one earth-leakage check scoped by asset system, not six near-identical rows"
+ },
+ "KSIA-MEC-013": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "A leak check is an event with a method. Repeated top-ups with no investigated cause is the finding, and it is only visible in the log.",
+  "proof": "Quarterly leak-check record per refrigerant circuit stating the detection method used and referenced to the charge, with any detected leak repaired and verified."
+ },
+ "KSIA-MEC-014": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "A laboratory report from the Environmental department against stated guideline values. Nothing on site changes it.",
+  "gaps": [
+   "no walkabout text at all, correctly"
+  ],
+  "proof": "IAQ report within the two-year Occupational Hygiene cycle, naming the reference standard it was assessed against."
+ },
+ "KSIA-MEC-015": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "An audit report and its recommendations. The walk spot-checks whether a named finding was actually actioned.",
+  "proof": "Annual energy optimisation report for the HVAC plant, and for each cited finding either a closed work order or the unit visibly in the state the recommendation called for."
+ },
+ "KSIA-MEC-016": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A SANS 10083 noise assessment by an Approved Inspection Authority. The walk checks the zones it named are demarcated on the ground.",
+  "gaps": [
+   "verbatim duplicate of MEC-105 — same requirement, evidence and walkabout, one filed under HVAC and one under Water Treatment Plant"
+  ],
+  "split": "one noise-survey check for the site; demarcation is separately MEC-104"
+ },
+ "KSIA-MEC-017": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Weekly logged temperatures, pressures and amps against set-points. AUTO mode and an unacknowledged alarm are read off the BMS screen.",
+  "gaps": [
+   "evidence stub: 'Plant logs; PER certificates'",
+   "overlaps MEC-007 (PER certificates) and MEC-013 (refrigerant leak log)"
+  ],
+  "split": "keep the plant-log half; the PER certificate is MEC-007 and the leak log is MEC-013",
+  "proof": "Weekly chiller records of temperature, pressure and amps with the delta-T against design, controller in AUTO with no standing alarm, yearly oil sample analysis and the safety-device test."
+ },
+ "KSIA-MEC-018": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "The dosing regime and its test results decide it — but biological growth in the basin is visible and contradicts a clean record.",
+  "gaps": [
+   "evidence stub: 'Treatment & test records'",
+   "overlaps MEC-008, whose evidence is the same Legionella certificates"
+  ],
+  "split": "keep the water-treatment programme and cleaning records here; Legionella testing is MEC-008",
+  "proof": "A documented water treatment programme with dosing pumps and chemical tanks connected and charged (not empty or disconnected), cleaning and disinfection records, monthly leak/eliminator/fan/spray inspection and tri-monthly sump cleaning per the Cooling Towers checklist CMMS 009 — and a basin and fill free of visible biological growth, which contradicts a clean record."
+ },
+ "KSIA-MEC-019": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "An Annexure A is issued once, after erection. The walk matches the serial plate to the certificate and looks for a controller change that voids it.",
+  "proof": "Annexure A per lift referencing SANS 1545-1 or 1545-2, with a fresh one after any substantial modification."
+ },
+ "KSIA-MEC-020": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A two-yearly thorough examination report with a next-due date. The walk's job is counting — every lift in a bank, not most of them.",
+  "proof": "Annexure B per lift dated within 24 months, examiner's registration stated, next-due date not yet passed."
+ },
+ "KSIA-MEC-021": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "As MEC-019, for escalators and conveyors against SANS 1543.",
+  "gaps": [
+   "ACSA's threshold here is a MONTHLY check of the reports, which is a different obligation from holding a valid Annexure A"
+  ]
+ },
+ "KSIA-MEC-022": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "As MEC-020, for the escalator and conveyor fleet.",
+  "proof": "Annexure B per unit dated within 24 months across the whole fleet, next-due date not passed."
+ },
+ "KSIA-MEC-023": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A SANS 1545-3 certificate per stairlift. The walk finds the unit installed in an accessibility upgrade that nobody certificated.",
+  "gaps": [
+   "no acsaThreshold — platform stairlifts are not in D080 020M's inspection tables at all"
+  ]
+ },
+ "KSIA-MEC-024": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "An Annexure E must address accessibility features. A generic Annexure B filed under this heading is the failure, and only reading it shows that.",
+  "proof": "Current Annexure E addressing audible and tactile controls, door timing, alarm button at 900-1200 mm and a mirror where the car is under 1 500 mm wide."
+ },
+ "KSIA-MEC-025": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Rope discard criteria are applied by a competent person against a specific rope set. Visible corrosion in the hoistway supports or contradicts the report.",
+  "proof": "Six-monthly examination naming the specific rope set, assessed against discard criteria, with the certificate in its designated place in the machine compartment and retained ten years."
+ },
+ "KSIA-MEC-026": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "A destructive test that has already happened; the report is all there is. What it must show is a measured trip speed, and all three elements tested.",
+  "proof": "Annual report per lift confirming safety gear engaged, the governor tripped at a measured speed with units stated, and the buffers tested — not the governor alone."
+ },
+ "KSIA-MEC-027": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "As MEC-009, for the lift motor room supply and control panel.",
+  "gaps": [
+   "duplicates the CoC pattern of MEC-009, 031, 052, 064, 089, 094, 101"
+  ]
+ },
+ "KSIA-MEC-028": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A roll-up of the certificate checks above, adding one thing they miss: whether the register lists every unit in the terminal.",
+  "gaps": [
+   "evidence stub: 'LI certificates; register'",
+   "duplicates MEC-019 through MEC-027"
+  ],
+  "split": "keep only the register completeness and the displayed-certificate check — walk the terminal, count the units, reconcile against the register",
+  "proof": "A register listing every lift, escalator and travelator in the terminal, reconciled by walking it; a current comprehensive report per unit to SANS 1545-1:2016 ed 3.6 at the two-yearly cycle or on contractor change; the Appointed Inspector's appointment letter; and the certificate displayed at each unit current and matching that unit's ID. Records retained ten years."
+ },
+ "KSIA-MEC-029": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "The one People Movers check decided entirely on the machine. A broken comb tooth and a cracked handrail are seen and felt, and no certificate discloses them.",
+  "gaps": [
+   "evidence stub: 'Site inspection'"
+  ],
+  "proof": "Step/pallet-to-skirt gaps within tolerance, no two adjacent comb teeth broken, handrails uncracked and un-frayed, landing plates secure, skirt brushes fitted, emergency stops present and unobstructed, signage legible."
+ },
+ "KSIA-MEC-030": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Four safety systems, each with its own OEM test. The record must show all four were exercised — the easy ones alone is the common failure.",
+  "proof": "OEM functional test at the FALE four-monthly cycle covering auto-levelling, bumper/obstruction sensors, emergency stop and cabin interlock."
+ },
+ "KSIA-MEC-031": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "As MEC-009, for the bridge's supply and control installation, matched to the gate number.",
+  "gaps": [
+   "requirement is one word, 'COC' — no scope, no interval, no issuing authority stated in the check itself"
+  ]
+ },
+ "KSIA-MEC-032": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Welds, bogies and undercarriage corrosion are assessed by a competent person with access the auditor does not have. The report's SCOPE is the check.",
+  "gaps": [
+   "conflicting intervals in the source: FALE's own cycle is 2-yearly in years 2 and 4, against a counter-benchmark of a three-monthly visual structural inspection"
+  ],
+  "proof": "Two-yearly report explicitly covering welds, support structure, wheel bogies/undercarriage and corrosion — not only the visible cabin structure."
+ },
+ "KSIA-MEC-033": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "A PrEng structural assessment is a professional opinion in a report.",
+  "gaps": [
+   "evidence stub: 'PrEng structural assessment report'",
+   "ACSA's own manual requires NO such report — the register's acsaEvidence field says '(none required by D080 029M)'. The check demands evidence ACSA does not oblige anyone to hold.",
+   "duplicates MEC-032"
+  ],
+  "split": "merge into MEC-032, and raise the missing PrEng requirement as a policy gap against ACSA rather than as a site non-compliance",
+  "proof": "A structural assessment report by an ECSA-registered Professional Engineer covering corrosion, welds, rotunda, tunnel and wheel bogie, with every remedial action closed. NOTE: ACSA's D080 029M requires no such report — treat a missing one as a gap in ACSA's manual to be raised, and demand instead the counter-benchmark D080 028M cl. 4.2.5 six-monthly/yearly structural inspection by a competent person."
+ },
+ "KSIA-MEC-034": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Auto-leveller, safety shoe, canopy and emergency stop are demonstrated on the bridge by an operator. That demonstration, not the PM sheet, is what settles it.",
+  "gaps": [
+   "evidence stub: 'PM records; operator register'",
+   "overlaps MEC-030, which tests the same four systems from the record side"
+  ],
+  "split": "keep the demonstration here; the OEM test record is MEC-030; the operator authorisation register is a Document check of its own",
+  "proof": "The auto-leveller demonstrated adjusting, the safety shoe present and moving freely, the canopy undamaged and without gaps, drive/steer working and the emergency stop located and functional — plus the four-monthly FALE task tables completed, faults carrying an IMC reference number, and an operator authorisation register naming everyone who drives the bridge."
+ },
+ "KSIA-MEC-035": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "An MHIR reg 5 risk assessment by an Approved Inspection Authority, five-yearly. The walk checks the fuel farm has not outgrown what it covers.",
+  "proof": "Current AIA MHI risk assessment within 5 years, proof of submission to the Chief Inspector, local and provincial government, and a tank/hydrant configuration matching what it assessed."
+ },
+ "KSIA-MEC-036": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "The plan is a document; whether it was drilled is a record of an event. The walk checks the plan still describes the site it is for.",
+  "gaps": [
+   "requirement says 3-yearly but ACSA requires the plan TESTED at least every 12 months and SUBMITTED to NERSA annually — three different clocks in one check"
+  ],
+  "split": "split in two — the plan's currency and consultation with the local authority (Document), and the annual practical drill (Practice)"
+ },
+ "KSIA-MEC-037": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "A witnessed pressure test certificate. The AIA's stamp is the point — a contractor's own sign-off is not the same document.",
+  "gaps": [
+   "DIRECT CONFLICT: the check says 3-yearly, ACSA D060 021M cl. 4.17.5 says the hydrant line pressure test at FALE (King Shaka) is YEARLY. Auditing FALE against 3 years would pass an installation that is two years overdue."
+  ],
+  "proof": "AIA-witnessed certificate within ONE year for FALE, stating test pressure and result, covering the tank farm AND the hydrant lines."
+ },
+ "KSIA-MEC-038": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A design package and its certification. The walk spot-checks material spec plates against it and finds the older sections nobody has documentation for.",
+  "gaps": [
+   "CONFLICTING CODE: the check names ASME B31.3; ACSA D060 021M cl. 4.15.1 names API/IP 1540 plus JIG. No wall-thickness or design criterion is stated for either."
+  ],
+  "proof": "Piping design package certified to the code ACSA actually adopts, plus the Petroleum Pipeline Act construction licence, with documentation covering every section including the oldest."
+ },
+ "KSIA-MEC-039": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A calibration certificate against a serial number. The walk exists to catch a bump test recorded as a calibration, which is the routine substitution here.",
+  "gaps": [
+   "'potable gas meters' — almost certainly PORTABLE gas meters; the register carries the typo",
+   "ACSA names four calibration items (crawl beams, gauges, hydrocarbon detectors, tightness control system) and NO quarterly interval"
+  ],
+  "proof": "Full calibration certificate — not a bump test — from a competent provider, referencing the meter serial number found on the instrument."
+ },
+ "KSIA-MEC-040": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "The record must show fuel flow actually stopped, not that a button was pressed. The walk confirms staff know what the button isolates.",
+  "gaps": [
+   "ACSA does not define 'ESB'; the manual's term is ESD, maintained six-monthly at FALE. The check and the manual may not be describing the same device."
+  ],
+  "proof": "Functional test showing the valve or pump actually isolated, plus the approved Safe Work Procedure for emergency fuel hydrant shut-off signed by the GMR 2(1) and 2(7) appointees."
+ },
+ "KSIA-MEC-041": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "An as-built is compliant only against the tank farm it claims to describe. That comparison is the whole check.",
+  "proof": "Version-controlled as-built set in PDF and native format, named by project/drawing/revision, minimum A3, with no tank, valve or hydrant on site missing from it and none on it missing from site."
+ },
+ "KSIA-MEC-042": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Pipe-to-soil potential is a millivolt reading against a criterion. Only the log has it; the walk confirms the rectifier is actually being read.",
+  "gaps": [
+   "the -850 mV CSE criterion is in the check's evidence but nowhere in ACSA's threshold — ACSA states intervals only"
+  ],
+  "proof": "Readings at the site's stated interval, each identifying the pipe section or tank it relates to, against -850 mV CSE, with a linked work order for any out-of-range reading."
+ },
+ "KSIA-MEC-043": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "Buried coating can only be seen during an excavation or inferred from a close-interval survey. On a normal audit there is nothing to look at.",
+  "gaps": [
+   "no coating inspection interval and no holiday-test criterion in ACSA",
+   "the check may be unanswerable in an audit period with no excavation — it needs an explicit 'not applicable this period' outcome rather than a fail"
+  ],
+  "proof": "Coating-integrity records from any excavation in the period, or a close-interval survey — and where neither exists, that stated as the reason rather than left blank."
+ },
+ "KSIA-MEC-044": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "You open the pit and look in. Water ingress, a failed seal and an unrated fitting are all read on the spot.",
+  "gaps": [
+   "duplicates MEC-046 (lids) and MEC-054 (couplers, seals, lids, water)"
+  ],
+  "proof": "Pit box and chamber intact, draining, sealed, with any electrical equipment inside rated for its hazardous-area zone."
+ },
+ "KSIA-MEC-045": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Leak-tightness is a measured rate. The walk counts pit valves against the records, because partial coverage is the usual state.",
+  "gaps": [
+   "ACSA notes 'leak rate is to be noted but NO numeric limit' — the check has no pass mark to test against"
+  ],
+  "proof": "A test record for EVERY pit valve, and the maintenance manual it references actually existing on site with a stated frequency."
+ },
+ "KSIA-MEC-046": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Corrosion, a perished seal and a lid that will not close are seen on the apron, and each is a trip or FOD hazard in its own right.",
+  "gaps": [
+   "no acsaThreshold for anodising, seal condition or lid functionality — daily inspection is required but no criterion is given",
+   "duplicates MEC-044 and MEC-054"
+  ],
+  "split": "one hydrant pit condition check covering box, chamber, lid, seals and couplers"
+ },
+ "KSIA-MEC-047": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "The distinction between a dynamic and a static test is only visible in how the record describes the conditions. Nothing on the apron tells you which was done.",
+  "gaps": [
+   "no acsaThreshold at all for a dynamic closing test"
+  ],
+  "proof": "A record describing an under-flow closing test with the flow condition stated, and a linked corrective action for any valve that failed to seal."
+ },
+ "KSIA-MEC-048": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Meter proving is a metrological certificate against a serial number, and the walk exists to find the meter that has none.",
+  "gaps": [
+   "ACSA's calibration list names Gauges but not custody-transfer meter proving; no annual proving interval is stated"
+  ],
+  "proof": "Current proving certificate for EVERY dispensing or custody-transfer meter, with the NRCS verification where applicable, and an out-of-tolerance result followed by adjustment and re-prove."
+ },
+ "KSIA-MEC-049": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "An internal inspection happens inside an emptied tank. The report and its calculated next-due date are the only access an auditor has.",
+  "gaps": [
+   "API 653 is named in the check's evidence but not by ACSA — ACSA requires five-yearly CLEANING, which is a different operation from an integrity inspection"
+  ],
+  "proof": "Inspection report with bottom-plate thickness readings and a calculated remaining life or next-due date, and no external shell staining that contradicts it."
+ },
+ "KSIA-MEC-050": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A zone map is a drawing. It is compliant when it matches the plant, and the way to test that is to stand in a zone and read an equipment rating.",
+  "gaps": [
+   "no acsaThreshold — SANS 10108 is named only in the check's own evidence field"
+  ],
+  "proof": "Current zone classification drawing reflecting the plant as it now stands, with field equipment carrying at least the Ex rating its zone requires."
+ },
+ "KSIA-MEC-051": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "SANS 10086 inspection grades are recorded, not observed. The walk samples glands and enclosures and checks the register covers what is installed.",
+  "gaps": [
+   "overlaps MEC-053, which reads the same nameplates for the same zones"
+  ],
+  "split": "keep the periodic inspection regime here; the Ex-certification of machinery is MEC-053"
+ },
+ "KSIA-MEC-052": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Three separate checks — earth leakage, wiring diagram, CoC — bundled into one row for the fuel system.",
+  "gaps": [
+   "three checks in one requirement, each already asked separately elsewhere",
+   "duplicates MEC-012, MEC-010 and MEC-009 respectively"
+  ],
+  "split": "split three ways, or scope the single earth-leakage, diagram and CoC checks by asset system"
+ },
+ "KSIA-MEC-053": {
+  "by": "Asset",
+  "inspect": "reconcile",
+  "why": "An Ex mark is stamped on a nameplate you can read with a torch. Under-rated equipment in a Zone 1 is found by looking, not by reading a file.",
+  "proof": "Every machine in a hazardous zone carrying a valid Ex mark rated at or above its zone, cross-checked against SANS 10089-2 and the zone map."
+ },
+ "KSIA-MEC-054": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Couplers, seals, lids and standing water are all read by opening a pit.",
+  "gaps": [
+   "evidence stub: 'Pit inspection register; site walk'",
+   "duplicates MEC-044 and MEC-046"
+  ],
+  "split": "merge MEC-044, 046 and 054 into one hydrant pit condition check",
+  "proof": "Couplers undamaged, seals not cracked or perished, lids seating securely, no standing water or fuel in the pit by eye or smell, the weekly FALE fuel-on-water-table test done, daily inspection and cleaning records, and a pit valve and lid register covering every pit on the apron rather than a sample."
+ },
+ "KSIA-MEC-055": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Pressure, tightness and ESD tests are all records; bonding continuity is a measured resistance.",
+  "gaps": [
+   "evidence stub: 'Test records'",
+   "duplicates MEC-037 (pressure test), MEC-040 (ESD) and MEC-045 (tightness)",
+   "bonding at fuelling positions appears nowhere else and has no ACSA threshold — it is the only new content in the row"
+  ],
+  "split": "delete the duplicated halves; keep bonding at fuelling positions as its own check",
+  "proof": "The FALE hydrant line statutory pressure test within ONE year (not three), tightness control system maintained monthly with the leak rate noted, ESD maintained six-monthly with the push-buttons found unobstructed, clearly marked and undamaged at every fuelling position, and bonding continuity at fuelling positions measured — plus the approved Safe Work Procedure for emergency hydrant shut-off."
+ },
+ "KSIA-MEC-056": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "A bund wall crack, a blocked bund drain and a corroded tank shell are all seen. The product-quality records bundled in are not.",
+  "gaps": [
+   "evidence stub: 'Inspection certificates'",
+   "overlaps MEC-049 for tank integrity",
+   "four unrelated things in one row: tank inspection, bund integrity, filter/separator maintenance, product quality"
+  ],
+  "split": "split the bund and filter condition (Asset) from tank integrity (MEC-049) and product quality records (Document)",
+  "proof": "External inspection tag on each tank current, shell and roof free of corrosion, coating failure and leaks; bund wall uncracked, dry and drain valve closed; five-yearly tank cleaning and ten-yearly flood survey records; weekly fuel filter and separator pit maintenance; a current Fuel Depot Licence; and product quality records for each grade."
+ },
+ "KSIA-MEC-057": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "You trip an interlock and the conveyor stops, or it does not. A defeated interlock is the finding and it is only visible at the machine.",
+  "proof": "Interlock trip observed stopping the belt, siren sounding before start-up on the monthly cycle, and no interlock bridged, taped or bypassed for throughput."
+ },
+ "KSIA-MEC-058": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "A missing nip-point guard is seen from the walkway. No record substitutes for that.",
+  "gaps": [
+   "overlaps MEC-057, MEC-062 and MEC-065 — four checks walking the same conveyor guarding"
+  ],
+  "proof": "Every identified nip point guarded, guards intact and reinstated after maintenance, and no interlock switch on a guard bridged out."
+ },
+ "KSIA-MEC-059": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Whether a siren is audible over terminal noise, and whether it precedes motion by a real margin, has to be heard.",
+  "gaps": [
+   "no acsaThreshold — no siren duration or margin before motion is stated anywhere",
+   "duplicates MEC-063 for the sorter"
+  ],
+  "proof": "Siren heard above ambient terminal noise, sounding with a stated margin before the carousel moves — and a documented required duration to measure that margin against."
+ },
+ "KSIA-MEC-060": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "An E-stop is pressed and the line halts with no auto-restart. Damage and obstruction are seen at the same time.",
+  "proof": "Sample of E-stops physically tested, immediate halt with deliberate manual reset, none damaged or obstructed."
+ },
+ "KSIA-MEC-061": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "What matters is whether the shutter was triggered BY the fire alarm or closed by hand and written up as if triggered. Only the record and the cause-and-effect matrix show that.",
+  "proof": "Test records for both directions — closure on fire alarm and the carousel interlock — cross-referenced to a cause-and-effect matrix held on site."
+ },
+ "KSIA-MEC-062": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Same physical test as MEC-057, across the sortation system.",
+  "gaps": [
+   "duplicates MEC-057 and MEC-058"
+  ],
+  "split": "merge into MEC-057, scoped to cover every interlock zone rather than a sample"
+ },
+ "KSIA-MEC-063": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Same audible test as MEC-059, on the sorter.",
+  "gaps": [
+   "duplicates MEC-059"
+  ],
+  "split": "one siren check covering carousel and sorter"
+ },
+ "KSIA-MEC-064": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Two checks in one, both already asked elsewhere, scoped to the BHS control DBs.",
+  "gaps": [
+   "duplicates MEC-012 (earth leakage) and MEC-010 (wiring diagrams and CoC)"
+  ]
+ },
+ "KSIA-MEC-065": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Guards and E-stops are the physical half and already covered above. Lock-out is a procedure and spares holding is a stores record — neither is a condition.",
+  "gaps": [
+   "evidence stub: 'CMMS PM reports'",
+   "duplicates MEC-057, MEC-058 and MEC-060",
+   "three different check types in one row"
+  ],
+  "split": "split three ways — guarding and E-stops (already MEC-057/058/060), lock-out/tag-out procedure and its records (Practice), critical drive spares holding (Document)",
+  "proof": "Guards fitted over every moving part, drive unit and pinch point with none missing, propped or bypassed; E-stops present, reachable and unobstructed along the route; a documented lock-out/tag-out procedure with records of its use; PM scheduled at least thirty days ahead with deviation admin closed within one workday; and critical drive spares held at the minimum quantity (annual usage / 12 months) on the KARDEX card."
+ },
+ "KSIA-MEC-066": {
+  "by": "Asset",
+  "inspect": "reconcile",
+  "why": "The hydrostatic test date is stamped on the cylinder. You read it off the extinguisher standing in front of you.",
+  "proof": "Legible test stamp on each cylinder within the SANS 1475-1 interval for its TYPE — CO2 read against the CO2 table, not the water/foam one."
+ },
+ "KSIA-MEC-067": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "In its logged location, gauge in the green, pin and seal intact, undamaged — every element is read on the unit.",
+  "gaps": [
+   "ACSA requires inspection QUARTERLY; the check's evidence asks for a MONTHLY visual log — two different intervals in one check"
+  ],
+  "proof": "Extinguisher present where the register says, accessible, needle in the green, seal and pin intact, no damage — and the inspection log without gaps."
+ },
+ "KSIA-MEC-068": {
+  "by": "Asset",
+  "inspect": "reconcile",
+  "why": "A roll-up of MEC-066 and MEC-067 with one addition: whether the type and location match the fire hazard class of the area.",
+  "gaps": [
+   "evidence stub: 'Service tags; register'",
+   "duplicates MEC-066 and MEC-067"
+  ],
+  "split": "keep only 'correct type and location for the area's fire hazard class', which nothing else asks, and reconcile it against MEC-069",
+  "proof": "Service tag on each extinguisher showing an annual service within twelve months by a SANS 1475-accredited provider with the provider named; the hydrostatic date stamped on the cylinder within the retest interval FOR ITS TYPE; inspection tags with no gap in the quarterly cycle; and the type and size at each location matching the area's SANS 10400-T fire hazard class."
+ },
+ "KSIA-MEC-069": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A SANS 10400-T classification per occupancy. It fails when an area's actual use has moved on from the class it carries — which is a walk, not a read.",
+  "proof": "A classification record covering every occupancy, and each area's current use still matching its assigned fire load — an office turned into a store is the failure."
+ },
+ "KSIA-MEC-070": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A block plan is only useful at the valve station in an emergency. Held centrally, it fails the purpose even if it exists.",
+  "proof": "A physical copy of the SANS 10287 block plan at each valve station, with valve numbering matching the tags in the field."
+ },
+ "KSIA-MEC-071": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "A flow and pressure figure is the test. A visual 'hose OK' recorded as a test is the failure, and only the record discloses it.",
+  "proof": "SANS 10105-2 record showing an actual flow/pressure check against design flow, hose and nozzle condition, isolating valve free — plus SANS 1475-2 reconditioning certificates for any reel sent away."
+ },
+ "KSIA-MEC-072": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Measured L/s and residual bar, compared against the fire-engineering design values. The comparison is the check — a recorded number with nothing to compare it to proves nothing.",
+  "proof": "Annual test per hydrant with measured flow and residual pressure explicitly compared to the design report, and the hydrant free and not leaking at the gland."
+ },
+ "KSIA-MEC-073": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "A painted-over head, stock stacked into the spray pattern and a corroded rosette are all seen from below.",
+  "proof": "Heads unpainted, unobstructed, uncorroded, correctly oriented — and an inspection record itemised by zone rather than a sitewide sign-off."
+ },
+ "KSIA-MEC-074": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Thirty seconds is a measured elapsed time on a log. The walk can watch one test, but the weekly series is the compliance.",
+  "proof": "Weekly log per valve station recording the elapsed time to alarm against the 30-second target, and the signal reaching the monitored fire control room — not just a local sounder."
+ },
+ "KSIA-MEC-075": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A service record from an ASIB-registered or insurer-approved provider, identifying which valve of which zone.",
+  "gaps": [
+   "CONFLICT: the check says 3-yearly, ACSA D080 002M cl. 4.7.8 says deluge/control valve service records YEARLY"
+  ],
+  "proof": "Service record at the interval ACSA actually requires, naming the specific valves serviced across every deluge zone."
+ },
+ "KSIA-MEC-076": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "An ASIB Certificate of Inspection. Its coverage is the question — a multi-building network partly certificated reads as compliant until you compare.",
+  "gaps": [
+   "ACSA qualifies this '(if applicable)' and never says when it applies — the check has no applicability rule"
+  ],
+  "proof": "Certificate within 12 months covering the whole sprinkler network, with noted defects closed."
+ },
+ "KSIA-MEC-077": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Operating a hydrant valve, unreeling a hose and checking access is unobstructed are all done on the equipment.",
+  "gaps": [
+   "evidence stub: 'Test records'",
+   "duplicates MEC-071 and MEC-072",
+   "INTERVAL CONFLICT: the check says annual flow/pressure tests; ACSA requires valve station flow and pressure tests MONTHLY"
+  ],
+  "split": "keep signage and unobstructed access, which nothing else covers; the tests are MEC-071/072/074",
+  "proof": "Test tag on each hydrant within date, the valve turning smoothly without excessive force and not leaking at the gland, hose reels unreeled with the isolating valve free and the hose sound, signage present and access unobstructed — plus valve station flow and pressure tests at the MONTHLY interval ACSA requires, not annually."
+ },
+ "KSIA-MEC-078": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Six hours at load is a duration and a load figure in a log. 'Ran OK' is the failure and only the log shows it.",
+  "proof": "Quarterly log stating the actual load or pressure achieved and a full six-hour duration, with any alarm or fault recorded."
+ },
+ "KSIA-MEC-079": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "The record must show a simulated failure, not a manual switch. Only its description distinguishes them.",
+  "proof": "Monthly record of a genuine simulated pressure-loss or power-failure changeover, stating the changeover time against the design starting time."
+ },
+ "KSIA-MEC-080": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "State of charge and starting capability are measured. The walk's contribution is checking BOTH batteries of a dual set were tested.",
+  "proof": "Monthly log per battery — both of a dual set — with a result, and a replacement following any marginal result."
+ },
+ "KSIA-MEC-081": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "The gauge on the wall gives today's reading; the log gives the series. The check is the two agreeing, against the design values.",
+  "proof": "Weekly pressure and level log against fire-engineering design values, the gauge itself verified accurate, and a repeatedly low reading investigated rather than logged."
+ },
+ "KSIA-MEC-082": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "A charger test and a battery test are routinely conflated into one entry. Only the record shows whether the charger was actually exercised.",
+  "gaps": [
+   "overlaps MEC-080 in practice — the two are commonly recorded as one test"
+  ],
+  "proof": "A monthly record that names the charger test distinctly from the battery test and confirms correct float-charging."
+ },
+ "KSIA-MEC-083": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Locked and sealed open is a physical state of a valve. You look at the padlock.",
+  "proof": "Suction and discharge valves found locked or sealed in the open position, free to operate and not seized, with the monthly exercising record."
+ },
+ "KSIA-MEC-084": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Level against the minimum runtime in the design basis. The walk reads the tank and checks fuel quality was actually looked at, not assumed.",
+  "proof": "Weekly level log with the reserve meeting the design runtime, and evidence that water contamination and diesel bug were checked, not just the level."
+ },
+ "KSIA-MEC-085": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "A roll-up of the seven pump-station checks above.",
+  "gaps": [
+   "evidence stub: 'Test logs'",
+   "duplicates MEC-078 through MEC-084",
+   "introduces two terms — 'churn test' and 'jockey pump' — that appear nowhere else in the register and have no ACSA threshold"
+  ],
+  "split": "delete the duplicated halves; keep the churn test and the jockey pump as their own checks IF ACSA's manual actually requires them, which needs confirming first",
+  "proof": "Weekly pressure gauge, water level and diesel level logs; monthly battery, charger, valve and electric-to-diesel switch-over tests; the quarterly six-hour diesel full-load run per SANS 10287 cl. 10.1 with the load achieved recorded; and tank levels against design. NOTE: 'churn test' and 'jockey pump' appear nowhere in ACSA's manual — confirm they are required before auditing against them."
+ },
+ "KSIA-MEC-086": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A calibration certificate against a serial number, plus daily bump tests. The walk proves the certificate belongs to the monitor actually carried into the sump.",
+  "gaps": [
+   "no acsaThreshold — no gas monitor calibration interval is stated"
+  ],
+  "proof": "Calibration certificate matching the serial number of the unit in field use, daily bump-test records before each entry, and the monitor configured for H2S, LEL and O2."
+ },
+ "KSIA-MEC-087": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "A measured trip current and time in a test record.",
+  "gaps": [
+   "fifth of six near-identical earth-leakage rows: MEC-012, 052, 064, 087, 092, 102"
+  ],
+  "split": "one earth-leakage check scoped by asset system"
+ },
+ "KSIA-MEC-088": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "A guard is fitted or it is lying beside the pump. That is seen.",
+  "proof": "Every coupling and shaft guarded, guards undamaged and reinstated after maintenance access, grid covers in place with their limit switches working."
+ },
+ "KSIA-MEC-089": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Two checks in one — diagram and CoC — for the pump control panel.",
+  "gaps": [
+   "duplicates MEC-010 and MEC-009 scoped to a different panel; the same pair recurs at MEC-052, 064, 094 and 101"
+  ],
+  "split": "one wiring-diagram-and-CoC check scoped by asset system"
+ },
+ "KSIA-MEC-090": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Duty/standby setting, balanced run hours and a float switch fouled with rag are read at the panel and in the wet well.",
+  "gaps": [
+   "evidence stub: 'PM & alarm records'"
+  ],
+  "proof": "Duty/standby alternating with roughly balanced run hours, level sensors clean and free, alarms confirmed through to IMC on the monthly cycle, standby power proven, and spill history with each event investigated."
+ },
+ "KSIA-MEC-091": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Read as written it is the same gas-monitor certificate check as MEC-086.",
+  "gaps": [
+   "WRONG SYSTEM: the requirement, evidence and walkabout all say SEWER SUMP and confined-space entry, filed under Gas Hot Water Facility. This is a copy of MEC-086 pasted into the wrong asset system.",
+   "if a gas monitor is genuinely required at a gas hot water facility it would be for LPG/combustible gas, which is a different instrument and a different configuration from H2S/LEL/O2"
+  ],
+  "split": "delete, or rewrite as an LPG gas-detection check and confirm against ACSA's hot water system task list first"
+ },
+ "KSIA-MEC-092": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "As MEC-087, scoped to the gas hot water facility.",
+  "gaps": [
+   "sixth of six near-identical earth-leakage rows"
+  ],
+  "split": "one earth-leakage check scoped by asset system"
+ },
+ "KSIA-MEC-093": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "A fitted guard is seen. But this row's evidence describes PUMP couplings and shafts.",
+  "gaps": [
+   "evidence text says 'pump couplings, shafts' — copied from MEC-088 (Sewer Pumps) without re-scoping to what actually rotates in a gas hot water facility",
+   "the acsaThreshold cited is from Air Handling Units (D080 025M cl. 4.4.5), a third unrelated system"
+  ],
+  "split": "rewrite against the approved contractor task list for System - Hot Water (HWS) rather than inheriting the pump text"
+ },
+ "KSIA-MEC-094": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "As MEC-089, scoped to the gas hot water facility panel.",
+  "gaps": [
+   "fifth of five near-identical wiring-diagram-and-CoC rows"
+  ],
+  "split": "one wiring-diagram-and-CoC check scoped by asset system"
+ },
+ "KSIA-MEC-095": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "A CoC from a registered LPG installer, plus leak test records. Ventilation, signage and cylinder storage are the visible half.",
+  "gaps": [
+   "evidence stub: 'CoC; inspection'",
+   "this is the ONLY substantive check in the Gas Hot Water Facility system — the other four (091-094) are copy-pastes from other systems"
+  ],
+  "proof": "LPG installation CoC naming a registered installer, leak test records, ventilation openings unobstructed, signage present, cylinders stored upright, secured and segregated, with the flammable store designed to SANS 10400 and SDS held close by."
+ },
+ "KSIA-MEC-096": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "An HBA reg 7 monitoring programme with results. The walk finds the staff rotated into exposure who were never scoped into it.",
+  "proof": "Documented monitoring programme with the procedure used and results, an OREP per homogeneous exposure group, covering every role actually exposed — including recent rotations."
+ },
+ "KSIA-MEC-097": {
+  "by": "Practice",
+  "inspect": "examine",
+  "why": "Not whether a procedure exists but whether decontamination is actually done and whether every disposal produced a manifest. The gap between the procedure and the practice is the check.",
+  "proof": "Written decontamination and waste-handling procedures, a manifest and safe-disposal certificate for EVERY disposal in the period reconciled against the waste register, from a site with a current permit — and visible evidence decontamination is performed on equipment."
+ },
+ "KSIA-MEC-098": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A clause in a signed contract. The walk checks the party on site is the party in the contract.",
+  "proof": "Signed contract carrying the HBA reg 17(f) clause and EMS 048 appended and signed before commencement, with the personnel actually working matching the contracted entity."
+ },
+ "KSIA-MEC-099": {
+  "by": "Practice",
+  "inspect": "examine",
+  "why": "The hierarchy of control is a way of working. PPE issued but not worn, and a ventilation cover left off, both fail it while the register says compliant.",
+  "gaps": [
+   "no acsaThreshold — the control hierarchy has no stated criterion here"
+  ],
+  "proof": "Risk assessment, PPE of the correct grade for biological hazard actually available and in use, engineering controls in place and maintained, and hygiene facilities usable — with issue and inspection registers behind them."
+ },
+ "KSIA-MEC-100": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "An HBA reg 12(b) examination report by an approved inspection authority. The walk checks the report's scope covers every control installed.",
+  "proof": "Thorough examination report within 24 months, listing each engineering control — with nothing installed on site missing from its scope."
+ },
+ "KSIA-MEC-101": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "As MEC-089, scoped to the water treatment plant.",
+  "gaps": [
+   "fourth of five near-identical wiring-diagram-and-CoC rows"
+  ],
+  "split": "one wiring-diagram-and-CoC check scoped by asset system"
+ },
+ "KSIA-MEC-102": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "As MEC-087, scoped to the water treatment plant.",
+  "gaps": [
+   "sixth near-identical earth-leakage row"
+  ],
+  "split": "one earth-leakage check scoped by asset system"
+ },
+ "KSIA-MEC-103": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Bund capacity against what is actually stored, and incompatible chemicals sharing a shelf, are both seen in the store.",
+  "proof": "Bunding at least 110% of the largest container in it, SDS present and matching the chemicals actually held, ventilation and signage in place, and incompatibles segregated."
+ },
+ "KSIA-MEC-104": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "A sign is on a wall or it is not, and it either names the right protection or it does not.",
+  "proof": "Signage present, legible and specifying the required hearing protection in every area the AIA survey put at or above 85 dBA — including areas added or changed since that survey."
+ },
+ "KSIA-MEC-105": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "The same AIA noise survey as MEC-016.",
+  "gaps": [
+   "verbatim duplicate of MEC-016 — identical requirement, evidence and walkabout"
+  ],
+  "split": "delete; one site noise survey check, with demarcation as MEC-104"
+ },
+ "KSIA-MEC-106": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "SANS 241 is a laboratory schedule. A chlorine residual can be spot-read at a tap, but the compliance is the monthly series.",
+  "gaps": [
+   "evidence stub: 'Lab results; cleaning records'"
+  ],
+  "proof": "Monthly sampling and test results at FALE against the SANS 241 schedule, disinfection residuals within range, reservoir cleaning records — and sampling points on site that show signs of routine use."
+ },
+ "KSIA-MEC-107": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A DMR reg 18.6 thorough examination by a competent person from a registered entity. Rope and hook wear is visible, but the report's itemisation is the check.",
+  "proof": "Six-monthly report itemising ropes, chains, hooks, sheaves, brakes and safety devices individually — not a generic pass — from a registered Lifting Machinery Entity."
+ },
+ "KSIA-MEC-108": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A load test certificate is read against the SWL stamped on the machine. Both halves are needed.",
+  "proof": "Certificate within 12 months stating a test load consistent with the SWL nameplate, from an ECSA-registered inspector at a registered entity — both verifiable, not merely claimed."
+ },
+ "KSIA-MEC-109": {
+  "by": "Practice",
+  "inspect": "reconcile",
+  "why": "Pre-use checklists exist to be filled in before use. Batch-completed at month end they are a record of nothing, and only the dates and their storage location reveal that.",
+  "proof": "Completed checklists stored at the equipment, dated and timed one per use occasion, covering controls, safety devices, anchor points and harness attachment — with no evidence of retrospective batch completion."
+ },
+ "KSIA-MEC-110": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A register is compliant when it matches the equipment on site in both directions — nothing decommissioned still listed, nothing new missing.",
+  "proof": "Register listing each item with its SWL and last/next examination and load-test dates, reconciled both ways against the identification tags found on site."
+ },
+ "KSIA-MEC-111": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A DMR reg 19 registration is a document. The walk checks the entity doing the work is the entity registered, not a sub-contractor.",
+  "proof": "Current DoL Lifting Machinery Entity registration for the entity actually performing the load tests, with SHE File competencies submitted 14 days before work."
+ },
+ "KSIA-MEC-112": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "An individual's ECSA registration under the Engineering Profession Act, plus their employment by a registered entity. Neither is observable on site.",
+  "gaps": [
+   "no walkabout text at all, correctly",
+   "no acsaThreshold"
+  ],
+  "proof": "ECSA registration for the named inspector and evidence they are employed by the registered Lifting Machinery Entity that issued the certificates."
+ },
+ "KSIA-MEC-113": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A roll-up of MEC-107, 108 and 110, adding operator competency.",
+  "gaps": [
+   "evidence stub: 'LMI certificates; register'",
+   "duplicates MEC-107, MEC-108 and MEC-110"
+  ],
+  "split": "keep only operator competency, which nothing else asks, and the displayed-tag check on cradles, hoists, MEWPs and lifting tackle",
+  "proof": "A load-test certificate within twelve months displayed on or near each cradle, hoist and MEWP and matching the unit, issued by an ECSA-registered LMI at a DoL-registered Lifting Machinery Entity; a lifting tackle register with a valid inspection tag or colour code on each sling and shackle at the three-monthly cycle; and operator competency evidenced on the training register."
+ },
+ "KSIA-CIV-001": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "The paint on the ground IS the check. A repaint log proves work happened, not that the marking is visible today.",
+  "proof": "Every marking type legible at taxi/approach speed, no rubber, fuel, dust or vegetation obscuring it — plus the monthly inspection report and the CMMS repaint interval actually applied to each marking type."
+ },
+ "KSIA-CIV-002": {
+  "by": "Asset",
+  "inspect": "reconcile",
+  "why": "A measured stripe/gap against the approved as-built. Neither half decides it alone — the drawing without the tape measures nothing, the tape without the drawing has no standard.",
+  "gaps": [
+   "no acsaThreshold — D060 009M defers dimensions to ICAO Annex 14 and the as-builts, so the figure lives in a drawing this register does not name"
+  ],
+  "proof": "Measured centre-line stripe/gap, TDZ pair count and spacing within tolerance of the approved as-built for THIS runway, and the as-built current for the declared distances in force."
+ },
+ "KSIA-CIV-003": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Visibility is a condition of the asset. Nothing in a file can make a faded marking compliant.",
+  "gaps": [
+   "overlaps CIV-001 almost entirely — 001 is 'conspicuous condition', 003 is 'visibility'"
+  ],
+  "split": "merge into CIV-001"
+ },
+ "KSIA-CIV-004": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Colour is read off the pavement. The paint spec says what was bought, not what is on the ground after two years of jet blast.",
+  "proof": "White/yellow/red as prescribed per marking type, apron safety lines still contrasting against stand markings, mandatory markings true red — not faded to pink."
+ },
+ "KSIA-CIV-005": {
+  "by": "Asset",
+  "inspect": "reconcile",
+  "why": "A holding-position distance is a measurement against the approved design, not against a textbook figure.",
+  "proof": "Surveyed or measured distance from runway centre line to each holding position equal to the approved design/AIP figure — and the as-built updated if the runway has been re-declared."
+ },
+ "KSIA-CIV-006": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Same physical reading as 002/003/004, narrowed to mandatory instruction markings — where a fade is a runway incursion rather than an untidiness.",
+  "gaps": [
+   "bundles four attributes (visibility, dimensions, colour, background) into one pass/fail"
+  ],
+  "split": "keep as one — mandatory markings warrant their own check, but say in the requirement that it is the mandatory subset of 002/003/004"
+ },
+ "KSIA-CIV-007": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "A roll-up of 001-006 plus the repainting programme. Nothing here is verified that is not verified above.",
+  "gaps": [
+   "evidence stub: 'Inspection; programme'",
+   "duplicates CIV-001 through CIV-006"
+  ],
+  "split": "delete the condition half; keep only 'repainting programme exists and the interval per marking type is being met', which is a Document check",
+  "proof": "A repainting programme in the CMMS showing the interval applied to EACH marking type — centre line monthly, runway edges bi-annually — worked to date, obstacles repainted tri-monthly, monthly inspection reports determining removal and repainting, and a retro-reflectivity reading where the equipment exists. Condition itself is CIV-001 to CIV-006."
+ },
+ "KSIA-CIV-008": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Word-for-word CIV-001, filed under Visual Aids instead of Markings.",
+  "gaps": [
+   "exact duplicate of CIV-001 — same requirement text, same evidenceExpected, same walkabout"
+  ],
+  "split": "delete"
+ },
+ "KSIA-CIV-009": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Apron markings read on the stand, against the stand's design drawing and the aircraft type actually parking there.",
+  "proof": "Markings visible and correctly coloured, and lead-in/lead-out lines matching the aircraft type currently using the stand — a stand upgauged to a wide-body with the old lines still painted is the failure this catches."
+ },
+ "KSIA-CIV-010": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "A sign is present, oriented and lit, or it is not. All three are seen.",
+  "gaps": [
+   "conflicting threshold in the source: signage inspection Daily (D060 001M cl. 4.9.23) versus Monthly (D060 014M cl. 4.7.8)"
+  ],
+  "proof": "Each mandatory sign present, red/white, panel undamaged, oriented for the direction of travel, and illuminated where the runway operates at night or below 800 m RVR."
+ },
+ "KSIA-CIV-011": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Frangibility and siting are physical. The obstacle survey behind it is a document, and that is the half that is not seen.",
+  "gaps": [
+   "bundles four unrelated asset types — signs, PAPI, wind indicators, obstacle marking/lighting — plus a document (the obstacle survey)",
+   "evidence stub: 'Inspection; obstacle survey'"
+  ],
+  "split": "split four ways: PAPI siting and frangibility (Asset); signs (already CIV-010); wind indicators (already CIV-012); obstacle survey currency within the 10 km radius (Document)",
+  "proof": "Signs and PAPI sited as the design layout shows, the PAPI structure and its mounts of frangible break-away design, the annual PAPI flight calibration certificate current, wind indicators and obstruction lights checked daily, and a Technical Evaluation under D060 015M current for the 10 km radius with WGS-84 three-dimensional coordinates and SA-CAA approval correspondence for anything erected."
+ },
+ "KSIA-CIV-012": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "A windsock is judged by watching it move and by what stands between it and the pilot.",
+  "gaps": [
+   "evidence stub: 'Site inspection'"
+  ],
+  "proof": "Sock the correct size, not torn or faded, swinging freely, lit if required, grass at its base under 20 cm, and no new structure or tree in the line of sight or disturbing the airflow."
+ },
+ "KSIA-CIV-013": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "A rut is found by walking on it with a straightedge. The condition survey says where to look.",
+  "proof": "No depression, hump or rut in the touchdown or high-turn areas that a straightedge shows outside tolerance, and every irregularity in the latest PCI survey either closed or carrying a live work order."
+ },
+ "KSIA-CIV-014": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Bearing strength cannot be seen. The published PCR decides it; the walk only checks that the traffic on the pavement is the traffic the PCR was calculated for.",
+  "proof": "Current PCR report in the five-part coded format, and no aircraft type in the actual movement mix with an ACR above it."
+ },
+ "KSIA-CIV-015": {
+  "by": "Asset",
+  "inspect": "reconcile",
+  "why": "RESA is ground you can walk. Whether there is enough of it is a measurement against the declared distances.",
+  "proof": "Measured RESA length and width at each end meeting the figure in the declared-distance calculation, clear of encroaching objects, standing water and uneven ground."
+ },
+ "KSIA-CIV-016": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Cracking, rutting, depression and shoving are seen and severity-rated on the pavement.",
+  "gaps": [
+   "overlaps CIV-025, which asks the same question with the PCI survey as its evidence"
+  ],
+  "proof": "No conspicuous distress on the pavement that is absent from the latest survey, and the survey itself within its three-yearly cycle."
+ },
+ "KSIA-CIV-017": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Ponding, loose aggregate and vegetation in joints are transient conditions — a record of a clean surface last month proves nothing about today.",
+  "proof": "No area meeting the standing-water definition after rain, no loose aggregate that could become FOD, and no vegetation in joints beyond the 30 cm herbicide band."
+ },
+ "KSIA-CIV-018": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "A lip at the pavement edge is felt underfoot and measured with a straightedge.",
+  "gaps": [
+   "no threshold anywhere in the source for how big a step is a failure — the check has no pass mark"
+  ],
+  "proof": "No measurable step between pavement and shoulder at representative points — and, first, a documented tolerance to measure against."
+ },
+ "KSIA-CIV-019": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Crumbling asphalt at the edge is seen, and the fragments are the FOD source.",
+  "gaps": [
+   "overlaps CIV-016 (surface defects) and CIV-018 (edge flush) — three checks walking the same 10 cm of pavement"
+  ],
+  "split": "fold into CIV-018 as the edge check"
+ },
+ "KSIA-CIV-020": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A longitudinal slope is not judgeable by eye. The as-built or survey profile decides; the walk only finds local flat spots and reverse grades at patches.",
+  "proof": "Current survey profile within the code-based longitudinal and transverse limits, and no localised reverse grade at a joint or patch holding water."
+ },
+ "KSIA-CIV-021": {
+  "by": "Asset",
+  "inspect": "reconcile",
+  "why": "The graded strip is walked and compared against the design width; encroachment is the failure and it is visible.",
+  "proof": "Graded extent matching the design drawing for the runway's code number, grass under 20 cm across the 50 m band, and no fencing, drainage or service road inside the graded width."
+ },
+ "KSIA-CIV-022": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Strip bearing capacity is a geotechnical number. The walk can only find seasonal softness a dry-season CBR would miss.",
+  "gaps": [
+   "no acsaThreshold and no ACSA evidence named at all — the CBR figure and the RFF trafficability standard are not in the register"
+  ],
+  "proof": "CBR results or a geotechnical report for the graded strip showing it will carry an RFF vehicle, and ground visibly firm at the time of the audit."
+ },
+ "KSIA-CIV-023": {
+  "by": "Asset",
+  "inspect": "reconcile",
+  "why": "Every object in the strip is counted on the ground and matched to a register that says it is frangibly mounted. An unregistered object is the finding.",
+  "gaps": [
+   "two different checks in one: frangibility of authorised objects, and the presence of unauthorised ones"
+  ],
+  "split": "split in two — frangible-mount certification of every registered object (Asset/reconcile), and a clear-strip sweep for unauthorised objects (Asset/examine)"
+ },
+ "KSIA-CIV-024": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "A friction coefficient cannot be seen. The signed CFME report is the only thing that decides it; rubber build-up in the touchdown zone is a hint, not a reading.",
+  "gaps": [
+   "evidence stub: 'Friction test reports; action records'",
+   "overlaps CIV-026 almost exactly"
+  ],
+  "proof": "Signed friction results for RWY 06/24 at the three-monthly interval, tested at 1 mm self-wetting with a smooth tread tyre, every section above the maintenance planning level — or a corrective-action record where it was not."
+ },
+ "KSIA-CIV-025": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "The PCI survey is the instrument; the walk cross-checks it. But 016, 017 and 019 already walk the same defects.",
+  "gaps": [
+   "evidence stub: 'PCI survey; work orders'",
+   "overlaps CIV-016, CIV-017 and CIV-019"
+  ],
+  "split": "keep as the document check — 'PCI survey current within 3 years and every distress it records carries a programmed repair' — and let 016/017/019 carry the condition",
+  "proof": "A PCI survey to ASTM D5340 within the three-yearly cycle, every distress it records carrying a programmed repair or a closed work order, concrete apron joint material replaced on the five-yearly cycle, and nothing visibly serious on the pavement that is absent from the survey."
+ },
+ "KSIA-CIV-026": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Same instrument, same report, same decision as CIV-024.",
+  "gaps": [
+   "duplicates CIV-024 — one is under Runway/Friction, the other under its own asset system"
+  ],
+  "split": "merge with CIV-024"
+ },
+ "KSIA-CIV-027": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "Movement statistics against Table A's traffic ladder. Purely a reconciliation of two records — nothing on the airfield changes the answer.",
+  "gaps": [
+   "no walkabout text at all, correctly"
+  ],
+  "proof": "Average daily turbo-jet arrivals per runway end, the Table A band that number falls in, and test dates showing that interval actually applied — plus a Z001 003M change record if traffic moved the band."
+ },
+ "KSIA-CIV-028": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "The existence and completeness of the record register is the check.",
+  "gaps": [
+   "no walkabout text at all, correctly",
+   "overlaps CIV-024, whose evidence is the same reports"
+  ],
+  "proof": "Register covering 2-3 years with date, runway end, device and tyre, measured Mu by section, and the corrective-action reference — each signed off within two weeks and retained five years."
+ },
+ "KSIA-CIV-029": {
+  "by": "Practice",
+  "inspect": "none",
+  "why": "Not whether a report exists but whether a below-threshold reading actually PRODUCES rubber removal, a re-test and, at minimum level, a NOTAM. That loop either runs or it does not.",
+  "gaps": [
+   "no walkabout text at all"
+  ],
+  "proof": "For each reading at or below the maintenance planning level, a corrective work order, the treatment record, and a post-treatment re-test above the level — and for any at or below minimum, the NOTAM."
+ },
+ "KSIA-CIV-030": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Same physical reading as CIV-013, on the taxiway.",
+  "gaps": [
+   "identical requirement text to CIV-013 and CIV-039 — the register repeats the pavement condition set once per surface type"
+  ],
+  "split": "consider one pavement-condition check scoped to a surface, rather than three identical checks"
+ },
+ "KSIA-CIV-031": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "As CIV-014, for the taxiway. The PCR decides; the walk notes push-back and turning areas the evaluation must have allowed for.",
+  "gaps": [
+   "requirement asserts 'taxiway strength to be equal to that of runways' with no source named for that rule"
+  ],
+  "proof": "Taxiway-specific PCR report and no ACR in the using traffic above it."
+ },
+ "KSIA-CIV-032": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Same physical reading as CIV-016, on the taxiway.",
+  "gaps": [
+   "walkabout text says 'Walk the runway' — copied from CIV-016 and not re-scoped",
+   "duplicates CIV-016 and CIV-041"
+  ]
+ },
+ "KSIA-CIV-033": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Same transient condition as CIV-017, on the taxiway.",
+  "gaps": [
+   "duplicates CIV-017 and CIV-042"
+  ]
+ },
+ "KSIA-CIV-034": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "A step at the taxiway/apron junction is where construction dates meet; it is found on foot.",
+  "gaps": [
+   "no threshold for the size of a failing step, same as CIV-018"
+  ]
+ },
+ "KSIA-CIV-035": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Same as CIV-019, on the taxiway.",
+  "gaps": [
+   "duplicates CIV-019"
+  ],
+  "split": "fold into CIV-034"
+ },
+ "KSIA-CIV-036": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Whether the slope drains is answered by looking at the taxiway after rain — unlike the runway's longitudinal profile, this one IS visible.",
+  "proof": "No ponding after rainfall; where there is ponding on a design-compliant cross-section, a downstream blockage identified and a work order raised within the same operational day."
+ },
+ "KSIA-CIV-037": {
+  "by": "Asset",
+  "inspect": "reconcile",
+  "why": "As CIV-021, for the taxiway strip against its code letter.",
+  "gaps": [
+   "duplicates CIV-021"
+  ]
+ },
+ "KSIA-CIV-038": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "A roll-up of 030-037 with nothing new in it.",
+  "gaps": [
+   "evidence stub: 'Inspection reports'",
+   "duplicates CIV-030, 032, 034, 035 and the taxiway centreline marking is already CIV-001/003"
+  ],
+  "split": "delete",
+  "proof": "Monthly taxiway and taxilane inspection plus the three-yearly visual assessment, manoeuvring areas inspected at least three times a week, concrete joint material replaced five-yearly, and no unsafe condition on the walk — one that could affect aircraft handling or generate FOD — that is not already recorded against a specific check."
+ },
+ "KSIA-CIV-039": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Same physical reading as CIV-013, on the apron.",
+  "gaps": [
+   "duplicates CIV-013 and CIV-030"
+  ]
+ },
+ "KSIA-CIV-040": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "As CIV-014, for the apron — with the added point that a stand carries a static load a rolling evaluation may not cover.",
+  "proof": "Apron PCR report whose method accounts for static parking loads, and no stand routinely taking an aircraft heavier than its rating."
+ },
+ "KSIA-CIV-041": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Same physical reading as CIV-016, on the apron.",
+  "gaps": [
+   "walkabout text says 'Walk the runway' — copied from CIV-016 and not re-scoped",
+   "duplicates CIV-016 and CIV-032"
+  ]
+ },
+ "KSIA-CIV-042": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Same transient condition as CIV-017, on the apron.",
+  "gaps": [
+   "duplicates CIV-017 and CIV-033"
+  ]
+ },
+ "KSIA-CIV-043": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "The apron edge meets four different surrounding types and each boundary is walked.",
+  "gaps": [
+   "duplicates CIV-018 and CIV-034"
+  ]
+ },
+ "KSIA-CIV-044": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "A corner break is a triangular crack in a concrete slab — the one distress on this register that is genuinely apron-specific and not a repeat.",
+  "proof": "No corner break or failed joint sealant absent from the survey, and concrete joint material replaced on the five-yearly cycle."
+ },
+ "KSIA-CIV-045": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Fuel staining and a broken grounding point are seen on the stand. But the spill-response procedure bundled in with them is a practice, and the separator test is a document.",
+  "gaps": [
+   "evidence stub: 'Inspection; spill records'",
+   "three different check types in one: surface condition (Asset), spill clean-up procedure (Practice), tie-down and grounding point condition (Asset)"
+  ],
+  "split": "split the spill-response half out as a Practice check — 2-hour containment, disposal records retained 5 years — and leave condition and grounding points as the Asset check",
+  "proof": "Stand pavement sound with joint sealant intact, no fuel or oil staining, tie-down rings and aircraft grounding points present, unbroken and uncorroded — plus a spill response procedure with containment inside 2 hours, oil separators tested annually for efficiency, sludge depth under 25% of chamber depth and disposal records retained 5 years."
+ },
+ "KSIA-CIV-046": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Whether a reassessment was TRIGGERED is a document question; the walk only establishes that works happened that should have triggered it.",
+  "proof": "For every major repair or construction in the period, a post-works PCR reassessment, a pre-return-to-service friction verification, and the updated figure submitted to the AIP."
+ },
+ "KSIA-CIV-047": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "The published rating and the evaluation behind it are documents; the walk notes whether real traffic still matches.",
+  "gaps": [
+   "evidence stub: 'Pavement evaluation; AIP entry'",
+   "says PCN, which ICAO replaced with PCR — the register is on the old vocabulary here while CIV-014 uses PCR",
+   "duplicates CIV-014 and CIV-046"
+  ],
+  "split": "merge into CIV-014, keeping only the overload-approval control as its own line",
+  "proof": "A published pavement strength rating supported by a current evaluation and matching the AIP entry, with a controlled approval on file for every overload operation. NOTE: the check says PCN, which ICAO replaced with PCR — read it as the PCR published under CIV-014."
+ },
+ "KSIA-CIV-048": {
+  "by": "Practice",
+  "inspect": "examine",
+  "why": "The requirement is 'as rapidly as possible' — a response time, not a condition. The build-up you see is evidence the practice is not running.",
+  "proof": "Removal log showing elapsed time from detection to completion against the friction trigger, the method used, and a post-treatment friction result back above the maintenance planning level."
+ },
+ "KSIA-CIV-049": {
+  "by": "Practice",
+  "inspect": "examine",
+  "why": "FOD is cleared continuously or not at all; a clean runway on audit day proves the sweep ran this morning, nothing more. The programme and its coverage are the check.",
+  "proof": "FOD Management Programme document, sweep log covering runway, taxiway AND apron with location, date, time and nature of each item, bins inspected twice daily and emptied at three-quarters, and FOD in induction training records."
+ },
+ "KSIA-CIV-050": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "A blocked catchpit is seen by lifting the lid. Silt and vegetation are conditions of the asset.",
+  "proof": "No visible blockage in accessible drains, catchpits and culvert outlets; the cleaning schedule covering every airside drainage asset group; and blocked inlets on a runway or taxiway closed within 2 hours."
+ },
+ "KSIA-CIV-051": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "The drains are the same drains as CIV-050. The separator servicing bundled in is a document check with a laboratory result behind it.",
+  "gaps": [
+   "evidence stub: 'Inspection register'",
+   "duplicates CIV-050 for the drains; overlaps CIV-017/033/042 for the ponding"
+  ],
+  "split": "keep only the oil/water separator half and make it a Document check — annual efficiency test, sludge depth under 25% of chamber depth, disposal records retained 5 years",
+  "proof": "Stormwater drains, culverts and channels clear of silt, debris and vegetation with an inspection register covering every airside drainage asset group; oil/water separators tested annually for efficiency with sludge depth under 25% of chamber depth and hazardous waste disposal at a licensed facility recorded and retained 5 years; and no ponding on any movement area."
+ },
+ "KSIA-CIV-052": {
+  "by": "Practice",
+  "inspect": "reconcile",
+  "why": "Not whether a log exists but whether the rounds actually happen at the stated frequency — which is why the walkabout says shadow one.",
+  "proof": "Three logged manoeuvring-area inspections every day with no unexplained gap, the apron audit twice a month, the bay inspection daily during turnaround, and the most recent annual inspection signed by a qualified civil engineer."
+ },
+ "KSIA-CIV-053": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "The existence of a written programme and procedure, with responsibilities and defect-correction timeframes named in it.",
+  "gaps": [
+   "no walkabout text at all, correctly"
+  ],
+  "proof": "The documented inspection programme and procedure in the Aerodrome Manual or SMS, naming who inspects what at what interval and the timeframe for correcting each defect priority."
+ },
+ "KSIA-CIV-054": {
+  "by": "Practice",
+  "inspect": "reconcile",
+  "why": "Whether defects raised in the log are actually closed on the ground. That closure loop is the practice.",
+  "gaps": [
+   "evidence stub: \"Inspection logs\"",
+   "duplicates CIV-052 for the daily inspection frequency"
+  ],
+  "split": "keep only the defect-closure loop; the frequency is CIV-052",
+  "proof": "A daily movement-area serviceability log with today's entry present, checklists forwarded daily to the responsible Manager and audited by them, every defect raised carrying an Oracle eAM work request with a Date of Call, and the recent defects visibly fixed or in progress on site — plus wildlife and FOD reports for the period."
+ },
+ "KSIA-CIV-055": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Road surface, joints, signage and markings are all read on the road.",
+  "gaps": [
+   "evidence stub: \"Site inspection; work orders\"",
+   "bundles pavement condition, signage and markings — the same three the runway gets as separate checks"
+  ],
+  "proof": "Road pavement and expansion joints sound, signage present and legible, vehicle control markings visible — and the specific locations from the March 2025 finding actually repaired."
+ },
+ "KSIA-CIV-056": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "A hole in a fence is seen. The patrol records bundled in are a separate, document-shaped question.",
+  "gaps": [
+   "evidence stub: 'Inspection records'",
+   "bundles fence condition (Asset), clear zones (Asset), patrol records (Document) and gate/access-control function (Asset)"
+  ],
+  "split": "split the patrol and inspection record half out as a Document check — weekly gate checks, monthly condition monitoring, fence voltage tests against the design range",
+  "proof": "Perimeter fence with no holes, gaps, sagging or corroded sections and nothing climbable against it; clear zone free of vegetation and stored materials, perimeter grass under 20 cm across the 3 m band; weekly gate visual checks and monthly condition monitoring records; fence voltage tests within the site design range; and a sample gate and access-control point observed working."
+ },
+ "KSIA-BFM-001": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A per-building certificate register; the walk compares current use and layout to what the register says the building is."
+ },
+ "KSIA-BFM-002": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "The original Certificate of Occupancy and any plan-approval for changes; the walk finds retail units or extensions the CoC does not cover."
+ },
+ "KSIA-BFM-003": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Current electrical CoC from a registered person; the walk looks for a new DB or tenant fit-out wiring not covered by a supplementary CoC."
+ },
+ "KSIA-BFM-004": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Form 4 plus a fire compliance certificate within 12 months; the walk reads extinguisher, sprinkler and emergency-lighting tags for current dates."
+ },
+ "KSIA-BFM-005": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Form 4 for the structural system with the engineer's ECSA registration; the walk finds visible alterations lacking updated certification."
+ },
+ "KSIA-BFM-006": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Occupancy, fire, electrical and lift certificates current.",
+  "gaps": [
+   "evidence stub: 'Certificate file'"
+  ],
+  "split": "four certificate families with four different issuers and intervals in one row",
+  "proof": "An occupancy certificate describing the building's CURRENT use and layout, local-authority fire compliance current, an electrical Certificate of Compliance per building in the latest SANS 10142-1 format with its test report and not older than two years, and current lift/escalator certificates — all accounted for in the yearly COC reconciliation across the BDG, SBD, TRF and LGT asset groups."
+ },
+ "KSIA-BFM-007": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Corrosion, cracking, delamination, spalling, exposed reinforcement. The survey report records the condition; the concrete IS the condition."
+ },
+ "KSIA-BFM-008": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Visible cracking, staining, leaking on structure and facades."
+ },
+ "KSIA-BFM-009": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Settlement and deflection, read off crack-width monitors and level-survey points at the structure."
+ },
+ "KSIA-BFM-010": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Ponding, loose sheeting, blocked downpipes, failed waterproofing.",
+  "gaps": [
+   "evidence stub: 'Inspection; work orders'"
+  ],
+  "proof": "Roof sheeting sound and fixed, gutters, drop boxes and downpipes clear and undamaged, waterproofing intact with no bubbling, cracking or lifted membrane, no ponding on the roof, and no ceiling water damage left unrepaired — against three-monthly roof/gutter/drop box inspections and monthly ceiling, walkway and canopy inspections, with a work order raised for each defect."
+ },
+ "KSIA-BFM-011": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Approved drainage plans and confirmation of the municipal connection or approved on-site system; the walk traces the connection point to the plan."
+ },
+ "KSIA-BFM-012": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "Approved drawings, design reports and O&M manuals, with where they are version-controlled.",
+  "gaps": [
+   "the row's own question asks whether they are accessible to the SITE team or only at head office — that is a different test from whether they exist"
+  ]
+ },
+ "KSIA-BFM-013": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Traps and vents correctly installed and in condition, and odour at the outlets. Odour is not a documentary fact."
+ },
+ "KSIA-BFM-014": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Scheduled-versus-actual servicing dates for grease traps, vent stacks and sumps; the walk looks for buildup and overflow staining that contradict the log."
+ },
+ "KSIA-BFM-015": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Trade-effluent discharge consent and meter/desludging logs; the walk confirms the meters and sumps are present and functional."
+ },
+ "KSIA-BFM-016": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "Drain test certificates dated and signed off before the pipework was covered. Nothing is visible now — that is the point of the record."
+ },
+ "KSIA-BFM-017": {
+  "by": "Practice",
+  "inspect": "examine",
+  "why": "Tests whether a job card marked completed means the work was done. Sample a closed card and look for the repaired item on site.",
+  "gaps": [
+   "evidence stub"
+  ]
+ },
+ "KSIA-BFM-018": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "The requirement is that suitable means EXIST — channels, pipes, outlets present, functional and matching the plan."
+ },
+ "KSIA-BFM-019": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Sight each component for damage, disconnection or infilling."
+ },
+ "KSIA-BFM-020": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "The seasonal schedule and completed job cards; the walk finds debris that should have been cleared before the season."
+ },
+ "KSIA-BFM-021": {
+  "by": "Practice",
+  "inspect": "examine",
+  "why": "Tests whether the programme is run — accumulated silt against a schedule that says it was cleared is the finding."
+ },
+ "KSIA-BFM-022": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "A manhole paved over or silted up cannot be inspected, whatever the drawing shows."
+ },
+ "KSIA-BFM-023": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "SANS 241 test certificates; the walk checks non-potable outlets carry legible marking.",
+  "gaps": [
+   "the row's own question asks whether the supply is municipal or ACSA-operated — the sampling obligation differs completely"
+  ]
+ },
+ "KSIA-BFM-024": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Measured outlet temperature, sewer odour in ablutions, fixtures functional.",
+  "gaps": [
+   "evidence stub: 'Inspection; maintenance records'",
+   "the row's own question asks whether ACSA has a defined temperature standard at all"
+  ],
+  "proof": "Hot water measured at the outlet within the design range, no persistent drain or sewer odour in ablutions, backflow prevention devices fitted and tested where required, leaks found and closed out on the monthly water reticulation inspection, and ablution fixtures working — with the two-hourly signed ablution sheet countersigned and the weekly B&FM audit on file."
+ },
+ "KSIA-BFM-025": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Impervious surfaces, vermin protection present and intact."
+ },
+ "KSIA-BFM-026": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Sight the area against the drawings, and look for informal collection points that are not on any drawing.",
+  "gaps": [
+   "NO evidence stated"
+  ],
+  "proof": "A refuse storage area that exists on the ground where the approved drawings show it, listed in the Register of On-Site Waste Stores EMS 111, with AEMR written approval for any temporary or stakeholder-controlled area, and NO informal collection point that has grown up outside the register. NOTE: ACSA prescribes no area, volume or number — the compliance test is registration and approval, not size."
+ },
+ "KSIA-BFM-027": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Bins sealed, odour on approach, active pest control visible."
+ },
+ "KSIA-BFM-028": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "The contract or municipal schedule and three months of waybills; overflowing bins on the walk contradict them."
+ },
+ "KSIA-BFM-029": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "The collection route unobstructed and not running through passenger or food-service areas."
+ },
+ "KSIA-BFM-030": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Cleanliness, spillage, overflow, and recycling separation infrastructure actually in use.",
+  "gaps": [
+   "evidence stub: 'Waste manifests; contracts'"
+  ],
+  "split": "hygiene (Asset), contractor licensing (Document) and pest control in one row",
+  "proof": "Waste areas clean, with no spillage or overflow; labelled recycling and general bins actually in use, not merely present; a Waste Register EMS 112 whose generated, disposed and recycled quantities reconcile; a manifest and safe disposal certificate for every removal, from a contractor whose receiving site permit is on file; and pest control records. All retained five years."
+ },
+ "KSIA-BFM-031": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Rust staining, coating breakdown, bare steel on canopies, cladding and PLB gantries.",
+  "gaps": [
+   "evidence stub: 'Inspection; programme'"
+  ],
+  "proof": "Structural steel, canopy soffits, cladding supports and PLB gantries with corrosion protection intact — no rust staining, coating breakdown or bare steel — against three-monthly roof and gutter rust checks and monthly canopy, walkway and paint checks, with a repainting programme whose frequency is justified by the inspection reports, and the March 2025 finding locations actually repaired."
+ },
+ "KSIA-BFM-032": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Torn or missing sealant, damaged cover plates.",
+  "gaps": [
+   "evidence stub: 'Inspection'"
+  ],
+  "proof": "Movement and expansion joint sealants intact — not torn, perished or missing — cover plates present and secure, with no water ingress or trip hazard, across terminal floors, walkways and parkade decks and ramps. Three-monthly wall expansion observations and the yearly PLB fixed-tunnel expansion joint check on record. NOTE: ACSA states no sealant type or joint gap tolerance."
+ },
+ "KSIA-BFM-033": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Cracked or chipped panels, perished seals, loose fixings.",
+  "proof": "Curtain wall and glazing panels uncracked and unchipped and of safety glass where required, seals unperished and gap-free, fixings and brackets tight and uncorroded — checked monthly and three-monthly — plus a façade inspection programme, and any cleaning above 1.7 m done by a certified height contractor with an approved Safety File and FALE proof of training at height.",
+  "gaps": [
+   "evidence stub: \"Inspection reports\""
+  ]
+ },
+ "KSIA-BFM-034": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Floor damage and slipperiness near entrances and wet areas, damaged ceilings, housekeeping.",
+  "proof": "Floors undamaged and slip-resistant, especially at entrances and wet areas; ceilings without missing tiles or water staining; doors, finishes and furniture safe; housekeeping to the QMS 85% monthly cleanliness benchmark and FALE's ASQ rating of 4.2, with helpdesk logs evidencing the 5-minute response and 15-minute correction the FALE SLA requires.",
+  "gaps": [
+   "evidence stub: \"Site inspection\""
+  ]
+ },
+ "KSIA-BFM-035": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Ramp gradients, accessible lifts in service, accessible ablutions unlocked and not used for storage.",
+  "gaps": [
+   "evidence stub: 'Site inspection'"
+  ],
+  "proof": "Ramps at a usable gradient and unobstructed, accessible lifts in service, accessible ablutions unlocked, working and not used for storage, the disabled lift alarm button at 900-1200 mm; way-finding legible and consistent with the Wayfinding Signage Design Manual; and statutory safety signage plus exit indication present and lit, with escape routes checked clear daily."
+ },
+ "KSIA-BFM-036": {
+  "by": "Practice",
+  "inspect": "examine",
+  "why": "Tests whether the daily checklist is really completed daily and whether its entries match what is on the ground."
+ },
+ "KSIA-BFM-037": {
+  "by": "Practice",
+  "inspect": "examine",
+  "why": "Tests whether 'closed' means done, and whether a long-open card has a live defect behind it."
+ },
+ "KSIA-BFM-038": {
+  "by": "Practice",
+  "inspect": "examine",
+  "why": "Tests whether claimed PM completion is real, by spot-checking assets the CMMS says were recently serviced.",
+  "gaps": [
+   "evidence stub: 'CMMS reports'"
+  ],
+  "proof": "A building maintenance plan in Oracle eAM with PM work orders executed within the 14-day or 7-day window, a backlog report scored against that window, condition grading against D060 026M's six hazards, and — the actual test — a sample of assets marked 'PM completed' showing the work is evident on site."
+ },
+ "KSIA-EDM-001": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "A distribution licence/supply agreement. Nothing on site can make it compliant."
+ },
+ "KSIA-EDM-002": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "The agreement's SCOPE decides it — does it authorise reselling to tenants. The question reads the document, it does not replace it.",
+  "gaps": [
+   "evidence stub: 'Licence / agreement'"
+  ],
+  "proof": "The authority or licence to distribute and resell electricity to tenants, and the distribution agreement with the municipality, read for SCOPE — does it actually authorise reselling — plus tenant lease agreements carrying the energy efficiency requirements and a metering schedule showing every kiosk ready board and distribution board on the electronic metering system."
+ },
+ "KSIA-EDM-003": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Calibration certificate within 5 years is the pass/fail. The walk reads the meter's tag and seal to prove the certificate is THIS meter's."
+ },
+ "KSIA-EDM-004": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "As 003, 10-year interval."
+ },
+ "KSIA-EDM-005": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "As 003, 20-year interval."
+ },
+ "KSIA-EDM-006": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "NRS 057 intervals evidenced by certificates and the register; the walk matches tags and CT/VT nameplate ratios to what is recorded.",
+  "gaps": [
+   "evidence stub: 'Calibration certificates; register'"
+  ],
+  "proof": "Calibration certificates for every bulk and tenant meter held by the Electrical Maintenance Department, calibration tags on the meters matching the register, CT/VT nameplate ratios matching what is recorded and programmed for that meter, and a transformer routine test report evidencing the CT ratio and polarity check. NOTE: ACSA states no calibration interval — NRS 057 supplies it."
+ },
+ "KSIA-EDM-007": {
+  "by": "Practice",
+  "inspect": "reconcile",
+  "why": "Tests whether reconciliation actually CATCHES everything — an unbilled supply is found by walking the site, not by reading the reconciliation that omits it.",
+  "gaps": [
+   "evidence stub: 'Bills vs meter data reconciliation'"
+  ],
+  "proof": "A reconciliation of every metering point and intake substation on site against the municipal bills, with the tariff category confirmed correct for the demand profile, and NO supply found on the walk — a newer building, a generator, a tenant connection — that has no corresponding municipal account. This is kick-off risk item 6.5.1 and an unbilled premium supply is found by walking, not by reading the reconciliation that omits it."
+ },
+ "KSIA-EDM-008": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "The kWh figures and % change are the proof; the walk confirms the claimed initiatives physically exist and run."
+ },
+ "KSIA-EDM-009": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "A documented target and the actual Rand saving with its calculation basis."
+ },
+ "KSIA-EDM-010": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "Prior and current figures with the methodology."
+ },
+ "KSIA-EDM-011": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Monthly records and KPIs against targets; the walk confirms the dashboards those reports cite are live.",
+  "gaps": [
+   "evidence stub: 'Energy reports'"
+  ],
+  "proof": "Monthly consumption records for KSIA with kWh/pax and kWh/m² tracked against a stated target, hourly energy-use model data per asset, system, process or area, BMS out-of-range alerts raised as CMMS energy audit job cards, and the dashboards the reports cite live and showing current data on the walk."
+ },
+ "KSIA-EDM-012": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "Interval demand data against the registered NMD, plus any penalty notices."
+ },
+ "KSIA-EDM-013": {
+  "by": "Practice",
+  "inspect": "examine",
+  "why": "Tests whether the peak/load-shed strategy is real — equipment configured AND control-room staff able to say how a peak is managed.",
+  "gaps": [
+   "evidence stub: 'Demand profile data'"
+  ],
+  "split": "NMD compliance (a figure) and demand-management practice are two different tests in one row",
+  "proof": "Interval demand data showing maximum demand never exceeding the registered Notified Maximum Demand, municipal accounts checked for exceedance penalties, and a peak/load-shed strategy that physically exists — demand-limiting configured in the BMS, generator or load-shed triggers installed — with control-room staff able to describe what happens as a peak approaches. NOTE: ACSA states no NMD figure or penalty rule."
+ },
+ "KSIA-EDM-014": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Service report within 12 months is the pass/fail; the walk checks service tag, cleanliness, damage, fault indicators."
+ },
+ "KSIA-EDM-015": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "SCADA irradiance-vs-output data is the proof; the walk checks the pyranometer is clean and correctly positioned, because a dirty sensor invalidates the data."
+ },
+ "KSIA-EDM-016": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "PR reports monthly and rolling annual; the walk looks for soiling, shading and damaged panels that explain a low PR."
+ },
+ "KSIA-EDM-017": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "THE CLEANEST ASSET CASE HERE. Shadow on panels. No document can establish it — you stand there and look, at the right time of day.",
+  "gaps": [
+   "NO evidence stated at all"
+  ],
+  "proof": "No shadow falling on any panel from trees, structures or equipment at the time of the visit — checked early morning or late afternoon when shadows are longest — and string-level monitoring showing no string persistently underperforming its neighbours, which is shading the eye missed."
+ },
+ "KSIA-EDM-018": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "CoC and maintenance/cleaning records; the walk checks soiling, inverter ventilation clearance and cable labelling.",
+  "gaps": [
+   "evidence stub: 'Monitoring data; CoC'"
+  ],
+  "split": "PR monitoring, maintenance records, CoC and earthing/lightning protection are four tests in one row",
+  "proof": "Performance ratio monitored on a live system, inverter and panel cleaning and maintenance records, a PV installation Certificate of Compliance in the latest SANS 10142-1 format with its test report and not older than two years, and earthing and lightning protection test results. NOTE: the earthing results are not required by any ACSA clause found — they must be requested."
+ },
+ "KSIA-EDM-019": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "Four separate approvals — grid connection, land rights, environmental, wheeling. The question establishes which apply, not whether they exist.",
+  "split": "four approval types, four different authorities"
+ },
+ "KSIA-EDM-020": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Ventilation unobstructed, detector heads present and undamaged, isolation switches labelled and accessible. The battery room's state decides.",
+  "gaps": [
+   "evidence stub: 'Inspection'"
+  ],
+  "proof": "Ventilation louvres and fans unobstructed and running, fire detection heads present, undamaged and in service tag date, gas suppression maintained yearly with cylinders inside the 10-yearly hydrostatic test, isolation switches located and labelled, manufacturer maintenance current, and the room inside 0-40 °C and 20-80% RH. NOTE: D118MAN cl. 8.6 requires lithium-ion for UPS batteries."
+ },
+ "KSIA-EDM-021": {
+  "by": "Practice",
+  "inspect": "examine",
+  "why": "Plant left in manual override and aged unresolved alarms are a practice failure, not a document failure. The BMS screen is where you see it.",
+  "gaps": [
+   "evidence stub: 'BMS screenshots/logs'"
+  ],
+  "proof": "No plant left in manual or hand override, the active alarm list free of unresolved or aged alarms, set-points and schedules matching what the plant is actually doing on site, car park lighting at 100% on presence and 40% on absence, motion sensor timeouts configured as specified, and BMS out-of-range alerts converted to CMMS energy audit job cards."
+ },
+ "KSIA-EDM-022": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "Green Star certificate with rating level and validity."
+ },
+ "KSIA-EDM-023": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "Water supply agreement, tariff schedule, invoices matching the agreed tariff."
+ },
+ "KSIA-EDM-024": {
+  "by": "Practice",
+  "inspect": "examine",
+  "why": "Tests whether a leak-detection programme is actually run — walking pipework for damp patches and pooling is how you find out.",
+  "gaps": [
+   "evidence stub: 'Water reports'"
+  ],
+  "proof": "Bulk and sub-meters functional and readable, monthly or quarterly consumption recorded, a continual leak investigation programme with walkabout records for leaking tanks and pipelines, monthly water reticulation inspections covering meter operation, rain and grey-water use where installed, and the Register of Effluent and Storm Water Discharge Points EMS 105 current."
+ },
+ "KSIA-EDM-025": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "The LTO emissions inventory against ICAO 9889 methodology; the walk confirms the ambient monitoring station that feeds it is installed, calibrated and running."
+ },
+ "KSIA-EDM-026": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "Emissions report with reduction targets tracked.",
+  "gaps": [
+   "evidence stub: 'Emissions report'"
+  ],
+  "proof": "Carbon footprint calculations for KSIA against a stated boundary and methodology, the ACI Airport Carbon Accreditation certificate, environmental objectives and targets set under the KSIA EMS with review records, and the reduction trend in the Integrated Annual Report — supported by the annual EMS peer-review audit and the ISO 14001 certification cycle."
+ },
+ "KSIA-PSR-001": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "HIRA reviewed annually and a maintained register is the pass/fail; the walk spot-checks that listed controls physically exist as described.",
+  "gaps": [
+   "evidence stub: 'HIRA; risk register'"
+  ],
+  "proof": "A site HIRA to B170 001M using the 25-cell Severity A-E × Likelihood 1-5 matrix, reviewed annually or after any change or incident, with the eight-column ICAO SMM log carrying both the initial (column 6) and residual (column 8) Safety Risk Index, controls and named owners against each risk, evidence of all five B170 cl. 4.1 triggers, HIRA reports submitted to the SACAA Director of Civil Aviation — and 2-3 listed controls confirmed to physically exist on site as described."
+ },
+ "KSIA-PSR-002": {
+  "by": "Practice",
+  "inspect": "none",
+  "why": "Tests whether change control happens BEFORE implementation. A current abnormal configuration that never went through MOC is the failure, and only asking finds it.",
+  "proof": "An Engineering Asset Modification Request M&E 088 for every change, a change record in the Asset Modification Register for every request INCLUDING rejected ones, the five sequential D060 020M stages evidenced in order (each a prerequisite of the next), the ten mandatory steps for tenant-initiated modifications, a formal HIRA before each named trigger, and Asset Modification Committee minutes approving it before implementation.",
+  "gaps": [
+   "evidence stub: \"MOC records\""
+  ]
+ },
+ "KSIA-PSR-003": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "A control 'verified in place and effective' is settled by finding the bonding, the lockout point, the fall-arrest anchor. The register listing it proves nothing.",
+  "proof": "A control physically checked per top risk area — fuel: overfill and bonding protection; electrical: a lockout/isolation point; heights: fall-arrest anchors and edge protection; airside vehicles: speed control — each traceable to the Compliance Risk Management Plan GOV 006 with all nine mandatory fields including residual rating, responsibility and target date, and the residual band matched to the mandated strategy (Avoidance / Reduction / Segregation of exposure).",
+  "gaps": [
+   "evidence stub: \"Risk register; verification evidence\""
+  ]
+ },
+ "KSIA-PSR-004": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Cracked bund walls and water in hydrant pits fail this whatever the paperwork says.",
+  "split": "MHI notification and risk assessment (Document) sit in the same row as bund and pit-lid condition (Asset) — two different failures, one row",
+  "gaps": [
+   "evidence stub: 'MHI RA; emergency plan; inspection'"
+  ],
+  "proof": "MHI notification on site with signage, an AIA risk assessment within five years, an emergency plan tested within twelve months and submitted to NERSA annually, bund walls uncracked and the bund dry with its drain valve closed, and hydrant pit lids sitting flush with no water pooling — water in a pit is both the ingress and the contamination route this check exists for."
+ },
+ "KSIA-PSR-005": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Hazardous-area classification drawings and Ex inspection records; the walk matches Ex markings and tags on fittings to the classified zones on the drawing.",
+  "proof": "Hazardous-area classification drawings covering the fuel farm, hydrant pits AND generator rooms, current for the plant as built, with electrical fittings in every classified zone carrying a visible Ex marking at or above the zone's requirement and a current inspection tag. NOTE: the register names no ACSA evidence for this check — the drawings must be requested by name.",
+  "gaps": [
+   "evidence stub: \"HAC drawings; Ex inspection records\""
+  ]
+ },
+ "KSIA-PSR-006": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Spill kits present, complete and in date; separator not full of oil. Presence is a physical fact.",
+  "split": "spill equipment condition, separator servicing and drill records are three tests",
+  "gaps": [
+   "evidence stub: 'Inspection; drill records'"
+  ],
+  "proof": "Spill kits at the fuel farm and at every fuelling position, sealed, complete and in date; oil/water separators with a service tag, tested annually for efficiency, sludge depth under 25% of chamber depth and not full of oil or debris; spill drills recorded; and a spillage report logged with the Helpdesk for every environmental incident, with containment inside the 2-hour limit and safe disposal certificates retained 5 years."
+ },
+ "KSIA-PSR-007": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "The fire cut-out present, labelled and accessible; the tank bunded and separated. Nothing documentary settles it.",
+  "gaps": [
+   "evidence stub: 'Inspection'"
+  ],
+  "proof": "A fire cut-out or isolation point in each generator room, present, labelled and accessible; the diesel tank separated from the generator and bunded to at least 110% of the largest container; fire extinguishers present, in date and unobstructed; and the weekly off-load and monthly on-load test records evidencing the fuel shut-off valve check."
+ },
+ "KSIA-PSR-008": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Bund condition, visible separation, dispensing containment.",
+  "split": "tank certification is a Document test inside an Asset row",
+  "gaps": [
+   "evidence stub: 'Inspection; certificates'"
+  ],
+  "proof": "Bulk diesel tank with a certification plate, permits on file for above and underground tanks, a bund that is empty, uncracked and drain-valve-closed at at least 110% of the biggest container, visible fire separation from the generator, a contained dispensing point with access control, and the tank entered on the Register of Dangerous Goods EMS 109."
+ },
+ "KSIA-PSR-009": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "A current plan and recorded drills are the proof; the walk confirms the assembly points and equipment the plan NAMES are actually there and unobstructed.",
+  "gaps": [
+   "evidence stub: 'Plan; drill records'"
+  ],
+  "proof": "A current aerodrome emergency plan, evacuation and emergency drills held and recorded within period, the Fuel Depot plan tested at least every twelve months with the practice-test records kept, Emergency Co-ordinator, Evacuation Officer and Fire Warden appointments in writing and inside their three-year validity — and the assembly points, signage and equipment the plan names actually present, visible and unobstructed on site."
+ },
+ "KSIA-PSR-010": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Eyewash flows, first-aid box stocked and in date, extinguisher gauge in the green. The inspection register records it; the equipment decides it.",
+  "proof": "Emergency showers and eyewash with a current tag, water flowing and unobstructed; first-aid boxes stocked and in date at the ratio the headcount requires (one trained first aider per fifty employees, at least one per working environment, appointed on OHS 004 with a current certificate from a DoL-registered provider); spill kits sealed and complete; fire equipment in date, gauge in the green and unobstructed; assembly points signed.",
+  "gaps": [
+   "evidence stub: \"Inspection registers\""
+  ]
+ },
+ "KSIA-PSR-011": {
+  "by": "Practice",
+  "inspect": "examine",
+  "why": "Tests whether investigations actually feed the HIRA and whether an action marked 'closed' was really done — the walk verifies one physical corrective action.",
+  "gaps": [
+   "evidence stub: 'Investigation reports; trend'"
+  ],
+  "proof": "Incident and near-miss investigations that visibly change something — the HIRA updated, a maintenance regime changed, a recurring failure mode (generator, fuel pit) trended — with preliminary reports inside 7 days, full reports inside one month, Annexure 1 submitted to the DoL where required, and any corrective action involving a physical change confirmed implemented on site."
+ },
+ "KSIA-PSR-012": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Fire doors propped open and blocked escape routes are the failure. The FRA is context.",
+  "split": "fire risk assessment and marshal appointments (Document) vs compartmentation and escape routes (Asset)",
+  "gaps": [
+   "evidence stub: 'FRA; inspection'"
+  ],
+  "proof": "A current fire risk assessment; fire doors that close fully and are not propped; compartmentation intact; escape routes and fire equipment unobstructed; exit signage visible and lit with daily escape-route clearance checks; the yearly record of Fire Hazard Classes per occupancy to SANS 10400-T; council-approved designs validated yearly; and Fire Warden appointments in writing, inside their three-year validity and on the OHS Appointments Register."
+ },
+ "KSIA-PSR-013": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Hydrant markers visible and accessible, pump room condition, access routes not blocked by vehicles.",
+  "gaps": [
+   "evidence stub: 'Fire-water assessment; site walk'"
+  ],
+  "proof": "A fire-water assessment showing storage, pump capacity and hydrant coverage adequate for the terminal, fuel farm and plant rooms; hydrant markers and covers visible and accessible; the pump room sound with its weekly and monthly test records complete and the quarterly six-hour full-load run done; and fire-service access routes clear of vehicles, materials and parked equipment."
+ },
+ "KSIA-PSR-014": {
+  "by": "Practice",
+  "inspect": "examine",
+  "why": "A permit system exists on paper everywhere. The test is a live permit during the audit and whether the controls it lists — fire watch, gas testing, barricading — are actually in place.",
+  "proof": "A permit-to-work system covering hot work, confined space, electrical isolation and working at heights, permits signed by BOTH parties at issue AND at cancellation, gas testing results recorded on the permit face, a fire watch held at least 30 minutes after hot work with the area inspected at one hour and monitored a further three, permits audited, and any live permit on site matching the controls actually in place.",
+  "gaps": [
+   "evidence stub: \"Permit records (sample)\""
+  ]
+ },
+ "KSIA-PSR-015": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Flammables away from oxidisers, ventilation working, SDS physically AT the store rather than filed centrally.",
+  "split": "inventory and LPG CoCs (Document) vs storage segregation and ventilation (Asset)",
+  "gaps": [
+   "evidence stub: 'Inventory; SDS; CoCs'"
+  ],
+  "proof": "A hazardous chemical inventory classified to SANS 10228, SDS physically accessible at the store rather than filed centrally, storage segregated (flammables away from oxidisers), ventilated and signed, bunding at at least 110% of the biggest container, LPG installations certified, an Asbestos Register EMS 103, and confined-space and hot-work procedures approved by the GMR 2(1) and 2(7) appointees."
+ },
+ "KSIA-PSR-016": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Cylinders upright, chained, segregated by gas type, empty and full separated. A clean single-subject Asset check.",
+  "gaps": [
+   "evidence stub: 'Site inspection'"
+  ],
+  "proof": "Cylinders upright, chained or strapped, segregated by gas type, in a ventilated and signed area, with empty and full clearly separated; Written Safe Work Procedures for compressed gas cylinders approved by the GMR 2(1) and 2(7) appointees; the Pressure Equipment Regulations register with three-yearly inspection and test; and SCBA cylinders at 300 bar and never below 80% of filling pressure, hydrostatically tested at least every 4 years."
+ },
+ "KSIA-PSR-017": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A signed, dated GMR 2(1) letter and competency certificate; the walk confirms the named appointee is the person actually doing it, via records bearing their name."
+ },
+ "KSIA-PSR-018": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Monthly visit records unbroken, 6-monthly rope and 12-monthly safety-gear entries present; the walk reads the unit's own on-site register."
+ },
+ "KSIA-PSR-019": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "The National Artisan Certificate itself, not an attendance letter; matched to the person doing millwright work."
+ },
+ "KSIA-PSR-020": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Contractor SAQCC Fire registration and service records; the walk reads service tags for a legible in-interval date."
+ },
+ "KSIA-PSR-021": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Current CoC and its test report, issuer registered; the walk checks it covers visible subsequent additions."
+ },
+ "KSIA-PSR-022": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Flight-check certificate and calibration records; the walk confirms the localizer and glide path equipment is present, powered, undamaged and free of interference."
+ },
+ "KSIA-PSR-023": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "The trade test certificate for the electrical trade specifically, matched to the person doing the work."
+ },
+ "KSIA-PSR-024": {
+  "by": "Asset",
+  "inspect": "examine",
+  "why": "Two adjacent lights out is an ICAO failure you find by driving the runway at night. The outage log records it; the runway decides it.",
+  "split": "AGL outage limits (Asset) and standby changeover records (Document) in one row"
+ },
+ "KSIA-PSR-025": {
+  "by": "Practice",
+  "inspect": "examine",
+  "why": "The question is the crux: does servicing include actual detector-head functional testing, or only panel and battery checks. A full service record of the wrong service is still non-compliant."
+ },
+ "KSIA-PSR-026": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "A Water Use Licence or documented General Authorisation basis; the walk identifies the actual discharge points and matches them to what is authorised."
+ },
+ "KSIA-PSR-027": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "Friction test reports against the applicable minimum, at the frequency for that runway's traffic, with the device's calibration certificate. All desk work."
+ },
+ "KSIA-PSR-028": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Register reviewed within 24 months with ACM locations on floor plans; the walk confirms warning labels are where the register says."
+ },
+ "KSIA-PSR-029": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "A workplace plan, if one is still maintained.",
+  "gaps": [
+   "the row's own question asks whether this requirement is still live at all — it may be obsolete"
+  ]
+ },
+ "KSIA-PSR-030": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "Provisional. The row does not say what it tests.",
+  "gaps": [
+   "NO evidence stated",
+   "the row's own question asks what this line is meant to test — ISO 14001, an internal policy, or something else. It cannot be audited as written."
+  ],
+  "proof": "Evidence for whatever 'Sustainability' is being tested — GBCSA certification at the 4 Star minimum, the business case with IRR, NPV, profitability index and payback, the 36-month maintenance schedule, FMEA and RAM studies, and operations and maintenance competency records against D100MAN cl. 4's targets (99.5% availability, 20-year design life, power factor 0.95, >40% saving on retrofits). NOTE: the requirement is a single word and is not an appointment or a competency — it does not belong in this asset system."
+ },
+ "KSIA-PSR-031": {
+  "by": "Document",
+  "inspect": "none",
+  "why": "Board-approved policy, current register, committee minutes evidencing review.",
+  "gaps": [
+   "the row's own question asks whether this is enterprise risk management or plant-level OHS risk assessment — two different auditees"
+  ]
+ },
+ "KSIA-PSR-032": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "ISO 55001 documents if alignment is claimed, otherwise planned preventive maintenance records.",
+  "gaps": [
+   "the row's own question asks which of the two it is — the evidence required differs completely"
+  ]
+ },
+ "KSIA-PSR-033": {
+  "by": "Document",
+  "inspect": "examine",
+  "why": "The renewal programme and its capital linkage; the finding is a visibly deteriorated asset that does NOT appear on it."
+ },
+ "KSIA-PSR-034": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Appointment letters current with competency evidence; the walk confirms the named person is the one performing the role.",
+  "gaps": [
+   "evidence stub: 'Appointment letters; certificates'"
+  ],
+  "split": "GMR 2(1), 16(2), EIR/EMR and LI/LMI are four separate statutory appointments in one row",
+  "proof": "Written appointments for GMR 2(1) on OHS 008, GMR 2(7) on OHS 009, Section 16(2) on OHS 001, supervisors on OHS 002 and the electrical EIR/EMR and LI/LMI roles, each inside its three-year validity, carrying all four mandatory content elements, with the competency evidence the role requires — at or above 11kV the GMR 2(1) appointee needs a recognised Engineering Qualification AND the legislative training — and the named person actually performing the role, evidenced by inspection, SOP or permit records bearing their name."
+ },
+ "KSIA-PSR-035": {
+  "by": "Document",
+  "inspect": "reconcile",
+  "why": "Training matrix and rosters; the walk spot-checks staff doing height, gas or electrical work against a current matching competency.",
+  "gaps": [
+   "evidence stub: 'Training matrix; rosters'"
+  ],
+  "proof": "A training matrix completed with the Line Manager covering trade tests, wireman's licence, LPG and working at heights, with OHS induction inside 30 days of commencing work, on-the-job training inside 30 days of employment or transfer, GMR 2(1) and 2(7) legislative training inside 6 months of appointment; standby rosters and call-out records; and a sample of staff doing height, gas or electrical work on site holding a current matching competency."
+ },
+ "KSIA-PSR-036": {
+  "by": "Practice",
+  "inspect": "reconcile",
+  "why": "Tests whether the arrangement holds — is work stopped when a s37(2) agreement lapses, do inductions expire. The filed agreement proves only that one was signed.",
+  "gaps": [
+   "evidence stub: 'Agreements; safety files; permits'"
+  ],
+  "proof": "A Section 37(2) mandatary agreement OHS 040 for every contractor on site, a SHE File submitted at least 14 days before commencement and reviewed within 7 working days scoring at least 90% on OHS 037 for high-risk work, permit-to-work and hot-work permits for the work actually in progress, induction records — and the contractor teams observed on site matching the names on the filed agreements."
+ },
+ "KSIA-PSR-037": {
+  "by": "Practice",
+  "inspect": "none",
+  "why": "Ask maintenance staff how they report a near-miss and check those examples are in the register. A mismatch is the finding, and no document shows it.",
+  "gaps": [
+   "evidence stub: 'Incident register'"
+  ],
+  "proof": "An incident register with near-misses in it, notification inside ACSA's clock (12 hours for a fatality, 24 hours for a Section 24 injury or LTI, 36 hours for Section 24(c) equipment failure, 72 hours for a near miss), Annexure 1 submitted to the DoL, investigations closed with their corrective actions, and a trend review. The real test is asking maintenance staff how they report a near-miss and finding the examples they describe in the register."
+ }
+}
