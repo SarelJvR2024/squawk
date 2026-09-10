@@ -38,10 +38,10 @@ const store = read("src", "lib", "store.ts");
 const page = read("src", "app", "(app)", "findings", "page.tsx");
 const treat = read("src", "components", "SystemTreatment.tsx");
 const detail = read("src", "components", "FindingDetail.tsx");
-const actions = read("src", "components", "RecordActions.tsx");
 const merge = read("src", "lib", "merge.ts");
 const exports_ = read("src", "lib", "exports.ts");
 const panel = read("src", "components", "ExportPanel.tsx");
+const picker = read("src", "components", "RatingPicker.tsx");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -122,26 +122,94 @@ check(
   "clause 4.6 pairs one strategy with each band; typing it is how a Red system ends up saying 'monitor'"
 );
 
+/* 2026-09-10: the 5x5 matrix came off THIS screen — Sarel: "remove the large
+   rating matrix, make it more simple to select severity and likelihood." It is
+   25 cells and about 300px above the evidence it is agreed from, met once per
+   asset system, 75 times. RecordActions still draws it on the findings and
+   hazard screens, where the group argues over a cell and points at it.
+   What must not have changed, and is what these assertions now pin: the SCALES
+   and the BANDING still come from one place, and a half-set rating is still not
+   a rating. */
 check(
-  "THE MATRIX IS DRAWN BY ONE COMPONENT",
-  /<RecordActions/.test(pageCode) &&
-    !/SEVERITIES/.test(pageCode) &&
-    !/LIKELIHOODS/.test(pageCode),
+  "THE SCREEN CARRIES NO SCALE OF ITS OWN",
+  !/SEVERITIES/.test(pageCode) &&
+    !/LIKELIHOODS/.test(pageCode) &&
+    /<RatingPicker/.test(pageCode),
   "a second copy of B170 001M is how two screens come to carry two vocabularies for one instrument"
 );
 
 check(
-  "rendered without its single-string treatment fields",
-  /showTreatment=\{false\}/.test(pageCode) && /showTreatment = true,/.test(actions),
-  "an asset system takes several root causes and several actions; one string each is not that shape"
+  "and the picker takes both scales from risk.ts",
+  /import \{ LIKELIHOODS, LIKELIHOOD_DEF, SEVERITIES, SEVERITY_DEF \} from "@\/lib\/risk";/.test(
+    picker
+  ),
+  ""
+);
+
+check(
+  "A HALF-SET RATING IS STILL NOT A RATING",
+  /ratingConfirmed: !!s && !!l/.test(codeOnly(picker)),
+  "the matrix enforces this by its shape — a cell is inherently a complete choice; two axes can be half-answered, so the code has to"
+);
+
+check(
+  "and picking the chosen one again clears it, back to unrated",
+  /onClick=\{\(\) => onPick\(on \? null : o\)\}/.test(codeOnly(picker)),
+  "unrated is honest and a wrong C is not"
+);
+
+check(
+  "the letter and the digit are shown, and the whole label is the accessible name",
+  /aria-label=\{def\(o\)\}/.test(codeOnly(picker)) && /\{o\.charAt\(0\)\}/.test(codeOnly(picker)),
+  "B170 carries the number inside the label because getting the direction backwards inverts the matrix"
+);
+
+check(
+  "and the choice is written out in full, never only in a hover",
+  /\{value \?\? `Not picked/.test(picker),
+  "a device that has no hover is the device this is built for"
 );
 
 /* ---- 3 · an unagreed cell is not a rating ------------------------------- */
 
 check(
   "the row says SUGGESTED for a cell nobody agreed",
-  /\{cellCode\(rec!\.severity, rec!\.likelihood\)\} · SUGGESTED/.test(page),
+  /confirmed \? BAND_META\[band\]\.label\.toUpperCase\(\) : "SUGGESTED"/.test(page),
   ""
+);
+
+/* ---- 3b · the row is three marks and two audits, minimised ------------- */
+
+check(
+  "severity, likelihood and rating are inline marks on the row",
+  /<Marks/.test(pageCode) && /function Marks\(/.test(pageCode),
+  "Sarel asked for icons per asset system in the hierarchy"
+);
+
+check(
+  "and an unset half is a dash, not a blank",
+  /\{v \? v\.charAt\(0\) : "—"\}/.test(pageCode),
+  "a blank square in a column of ratings reads as a zero or as a rendering fault"
+);
+
+check(
+  "THE PREVIOUS AUDIT'S BAND IS ON THE ROW BESIDE THIS ONE'S",
+  /2025 \{pf\.rating\.toUpperCase\(\)\}/.test(page) && /opacity: 0\.55/.test(page),
+  "Sarel: we need to include previous rating and current audit's rating, the previous can be made transparent"
+);
+
+check(
+  "and a system 2025 did not rate says so rather than showing nothing",
+  /2025 —/.test(page),
+  "an absent baseline is a fact, not a blank"
+);
+
+check(
+  "the row is two lines, not three",
+  /className="relative flex w-full items-center gap-2 border-b px-\[10px\] py-\[7px\] text-left transition-\[var\(--t\)\]"/.test(
+    page
+  ),
+  "Sarel: the section in the left panel for an asset system has a lot of white space"
 );
 
 check(

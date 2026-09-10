@@ -58,13 +58,90 @@ import { Btn, Dot, Empty, Pill } from "@/components/ui/primitives";
 import type { Tone } from "@/components/ui/primitives";
 import GroupRow from "@/components/ui/GroupRow";
 import Sheet from "@/components/ui/Sheet";
-import RecordActions from "@/components/RecordActions";
+import RatingPicker from "@/components/RatingPicker";
 import FindingDetail from "@/components/FindingDetail";
 import SystemTreatment from "@/components/SystemTreatment";
 import { IconInbox, IconSearch } from "@/components/ui/icons";
 import type { Check, Finding } from "@/lib/types";
 
 const NO_SYSTEM = "No asset system recorded";
+
+/** The 2025 audit's own three-level vocabulary, mapped to the app's tones. It
+ *  is NOT B170 001M's — see BAND_AS_RATING in src/lib/risk.ts for why the two
+ *  vocabularies are bridged rather than treated as the same words. */
+const ratingTone = (r: string): Tone =>
+  r === "Unacceptable" ? "bad" : r === "Tolerable" ? "warn" : r === "Acceptable" ? "good" : "neutral";
+
+/** SEVERITY, LIKELIHOOD AND RATING AS THREE SMALL MARKS.
+ *
+ *  Sarel asked for icons; these are characters, and deliberately. B170 001M's
+ *  scales ARE a letter and a digit — "C - Major", "4 - Occasional" — so the
+ *  letter and the digit are the icon, and they say exactly what a glyph would
+ *  have to be learned to mean. The band is a word, never a colour alone.
+ *
+ *  An unset half is an em dash. A blank square in a column of ratings reads as
+ *  a zero or as a rendering fault; a dash reads as "not answered", which is
+ *  what it is.
+ *
+ *  A cell the group has NOT agreed renders dashed and muted — the same
+ *  distinction the whole product makes, because a rating nobody tapped counts
+ *  nowhere and must not look like one that does. */
+function Marks({
+  severity,
+  likelihood,
+  band,
+  confirmed,
+}: {
+  severity: string | null;
+  likelihood: string | null;
+  band: "Red" | "Amber" | "Green" | null;
+  confirmed: boolean;
+}) {
+  const live = band && confirmed;
+  const box = (v: string | null, title: string) => (
+    <span
+      title={title}
+      className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-[5px] border font-mono text-[10px] font-semibold"
+      style={{
+        borderColor: v ? "var(--line-2)" : "var(--line)",
+        borderStyle: v ? "solid" : "dashed",
+        background: v ? "var(--sunken)" : "transparent",
+        color: v ? "var(--ink-1)" : "var(--ink-4)",
+      }}
+    >
+      {v ? v.charAt(0) : "—"}
+    </span>
+  );
+  return (
+    <span className="flex shrink-0 items-center gap-[3px]">
+      {box(severity, severity ? `Severity ${severity}` : "Severity not picked")}
+      {box(likelihood, likelihood ? `Likelihood ${likelihood}` : "Likelihood not picked")}
+      <span
+        title={
+          band
+            ? confirmed
+              ? `${BAND_META[band].label} — agreed`
+              : `${BAND_META[band].label} — suggested, not agreed by the group`
+            : "Not rated at this audit"
+        }
+        className="shrink-0 rounded-full px-[6px] py-[1px] font-mono text-[8.5px] font-semibold whitespace-nowrap"
+        style={
+          live
+            ? {
+                background: `var(--${BAND_META[band].tone}-bg)`,
+                color: `var(--${BAND_META[band].tone})`,
+              }
+            : {
+                border: "1px dashed var(--line-3)",
+                color: "var(--ink-4)",
+              }
+        }
+      >
+        {band ? (confirmed ? BAND_META[band].label.toUpperCase() : "SUGGESTED") : "NOT RATED"}
+      </span>
+    </span>
+  );
+}
 
 export default function FindingsPage() {
   const entityCode = useEntityCode();
@@ -497,11 +574,26 @@ export default function FindingsPage() {
                             key={key}
                             data-system={x.system}
                             onClick={() => setActiveKey(key)}
-                            className="relative flex w-full items-start gap-2.5 border-b px-3 py-2.5 text-left transition-[var(--t)]"
+                            /* The whole name, for the row that cannot show it.
+                               Three marks on the name's line means a long asset
+                               system truncates at about 24 characters —
+                               "Accessibility & S…" — and the full name is
+                               otherwise only in the panel once you have already
+                               chosen the row. */
+                            title={x.system}
+                            /* MINIMISED, at Sarel's word: "the section in the
+                               left panel for an asset system has a lot of white
+                               space, provide more minimised view." It was three
+                               stacked lines and 88px a row — the name, a row of
+                               pills, and a line of counts — times 75 asset
+                               systems. Two lines and 52px now, with nothing
+                               dropped: the marks moved onto the name's own line
+                               and the counts share the second one with the 2025
+                               band. */
+                            className="relative flex w-full items-center gap-2 border-b px-[10px] py-[7px] text-left transition-[var(--t)]"
                             style={{
                               borderColor: "var(--line)",
                               background: on ? "var(--acc-soft)" : "transparent",
-                              minHeight: 56,
                             }}
                           >
                             {on && (
@@ -511,53 +603,64 @@ export default function FindingsPage() {
                               />
                             )}
                             <span className="min-w-0 flex-1">
-                              <span className="block text-[12.5px] leading-[1.4] font-semibold">
-                                {x.system}
+                              <span className="flex items-center gap-2">
+                                <span className="min-w-0 flex-1 truncate text-[12.5px] leading-[1.3] font-semibold">
+                                  {x.system}
+                                </span>
+                                {/* SEVERITY, LIKELIHOOD AND RATING, INLINE.
+                                    Three marks on the name's own line rather
+                                    than a row of pills under it. Each carries
+                                    its value as text — a letter, a digit, a band
+                                    word — so none of it is read by colour
+                                    alone, and an unset half is an em dash
+                                    rather than a blank that reads as zero. */}
+                                <Marks
+                                  severity={rec?.severity ?? null}
+                                  likelihood={rec?.likelihood ?? null}
+                                  band={b}
+                                  confirmed={confirmed}
+                                />
                               </span>
-                              {/* SEVERITY, LIKELIHOOD AND RATING, on the row.
-                                  Sarel asked for icons; these are the marks the
-                                  rest of the app already uses for exactly these
-                                  three things — the B170 cell code (severity
-                                  first, likelihood second, as cellCode prints
-                                  it) and the band's own pill. A cell that has
-                                  not been AGREED renders dashed and says
-                                  "suggested", because a rating nobody tapped
-                                  counts nowhere and must not look like one that
-                                  does. */}
-                              <span className="mt-[4px] flex flex-wrap items-center gap-1.5">
-                                {b && confirmed ? (
-                                  <>
-                                    <Pill tone={BAND_META[b].tone}>
-                                      {cellCode(rec!.severity, rec!.likelihood)}
-                                    </Pill>
-                                    <Pill tone={BAND_META[b].tone}>{BAND_META[b].label.toUpperCase()}</Pill>
-                                  </>
-                                ) : b ? (
+                              <span className="mt-[3px] flex items-center gap-2">
+                                <span
+                                  className="min-w-0 flex-1 truncate font-mono text-[9px]"
+                                  style={{ color: "var(--ink-4)" }}
+                                >
+                                  {x.checks.length} check{x.checks.length === 1 ? "" : "s"}
+                                  {open2025 > 0 && (
+                                    <span style={{ color: "var(--warn)" }}> · {open2025} still open</span>
+                                  )}
+                                  {raised > 0 && <span> · {raised} raised</span>}
+                                </span>
+                                {/* LAST AUDIT'S BAND, BESIDE THIS ONE'S.
+                                    Sarel asked for both, with the previous one
+                                    "transparent maybe" — so it renders at 55%
+                                    against the same tone, which reads as behind
+                                    rather than as a second live rating. The word
+                                    "2025" is on it, because a faded pill with no
+                                    date is just a pill somebody has to ask
+                                    about. */}
+                                {pf ? (
                                   <span
-                                    className="rounded-full border border-dashed px-2 py-[1px] font-mono text-[9px] font-semibold"
-                                    style={{ borderColor: "var(--line-3)", color: "var(--ink-4)" }}
+                                    className="shrink-0 rounded-full px-[6px] py-[1px] font-mono text-[8.5px] font-semibold whitespace-nowrap"
+                                    style={{
+                                      background: `var(--${ratingTone(pf.rating)}-bg)`,
+                                      color: `var(--${ratingTone(pf.rating)})`,
+                                      opacity: 0.55,
+                                    }}
+                                    title={`March 2025 rated this asset system ${pf.rating}`}
                                   >
-                                    {cellCode(rec!.severity, rec!.likelihood)} · SUGGESTED
+                                    2025 {pf.rating.toUpperCase()}
                                   </span>
                                 ) : (
                                   <span
-                                    className="rounded-full border border-dashed px-2 py-[1px] font-mono text-[9px]"
-                                    style={{ borderColor: "var(--line-3)", color: "var(--ink-4)" }}
+                                    className="shrink-0 font-mono text-[8.5px] whitespace-nowrap"
+                                    style={{ color: "var(--ink-4)", opacity: 0.7 }}
+                                    title="March 2025 did not rate this asset system"
                                   >
-                                    NOT RATED
+                                    2025 —
                                   </span>
                                 )}
-                                {pf && <Pill tone="warn">2025 {pf.rating.toUpperCase()}</Pill>}
-                              </span>
-                              <span
-                                className="mt-[4px] flex flex-wrap items-center gap-2 font-mono text-[9px]"
-                                style={{ color: "var(--ink-4)" }}
-                              >
-                                <span>{x.checks.length} checks</span>
-                                {open2025 > 0 && (
-                                  <span style={{ color: "var(--warn)" }}>{open2025} still open</span>
-                                )}
-                                {raised > 0 && <span>{raised} raised here</span>}
                               </span>
                             </span>
                           </button>
@@ -680,35 +783,27 @@ export default function FindingsPage() {
                 )}
               </div>
 
-              {/* THE MATRIX, FROM THE ONE COMPONENT THAT DRAWS IT. Rendered
-                  without its single-string treatment fields: an asset system
-                  takes SEVERAL root causes and SEVERAL mitigation actions, and
-                  those are below. A second copy of B170 001M in this file is
-                  precisely what RecordActions was extracted to prevent. */}
-              <RecordActions
-                showTreatment={false}
-                record={{
-                  id: a.key,
-                  severity: a.severity,
-                  likelihood: a.likelihood,
-                  ratingConfirmed: a.ratingConfirmed,
-                  rootCause: "",
-                  action: "",
-                  owner: "",
-                  dueDate: "",
-                  actionStatus: "Open",
-                  discipline: active.discipline,
-                  system: active.system,
-                }}
-                entityCode={entityCode}
-                onChange={(patch) =>
-                  patchSystem(active.discipline, active.system, {
-                    severity: patch.severity,
-                    likelihood: patch.likelihood,
-                    ratingConfirmed: patch.ratingConfirmed,
-                  })
-                }
-                onToast={say}
+              {/* THE MATRIX IS GONE FROM THIS SCREEN, at Sarel's instruction:
+                  "remove the large rating matrix, make it more simple to select
+                  severity and likelihood."
+
+                  It is still the right control on the findings and hazard
+                  screens — the group argues over a cell and points at it — and
+                  RecordActions still draws it there. Here it was 25 cells and
+                  about 300px sitting above the evidence it is meant to be
+                  agreed FROM, encountered once per asset system, seventy-five
+                  times.
+
+                  Nothing about the instrument changed. RatingPicker takes its
+                  scales from the same SEVERITIES and LIKELIHOODS, derives the
+                  band from the same bandFor(), and enforces the same rule the
+                  matrix enforces by its shape: a half-set rating is not a
+                  rating, so ratingConfirmed goes true only when both axes are
+                  answered. */}
+              <RatingPicker
+                severity={a.severity}
+                likelihood={a.likelihood}
+                onChange={(patch) => patchSystem(active.discipline, active.system, patch)}
               />
 
               <label className="mt-1 block">

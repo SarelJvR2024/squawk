@@ -63,7 +63,14 @@ const NAV = [
   { href: "/capture", label: "Checks", icon: IconClipboard },
   { href: "/field", label: "Inspection", icon: IconPin },
   { href: "/review", label: "Review", icon: IconCamera },
-  { href: "/findings", label: "Findings", icon: IconLoop },
+  /* ASSET ASSURANCE, not "Findings".
+     The screen stopped being a findings register when it became the place the
+     group agrees an asset system's band — which is the number ACSA publishes
+     and the whole reason the engagement exists. "Findings" named the evidence
+     rather than the work, and it named it in a way that suggested the register
+     of findings was the destination; the findings are still there, one press
+     inside it. "Asset assurance" is what TPJV was appointed to do. */
+  { href: "/findings", label: "Asset Assurance", icon: IconLoop },
   /* HIRA, not "Hazards" and never "Risks".
      It names the instrument: B170 001M IS a Hazard Identification and Risk
      Assessment, and that is the language SACAA expects to see. "Risks" was the

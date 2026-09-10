@@ -87,11 +87,24 @@ function ok(n,c,extra=''){ if(c){pass++;log.push('PASS  '+n);} else {fail++;log.
   ok('and the finding raised a moment ago is still counted',
      /\d/.test(await page.locator('a[href*="findings"]').first().innerText().catch(()=>'')));
 
-  // 7 rate via matrix
-  const cell = page.locator('button[aria-label*=" by "]').first();
-  const cLbl = await cell.getAttribute('aria-label').catch(()=>null);
-  ok('ACSA matrix cells have aria-labels', !!cLbl, String(cLbl));
-  if(cLbl){ await cell.click(); await page.waitForTimeout(400); }
+  /* 7 rate the asset system.
+     2026-09-10: the 5x5 matrix came off this screen — Sarel: "remove the large
+     rating matrix, make it more simple to select severity and likelihood." Two
+     axes of five, each carrying the whole B170 001M label as its accessible
+     name, so the assertion is still that a screen reader can read the scale and
+     that the band and STRATEGY follow from the choice rather than being typed.
+     The matrix itself is unchanged on the findings and hazard screens; flow.js
+     is the suite that exercises it. */
+  const sev = page.locator('div[role="radiogroup"][aria-label="Severity"] button');
+  const sLbl = await sev.first().getAttribute('aria-label').catch(()=>null);
+  ok('the severity scale carries ACSA\'s own labels', /^[A-E] - /.test(String(sLbl)), String(sLbl));
+  await sev.nth(2).click(); await page.waitForTimeout(300);
+  /* One axis is not a rating. Nothing may be banded yet. */
+  const half = await page.locator('body').innerText();
+  ok('ONE AXIS IS NOT A RATING', !/Avoidance|Reduction|Segregation/.test(half),
+     'a half-set rating must not produce a band or a strategy');
+  await page.locator('div[role="radiogroup"][aria-label="Likelihood"] button').nth(3).click();
+  await page.waitForTimeout(400);
   const fBody2 = await page.locator('body').innerText();
   ok('rating shows a band strategy', /Avoidance|Reduction|Segregation/.test(fBody2));
 

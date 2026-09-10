@@ -94,9 +94,9 @@ const FLOW = [
   },
   {
     href: "/findings",
-    label: "Findings",
+    label: "Asset Assurance",
     icon: IconLoop,
-    line: "What was wrong. Rated on ACSA's B170 001M matrix — and only once the group agrees the cell.",
+    line: "The band each asset system carries — agreed by the group on ACSA's B170 001M, with every finding, check and walk item behind it.",
   },
   {
     /* HIRA, matching the navigation exactly. An auditor told to go to HIRA has
