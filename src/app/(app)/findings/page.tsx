@@ -53,6 +53,7 @@ import {
 import { useOutstanding, carriesWork } from "@/lib/carryforward";
 import { portalIdFor } from "@/lib/sites";
 import { BAND_META, bandFor, cellCode } from "@/lib/risk";
+import { duplicateFindings } from "@/lib/merge";
 import { Btn, Empty, Pill } from "@/components/ui/primitives";
 import type { Tone } from "@/components/ui/primitives";
 import GroupRow from "@/components/ui/GroupRow";
@@ -144,6 +145,27 @@ export default function FindingsPage() {
   const isOpen = (key: string) => searching || expanded.includes(key);
   const toggle = (key: string) =>
     setExpanded((e) => (e.includes(key) ? e.filter((x) => x !== key) : [...e, key]));
+
+  /* ONE DEFECT COUNTED TWICE REACHES ACSA AS TWO — and this is the only place
+     that says so.
+
+     Two auditors who both tap the same issue button on the same check each mint
+     a finding with its own random id, and the merge keys on id, so it keeps
+     both. Over the shared record that happens silently: the merge report is
+     only shown for a file merge, so nothing would ever say it out loud.
+
+     The warning lived on the old flat findings list, and it only means anything
+     where the two rows are side by side — which, on this screen, is the asset
+     system's "raised at this audit" list. Both findings are the same check and
+     the same issue, so they are always in the same asset system, and the pair
+     is visible together. */
+  const duplicateOf = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const d of duplicateFindings(findings)) {
+      for (const id of d.ids) m.set(id, d.ids.filter((x) => x !== id));
+    }
+    return m;
+  }, [findings]);
 
   /* Findings raised THIS visit, per asset system. */
   const findingsBySystem = useMemo(() => {
@@ -532,6 +554,7 @@ export default function FindingsPage() {
                 prior={priorBySystem.get(`${active.discipline}|${active.system}`) ?? []}
                 raised={findingsBySystem.get(`${active.discipline}|${active.system}`) ?? []}
                 walk={walkBySystem.get(`${active.discipline}|${active.system}`) ?? []}
+                duplicateOf={duplicateOf}
                 onOpenFinding={setOpenFinding}
               />
             </div>
@@ -604,6 +627,7 @@ function SystemEvidence({
   prior,
   raised,
   walk,
+  duplicateOf,
   onOpenFinding,
 }: {
   entityCode: string;
@@ -614,6 +638,8 @@ function SystemEvidence({
   prior: { key: string; finding: string; originLabel: string; rating: string }[];
   raised: Finding[];
   walk: { id: string; description: string; outcome: string | null }[];
+  /** Finding id → the other ids raised for the same issue on the same check. */
+  duplicateOf: Map<string, string[]>;
   onOpenFinding: (id: string) => void;
 }) {
   const seen = checks.filter((c) => fieldDone(responses[c.id] as never)).length;
@@ -669,6 +695,17 @@ function SystemEvidence({
               onClick={() => onOpenFinding(f.id)}
             >
               {f.description || f.title}
+              {/* IN THE ROW, not behind a panel: this is the one moment the two
+                  are side by side in a list, which is where a person can
+                  actually settle it. */}
+              {duplicateOf.has(f.id) && (
+                <span
+                  className="mt-[2px] block font-mono text-[9px] font-semibold"
+                  style={{ color: "var(--warn)" }}
+                >
+                  also raised as {duplicateOf.get(f.id)!.join(", ")} — same issue, same check
+                </span>
+              )}
             </Row>
           );
         })}

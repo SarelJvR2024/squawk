@@ -270,11 +270,14 @@ it the four figure cards at the top (raised / rated / red band / missing owner)
 and the duplicate-finding warning that showed when two auditors raised the same
 issue on the same check.
 
-**That duplicate warning is a real loss and worth saying plainly.** It was the
-only place the app told anybody that one defect had been counted twice, and it
-only fires when both findings are visible in one list. It needs a home on the
-new screen — most likely on the asset system's "raised at this audit" list,
-where the two rows are side by side anyway. Half a day, not built yet.
+**The duplicate warning came back the same day** (2026-09-10, later in the same
+session). It was the only place the app told anybody that one defect had been
+counted twice, and it only means anything where the two rows are visible
+together — so it sits on the asset system's "raised at this audit" list, which
+is exactly where the pair always is: both findings are the same check and the
+same issue, so they are always in the same asset system. Nothing is outstanding
+from this paragraph; it is left in because a loss recorded and then fixed is
+worth being able to see the shape of.
 
 **2. Every asset system is listed, whether or not anything was found against
 it.** 75 at King Shaka, so the left panel is long. The alternative — listing

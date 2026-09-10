@@ -235,6 +235,19 @@ check(
 );
 
 check(
+  "ONE DEFECT COUNTED TWICE IS STILL CALLED OUT",
+  /duplicateFindings\(findings\)/.test(pageCode) &&
+    /same issue, same check/.test(page),
+  "two auditors tapping the same issue button mint two findings, and the merge keys on id so it keeps both"
+);
+
+check(
+  "and it is said in the row, where the pair is side by side",
+  /duplicateOf\.has\(f\.id\)/.test(pageCode),
+  "behind a panel it is a warning nobody opens; in the list it is a decision somebody can settle"
+);
+
+check(
   "one finding still opens in full, in a sheet",
   /<FindingDetail f=\{f\}/.test(pageCode) && /export default function FindingDetail/.test(detail),
   "the per-finding work did not go away; it moved to where the evidence is read"
