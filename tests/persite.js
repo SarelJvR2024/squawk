@@ -66,8 +66,11 @@ const SITES = [
        pids.length>0 && pids.every(x=>x.startsWith(s.short+'-')),
        [...new Set(pids.filter(x=>!x.startsWith(s.short+'-')))].slice(0,4).join(' '));
   } else {
+    /* 2026-09-10: the sentence lost the site's name and the words "is". The
+       heading beside it already says "Follow-up at {short}", and the top of
+       that screen was half the screen — Sarel's words. Same assertion. */
     ok(`${s.short}: a baseline site shows nothing outstanding`,
-       /Nothing is outstanding/.test(clo), clo.slice(0,140).replace(/\n/g,' '));
+       /Nothing outstanding coming into/.test(clo), clo.slice(0,140).replace(/\n/g,' '));
   }
   await p.goto(B+'/capture', {waitUntil:'networkidle'});
   await p.waitForTimeout(900);

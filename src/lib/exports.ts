@@ -137,6 +137,11 @@ export function registerSheet(x: ExportInput): Sheet {
       priorFor(x.entity, c.discipline, c.system)?.key ?? "",
       /* Capture starts here. */
       r?.compliance ? STATUS_WORD[r.compliance] : "",
+      /* WHERE THE ASSET WAS INSPECTED, and it is a different column from
+         `Area`. Area is ACSA's category on the register; this is the auditor's
+         own words for where they were standing, which is the half that lets
+         somebody walk back to the thing and close the finding. */
+      r?.location?.trim() ?? "",
       r?.observation ?? "",
       evidence ?? "",
       issues ?? "",
@@ -181,6 +186,7 @@ export function registerSheet(x: ExportInput): Sheet {
       { header: "Walkabout instruction", width: 48, wrap: true },
       { header: "Mar 2025 finding", width: 14 },
       { header: `Status (${visitLabel(x.visit)})`, width: 16 },
+      { header: "Where it was inspected", width: 28 },
       { header: "Observation", width: 60, wrap: true },
       { header: "Evidence requested", width: 42, wrap: true },
       { header: "Issues found", width: 52, wrap: true },
@@ -340,6 +346,11 @@ export function photographsSheet(x: ExportInput): Sheet {
         c.discipline,
         c.system,
         c.area,
+        /* WHERE IT WAS TAKEN, in the auditor's own words, and it is a different
+           column from `Area` on purpose. Area is the register's category — a
+           third of the values at KSIA are not places at all. This is the one a
+           maintenance planner can act on. */
+        a.location?.trim() ?? "",
         /* WHICH asset, as the auditor read it off the plate. Both blank is a
            legitimate answer — plenty of evidence is not about one asset — so
            these stay empty rather than shouting the way the caption column
@@ -380,6 +391,7 @@ export function photographsSheet(x: ExportInput): Sheet {
         item.discipline ?? "",
         item.system ?? "",
         item.area,
+        a.location?.trim() ?? "",
         a.assetName?.trim() ?? "",
         a.assetRef?.trim() ?? "",
         a.caption?.trim() ?? "",
@@ -413,6 +425,7 @@ export function photographsSheet(x: ExportInput): Sheet {
       { header: "Discipline", width: 20 },
       { header: "Asset system", width: 26 },
       { header: "Area", width: 20 },
+      { header: "Where it was taken", width: 28 },
       { header: "Asset", width: 28 },
       { header: "Asset no. / ref", width: 18 },
       { header: "Caption", width: 62, wrap: true },
@@ -680,8 +693,19 @@ export function closureSheet(x: ExportInput): Sheet {
       p.observation,
       v?.outcome ?? "",
       v?.evidence ?? "",
-      /* What is still outstanding, where the item did not close. */
+      /* WHAT FIXES IT, and separately WHAT HAPPENS NEXT. ACSA's own sheet
+         folds the two into one cell, which is how a finding regularly arrives
+         at the next audit with the chase recorded and no remedy at all. */
       v?.action ?? "",
+      v?.nextStep ?? "",
+      /* THE HAZARDOUS EVENTS THIS FINDING COULD LEAD TO, one per line with its
+         likelihood. Plural because one finding usually has more than one, and
+         an audit that records only the worst over-rates the common case. An
+         event nobody has rated says so rather than being left blank — blank
+         would read as "no likelihood", which is not a state. */
+      (v?.possibleEvents ?? [])
+        .map((e) => `${e.event} · ${e.likelihood ?? "likelihood not agreed"}${e.note ? ` — ${e.note}` : ""}`)
+        .join("\n"),
       /* ACSA's Progress/Update is one cell, so the log is flattened into it —
          their format, our history. Each entry keeps its date, its author and
          the outcome as it stood, because a cell that has been typed over
@@ -719,7 +743,9 @@ export function closureSheet(x: ExportInput): Sheet {
       { header: "Finding as raised in Mar 2025", width: 66, wrap: true },
       { header: `Verification (${visitLabel(x.visit)})`, width: 16 },
       { header: "Evidence of closure", width: 58, wrap: true },
-      { header: "Mitigation action outstanding", width: 50, wrap: true },
+      { header: "Remediation action", width: 50, wrap: true },
+      { header: "Next step", width: 44, wrap: true },
+      { header: "Possible hazardous events", width: 62, wrap: true },
       { header: "Progress / Update", width: 66, wrap: true },
       { header: "Verified by", width: 22 },
       { header: "Verified on", width: 12 },

@@ -24,7 +24,7 @@ Section numbers in code comments point at that document.
 | Things seen on the walk | `WALK-xxxxx` — an inspection item the register does not cover, with photographs, a voice note, an outcome and an optional asset system. **Never counted toward the 324**, on its own export sheet, and one tap from becoming a finding |
 | Findings and rating | ACSA B170 001M matrix, agreed vs suggested ratings, root cause, owner, due date |
 | HIRA | Consolidation from findings with the photographs behind each group, post-walk re-read, **both rating instruments live** — B170 001M for the safety event, ACSA's ERM (J050 001FW cl. 9.2.2) for the business risk |
-| Follow-up | Every earlier audit in one place, grouped by asset system: this site's own 2025 findings plus anything an earlier visit left open, each with its life across every visit as a strip — raised, still open, partially closed, closed, found again, and **not audited shown explicitly rather than left blank**. Four-way verification, coverage guard, lifecycle |
+| Follow-up | Every earlier audit in one place, grouped by asset system. Open a system and its findings read as a timeline — the audit that raised each one, oldest first, with the current status and the date beside it. The detail pane merges everything ever recorded against one finding into a single stream: raised, each audit's outcome in words, evidence, photographs somebody went and took, voice notes, updates, and the possible events — so **opened, then closed, then opened again** reads as the sequence it is. Four-way verification, remediation and next step recorded separately, coverage guard, and multiple possible hazardous events each with their own likelihood |
 | Audits | Every entity × visit in one place; open any, create new ones; the programme file seeds, the app extends |
 | Dashboards | Airport, discipline and a real ten-site portfolio, with movement against 2025 |
 | Visual review | All photographs and voice notes per discipline per airport, with an engineer feedback thread |
@@ -651,6 +651,40 @@ tests/                thirty-five suites — see tests/README.md
   `tests/checkscreen.test.mjs` asserts both the shape and, field by field, that
   nothing was dropped to get it.
 
+- **The Inspection list is a filter over one level, not a tree of two.**
+  Discipline was the first level of the hierarchy: six rows, every one of which
+  had to be opened before an asset system was even visible. An auditor knows
+  which discipline they are walking before they unlock the screen, so pressing
+  it every session bought nothing. It is a select in the sticky bar now — a
+  select rather than a chip strip, because 133 register categories in a
+  horizontally scrolling row is not a filter anybody can use, and a select is
+  one 40px control at any list length. What is left in the tree is the asset
+  system, which is the unit ACSA rates, reports and compares year on year.
+
+  **A search still beats the filter.** An auditor standing in front of a thing
+  types what it is; if the discipline filter hid it because they set it twenty
+  minutes ago in another building, the answer would be "no results" for a check
+  that exists. So a search runs across the whole register, and a line under the
+  bar says it is doing that.
+
+  **Things seen on the walk are filed in, not stacked on top.** They used to be
+  a block of cards above the register, on the reasoning that an item with no
+  check-point behind it must not look like one of the 324. The reasoning is
+  sound and the placement was wrong: what an auditor standing at a pump station
+  wants is everything about that pump station. A walk item now sits in its asset
+  system with the rest of the work, marked ADDED ON THE WALK in words and with a
+  dashed border — never colour alone — and it is still outside every count. The
+  group's fraction is of check-points; the walk figure is stated beside it,
+  because a denominator that grows as you work is not a denominator.
+
+  **The check opens in a sheet.** It expanded in place first, which is what the
+  brief asked for, and on a real phone it did not work: an expanded item
+  rendered into the gap between the sticky bar and the bottom bar, so the
+  answers, the comment, the photographs and Save were spread down a column about
+  220px tall with Save last. The sheet gets the whole viewport with the commit
+  pinned under it, and the camera and microphone sit in that footer rather than
+  in the middle of the form.
+
 - **The navigator is one column, not two.** The asset systems were a 210px rail
   that *filtered* a 298px list of checks: a hierarchy the auditor had to infer
   by watching the second column change, for 508px of a 1280px tablet. The
@@ -897,6 +931,61 @@ numbering is the cheap price.
 | **The record store** | The copy that survives the device | Retention, still undecided |
 | **The export zip** | Handed over, attached to an email, filed | With the deliverable |
 | **The Word report** | Evidence beside the finding it supports | Phase 4, not built |
+
+**And a fifth thing that is not a copy: the thumbnail.** Every photograph
+carries a small inline preview inside the persisted record, so it travels with
+the shared record to the other auditor's device while the full-resolution bytes
+do not. `blobKey` points into the *capturing* device's own IndexedDB and means
+nothing anywhere else; the record store holds the full image with
+`access: "private"` and there is **no read route**, so nothing in the app can
+render it. The practical consequence, stated plainly because it will otherwise
+be discovered on site: after a sync the second device shows the thumbnail, the
+caption, the reference, the asset and the location — everything except an image
+you can zoom into. See `OPEN-QUESTIONS.md` §7 for the decision this needs.
+
+### Possible hazardous events, per finding
+
+A finding can carry several. "TRF 02 at AS1 is off due to oil below the minimum
+threshold" is one finding with at least three futures — a trip that takes a
+stand off supply, a winding failure that costs a replacement and a lead time, an
+oil fire. They are not variations of one event: they have different likelihoods
+and different consequences, and an audit that records only the worst over-rates
+the common case while one that records only the likely under-rates the severe.
+
+Each event carries a **likelihood on ACSA B170 001M's 1–5** — the same scale the
+finding's own rating uses, never the ERM instrument's, which is a separate
+instrument that disagrees with it on five of twenty-five cells.
+
+**There is no severity on a possible event, deliberately.** A rating of record
+is agreed by the group on the matrix and lives on the Hazard. A severity typed
+into a follow-up screen would be a second, un-agreed rating for the same event,
+which is exactly the drift `ratingConfirmed` exists to stop. Unrated is a real
+state and the default: what this captures is the auditor's list for that
+conversation, not the outcome of it.
+
+They are recorded against the **visit's verification**, so the timeline can say
+which audit thought of which — an event nobody had considered in 2025 that the
+2026 walk turned up is 2026's contribution. Two auditors' lists **union** on
+merge rather than the later save winning, because two people standing at the
+same transformer will name different futures for it and that is the point.
+
+### Where a photograph was taken
+
+Separate from the register's `area` column, and deliberately so. `area` is
+ACSA's own category and a third of its 133 values at KSIA are not places at all
+("Appointments", "Documentation", "Lessons learnt"). A photograph's `location`
+is the auditor's own words — "Stand 12", "north switch room" — the words
+somebody would use on the radio to send a maintenance team to the same spot.
+
+It costs no taps in the common case. The inspection carries a location of its
+own, the screen keeps the last one named as a running value, and a photograph
+taken on a check inherits it at the moment of capture. Typed once per place,
+not once per check; editable per photograph, because one inspection can carry
+evidence from two places. Both are free text with the site's areas offered as
+suggestions and none of them forced — real zone names have not been supplied.
+
+Both reach the workbook: **Where it was inspected** on the register sheet,
+**Where it was taken** on the Photographs sheet.
 
 ### Captions
 

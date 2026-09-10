@@ -34,7 +34,15 @@
  *     is a bad afternoon.
  */
 
-import type { Attachment, Finding, Hazard, ProgressNote, Response, Verification } from "./types";
+import type {
+  Attachment,
+  Finding,
+  Hazard,
+  PossibleEvent,
+  ProgressNote,
+  Response,
+  Verification,
+} from "./types";
 import type { VisitData } from "./store";
 
 export const BUNDLE_KIND = "squawk-capture-bundle";
@@ -151,6 +159,20 @@ function unionProgress(mine: ProgressNote[] = [], theirs: ProgressNote[] = []): 
   return merged.sort((a, b) => a.at - b.at);
 }
 
+/** POSSIBLE EVENTS ARE A LIST TWO PEOPLE ADD TO, so they union rather than
+ *  losing to whoever saved last. Two auditors standing at the same transformer
+ *  will name different futures for it — that is the point of recording them —
+ *  and last-writer-wins on the whole array would silently drop one of their
+ *  lists with nothing on screen to say so. They carry an id, so identity is
+ *  straightforward; order is by when they were recorded, so the list reads the
+ *  way it was thought of. */
+function unionEvents(mine: PossibleEvent[] = [], theirs: PossibleEvent[] = []): PossibleEvent[] {
+  const seen = new Set(mine.map((e) => e.id));
+  return [...mine, ...theirs.filter((e) => !seen.has(e.id))].sort(
+    (a, b) => a.createdAt - b.createdAt
+  );
+}
+
 /** Why a bundle cannot be merged here, or null if it can. */
 export function refuse(
   bundle: Bundle | null,
@@ -259,10 +281,11 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
     }
     const attachments = unionAttachments(m.attachments ?? [], t.attachments ?? []);
     const progress = unionProgress(m.progress, t.progress);
+    const possibleEvents = unionEvents(m.possibleEvents, t.possibleEvents);
     report.attachmentsAdded += attachments.length - (m.attachments?.length ?? 0);
     report.progressAdded += progress.length - (m.progress?.length ?? 0);
     const newer = when(t) > when(m) ? t : m;
-    verifications[pf] = { ...newer, attachments, progress };
+    verifications[pf] = { ...newer, attachments, progress, possibleEvents };
     if (when(t) > when(m)) report.verifications.updated.push(pf);
     else report.verifications.kept.push(pf);
     if (when(m) > 0 && when(t) > 0 && when(m) !== when(t)) {

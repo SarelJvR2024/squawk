@@ -433,3 +433,233 @@ export function visitsSurvived(cells: TimelineCell[], currentVisit: string): num
   }
   return n;
 }
+
+/* ------------------------------------------- one item, everything that happened */
+
+/** One thing that happened to a carried item, at a moment in time.
+ *
+ *  The kinds are separate rather than one "note" kind because a reader
+ *  scanning a column of twenty entries is looking for a shape, not reading
+ *  prose: when did evidence arrive, when did somebody actually go and look,
+ *  when did an audit say it was closed. Colour is never the only carrier —
+ *  every entry states its kind in words. */
+export type StreamKind =
+  | "raised"
+  | "outcome"
+  | "evidence"
+  | "action"
+  | "next"
+  | "photo"
+  | "voice"
+  | "note"
+  | "event"
+  | "check";
+
+export interface StreamEntry {
+  /** Milliseconds. Entries the record dates only to a MONTH (the 2025 register
+   *  carries "2025-03-23", a verification that was never stamped carries
+   *  nothing) get the visit's own start, and `dated` says which it was — a
+   *  timeline that shows an invented time to the minute is lying about
+   *  precision it does not have. */
+  at: number;
+  dated: "exact" | "visit";
+  kind: StreamKind;
+  /** The visit this belongs to, so the stream can be read audit by audit. */
+  visit: string;
+  visitLabel: string;
+  /** What happened, in words, always. */
+  label: string;
+  /** The content, where there is any — the note, the caption, the evidence. */
+  detail: string;
+  by: string;
+}
+
+/** EVERYTHING RECORDED AGAINST ONE CARRIED ITEM, IN ONE ORDER.
+ *
+ *  Sarel, on the Follow-up screen: "we show the details of the finding and the
+ *  timeline of all the comments and updates — when it was logged, when evidence
+ *  was uploaded, when comments was added, when visual inspections was added,
+ *  when next audits reviewed it and confirmed the compliance or non compliance.
+ *  In some cases it might be opened then next audit closed and then opened
+ *  again the next audit, we want to see that history."
+ *
+ *  Every one of those facts was already in the record and none of them were
+ *  shown together. A verification per visit carries the outcome, the evidence,
+ *  the action, the progress log and the attachments; the item itself carries
+ *  when it was raised and at what band. The screen read the current visit's
+ *  copy and one flat history list, so an item that was closed in 2026 and found
+ *  open again in 2027 looked like an item somebody had simply not finished.
+ *
+ *  This assembles the lot, oldest first, in the ONE order that makes the
+ *  open→closed→open sequence readable. It reads; it never writes, and it never
+ *  invents an entry for a visit that recorded nothing — a blank is a visit at
+ *  which nobody wrote anything down, and saying so would be putting words in
+ *  their mouth. */
+export function streamFor(
+  byVisit: Record<string, VisitData>,
+  entityCode: string,
+  portalId: string,
+  visits: { id: string; label: string }[],
+  raised?: { at: number; dated: "exact" | "visit"; visit: string; rating: string | null }
+): StreamEntry[] {
+  const out: StreamEntry[] = [];
+  const labelOf = (id: string) => visits.find((v) => v.id === id)?.label ?? id;
+
+  if (raised) {
+    out.push({
+      at: raised.at,
+      dated: raised.dated,
+      kind: "raised",
+      visit: raised.visit,
+      visitLabel: labelOf(raised.visit),
+      label: raised.rating ? `Raised · ${raised.rating}` : "Raised",
+      detail: "",
+      by: "",
+    });
+  }
+
+  for (const v of visits) {
+    const rec = byVisit[scopeKey(entityCode, v.id)]?.verifications?.[portalId];
+    if (!rec) continue;
+    /* The visit's own start, for anything the record dates no more precisely
+       than "this audit". Visit ids are "YYYY-MM", which Date parses as UTC
+       midnight on the first — a stable, honest floor rather than a guess. */
+    const visitAt = Date.parse(`${v.id}-01T00:00:00Z`);
+    const at = (exact: number | null | undefined): [number, "exact" | "visit"] =>
+      exact ? [exact, "exact"] : [visitAt, "visit"];
+
+    if (rec.outcome) {
+      const [t, d] = at(rec.verifiedAt);
+      out.push({
+        at: t,
+        dated: d,
+        kind: "outcome",
+        visit: v.id,
+        visitLabel: v.label,
+        /* The words the screen's own buttons use, so the timeline and the
+           control that wrote it cannot come to say different things. */
+        label: `Audit found it ${OUTCOME_WORD[rec.outcome]}`,
+        detail: "",
+        by: rec.verifiedBy ?? "",
+      });
+    }
+    if (rec.evidence?.trim()) {
+      const [t, d] = at(rec.verifiedAt);
+      out.push({
+        at: t,
+        dated: d,
+        kind: "evidence",
+        visit: v.id,
+        visitLabel: v.label,
+        label: "Evidence of closure recorded",
+        detail: rec.evidence.trim(),
+        by: rec.verifiedBy ?? "",
+      });
+    }
+    if (rec.action?.trim()) {
+      const [t, d] = at(rec.verifiedAt);
+      out.push({
+        at: t,
+        dated: d,
+        kind: "action",
+        visit: v.id,
+        visitLabel: v.label,
+        label: "Remediation action",
+        detail: rec.action.trim(),
+        by: rec.verifiedBy ?? "",
+      });
+    }
+    if (rec.nextStep?.trim()) {
+      const [t, d] = at(rec.verifiedAt);
+      out.push({
+        at: t,
+        dated: d,
+        kind: "next",
+        visit: v.id,
+        visitLabel: v.label,
+        label: "Next step",
+        detail: rec.nextStep.trim(),
+        by: rec.verifiedBy ?? "",
+      });
+    }
+    for (const a of rec.attachments ?? []) {
+      const [t, d] = at(a.createdAt);
+      out.push({
+        at: t,
+        dated: d,
+        kind: a.kind === "voice" ? "voice" : "photo",
+        visit: v.id,
+        visitLabel: v.label,
+        label:
+          a.kind === "voice"
+            ? "Voice note attached"
+            : /* A photograph on a follow-up IS the visual inspection — somebody
+                 went and looked. Named for what it means rather than for the
+                 file type. */
+              "Photograph — went and looked",
+        detail:
+          a.kind === "voice"
+            ? a.transcript?.trim() || ""
+            : [a.caption?.trim(), a.location?.trim()].filter(Boolean).join(" · "),
+        by: a.createdBy ?? "",
+      });
+    }
+    for (const n of rec.progress ?? []) {
+      out.push({
+        at: n.at,
+        dated: "exact",
+        kind: "note",
+        visit: n.visit || v.id,
+        visitLabel: labelOf(n.visit || v.id),
+        label: "Update logged",
+        detail: n.note,
+        by: n.by,
+      });
+    }
+    for (const e of rec.possibleEvents ?? []) {
+      out.push({
+        at: e.createdAt,
+        dated: "exact",
+        kind: "event",
+        visit: v.id,
+        visitLabel: v.label,
+        label: e.likelihood
+          ? `Possible event · likelihood ${e.likelihood}`
+          : "Possible event · unrated",
+        detail: [e.event, e.note].filter(Boolean).join(" — "),
+        by: e.createdBy ?? "",
+      });
+    }
+  }
+
+  /* Oldest first. A stable secondary sort on kind keeps two entries stamped in
+     the same millisecond — which happens whenever a visit dated nothing and
+     several fall back to the visit's start — in the same order on every
+     render, so the list does not shuffle under the reader. */
+  return out.sort((a, b) => a.at - b.at || a.kind.localeCompare(b.kind));
+}
+
+/** The verification outcomes in the words the screen's own buttons use. */
+const OUTCOME_WORD: Record<VerificationOutcome, string> = {
+  Closed: "closed",
+  "Partially closed": "partially closed",
+  "Open - repeat": "still open — a repeat",
+  "Not verified": "not verified",
+};
+
+/** The same stream, for the entity in view. */
+export function useStream(
+  portalId: string,
+  raised?: { at: number; dated: "exact" | "visit"; visit: string; rating: string | null }
+): StreamEntry[] {
+  const byVisit = useStore((s) => s.byVisit);
+  const entityCode = useEntityCode();
+  const visits = useMemo(
+    () => PROGRAMME_VISITS.filter((v) => v.entity === entityCode),
+    [entityCode]
+  );
+  return useMemo(
+    () => streamFor(byVisit, entityCode, portalId, visits, raised),
+    [byVisit, entityCode, portalId, visits, raised]
+  );
+}

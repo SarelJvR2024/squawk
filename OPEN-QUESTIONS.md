@@ -164,3 +164,86 @@ Each of these is a judgement I made and would defend, not an oversight.
   as a shape, in the list) and the existing `ItemTimeline` (Raised → Remediated
   → Verified → Re-check, for the selected item). They are different things and
   they look similar. Worth a decision about which survives.
+
+---
+
+## 7. Photographs between two devices — what is fixed and what is not (2026-09-10)
+
+Sarel captured photographs on his phone, saw them on the phone under Review,
+and saw nothing on his laptop. Traced through the code; two separate things
+were happening, and only one of them was a bug.
+
+**Fixed.** Every photograph carries a small inline preview (`thumbDataUrl`)
+that lives *inside* the persisted JSON, so it rides the shared record to every
+device on the audit. The Review screen never read it: it looked for the local
+IndexedDB blob and then for the legacy `dataUrl`, and fell through to a
+placeholder that said "captured before this worked". The thumbnail had arrived
+and was sitting unread in the same record. Review now falls back to it, as the
+Capture screen always has, and the placeholder tells the two states apart.
+
+**Not fixed, and it needs a decision.** The full-resolution bytes have no route
+between devices at all:
+
+- `blobKey` is a pointer into the capturing device's own IndexedDB. It is
+  meaningless anywhere else, by design (`src/lib/media.ts`).
+- Photographs are uploaded to Vercel Blob with `access: "private"` — correct,
+  they are of a national key point — but there is no read route, no proxy and
+  no signed-URL step, and nothing in the app renders `cloudUrl` as an image
+  source. So even a device that knows the URL cannot load it.
+
+So after a sync the second device sees the thumbnail, the caption, the
+reference, the asset and the location — everything except a full-size image.
+That is enough to review and to write up, and not enough to zoom into a serial
+plate.
+
+**The question for Sarel:** does the record copy need to be readable from a
+second device before the King Shaka dry run? Doing it means a server route that
+reads the private blob and streams it to an authenticated caller — perhaps a
+day's work, and it puts site photographs of a national key point behind an app
+route rather than behind Vercel's private ACL alone. That is a security posture
+decision, not a technical one, so it is his.
+
+**Also worth checking on the deployment, not in the code:** whether uploads are
+happening at all. `GET /api/photos` answers it directly — it returns
+`available`, `via`, `candidates` and `ambiguous`. The route deliberately
+refuses to guess when two `*_READ_WRITE_TOKEN` variables exist and
+`BLOB_TOKEN_VAR` does not name one; this deployment has had two blob stores.
+Credentials are Sarel's alone — nobody should paste a token anywhere.
+
+---
+
+## 8. The Follow-up rework — what was decided, and what still needs Sarel (2026-09-10)
+
+Built to Sarel's instruction of 2026-09-10. Three things were decided here that
+he may want to overrule.
+
+**1. A possible hazardous event carries a likelihood and no severity.** He asked
+for "multiple possible hazardous events and the likelihood recorded for each",
+which is exactly what is built. The judgement call is the omission: a severity
+box next to the likelihood would have been the obvious symmetric thing to add,
+and it is deliberately absent. A rating of record is agreed by the group on the
+matrix and lives on the Hazard; a severity typed on a follow-up screen would be
+a second, un-agreed rating for the same event. If he wants a severity here, the
+honest way is for a possible event to *promote* into a real Hazard — one press,
+carrying the event and the likelihood, rated on the matrix like everything else.
+That is about half a day and it is not built.
+
+**2. The status word on a row.** An item with nothing recorded this visit now
+reads **OPEN**, not "Not verified". "Not verified" describes what the auditor
+has not done; "Open" describes what the finding is, and the finding is in this
+list precisely because it is outstanding. Both were defensible; this one is
+right for a close-out meeting, where the question is about the asset and not
+about the audit team.
+
+**3. The per-audit cell strip came off the row and the legend went with it.**
+That was his explicit instruction. The sequence it drew — raised, still open,
+closed, found again, not audited — is still recorded and still counted by
+`visitsSurvived()`; it is now written out in words in the detail pane's history
+instead of drawn as six squares. `VisitStrip` is kept in the tree rather than
+deleted, because the data it draws is unchanged and there will be somewhere with
+room for it again.
+
+**Still not decided, and it blocks nothing yet:** whether a finding's possible
+events should roll up anywhere — a site-level list of "what could go wrong at
+KSIA, by likelihood" is the obvious next thing to want from them and nothing
+builds it today.

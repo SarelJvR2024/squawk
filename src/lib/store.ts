@@ -25,6 +25,7 @@ import type {
   Likelihood,
   PriorFinding,
   PriorRating,
+  PossibleEvent,
   ProgressNote,
   Response,
   Role,
@@ -327,6 +328,18 @@ interface State {
   /** Appends a dated, attributed entry to a carried item's progress log. */
   addProgress: (pf: string, note: string) => void;
   patchVerification: (pf: string, p: Partial<Verification>) => void;
+  /** The hazardous events one carried finding could lead to, each with its own
+   *  likelihood. Recorded per visit, so the timeline says which audit thought
+   *  of which. See PossibleEvent. Returns the new id, or "" if the event was
+   *  blank. */
+  addPossibleEvent: (
+    pf: string,
+    event: string,
+    likelihood?: Likelihood | null,
+    note?: string
+  ) => string;
+  patchPossibleEvent: (pf: string, id: string, p: Partial<PossibleEvent>) => void;
+  removePossibleEvent: (pf: string, id: string) => void;
 
   addAttachment: (checkId: string, a: Omit<Attachment, "id" | "createdAt">) => void;
   /** Write a transcript, its provenance or a revision back onto a note that is
@@ -717,6 +730,64 @@ export const useStore = create<State>()(
           const next: Verification = {
             ...cur,
             progress: [...(cur.progress ?? []), entry],
+            verifiedBy: get().auditor,
+            updatedAt: Date.now(),
+          };
+          writeScope((d) => ({ verifications: { ...d.verifications, [pf]: next } }));
+          set({ lastSavedAt: Date.now() });
+        },
+
+        /* THE HAZARDOUS EVENTS ONE FINDING COULD LEAD TO — see PossibleEvent.
+           Recorded against the VERIFICATION, so they belong to the visit that
+           thought of them: an event nobody had considered in 2025 and that the
+           2026 walk turned up is 2026's contribution, and flattening them onto
+           the carried finding would lose which audit saw it. The next visit
+           reads every earlier visit's list through the timeline. */
+        addPossibleEvent: (pf, event, likelihood, note) => {
+          const text = event.trim();
+          if (!text) return "";
+          const cur = get().verification(pf);
+          const item: PossibleEvent = {
+            id: `EV-${uid().toUpperCase().slice(0, 5)}`,
+            event: text,
+            /* UNRATED IS A REAL STATE and the default. The likelihood is the
+               group's, agreed on the matrix; a walk-up guess filed as one is
+               the drift ratingConfirmed exists to stop. */
+            likelihood: likelihood ?? null,
+            note: note?.trim() ?? "",
+            createdAt: Date.now(),
+            createdBy: get().auditor,
+          };
+          const next: Verification = {
+            ...cur,
+            possibleEvents: [...(cur.possibleEvents ?? []), item],
+            verifiedBy: get().auditor,
+            updatedAt: Date.now(),
+          };
+          writeScope((d) => ({ verifications: { ...d.verifications, [pf]: next } }));
+          set({ lastSavedAt: Date.now() });
+          return item.id;
+        },
+
+        patchPossibleEvent: (pf, id, p) => {
+          const cur = get().verification(pf);
+          const next: Verification = {
+            ...cur,
+            possibleEvents: (cur.possibleEvents ?? []).map((e) =>
+              e.id === id ? { ...e, ...p } : e
+            ),
+            verifiedBy: get().auditor,
+            updatedAt: Date.now(),
+          };
+          writeScope((d) => ({ verifications: { ...d.verifications, [pf]: next } }));
+          set({ lastSavedAt: Date.now() });
+        },
+
+        removePossibleEvent: (pf, id) => {
+          const cur = get().verification(pf);
+          const next: Verification = {
+            ...cur,
+            possibleEvents: (cur.possibleEvents ?? []).filter((e) => e.id !== id),
             verifiedBy: get().auditor,
             updatedAt: Date.now(),
           };

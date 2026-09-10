@@ -215,6 +215,21 @@ export interface Attachment {
   width?: number;
   height?: number;
   bytes?: number;
+  /** WHERE THIS PHOTOGRAPH WAS TAKEN, in the auditor's own words.
+   *
+   *  Not the register's `area` column and not a coordinate. "Stand 12", "north
+   *  switch room", "Pier B roof" — the words somebody would use on the radio to
+   *  send a maintenance team to the same spot. A photograph without one is an
+   *  image of a defect nobody can find again, which is a photograph that proves
+   *  nothing.
+   *
+   *  Inherited from the inspection it is attached to at the moment of capture,
+   *  because on a walk the camera is always where the auditor is; editable per
+   *  photograph, because one inspection can carry evidence from two places.
+   *
+   *  Optional and absent-means-empty — see Response.location for why that does
+   *  not need a persist version bump. */
+  location?: string;
   /** EXIF DateTimeOriginal, where the file carried one. When a photograph was
    *  taken is audit evidence; the canvas re-encode strips EXIF, so this is read
    *  off the original before it is downscaled. */
@@ -300,6 +315,26 @@ export interface Response {
   /** The field half — the asset seen, from Field inspection. */
   fieldDoneBy: string;
   fieldDoneAt: number | null;
+  /** WHERE THE ASSET WAS INSPECTED, in the auditor's own words.
+   *
+   *  The register's `area` column is a CATEGORY — 133 of them at KSIA and a
+   *  third are not places at all ("Appointments", "Documentation", "Lessons
+   *  learnt"). It cannot say where the auditor was standing, and a finding that
+   *  cannot be walked back to is a finding nobody can close.
+   *
+   *  Free text with the site's areas offered as suggestions, never a closed
+   *  list: real zone names have not been supplied by ACSA yet, and forcing a
+   *  wrong category is worse than a blank.
+   *
+   *  Optional because every record captured before this field existed has no
+   *  location, and absent is the honest reading of that — not-captured, never
+   *  "nowhere". Same shape as `feedback?` and `adhoc?`: an absent optional that
+   *  reads as empty needs no persist version bump, because there is nothing for
+   *  a migration to convert.
+   *
+   *  Written on commit from the screen's running location, so the auditor types
+   *  where they are once per place rather than once per check. */
+  location?: string;
   flaggedForField: boolean;
   /** When this record last changed, on whichever device changed it.
    *
@@ -557,6 +592,43 @@ export interface ProgressNote {
   note: string;
 }
 
+/** A HAZARDOUS EVENT THIS FINDING COULD LEAD TO, AND HOW LIKELY IT IS.
+ *
+ *  Plural, and that is the point. "TRF 02 oil below the minimum threshold" is
+ *  one finding with at least three futures: a transformer trip that takes a
+ *  stand off supply, a winding failure that costs a replacement and a
+ *  lead-time, and an oil fire. They are not variations of one event — they have
+ *  different likelihoods and different consequences, and an audit that records
+ *  only the worst one over-rates the common case while an audit that records
+ *  only the likely one under-rates the severe. Recording them separately is
+ *  what makes a finding's risk arguable rather than asserted.
+ *
+ *  The LIKELIHOOD here is ACSA B170 001M's 1–5, the same scale the finding's
+ *  own rating uses — not the ERM instrument's. They are separate instruments
+ *  and must never be derived from one another; see the header of src/lib/erm.ts.
+ *
+ *  Severity is deliberately NOT on this record. A hazard's severity is agreed
+ *  by the group on the matrix and lives on the Hazard, which is where a rating
+ *  of record belongs; this is the walk-up list that feeds that conversation.
+ *  Adding a severity here would create a second, un-agreed rating for the same
+ *  event, which is exactly the drift ratingConfirmed exists to stop.
+ *
+ *  Optional on its holder and absent-means-empty, so no persist version has to
+ *  move: an item recorded before this existed has no possible events, and that
+ *  is the honest reading of an absent field. */
+export interface PossibleEvent {
+  id: string;
+  /** The event, not the paperwork. "Uncontained oil fire at AS1", not
+   *  "maintenance report inadequate" — the finding already says that. */
+  event: string;
+  likelihood: Likelihood | null;
+  /** Why it is that likely, in the auditor's own words. Optional, and worth
+   *  more than the number on its own when the group argues the rating. */
+  note: string;
+  createdAt: number;
+  createdBy: string;
+}
+
 export interface Verification {
   pf: string;
   outcome: VerificationOutcome | null;
@@ -573,6 +645,20 @@ export interface Verification {
   /** Progress at this visit. The timeline across visits is assembled by
    *  historyFor() in carryforward.ts, which reads every visit's copy. */
   progress?: ProgressNote[];
+  /** WHAT HAPPENS NEXT, as distinct from `action`.
+   *
+   *  `action` is the remediation — what has to be done to fix the thing. This
+   *  is the next step in getting it done: who is being chased, what the site
+   *  committed to at the close-out meeting, which report is being waited for.
+   *  ACSA's own sheet folds the two into one cell and it is regularly filled
+   *  with the chase rather than the fix, which is how a finding arrives at the
+   *  next audit with no recorded remedy at all. Two fields, two questions.
+   *
+   *  Optional and absent-means-empty — no persist version has to move. */
+  nextStep?: string;
+  /** The hazardous events this finding could lead to, each with its own
+   *  likelihood. See PossibleEvent. Absent-means-empty. */
+  possibleEvents?: PossibleEvent[];
   /** When this record last changed. See the note on Response.updatedAt — it is
    *  what lets two devices' work be combined without guessing. */
   updatedAt?: number;

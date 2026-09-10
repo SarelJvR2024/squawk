@@ -340,10 +340,32 @@ check(
   /not covered this visit/.test(closure),
   "closure cannot be evidenced against a check nobody is doing, and the person deciding needs to know before they decide"
 );
+/* RETIRED 2026-09-10, and replaced rather than deleted.
+   The legend explained the per-audit cell strip on each row. Sarel took the
+   strip off the row — "don't have an icon per audit, just need to see the
+   current status of the finding, and the year/month when it was logged" — so
+   the legend was teaching a shape that is no longer drawn, which is worse than
+   no legend at all. What it was protecting is that nothing on this screen is
+   readable only as a shape or a colour; that property moved to the row's own
+   status word and the date beside it, so the assertion moves with it. */
 check(
-  "the legend is on the screen",
-  /visits, oldest first:/.test(closure),
-  "a shape nobody can read is decoration"
+  "the row states its status in words, not as a shape",
+  /const status = o \?\? "Open";/.test(closure) &&
+    /<Pill tone=\{tone\}>\{status\.toUpperCase\(\)\}<\/Pill>/.test(closure),
+  "an item in this list is outstanding, so with nothing recorded it is Open — not 'not verified', which describes the auditor"
+);
+check(
+  "and when it was logged, on the row",
+  /\{p\.originLabel\}/.test(closure),
+  "a row read out of the context of its audit marker still has to say which audit raised it"
+);
+check(
+  "an open asset system reads as a timeline, oldest audit first",
+  /byAudit: \(\(\) => \{/.test(closure) &&
+    /return \[\.\.\.rounds\.values\(\)\]\.sort\(\(a, b\) => a\.visit\.localeCompare\(b\.visit\)\);/.test(
+      closure
+    ),
+  "a Mar 2025 finding and a Sep 2026 one in the same system are different ages of problem and rendered identically before"
 );
 
 /* ------------------------------------------------------------------ result */

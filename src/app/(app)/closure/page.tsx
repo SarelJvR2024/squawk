@@ -16,18 +16,19 @@ import {
   carriesWork,
   currentRatingOf,
   timelineFor,
-  useHistory,
   useOutstanding,
+  useStream,
   visitsOpen,
   visitsSurvived,
 } from "@/lib/carryforward";
-import ItemTimeline from "@/components/ItemTimeline";
-import VisitStrip from "@/components/VisitStrip";
+import type { Outstanding } from "@/lib/carryforward";
+import ItemStream from "@/components/ItemStream";
+import PossibleEvents from "@/components/PossibleEvents";
 import GroupRow from "@/components/ui/GroupRow";
 import { PROGRAMME_VISITS } from "@/lib/programme";
 import { movement } from "@/lib/risk";
 import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
-import { IconCheck, IconClock, IconDash, IconLoop, IconX } from "@/components/ui/icons";
+import { IconCheck, IconClock, IconDash, IconX } from "@/components/ui/icons";
 import type { VerificationOutcome } from "@/lib/types";
 
 const OUTCOMES: { key: VerificationOutcome; label: string; Icon: typeof IconCheck; tone: string }[] = [
@@ -49,6 +50,9 @@ export default function ClosurePage() {
   const verifications = useVerifications();
   const patchVerification = useStore((s) => s.patchVerification);
   const addProgress = useStore((s) => s.addProgress);
+  const addPossibleEvent = useStore((s) => s.addPossibleEvent);
+  const patchPossibleEvent = useStore((s) => s.patchPossibleEvent);
+  const removePossibleEvent = useStore((s) => s.removePossibleEvent);
   const [progressText, setProgressText] = useState("");
   const updateFinding = useStore((s) => s.updateFinding);
   const entity = useEntity();
@@ -163,22 +167,72 @@ export default function ClosurePage() {
       .map(([sys, items]) => ({
         sys,
         items,
+        /* THE SAME ITEMS, ROUND BY ROUND. An open asset system reads as a
+           timeline — the audit that raised each finding, oldest first — so the
+           grouping is computed once here rather than per render in the tree.
+           Visit ids are "YYYY-MM" and sort lexicographically, which is why
+           there is no date parsing anywhere in this file. */
+        byAudit: (() => {
+          const rounds = new Map<string, { visit: string; label: string; items: Outstanding[] }>();
+          for (const p of items) {
+            const r = rounds.get(p.originVisit);
+            if (r) r.items.push(p);
+            else
+              rounds.set(p.originVisit, {
+                visit: p.originVisit,
+                label: p.originLabel,
+                items: [p],
+              });
+          }
+          return [...rounds.values()].sort((a, b) => a.visit.localeCompare(b.visit));
+        })(),
         done: totals.get(sys)?.done ?? items.filter((p) => verifications[p.key]?.outcome).length,
         total: totals.get(sys)?.total ?? items.length,
       }))
       .sort((a, b) => a.sys.localeCompare(b.sys));
   }, [list, verifications, outstanding, discipline]);
 
-  /* Everything opens by default. This is a worklist to burn down, not a tree
-     to explore: an auditor arriving at a closed list has to press every group
-     before seeing any work, which is the opposite of what the screen is for.
-     Collapsing is for putting a finished system away. */
-  const [collapsed, setCollapsed] = useState<string[]>([]);
+  /* SHUT BY DEFAULT — and this reverses what it was.
+     2026-09-09: everything opened by default, on the reasoning that this is a
+     worklist to burn down rather than a tree to explore, and an auditor
+     arriving at a closed list has to press every group before seeing any work.
+     2026-09-10, Sarel, looking at it on his laptop: "the whole asset
+     system/checklist hierarchy should be minimised by default, it is currently
+     all expanded." Both halves are recorded rather than the first overwritten,
+     because the earlier reasoning is still true of a short list — it is the
+     LONG one it gets wrong. O.R. Tambo carries 33 open items across a dozen
+     asset systems; opening all of them makes the screen a scroll with no shape
+     to it, and the shape is what tells an auditor which asset to take next.
+
+     `null` means "not yet decided by anybody" and reads as all-shut; once the
+     auditor opens or closes anything it becomes their own set, and a group they
+     opened stays open while they work it. */
+  const [openSystems, setOpenSystems] = useState<string[] | null>(null);
 
   const active = list.find((p) => p.key === activePf) ?? list[0];
   const v = active ? verifications[active.key] : undefined;
-  /* Read across every visit, not just this one — see historyFor(). */
-  const history = useHistory(active?.key ?? "");
+  /* EVERYTHING RECORDED AGAINST THE ACTIVE ITEM, across every visit — see
+     streamFor(). Memoised on the fields it actually reads rather than on
+     `active`, which is a fresh object on every render and would rebuild the
+     stream on every keystroke in the evidence box. */
+  const originVisit = active?.originVisit;
+  const originRating = active?.rating ?? null;
+  const raised = useMemo(
+    () =>
+      originVisit
+        ? {
+            /* Visit ids are "YYYY-MM"; Date parses that as UTC midnight on the
+               first, which is an honest floor for a record whose own date is
+               the audit and nothing finer. `dated: "visit"` says so. */
+            at: Date.parse(`${originVisit}-01T00:00:00Z`),
+            dated: "visit" as const,
+            visit: originVisit,
+            rating: originRating,
+          }
+        : undefined,
+    [originVisit, originRating]
+  );
+  const stream = useStream(active?.key ?? "", raised);
 
   const carries = useMemo(() => outstanding.filter(carriesWork), [outstanding]);
   const context = useMemo(() => outstanding.filter((p) => !carriesWork(p)), [outstanding]);
@@ -207,49 +261,55 @@ export default function ClosurePage() {
   return (
     <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
       <div className="mx-auto w-full max-w-[1240px] px-5 pt-5 pb-16">
-        <div className="mb-4">
-          <h2 className="text-[18px] font-bold">
-            Follow-up at {entity.short} · every earlier audit, by asset system
+        {/* THE TOP OF THIS SCREEN WAS HALF THE SCREEN.
+            Heading, a four-line paragraph, five cards about 100px tall, a
+            standing explanation of the 3-year cycle, two rows of chips and a
+            legend — measured on Sarel's laptop, roughly 560px before the first
+            item of work. His words: "the top section is too big where it has
+            the heading and description of what the page is about, we lose a lot
+            of screen space."
+
+            What it is now: the heading with the count in it, the five figures
+            as ONE line, and the cycle explanation behind a summary that opens.
+            Nothing is deleted — every number and every sentence is still
+            reachable — but the default state of the screen is the worklist. */}
+        <div className="mb-2.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+          <h2 className="text-[17px] font-bold">
+            Follow-up at {entity.short}
           </h2>
-          <p className="mt-1 hidden max-w-[78ch] text-[12.5px] sm:block" style={{ color: "var(--ink-2)" }}>
+          <p className="text-[12px]" style={{ color: "var(--ink-2)" }}>
             {outstanding.length === 0 ? (
-              <>Nothing is outstanding at {entity.name} coming into {visitLabel}.</>
+              <>Nothing outstanding coming into {visitLabel}.</>
             ) : (
               <>
                 {outstanding.length} item{outstanding.length === 1 ? "" : "s"} left open by earlier
-                visits — {outstanding.length - counts.carried} from the 2025 audit,{" "}
-                {counts.carried} raised in this system and never closed.{" "}
-                {outstanding.length - counts.unverified} of {outstanding.length} verified on{" "}
-                {visitLabel}. Grouped by asset system, with each item&rsquo;s life across every visit
-                beside it — so what can be closed, and on what evidence, is a question about one
-                asset rather than about a list of numbers.
+                visits. Open an asset system for its findings in audit order; open one for
+                everything ever recorded against it.
               </>
             )}
           </p>
         </div>
 
-        {/* THE FIVE FIGURES, TWICE, AND THAT IS DELIBERATE.
-            As cards they are the first thing on a laptop and they earn it —
-            the close-out meeting opens on them. At 375px the same five cards
-            filled the entire first screen and pushed every item of actual work
-            below the fold, on a screen whose job is working through items. So
-            the phone gets the same five numbers as one line it can read at a
-            glance and scroll past in one gesture. */}
+        {/* ONE LINE, AT EVERY WIDTH. It was this line below sm and five cards
+            above it — the same five numbers rendered twice, and the card
+            version cost about 110px of a laptop screen to say what fits on
+            one. The colour is still on each number, so the close-out meeting
+            reads it the same way; it just does not own the first screen. */}
         <div
-          className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[11px] border px-3 py-2 font-mono text-[10.5px] sm:hidden"
+          className="mb-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[11px] border px-3 py-2 text-[11px]"
           style={{ background: "var(--panel)", borderColor: "var(--line)" }}
         >
           {(
             [
-              [counts.closed, "closed", "good"],
-              [counts.partial, "partial", "warn"],
-              [counts.repeat, "repeat", "bad"],
-              [counts.unverified, "not verified", "neu"],
-              [counts.carried, "carried", "acc"],
+              [counts.closed, "verified closed", "good"],
+              [counts.partial, "partially closed", "warn"],
+              [counts.repeat, "still open — repeat", "bad"],
+              [counts.unverified, "not yet verified", "neu"],
+              [counts.carried, "carried from a visit", "acc"],
             ] as [number, string, string][]
           ).map(([n, label, tone]) => (
-            <span key={label} className="flex items-baseline gap-1">
-              <b className="tnum text-[13px]" style={{ color: `var(--${tone})` }}>
+            <span key={label} className="flex items-baseline gap-1.5">
+              <b className="tnum font-mono text-[15px] leading-none" style={{ color: `var(--${tone})` }}>
                 {n}
               </b>
               <span style={{ color: "var(--ink-3)" }}>{label}</span>
@@ -257,41 +317,25 @@ export default function ClosurePage() {
           ))}
         </div>
 
-        <div className="mb-3.5 hidden grid-cols-2 gap-[9px] sm:grid md:grid-cols-5">
-          {[
-            ["Verified closed", counts.closed, "good"],
-            ["Partially closed", counts.partial, "warn"],
-            ["Still open — repeat", counts.repeat, "bad"],
-            ["Not yet verified", counts.unverified, "neu"],
-            ["Carried from a visit", counts.carried, "acc"],
-          ].map(([label, value, tone]) => (
-            <div
-              key={label as string}
-              className="relative overflow-hidden rounded-[15px] border px-[15px] py-[13px]"
-              style={{ background: "var(--panel)", borderColor: "var(--line)" }}
-            >
-              <span className="absolute inset-x-0 top-0 h-[2.5px]" style={{ background: `var(--${tone})` }} />
-              <b className="block font-mono text-[23px] leading-[1.15] font-semibold tnum" style={{ color: `var(--${tone})` }}>
-                {value as number}
-              </b>
-              <span className="text-[10px]" style={{ color: "var(--ink-3)" }}>
-                {label as string}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <Panel tone="accent" className="mb-3.5 hidden sm:block">
-          <div className="flex items-start gap-2.5 text-[11.5px]" style={{ color: "var(--acc)" }}>
-            <IconLoop width={14} height={14} style={{ marginTop: 1 }} />
-            <span>
-              Findings carry on the <b>3-year cycle</b>. Anything still open when this visit ends
-              reappears{nextVisit ? ` at ${nextVisit.label}` : " on the next visit"} with its owner,
-              due date and evidence trail intact — and marking one <b>Closed</b> here closes the
-              finding itself, so it stops carrying.
-            </span>
+        {/* THE CYCLE, FOLDED. It is the single most important thing to
+            understand about this screen and it is read once, not every time —
+            a standing banner that says the same four sentences on every visit
+            is furniture by the second day. The summary line still names the
+            cycle, so nobody has to know to open it to learn that one exists. */}
+        <details className="mb-2.5">
+          <summary
+            className="cursor-pointer list-none rounded-[9px] border px-3 py-[7px] text-[11px]"
+            style={{ background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }}
+          >
+            Findings carry on the <b>3-year cycle</b> — what that means for closing one
+          </summary>
+          <div className="mt-1.5 px-3 text-[11.5px] leading-[1.5]" style={{ color: "var(--ink-2)" }}>
+            Anything still open when this visit ends reappears
+            {nextVisit ? ` at ${nextVisit.label}` : " on the next visit"} with its owner, due date
+            and evidence trail intact — and marking one <b>Closed</b> here closes the finding
+            itself, so it stops carrying.
           </div>
-        </Panel>
+        </details>
 
         {disciplines.length > 1 && (
           <div className="mb-2 flex flex-wrap items-center gap-[6px]">
@@ -344,32 +388,17 @@ export default function ClosurePage() {
           ))}
         </div>
 
-        {/* THE LEGEND, because a shape nobody can read is decoration. Stated
-            once, above the list, rather than as a tooltip on every cell. */}
-        <div
-          className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-[11px] border px-3 py-2 font-mono text-[9.5px]"
-          style={{ background: "var(--panel)", borderColor: "var(--line)", color: "var(--ink-3)" }}
-        >
-          <span style={{ color: "var(--ink-4)" }}>{entityVisits.length} visits, oldest first:</span>
-          {(
-            [
-              ["raised", "raised"],
-              ["carried", "still open"],
-              ["partial", "partially closed"],
-              ["closed", "closed"],
-              ["repeat", "found again"],
-              ["notAudited", "NOT AUDITED"],
-            ] as const
-          ).map(([state, word]) => (
-            <span key={state} className="flex items-center gap-1.5">
-              <VisitStrip
-                cells={[{ visit: state, label: word, state, by: "", at: null, evidence: "" }]}
-                size={11}
-              />
-              {word}
-            </span>
-          ))}
-        </div>
+        {/* THE LEGEND WENT WITH THE STRIP IT EXPLAINED.
+            It was six little cells and their words, above the list, teaching a
+            shape that is no longer drawn — Sarel: "don't have an icon per
+            audit, just need to see the current status of the finding, and the
+            year/month when it was logged". A legend for a control that does not
+            exist is the worst kind of furniture: it costs a row of the screen
+            AND teaches something untrue. The status is a word on the row now,
+            the date is beside it, and the sequence across audits is written out
+            in the detail pane's history. VisitStrip itself is kept — the
+            timeline it draws is still what visitsSurvived() counts, and it will
+            be wanted again when there is somewhere with room for it. */}
 
         <div className="grid gap-3 lg:grid-cols-[380px_minmax(0,1fr)]">
           <div className="overflow-hidden rounded-[15px] border" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
@@ -377,7 +406,13 @@ export default function ClosurePage() {
               <Empty>Nothing matches this filter.</Empty>
             ) : (
               grouped.map((g) => {
-                const open = !collapsed.includes(g.sys);
+                /* The system holding the item on the right stays open however
+                   the list is folded — a detail pane showing a finding whose
+                   row is inside a shut group is a screen that has lost track of
+                   what it is showing. */
+                const open = openSystems === null
+                  ? active?.system === g.sys
+                  : openSystems.includes(g.sys);
                 return (
                   <div key={g.sys} data-system={g.sys}>
                     <GroupRow
@@ -387,69 +422,174 @@ export default function ClosurePage() {
                       open={open}
                       holds={active?.system === g.sys}
                       onToggle={() =>
-                        setCollapsed((c) =>
-                          c.includes(g.sys) ? c.filter((x) => x !== g.sys) : [...c, g.sys]
-                        )
+                        setOpenSystems((cur) => {
+                          /* The first press takes over from the default, and
+                             takes the default's own state with it — otherwise
+                             opening a second system would silently shut the one
+                             the detail pane is showing. */
+                          const base =
+                            cur ?? (active?.system ? [active.system] : []);
+                          return base.includes(g.sys)
+                            ? base.filter((x) => x !== g.sys)
+                            : [...base, g.sys];
+                        })
                       }
                       title={`${g.sys} — ${g.done} of ${g.total} decided this visit`}
                     />
-                    {open &&
-                      g.items.map((p) => {
-                        const o = verifications[p.key]?.outcome;
-                        const on = p.key === active?.key;
-                        const cells = timelines.get(p.key) ?? [];
-                        const survived = visitsSurvived(cells, visitId);
-                        const covered = checksOf(entityCode, p.discipline, p.system).length > 0;
-                        return (
-                          <button
-                            key={p.key}
-                            data-item={p.key}
-                            onClick={() => setActivePf(p.key)}
-                            className="relative flex w-full items-start gap-2 border-b px-[11px] py-[9px] text-left transition-[var(--t)]"
-                            style={{ borderColor: "var(--line)", background: on ? "var(--acc-soft)" : "transparent" }}
-                          >
-                            {on && <span className="absolute inset-y-0 left-0 w-[2.5px]" style={{ background: "var(--acc)" }} />}
-                            <Dot
-                              tone={
-                                o === "Closed" ? "good" : o === "Open - repeat" ? "bad" : o ? "warn" : "pending"
-                              }
-                              label={o ?? "Not verified yet"}
-                            />
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                                {p.key} · {p.originLabel}
+                    {open && (
+                      /* THE TIMELINE, IN THE LEFT PANEL.
+                         Sarel: "I like this idea of the timeline view, let's
+                         bring that into the left panel — when you expand an
+                         asset system it brings up this timeline view of all
+                         findings in order of the audit timeline, and the
+                         current status of each finding."
+
+                         So an open asset system is not a flat list any more.
+                         Its findings are grouped under the audit that RAISED
+                         them, oldest audit first, on a rail — which is the one
+                         ordering that answers the question this screen exists
+                         for: what has this asset system been carrying, and for
+                         how long. A March 2025 finding and a September 2026 one
+                         in the same system are different ages of problem and
+                         the list used to render them identically.
+
+                         THE PER-AUDIT CELL STRIP IS GONE from the row, at his
+                         instruction — "don't have an icon per audit, just need
+                         to see the current status of the finding, and the
+                         year/month when it was logged". The strip's whole job
+                         was to show the shape across visits; the rail's audit
+                         markers now carry the "when", the status pill carries
+                         the "what", and the full open→closed→open sequence
+                         lives in the detail pane's stream, which is where there
+                         is room to write it in words. */
+                      <div className="pb-1">
+                        {g.byAudit.map((round) => (
+                          <div key={round.visit}>
+                            {/* THE AUDIT MARKER. Small, mono, and it is a
+                                date rather than a heading — the findings under
+                                it are the work; this says when they started. */}
+                            <div
+                              className="flex items-center gap-2 px-[11px] pt-[7px] pb-[3px]"
+                              style={{ color: "var(--ink-4)" }}
+                            >
+                              <span
+                                aria-hidden
+                                className="h-[7px] w-[7px] shrink-0 rounded-full"
+                                style={{ background: "var(--line-3)" }}
+                              />
+                              <span className="font-mono text-[9px] tracking-[0.08em] uppercase">
+                                raised {round.label}
                               </span>
-                              <span className="mt-[1px] block truncate text-[11.5px]">{p.finding}</span>
-                              {/* EVERY AUDIT, AS A SHAPE. The pattern is the
-                                  point: closed then open again is a repeat and
-                                  the eye catches it before the row is read, and
-                                  a visit nobody audited is hatched rather than
-                                  blank. */}
-                              <span className="mt-[5px] flex flex-wrap items-center gap-2">
-                                <VisitStrip cells={cells} />
-                                {survived > 0 && (
-                                  <span className="font-mono text-[9px]" style={{ color: "var(--warn)" }}>
-                                    survived {survived} visit{survived === 1 ? "" : "s"}
-                                  </span>
-                                )}
-                                {/* THE COVERAGE GUARD, on the row rather than
-                                    only in the detail pane. Closure cannot be
-                                    evidenced against a check nobody is doing,
-                                    and the person deciding needs to know that
-                                    before they decide, not after. */}
-                                {!covered && (
-                                  <span className="font-mono text-[9px]" style={{ color: "var(--bad)" }}>
-                                    not covered this visit
-                                  </span>
-                                )}
+                              <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+                              <span className="font-mono text-[9px]">
+                                {round.items.length}
                               </span>
-                            </span>
-                            <span className="mt-[2px]">
-                              <Pill tone={ratingTone(p.rating)}>{p.rating.slice(0, 4).toUpperCase()}</Pill>
-                            </span>
-                          </button>
-                        );
-                      })}
+                            </div>
+                            {round.items.map((p) => {
+                              const o = verifications[p.key]?.outcome;
+                              const on = p.key === active?.key;
+                              const cells = timelines.get(p.key) ?? [];
+                              const survived = visitsSurvived(cells, visitId);
+                              const covered =
+                                checksOf(entityCode, p.discipline, p.system).length > 0;
+                              /* THE CURRENT STATUS, IN WORDS.
+                                 An item is in this list because it is
+                                 outstanding, so with nothing recorded this
+                                 visit it is OPEN — not "not verified", which
+                                 describes what the auditor has not done rather
+                                 than what the finding is. Once this visit
+                                 records an outcome, that outcome is the
+                                 status. */
+                              const status = o ?? "Open";
+                              const tone =
+                                o === "Closed"
+                                  ? "good"
+                                  : o === "Open - repeat"
+                                    ? "bad"
+                                    : o === "Partially closed"
+                                      ? "warn"
+                                      : "neutral";
+                              return (
+                                <button
+                                  key={p.key}
+                                  data-item={p.key}
+                                  onClick={() => setActivePf(p.key)}
+                                  className="relative flex w-full items-start gap-2 border-b py-[9px] pr-[11px] pl-[22px] text-left transition-[var(--t)]"
+                                  style={{
+                                    borderColor: "var(--line)",
+                                    background: on ? "var(--acc-soft)" : "transparent",
+                                  }}
+                                >
+                                  {/* The rail. Decorative — the audit marker
+                                      above says the date in words and the row
+                                      says the id and the status, so this is a
+                                      second reading of something written. */}
+                                  <span
+                                    aria-hidden
+                                    className="absolute inset-y-0 left-[14px] w-px"
+                                    style={{ background: "var(--line)" }}
+                                  />
+                                  {on && (
+                                    <span
+                                      className="absolute inset-y-0 left-0 w-[2.5px]"
+                                      style={{ background: "var(--acc)" }}
+                                    />
+                                  )}
+                                  <span className="min-w-0 flex-1">
+                                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                      <span
+                                        className="font-mono text-[9px]"
+                                        style={{ color: "var(--ink-4)" }}
+                                      >
+                                        {p.key}
+                                      </span>
+                                      {/* WHEN IT WAS LOGGED, on the row, in
+                                          full. It is the second half of what
+                                          Sarel asked the strip to be replaced
+                                          by, and it survives the row being read
+                                          out of the context of its marker. */}
+                                      <span
+                                        className="font-mono text-[9px]"
+                                        style={{ color: "var(--ink-4)" }}
+                                      >
+                                        {p.originLabel}
+                                      </span>
+                                      <span className="ml-auto shrink-0">
+                                        <Pill tone={tone}>{status.toUpperCase()}</Pill>
+                                      </span>
+                                    </span>
+                                    <span className="mt-[3px] block truncate text-[11.5px]">
+                                      {p.finding}
+                                    </span>
+                                    <span className="mt-[3px] flex flex-wrap items-center gap-2 font-mono text-[9px]">
+                                      <span style={{ color: "var(--ink-4)" }}>
+                                        {p.rating}
+                                      </span>
+                                      {survived > 0 && (
+                                        <span style={{ color: "var(--warn)" }}>
+                                          survived {survived} visit{survived === 1 ? "" : "s"}
+                                        </span>
+                                      )}
+                                      {/* THE COVERAGE GUARD, on the row rather
+                                          than only in the detail pane. Closure
+                                          cannot be evidenced against a check
+                                          nobody is doing, and the person
+                                          deciding needs to know that before they
+                                          decide, not after. */}
+                                      {!covered && (
+                                        <span style={{ color: "var(--bad)" }}>
+                                          not covered this visit
+                                        </span>
+                                      )}
+                                    </span>
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -590,28 +730,59 @@ export default function ClosurePage() {
                 style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
               />
 
-              {/* What must still happen. Shown for anything that is not
-                  Closed, and recorded against the CARRIED item rather than
-                  raised as a new finding — a new finding breaks the chain back
-                  to the audit that found it, and the same problem then reads
-                  as two. */}
-              {v?.outcome && v.outcome !== "Closed" && (
-                <>
-                  <div className="mt-4 mb-2 font-display text-[11px] font-semibold">
-                    Mitigation action — what must still happen
-                  </div>
-                  <textarea
-                    value={v?.action ?? ""}
-                    onChange={(e) => patchVerification(active.key, { action: e.target.value })}
-                    placeholder="What is outstanding, and who has it…"
-                    className="min-h-[60px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
-                    style={{
-                      background: "var(--panel)",
-                      borderColor: v?.action ? "var(--line-2)" : "var(--warn-line)",
-                    }}
-                  />
-                </>
-              )}
+              {/* TWO FIELDS, TWO QUESTIONS, and they used to be one that only
+                  appeared when the outcome was not Closed.
+
+                  Sarel: "need to capture remediation actions and next steps and
+                  updates logged to the current audit." They are genuinely
+                  different things and ACSA's own sheet folds them into one cell,
+                  which is how a finding regularly arrives at the next audit with
+                  the chase recorded and no remedy at all:
+
+                    REMEDIATION is what fixes the thing. A finding closed this
+                    visit still has one, and it is the single most useful
+                    sentence at the next audit — hence always shown, not only
+                    while something is outstanding.
+
+                    NEXT STEP is what happens next in getting it done: who is
+                    being chased, what the site committed to at close-out, which
+                    report is being waited for.
+
+                  Both are recorded against the CARRIED item rather than raised
+                  as a new finding — a new finding breaks the chain back to the
+                  audit that found it, and the same problem then reads as two. */}
+              <div className="mt-4 mb-2 font-display text-[11px] font-semibold">
+                Remediation action — what fixes it
+              </div>
+              <textarea
+                value={v?.action ?? ""}
+                onChange={(e) => patchVerification(active.key, { action: e.target.value })}
+                placeholder="What was done, or what has to be done, and who has it…"
+                aria-label="Remediation action"
+                className="min-h-[60px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                style={{
+                  background: "var(--panel)",
+                  /* The warn border only where a blank is actually a gap: an
+                     item this visit says is still open with no action recorded.
+                     A closed item with no action is untidy, not wrong. */
+                  borderColor:
+                    !v?.action && v?.outcome && v.outcome !== "Closed"
+                      ? "var(--warn-line)"
+                      : "var(--line-2)",
+                }}
+              />
+
+              <div className="mt-4 mb-2 font-display text-[11px] font-semibold">
+                Next step — what happens next
+              </div>
+              <textarea
+                value={v?.nextStep ?? ""}
+                onChange={(e) => patchVerification(active.key, { nextStep: e.target.value })}
+                placeholder="Who is being chased, what the site committed to, what is being waited for…"
+                aria-label="Next step"
+                className="min-h-[54px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+              />
 
               {/* The dated log. ACSA's Progress/Update is one cell that gets
                   typed over; this appends, keeping the author, the time and
@@ -645,12 +816,29 @@ export default function ClosurePage() {
                 </Btn>
               </div>
 
-              {/* Every audit that touched this, in order. */}
-              <ItemTimeline
-                history={history}
-                priorLabel={active.originLabel}
-                priorRating={active.rating}
+              {/* The hazardous events this finding could lead to, each with its
+                  own likelihood. See the component — plural is the point. */}
+              <PossibleEvents
+                events={v?.possibleEvents ?? []}
+                onAdd={(text) => {
+                  addPossibleEvent(active.key, text);
+                  say("Event recorded — rate its likelihood");
+                }}
+                onPatch={(id, patch) => patchPossibleEvent(active.key, id, patch)}
+                onRemove={(id) => {
+                  removePossibleEvent(active.key, id);
+                  say("Event removed");
+                }}
               />
+
+              {/* EVERYTHING THAT TOUCHED THIS, in one order — the outcome each
+                  audit recorded, the evidence, the photographs somebody went
+                  and took, the voice notes, the updates and the possible events.
+                  It replaces ItemTimeline, which was one row per audit off the
+                  verification alone and had nowhere to put a photograph. The
+                  open → closed → open sequence Sarel asked to see is the
+                  outcome entries read down the column, in words. */}
+              <ItemStream entries={stream} />
 
               <div className="mt-4 mb-2 flex items-center justify-between">
                 <b className="font-display text-[11px] font-semibold">
