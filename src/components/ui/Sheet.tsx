@@ -105,7 +105,10 @@ export default function Sheet({
 
         {footer && (
           <div
-            className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t px-5 py-3"
+            /* justify-between rather than justify-end: a secondary and a
+               primary side by side at 375px wrapped to two rows, which cost
+               44px of the sheet and put the primary somewhere it moves. */
+            className="flex shrink-0 items-center justify-between gap-2 border-t px-5 py-3"
             style={{ borderColor: "var(--line)", background: "var(--panel)" }}
           >
             {footer}

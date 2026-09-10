@@ -127,9 +127,15 @@ check(
   "four status buttons is not a visual inspection"
 );
 
+/* The two calls, in that order, with a comment allowed between them — and the
+   comment there is load-bearing, because the commit is exactly what got
+   dropped when the check moved from expanding in place into a sheet. The rule
+   is "tapping an option credits the field half", not "these two lines are
+   adjacent"; an assertion written to the formatting fails on a comment and
+   passes on a reordering, which is backwards. */
 check(
   "tapping an option records it and its status, as FIELD work",
-  /setWalkabout\(c\.id, i, w\.sets\);\s*\n\s*commit\(c\.id, "field"\);/.test(field),
+  /setWalkabout\(c\.id, i, w\.sets\);[\s\S]{0,900}?commit\(c\.id, "field"\);/.test(field),
   "tapped not typed, and credited to the half the tablet can actually answer"
 );
 

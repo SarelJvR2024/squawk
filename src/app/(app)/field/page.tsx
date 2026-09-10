@@ -23,6 +23,7 @@ import type { Check } from "@/lib/types";
 import { Btn, Chip, Empty, Pill } from "@/components/ui/primitives";
 import AddItemSheet from "@/components/AddItemSheet";
 import GroupRow from "@/components/ui/GroupRow";
+import Sheet from "@/components/ui/Sheet";
 import OutcomeControl, { OUTCOMES } from "@/components/OutcomeControl";
 import { AttachmentStrip, PhotoButton, PhotoThumb, VoiceNoteButton } from "@/components/Capture";
 import { useAnswerLibrary } from "@/lib/answers";
@@ -31,6 +32,7 @@ import { modeLabels, needsField } from "@/lib/verification";
 import {
   IconCamera,
   IconCheck,
+  IconFlag,
   IconInbox,
   IconPin,
   IconPlus,
@@ -289,16 +291,21 @@ export default function FieldPage() {
             changes what everything below it means. */}
         <div
           ref={barRef}
-          className="sticky top-0 z-10 -mx-4 mb-3 border-b px-4 py-2.5 sm:-mx-6 sm:px-6"
+          className="sticky top-0 z-10 -mx-4 mb-2 border-b px-4 py-[7px] sm:-mx-6 sm:px-6 sm:py-2.5"
           style={{ background: "var(--bg)", borderColor: "var(--line)" }}
         >
+          <div className="mb-1.5 flex items-center gap-2">
           <div
             role="radiogroup"
             aria-label="Group the list by"
-            /* Full width on a phone, where it is one of two controls and the
-               thumb has to find it; capped on a desk, where a 1,130px two-way
-               switch is a lot of furniture for a binary choice. */
-            className="mb-2 flex gap-[2px] rounded-[11px] p-[3px] sm:max-w-[420px]"
+            /* Capped on a desk, where a 1,130px two-way switch is a lot of
+               furniture for a binary choice. On a phone it shares its row with
+               the progress figure rather than owning one: measured at 375px
+               this sticky bar was 156px of a 664px screen, and between it, the
+               masthead and the two bottom bars the furniture came to 437px —
+               two thirds of the viewport, on the screen whose entire job is
+               the list underneath. */
+            className="flex min-w-0 flex-1 gap-[2px] rounded-[11px] p-[3px] sm:max-w-[420px] sm:flex-none"
             style={{ background: "var(--sunken)" }}
           >
             {(["discipline", "area"] as const).map((g) => (
@@ -312,7 +319,7 @@ export default function FieldPage() {
                      under the old one still means anything. */
                   setExpanded([]);
                 }}
-                className="flex min-h-[40px] flex-1 items-center justify-center gap-[6px] rounded-[8px] px-3 font-display text-[11.5px] font-semibold transition-[var(--t)]"
+                className="flex min-h-[38px] flex-1 items-center justify-center gap-[6px] rounded-[8px] px-3 font-display text-[11.5px] font-semibold transition-[var(--t)] sm:min-h-[40px]"
                 style={{
                   background: groupBy === g ? "var(--panel)" : "transparent",
                   color: groupBy === g ? "var(--acc)" : "var(--ink-2)",
@@ -323,10 +330,21 @@ export default function FieldPage() {
                 By {g === "area" ? "location" : "discipline"}
               </button>
             ))}
+            </div>
+            {/* Progress beside the switch, not under it. Two numbers on one
+                24px line instead of two lines. */}
+            <span className="flex shrink-0 items-center gap-1.5 font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
+              <span>
+                {doneCount}/{visible.length}
+              </span>
+              {adhocItems.length > 0 && (
+                <span style={{ color: "var(--acc)" }}>+{adhocItems.length}</span>
+              )}
+            </span>
           </div>
 
           <div
-            className="mb-2 flex items-center gap-2 rounded-[11px] border px-3 py-2"
+            className="mb-1.5 flex items-center gap-2 rounded-[11px] border px-3 py-1 sm:py-2"
             style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
           >
             <IconSearch width={14} height={14} style={{ color: "var(--ink-3)" }} />
@@ -377,16 +395,15 @@ export default function FieldPage() {
           {/* TWO NUMBERS, NEVER ONE. The bar is progress through ACSA's list and
               nothing else; what we found that was not on it is stated beside it
               rather than added to it. Adding them would make the denominator a
-              number that grows as you work, which is not a denominator. */}
-          <div className="mt-2 flex items-center gap-2 font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
-            <span>
-              {doneCount}/{visible.length}
-            </span>
+              number that grows as you work, which is not a denominator.
+              The figures moved up beside the axis switch; this is the track,
+              which is two pixels and carries the same fact at a glance. */}
+          <div className="mt-1.5 flex items-center gap-2">
             <span className="track flex-1">
               <i style={{ width: `${visible.length ? (doneCount / visible.length) * 100 : 0}%`, background: "var(--acc)" }} />
             </span>
             {adhocItems.length > 0 && (
-              <span style={{ color: "var(--acc)" }}>
+              <span className="shrink-0 font-mono text-[9.5px]" style={{ color: "var(--acc)" }}>
                 +{adhocItems.length} seen on the walk
               </span>
             )}
@@ -537,6 +554,11 @@ export default function FieldPage() {
                               const picked = r?.walkaboutPicked;
                               const needsPhoto =
                                 picked != null && wo[picked]?.photo === true && photos.length === 0;
+                              /* The row no longer expands in place — tapping
+                                 it opens the check in a sheet. It still marks
+                                 itself as the one that is open, because the
+                                 sheet is dismissible and coming back to a list
+                                 with nothing highlighted loses your place. */
                               const itemOpen = openItem === c.id;
                               const outcome = OUTCOMES.find((o) => o.key === r?.compliance);
                               const raised = findingsHere.get(c.id) ?? 0;
@@ -549,7 +571,8 @@ export default function FieldPage() {
                                 >
                                   {/* THE COLLAPSED ROW. Full width, one tap. */}
                                   <button
-                                    onClick={() => setOpenItem(itemOpen ? null : c.id)}
+                                    onClick={() => setOpenItem(c.id)}
+                                    aria-haspopup="dialog"
                                     aria-expanded={itemOpen}
                                     className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left"
                                     style={{
@@ -620,16 +643,15 @@ export default function FieldPage() {
                                           reintroduce it. */}
                                       <span
                                         className="block text-[12.5px] leading-[1.4] font-semibold"
-                                        style={
-                                          itemOpen
-                                            ? undefined
-                                            : {
-                                                display: "-webkit-box",
-                                                WebkitLineClamp: 2,
-                                                WebkitBoxOrient: "vertical",
-                                                overflow: "hidden",
-                                              }
-                                        }
+                                        /* Always two lines now. The row is a
+                                           row; the whole wording is in the
+                                           sheet, un-clamped, one tap away. */
+                                        style={{
+                                          display: "-webkit-box",
+                                          WebkitLineClamp: 2,
+                                          WebkitBoxOrient: "vertical",
+                                          overflow: "hidden",
+                                        }}
                                       >
                                         {c.requirement?.trim() ? (
                                           c.requirement
@@ -659,216 +681,6 @@ export default function FieldPage() {
                                     </span>
                                   </button>
 
-                                  {itemOpen && (
-                                    <div className="px-3 pt-1 pb-3.5">
-                                      {/* OURS, AND IT SAYS SO. Smaller, lighter,
-                                          and under a label naming the author.
-                                          25 of the 324 have no walkabout
-                                          written; an empty one renders nothing
-                                          at all. */}
-                                      {c.walkabout?.trim() && (
-                                        <div
-                                          className="mb-2.5 rounded-[9px] border-l-[2px] pl-[9px]"
-                                          style={{ borderColor: "var(--line-2)" }}
-                                        >
-                                          <div className="label-xs" style={{ color: "var(--ink-4)" }}>
-                                            TPJV walkabout — physical check
-                                          </div>
-                                          <div className="mt-[2px] text-[11.5px] leading-[1.45]" style={{ color: "var(--ink-3)" }}>
-                                            {c.walkabout}
-                                          </div>
-                                        </div>
-                                      )}
-
-                                      {/* THE ANSWER LIBRARY, IN FULL AND
-                                          UNCHANGED. Researched per check and
-                                          carrying a suggested severity — the
-                                          most valuable content in the product.
-                                          Collapsed with the row, never
-                                          trimmed: eleven options render as
-                                          eleven. */}
-                                      {wo.length > 0 && (
-                                        <div className="chip-row mb-2.5 flex flex-wrap gap-[5px]">
-                                          {wo.map((w, i) => (
-                                            <Chip
-                                              key={i}
-                                              selected={r?.walkaboutPicked === i}
-                                              onClick={() => {
-                                                setWalkabout(c.id, i, w.sets);
-                                                commit(c.id, "field");
-                                                say(
-                                                  w.photo && photos.length === 0
-                                                    ? `${portalIdFor(entityCode, c.id)} — ${w.label}. Photograph expected.`
-                                                    : `${c.id} — ${w.label}`
-                                                );
-                                              }}
-                                              title={w.photo ? "This observation expects a photograph" : undefined}
-                                            >
-                                              {w.label}
-                                              {w.photo ? " 📷" : ""}
-                                            </Chip>
-                                          ))}
-                                        </div>
-                                      )}
-
-                                      {needsPhoto && (
-                                        <div
-                                          className="mb-2.5 flex items-center gap-2 rounded-[9px] border px-[10px] py-[7px] text-[11px]"
-                                          style={{
-                                            background: "var(--warn-bg)",
-                                            borderColor: "var(--warn-line)",
-                                            color: "var(--warn)",
-                                          }}
-                                        >
-                                          <IconCamera width={13} height={13} />
-                                          Photograph expected for this observation
-                                        </div>
-                                      )}
-
-                                      <OutcomeControl
-                                        value={r?.compliance ?? null}
-                                        onChange={(next) => {
-                                          setCompliance(c.id, next);
-                                          if (next) {
-                                            commit(c.id, "field");
-                                            say(`${c.id} — ${OUTCOMES.find((o) => o.key === next)?.label}`);
-                                          }
-                                        }}
-                                        size={52}
-                                        idPrefix={`out-${c.id}`}
-                                      />
-
-                                      {/* WP5 — THE COMMENT FIELD GETS THE ROOM.
-                                          It did not exist here at all: an
-                                          auditor on the apron could tap a
-                                          library chip or a status and could not
-                                          type a word, so the most valuable free
-                                          text in the product could only be
-                                          entered back at a desk. It is the same
-                                          observation the Checks screen writes —
-                                          one field, one record — and it takes
-                                          the full width with nothing sharing
-                                          its horizontal run. */}
-                                      <label className="mt-3 block">
-                                        <span className="label-xs" style={{ color: "var(--ink-4)" }}>
-                                          What you found · this is the observation on the record
-                                        </span>
-                                        <textarea
-                                          value={r?.observation ?? ""}
-                                          onChange={(e) => patch(c.id, { observation: e.target.value })}
-                                          onFocus={(e) =>
-                                            e.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" })
-                                          }
-                                          placeholder="Speak it if it is long — the microphone writes into this field."
-                                          className="mt-1 min-h-[76px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] leading-[1.5] outline-none"
-                                          style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-                                        />
-                                      </label>
-
-                                      {/* The toolbar under the field, right
-                                          aligned. Camera and microphone are
-                                          together for reachability and NOT
-                                          because they are the same kind of
-                                          thing — the microphone fills the field
-                                          above, the camera attaches evidence to
-                                          the item. Worth splitting if a better
-                                          home for the camera appears. */}
-                                      <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
-                                        <PhotoButton
-                                          compact
-                                          label="Photo"
-                                          className="min-h-[44px]"
-                                          onCaptured={(m) => {
-                                            addAttachment(c.id, { ...m, createdBy: auditor });
-                                            say(`Photo added to ${c.id}`);
-                                          }}
-                                        />
-                                        <VoiceNoteButton
-                                          compact
-                                          onCaptured={(m) => {
-                                            addAttachment(c.id, { ...m, createdBy: auditor });
-                                            say(`Voice note added to ${c.id}`);
-                                          }}
-                                        />
-                                      </div>
-
-                                      {attachments.length > 0 && (
-                                        <div className="mt-2">
-                                          <AttachmentStrip
-                                            attachments={attachments}
-                                            thumbSize={38}
-                                            onRemove={(id) => removeAttachment(c.id, id)}
-                                            onUpdate={(id, pa) => updateAttachment(c.id, id, pa)}
-                                            writeUp={
-                                              aiOn
-                                                ? (t) => assist("transcript", transcriptContext(t, c, r))
-                                                : undefined
-                                            }
-                                            onAccept={(text) => {
-                                              appendObservation(c.id, text);
-                                              say(`Written up into ${c.id}`);
-                                            }}
-                                          />
-                                        </div>
-                                      )}
-
-                                      {/* SAVE & NEXT, because the accordion costs a
-                                          tap per check and this gives it back.
-                                          With one item open at a time, working
-                                          a 111-check discipline means opening
-                                          and shutting 111 rows; this shuts the
-                                          current one and opens the next in the
-                                          same asset system in a single press,
-                                          which is faster than the flat list it
-                                          replaced rather than slower.
-
-                                          EXPLICIT, never automatic. Advancing
-                                          by itself the moment an outcome is set
-                                          would close the item under an auditor
-                                          about to attach a photograph — which
-                                          is the normal order of work, not the
-                                          exception. */}
-                                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                                        {(() => {
-                                          const i = sub.checks.findIndex((x) => x.id === c.id);
-                                          const next = sub.checks[i + 1];
-                                          return next ? (
-                                            <Btn
-                                              variant="primary"
-                                              className="min-h-[44px]"
-                                              onClick={() => {
-                                                commit(c.id, "field");
-                                                setOpenItem(next.id);
-                                                say(`Saved · ${portalIdFor(entityCode, next.id)}`);
-                                              }}
-                                            >
-                                              <IconCheck width={14} height={14} />
-                                              Save &amp; next
-                                            </Btn>
-                                          ) : (
-                                            <Btn
-                                              className="min-h-[44px]"
-                                              onClick={() => {
-                                                commit(c.id, "field");
-                                                setOpenItem(null);
-                                                say(`Saved · ${sub.sys} done`);
-                                              }}
-                                            >
-                                              <IconCheck width={14} height={14} />
-                                              Save &amp; close
-                                            </Btn>
-                                          );
-                                        })()}
-                                        <button
-                                          onClick={() => router.push(`/capture?check=${c.id}`)}
-                                          className="text-[11.5px] font-semibold hover:underline"
-                                          style={{ color: "var(--acc)" }}
-                                        >
-                                          Open the full check-point →
-                                        </button>
-                                      </div>
-                                    </div>
-                                  )}
                                 </div>
                               );
                             })}
@@ -905,9 +717,15 @@ export default function FieldPage() {
           paddingBottom: "calc(10px + var(--sticky-safe))",
         }}
       >
+        {/* IT RAN OFF THE RIGHT EDGE ON A REAL PHONE. Four controls plus the
+            unassigned badge came to more than 375px, so "Add item" — the
+            primary, and the one control the brief says must always be hittable
+            — was clipped. The two secondaries are icon-only below sm now, with
+            their names on aria-label, and the primary takes the room that
+            frees. `min-w-0` so a flex child can actually shrink. */}
         <Btn
           variant="primary"
-          className="order-last min-h-[56px] flex-[1.4] justify-center sm:order-none sm:flex-none"
+          className="order-last min-h-[56px] min-w-0 flex-1 justify-center sm:order-none sm:flex-none"
           onClick={() => {
             setEditingId(null);
             setSheetOpen(true);
@@ -921,8 +739,7 @@ export default function FieldPage() {
             record the photograph belongs to. */}
         <PhotoButton
           compact
-          label="Photo"
-          className="min-h-[44px] justify-center"
+          className="min-h-[44px] w-[44px] shrink-0 justify-center sm:w-auto sm:px-[13px]"
           onCaptured={(m) => {
             addCapture({
               ...m,
@@ -935,11 +752,22 @@ export default function FieldPage() {
         {/* The walk is where hazards are actually spotted. Until this existed
             the only route to the register was consolidating findings, which
             cannot produce a hazard nobody wrote a finding about. */}
-        <Btn className="min-h-[44px] justify-center" onClick={() => setHazardOpen(true)}>
-          Hazard
+        <Btn
+          className="min-h-[44px] shrink-0 justify-center px-0 sm:px-[15px]"
+          style={{ width: 44 }}
+          aria-label="Raise a hazard seen on the walk"
+          onClick={() => setHazardOpen(true)}
+        >
+          <IconFlag width={16} height={16} />
+          <span className="hidden sm:inline">Hazard</span>
         </Btn>
         {captures.length > 0 && (
-          <Btn className="min-h-[44px]" onClick={() => setTray(true)} style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}>
+          <Btn
+            className="min-h-[44px] shrink-0 px-[11px] sm:px-[15px]"
+            aria-label={`${captures.length} unassigned captures`}
+            onClick={() => setTray(true)}
+            style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}
+          >
             {captures.length}
             <span className="hidden sm:inline"> unassigned</span>
           </Btn>
@@ -1125,6 +953,251 @@ export default function FieldPage() {
           </div>
         </div>
       )}
+
+      {/* THE CHECK, IN A SHEET RATHER THAN EXPANDED IN THE LIST.
+
+          It expanded in place first, which is what the brief asked for, and on
+          a real phone it did not work. Sarel's words: too much scrolling, hard
+          to see what you need, and "the save button is not easily visible to
+          find to save it". All three are the same cause — an expanded item
+          rendered into the gap between a 156px sticky filter bar and a 132px
+          bottom bar on a 664px screen, so the answer buttons, the comment
+          field, the photographs and the save control were spread down a column
+          about 220px tall, and Save was last.
+
+          The sheet is the layout he pointed at as the clean one: the add-item
+          form. Same reasoning applies to a register check, more so — a check
+          carries the register's wording, our walkabout instruction, up to
+          eleven researched answers, an outcome, a comment and its evidence.
+          Given the whole viewport it reads as one job with the commit pinned
+          under it; squeezed into a third of the viewport it reads as a pile.
+
+          The list keeps its shape while the sheet is open, so closing it puts
+          the auditor back exactly where they were. */}
+      {(() => {
+        const c = openItem ? visible.find((x) => x.id === openItem) : null;
+        if (!c) return null;
+        const r = responses[c.id];
+        const attachments = r?.attachments ?? [];
+        const photos = attachments.filter((x) => x.kind === "photo");
+        const wo = library?.[c.id]?.WO ?? [];
+        const picked = r?.walkaboutPicked;
+        const needsPhoto = picked != null && wo[picked]?.photo === true && photos.length === 0;
+        const pf = priorFor(entityCode, c.discipline, c.system);
+        /* The next check in the same asset system, so Save & next walks the
+           system rather than jumping somewhere unrelated. */
+        const sameSystem = visible.filter(
+          (x) => x.discipline === c.discipline && x.system === c.system
+        );
+        const next = sameSystem[sameSystem.findIndex((x) => x.id === c.id) + 1];
+        return (
+          <Sheet
+            open
+            wide
+            onClose={() => setOpenItem(null)}
+            badges={
+              <>
+                <span>{portalIdFor(entityCode, c.id)}</span>
+                <span>·</span>
+                <span>{c.system}</span>
+                {modeLabels(c)
+                  .filter((m) => m !== "Physical")
+                  .map((m) => (
+                    <Pill key={m} tone="accent">
+                      {m.toUpperCase()}
+                    </Pill>
+                  ))}
+                {pf && <Pill tone="warn">{pf.key} · 2025 {pf.rating.toUpperCase()}</Pill>}
+              </>
+            }
+            title={
+              c.requirement?.trim() ? (
+                c.requirement
+              ) : (
+                <span style={{ color: "var(--warn)" }}>
+                  {portalIdFor(entityCode, c.id)} — the register carries no check text for this
+                  check-point
+                </span>
+              )
+            }
+            subtitle="ACSA check-point · the register's wording"
+            footer={
+              <>
+                {/* A link, not a button: it leaves the walk for the desk
+                    screen, which is the opposite of what the primary does, and
+                    two buttons of equal weight in a footer is a choice nobody
+                    asked the auditor to make. */}
+                <button
+                  onClick={() => router.push(`/capture?check=${c.id}`)}
+                  className="min-h-[44px] shrink-0 text-left text-[11.5px] font-semibold hover:underline"
+                  style={{ color: "var(--acc)" }}
+                >
+                  Full check-point →
+                </button>
+                {next ? (
+                  <Btn
+                    variant="primary"
+                    onClick={() => {
+                      commit(c.id, "field");
+                      setOpenItem(next.id);
+                      say(`Saved · ${portalIdFor(entityCode, next.id)}`);
+                    }}
+                  >
+                    <IconCheck width={14} height={14} />
+                    Save &amp; next
+                  </Btn>
+                ) : (
+                  <Btn
+                    variant="primary"
+                    onClick={() => {
+                      commit(c.id, "field");
+                      setOpenItem(null);
+                      say(`Saved · ${c.system} done`);
+                    }}
+                  >
+                    <IconCheck width={14} height={14} />
+                    Save &amp; close
+                  </Btn>
+                )}
+              </>
+            }
+          >
+            {/* OURS, AND IT SAYS SO. 25 of the 324 have no walkabout written;
+                an empty one renders nothing at all. */}
+            {c.walkabout?.trim() && (
+              <div
+                className="mb-3 rounded-[9px] border-l-[2px] pl-[9px]"
+                style={{ borderColor: "var(--line-2)" }}
+              >
+                <div className="label-xs" style={{ color: "var(--ink-4)" }}>
+                  TPJV walkabout — physical check
+                </div>
+                <div className="mt-[2px] text-[12px] leading-[1.5]" style={{ color: "var(--ink-3)" }}>
+                  {c.walkabout}
+                </div>
+              </div>
+            )}
+
+            {/* THE ANSWER LIBRARY, IN FULL AND UNCHANGED. Researched per check
+                and carrying a suggested severity — the most valuable content in
+                the product. Never trimmed: eleven options render as eleven. */}
+            {wo.length > 0 && (
+              <div className="chip-row mb-3 flex flex-wrap gap-[5px]">
+                {wo.map((w, i) => (
+                  <Chip
+                    key={i}
+                    selected={r?.walkaboutPicked === i}
+                    onClick={() => {
+                      setWalkabout(c.id, i, w.sets);
+                      /* AND IT COMMITS. Tapping a researched option is the
+                         fast path on a walk — the whole point is that it is
+                         tapped rather than typed — and it credits the FIELD
+                         half, which is the one a tablet in front of the asset
+                         can actually answer. The sheet's Save & next is the
+                         visible commit for somebody who wants one; it is not a
+                         replacement for this. Dropping it here would have made
+                         every check cost an extra press, which is the opposite
+                         of the complaint that started this change. */
+                      commit(c.id, "field");
+                      say(
+                        w.photo && photos.length === 0
+                          ? `${portalIdFor(entityCode, c.id)} — ${w.label}. Photograph expected.`
+                          : `${c.id} — ${w.label}`
+                      );
+                    }}
+                    title={w.photo ? "This observation expects a photograph" : undefined}
+                  >
+                    {w.label}
+                    {w.photo ? " 📷" : ""}
+                  </Chip>
+                ))}
+              </div>
+            )}
+
+            {needsPhoto && (
+              <div
+                className="mb-3 flex items-center gap-2 rounded-[9px] border px-[10px] py-[7px] text-[11px]"
+                style={{
+                  background: "var(--warn-bg)",
+                  borderColor: "var(--warn-line)",
+                  color: "var(--warn)",
+                }}
+              >
+                <IconCamera width={13} height={13} />
+                Photograph expected for this observation
+              </div>
+            )}
+
+            <div className="label-xs mb-1.5" style={{ color: "var(--ink-4)" }}>
+              Outcome
+            </div>
+            <OutcomeControl
+              value={r?.compliance ?? null}
+              onChange={(nextOutcome) => {
+                setCompliance(c.id, nextOutcome);
+                if (nextOutcome) {
+                  commit(c.id, "field");
+                  say(`${c.id} — ${OUTCOMES.find((o) => o.key === nextOutcome)?.label}`);
+                }
+              }}
+              size={52}
+              idPrefix={`out-${c.id}`}
+            />
+
+            <label className="mt-4 block">
+              <span className="label-xs" style={{ color: "var(--ink-4)" }}>
+                What you found · the observation on the record
+              </span>
+              <textarea
+                value={r?.observation ?? ""}
+                onChange={(e) => patch(c.id, { observation: e.target.value })}
+                placeholder="Speak it if it is long — the microphone writes into this field."
+                className="mt-1 min-h-[88px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] leading-[1.5] outline-none"
+                style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+              />
+            </label>
+
+            {/* The toolbar under the field, right aligned. Camera and
+                microphone are together for reachability and NOT because they
+                are the same kind of thing — the microphone fills the field
+                above, the camera attaches evidence to the check. */}
+            <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+              <PhotoButton
+                compact
+                label="Photo"
+                onCaptured={(m) => {
+                  addAttachment(c.id, { ...m, createdBy: auditor });
+                  say(`Photo added to ${c.id}`);
+                }}
+              />
+              <VoiceNoteButton
+                onCaptured={(m) => {
+                  addAttachment(c.id, { ...m, createdBy: auditor });
+                  say(`Voice note added to ${c.id}`);
+                }}
+              />
+            </div>
+
+            {attachments.length > 0 && (
+              <div className="mt-2.5">
+                <AttachmentStrip
+                  attachments={attachments}
+                  thumbSize={40}
+                  onRemove={(id) => removeAttachment(c.id, id)}
+                  onUpdate={(id, pa) => updateAttachment(c.id, id, pa)}
+                  writeUp={
+                    aiOn ? (t) => assist("transcript", transcriptContext(t, c, r)) : undefined
+                  }
+                  onAccept={(text) => {
+                    appendObservation(c.id, text);
+                    say(`Written up into ${c.id}`);
+                  }}
+                />
+              </div>
+            )}
+          </Sheet>
+        );
+      })()}
 
       {/* THE ADD SHEET. Replaces the old "+ New finding" modal, which took a
           description, a discipline and a location and nothing else — no

@@ -699,7 +699,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <IconGrid width={11} height={11} />
           All audits
         </button>
-        <span className="mr-3 whitespace-nowrap font-mono text-[8.5px] tracking-[0.1em] uppercase" style={{ color: "var(--ink-4)" }}>
+        {/* Desk only. On a phone this row is a horizontal scroller carrying an
+            entity picker, a button, this hint and six visit chips — it reads as
+            cut off because most of it is off-screen, and the hint is the part
+            that earns its place least. Everything it points at is behind
+            "All audits", which is right there. */}
+        <span className="mr-3 hidden whitespace-nowrap font-mono text-[8.5px] tracking-[0.1em] uppercase sm:inline" style={{ color: "var(--ink-4)" }}>
           tap a visit to open it
         </span>
         {visits.length === 0 && (

@@ -288,24 +288,35 @@ const fresh = async (ctx) => { const p = await ctx.newPage(); return p; };
        `${denomBefore} -> ${denomAfter}`);
     ok('and the walk count is stated separately', /\+\s*1 seen on the walk/.test(after));
 
-    /* Collapse must HIDE, never discard. Typed into the observation, collapsed
-       by tapping the row, re-expanded, and read back. */
+    /* CLOSING MUST HIDE, NEVER DISCARD. The check opened in place at first and
+       now opens in a sheet — Sarel on a real phone: too much scrolling, and
+       "the save button is not easily visible to find to save it". The
+       invariant did not change with the layout, and it is the one worth
+       testing either way: type into the observation, dismiss, reopen, read it
+       back. Every control writes straight to the store, so nothing is held in
+       a draft that a dismissal could drop. */
     /* The group WRAPPER carries data-group; the thing that opens it is the
        button inside. Clicking the wrapper hits whatever is under the cursor,
        which after the first group opens is a check row. */
     await p.locator('[data-group] > button').first().click(); await p.waitForTimeout(400);
     await p.locator('[data-system] > button').first().click(); await p.waitForTimeout(400);
-    const row = p.locator('[data-check] button[aria-expanded]').first();
-    await row.click(); await p.waitForTimeout(500);
-    const note = p.locator('[data-check] textarea').first();
+    const row = p.locator('[data-check] button').first();
+    await row.click(); await p.waitForTimeout(600);
+    ok('a check opens in a sheet', await p.locator('[role="dialog"]').isVisible());
+    const save = p.locator('[role="dialog"] button', { hasText: /Save &/ }).first();
+    const saveBox = await save.boundingBox();
+    ok('AND ITS SAVE IS ON SCREEN WITHOUT SCROLLING THE SHEET',
+       !!saveBox && saveBox.y > 0 && saveBox.y + saveBox.height <= 664,
+       saveBox ? `y=${Math.round(saveBox.y)}` : 'not found');
     const typed = 'Coupler worn past the wear mark; photographed from the north side.';
-    await note.fill(typed);
+    await p.locator('[role="dialog"] textarea').first().fill(typed);
     await p.waitForTimeout(400);
-    await row.click(); await p.waitForTimeout(400);
-    ok('collapsing an item hides its controls', (await p.locator('[data-check] textarea').count()) === 0);
-    await row.click(); await p.waitForTimeout(500);
-    const back = await p.locator('[data-check] textarea').first().inputValue();
-    ok('COLLAPSING AND RE-EXPANDING LOSES NOTHING', back === typed, back.slice(0,40));
+    await p.locator('[role="dialog"] button[aria-label="Close"]').click(); await p.waitForTimeout(400);
+    ok('closing it puts the controls away', (await p.locator('[role="dialog"]').count()) === 0);
+    await row.click(); await p.waitForTimeout(600);
+    const back = await p.locator('[role="dialog"] textarea').first().inputValue();
+    ok('CLOSING AND REOPENING LOSES NOTHING', back === typed, back.slice(0,40));
+    await p.locator('[role="dialog"] button[aria-label="Close"]').click(); await p.waitForTimeout(300);
 
     /* And it survived the round trip to storage, not just to React state. */
     await p.reload({waitUntil:'networkidle'}); await p.waitForTimeout(1600);
