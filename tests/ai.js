@@ -55,8 +55,17 @@ const ok=(n,c,x='')=>{c?(pass++,log.push('PASS  '+n)):(fail++,log.push('FAIL  '+
   const p=await (await b.newContext({viewport:{width:1440,height:900}})).newPage();
   const errs=[]; p.on('pageerror',e=>errs.push(String(e)));
   await p.goto(''+B1+'/capture',{waitUntil:'networkidle'}); await p.waitForTimeout(2500);
+  /* UPDATED 2026-09-10. "Draft with AI" is on the page; "Explain this check"
+     is not, because the check screen became TABBED and the plain reading now
+     lives under "In plain English". This assertion had been failing on main
+     since that shipped — reading body text and expecting both strings is only
+     right while everything is stacked. Open the tab, then assert. */
+  const draftVisible = /Draft with AI/.test(await p.locator('body').innerText());
+  await openTab(p, 'In plain English'); await p.waitForTimeout(500);
   const t=await p.locator('body').innerText();
-  ok('AI buttons appear when a model is configured', /Draft with AI/.test(t) && /Explain this check/.test(t));
+  ok('AI buttons appear when a model is configured', draftVisible && /Explain this check/.test(t));
+  /* Back to the tab the composer lives on, so the click below finds it. */
+  await openTab(p, 'ACSA requirement'); await p.waitForTimeout(400);
   // a failing model must surface an honest message and leave the record alone
   const before = await p.locator('textarea[aria-label="Observation"]').first().inputValue();
   await p.locator('button',{hasText:'Draft with AI'}).first().click();
@@ -66,7 +75,11 @@ const ok=(n,c,x='')=>{c?(pass++,log.push('PASS  '+n)):(fail++,log.push('FAIL  '+
   ok('a model failure does not throw', errs.length===0, errs[0]||'');
   // help panel should say a model is connected
   await p.keyboard.press('Escape'); await p.waitForTimeout(200);
-  await p.locator('button[aria-label="Keyboard shortcuts"]').first().click(); await p.waitForTimeout(600);
+  /* UPDATED 2026-09-10: Sync, Export, Reset and help were grouped under a
+     labelled "More" menu, so the shortcuts control is a menu ITEM now and no
+     longer a button in the header. Also red on main since that shipped. */
+  await p.locator('button',{hasText:/^More$/}).first().click(); await p.waitForTimeout(400);
+  await p.locator('button',{hasText:/Keyboard shortcuts/}).first().click(); await p.waitForTimeout(600);
   const h=await p.locator('body').innerText();
   ok('help panel states the AI position', /AI assistance/.test(h) && /model is connected/i.test(h));
   /* This used to assert "attachments never leave the device", which stopped
