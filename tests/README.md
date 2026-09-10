@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Thirty-eight suites, no framework. Thirteen need a running server; twenty-five do not.
+Forty suites, no framework. Thirteen need a running server; twenty-seven do not.
 **Check each suite's exit status, not its output**: a `for` loop over them
 reports the status of the loop.
 
@@ -19,27 +19,29 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 
 | Suite | Needs a server | Assertions run |
 |---|---|---|
-| `risk-matrix.test.mjs` | no | 41 |
+| `risk-matrix.test.mjs` | no | 48 |
 | `capture.test.mjs` | no | 28 |
 | `scope.test.mjs` | no | 48 |
-| `carryforward.test.mjs` | no | 46 |
+| `carryforward.test.mjs` | no | 48 |
 | `review.test.mjs` | no | 22 |
-| `tablet.test.mjs` | no | 40 |
+| `tablet.test.mjs` | no | 42 |
 | `portals.test.mjs` | no | 31 |
 | `reset.test.mjs` | no | 18 |
 | `completion.test.mjs` | no | 19 |
 | `location.test.mjs` | no | 50 |
-| `followup.test.mjs` | no | 44 |
-| `systems.test.mjs` | no | 48 |
+| `followup.test.mjs` | no | 45 |
+| `systems.test.mjs` | no | 70 |
+| `register-review.test.mjs` | no | 23 |
+| `suite-table.test.mjs` | no | 5 |
 | `audits.test.mjs` | no | 18 |
 | `voice.test.mjs` | no | 37 |
 | `sites.test.mjs` | no | 42 |
 | `photos.test.mjs` | no | 112 |
-| `hazards.test.mjs` | no | 113 |
-| `erm-matrix.test.mjs` | no | 64 |
+| `hazards.test.mjs` | no | 114 |
+| `erm-matrix.test.mjs` | no | 80 |
 | `sharepoint.test.mjs` | no | 70 |
 | `assets.test.mjs` | no | 21 |
-| `checkscreen.test.mjs` | no | 48 |
+| `checkscreen.test.mjs` | no | 50 |
 | `merge.test.mjs` | no | 48 |
 | `figures.test.mjs` | no | 7 |
 | `home.test.mjs` | no | 51 |
@@ -58,9 +60,22 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 43 |
 | `a11y.js` | yes | 51 |
 
-**1,355 assertions in total**, every count above verified by running the suite,
-not by remembering what it used to be. Two in this table were wrong before that
-was done.
+**1,578 assertions in total**, every count above verified by running the suite,
+not by remembering what it used to be. Two in this table were wrong the first
+time that was done; **eight more had gone stale by 2026-09-10, one suite was
+missing from the table entirely, and the total was understated by 223** —
+because the count that produced it skipped four rows whose format it did not
+expect (`a11y.js` and `e2e.js` carry digits; `ai.js` answers the server column
+"yes, two of them"). Every one of those drifts read as though somebody had
+checked.
+
+That is why `suite-table.test.mjs` now runs the source suites and reads their
+own PASS counts back against this table, sums the rows against the stated total,
+and requires a row for every suite including itself. The browser rows stay
+hand-verified — starting thirteen servers to count PASS lines would fail for
+reasons that have nothing to do with the table — and the suite says so rather
+than implying otherwise. A number in a README nobody re-derives is a number that
+drifts, and this one is quoted in every pull request.
 
 ## `risk-matrix.test.mjs`
 
