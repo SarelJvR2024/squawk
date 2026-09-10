@@ -94,6 +94,14 @@ export default function RecordActions({
      room. One component either way — writing the four fields twice is how
      they drift. */
   showRating = true,
+  /* THE INVERSE OF showRating, for the asset-system assessment.
+     That screen agrees a rating for a whole asset system and then records
+     SEVERAL root causes and SEVERAL mitigation actions — one string each is
+     not the shape it needs. It renders this component for the matrix alone
+     and its own multi-entry blocks underneath, rather than growing a second
+     copy of B170 001M somewhere else in the tree, which is exactly the drift
+     this component was extracted to stop. */
+  showTreatment = true,
   actionLabel = "Remediation action",
   progress,
   onProgress,
@@ -113,6 +121,7 @@ export default function RecordActions({
   advice?: ReactNode;
   showErm?: boolean;
   showRating?: boolean;
+  showTreatment?: boolean;
   actionLabel?: string;
   /** The dated log, when the caller keeps one. */
   progress?: ProgressNote[];
@@ -570,6 +579,8 @@ export default function RecordActions({
         </>
       )}
 
+      {showTreatment && (
+        <>
       {/* WHICH asset, before WHY it failed. A planner reads the tag first and
           the root cause second, and capturing them in that order is how the
           conversation actually goes with the responsible person in the room. */}
@@ -651,6 +662,8 @@ export default function RecordActions({
           </select>
         </label>
       </div>
+        </>
+      )}
 
       {/* The dated log. ACSA's Progress/Update is one cell that gets typed
           over; this appends, and the export flattens it back into their cell.

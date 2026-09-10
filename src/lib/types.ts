@@ -629,6 +629,83 @@ export interface PossibleEvent {
   createdBy: string;
 }
 
+/* ---------- the asset system's own assessment ----------
+
+   THE RATING OF RECORD, AND WHERE IT FINALLY LIVES.
+
+   ACSA rates, reports and compares ASSET SYSTEMS year on year — that is the row
+   in their register and the unit a Cluster report is written about. Squawk had
+   ratings on findings and on hazards and none on the thing ACSA actually
+   publishes, so an asset system's band was something a reader had to infer from
+   the worst finding under it. Inferring it is wrong twice over: three Amber
+   findings on one system is not an Amber system, and a system with no findings
+   at all is not automatically Green — it may simply not have been looked at.
+
+   So the asset system carries its own severity, its own likelihood and its own
+   `ratingConfirmed`, agreed by the group on B170 001M like every other rating
+   in this product, and the band and treatment strategy are DERIVED from the
+   cell rather than typed. Nothing here is computed from the findings under it:
+   the findings are evidence the group reads before agreeing the cell, and the
+   screen shows them all for that reason. */
+
+/** One root cause, of several. ACSA's own list is a closed vocabulary — see
+ *  ROOT_CAUSES in src/lib/store.ts — but an asset system regularly fails for
+ *  more than one reason at once (no budget AND no competent person), and
+ *  forcing a single choice loses whichever the auditor did not pick. */
+export interface RootCauseNote {
+  id: string;
+  /** From ROOT_CAUSES where it fits, free text where it does not. The list is
+   *  ACSA's and this is not the place to extend it, so anything outside it is
+   *  recorded as written rather than mapped onto the nearest member. */
+  cause: string;
+  note: string;
+  createdAt: number;
+  createdBy: string;
+}
+
+/** One mitigation action, of several. Each carries its own owner, date and
+ *  status, because an asset system's remediation is regularly three jobs owned
+ *  by three people on three timelines — a single owner/date pair forces the
+ *  auditor to write the other two into a comment where nothing tracks them. */
+export interface MitigationAction {
+  id: string;
+  action: string;
+  owner: string;
+  /** ISO date, as everywhere else. Blank is a real state and it is flagged
+   *  rather than defaulted: a target date nobody agreed is worse than none. */
+  dueDate: string;
+  status: ActionStatus;
+  createdAt: number;
+  createdBy: string;
+  updatedAt?: number;
+}
+
+export interface SystemAssessment {
+  /** `${discipline}|${system}` — the pair, because an asset system name is only
+   *  unique within its discipline. */
+  key: string;
+  discipline: string;
+  system: string;
+  severity: Severity | null;
+  likelihood: Likelihood | null;
+  /** THE GATE, as everywhere else. A severity and likelihood that nobody tapped
+   *  on the matrix is a suggestion; every count, dashboard and export ignores
+   *  the rating until this is true. */
+  ratingConfirmed: boolean;
+  /** Why the group agreed that cell. Not optional in spirit — a band with no
+   *  reasoning is the thing ACSA sends back — but blank is allowed, because
+   *  forcing prose produces prose nobody means. */
+  ratingRationale: string;
+  rootCauses: RootCauseNote[];
+  actions: MitigationAction[];
+  /** The assessor's summary of the asset system as a whole. */
+  note: string;
+  assessedBy: string;
+  assessedAt: number | null;
+  /** See Response.updatedAt — what lets two devices' work be combined. */
+  updatedAt?: number;
+}
+
 export interface Verification {
   pf: string;
   outcome: VerificationOutcome | null;

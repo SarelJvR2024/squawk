@@ -391,15 +391,26 @@ check(
   "24px, and it is how an auditor finds the check for the thing in front of them"
 );
 
+/* 2026-09-10: Findings no longer HAS an empty screen. It used to early-return
+   "no findings yet" when nobody had raised one; it is an asset-system
+   assessment now, and every site has asset systems whether or not anything was
+   found against them — a system with nothing against it is precisely what has
+   to be rateable. The one remaining early return is the hazard register's, and
+   the property under test is unchanged for it. */
 check(
-  "the EMPTY states clear the bottom bar too",
+  "the EMPTY state clears the bottom bar too",
   /app-scroll flex flex-1 items-center justify-center p-8/.test(
+    src("app", "(app)", "hazards", "page.tsx")
+  ),
+  "it is an early return, so it misses the scroller's padding — and its one button is the whole screen"
+);
+
+check(
+  "and Findings has no empty screen to clear, because it cannot be empty",
+  !/app-scroll flex flex-1 items-center justify-center p-8/.test(
     src("app", "(app)", "findings", "page.tsx")
-  ) &&
-    /app-scroll flex flex-1 items-center justify-center p-8/.test(
-      src("app", "(app)", "hazards", "page.tsx")
-    ),
-  "they are early returns, so they miss the scroller's padding — and their one button is the whole screen"
+  ),
+  "every site has asset systems; one with nothing found against it is the one that most needs rating"
 );
 
 /* ------------------------------------------------------------------ result */

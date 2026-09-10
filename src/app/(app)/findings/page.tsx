@@ -1,41 +1,85 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+/** THE ASSET SYSTEM ASSESSMENT — the rating ACSA actually publishes.
+ *
+ *  Sarel: "on this page we are going to do the rating of the asset systems. We
+ *  can again use the same hierarchy which is in the checks page; in the
+ *  hierarchy we only have discipline and asset system. Per asset system we add
+ *  icons in the hierarchy for severity, likelihood and rating. In the right hand
+ *  panel we include a list of all open findings from previous audit, and the
+ *  current audit checks compliant and non compliant ones and the inspections to
+ *  give us the full view of the asset system. At the top of the panel we need to
+ *  be able to record the likelihood and severity and the system must calculate
+ *  the rating and strategy. We also need to be able to capture multiple root
+ *  causes, multiple mitigation actions."
+ *
+ *  This screen was the findings register: a flat list of findings, each rated on
+ *  its own. That work still exists — a finding still carries its own band, its
+ *  own root cause and its own owner — and it opens from the evidence list here,
+ *  in a sheet (see FindingDetail). What changed is what the screen is ABOUT.
+ *
+ *  WHY THE ASSET SYSTEM AND NOT THE FINDING. ACSA rates, reports and compares
+ *  asset systems year on year: that is the row in their register, the unit a
+ *  Cluster report is written about, and the number a station manager is asked to
+ *  explain. Squawk rated findings and hazards and had no rating at all on the
+ *  thing ACSA publishes, so an asset system's band was something a reader
+ *  inferred from the worst finding under it. Inferring it is wrong twice:
+ *  three Amber findings on one system is not an Amber system, and a system with
+ *  no findings is not automatically Green — it may simply not have been looked
+ *  at, which is a different and worse fact.
+ *
+ *  SO NOTHING HERE IS COMPUTED FROM THE FINDINGS. The band comes from a cell the
+ *  group taps on B170 001M, and `ratingConfirmed` gates it like every other
+ *  rating in this product. The findings, the checks and the walk items are
+ *  EVIDENCE the group reads before agreeing that cell, which is why the panel
+ *  shows all of them, compliant ones included — a system whose checks all passed
+ *  and whose 2025 finding is still open is a real and common shape, and only
+ *  seeing both halves makes it visible.
+ */
+
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   checksAt,
-  disciplinesAt,
+  priorFor,
+  useAdhoc,
+  useEntity,
   useEntityCode,
   useResponses,
-  useAdhoc,
   useStore,
+  useSystems,
   useVisitFindings,
+  fieldDone,
 } from "@/lib/store";
-import { assist, findingContext } from "@/lib/assist";
+import { useOutstanding, carriesWork } from "@/lib/carryforward";
+import { portalIdFor } from "@/lib/sites";
 import { BAND_META, bandFor, cellCode } from "@/lib/risk";
-import { duplicateFindings } from "@/lib/merge";
-import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
+import { Btn, Empty, Pill } from "@/components/ui/primitives";
+import type { Tone } from "@/components/ui/primitives";
+import GroupRow from "@/components/ui/GroupRow";
+import Sheet from "@/components/ui/Sheet";
 import RecordActions from "@/components/RecordActions";
-import StickyActions from "@/components/StickyActions";
-import RootCauseAdvice from "@/components/RootCauseAdvice";
-import { AttachmentStrip } from "@/components/Capture";
-import { IconCheck, IconInbox, IconLeft, IconLoop } from "@/components/ui/icons";
-import type { Finding } from "@/lib/types";
+import FindingDetail from "@/components/FindingDetail";
+import SystemTreatment from "@/components/SystemTreatment";
+import { IconInbox, IconSearch } from "@/components/ui/icons";
+import type { Check, Finding } from "@/lib/types";
 
-type Filter = "all" | "unrated" | "open" | "repeat";
+const NO_SYSTEM = "No asset system recorded";
 
 export default function FindingsPage() {
-  const router = useRouter();
-  const findings = useVisitFindings();
   const entityCode = useEntityCode();
+  const entity = useEntity();
+  const findings = useVisitFindings();
   const responses = useResponses();
   const adhocItems = useAdhoc();
-  const updateFinding = useStore((s) => s.updateFinding);
-  const addFindingProgress = useStore((s) => s.addFindingProgress);
+  const systems = useSystems();
+  const outstanding = useOutstanding();
+  const patchSystem = useStore((s) => s.patchSystem);
+  const systemAssessment = useStore((s) => s.systemAssessment);
 
-  const [filter, setFilter] = useState<Filter>("all");
-  const [discipline, setDiscipline] = useState<string>("All");
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [expanded, setExpanded] = useState<string[]>([]);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [openFinding, setOpenFinding] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const say = (m: string) => {
@@ -43,348 +87,488 @@ export default function FindingsPage() {
     setTimeout(() => setToast(null), 2400);
   };
 
-  const list = useMemo(() => {
-    let l = findings;
-    if (discipline !== "All") l = l.filter((f) => f.discipline === discipline);
-    if (filter === "unrated") l = l.filter((f) => !f.ratingConfirmed);
-    if (filter === "open") l = l.filter((f) => f.actionStatus !== "Closed");
-    if (filter === "repeat") l = l.filter((f) => f.priorRating);
-    return l;
-  }, [findings, filter, discipline]);
+  /* WHERE A STICKY GROUP HEADER HAS TO STOP. Same measurement the Inspection
+     screen makes and for the same reason: a header sticky at top 0 under a bar
+     that is also sticky at top 0 slides underneath it and is invisible for
+     exactly as long as it is meant to be useful. */
+  const barRef = useRef<HTMLDivElement>(null);
+  const [barH, setBarH] = useState(0);
+  useEffect(() => {
+    const el = barRef.current;
+    if (!el) return;
+    const measure = () => setBarH(el.getBoundingClientRect().height);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
-  /* ONE DEFECT COUNTED TWICE reaches ACSA as two.
+  /* EVERY ASSET SYSTEM AT THIS SITE, from the register rather than from what
+     happens to carry a finding. A system with nothing against it still has to
+     be rateable — "we looked and it was sound" is a finding of the audit, and a
+     system that never appears cannot be given one. */
+  const tree = useMemo(() => {
+    const checks = checksAt(entityCode);
+    const byDiscipline = new Map<string, Map<string, Check[]>>();
+    for (const c of checks) {
+      const sys = c.system?.trim() || NO_SYSTEM;
+      let m = byDiscipline.get(c.discipline);
+      if (!m) byDiscipline.set(c.discipline, (m = new Map()));
+      const list = m.get(sys);
+      if (list) list.push(c);
+      else m.set(sys, [c]);
+    }
+    const s = q.trim().toLowerCase();
+    return [...byDiscipline.entries()]
+      .map(([discipline, m]) => ({
+        discipline,
+        systems: [...m.entries()]
+          .map(([system, checks]) => ({ system, checks }))
+          .filter(
+            (x) =>
+              !s ||
+              `${x.system} ${discipline}`.toLowerCase().includes(s) ||
+              x.checks.some((c) => c.requirement?.toLowerCase().includes(s))
+          )
+          .sort((a, b) =>
+            a.system === NO_SYSTEM ? 1 : b.system === NO_SYSTEM ? -1 : a.system.localeCompare(b.system)
+          ),
+      }))
+      .filter((d) => d.systems.length > 0)
+      .sort((a, b) => a.discipline.localeCompare(b.discipline));
+  }, [entityCode, q]);
 
-     Two auditors who both tap the same issue button on the same check each
-     mint a finding with its own random id, and the merge — which keys on id —
-     keeps both. Over the shared record that happens silently: the merge report
-     is only shown for a file merge, so nothing would ever say it out loud.
+  /* A search opens everything it matched. Shut groups showing nothing reads as
+     "no results" and is the worst possible answer, because it is wrong. */
+  const searching = q.trim().length > 0;
+  const isOpen = (key: string) => searching || expanded.includes(key);
+  const toggle = (key: string) =>
+    setExpanded((e) => (e.includes(key) ? e.filter((x) => x !== key) : [...e, key]));
 
-     Flagged, never folded together. The same button is legitimately raised
-     twice — one per switch room — and the asset tags are how they are told
-     apart. */
-  const duplicateOf = useMemo(() => {
-    const m = new Map<string, string[]>();
-    for (const d of duplicateFindings(findings)) {
-      for (const id of d.ids) m.set(id, d.ids.filter((x) => x !== id));
+  /* Findings raised THIS visit, per asset system. */
+  const findingsBySystem = useMemo(() => {
+    const m = new Map<string, Finding[]>();
+    for (const f of findings) {
+      const k = `${f.discipline}|${f.system?.trim() || NO_SYSTEM}`;
+      const l = m.get(k);
+      if (l) l.push(f);
+      else m.set(k, [f]);
     }
     return m;
   }, [findings]);
 
-  const active: Finding | undefined = list.find((f) => f.id === activeId) ?? list[0];
+  /* Still open from an earlier audit, per asset system. Scoped with carriesWork
+     so an item rated Acceptable in 2025 — which required no mitigation, so
+     there is nothing to verify — is not counted as work the system carries. */
+  const priorBySystem = useMemo(() => {
+    const m = new Map<string, typeof outstanding>();
+    for (const p of outstanding.filter(carriesWork)) {
+      const k = `${p.discipline}|${p.system?.trim() || NO_SYSTEM}`;
+      const l = m.get(k);
+      if (l) l.push(p);
+      else m.set(k, [p]);
+    }
+    return m;
+  }, [outstanding]);
 
-  /* A rating seeded by an issue button is a suggestion. It counts only
-     once the group has clicked the cell they agree on. */
-  const rated = findings.filter((f) => f.ratingConfirmed).length;
-  const red = findings.filter(
-    (f) => f.ratingConfirmed && bandFor(f.severity, f.likelihood) === "Red"
-  ).length;
-  const missing = findings.filter((f) => !f.owner || !f.dueDate).length;
+  const walkBySystem = useMemo(() => {
+    const m = new Map<string, typeof adhocItems>();
+    for (const it of adhocItems) {
+      const k = `${it.discipline ?? ""}|${it.system?.trim() || NO_SYSTEM}`;
+      const l = m.get(k);
+      if (l) l.push(it);
+      else m.set(k, [it]);
+    }
+    return m;
+  }, [adhocItems]);
 
-  if (findings.length === 0) {
-    return (
-      /* The empty state is an early return, so it does not get the scroller's
-         padding — and its "Go to capture" button is the only thing on the
-         screen. It has to clear the bottom bar like everything else. */
-      <div className="app-scroll flex flex-1 items-center justify-center p-8">
-        <Empty>
-          <IconInbox width={28} height={28} />
-          <div className="max-w-[46ch]">
-            <b className="mb-1 block font-display text-[14px]" style={{ color: "var(--ink)" }}>
-              No findings raised yet
-            </b>
-            Findings appear here the moment an issue button is tapped in capture, or a new
-            finding is created in the field.
-          </div>
-          <Btn className="mt-2" onClick={() => router.push("/capture")}>
-            Go to capture
-          </Btn>
-        </Empty>
-      </div>
-    );
-  }
+  /* A plain lookup, not a memo. It is two array scans over a tree the search
+     already narrowed, and wrapping it cost more than it saved — the React
+     compiler refuses to optimise the surrounding component when a memo's body
+     returns early from inside a loop, which is a worse trade than doing the
+     scan. */
+  const active = (() => {
+    if (!activeKey) return null;
+    const [discipline, system] = activeKey.split("|");
+    const d = tree.find((x) => x.discipline === discipline);
+    const s = d?.systems.find((x) => x.system === system);
+    return s ? { discipline, system, checks: s.checks } : null;
+  })();
+
+  const a = active ? systemAssessment(active.discipline, active.system) : null;
+  const band = a ? bandFor(a.severity, a.likelihood) : null;
+
+  const rated = Object.values(systems).filter((x) => x.ratingConfirmed).length;
+  const totalSystems = tree.reduce((n, d) => n + d.systems.length, 0);
 
   return (
     <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <div className="mx-auto w-full max-w-[1240px] px-5 pt-5 pb-16">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-[18px] font-bold">Findings register</h2>
-            <p className="mt-1 max-w-[78ch] text-[12.5px]" style={{ color: "var(--ink-2)" }}>
-              Rated together as a group against ACSA&apos;s own B170 001M matrix. Anything still open at
-              the out-brief becomes a prior finding for the next visit.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <select
-              value={discipline}
-              onChange={(e) => setDiscipline(e.target.value)}
-              className="rounded-[9px] border px-2.5 py-[7px] text-[12px]"
+      <div className="mx-auto w-full max-w-[1240px] px-4 pt-4 pb-16 sm:px-6">
+        <div className="mb-2.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+          {/* The site by the name the audit uses, not its ICAO code. `entityCode`
+              is FALE; the masthead, the nav and every other heading say KSIA,
+              and a screen that says FALE reads as a different airport. */}
+          <h2 className="text-[17px] font-bold">Asset systems at {entity.short}</h2>
+          <p className="text-[12px]" style={{ color: "var(--ink-2)" }}>
+            Rate each one as a group on ACSA&rsquo;s B170 001M matrix. The band and the treatment
+            strategy are calculated from the cell, never typed.
+          </p>
+        </div>
+
+        <div
+          ref={barRef}
+          className="sticky top-0 z-10 -mx-4 mb-2 border-b px-4 py-[7px] sm:-mx-6 sm:px-6 sm:py-2.5"
+          style={{ background: "var(--bg)", borderColor: "var(--line)" }}
+        >
+          <div className="flex items-center gap-2">
+            <div
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-[11px] border px-3 py-1 sm:py-2"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             >
-              <option>All</option>
-              {disciplinesAt(entityCode).map((d) => (
-                <option key={d}>{d}</option>
-              ))}
-            </select>
-            <div className="flex gap-[2px] rounded-[11px] p-[3px]" style={{ background: "var(--sunken)" }}>
-              {(["all", "unrated", "open", "repeat"] as Filter[]).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className="rounded-[8px] px-3 py-[6px] font-display text-[11.5px] font-semibold capitalize transition-[var(--t)]"
-                  style={{
-                    background: filter === f ? "var(--panel)" : "transparent",
-                    color: filter === f ? "var(--acc)" : "var(--ink-2)",
-                    boxShadow: filter === f ? "var(--e1)" : "none",
-                  }}
-                >
-                  {f}
-                </button>
-              ))}
+              <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search an asset system…"
+                aria-label="Search an asset system"
+                className="min-h-[40px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
+              />
             </div>
-          </div>
-        </div>
-
-        <div className="mb-3.5 grid grid-cols-2 gap-[9px] md:grid-cols-4">
-          {[
-            ["Findings raised", findings.length, "bad"],
-            ["Rated", `${rated}/${findings.length}`, "acc"],
-            ["Red band", red, "bad"],
-            ["Missing owner or date", missing, missing ? "warn" : "good"],
-          ].map(([label, value, tone]) => (
-            <div
-              key={label as string}
-              className="relative overflow-hidden rounded-[15px] border px-[15px] py-[13px]"
-              style={{ background: "var(--panel)", borderColor: "var(--line)" }}
-            >
-              <span className="absolute inset-x-0 top-0 h-[2.5px]" style={{ background: `var(--${tone})` }} />
-              <b className="block font-mono text-[23px] leading-[1.15] font-semibold tnum" style={{ color: `var(--${tone})` }}>
-                {value as string}
-              </b>
-              <span className="text-[10px]" style={{ color: "var(--ink-3)" }}>
-                {label as string}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <Panel tone="accent" className="mb-3.5">
-          <div className="flex items-start gap-2.5 text-[11.5px]" style={{ color: "var(--acc)" }}>
-            <IconLoop width={14} height={14} style={{ marginTop: 1 }} />
-            <span>
-              Every action left open at the out-brief carries to <b>March 2027</b> with its owner, due
-              date and evidence trail intact.
+            {/* TWO NUMBERS, AND THE DENOMINATOR IS EVERY ASSET SYSTEM AT THE
+                SITE — not the ones that happen to carry a finding. A system
+                nobody rated is the gap this screen exists to close. */}
+            <span className="shrink-0 font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
+              {rated}/{totalSystems} rated
             </span>
           </div>
-        </Panel>
+        </div>
 
-        <div className="grid gap-3 lg:grid-cols-[320px_minmax(0,1fr)]">
-          <div className="overflow-hidden rounded-[15px] border" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
-            {list.length === 0 ? (
-              <Empty>Nothing matches this filter.</Empty>
+        <div className="grid gap-3 lg:grid-cols-[340px_minmax(0,1fr)]">
+          {/* ------------------------------------------------ the hierarchy */}
+          <div
+            /* No `overflow-hidden`: it would make this its own scroll container
+               and a sticky group header inside would never stick. Same trap the
+               Inspection screen documents. */
+            className="rounded-[13px] border"
+            style={{ background: "var(--panel)", borderColor: "var(--line)" }}
+          >
+            {tree.length === 0 ? (
+              <Empty>
+                <IconInbox width={24} height={24} />
+                <div>Nothing matches that search.</div>
+              </Empty>
             ) : (
-              list.map((f) => {
-                const band = bandFor(f.severity, f.likelihood);
-                const on = f.id === active?.id;
+              tree.map((d) => {
+                const open = isOpen(d.discipline);
+                const done = d.systems.filter(
+                  (x) => systems[`${d.discipline}|${x.system}`]?.ratingConfirmed
+                ).length;
                 return (
-                  <button
-                    key={f.id}
-                    onClick={() => setActiveId(f.id)}
-                    className="relative flex w-full items-start gap-2 border-b px-[11px] py-[9px] text-left transition-[var(--t)]"
-                    style={{ borderColor: "var(--line)", background: on ? "var(--acc-soft)" : "transparent" }}
-                  >
-                    {on && <span className="absolute inset-y-0 left-0 w-[2.5px]" style={{ background: "var(--acc)" }} />}
-                    <Dot
-                      tone={band === "Red" ? "bad" : band === "Amber" ? "warn" : band === "Green" ? "good" : "pending"}
-                      label={band ?? "Not rated"}
+                  <div key={d.discipline} data-group={d.discipline}>
+                    <GroupRow
+                      label={d.discipline}
+                      done={done}
+                      total={d.systems.length}
+                      open={open}
+                      onToggle={() => toggle(d.discipline)}
+                      sticky
+                      stickyTop={barH}
+                      title={`${d.discipline} — ${done} of ${d.systems.length} asset systems rated`}
                     />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                        {f.id} · {f.discipline}
-                        {f.adHoc ? " · ad-hoc" : ""}
-                      </span>
-                      {/* In the row, not behind a panel: this is the moment the
-                          two are side by side in a list, which is where a
-                          person can actually settle it. */}
-                      {duplicateOf.has(f.id) && (
-                        <span
-                          className="mt-[2px] block truncate font-mono text-[9px] font-semibold"
-                          style={{ color: "var(--warn)" }}
-                        >
-                          also raised as {duplicateOf.get(f.id)!.join(", ")} — same issue, same check
-                        </span>
-                      )}
-                      <span className="mt-[1px] block truncate text-[11.5px]">{f.description}</span>
-                    </span>
-                    {band && (
-                      <span className="mt-[2px]">
-                        <Pill tone={BAND_META[band].tone}>{cellCode(f.severity, f.likelihood)}</Pill>
-                      </span>
-                    )}
-                  </button>
+                    {open &&
+                      d.systems.map((x) => {
+                        const key = `${d.discipline}|${x.system}`;
+                        const rec = systems[key];
+                        const b = bandFor(rec?.severity ?? null, rec?.likelihood ?? null);
+                        const confirmed = rec?.ratingConfirmed === true;
+                        const on = key === activeKey;
+                        const pf = priorFor(entityCode, d.discipline, x.system);
+                        const open2025 = priorBySystem.get(key)?.length ?? 0;
+                        const raised = findingsBySystem.get(key)?.length ?? 0;
+                        return (
+                          <button
+                            key={key}
+                            data-system={x.system}
+                            onClick={() => setActiveKey(key)}
+                            className="relative flex w-full items-start gap-2.5 border-b px-3 py-2.5 text-left transition-[var(--t)]"
+                            style={{
+                              borderColor: "var(--line)",
+                              background: on ? "var(--acc-soft)" : "transparent",
+                              minHeight: 56,
+                            }}
+                          >
+                            {on && (
+                              <span
+                                className="absolute inset-y-0 left-0 w-[2.5px]"
+                                style={{ background: "var(--acc)" }}
+                              />
+                            )}
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-[12.5px] leading-[1.4] font-semibold">
+                                {x.system}
+                              </span>
+                              {/* SEVERITY, LIKELIHOOD AND RATING, on the row.
+                                  Sarel asked for icons; these are the marks the
+                                  rest of the app already uses for exactly these
+                                  three things — the B170 cell code (severity
+                                  first, likelihood second, as cellCode prints
+                                  it) and the band's own pill. A cell that has
+                                  not been AGREED renders dashed and says
+                                  "suggested", because a rating nobody tapped
+                                  counts nowhere and must not look like one that
+                                  does. */}
+                              <span className="mt-[4px] flex flex-wrap items-center gap-1.5">
+                                {b && confirmed ? (
+                                  <>
+                                    <Pill tone={BAND_META[b].tone}>
+                                      {cellCode(rec!.severity, rec!.likelihood)}
+                                    </Pill>
+                                    <Pill tone={BAND_META[b].tone}>{BAND_META[b].label.toUpperCase()}</Pill>
+                                  </>
+                                ) : b ? (
+                                  <span
+                                    className="rounded-full border border-dashed px-2 py-[1px] font-mono text-[9px] font-semibold"
+                                    style={{ borderColor: "var(--line-3)", color: "var(--ink-4)" }}
+                                  >
+                                    {cellCode(rec!.severity, rec!.likelihood)} · SUGGESTED
+                                  </span>
+                                ) : (
+                                  <span
+                                    className="rounded-full border border-dashed px-2 py-[1px] font-mono text-[9px]"
+                                    style={{ borderColor: "var(--line-3)", color: "var(--ink-4)" }}
+                                  >
+                                    NOT RATED
+                                  </span>
+                                )}
+                                {pf && <Pill tone="warn">2025 {pf.rating.toUpperCase()}</Pill>}
+                              </span>
+                              <span
+                                className="mt-[4px] flex flex-wrap items-center gap-2 font-mono text-[9px]"
+                                style={{ color: "var(--ink-4)" }}
+                              >
+                                <span>{x.checks.length} checks</span>
+                                {open2025 > 0 && (
+                                  <span style={{ color: "var(--warn)" }}>{open2025} still open</span>
+                                )}
+                                {raised > 0 && <span>{raised} raised here</span>}
+                              </span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                  </div>
                 );
               })
             )}
           </div>
 
-          {active && (
-            <div className="rounded-[15px] border p-[18px]" style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "var(--e2)" }}>
-              <div className="mb-1.5 flex flex-wrap items-center gap-[7px] font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
-                <span>{active.id}</span>
-                <span>·</span>
+          {/* ------------------------------------------------- the assessment */}
+          {!active || !a ? (
+            <div
+              className="flex items-center justify-center rounded-[15px] border p-8 text-center text-[12.5px]"
+              style={{ background: "var(--panel)", borderColor: "var(--line)", color: "var(--ink-3)" }}
+            >
+              Pick an asset system to rate it and read everything this audit knows about it.
+            </div>
+          ) : (
+            <div
+              className="rounded-[15px] border p-[18px]"
+              style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "var(--e2)" }}
+            >
+              <div
+                className="mb-1.5 flex flex-wrap items-center gap-[7px] font-mono text-[10px]"
+                style={{ color: "var(--ink-3)" }}
+              >
                 <span>{active.discipline}</span>
                 <span>·</span>
-                <span>{active.system}</span>
-                {active.priorRating && <Pill tone="bad">REPEAT — MAR 2025 {active.priorRating.toUpperCase()}</Pill>}
-                {active.adHoc && <Pill tone="accent">AD-HOC</Pill>}
-                {active.checkId && (
-                  <button
-                    onClick={() => router.push(`/capture?check=${active.checkId}`)}
-                    className="underline"
-                    style={{ color: "var(--acc)" }}
-                  >
-                    {active.checkId}
-                  </button>
+                <span>{active.checks.length} check-points</span>
+                {a.assessedAt && (
+                  <span>
+                    rated by {a.assessedBy} on{" "}
+                    {new Date(a.assessedAt).toLocaleDateString("en-ZA")}
+                  </span>
                 )}
               </div>
-              <h3 className="mb-3 text-[14.5px] leading-[1.35] font-bold">{active.description}</h3>
+              <h3 className="mb-1 text-[15px] leading-[1.3] font-bold">{active.system}</h3>
 
-              {/* WHERE IT CAME FROM, WHEN IT CAME OFF THE WALK.
-                  A finding raised from an ad-hoc item has no check-point behind
-                  it, so every link this pane normally offers is dead: no
-                  register text to quote, no evidence expected, and — the one
-                  that matters — no photographs, because the photographs are
-                  attached to the observation rather than to the finding.
-
-                  Without this block the flow reads as broken: record what you
-                  saw with three photographs, raise the finding, open the
-                  findings register, and the finding is there with nothing
-                  behind it. The observation is looked up rather than stored as
-                  a second link, because AdHocItem.findingId already holds the
-                  relation and a second copy of it is a second thing to keep
-                  true. */}
-              {(() => {
-                const from = adhocItems.find((a) => a.findingId === active.id);
-                if (!from) return null;
-                return (
-                  <div
-                    className="mb-3.5 rounded-[12px] border p-3"
-                    style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
-                  >
-                    <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                      <Pill tone="accent">SEEN ON THE WALK</Pill>
-                      <span className="font-mono text-[10px]" style={{ color: "var(--ink-4)" }}>
-                        {from.id}
-                      </span>
-                      {from.area && (
-                        <span className="font-mono text-[10px]" style={{ color: "var(--ink-4)" }}>
-                          {from.area}
+              {/* THE BAND AND THE STRATEGY, CALCULATED. Both are read off the
+                  cell — clause 4.6 pairs one treatment strategy with each band,
+                  and typing either by hand is how a register ends up with a Red
+                  system whose strategy says "monitor". */}
+              <div
+                className="mb-3.5 rounded-[12px] border px-3 py-2.5"
+                style={{
+                  /* The band's surface, off the tone tokens the whole app
+                     shares. BAND_META carries a tone, not colours — the colours
+                     live in one place in globals.css and a second set here is
+                     how two screens come to render different Reds. */
+                  background:
+                    band && a.ratingConfirmed
+                      ? `var(--${BAND_META[band].tone}-bg)`
+                      : "var(--sunken)",
+                  borderColor:
+                    band && a.ratingConfirmed
+                      ? `var(--${BAND_META[band].tone}-line)`
+                      : "var(--line)",
+                }}
+              >
+                {band ? (
+                  <>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <b
+                        className="font-display text-[13px] font-semibold"
+                        style={{
+                          color: a.ratingConfirmed
+                            ? `var(--${BAND_META[band].tone})`
+                            : "var(--ink-3)",
+                        }}
+                      >
+                        {cellCode(a.severity, a.likelihood)} · {BAND_META[band].label}
+                      </b>
+                      {!a.ratingConfirmed && (
+                        <span className="font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
+                          suggested — counts nowhere until the group agrees it
                         </span>
                       )}
-                      <button
-                        onClick={() => router.push("/field")}
-                        className="ml-auto text-[11.5px] font-semibold underline"
-                        style={{ color: "var(--acc)" }}
-                      >
-                        Open on the walk
-                      </button>
                     </div>
-                    <div className="text-[12px] leading-[1.5]" style={{ color: "var(--ink-2)" }}>
-                      This is not one of the {checksAt(entityCode).length} check-points. It was
-                      recorded on site as something the register does not cover, and it is reported
-                      that way — here, and in every export.
+                    <div
+                      className="mt-[3px] text-[11.5px] leading-[1.5]"
+                      style={{
+                        color: a.ratingConfirmed
+                          ? `var(--${BAND_META[band].tone})`
+                          : "var(--ink-3)",
+                      }}
+                    >
+                      Strategy · {BAND_META[band].strategy}
                     </div>
-                    {from.note.trim() && (
-                      <div className="mt-1.5 text-[12px] leading-[1.5]" style={{ color: "var(--ink-3)" }}>
-                        {from.note}
-                      </div>
-                    )}
-                    {from.attachments.length > 0 ? (
-                      <div className="mt-2.5">
-                        <AttachmentStrip attachments={from.attachments} thumbSize={40} />
-                      </div>
-                    ) : (
-                      <div className="mt-2 text-[11.5px]" style={{ color: "var(--warn)" }}>
-                        No photograph or voice note was attached to the observation.
-                      </div>
-                    )}
+                  </>
+                ) : (
+                  <div className="text-[11.5px]" style={{ color: "var(--ink-3)" }}>
+                    Not rated. Pick a severity and a likelihood below — the band and the treatment
+                    strategy follow from the cell.
                   </div>
-                );
-              })()}
+                )}
+              </div>
 
-              {/* One rating and treatment block, shared with the hazard
-                  register. See src/components/RecordActions.tsx — a second copy
-                  of a risk matrix is how two screens end up carrying two
-                  vocabularies for one instrument. */}
+              {/* THE MATRIX, FROM THE ONE COMPONENT THAT DRAWS IT. Rendered
+                  without its single-string treatment fields: an asset system
+                  takes SEVERAL root causes and SEVERAL mitigation actions, and
+                  those are below. A second copy of B170 001M in this file is
+                  precisely what RecordActions was extracted to prevent. */}
               <RecordActions
-                record={active}
-                entityCode={entityCode}
-                onChange={(patch) => updateFinding(active.id, patch)}
-                onToast={say}
-                progress={active.progress}
-                onProgress={(n) => addFindingProgress(active.id, n)}
-                secondOpinion={async () => {
-                  const check = checksAt(entityCode).find((c) => c.id === active.checkId);
-                  return assist("rating", findingContext(active, check));
+                showTreatment={false}
+                record={{
+                  id: a.key,
+                  severity: a.severity,
+                  likelihood: a.likelihood,
+                  ratingConfirmed: a.ratingConfirmed,
+                  rootCause: "",
+                  action: "",
+                  owner: "",
+                  dueDate: "",
+                  actionStatus: "Open",
+                  discipline: active.discipline,
+                  system: active.system,
                 }}
-                advice={
-                  /* Same component as the check screen. Some findings are
-                     worked here rather than at the check, and the advice must
-                     not differ depending on which screen the auditor opened. */
-                  <RootCauseAdvice
-                    finding={active}
-                    check={active.checkId ? checksAt(entityCode).find((c) => c.id === active.checkId) : undefined}
-                    attachments={active.checkId ? (responses[active.checkId]?.attachments ?? []) : []}
-                    onPick={(rc) => updateFinding(active.id, { rootCause: rc })}
-                  />
+                entityCode={entityCode}
+                onChange={(patch) =>
+                  patchSystem(active.discipline, active.system, {
+                    severity: patch.severity,
+                    likelihood: patch.likelihood,
+                    ratingConfirmed: patch.ratingConfirmed,
+                  })
+                }
+                onToast={say}
+              />
+
+              <label className="mt-1 block">
+                <span className="label-xs" style={{ color: "var(--ink-4)" }}>
+                  Why the group agreed that cell
+                </span>
+                <textarea
+                  value={a.ratingRationale}
+                  onChange={(e) =>
+                    patchSystem(active.discipline, active.system, { ratingRationale: e.target.value })
+                  }
+                  placeholder="What the band rests on — the evidence below, in a sentence…"
+                  aria-label="Why the group agreed that cell"
+                  className="mt-1 min-h-[54px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                />
+              </label>
+
+              {/* Several root causes and several mitigation actions. */}
+              <SystemTreatment
+                assessment={a}
+                onAddCause={(c) => {
+                  useStore.getState().addRootCause(active.discipline, active.system, c);
+                  say("Root cause recorded");
+                }}
+                onPatchCause={(id, p) =>
+                  useStore.getState().patchRootCause(active.discipline, active.system, id, p)
+                }
+                onRemoveCause={(id) =>
+                  useStore.getState().removeRootCause(active.discipline, active.system, id)
+                }
+                onAddAction={(t) => {
+                  useStore.getState().addMitigation(active.discipline, active.system, t);
+                  say("Action recorded — it needs an owner and a date");
+                }}
+                onPatchAction={(id, p) =>
+                  useStore.getState().patchMitigation(active.discipline, active.system, id, p)
+                }
+                onRemoveAction={(id) =>
+                  useStore.getState().removeMitigation(active.discipline, active.system, id)
                 }
               />
 
-
-              {/* Pinned, not parked at the end of a two-screen form. See
-                  StickyActions — this button used to sit below the fold before
-                  the auditor had scrolled at all. */}
-              <StickyActions
-                state={
-                  <>
-                    {active.ratingConfirmed ? "rated" : "unrated — counts nowhere yet"}
-                    {" · "}
-                    {active.actionStatus === "Closed"
-                      ? "closed, no re-check needed"
-                      : "carries to the next audit"}
-                    {!active.owner && " · ⚠ no owner"}
-                    {!active.dueDate && " · ⚠ no target date"}
-                  </>
-                }
-              >
-                <Btn
-                  onClick={() => {
-                    const i = list.findIndex((f) => f.id === active.id);
-                    const prev = list[i - 1];
-                    if (prev) setActiveId(prev.id);
-                  }}
-                  disabled={list.findIndex((f) => f.id === active.id) === 0}
-                >
-                  <IconLeft width={14} height={14} />
-                  Previous
-                </Btn>
-                <Btn
-                  variant="primary"
-                  onClick={() => {
-                    const i = list.findIndex((f) => f.id === active.id);
-                    const next = list[i + 1];
-                    setActiveId(next?.id ?? active.id);
-                    say(next ? `${active.id} saved · ${next.id}` : `${active.id} saved · last one`);
-                  }}
-                >
-                  <IconCheck width={14} height={14} />
-                  Save &amp; next
-                </Btn>
-              </StickyActions>
+              {/* ---------------------------------- the full view of the system */}
+              <SystemEvidence
+                entityCode={entityCode}
+                discipline={active.discipline}
+                system={active.system}
+                checks={active.checks}
+                responses={responses}
+                prior={priorBySystem.get(`${active.discipline}|${active.system}`) ?? []}
+                raised={findingsBySystem.get(`${active.discipline}|${active.system}`) ?? []}
+                walk={walkBySystem.get(`${active.discipline}|${active.system}`) ?? []}
+                onOpenFinding={setOpenFinding}
+              />
             </div>
           )}
         </div>
       </div>
+
+      {/* One finding, in full, in a sheet. The pane the register used to be
+          built around — see FindingDetail. */}
+      {(() => {
+        const f = openFinding ? findings.find((x) => x.id === openFinding) : null;
+        if (!f) return null;
+        return (
+          <Sheet
+            open
+            wide
+            onClose={() => setOpenFinding(null)}
+            badges={
+              <>
+                <span>{f.id}</span>
+                <span>·</span>
+                <span>{f.system}</span>
+                {f.priorRating && <Pill tone="bad">REPEAT</Pill>}
+              </>
+            }
+            title={f.description || f.title}
+            subtitle="One finding · rated on its own, and evidence for the asset system's band"
+            footer={
+              <Btn variant="primary" onClick={() => setOpenFinding(null)}>
+                Done
+              </Btn>
+            }
+          >
+            <FindingDetail f={f} onToast={say} />
+          </Sheet>
+        );
+      })()}
 
       {toast && (
         <div
@@ -394,6 +578,236 @@ export default function FindingsPage() {
           {toast}
         </div>
       )}
+    </div>
+  );
+}
+
+/** THE FULL VIEW OF ONE ASSET SYSTEM — everything this audit and the last one
+ *  know about it, in the order a group reads it before agreeing a band.
+ *
+ *  Four lists, and the third is the one that is easy to leave out:
+ *
+ *    1. Still open from an earlier audit. The system's history.
+ *    2. Findings raised at this audit.
+ *    3. THIS AUDIT'S CHECK-POINTS — compliant ones included. A system whose
+ *       checks all passed and whose 2025 finding is still open is a real and
+ *       common shape, and a panel that showed only the failures would hide it.
+ *       A blank status is shown as NOT CAPTURED and never as compliant.
+ *    4. What the walk found that the register does not cover.
+ */
+function SystemEvidence({
+  entityCode,
+  discipline,
+  system,
+  checks,
+  responses,
+  prior,
+  raised,
+  walk,
+  onOpenFinding,
+}: {
+  entityCode: string;
+  discipline: string;
+  system: string;
+  checks: Check[];
+  responses: Record<string, { compliance?: string | null; observation?: string } | undefined>;
+  prior: { key: string; finding: string; originLabel: string; rating: string }[];
+  raised: Finding[];
+  walk: { id: string; description: string; outcome: string | null }[];
+  onOpenFinding: (id: string) => void;
+}) {
+  const seen = checks.filter((c) => fieldDone(responses[c.id] as never)).length;
+  const nc = checks.filter((c) => responses[c.id]?.compliance === "NC").length;
+  const ok = checks.filter((c) => responses[c.id]?.compliance === "C").length;
+  const blank = checks.filter((c) => !responses[c.id]?.compliance).length;
+
+  return (
+    <div className="mt-5">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+        <b className="font-display text-[11px] font-semibold">
+          Everything this audit knows about {system}
+        </b>
+        <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+          {ok} compliant · {nc} non-compliant · {blank} not captured · {seen} seen on site
+        </span>
+      </div>
+
+      <Section
+        label={`Still open from an earlier audit (${prior.length})`}
+        empty="Nothing carried into this visit for this asset system."
+      >
+        {prior.map((p) => (
+          <Row key={p.key} id={p.key} tone="warn" right={p.rating.toUpperCase()}>
+            <span style={{ color: "var(--ink-4)" }}>{p.originLabel} · </span>
+            {p.finding}
+          </Row>
+        ))}
+      </Section>
+
+      <Section
+        label={`Raised at this audit (${raised.length})`}
+        empty="No finding has been raised against this asset system at this audit."
+      >
+        {raised.map((f) => {
+          const b = bandFor(f.severity, f.likelihood);
+          return (
+            <Row
+              key={f.id}
+              id={f.id}
+              tone={b && f.ratingConfirmed ? BAND_META[b].tone : "neutral"}
+              right={
+                b
+                  ? f.ratingConfirmed
+                    ? /* cellCode prints severity-first (C4) while looking up
+                         likelihood-first. Deliberate and documented in
+                         src/lib/risk.ts — do not "tidy" it. Never null here,
+                         because a band exists only when both halves do. */
+                      (cellCode(f.severity, f.likelihood) ?? "RATED")
+                    : "SUGGESTED"
+                  : "NOT RATED"
+              }
+              onClick={() => onOpenFinding(f.id)}
+            >
+              {f.description || f.title}
+            </Row>
+          );
+        })}
+      </Section>
+
+      <Section
+        label={`This audit's check-points (${checks.length})`}
+        empty="No check-point at this site covers this asset system."
+      >
+        {checks.map((c) => {
+          const r = responses[c.id];
+          /* A BLANK STATUS IS NOT CAPTURED, and never compliant. It is the one
+             thing this panel must not soften: a system read as compliant on
+             checks nobody answered is a band agreed on evidence that does not
+             exist. */
+          const word =
+            r?.compliance === "C"
+              ? "COMPLIANT"
+              : r?.compliance === "NC"
+                ? "NON-COMPLIANT"
+                : r?.compliance === "NA"
+                  ? "NOT APPLICABLE"
+                  : "NOT CAPTURED";
+          const tone: Tone =
+            r?.compliance === "C"
+              ? "good"
+              : r?.compliance === "NC"
+                ? "bad"
+                : r?.compliance === "NA"
+                  ? "neutral"
+                  : "warn";
+          return (
+            <Row key={c.id} id={portalIdFor(entityCode, c.id)} tone={tone} right={word}>
+              {c.requirement}
+            </Row>
+          );
+        })}
+      </Section>
+
+      <Section
+        label={`Seen on the walk, not on the register (${walk.length})`}
+        empty="The walk found nothing here that the register does not cover."
+      >
+        {walk.map((w) => (
+          <Row key={w.id} id={w.id} tone="accent" right={(w.outcome ?? "no outcome").toUpperCase()}>
+            {w.description}
+          </Row>
+        ))}
+      </Section>
+
+      <div className="mt-2 text-[10.5px] leading-[1.5]" style={{ color: "var(--ink-4)" }}>
+        None of this computes the band. It is what the group reads before agreeing the cell —
+        three Amber findings on one asset system is not an Amber system, and a system with no
+        findings is not automatically Green.
+      </div>
+      <div className="sr-only">
+        {discipline} · {system}
+      </div>
+    </div>
+  );
+}
+
+function Section({
+  label,
+  empty,
+  children,
+}: {
+  label: string;
+  empty: string;
+  children: React.ReactNode;
+}) {
+  const has = Array.isArray(children) ? children.length > 0 : !!children;
+  return (
+    <div className="mb-3">
+      <div className="label-xs mb-1" style={{ color: "var(--ink-4)" }}>
+        {label}
+      </div>
+      {has ? (
+        <div
+          className="overflow-hidden rounded-[11px] border"
+          style={{ borderColor: "var(--line)" }}
+        >
+          {children}
+        </div>
+      ) : (
+        /* SAID, NOT LEFT BLANK. "No finding was raised here" and "this list did
+           not render" look identical when a section simply disappears, and only
+           one of them is information. */
+        <div
+          className="rounded-[11px] border px-3 py-2 text-[11.5px]"
+          style={{ background: "var(--sunken)", borderColor: "var(--line)", color: "var(--ink-4)" }}
+        >
+          {empty}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Row({
+  id,
+  tone,
+  right,
+  children,
+  onClick,
+}: {
+  id: string;
+  tone: Tone;
+  right: string;
+  children: React.ReactNode;
+  onClick?: () => void;
+}) {
+  const inner = (
+    <>
+      <span className="min-w-0 flex-1">
+        <span className="block font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+          {id}
+        </span>
+        <span className="mt-[1px] block text-[11.5px] leading-[1.4]">{children}</span>
+      </span>
+      <span className="mt-[2px] shrink-0">
+        <Pill tone={tone}>{right}</Pill>
+      </span>
+    </>
+  );
+  return onClick ? (
+    <button
+      onClick={onClick}
+      className="flex w-full items-start gap-2 border-b px-3 py-2 text-left last:border-b-0"
+      style={{ borderColor: "var(--line)", minHeight: 44 }}
+    >
+      {inner}
+    </button>
+  ) : (
+    <div
+      className="flex items-start gap-2 border-b px-3 py-2 last:border-b-0"
+      style={{ borderColor: "var(--line)" }}
+    >
+      {inner}
     </div>
   );
 }

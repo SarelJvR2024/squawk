@@ -38,6 +38,9 @@ const route = src("app", "api", "assist", "route.ts");
 const advice = src("components", "RootCauseAdvice.tsx");
 const detail = src("components", "CheckDetail.tsx");
 const findings = src("app", "(app)", "findings", "page.tsx");
+/* 2026-09-10: the per-finding pane moved here when the Findings screen became
+   an asset-system assessment. Same JSX, lifted rather than rewritten. */
+const findingPane = src("components", "FindingDetail.tsx");
 const exportsSrc = src("lib", "exports.ts");
 const panel = src("components", "ExportPanel.tsx");
 
@@ -274,7 +277,7 @@ check(
   "the advice lives in one component",
   /export default function RootCauseAdvice/.test(advice) &&
     /import RootCauseAdvice from ".\/RootCauseAdvice"/.test(detail) &&
-    /import RootCauseAdvice from "@\/components\/RootCauseAdvice"/.test(findings),
+    /import RootCauseAdvice from "@\/components\/RootCauseAdvice"/.test(findingPane),
   "the same advice written twice drifts apart"
 );
 

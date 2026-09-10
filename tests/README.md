@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Thirty-seven suites, no framework. Thirteen need a running server; twenty-four do not.
+Thirty-eight suites, no framework. Thirteen need a running server; twenty-five do not.
 **Check each suite's exit status, not its output**: a `for` loop over them
 reports the status of the loop.
 
@@ -30,6 +30,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `completion.test.mjs` | no | 19 |
 | `location.test.mjs` | no | 50 |
 | `followup.test.mjs` | no | 44 |
+| `systems.test.mjs` | no | 48 |
 | `audits.test.mjs` | no | 18 |
 | `voice.test.mjs` | no | 37 |
 | `sites.test.mjs` | no | 42 |

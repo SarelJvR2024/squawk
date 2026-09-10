@@ -9,32 +9,38 @@ Last updated: 9 September 2026.
 
 ---
 
-## 1 · Where the rating of record lives
+## 1 · Where the rating of record lives — ANSWERED IN PART, 2026-09-10
 
-**Blocks:** the asset-system assessment view, and everything that depends on it —
-the HIRA rebuild's mirrored lists, the ACSA discipline-dashboard export sheet.
+**Sarel's instruction:** *"on this page we are going to do the rating of the asset
+systems… at the top of the panel we need to be able to record the likelihood and
+severity and the system must calculate the rating and strategy."*
 
-The agreed audit methodology says *the hazard carries the rating of record,
-because it is the thing that persists year on year — a finding closes, a hazard
-does not.* The asset-system spec puts a rating on the **asset system**. Both can
-be true only if they use different instruments, and the code already supports
-exactly that:
+That settles the asset system, and **not the way I expected**. I had written here
+that I expected asset systems on ERM and hazardous events on B170 001M. His
+wording is B170 001M's vocabulary throughout — *severity* and *likelihood*, and
+a *strategy*, which ERM does not have; clause 4.6 pairs one treatment strategy
+with each of B170's three bands. So the asset system is rated on **B170 001M**,
+severity × likelihood, and the band and strategy are derived from the cell.
 
-| Object | Instrument today | Fields |
-|---|---|---|
-| `Finding` | B170 001M only | `severity` · `likelihood` · `ratingConfirmed` |
-| `Hazard` | B170 001M **and** ERM | the above, plus `ermConsequence` · `ermLikelihood` · `ermConfirmed` · `ermLikelihoodAssumed` |
-| `Check` / `Response` | none | — |
+Built and live: `SystemAssessment`, per visit, keyed `${discipline}|${system}`,
+gated by `ratingConfirmed` like every other rating here. No migration was needed
+— it is an absent-means-empty optional on `VisitData`, so nothing historical
+had to be converted.
 
-**What I expect you to confirm:** asset system rated on **ERM** (J050 001FW
-cl. 9.2.2, axis labelled *Impact*), hazardous event rated on **B170 001M** (axis
-labelled *Severity*). Nothing has to be inverted to get there — the hazard
-already carries both.
+**Still open, and it is the smaller half.** The agreed methodology says the
+HAZARD carries the rating of record because a finding closes and a hazard does
+not. There are now three rated objects — finding, hazard, asset system — all on
+the same instrument, and nothing says which one ACSA's year-on-year comparison
+reads. My reading is that the asset system's band is the published number (it is
+the row in ACSA's register) and the hazard's is the one that persists between
+audits, and that they answer different questions rather than competing. That is
+a reading, not a decision, and it is worth one sentence from Sarel.
 
-**Why it needs you and not me:** it is where the number ACSA compares year on
-year comes from, and moving it later means migrating live audit data.
-
-**Until then:** nothing has moved. No migration written, no fields added.
+**Also still open:** whether an asset system should ALSO carry an ERM rating.
+Nothing derives one from the B170 cell and nothing will — the two instruments
+disagree on five of twenty-five cells. If ACSA's Combined Assurance Coverage
+Plan wants asset systems on ERM, that is a second, separately agreed rating on
+the same record and about half a day's work.
 
 ---
 
@@ -247,3 +253,38 @@ room for it again.
 events should roll up anywhere — a site-level list of "what could go wrong at
 KSIA, by likelihood" is the obvious next thing to want from them and nothing
 builds it today.
+
+---
+
+## 9. The Findings screen became the asset-system assessment (2026-09-10)
+
+Built to Sarel's instruction. Two judgement calls in it that he may want to
+overrule, and one thing that is now missing.
+
+**1. The findings register is not gone; it moved.** The per-finding pane — its
+own B170 cell, root cause, owner, due date, progress log, the walk-item block —
+is lifted whole into `FindingDetail.tsx` and opens in a sheet from the asset
+system's evidence list. Nothing about a finding stopped being editable. What
+went is the *flat list of every finding on the site* as a landing view, and with
+it the four figure cards at the top (raised / rated / red band / missing owner)
+and the duplicate-finding warning that showed when two auditors raised the same
+issue on the same check.
+
+**That duplicate warning is a real loss and worth saying plainly.** It was the
+only place the app told anybody that one defect had been counted twice, and it
+only fires when both findings are visible in one list. It needs a home on the
+new screen — most likely on the asset system's "raised at this audit" list,
+where the two rows are side by side anyway. Half a day, not built yet.
+
+**2. Every asset system is listed, whether or not anything was found against
+it.** 75 at King Shaka, so the left panel is long. The alternative — listing
+only systems that carry a finding — would have made the screen shorter and
+would have hidden the systems nobody assessed, which is exactly the gap the
+screen exists to close. If the length becomes the complaint, the fix is a
+filter, not a shorter list.
+
+**3. The band is not computed from anything.** Not from the findings, not from
+the check compliance, not from the 2025 rating. The screen says so on the page.
+If Sarel wants a *suggested* cell proposed from the evidence — worst confirmed
+finding band, say — that is easy and it must arrive as a suggestion the group
+taps to accept, never as a value that counts unagreed. Say the word.

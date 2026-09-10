@@ -22,7 +22,8 @@ Section numbers in code comments point at that document.
 | Capture workspace (section 8) | Three-pane workspace, answer chips, real voice and photo capture, progress, ⌘K, keyboard |
 | Field inspection mode | Two-level tree — discipline (or location) → asset system → check-points — collapsed rows, one item open at a time, one segmented outcome control, a full-width comment field, researched walkabout options with photo expectation, 56px add button, capture-first tray, offline |
 | Things seen on the walk | `WALK-xxxxx` — an inspection item the register does not cover, with photographs, a voice note, an outcome and an optional asset system. **Never counted toward the 324**, on its own export sheet, and one tap from becoming a finding |
-| Findings and rating | ACSA B170 001M matrix, agreed vs suggested ratings, root cause, owner, due date |
+| Asset systems and rating | **The rating ACSA actually publishes.** Discipline → asset system, with the cell, the band and the 2025 rating on every row. Pick a cell on B170 001M and the band and the clause 4.6 treatment strategy follow from it — neither is typed. Several root causes and several mitigation actions, each action with its own owner, date and status. The panel shows everything the audit knows about the system — still open from an earlier audit, raised at this one, **this audit's check-points including the compliant ones**, and what the walk found — because that is the evidence the group reads before agreeing the cell. **Nothing computes the band from it** |
+| Findings and rating | Each finding still carries its own B170 001M rating, agreed vs suggested, root cause, owner and due date. It opens in full from the asset system it belongs to |
 | HIRA | Consolidation from findings with the photographs behind each group, post-walk re-read, **both rating instruments live** — B170 001M for the safety event, ACSA's ERM (J050 001FW cl. 9.2.2) for the business risk |
 | Follow-up | Every earlier audit in one place, grouped by asset system. Open a system and its findings read as a timeline — the audit that raised each one, oldest first, with the current status and the date beside it. The detail pane merges everything ever recorded against one finding into a single stream: raised, each audit's outcome in words, evidence, photographs somebody went and took, voice notes, updates, and the possible events — so **opened, then closed, then opened again** reads as the sequence it is. Four-way verification, remediation and next step recorded separately, coverage guard, and multiple possible hazardous events each with their own likelihood |
 | Audits | Every entity × visit in one place; open any, create new ones; the programme file seeds, the app extends |
@@ -30,7 +31,7 @@ Section numbers in code comments point at that document.
 | Visual review | All photographs and voice notes per discipline per airport, with an engineer feedback thread |
 | AI assistance | Optional and advisory — off unless a key is set |
 | Voice notes | Always recorded on the device; transcription and write-up are opt-in |
-| Exports | Excel and CSV: register, findings, hazards, closure, seen on the walk, evidence request, summary, photographs — plus the images as files |
+| Exports | Excel and CSV: register, **asset systems**, findings, hazards, closure, seen on the walk, evidence request, summary, photographs — plus the images as files |
 | Pre-flight | `/preflight` — microphone, camera, storage, offline cache and the three services, checked on the device before anyone walks onto an apron |
 | Shared record | Supabase, behind a team passphrase — every auditor's work in one audit, syncing by itself, and off entirely unless configured |
 | Team captures | Share a device's work as one file and merge another auditor's; evidence is never overwritten |
@@ -942,6 +943,42 @@ render it. The practical consequence, stated plainly because it will otherwise
 be discovered on site: after a sync the second device shows the thumbnail, the
 caption, the reference, the asset and the location — everything except an image
 you can zoom into. See `OPEN-QUESTIONS.md` §7 for the decision this needs.
+
+### The asset system's own rating
+
+ACSA rates, reports and compares **asset systems** year on year: that is the row
+in their register, the unit a Cluster report is written about, and the number a
+station manager is asked to explain. Squawk rated findings and hazards and had
+no rating at all on the thing ACSA publishes, so an asset system's band was
+something a reader inferred from the worst finding under it.
+
+Inferring it is wrong twice over. Three Amber findings on one asset system is
+not an Amber system. And a system with **no** findings is not automatically
+Green — it may simply not have been looked at, which is a different and worse
+fact than "sound".
+
+So the asset system carries its own severity, its own likelihood and its own
+`ratingConfirmed`, agreed by the group on B170 001M like every other rating
+here, and the band and the clause 4.6 treatment strategy are **derived** from
+the cell rather than typed. A rating nobody tapped renders dashed and says
+"suggested"; the figure at the top of the screen counts agreed ratings only.
+
+**Nothing on the screen computes the band.** The findings, the 2025 carry-overs,
+this audit's check-points and the walk items are *evidence the group reads
+before agreeing the cell*, which is why the panel shows all of them — the
+compliant checks included. A system whose checks all passed and whose 2025
+finding is still open is a real and common shape, and only seeing both halves
+makes it visible. A blank compliance is shown as **NOT CAPTURED** and never as
+compliant.
+
+Root causes and mitigation actions are **plural**. Switchgear rated
+Unacceptable regularly fails for two reasons at once, and closing it out is
+three jobs owned by three people on three timelines; one of each forces the rest
+into a comment where nothing tracks them. Each action carries its own owner,
+target date and status, and neither owner nor date is ever defaulted — a name
+against a job nobody accepted and a date nobody agreed are both worse than a
+blank the screen can flag. Two auditors' lists **union** on merge; the band
+itself is last-writer-wins, because a band is one decision the group made.
 
 ### Possible hazardous events, per finding
 

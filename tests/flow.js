@@ -440,11 +440,22 @@ async function badge(p, href) {
      time. That difference is the whole point of following up. */
   await p.locator("button.min-h-\\[56px\\]", { hasText: /^Repeat$/ }).first().click();
   await p.waitForTimeout(800);
-  ok("a mitigation action is asked for when an item does not close",
-     (await p.locator("text=Mitigation action").count()) > 0,
+  /* 2026-09-10: "Mitigation action — what must still happen", shown only when
+     the outcome was not Closed, became TWO fields shown always — "Remediation
+     action — what fixes it" and "Next step — what happens next". ACSA's own
+     sheet folds the fix and the chase into one cell and it gets filled with the
+     chase, which is how a finding arrives at the next audit with no recorded
+     remedy at all. The assertion is the same one: what has to be done is
+     recorded against the CARRIED item, never raised as a new finding, which
+     would break the chain back to the audit that found it. */
+  ok("a remediation action is asked for, against the carried item",
+     (await p.locator("text=Remediation action").count()) > 0,
      "recorded against the carried item, not raised as a new finding");
+  ok("and the next step is asked for separately",
+     (await p.locator("text=Next step").count()) > 0,
+     "the fix and the chase are different questions");
   await p
-    .locator('textarea[placeholder^="What is outstanding"]')
+    .locator('textarea[aria-label="Remediation action"]')
     .first()
     .fill("Contractor appointed; parts on 6-week lead time.");
   await p.waitForTimeout(300);
@@ -455,7 +466,12 @@ async function badge(p, href) {
     await p.waitForTimeout(600);
   }
   const timeline = await p.locator("body").innerText();
-  ok("the history is shown as a timeline", /every audit that touched this/i.test(timeline));
+  /* 2026-09-10: the per-audit history became one merged stream — every visit's
+     outcome, evidence, photographs, voice notes and updates in one order — so
+     the heading changed with it. Same property under test: the screen shows
+     what happened across audits rather than only this visit's copy. */
+  ok("the history is shown as a timeline",
+     /everything recorded against this/i.test(timeline));
   ok("including the audit that raised it", /raised/i.test(timeline));
   /* The one that matters: ACSA's Progress/Update is a single cell that gets
      typed over, so a second entry would replace the first. */
@@ -464,8 +480,11 @@ async function badge(p, href) {
      "a cell that gets typed over cannot say when an item moved or who said so");
   ok("each entry carries its author and the status at the time",
      /Sarel/.test(timeline) && /Open - repeat/i.test(timeline));
+  /* The remediation is an entry in the stream now rather than a line of its own
+     under the log, so the assertion follows the text it was always about. */
   ok("and what is still outstanding is called out",
-     /still to happen/i.test(timeline));
+     /Remediation action/i.test(timeline) &&
+       /Contractor appointed/.test(timeline));
 
   ok("no page errors anywhere in the flow", errs.length === 0, errs[0] || "");
 

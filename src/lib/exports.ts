@@ -7,6 +7,9 @@ import type {
   Hazard,
   PriorFinding,
   Response,
+  MitigationAction,
+  RootCauseNote,
+  SystemAssessment,
   Verification,
 } from "./types";
 import { BAND_AS_RATING, BAND_META, bandFor, cellCode, movement } from "./risk";
@@ -92,6 +95,11 @@ export interface ExportInput {
   adhoc?: AdHocItem[];
   prior: PriorFinding[];
   verifications: Record<string, Verification>;
+  /** The asset systems' own ratings, keyed `${discipline}|${system}`. Optional
+   *  for the same reason `adhoc` is — an older caller still produces a
+   *  workbook, and an asset system nobody rated is reported as unrated rather
+   *  than omitted. */
+  systems?: Record<string, SystemAssessment>;
   /** Loaded lazily; when absent the evidence and issue labels fall back to indices. */
   library: Record<string, AnswerLibrary> | null;
 }
@@ -800,6 +808,103 @@ export function evidenceRequestSheet(x: ExportInput): Sheet {
   };
 }
 
+/* --------------------------------------------------------- asset systems */
+
+/** ONE ROW PER ASSET SYSTEM — the rating ACSA actually publishes.
+ *
+ *  Every asset system at the site, not only the ones somebody assessed: a
+ *  system that was never rated is the gap this sheet exists to make visible,
+ *  and omitting it would report the gap as an absence of risk. `Rating agreed`
+ *  is the column that decides whether the band means anything, because a
+ *  severity and likelihood nobody tapped on the matrix is a suggestion.
+ *
+ *  The band and the strategy are DERIVED here as they are on screen, from the
+ *  same bandFor()/BAND_META, so the workbook cannot come to disagree with the
+ *  app about what C4 means. */
+export function systemsSheet(x: ExportInput): Sheet {
+  const seen = new Set<string>();
+  const rows: CellValue[][] = [];
+  for (const c of x.checks) {
+    const system = c.system?.trim() || "No asset system recorded";
+    const key = `${c.discipline}|${system}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const a = x.systems?.[key];
+    const band = bandFor(a?.severity ?? null, a?.likelihood ?? null);
+    const agreed = a?.ratingConfirmed === true;
+    const checks = x.checks.filter(
+      (k) => k.discipline === c.discipline && (k.system?.trim() || "No asset system recorded") === system
+    );
+    const rs = checks.map((k) => x.responses[k.id]);
+    const findings = x.findings.filter((f) => f.discipline === c.discipline && f.system === system);
+    rows.push([
+      c.discipline,
+      system,
+      a?.severity ?? "",
+      a?.likelihood ?? "",
+      /* THE CELL, AND ONLY WHERE IT WAS AGREED. A code printed against an
+         unconfirmed pair would read in a workbook exactly like one the group
+         settled, which is the one thing ratingConfirmed exists to prevent. */
+      agreed && band ? (cellCode(a!.severity, a!.likelihood) ?? "") : "",
+      agreed && band ? BAND_META[band].label : band ? "SUGGESTED — not agreed" : "NOT RATED",
+      agreed && band ? BAND_META[band].strategy : "",
+      agreed ? "Yes" : "No",
+      a?.ratingRationale ?? "",
+      (a?.rootCauses ?? [])
+        .map((r: RootCauseNote) => (r.note ? `${r.cause} — ${r.note}` : r.cause))
+        .join("\n"),
+      (a?.actions ?? [])
+        .map(
+          (m: MitigationAction) =>
+            `${m.action} · ${m.owner || "NO OWNER"} · ${m.dueDate || "NO TARGET DATE"} · ${m.status}`
+        )
+        .join("\n"),
+      /* The evidence the band was agreed on, as counts. Not the band's
+         derivation — nothing here computes it — but what a reader needs to
+         argue with it. */
+      checks.length,
+      rs.filter((r) => r?.compliance === "C").length,
+      rs.filter((r) => r?.compliance === "NC").length,
+      rs.filter((r) => !r?.compliance).length,
+      findings.length,
+      x.prior.filter(
+        (p) => p.discipline === c.discipline && (p.assetSystem ?? p.assetSystemRecorded) === system
+      ).length,
+      a?.assessedBy ?? "",
+      when(a?.assessedAt),
+      a?.note ?? "",
+    ]);
+  }
+  rows.sort((a, b) => String(a[0]).localeCompare(String(b[0])) || String(a[1]).localeCompare(String(b[1])));
+
+  return {
+    name: "Asset systems",
+    columns: [
+      { header: "Discipline", width: 22 },
+      { header: "Asset system", width: 32 },
+      { header: "Severity", width: 20 },
+      { header: "Likelihood", width: 22 },
+      { header: "Cell", width: 8 },
+      { header: "Rating", width: 26 },
+      { header: "Treatment strategy (cl. 4.6)", width: 44, wrap: true },
+      { header: "Rating agreed", width: 13 },
+      { header: "Why that cell", width: 56, wrap: true },
+      { header: "Root causes", width: 56, wrap: true },
+      { header: "Mitigation actions", width: 70, wrap: true },
+      { header: "Check-points", width: 13 },
+      { header: "Compliant", width: 11 },
+      { header: "Non-compliant", width: 14 },
+      { header: "Not captured", width: 13 },
+      { header: "Findings raised", width: 15 },
+      { header: "2025 findings", width: 14 },
+      { header: "Assessed by", width: 22 },
+      { header: "Assessed on", width: 13 },
+      { header: "Assessor's note", width: 60, wrap: true },
+    ],
+    rows,
+  };
+}
+
 /* ------------------------------------------------------------------- summary */
 
 export function summarySheet(x: ExportInput): Sheet {
@@ -966,6 +1071,10 @@ export function fullWorkbook(x: ExportInput): Sheet[] {
     aboutSheet(x),
     summarySheet(x),
     registerSheet(x),
+    /* Before the findings, deliberately: the asset system is the unit ACSA
+       reports, and a reader opening the workbook should meet the ratings before
+       the evidence they were agreed on. */
+    systemsSheet(x),
     findingsSheet(x),
     hazardsSheet(x),
     closureSheet(x),

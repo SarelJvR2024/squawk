@@ -105,7 +105,13 @@ check(
 
 check(
   "the merge unions walk items by id",
-  /adhocById/.test(merge) && /visitData: \{ responses, verifications, captures, feedback, adhoc \}/.test(merge)
+  /* 2026-09-10: `systems` joined the visit literal when asset systems got a
+     rating of their own. The assertion is unchanged in substance — the merged
+     visit carries the walk items, by id — and follows the literal. */
+  /adhocById/.test(merge) &&
+    /visitData: \{ responses, verifications, captures, feedback, adhoc, systems: assessedSystems \}/.test(
+      merge
+    )
 );
 check(
   "newer wins on a conflict",

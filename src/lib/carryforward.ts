@@ -611,7 +611,13 @@ export function streamFor(
         kind: "note",
         visit: n.visit || v.id,
         visitLabel: labelOf(n.visit || v.id),
-        label: "Update logged",
+        /* THE STATUS AS IT STOOD, on the entry. Each progress note records the
+           outcome at the moment it was written precisely so a reader can see an
+           item move — "PO raised" while it was Open - repeat means something
+           different from the same words after it closed. Dropping it here would
+           have quietly thrown away the one field that makes the log a history
+           rather than a list of remarks. */
+        label: n.outcome ? `Update logged · ${n.outcome}` : "Update logged",
         detail: n.note,
         by: n.by,
       });

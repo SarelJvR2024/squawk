@@ -117,6 +117,12 @@ for (const kind of ["raised", "outcome", "evidence", "action", "next", "photo", 
 }
 
 check(
+  "an update carries the status as it stood when it was written",
+  /label: n\.outcome \? `Update logged · \$\{n\.outcome\}` : "Update logged"/.test(carry),
+  "'PO raised' while it was Open - repeat means something different from the same words after it closed"
+);
+
+check(
   "a photograph on a follow-up is named for what it means",
   /"Photograph — went and looked"/.test(carry),
   "Sarel asked for when visual inspections was added; a file type is not that"
@@ -214,9 +220,17 @@ check(
   ""
 );
 
+/* The slice is the interface BODY, bounded by its own closing brace, not by
+   whatever declaration happens to follow it — SystemAssessment moved in
+   between and it legitimately carries a severity of its own. */
+const iface = (name) => {
+  const i = types.indexOf(`export interface ${name} {`);
+  return i < 0 ? "" : types.slice(i, types.indexOf("\n}", i));
+};
+
 check(
   "AND NO SEVERITY",
-  !/severity/i.test(types.slice(types.indexOf("export interface PossibleEvent"), types.indexOf("export interface Verification"))),
+  !/severity/i.test(iface("PossibleEvent")),
   "a severity typed here would be a second, un-agreed rating for the same event — the drift ratingConfirmed exists to stop"
 );
 

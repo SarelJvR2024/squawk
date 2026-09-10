@@ -41,6 +41,7 @@ import type {
   PossibleEvent,
   ProgressNote,
   Response,
+  SystemAssessment,
   Verification,
 } from "./types";
 import type { VisitData } from "./store";
@@ -173,6 +174,15 @@ function unionEvents(mine: PossibleEvent[] = [], theirs: PossibleEvent[] = []): 
   );
 }
 
+/** Union by id, theirs appended where this device has never seen it. The
+ *  generic form of unionAttachments, for the lists an asset-system assessment
+ *  carries: two auditors add root causes and mitigation actions independently
+ *  at the same out-brief, and keeping only the later save loses one of them. */
+function unionById<T extends { id: string }>(mine: T[], theirs: T[]): T[] {
+  const seen = new Set(mine.map((x) => x.id));
+  return [...mine, ...theirs.filter((x) => !seen.has(x.id))];
+}
+
 /** Why a bundle cannot be merged here, or null if it can. */
 export function refuse(
   bundle: Bundle | null,
@@ -299,6 +309,27 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
     }
   }
 
+  /* ------------------------------------------ asset-system assessments --- */
+  /* THE RATING IS LAST-WRITER-WINS; THE LISTS UNDER IT ARE NOT.
+     A band is one decision the group made, so the later of two devices' copies
+     is the one to keep — the same rule every other rated record here follows.
+     Root causes and mitigation actions are lists two people add to
+     independently at the same out-brief, and last-writer-wins on the arrays
+     would drop one auditor's whole list with nothing on screen to say so. Both
+     carry ids, so both union. */
+  const assessedSystems: Record<string, SystemAssessment> = { ...(mine.visitData.systems ?? {}) };
+  for (const [key, t] of Object.entries(theirs.visit.systems ?? {})) {
+    const m = assessedSystems[key];
+    if (!m) {
+      assessedSystems[key] = t;
+      continue;
+    }
+    const rootCauses = unionById(m.rootCauses ?? [], t.rootCauses ?? []);
+    const actions = unionById(m.actions ?? [], t.actions ?? []);
+    const newer = when(t) > when(m) ? t : m;
+    assessedSystems[key] = { ...newer, rootCauses, actions };
+  }
+
   /* --------------------------------------------------- captures, notes --- */
   const captureIds = new Set((mine.visitData.captures ?? []).map((c) => c.id));
   const captures = [
@@ -358,7 +389,7 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
   }
 
   return {
-    visitData: { responses, verifications, captures, feedback, adhoc },
+    visitData: { responses, verifications, captures, feedback, adhoc, systems: assessedSystems },
     findings,
     hazards,
     report,

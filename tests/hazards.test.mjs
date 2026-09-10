@@ -326,7 +326,17 @@ check("the ERM block sits directly under the B170 001M one",
   actions.indexOf("showErm &&") < actions.indexOf("What the scales mean"));
 check("hazards ask for the ERM block and findings do not", /showErm\b/.test(hazardsPage) && !/showErm/.test(findingsPage));
 check("RootCauseAdvice is used from the hazard register too", /<RootCauseAdvice/.test(hazardsPage));
-check("and still from the check screen and the findings screen", /<RootCauseAdvice/.test(detail) && /<RootCauseAdvice/.test(findingsPage));
+/* 2026-09-10: the per-finding pane moved out of findings/page.tsx into
+   FindingDetail.tsx when the Findings screen became an asset-system assessment.
+   The advice renders in exactly the same place in the same JSX — it is lifted,
+   not rewritten — so the assertion follows it to the file it now lives in. */
+check(
+  "and still from the check screen and the finding pane",
+  /<RootCauseAdvice/.test(detail) &&
+    /<RootCauseAdvice/.test(
+      src("components", "FindingDetail.tsx")
+    )
+);
 
 /* ------------------------------- Part 7: the prompts, and the rules in them */
 

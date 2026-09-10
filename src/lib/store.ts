@@ -25,7 +25,10 @@ import type {
   Likelihood,
   PriorFinding,
   PriorRating,
+  MitigationAction,
   PossibleEvent,
+  RootCauseNote,
+  SystemAssessment,
   ProgressNote,
   Response,
   Role,
@@ -169,6 +172,16 @@ export interface VisitData {
    *  migration to write `[]` into every historical visit would be a risk taken
    *  for no gain. */
   adhoc?: AdHocItem[];
+  /** THE ASSET SYSTEM'S OWN RATING, keyed by `${discipline}|${system}`.
+   *
+   *  ACSA rates asset systems, not findings — see SystemAssessment. Per visit,
+   *  because the whole point is comparing this audit's band to the last one's;
+   *  a single rating carried across visits could not say a system improved.
+   *
+   *  Absent-means-empty, like `feedback` and `adhoc`: a visit persisted before
+   *  this existed simply has none, which reads correctly as "nobody assessed
+   *  any", so no persist version has to move. */
+  systems?: Record<string, SystemAssessment>;
 }
 
 const EMPTY_VISIT: VisitData = Object.freeze({
@@ -177,6 +190,7 @@ const EMPTY_VISIT: VisitData = Object.freeze({
   captures: Object.freeze([]) as unknown as Capture[],
   feedback: Object.freeze({}) as Record<string, FeedbackNote[]>,
   adhoc: Object.freeze([]) as unknown as AdHocItem[],
+  systems: Object.freeze({}) as Record<string, SystemAssessment>,
 });
 
 function emptyResponse(checkId: string): Response {
@@ -340,6 +354,31 @@ interface State {
   ) => string;
   patchPossibleEvent: (pf: string, id: string, p: Partial<PossibleEvent>) => void;
   removePossibleEvent: (pf: string, id: string) => void;
+
+  /* ---- the asset system's own rating. See SystemAssessment. ---- */
+  /** The pair, in one place, so no caller invents its own separator. */
+  systemKey: (discipline: string, system: string) => string;
+  /** Never undefined: an asset system nobody has assessed reads as an empty
+   *  assessment, which is the honest state, rather than forcing every caller to
+   *  handle a null. Nothing is written to the store by reading. */
+  systemAssessment: (discipline: string, system: string) => SystemAssessment;
+  patchSystem: (discipline: string, system: string, p: Partial<SystemAssessment>) => void;
+  addRootCause: (discipline: string, system: string, cause: string, note?: string) => string;
+  patchRootCause: (
+    discipline: string,
+    system: string,
+    id: string,
+    p: Partial<RootCauseNote>
+  ) => void;
+  removeRootCause: (discipline: string, system: string, id: string) => void;
+  addMitigation: (discipline: string, system: string, action: string) => string;
+  patchMitigation: (
+    discipline: string,
+    system: string,
+    id: string,
+    p: Partial<MitigationAction>
+  ) => void;
+  removeMitigation: (discipline: string, system: string, id: string) => void;
 
   addAttachment: (checkId: string, a: Omit<Attachment, "id" | "createdAt">) => void;
   /** Write a transcript, its provenance or a revision back onto a note that is
@@ -793,6 +832,122 @@ export const useStore = create<State>()(
           };
           writeScope((d) => ({ verifications: { ...d.verifications, [pf]: next } }));
           set({ lastSavedAt: Date.now() });
+        },
+
+        /* ------------------------------- the asset system's own rating --- */
+
+        systemKey: (discipline, system) => `${discipline}|${system}`,
+
+        systemAssessment: (discipline, system) => {
+          const key = `${discipline}|${system}`;
+          return (
+            get().visitData().systems?.[key] ?? {
+              key,
+              discipline,
+              system,
+              /* UNRATED, and unrated is a real state. A band nobody agreed must
+                 never render as Green — see ratingConfirmed. */
+              severity: null,
+              likelihood: null,
+              ratingConfirmed: false,
+              ratingRationale: "",
+              rootCauses: [],
+              actions: [],
+              note: "",
+              assessedBy: "",
+              assessedAt: null,
+            }
+          );
+        },
+
+        patchSystem: (discipline, system, p) => {
+          const key = `${discipline}|${system}`;
+          const next: SystemAssessment = {
+            ...get().systemAssessment(discipline, system),
+            ...p,
+            updatedAt: Date.now(),
+          };
+          /* WHO AGREED IT AND WHEN, stamped by the tap that confirms the
+             rating and by nothing else. A stamp written on every keystroke
+             would say the rating was agreed at the moment somebody fixed a
+             typo in the rationale. */
+          if (p.ratingConfirmed === true) {
+            next.assessedBy = get().auditor;
+            next.assessedAt = Date.now();
+          }
+          writeScope((d) => ({ systems: { ...(d.systems ?? {}), [key]: next } }));
+          set({ lastSavedAt: Date.now() });
+        },
+
+        addRootCause: (discipline, system, cause, note) => {
+          const text = cause.trim();
+          if (!text) return "";
+          const cur = get().systemAssessment(discipline, system);
+          /* Recorded once. Pressing an ACSA cause that is already on the list
+             is a mis-tap, not a second cause, and two identical chips is a
+             list nobody can read. */
+          const already = cur.rootCauses.find((r) => r.cause === text);
+          if (already) return already.id;
+          const item: RootCauseNote = {
+            id: `RC-${uid().toUpperCase().slice(0, 5)}`,
+            cause: text,
+            note: note?.trim() ?? "",
+            createdAt: Date.now(),
+            createdBy: get().auditor,
+          };
+          get().patchSystem(discipline, system, { rootCauses: [...cur.rootCauses, item] });
+          return item.id;
+        },
+
+        patchRootCause: (discipline, system, id, p) => {
+          const cur = get().systemAssessment(discipline, system);
+          get().patchSystem(discipline, system, {
+            rootCauses: cur.rootCauses.map((r) => (r.id === id ? { ...r, ...p } : r)),
+          });
+        },
+
+        removeRootCause: (discipline, system, id) => {
+          const cur = get().systemAssessment(discipline, system);
+          get().patchSystem(discipline, system, {
+            rootCauses: cur.rootCauses.filter((r) => r.id !== id),
+          });
+        },
+
+        addMitigation: (discipline, system, action) => {
+          const text = action.trim();
+          if (!text) return "";
+          const cur = get().systemAssessment(discipline, system);
+          const item: MitigationAction = {
+            id: `MA-${uid().toUpperCase().slice(0, 5)}`,
+            action: text,
+            /* NO OWNER AND NO DATE BY DEFAULT, deliberately. Defaulting the
+               owner to whoever typed it puts a name against a job nobody
+               accepted, and a target date nobody agreed is worse than a blank
+               the screen can flag. */
+            owner: "",
+            dueDate: "",
+            status: "Open",
+            createdAt: Date.now(),
+            createdBy: get().auditor,
+          };
+          get().patchSystem(discipline, system, { actions: [...cur.actions, item] });
+          return item.id;
+        },
+
+        patchMitigation: (discipline, system, id, p) => {
+          const cur = get().systemAssessment(discipline, system);
+          get().patchSystem(discipline, system, {
+            actions: cur.actions.map((a) =>
+              a.id === id ? { ...a, ...p, updatedAt: Date.now() } : a
+            ),
+          });
+        },
+
+        removeMitigation: (discipline, system, id) => {
+          const cur = get().systemAssessment(discipline, system);
+          get().patchSystem(discipline, system, {
+            actions: cur.actions.filter((a) => a.id !== id),
+          });
         },
 
         feedbackFor: (checkId) => get().visitData().feedback?.[checkId] ?? [],
@@ -1464,8 +1619,13 @@ export const useFeedback = () => useVisitData().feedback ?? EMPTY_FEEDBACK;
  *  324 — see AdHocItem, and every count that touches these. */
 export const useAdhoc = () => useVisitData().adhoc ?? EMPTY_ADHOC;
 
+/** Every asset-system assessment at the entity and visit in view, keyed by
+ *  `${discipline}|${system}`. Absent reads as none assessed. */
+export const useSystems = () => useVisitData().systems ?? EMPTY_SYSTEMS;
+
 const EMPTY_FEEDBACK: Record<string, FeedbackNote[]> = Object.freeze({});
 const EMPTY_ADHOC: AdHocItem[] = Object.freeze([]) as unknown as AdHocItem[];
+const EMPTY_SYSTEMS: Record<string, SystemAssessment> = Object.freeze({});
 
 /** Findings raised on the visit currently in view. */
 export function useVisitFindings(): Finding[] {
