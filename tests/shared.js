@@ -529,6 +529,17 @@ const syncNow = async (page) => {
 
     await A.page.goto(BASE + "/findings", { waitUntil: "networkidle" });
     await A.page.waitForTimeout(1800);
+    /* 2026-09-10: /findings opens on the asset-system assessment. The two
+       findings are the same check and the same issue, so they sit under the
+       same asset system and the warning shows there too — but the register half
+       of the screen is where an auditor comparing them actually works, and it
+       is the list this assertion has always been about. One press. */
+    await A.page
+      .locator('button[role="radio"]', { hasText: /Findings raised/ })
+      .first()
+      .click()
+      .catch(() => {});
+    await A.page.waitForTimeout(900);
     const findingsText = await A.page.locator("body").innerText();
     ok("ONE DEFECT RAISED BY TWO AUDITORS IS FLAGGED, not counted twice in silence",
        /also raised as F-[A-Z0-9]+ — same issue, same check/.test(findingsText),

@@ -140,9 +140,21 @@ const openExport = async (page) => {
 
     await b.goto(B + "/findings", { waitUntil: "networkidle" });
     await b.waitForTimeout(1200);
+    /* 2026-09-10: /findings opens on the asset-system assessment; the register
+       of findings is the other half of the same screen. Assert on the row
+       itself rather than on the absence of the words "no findings" — the
+       assessment legitimately carries the sentence "a system with no findings
+       is not automatically Green", which is why the band is not computed from
+       them. */
+    await b
+      .locator('button[role="radio"]', { hasText: /Findings raised/ })
+      .first()
+      .click()
+      .catch(() => {});
+    await b.waitForTimeout(900);
     const findings = await b.locator("body").innerText();
     ok("and the finding is on the findings screen, not just in a report",
-       !/No findings/i.test(findings), findings.slice(0, 140).replace(/\n/g, " "));
+       /F-[A-Z0-9]{4,}/.test(findings), findings.slice(0, 140).replace(/\n/g, " "));
 
     /* Merging the same file again is something an auditor will do. */
     await b.goto(B + "/capture", { waitUntil: "networkidle" });

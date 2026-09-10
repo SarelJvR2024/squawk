@@ -272,6 +272,15 @@ async function badge(p, href) {
   /* ---------------- 5. agree the rating ---------------- */
   await p.goto(B + "/findings", { waitUntil: "networkidle" });
   await p.waitForTimeout(1500);
+  /* 2026-09-10: the screen is the ASSET SYSTEM assessment now and opens on it,
+     which is what Sarel asked for. The flat register of findings is the other
+     half of the same screen, one press away, and that is where an auditor
+     rating what they raised this morning works — they do not know or care which
+     asset systems the eleven findings are under. Pressing it is part of the
+     flow, not a workaround: if the register ever stops being reachable in one
+     press, this line fails, which is exactly the regression worth catching. */
+  await p.locator('button[role="radio"]', { hasText: /Findings raised/ }).first().click();
+  await p.waitForTimeout(700);
   const cell = p.locator("button[aria-label*=' by likelihood ']").first();
   ok("the findings screen offers the B170 001M matrix", (await cell.count()) > 0);
   /* Agree 5A on EVERY finding — the worst cell, so the effect is unambiguous. */

@@ -54,7 +54,7 @@ import { useOutstanding, carriesWork } from "@/lib/carryforward";
 import { portalIdFor } from "@/lib/sites";
 import { BAND_META, bandFor, cellCode } from "@/lib/risk";
 import { duplicateFindings } from "@/lib/merge";
-import { Btn, Empty, Pill } from "@/components/ui/primitives";
+import { Btn, Dot, Empty, Pill } from "@/components/ui/primitives";
 import type { Tone } from "@/components/ui/primitives";
 import GroupRow from "@/components/ui/GroupRow";
 import Sheet from "@/components/ui/Sheet";
@@ -78,7 +78,26 @@ export default function FindingsPage() {
   const systemAssessment = useStore((s) => s.systemAssessment);
 
   const [q, setQ] = useState("");
-  const [expanded, setExpanded] = useState<string[]>([]);
+  /* TWO WAYS INTO THE SAME WORK, and the second one is not a nicety.
+     The screen is the asset-system assessment — that is what Sarel asked for
+     and it is the default. But a finding still carries its own B170 cell, and
+     on the asset-system view the only route to it is: know which asset system
+     it is under, open that system, find it in the evidence list, open it. An
+     auditor who has just raised eleven findings on a walk and wants to rate
+     them at the out-brief does not know or care which systems they are under —
+     they want the eleven. Making them hunt is how findings arrive at ACSA
+     unrated.
+     So the flat register is one press away, listing every finding at this
+     visit with its band. It is not a second screen: the same FindingDetail
+     pane renders in both. */
+  const [mode, setMode] = useState<"systems" | "findings">("systems");
+  const [activeFindingId, setActiveFindingId] = useState<string | null>(null);
+  /* `null` means "nobody has folded anything yet" and reads as: the discipline
+     holding whatever the right panel is showing is open, everything else shut.
+     Once the auditor presses a header it becomes their own set. Same shape the
+     Follow-up screen uses, and for the same reason — a list whose default state
+     contradicts the panel beside it has lost track of what it is showing. */
+  const [expanded, setExpanded] = useState<string[] | null>(null);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [openFinding, setOpenFinding] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -139,12 +158,33 @@ export default function FindingsPage() {
       .sort((a, b) => a.discipline.localeCompare(b.discipline));
   }, [entityCode, q]);
 
+  /* THE SCREEN ARRIVES ON SOMETHING. An asset-system assessment whose right
+     panel says "pick one" is half a screen of nothing and a press before any
+     work starts; the first system of the first discipline is as good a place to
+     land as any, and it is one press to go somewhere else. Derived rather than
+     written into state, so it follows the search rather than pinning the panel
+     to a system the search has filtered away. */
+  const firstKey = tree[0]?.systems[0]
+    ? `${tree[0].discipline}|${tree[0].systems[0].system}`
+    : null;
+  const shownKey =
+    activeKey && tree.some((d) => d.systems.some((x) => `${d.discipline}|${x.system}` === activeKey))
+      ? activeKey
+      : firstKey;
+  const shownDiscipline = shownKey?.split("|")[0] ?? null;
+
   /* A search opens everything it matched. Shut groups showing nothing reads as
      "no results" and is the worst possible answer, because it is wrong. */
   const searching = q.trim().length > 0;
-  const isOpen = (key: string) => searching || expanded.includes(key);
+  const isOpen = (key: string) =>
+    searching || (expanded === null ? key === shownDiscipline : expanded.includes(key));
   const toggle = (key: string) =>
-    setExpanded((e) => (e.includes(key) ? e.filter((x) => x !== key) : [...e, key]));
+    setExpanded((cur) => {
+      /* The first press takes the default's own state with it, so opening a
+         second discipline does not silently shut the one being shown. */
+      const base = cur ?? (shownDiscipline ? [shownDiscipline] : []);
+      return base.includes(key) ? base.filter((x) => x !== key) : [...base, key];
+    });
 
   /* ONE DEFECT COUNTED TWICE REACHES ACSA AS TWO — and this is the only place
      that says so.
@@ -166,6 +206,17 @@ export default function FindingsPage() {
     }
     return m;
   }, [findings]);
+
+  /* The flat register, in the id order the findings were raised. Same search
+     box as the tree — a search on this screen means "find the thing I am
+     looking for", whichever way the list happens to be arranged. */
+  const flat = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    if (!t) return findings;
+    return findings.filter((f) =>
+      `${f.id} ${f.description} ${f.title} ${f.discipline} ${f.system}`.toLowerCase().includes(t)
+    );
+  }, [findings, q]);
 
   /* Findings raised THIS visit, per asset system. */
   const findingsBySystem = useMemo(() => {
@@ -210,12 +261,19 @@ export default function FindingsPage() {
      returns early from inside a loop, which is a worse trade than doing the
      scan. */
   const active = (() => {
-    if (!activeKey) return null;
-    const [discipline, system] = activeKey.split("|");
+    if (!shownKey) return null;
+    const [discipline, system] = shownKey.split("|");
     const d = tree.find((x) => x.discipline === discipline);
     const s = d?.systems.find((x) => x.system === system);
     return s ? { discipline, system, checks: s.checks } : null;
   })();
+
+  /* Same rule as the asset system: land on something. A register whose panel
+     says "pick one" costs a press before any rating starts, and the auditor is
+     here to rate. Derived so it follows the search rather than pinning the pane
+     to a finding the search filtered away. */
+  const shownFinding =
+    flat.find((f) => f.id === activeFindingId) ?? flat[0] ?? null;
 
   const a = active ? systemAssessment(active.discipline, active.system) : null;
   const band = a ? bandFor(a.severity, a.likelihood) : null;
@@ -231,7 +289,11 @@ export default function FindingsPage() {
               is FALE; the masthead, the nav and every other heading say KSIA,
               and a screen that says FALE reads as a different airport. */}
           <h2 className="text-[17px] font-bold">Asset systems at {entity.short}</h2>
-          <p className="text-[12px]" style={{ color: "var(--ink-2)" }}>
+          {/* Three lines of prose on a 375px screen, above the work, every time.
+              It orients somebody once and costs everybody else a scroll after
+              that — the same trade the Inspection and Follow-up headings make.
+              Kept from sm, where the room exists. */}
+          <p className="hidden text-[12px] sm:block" style={{ color: "var(--ink-2)" }}>
             Rate each one as a group on ACSA&rsquo;s B170 001M matrix. The band and the treatment
             strategy are calculated from the cell, never typed.
           </p>
@@ -242,26 +304,65 @@ export default function FindingsPage() {
           className="sticky top-0 z-10 -mx-4 mb-2 border-b px-4 py-[7px] sm:-mx-6 sm:px-6 sm:py-2.5"
           style={{ background: "var(--bg)", borderColor: "var(--line)" }}
         >
-          <div className="flex items-center gap-2">
+          <div className="mb-1.5 flex items-center gap-2">
+            {/* THE TWO WAYS IN. Asset system is the default because it is what
+                the screen is for; the flat register is the one an auditor
+                rating what they raised this morning needs, and it is one press.
+                Same control shape as the Inspection screen's axis switch, so
+                there is one thing to learn. */}
             <div
-              className="flex min-w-0 flex-1 items-center gap-2 rounded-[11px] border px-3 py-1 sm:py-2"
-              style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+              role="radiogroup"
+              aria-label="Arrange the work by"
+              className="flex min-w-0 flex-1 gap-[2px] rounded-[11px] p-[3px] sm:max-w-[420px] sm:flex-none"
+              style={{ background: "var(--sunken)" }}
             >
-              <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Search an asset system…"
-                aria-label="Search an asset system"
-                className="min-h-[40px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
-              />
+              {(
+                [
+                  ["systems", "By asset system"],
+                  ["findings", "Findings raised"],
+                ] as const
+              ).map(([k, label]) => (
+                <button
+                  key={k}
+                  role="radio"
+                  aria-checked={mode === k}
+                  onClick={() => setMode(k)}
+                  className="flex min-h-[38px] flex-1 items-center justify-center gap-[6px] rounded-[8px] px-3 font-display text-[11.5px] font-semibold transition-[var(--t)] sm:min-h-[40px]"
+                  style={{
+                    background: mode === k ? "var(--panel)" : "transparent",
+                    color: mode === k ? "var(--acc)" : "var(--ink-2)",
+                    boxShadow: mode === k ? "var(--e1)" : "none",
+                  }}
+                >
+                  {label}
+                  {k === "findings" && findings.length > 0 && (
+                    <span className="font-mono text-[10px]">{findings.length}</span>
+                  )}
+                </button>
+              ))}
             </div>
             {/* TWO NUMBERS, AND THE DENOMINATOR IS EVERY ASSET SYSTEM AT THE
                 SITE — not the ones that happen to carry a finding. A system
                 nobody rated is the gap this screen exists to close. */}
             <span className="shrink-0 font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
-              {rated}/{totalSystems} rated
+              {mode === "systems"
+                ? `${rated}/${totalSystems} rated`
+                : `${findings.filter((f) => f.ratingConfirmed).length}/${findings.length} rated`}
             </span>
+          </div>
+
+          <div
+            className="flex min-w-0 items-center gap-2 rounded-[11px] border px-3 py-1 sm:py-2"
+            style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+          >
+            <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={mode === "systems" ? "Search an asset system…" : "Search a finding…"}
+              aria-label={mode === "systems" ? "Search an asset system" : "Search a finding"}
+              className="min-h-[40px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
+            />
           </div>
         </div>
 
@@ -270,11 +371,95 @@ export default function FindingsPage() {
           <div
             /* No `overflow-hidden`: it would make this its own scroll container
                and a sticky group header inside would never stick. Same trap the
-               Inspection screen documents. */
-            className="rounded-[13px] border"
+               Inspection screen documents.
+
+               `min-w-0` IS load-bearing. A grid item's default min-width is
+               `auto`, so a child wider than the track pushes the item past it
+               rather than shrinking — and because the app shell is
+               `overflow: hidden`, the overflow is CLIPPED rather than
+               scrollable. Measured at 375px: the group row's "0/13" count lost
+               its last character off the right edge, silently. */
+            className="min-w-0 rounded-[13px] border"
             style={{ background: "var(--panel)", borderColor: "var(--line)" }}
           >
-            {tree.length === 0 ? (
+            {mode === "findings" ? (
+              flat.length === 0 ? (
+                <Empty>
+                  <IconInbox width={24} height={24} />
+                  <div>
+                    {findings.length === 0
+                      ? "No finding has been raised at this visit yet. They arrive from the answer library's issue buttons on a check, and from the walk."
+                      : "Nothing matches that search."}
+                  </div>
+                </Empty>
+              ) : (
+                flat.map((f) => {
+                  const b = bandFor(f.severity, f.likelihood);
+                  const on = f.id === shownFinding?.id;
+                  return (
+                    <button
+                      key={f.id}
+                      data-finding={f.id}
+                      onClick={() => setActiveFindingId(f.id)}
+                      className="relative flex w-full items-start gap-2 border-b px-[11px] py-[9px] text-left transition-[var(--t)]"
+                      style={{
+                        borderColor: "var(--line)",
+                        background: on ? "var(--acc-soft)" : "transparent",
+                        minHeight: 56,
+                      }}
+                    >
+                      {on && (
+                        <span
+                          className="absolute inset-y-0 left-0 w-[2.5px]"
+                          style={{ background: "var(--acc)" }}
+                        />
+                      )}
+                      <Dot
+                        tone={
+                          b && f.ratingConfirmed
+                            ? BAND_META[b].tone
+                            : b
+                              ? "neutral"
+                              : "pending"
+                        }
+                        label={
+                          b ? (f.ratingConfirmed ? BAND_META[b].label : "Suggested") : "Not rated"
+                        }
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className="block truncate font-mono text-[9px]"
+                          style={{ color: "var(--ink-4)" }}
+                        >
+                          {f.id} · {f.discipline}
+                          {f.adHoc ? " · ad-hoc" : ""}
+                        </span>
+                        {duplicateOf.has(f.id) && (
+                          <span
+                            className="mt-[2px] block truncate font-mono text-[9px] font-semibold"
+                            style={{ color: "var(--warn)" }}
+                          >
+                            also raised as {duplicateOf.get(f.id)!.join(", ")} — same issue, same check
+                          </span>
+                        )}
+                        <span className="mt-[1px] block truncate text-[11.5px]">
+                          {f.description || f.title}
+                        </span>
+                      </span>
+                      {b && (
+                        <span className="mt-[2px] shrink-0">
+                          <Pill tone={f.ratingConfirmed ? BAND_META[b].tone : "neutral"}>
+                            {f.ratingConfirmed
+                              ? (cellCode(f.severity, f.likelihood) ?? "RATED")
+                              : "SUGGESTED"}
+                          </Pill>
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              )
+            ) : tree.length === 0 ? (
               <Empty>
                 <IconInbox width={24} height={24} />
                 <div>Nothing matches that search.</div>
@@ -303,7 +488,7 @@ export default function FindingsPage() {
                         const rec = systems[key];
                         const b = bandFor(rec?.severity ?? null, rec?.likelihood ?? null);
                         const confirmed = rec?.ratingConfirmed === true;
-                        const on = key === activeKey;
+                        const on = key === shownKey;
                         const pf = priorFor(entityCode, d.discipline, x.system);
                         const open2025 = priorBySystem.get(key)?.length ?? 0;
                         const raised = findingsBySystem.get(key)?.length ?? 0;
@@ -385,16 +570,39 @@ export default function FindingsPage() {
           </div>
 
           {/* ------------------------------------------------- the assessment */}
-          {!active || !a ? (
+          {mode === "findings" ? (
+            shownFinding ? (
+              <div
+                className="min-w-0 rounded-[15px] border p-[18px]"
+                style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "var(--e2)" }}
+              >
+                {/* THE SAME PANE, INLINE. It opens in a sheet from an asset
+                    system's evidence list and fills the panel here — one
+                    component either way, because a finding rated from one route
+                    and a finding rated from the other must not be able to
+                    differ. */}
+                <FindingDetail f={shownFinding} onToast={say} />
+              </div>
+            ) : (
+              <div
+                className="flex min-w-0 items-center justify-center rounded-[15px] border p-8 text-center text-[12.5px]"
+                style={{ background: "var(--panel)", borderColor: "var(--line)", color: "var(--ink-3)" }}
+              >
+                {findings.length === 0
+                  ? "Nothing has been raised at this visit yet."
+                  : "Pick a finding to rate it."}
+              </div>
+            )
+          ) : !active || !a ? (
             <div
-              className="flex items-center justify-center rounded-[15px] border p-8 text-center text-[12.5px]"
+              className="flex min-w-0 items-center justify-center rounded-[15px] border p-8 text-center text-[12.5px]"
               style={{ background: "var(--panel)", borderColor: "var(--line)", color: "var(--ink-3)" }}
             >
               Pick an asset system to rate it and read everything this audit knows about it.
             </div>
           ) : (
             <div
-              className="rounded-[15px] border p-[18px]"
+              className="min-w-0 rounded-[15px] border p-[18px]"
               style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "var(--e2)" }}
             >
               <div

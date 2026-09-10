@@ -190,6 +190,76 @@ check(
   "a system with nothing against it is the one that most needs a rating — 'we looked and it was sound' is a finding"
 );
 
+check(
+  "the screen arrives on an asset system rather than an empty panel",
+  /const firstKey = tree\[0\]\?\.systems\[0\]/.test(pageCode) &&
+    /const shownKey =/.test(pageCode),
+  "a right panel that says 'pick one' is half a screen of nothing and a press before any work starts"
+);
+
+check(
+  "and the discipline holding it is open by default",
+  /expanded === null \? key === shownDiscipline : expanded\.includes\(key\)/.test(pageCode),
+  "a list whose default state contradicts the panel beside it has lost track of what it is showing"
+);
+
+check(
+  "a search still wins over that default",
+  /searching \|\| \(expanded === null/.test(pageCode),
+  ""
+);
+
+check(
+  "the panels can shrink inside their grid track",
+  /className="min-w-0 rounded-\[13px\] border"/.test(page) &&
+    /className="min-w-0 rounded-\[15px\] border p-\[18px\]"/.test(page),
+  "a grid item's default min-width is auto, and the app shell is overflow:hidden — so an overflowing child is CLIPPED, not scrollable. At 375px the group count lost its last character."
+);
+
+/* ---- 4b · the flat register is still one press away --------------------- */
+
+check(
+  "the screen has two ways in",
+  /const \[mode, setMode\] = useState<"systems" \| "findings">\("systems"\);/.test(pageCode),
+  "an auditor rating what they raised this morning does not know which asset systems they are under"
+);
+
+check(
+  "asset system is the default",
+  /useState<"systems" \| "findings">\("systems"\)/.test(pageCode),
+  "it is what the screen is for"
+);
+
+check(
+  "the flat register lists every finding at this visit with its band",
+  /data-finding=\{f\.id\}/.test(pageCode) && /const flat = useMemo\(/.test(pageCode),
+  ""
+);
+
+check(
+  "and it lands on one rather than saying 'pick one'",
+  /flat\.find\(\(f\) => f\.id === activeFindingId\) \?\? flat\[0\] \?\? null/.test(pageCode),
+  "the auditor is here to rate; a press before any rating starts is a press wasted"
+);
+
+check(
+  "ONE PANE, BOTH ROUTES",
+  (pageCode.match(/<FindingDetail f=/g) ?? []).length === 2,
+  "a finding rated from the register and one rated from its asset system must not be able to differ"
+);
+
+check(
+  "an unrated finding says NOT RATED, and a suggested one says SUGGESTED",
+  /"SUGGESTED"/.test(pageCode) && /label="Not rated"|"Not rated"/.test(pageCode),
+  ""
+);
+
+check(
+  "the duplicate warning shows on the register too",
+  (pageCode.match(/duplicateOf\.has\(f\.id\)/g) ?? []).length === 2,
+  "it is the same defect whichever list the two rows are read in"
+);
+
 /* ---- 5 · the full view of the system ------------------------------------ */
 
 check(
