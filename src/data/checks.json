@@ -50,7 +50,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-002",
@@ -100,7 +103,10 @@
   "basisConfidence": "high",
   "basisNote": "The detailed series-circuit design and maintenance practice sits in the IEC 61820/61821/61822/61823 series, which are technical standards reflected in Doc 9157 Part 5 rather than South African law.",
   "woCount": 5,
-  "optionCount": 26
+  "optionCount": 26,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-003",
@@ -141,7 +147,10 @@
   "basisConfidence": "high",
   "basisNote": "SANS 10142-1 and the CoC regime cover the low-voltage installation only; the 11 kV network falls under SANS 10142-2:2018, so an LV CoC is not evidence of MV compliance.",
   "woCount": 5,
-  "optionCount": 27
+  "optionCount": 27,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-004",
@@ -185,7 +194,10 @@
   "basisConfidence": "high",
   "basisNote": "The warning notice and prohibitory sign affixed at each isolation point follow the Operating Regulations for High Voltage Systems (ORHVS), an industry code rather than a statute; EMR reg 5 is the statutory requirement.",
   "woCount": 5,
-  "optionCount": 26
+  "optionCount": 26,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Statutory notices and SANS 1186-1 signage present, legible and undamaged at every AGL electrical room and remote outstation cabinet, naming the CURRENT appointees and policy revision — a notice carrying a departed GMR 2(1) appointee is not a notice. Checked daily per D060 023M cl. 4.7.4, warning signage weekly, with the substation logbook signed off."
  },
  {
   "id": "KSIA-ELE-005",
@@ -236,7 +248,10 @@
   "basisConfidence": "high",
   "basisNote": "Visual-aid maintenance is 10.5 in the current (8th) edition of Annex 14 Vol I; earlier editions numbered the same material 10.4.",
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Practice",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-006",
@@ -288,7 +303,10 @@
   "basisConfidence": "medium",
   "basisNote": "No ICAO or SANS source was confirmed for the >100 MOhm AGL insulation-resistance target; SANS 10142-1 sets a general low-voltage minimum that applies to the LV installation, not to the series circuit, so the threshold must be traced to OEM or ACSA documentation.",
   "woCount": 0,
-  "optionCount": 24
+  "optionCount": 24,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-007",
@@ -335,7 +353,10 @@
   "basisConfidence": "medium",
   "basisNote": "No statute or ICAO SARP fixes a fleet-wide lamp failure percentage - the ICAO serviceability levels bite on precision approach CAT II/III systems - so the 70% figure must be traced to ACSA's own documented target.",
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-008",
@@ -387,7 +408,10 @@
   "basisConfidence": "medium",
   "basisNote": "ACSA is a Schedule 2 major public entity, so the PFMA and not the MFMA is the financial-management authority; the paragraph letter within s51(1) was not confirmed, so it is cited at section level.",
   "woCount": 5,
-  "optionCount": 26
+  "optionCount": 26,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-009",
@@ -437,7 +461,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "MALMS photometric output within limits and lamp outage inside the allowed count for the pattern, the Planned AGL Maintenance Programme M&E 077 worked to date, and the secondary-power switch-over measured at 1 second for every CAT II/III element (inner 300 m approach, threshold, end, centreline, touchdown zone) on the monthly on-load test with the change-over time actually recorded."
  },
  {
   "id": "KSIA-ELE-010",
@@ -487,7 +514,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 27
+  "optionCount": 27,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Cable routes to SANS 10198 with route markers present and matching the buried route, joint boxes not paved or backfilled over, the separation distances the standard requires actually measured on site, and every part reachable for inspection and replacement without dismantling something else. Commissioning test records for new MV/LV cabling and the as-built single line diagram behind it."
  },
  {
   "id": "KSIA-ELE-011",
@@ -544,7 +574,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "A single-line diagram physically displayed and legible in EACH switch room, its revision date later than the most recent network change and reflecting the current Normal Open Point, plus a protection grading study whose settings an electrician can show applied in the relays — confirmed against design yearly with outage."
  },
  {
   "id": "KSIA-ELE-012",
@@ -594,7 +627,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Route markers and trench covers intact, not paved over and matching the route drawing; no unrecorded joint and no sign of unmarked excavation; and the yearly thermographic scan of bus bars, breaker frames, contacts, arc-chutes and insulation blocks with every flagged hot spot carrying a closed work order."
  },
  {
   "id": "KSIA-ELE-013",
@@ -645,7 +681,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Switch and breaker positions on site matching the Normal Open Point on the single-line diagram, no equipment carrying load above its nameplate rating, and the measured values inside ACSA's stated limits — power factor at least 0.95 at the point of delivery, 50 Hz ±2.5%, MV volt drop ±5%. This is kick-off risk item 6.5.1 and an abnormal configuration left standing is the finding."
  },
  {
   "id": "KSIA-ELE-014",
@@ -700,7 +739,10 @@
   "basisConfidence": "medium",
   "basisNote": "No OHS Act regulation names SF6/vacuum functional, continuity, contact-resistance and breaker-speed testing or a twelve-month interval, so a finding rests on the general duty to maintain safe plant plus ACSA's own procedure and the OEM schedule; IEC 62271-100 covers AC circuit-breaker performance.",
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-015",
@@ -747,7 +789,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-016",
@@ -793,7 +838,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 26
+  "optionCount": 26,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-017",
@@ -856,7 +904,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Practice",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-018",
@@ -906,7 +957,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 27
+  "optionCount": 27,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "MV breaker, transformer, LV, generator and battery/UPS rooms each physically separate, each with its own access control rather than a shared key across risk classes, each containing only its designated equipment, oil-filled units with containment and fire-sealed penetrations. NOTE: ACSA states no numeric fire rating and no bund percentage for these rooms, so the compliance test is separation and containment as built, against the layout drawing."
  },
  {
   "id": "KSIA-ELE-019",
@@ -956,7 +1010,10 @@
   "basisConfidence": "high",
   "basisNote": "EMR reg 6 is the direct statutory hit - ventilation, vermin, seepage/flooding and fire appliances are all named in it - but it sets no numeric value, so cooling performance must be judged against the OEM or design rating.",
   "woCount": 6,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-020",
@@ -1000,7 +1057,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 26
+  "optionCount": 26,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Clearance around MV/LV switchgear and busbars measured on site and at or above the NRS 060 figure for the installed voltage class, no storage or clutter inside it, doors serviceable, lockable and unobstructed, and exactly one door or gate left unlocked for emergency egress while work is in progress."
  },
  {
   "id": "KSIA-ELE-021",
@@ -1045,7 +1105,10 @@
   "basisConfidence": "high",
   "basisNote": "MHI reg 15 applies only where the fuel installation meets the major hazard installation thresholds, but it is the source of the twelve-monthly practice test ACSA applies at the fuel depot; the 2022 regulations replaced the 2001 set, in which the same duty sat at reg 6.",
   "woCount": 5,
-  "optionCount": 27
+  "optionCount": 27,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-022",
@@ -1091,7 +1154,10 @@
   "basisConfidence": "medium",
   "basisNote": "No external instrument was found requiring the diagram to be permanently displayed - that is ACSA's own requirement; the external authorities require only that accurate, current diagrams exist and are available to the person switching.",
   "woCount": 5,
-  "optionCount": 25
+  "optionCount": 25,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "The latest revision of the substation diagram displayed, legible, dated and revision-numbered, reflecting the current Normal Open Point, and matching the switching configuration found during the walkdown. Inspected daily with corrective action raised where it is out of date."
  },
  {
   "id": "KSIA-ELE-023",
@@ -1141,7 +1207,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Door access-controlled and not propped, keys issued through the key register with receipt on return, statutory signage present and legible, ventilation actually running, no unrelated storage, and MV/LV/UPS/CCR separated where practical — with the substation logbook showing all sixteen daily checks signed off."
  },
  {
   "id": "KSIA-ELE-024",
@@ -1192,7 +1261,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Thermographic survey within the year with every hot spot closed out; earth resistance measured and recorded at the yearly transformer major maintenance; and transformer oil DGA/BDV within period with PCB content not more than 20 mg/kg in reclaimed oil and undetectable in unused oil, determined per IEC 61619 to SANS 555. NOTE: ACSA states no numeric earth resistance value, so the test is that a measured figure exists and is trended, against the design value."
  },
  {
   "id": "KSIA-ELE-025",
@@ -1239,7 +1311,10 @@
   "basisConfidence": "medium",
   "basisNote": "No South African statute fixes the weekly, monthly or annual generator test intervals - those are OEM and ACSA driven - and CAR 139.02.10A was only inserted in 2025, so the enforceable point is that the secondary supply works within the Table 8-1 switch-over time.",
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Practice",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-026",
@@ -1288,7 +1363,10 @@
   "basisConfidence": "medium",
   "basisNote": "PER reg 2(3) excludes certain piping from the regulations, so where the underground fuel line falls outside PER the governing regime is SANS 10089-3 together with the fuel depot licence conditions; no statutory annual frequency for underground pipework was confirmed.",
   "woCount": 0,
-  "optionCount": 22
+  "optionCount": 22,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-027",
@@ -1346,7 +1424,10 @@
   "basisConfidence": "high",
   "basisNote": "Reg 18 of the Noise Exposure Regulations, 2024 repeals the 2003 NIHL Regulations 18 months after promulgation, i.e. from about 6 September 2026 — confirm which instrument is in force on the audit date and cite reg 11 of the 2024 Regulations thereafter.",
   "woCount": 5,
-  "optionCount": 27
+  "optionCount": 27,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-028",
@@ -1391,7 +1472,10 @@
   "basisConfidence": "high",
   "basisNote": "ACSA's D060 021M still cites the Major Hazard Installation Regulations, 1995/2001, which reg 25 of the 2022 Regulations repealed; the diesel qualifying quantity must be read off Annexure A of the 2022 Regulations, not the old schedule.",
   "woCount": 5,
-  "optionCount": 27
+  "optionCount": 27,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-029",
@@ -1444,7 +1528,10 @@
   "basisConfidence": "high",
   "basisNote": "The check cites NIHL reg 9 and 10(1); reg 9 is the noise zone provision and the exposure prohibition itself sits in reg 3, read with the reg 10 control hierarchy.",
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Practice",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-030",
@@ -1484,7 +1571,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "A fuel cut-out or isolation device and an emergency stop at each generator, both clearly labelled, unobstructed and reachable WITHOUT approaching the generator itself, with the fuel line shut-off valve checked to operate freely weekly and the stop solenoid checked on the monthly record."
  },
  {
   "id": "KSIA-ELE-031",
@@ -1524,7 +1614,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 26
+  "optionCount": 26,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Weekly off-load runs of at least five minutes and monthly on-load runs of at least fifteen minutes, with no gaps in the logbook, the hour-meter reading consistent with what is logged, the change-over time recorded on each on-load test, and an annual load-bank test plus fuel sample analysis for every generator — not just the main one."
  },
  {
   "id": "KSIA-ELE-032",
@@ -1574,7 +1667,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 27
+  "optionCount": 27,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "A tested ATS with the measured change-over time at or under the design figure for the load it feeds — 1 second for every CAT II/III AGL element. A test record with no time on it does not answer this check."
  },
  {
   "id": "KSIA-ELE-033",
@@ -1619,7 +1715,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 27
+  "optionCount": 27,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Bund intact, not cracked and not full of rainwater (which is capacity gone), sized to at least 110% of the largest container, level alarms proven on the weekly alarm check, a stocked and accessible spill kit, no leaks or staining, and the annual bulk-tank bottom and primary-filter samples analysed for contamination."
  },
  {
   "id": "KSIA-ELE-034",
@@ -1670,7 +1769,10 @@
   "basisConfidence": "medium",
   "basisNote": "IEC 60422 and IEC 60599 are cited at document level and are engineering good practice adopted by ACSA — no South African regulation prescribes an oil-test or DGA frequency for transformers, so a finding here is a maintenance-standard finding, not a statutory contravention.",
   "woCount": 0,
-  "optionCount": 23
+  "optionCount": 23,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-035",
@@ -1721,7 +1823,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Oil level in band with no leaks or staining, silica gel the right colour, bushings and cooling fins undamaged and clean, Buchholz and temperature protection warning and trip functionality tested at the yearly major maintenance with outage, and the measured loading inside the nameplate rating."
  },
  {
   "id": "KSIA-ELE-036",
@@ -1774,7 +1879,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Battery impedance or capacity results and a full-duration autonomy discharge test within period, alarms proven to reach the monitoring point, and the UPS room temperature inside the battery manufacturer's specification — recorded on the annual service alongside cell readings, charger voltage, inverter output and the bypass switch test."
  },
  {
   "id": "KSIA-ELE-037",
@@ -1824,7 +1932,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 27
+  "optionCount": 27,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-038",
@@ -1864,7 +1975,10 @@
   "basisConfidence": "high",
   "basisNote": "The Part 171 obligation sits with whichever entity holds the aeronautical telecommunication service approval for the ILS (commonly ATNS rather than the aerodrome licensee) — confirm which entity is approved before framing a finding against ACSA.",
   "woCount": 0,
-  "optionCount": 21
+  "optionCount": 21,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-039",
@@ -1909,7 +2023,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-040",
@@ -1958,7 +2075,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 26
+  "optionCount": 26,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-041",
@@ -2003,7 +2123,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Measured lux readings on the specified grid at or above 20 LUX per ICAO Annex 14 §5.3.24, taken monthly, with uniformity across the apron rather than an average that hides a dark stand; high-mast structures and foundations inspected for corrosion and cracking; landside and parking lighting operational."
  },
  {
   "id": "KSIA-ELE-042",
@@ -2048,7 +2171,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Monthly function tests and an annual full-duration test logged per fitting, six-monthly integrity testing of the back-up supply with a light output measurement, daily escape-route clearance checks, and fittings found undamaged and unobstructed on the walk."
  },
  {
   "id": "KSIA-ELE-043",
@@ -2101,7 +2227,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Fire detection inspected weekly and maintained monthly with the panel showing no standing fault, quarterly functional tests logged, gas suppression maintained yearly with each cylinder's weight, gas type, inspection date and next service recorded, cylinders within their 10-yearly hydrostatic test, and a room-integrity (door fan) test proving the enclosure will hold the concentration."
  },
  {
   "id": "KSIA-ELE-044",
@@ -2153,7 +2282,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Current Department of Health radiation registration verified annually and matching each machine's serial number, an appointed Radiation Protection Officer whom staff can name and whose appointment record matches, tri-monthly leakage survey and calibration certificates, and deregistration records for any machine removed."
  },
  {
   "id": "KSIA-ELE-045",
@@ -2204,7 +2336,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Earth resistance and lightning-protection test certificates within period, and bonding at airside structures and fuelling points physically intact, uncorroded and connected with a test tag showing a recent date. NOTE: ACSA states no numeric ohm value, so the test is a measured figure against the design value and its trend — not the absence of one."
  },
  {
   "id": "KSIA-ELE-046",
@@ -2263,7 +2398,10 @@
   "basisConfidence": "high",
   "basisNote": "The check's reference to EIR reg 3 is wrong — reg 3 deals with approved inspection authorities; registration of persons is reg 11 and issue of a CoC by a registered person is reg 9.",
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-047",
@@ -2315,7 +2453,10 @@
   "basisConfidence": "high",
   "basisNote": "The s.44 incorporation covers the low-voltage installation; SANS 10142-2 governs the medium-voltage portion above 1 kV and is not itself incorporated under the EIR.",
   "woCount": 5,
-  "optionCount": 26
+  "optionCount": 26,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-048",
@@ -2365,7 +2506,10 @@
   "basisConfidence": "high",
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 26
+  "optionCount": 26,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "As ELE-004, across every general electrical room and work point: statutory notices, SANS 1186-1 signage, circuit labels and legend cards present, legible and current, checked daily, warning signs and safety devices confirmed present and correctly positioned."
  },
  {
   "id": "KSIA-ELE-049",
@@ -2418,7 +2562,10 @@
   "basisConfidence": "high",
   "basisNote": "The check cites CAR 139.02.10A, which is the aerodrome physical characteristics regulation; the maintenance-programme duty sits at 139.02.23 and the inspection programme at 139.02.26.",
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Practice",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-050",
@@ -2468,7 +2615,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 27
+  "optionCount": 27,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-051",
@@ -2522,7 +2672,10 @@
   "basisConfidence": "high",
   "basisNote": "The check cites EMR reg 18, which is general earthing; the isolate-and-discharge-before-touching duty is reg 4. ORHVS, on which ACSA's switching authorisations rest, is an industry operating code, not a regulation.",
   "woCount": 6,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Practice",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-052",
@@ -2579,7 +2732,10 @@
   "basisConfidence": "high",
   "basisNote": "No South African regulation prescribes the form or content of a safe work method statement — the statutory hook is the s.8(2) general duty and, for contractors, the s.37(2) agreement, so a finding here is one of inadequate discharge of a general duty.",
   "woCount": 0,
-  "optionCount": 23
+  "optionCount": 23,
+  "confirmedBy": "Practice",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-053",
@@ -2635,7 +2791,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-ELE-054",
@@ -2693,7 +2852,10 @@
   "basisConfidence": "high",
   "basisNote": "The Driven Machinery Regulations, 2015 replaced the 1988 set and bite only where the machine falls into a listed class; GMR reg 3 is the general safeguarding duty that always applies.",
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-001",
@@ -2731,7 +2893,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Independent air-flow test for the space, measured fresh-air rate against the >7.5 L/s/person target, with the space classified as it is actually used — an office re-let as a concourse invalidates the report."
  },
  {
   "id": "KSIA-MEC-002",
@@ -2769,7 +2934,10 @@
   "basisConfidence": "high",
   "basisNote": "The checklist's ≥20 ACH target is SANS 10400-O Table 2 verbatim, so an observed 12 ACH is a deemed-to-satisfy failure under Part O, not merely a procedural shortfall.",
   "woCount": 6,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "ACH report with the room volume used, the measured extract flow, and the calculated ACH — with the volume matching the actual room."
  },
  {
   "id": "KSIA-MEC-003",
@@ -2810,7 +2978,10 @@
   "basisConfidence": "medium",
   "basisNote": "Smoke extraction volume is fixed by the site-specific rational design rather than by a national figure, so the external authority governs the design, the competent person's inspection and the alarm interface — \"as per design\" is correct.",
   "woCount": 6,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Approved smoke control design stating the rate for the zone, plus a functional test certificate showing the fan reached it when triggered BY the fire alarm, not standalone."
  },
  {
   "id": "KSIA-MEC-004",
@@ -2852,7 +3023,10 @@
   "basisConfidence": "medium",
   "basisNote": "ACSA cites SANS 1850:2003; the current edition is SANS 1850:2014 and its interval is six-monthly, so the checklist's quarterly figure is an internal or insurer requirement, not the standard's.",
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Deep-clean certificate per SANS 1850:2003 at an interval not exceeding six months, with before/after photographs or a deposit-depth reading covering the full duct run to the discharge point."
  },
  {
   "id": "KSIA-MEC-005",
@@ -2889,7 +3063,10 @@
   "basisConfidence": "high",
   "basisNote": "No external instrument sets a monthly test interval for roof ventilators — reg O6 requires testing at \"acceptable intervals\" only, so a missed month is a departure from ACSA's own schedule rather than a contravention.",
   "woCount": 6,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Monthly log with a per-unit reference and pass/fail, and a roof sample turning freely without seizure or corrosion."
  },
  {
   "id": "KSIA-MEC-006",
@@ -2928,7 +3105,10 @@
   "basisConfidence": "medium",
   "basisNote": "Neither SANS 193 nor SANS 10400-T states a damper drop-test interval; the monthly frequency comes from the fire engineer's rational design and O&M schedule, which reg A19 obliges the owner to keep a competent person appointed against.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Test record per damper reference showing full closure and reset, cross-referenced to the fire safety file — and a located sample with its access panel still openable and the blade not painted shut."
  },
  {
   "id": "KSIA-MEC-007",
@@ -2967,7 +3147,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Current CoC from an Approved Inspection Authority, and no unrecorded modification — new branches or welds — since its date."
  },
  {
   "id": "KSIA-MEC-008",
@@ -2992,7 +3175,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "A dated clearance certificate within 12 months for EACH water-cooled or evaporative system, with sampling points that match the plant on site."
  },
  {
   "id": "KSIA-MEC-009",
@@ -3039,7 +3225,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Current CoC in the latest SANS 10142-1 format naming the registered person, matching the as-installed wiring with no un-certified additions."
  },
  {
   "id": "KSIA-MEC-010",
@@ -3080,7 +3269,10 @@
   "basisConfidence": "medium",
   "basisNote": "No South African instrument uses the phrase \"as-built wiring diagram\"; the enforceable hooks are circuit identification under SANS 10142-1, the CoC test report, and the safe-isolation duty.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Dated, version-controlled as-built set — 1 electronic and 3 hard copies per D100MAN cl. 9.2 — with panel labelling in the plant room matching it, not the original design issue never updated."
  },
  {
   "id": "KSIA-MEC-011",
@@ -3116,7 +3308,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Quarterly record showing the alarm triggered and the HVAC response observed, cross-referenced to a cause-and-effect matrix covering every interface zone."
  },
  {
   "id": "KSIA-MEC-012",
@@ -3157,7 +3352,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-013",
@@ -3199,7 +3397,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Quarterly leak-check record per refrigerant circuit stating the detection method used and referenced to the charge, with any detected leak repaired and verified."
  },
  {
   "id": "KSIA-MEC-014",
@@ -3239,7 +3440,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 0,
-  "optionCount": 26
+  "optionCount": 26,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": "IAQ report within the two-year Occupational Hygiene cycle, naming the reference standard it was assessed against."
  },
  {
   "id": "KSIA-MEC-015",
@@ -3287,7 +3491,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Annual energy optimisation report for the HVAC plant, and for each cited finding either a closed work order or the unit visibly in the state the recommendation called for."
  },
  {
   "id": "KSIA-MEC-016",
@@ -3339,7 +3546,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-017",
@@ -3389,7 +3599,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 35
+  "optionCount": 35,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Weekly chiller records of temperature, pressure and amps with the delta-T against design, controller in AUTO with no standing alarm, yearly oil sample analysis and the safety-device test."
  },
  {
   "id": "KSIA-MEC-018",
@@ -3427,7 +3640,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "A documented water treatment programme with dosing pumps and chemical tanks connected and charged (not empty or disconnected), cleaning and disinfection records, monthly leak/eliminator/fan/spray inspection and tri-monthly sump cleaning per the Cooling Towers checklist CMMS 009 — and a basin and fill free of visible biological growth, which contradicts a clean record."
  },
  {
   "id": "KSIA-MEC-019",
@@ -3465,7 +3681,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Annexure A per lift referencing SANS 1545-1 or 1545-2, with a fresh one after any substantial modification."
  },
  {
   "id": "KSIA-MEC-020",
@@ -3510,7 +3729,10 @@
   "basisConfidence": "high",
   "basisNote": "The regulation's term is \"comprehensive report\"; \"Annexure B\" is SANS 1545-1 and industry usage, so match the certificate to reg 6 rather than to the annexure label.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Annexure B per lift dated within 24 months, examiner's registration stated, next-due date not yet passed."
  },
  {
   "id": "KSIA-MEC-021",
@@ -3543,11 +3765,23 @@
   ],
   "acsaConflict": "Travellators are marked FAOR-only (N at FALE) in D080 020M Table 2 — confirm whether KSIA in fact operates travellators, because if it does they are outside the applicability table of ACSA's own procedure.",
   "coverage": "covered",
-  "siteVariant": null,
+  "siteVariant": {
+   "site": "FALE",
+   "note": "MONTHLY check that the comprehensive reports (Annex A and Annex B) are held and current — a recurring verification obligation, which is a different duty from holding a valid Annexure A issued once after installation.",
+   "conflict": {
+    "checkSays": "Annexure A certificates for Escalators/Passenger conveyors",
+    "siteRequires": "MONTHLY check that the comprehensive reports (Annex A and Annex B) are held and current — a recurring verification obligation, which is a different duty from holding a valid Annexure A issued once after installation.",
+    "source": "D080 020M cl. 4.6.2",
+    "direction": "different"
+   }
+  },
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-022",
@@ -3583,7 +3817,10 @@
   "basisConfidence": "high",
   "basisNote": "SANS 1543, not SANS 1545-1, is the escalator and passenger-conveyor standard; ACSA's procedure applies SANS 1545-1 to both, which is a defensible reporting format but the wrong technical reference for escalators.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Annexure B per unit dated within 24 months across the whole fleet, next-due date not passed."
  },
  {
   "id": "KSIA-MEC-023",
@@ -3608,7 +3845,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-024",
@@ -3647,7 +3887,10 @@
   "basisConfidence": "medium",
   "basisNote": "The regulations recognise only the \"comprehensive report\" — there is no \"Annex E\" report type in the LEPCR, so what distinguishes this report must be the accessibility content drawn from SANS 1545-3/-4 and EN 81-70, not a separate statutory instrument.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Current Annexure E addressing audible and tactile controls, door timing, alarm button at 900-1200 mm and a mirror where the car is under 1 500 mm wide."
  },
  {
   "id": "KSIA-MEC-025",
@@ -3683,7 +3926,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Six-monthly examination naming the specific rope set, assessed against discard criteria, with the certificate in its designated place in the machine compartment and retained ten years."
  },
  {
   "id": "KSIA-MEC-026",
@@ -3719,7 +3965,10 @@
   "basisConfidence": "high",
   "basisNote": "The 12-month interval is statutory under reg 7, so a lapsed or partial annual test (for example governor only, with no buffer test) is a contravention of the regulations and not merely of ACSA's procedure.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Annual report per lift confirming safety gear engaged, the governor tripped at a measured speed with units stated, and the buffers tested — not the governor alone."
  },
  {
   "id": "KSIA-MEC-027",
@@ -3760,7 +4009,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-028",
@@ -3807,7 +4059,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "A register listing every lift, escalator and travelator in the terminal, reconciled by walking it; a current comprehensive report per unit to SANS 1545-1:2016 ed 3.6 at the two-yearly cycle or on contractor change; the Appointed Inspector's appointment letter; and the certificate displayed at each unit current and matching that unit's ID. Records retained ten years."
  },
  {
   "id": "KSIA-MEC-029",
@@ -3849,7 +4104,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 8,
-  "optionCount": 35
+  "optionCount": 35,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Step/pallet-to-skirt gaps within tolerance, no two adjacent comb teeth broken, handrails uncracked and un-frayed, landing plates secure, skirt brushes fitted, emergency stops present and unobstructed, signage legible."
  },
  {
   "id": "KSIA-MEC-030",
@@ -3894,7 +4152,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "OEM functional test at the FALE four-monthly cycle covering auto-levelling, bumper/obstruction sensors, emergency stop and cabin interlock."
  },
  {
   "id": "KSIA-MEC-031",
@@ -3933,7 +4194,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-032",
@@ -3978,7 +4242,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Two-yearly report explicitly covering welds, support structure, wheel bogies/undercarriage and corrosion — not only the visible cabin structure."
  },
  {
   "id": "KSIA-MEC-033",
@@ -4017,7 +4284,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "A structural assessment report by an ECSA-registered Professional Engineer covering corrosion, welds, rotunda, tunnel and wheel bogie, with every remedial action closed. NOTE: ACSA's D080 029M requires no such report — treat a missing one as a gap in ACSA's manual to be raised, and demand instead the counter-benchmark D080 028M cl. 4.2.5 six-monthly/yearly structural inspection by a competent person."
  },
  {
   "id": "KSIA-MEC-034",
@@ -4074,7 +4344,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 7,
-  "optionCount": 35
+  "optionCount": 35,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "The auto-leveller demonstrated adjusting, the safety shoe present and moving freely, the canopy undamaged and without gaps, drive/steer working and the emergency stop located and functional — plus the four-monthly FALE task tables completed, faults carrying an IMC reference number, and an operator authorisation register naming everyone who drives the bridge."
  },
  {
   "id": "KSIA-MEC-035",
@@ -4110,7 +4383,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Current AIA MHI risk assessment within 5 years, proof of submission to the Chief Inspector, local and provincial government, and a tank/hydrant configuration matching what it assessed."
  },
  {
   "id": "KSIA-MEC-036",
@@ -4148,11 +4424,23 @@
   ],
   "acsaConflict": "THRESHOLD UPGRADE: the checklist row assumes a three-yearly on-site emergency plan; ACSA's own procedure is materially stricter — the plan must be CURRENT and TESTED at least every 12 months with retained records, and submitted to NERSA annually. Audit against ACSA's 12-month test, not the 3-year assumption.",
   "coverage": "covered",
-  "siteVariant": null,
+  "siteVariant": {
+   "site": "FALE",
+   "note": "The Fuel Depot emergency plan shall be TESTED at least every twelve (12) months, with records of the practice test kept, and SUBMITTED to DOE (NERSA) annually. The 3-year cycle is the MHIR reg 6(1)(c) review of the plan itself — three different clocks, and the check names only the slowest.",
+   "conflict": {
+    "checkSays": "A 3 yearly valid On-site Emergency Plan",
+    "siteRequires": "The Fuel Depot emergency plan shall be TESTED at least every twelve (12) months, with records of the practice test kept, and SUBMITTED to DOE (NERSA) annually. The 3-year cycle is the MHIR reg 6(1)(c) review of the plan itself — three different clocks, and the check names only the slowest.",
+    "source": "D060 021M cl. 4.11 b) and c)",
+    "direction": "stricter"
+   }
+  },
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-037",
@@ -4192,12 +4480,21 @@
   "coverage": "covered",
   "siteVariant": {
    "site": "FALE",
-   "note": "\"At FACT, FABL and FALE (King Shaka) the hydrant line pressure test is YEARLY; at FAOR, FAPE, FAUP and FAEL it is THREE-YEARLY\" — D060 021M cl. 4.17.5."
+   "note": "\"At FACT, FABL and FALE (King Shaka) the hydrant line pressure test is YEARLY; at FAOR, FAPE, FAUP and FAEL it is THREE-YEARLY\" — D060 021M cl. 4.17.5.",
+   "conflict": {
+    "checkSays": "A 3 yearly and AIA witnessed Piping Pressure test records",
+    "siteRequires": "At FACT, FABL and FALE (King Shaka) the hydrant line pressure test is YEARLY; at FAOR, FAPE, FAUP and FAEL it is THREE-YEARLY",
+    "source": "D060 021M cl. 4.17.5",
+    "direction": "stricter"
+   }
   },
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 34
+  "optionCount": 34,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "AIA-witnessed certificate within ONE year for FALE, stating test pressure and result, covering the tank farm AND the hydrant lines."
  },
  {
   "id": "KSIA-MEC-038",
@@ -4234,11 +4531,23 @@
   ],
   "acsaConflict": "ACSA does NOT cite ASME B31.3 anywhere in the 99-document set. Its stated design basis is API/IP 1540 and JIG. Reframe this check against ACSA's own code — demand API/IP 1540 design compliance evidence — and raise the absence of a nominated piping design code (B31.3 or equivalent) for pressure piping as a finding in its own right.",
   "coverage": "partial",
-  "siteVariant": null,
+  "siteVariant": {
+   "site": "FALE",
+   "note": "Recommended Code of Practice API/IP 1540 plus JIG requirements. ACSA names no piping design code, wall thickness or design criterion of its own, and does not adopt ASME B31.3 anywhere in the set.",
+   "conflict": {
+    "checkSays": "ASME B31.3 Piping Designs",
+    "siteRequires": "Recommended Code of Practice API/IP 1540 plus JIG requirements. ACSA names no piping design code, wall thickness or design criterion of its own, and does not adopt ASME B31.3 anywhere in the set.",
+    "source": "D060 021M cl. 4.15.1 / 4.3.1",
+    "direction": "different"
+   }
+  },
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Piping design package certified to the code ACSA actually adopts, plus the Petroleum Pipeline Act construction licence, with documentation covering every section including the oldest."
  },
  {
   "id": "KSIA-MEC-039",
@@ -4274,7 +4583,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Full calibration certificate — not a bump test — from a competent provider, referencing the meter serial number found on the instrument."
  },
  {
   "id": "KSIA-MEC-040",
@@ -4321,7 +4633,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Functional test showing the valve or pump actually isolated, plus the approved Safe Work Procedure for emergency fuel hydrant shut-off signed by the GMR 2(1) and 2(7) appointees."
  },
  {
   "id": "KSIA-MEC-041",
@@ -4366,7 +4681,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Version-controlled as-built set in PDF and native format, named by project/drawing/revision, minimum A3, with no tank, valve or hydrant on site missing from it and none on it missing from site."
  },
  {
   "id": "KSIA-MEC-042",
@@ -4402,7 +4720,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Readings at the site's stated interval, each identifying the pipe section or tank it relates to, against -850 mV CSE, with a linked work order for any out-of-range reading."
  },
  {
   "id": "KSIA-MEC-043",
@@ -4444,7 +4765,10 @@
   "basisConfidence": "medium",
   "basisNote": "Holiday testing and close-interval survey are Energy Institute/JIG and API pipeline-integrity practice — recommended practice, not statutory; no South African instrument sets a coating spot-inspection frequency, so the finding is against the corrosion-protection duty rather than a missed interval.",
   "woCount": 5,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": "Coating-integrity records from any excavation in the period, or a close-interval survey — and where neither exists, that stated as the reason rather than left blank."
  },
  {
   "id": "KSIA-MEC-044",
@@ -4485,7 +4809,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Pit box and chamber intact, draining, sealed, with any electrical equipment inside rated for its hazardous-area zone."
  },
  {
   "id": "KSIA-MEC-045",
@@ -4531,7 +4858,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "A test record for EVERY pit valve, and the maintenance manual it references actually existing on site with a stated frequency."
  },
  {
   "id": "KSIA-MEC-046",
@@ -4567,7 +4897,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-047",
@@ -4606,7 +4939,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "A record describing an under-flow closing test with the flow condition stated, and a linked corrective action for any valve that failed to seal."
  },
  {
   "id": "KSIA-MEC-048",
@@ -4642,7 +4978,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Current proving certificate for EVERY dispensing or custody-transfer meter, with the NRCS verification where applicable, and an out-of-tolerance result followed by adjustment and re-prove."
  },
  {
   "id": "KSIA-MEC-049",
@@ -4682,7 +5021,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Inspection report with bottom-plate thickness readings and a calculated remaining life or next-due date, and no external shell staining that contradicts it."
  },
  {
   "id": "KSIA-MEC-050",
@@ -4707,7 +5049,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Current zone classification drawing reflecting the plant as it now stands, with field equipment carrying at least the Ex rating its zone requires."
  },
  {
   "id": "KSIA-MEC-051",
@@ -4746,7 +5091,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-052",
@@ -4793,7 +5141,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 34
+  "optionCount": 34,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-053",
@@ -4832,7 +5183,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "reconcile",
+  "complianceTest": "Every machine in a hazardous zone carrying a valid Ex mark rated at or above its zone, cross-checked against SANS 10089-2 and the zone map."
  },
  {
   "id": "KSIA-MEC-054",
@@ -4878,7 +5232,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Couplers undamaged, seals not cracked or perished, lids seating securely, no standing water or fuel in the pit by eye or smell, the weekly FALE fuel-on-water-table test done, daily inspection and cleaning records, and a pit valve and lid register covering every pit on the apron rather than a sample."
  },
  {
   "id": "KSIA-MEC-055",
@@ -4927,7 +5284,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "The FALE hydrant line statutory pressure test within ONE year (not three), tightness control system maintained monthly with the leak rate noted, ESD maintained six-monthly with the push-buttons found unobstructed, clearly marked and undamaged at every fuelling position, and bonding continuity at fuelling positions measured — plus the approved Safe Work Procedure for emergency hydrant shut-off."
  },
  {
   "id": "KSIA-MEC-056",
@@ -4981,7 +5341,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 37
+  "optionCount": 37,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "External inspection tag on each tank current, shell and roof free of corrosion, coating failure and leaks; bund wall uncracked, dry and drain valve closed; five-yearly tank cleaning and ten-yearly flood survey records; weekly fuel filter and separator pit maintenance; a current Fuel Depot Licence; and product quality records for each grade."
  },
  {
   "id": "KSIA-MEC-057",
@@ -5036,7 +5399,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 37
+  "optionCount": 37,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Interlock trip observed stopping the belt, siren sounding before start-up on the monthly cycle, and no interlock bridged, taped or bypassed for throughput."
  },
  {
   "id": "KSIA-MEC-058",
@@ -5083,7 +5449,10 @@
   "basisConfidence": "high",
   "basisNote": "Neither GMR 3 nor DMR 3 sets an inspection frequency — the duty is continuous, so a guard found missing, propped open or with a defeated interlock is itself the contravention regardless of when it was last inspected.",
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Every identified nip point guarded, guards intact and reinstated after maintenance, and no interlock switch on a guard bridged out."
  },
  {
   "id": "KSIA-MEC-059",
@@ -5122,7 +5491,10 @@
   "basisConfidence": "high",
   "basisNote": "GMR 6(3)(b) makes the warning device itself compulsory, but no instrument sets a test interval — the frequency and the required lead time before motion remain ACSA's own operational choice.",
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Siren heard above ambient terminal noise, sounding with a stated margin before the carousel moves — and a documented required duration to measure that margin against."
  },
  {
   "id": "KSIA-MEC-060",
@@ -5167,7 +5539,10 @@
   "basisConfidence": "high",
   "basisNote": "GMR 6(3)(a) is the statutory basis for both the immediate halt and the manual-reset requirement; the monthly test interval, and its extension to belt conveyors and carousels, is ACSA's own.",
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Sample of E-stops physically tested, immediate halt with deliberate manual reset, none damaged or obstructed."
  },
  {
   "id": "KSIA-MEC-061",
@@ -5213,7 +5588,10 @@
   "basisConfidence": "high",
   "basisNote": "SANS 10400-T is the deemed-to-satisfy route for National Building Regulation T1; the shutter-to-drive interlock itself is not separately standardised in SANS, so GMR 3 is the statutory hook.",
   "woCount": 6,
-  "optionCount": 35
+  "optionCount": 35,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Test records for both directions — closure on fire alarm and the carousel interlock — cross-referenced to a cause-and-effect matrix held on site."
  },
  {
   "id": "KSIA-MEC-062",
@@ -5254,7 +5632,10 @@
   "basisConfidence": "high",
   "basisNote": "No statute fixes a test interval, so a finding on interval is procedural against ACSA's own D060 002M, while a bypassed or defeated interlock is a direct GMR 3 and GMR 6 contravention.",
   "woCount": 5,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-063",
@@ -5288,7 +5669,10 @@
   "basisConfidence": "high",
   "basisNote": "GMR 6(3)(b) is the direct statutory basis for the siren; it allows an alternative arrangement only where an inspector has approved one as affording adequate safety.",
   "woCount": 5,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-064",
@@ -5340,7 +5724,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 34
+  "optionCount": 34,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-065",
@@ -5400,7 +5787,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 36
+  "optionCount": 36,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Guards fitted over every moving part, drive unit and pinch point with none missing, propped or bypassed; E-stops present, reachable and unobstructed along the route; a documented lock-out/tag-out procedure with records of its use; PM scheduled at least thirty days ahead with deviation admin closed within one workday; and critical drive spares held at the minimum quantity (annual usage / 12 months) on the KARDEX card."
  },
  {
   "id": "KSIA-MEC-066",
@@ -5439,7 +5829,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Asset",
+  "inspect": "reconcile",
+  "complianceTest": "Legible test stamp on each cylinder within the SANS 1475-1 interval for its TYPE — CO2 read against the CO2 table, not the water/foam one."
  },
  {
   "id": "KSIA-MEC-067",
@@ -5474,11 +5867,23 @@
   ],
   "acsaConflict": "ACSA's stated QUARTERLY extinguisher inspection is less frequent than the monthly extinguisher inspection assumed in the TPJV checklist row KSIA-MEC-068 ('monthly inspection tags'). A monthly-tag non-conformance at KSIA cannot be raised against ACSA's own procedure - only against SANS 1475 / municipal by-law. Raise the ACSA-vs-industry divergence explicitly.",
   "coverage": "covered",
-  "siteVariant": null,
+  "siteVariant": {
+   "site": "FALE",
+   "note": "Fire extinguisher inspection records QUARTERLY",
+   "conflict": {
+    "checkSays": "Monthly visual inspection log (in the check's own evidenceExpected)",
+    "siteRequires": "Fire extinguisher inspection records QUARTERLY",
+    "source": "D080 002M cl. 4.7.9",
+    "direction": "looser"
+   }
+  },
   "basisConfidence": "high",
   "basisNote": "The monthly visual inspection and annual service by an accredited agent derive from SANS 10105-1 and municipal fire by-laws rather than directly from the OHS Act; ACSA's quarterly inspection interval is longer than the SANS routine-inspection expectation.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Extinguisher present where the register says, accessible, needle in the green, seal and pin intact, no damage — and the inspection log without gaps."
  },
  {
   "id": "KSIA-MEC-068",
@@ -5524,7 +5929,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 34
+  "optionCount": 34,
+  "confirmedBy": "Asset",
+  "inspect": "reconcile",
+  "complianceTest": "Service tag on each extinguisher showing an annual service within twelve months by a SANS 1475-accredited provider with the provider named; the hydrostatic date stamped on the cylinder within the retest interval FOR ITS TYPE; inspection tags with no gap in the quarterly cycle; and the type and size at each location matching the area's SANS 10400-T fire hazard class."
  },
  {
   "id": "KSIA-MEC-069",
@@ -5558,7 +5966,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "A classification record covering every occupancy, and each area's current use still matching its assigned fire load — an office turned into a store is the failure."
  },
  {
   "id": "KSIA-MEC-070",
@@ -5592,7 +6003,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "A physical copy of the SANS 10287 block plan at each valve station, with valve numbering matching the tags in the field."
  },
  {
   "id": "KSIA-MEC-071",
@@ -5631,7 +6045,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "SANS 10105-2 record showing an actual flow/pressure check against design flow, hose and nozzle condition, isolating valve free — plus SANS 1475-2 reconditioning certificates for any reel sent away."
  },
  {
   "id": "KSIA-MEC-072",
@@ -5675,7 +6092,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 34
+  "optionCount": 34,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Annual test per hydrant with measured flow and residual pressure explicitly compared to the design report, and the hydrant free and not leaking at the gland."
  },
  {
   "id": "KSIA-MEC-073",
@@ -5715,7 +6135,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 34
+  "optionCount": 34,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Heads unpainted, unobstructed, uncorroded, correctly oriented — and an inspection record itemised by zone rather than a sitewide sign-off."
  },
  {
   "id": "KSIA-MEC-074",
@@ -5750,7 +6173,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Weekly log per valve station recording the elapsed time to alarm against the 30-second target, and the signal reaching the monitored fire control room — not just a local sounder."
  },
  {
   "id": "KSIA-MEC-075",
@@ -5785,11 +6211,23 @@
   ],
   "acsaConflict": "DIRECT CONFLICT with the checklist row: the TPJV register assumes a 3-yearly deluge/control valve service, whereas ACSA's own D080 002M cl. 4.7.8 requires it YEARLY. The likely origin of the 3-year figure is cl. 4.7.2, which sets Sprinkler System (FSS) maintenance at Tri-Yearly (3Y) - the two clauses in the same document pull in opposite directions. Audit to the YEARLY figure and raise the internal contradiction.",
   "coverage": "covered",
-  "siteVariant": null,
+  "siteVariant": {
+   "site": "FALE",
+   "note": "Deluge/Control Valve service records YEARLY",
+   "conflict": {
+    "checkSays": "3 yearly Deluge/Control Valve service records",
+    "siteRequires": "Deluge/Control Valve service records YEARLY",
+    "source": "D080 002M cl. 4.7.8",
+    "direction": "stricter"
+   }
+  },
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Service record at the interval ACSA actually requires, naming the specific valves serviced across every deluge zone."
  },
  {
   "id": "KSIA-MEC-076",
@@ -5822,7 +6260,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Certificate within 12 months covering the whole sprinkler network, with noted defects closed."
  },
  {
   "id": "KSIA-MEC-077",
@@ -5864,11 +6305,23 @@
   ],
   "acsaConflict": "THRESHOLD UPGRADE: the checklist row assumes ANNUAL flow/pressure testing; ACSA requires valve station flow and pressure tests MONTHLY (D080 002M cl. 4.7.8) and hydrant-valve flow and pressure checks MONTHLY (D080 022M cl. 4.7). Separately, neither document states any numeric flow or pressure acceptance value, and neither imposes any requirement on hydrant/hose reel SIGNAGE or unobstructed ACCESS - that element of the check has no ACSA basis.",
   "coverage": "partial",
-  "siteVariant": null,
+  "siteVariant": {
+   "site": "FALE",
+   "note": "Valve station flow and pressure tests MONTHLY; hydrant valve flow, pressure, leaks and function checked monthly. Fire hydrant and hose reel TEST RECORDS remain annual.",
+   "conflict": {
+    "checkSays": "Annual flow/pressure tests",
+    "siteRequires": "Valve station flow and pressure tests MONTHLY; hydrant valve flow, pressure, leaks and function checked monthly. Fire hydrant and hose reel TEST RECORDS remain annual.",
+    "source": "D080 002M cl. 4.7.8; D080 022M cl. 4.5",
+    "direction": "stricter"
+   }
+  },
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Test tag on each hydrant within date, the valve turning smoothly without excessive force and not leaking at the gland, hose reels unreeled with the isolating valve free and the hose sound, signage present and access unobstructed — plus valve station flow and pressure tests at the MONTHLY interval ACSA requires, not annually."
  },
  {
   "id": "KSIA-MEC-078",
@@ -5902,7 +6355,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Quarterly log stating the actual load or pressure achieved and a full six-hour duration, with any alarm or fault recorded."
  },
  {
   "id": "KSIA-MEC-079",
@@ -5936,7 +6392,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Monthly record of a genuine simulated pressure-loss or power-failure changeover, stating the changeover time against the design starting time."
  },
  {
   "id": "KSIA-MEC-080",
@@ -5970,7 +6429,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Monthly log per battery — both of a dual set — with a result, and a replacement following any marginal result."
  },
  {
   "id": "KSIA-MEC-081",
@@ -6004,7 +6466,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Weekly pressure and level log against fire-engineering design values, the gauge itself verified accurate, and a repeatedly low reading investigated rather than logged."
  },
  {
   "id": "KSIA-MEC-082",
@@ -6038,7 +6503,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "A monthly record that names the charger test distinctly from the battery test and confirms correct float-charging."
  },
  {
   "id": "KSIA-MEC-083",
@@ -6072,7 +6540,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Suction and discharge valves found locked or sealed in the open position, free to operate and not seized, with the monthly exercising record."
  },
  {
   "id": "KSIA-MEC-084",
@@ -6106,7 +6577,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Weekly level log with the reserve meeting the design runtime, and evidence that water contamination and diesel bug were checked, not just the level."
  },
  {
   "id": "KSIA-MEC-085",
@@ -6150,7 +6624,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Weekly pressure gauge, water level and diesel level logs; monthly battery, charger, valve and electric-to-diesel switch-over tests; the quarterly six-hour diesel full-load run per SANS 10287 cl. 10.1 with the load achieved recorded; and tank levels against design. NOTE: 'churn test' and 'jockey pump' appear nowhere in ACSA's manual — confirm they are required before auditing against them."
  },
  {
   "id": "KSIA-MEC-086",
@@ -6200,7 +6677,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Calibration certificate matching the serial number of the unit in field use, daily bump-test records before each entry, and the monitor configured for H2S, LEL and O2."
  },
  {
   "id": "KSIA-MEC-087",
@@ -6246,7 +6726,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-088",
@@ -6292,7 +6775,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Every coupling and shaft guarded, guards undamaged and reinstated after maintenance access, grid covers in place with their limit switches working."
  },
  {
   "id": "KSIA-MEC-089",
@@ -6344,7 +6830,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-090",
@@ -6402,7 +6891,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Duty/standby alternating with roughly balanced run hours, level sensors clean and free, alarms confirmed through to IMC on the monthly cycle, standby power proven, and spill history with each event investigated."
  },
  {
   "id": "KSIA-MEC-091",
@@ -6442,11 +6934,23 @@
   ],
   "acsaConflict": "Two defects converge here. First, the checklist row itself is a copy-paste from KSIA-MEC-086 - a 'sewer sump gas monitor' has no place in a gas hot water facility. Second, ACSA's own D080 025M cl. 4.4.9 is internally broken: the MONTHLY row for System - Hot Water reads 'Perform yearly maintenance as per approved contractor's task list', so the monthly task is undefined; cl. 4.8 then disclaims all calibration certificates. There is no gas detection, gas leak test or detector calibration requirement for the hot water facility anywhere in ACSA's documents.",
   "coverage": "none",
-  "siteVariant": null,
+  "siteVariant": {
+   "site": "FALE",
+   "note": "Nothing. ACSA states no gas monitor calibration requirement for the hot water system, and a sewer-sump confined-space detector (H2S / LEL / O2) is not the instrument a gas hot water facility needs. The row is a copy of KSIA-MEC-086 pasted into the wrong asset system.",
+   "conflict": {
+    "checkSays": "Sewer sump gas monitor calibration records — filed under Gas Hot Water Facility",
+    "siteRequires": "Nothing. ACSA states no gas monitor calibration requirement for the hot water system, and a sewer-sump confined-space detector (H2S / LEL / O2) is not the instrument a gas hot water facility needs. The row is a copy of KSIA-MEC-086 pasted into the wrong asset system.",
+    "source": "no ACSA clause — see the approved contractor task list for System - Hot Water (HWS)",
+    "direction": "different"
+   }
+  },
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-092",
@@ -6491,7 +6995,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-093",
@@ -6536,7 +7043,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-094",
@@ -6587,7 +7097,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-095",
@@ -6638,7 +7151,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "LPG installation CoC naming a registered installer, leak test records, ventilation openings unobstructed, signage present, cylinders stored upright, secured and segregated, with the flammable store designed to SANS 10400 and SDS held close by."
  },
  {
   "id": "KSIA-MEC-096",
@@ -6696,7 +7212,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Documented monitoring programme with the procedure used and results, an OREP per homogeneous exposure group, covering every role actually exposed — including recent rotations."
  },
  {
   "id": "KSIA-MEC-097",
@@ -6750,7 +7269,10 @@
   "basisConfidence": "high",
   "basisNote": "The 2022 HBA Regulations replaced the 2001 set, so \"these Regulations\" in the check now means the 2022 instrument.",
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Practice",
+  "inspect": "examine",
+  "complianceTest": "Written decontamination and waste-handling procedures, a manifest and safe-disposal certificate for EVERY disposal in the period reconciled against the waste register, from a site with a current permit — and visible evidence decontamination is performed on equipment."
  },
  {
   "id": "KSIA-MEC-098",
@@ -6804,7 +7326,10 @@
   "basisConfidence": "high",
   "basisNote": "Reg 15(f) is an exact match to the wording of this check and is the citation to put to ACSA if the contract lacks the clause.",
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Signed contract carrying the HBA reg 17(f) clause and EMS 048 appended and signed before commencement, with the personnel actually working matching the contracted entity."
  },
  {
   "id": "KSIA-MEC-099",
@@ -6861,7 +7386,10 @@
   "basisConfidence": "high",
   "basisNote": "The 2022 Regulations put engineering containment ahead of PPE, so PPE-only compliance at the treatment plant is a reg 10 finding, not merely a reg 11 one.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Practice",
+  "inspect": "examine",
+  "complianceTest": "Risk assessment, PPE of the correct grade for biological hazard actually available and in use, engineering controls in place and maintained, and hygiene facilities usable — with issue and inspection registers behind them."
  },
  {
   "id": "KSIA-MEC-100",
@@ -6912,7 +7440,10 @@
   "basisConfidence": "high",
   "basisNote": "The 24-month interval survives from the 2001 Regulations but the 2022 reg 12 no longer requires an approved inspection authority — it requires a competent person working to documented protocols — so a finding should be based on reg 12, not on \"approved HBA inspection authority\".",
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Thorough examination report within 24 months, listing each engineering control — with nothing installed on site missing from its scope."
  },
  {
   "id": "KSIA-MEC-101",
@@ -6968,7 +7499,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-102",
@@ -7018,7 +7552,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-103",
@@ -7076,7 +7613,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Bunding at least 110% of the largest container in it, SDS present and matching the chemicals actually held, ventilation and signage in place, and incompatibles segregated."
  },
  {
   "id": "KSIA-MEC-104",
@@ -7133,7 +7673,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Signage present, legible and specifying the required hearing protection in every area the AIA survey put at or above 85 dBA — including areas added or changed since that survey."
  },
  {
   "id": "KSIA-MEC-105",
@@ -7179,7 +7722,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-MEC-106",
@@ -7238,7 +7784,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Monthly sampling and test results at FALE against the SANS 241 schedule, disinfection residuals within range, reservoir cleaning records — and sampling points on site that show signs of routine use."
  },
  {
   "id": "KSIA-MEC-107",
@@ -7283,7 +7832,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Six-monthly report itemising ropes, chains, hooks, sheaves, brakes and safety devices individually — not a generic pass — from a registered Lifting Machinery Entity."
  },
  {
   "id": "KSIA-MEC-108",
@@ -7334,7 +7886,10 @@
   "basisConfidence": "high",
   "basisNote": "DMR 18 applies to the lifting machinery in all cases; Construction Regulation 17 bites where the gondola work falls within the definition of construction work.",
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Certificate within 12 months stating a test load consistent with the SWL nameplate, from an ECSA-registered inspector at a registered entity — both verifiable, not merely claimed."
  },
  {
   "id": "KSIA-MEC-109",
@@ -7386,7 +7941,10 @@
   "basisConfidence": "high",
   "basisNote": "Construction Regulation 17(10) is the only genuinely prior-to-use statutory obligation here and is stronger than ACSA's periodic intervals, so the gap in D080 017M is a real one.",
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Practice",
+  "inspect": "reconcile",
+  "complianceTest": "Completed checklists stored at the equipment, dated and timed one per use occasion, covering controls, safety devices, anchor points and harness attachment — with no evidence of retrospective batch completion."
  },
  {
   "id": "KSIA-MEC-110",
@@ -7443,7 +8001,10 @@
   "basisConfidence": "high",
   "basisNote": "The DMR register is the statutory instrument; the Ladder Register ME 065 and CMMS 019 are ACSA's own additions and carry no statutory weight of their own.",
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Register listing each item with its SWL and last/next examination and load-test dates, reconciled both ways against the identification tags found on site."
  },
  {
   "id": "KSIA-MEC-111",
@@ -7494,7 +8055,10 @@
   "basisConfidence": "high",
   "basisNote": "A load test certificate issued by an unregistered entity is a nullity for DMR purposes, so this is a statutory finding and not merely a contractor-management one.",
   "woCount": 5,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Current DoL Lifting Machinery Entity registration for the entity actually performing the load tests, with SHE File competencies submitted 14 days before work."
  },
  {
   "id": "KSIA-MEC-112",
@@ -7539,7 +8103,10 @@
   "basisConfidence": "high",
   "basisNote": "Both legs must hold — an ECSA-registered individual working for an unregistered entity, or an unregistered individual at a registered entity, fails DMR 18(5).",
   "woCount": 0,
-  "optionCount": 24
+  "optionCount": 24,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": "ECSA registration for the named inspector and evidence they are employed by the registered Lifting Machinery Entity that issued the certificates."
  },
  {
   "id": "KSIA-MEC-113",
@@ -7603,7 +8170,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "A load-test certificate within twelve months displayed on or near each cradle, hoist and MEWP and matching the unit, issued by an ECSA-registered LMI at a DoL-registered Lifting Machinery Entity; a lifting tackle register with a valid inspection tag or colour code on each sling and shackle at the three-monthly cycle; and operator competency evidenced on the training register."
  },
  {
   "id": "KSIA-CIV-001",
@@ -7651,7 +8221,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Every marking type legible at taxi/approach speed, no rubber, fuel, dust or vegetation obscuring it — plus the monthly inspection report and the CMMS repaint interval actually applied to each marking type."
  },
  {
   "id": "KSIA-CIV-002",
@@ -7691,7 +8264,10 @@
   "basisConfidence": "high",
   "basisNote": "Annex 14 Vol I Chapter 5 numbering is that of the 8th edition (2018) onward; the touchdown-zone pair count is a function of landing distance available, so read the figure from the amendment current at the audit date.",
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Asset",
+  "inspect": "reconcile",
+  "complianceTest": "Measured centre-line stripe/gap, TDZ pair count and spacing within tolerance of the approved as-built for THIS runway, and the as-built current for the declared distances in force."
  },
  {
   "id": "KSIA-CIV-003",
@@ -7743,7 +8319,10 @@
   "basisConfidence": "high",
   "basisNote": "No instrument publishes a numeric percentage-of-paint-remaining or retroreflectivity threshold for aerodrome markings; the test remains qualitative legibility against design intent.",
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-CIV-004",
@@ -7783,7 +8362,10 @@
   "basisConfidence": "high",
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "White/yellow/red as prescribed per marking type, apron safety lines still contrasting against stand markings, mandatory markings true red — not faded to pink."
  },
  {
   "id": "KSIA-CIV-005",
@@ -7817,7 +8399,10 @@
   "basisConfidence": "high",
   "basisNote": "The distance is a table value keyed to code number and category of operation, so audit against the runway's approved design/AIP figure rather than a single generic distance.",
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Asset",
+  "inspect": "reconcile",
+  "complianceTest": "Surveyed or measured distance from runway centre line to each holding position equal to the approved design/AIP figure — and the as-built updated if the runway has been re-declared."
  },
  {
   "id": "KSIA-CIV-006",
@@ -7862,7 +8447,10 @@
   "basisConfidence": "high",
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-CIV-007",
@@ -7915,7 +8503,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "A repainting programme in the CMMS showing the interval applied to EACH marking type — centre line monthly, runway edges bi-annually — worked to date, obstacles repainted tri-monthly, monthly inspection reports determining removal and repainting, and a retro-reflectivity reading where the equipment exists. Condition itself is CIV-001 to CIV-006."
  },
  {
   "id": "KSIA-CIV-008",
@@ -7965,7 +8556,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-CIV-009",
@@ -8016,7 +8610,10 @@
   "basisConfidence": "high",
   "basisNote": "Stand marking geometry is set by the stand's own design for its critical aircraft type, so the dimensional check is against the approved apron layout rather than a generic table.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Markings visible and correctly coloured, and lead-in/lead-out lines matching the aircraft type currently using the stand — a stand upgauged to a wide-body with the old lines still painted is the failure this catches."
  },
  {
   "id": "KSIA-CIV-010",
@@ -8062,7 +8659,10 @@
   "basisConfidence": "high",
   "basisNote": "D060 001M sets a daily signage inspection and D060 014M a monthly one for the same asset; the conflict should be raised as a finding against ACSA's own document set, not against the external standard.",
   "woCount": 6,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Each mandatory sign present, red/white, panel undamaged, oriented for the direction of travel, and illuminated where the runway operates at night or below 800 m RVR."
  },
  {
   "id": "KSIA-CIV-011",
@@ -8129,7 +8729,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Signs and PAPI sited as the design layout shows, the PAPI structure and its mounts of frangible break-away design, the annual PAPI flight calibration certificate current, wind indicators and obstruction lights checked daily, and a Technical Evaluation under D060 015M current for the 10 km radius with WGS-84 three-dimensional coordinates and SA-CAA approval correspondence for anything erected."
  },
  {
   "id": "KSIA-CIV-012",
@@ -8177,7 +8780,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Sock the correct size, not torn or faded, swinging freely, lit if required, grass at its base under 20 cm, and no new structure or tree in the line of sight or disturbing the airflow."
  },
  {
   "id": "KSIA-CIV-013",
@@ -8225,7 +8831,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "No depression, hump or rut in the touchdown or high-turn areas that a straightedge shows outside tolerance, and every irregularity in the latest PCI survey either closed or carrying a live work order."
  },
  {
   "id": "KSIA-CIV-014",
@@ -8270,7 +8879,10 @@
   "basisConfidence": "high",
   "basisNote": "ACR-PCR replaced the ACN-PCN method with effect from 28 November 2024, so a register or AIP entry still expressed as a PCN is out of date.",
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Current PCR report in the five-part coded format, and no aircraft type in the actual movement mix with an ACR above it."
  },
  {
   "id": "KSIA-CIV-015",
@@ -8304,7 +8916,10 @@
   "basisConfidence": "high",
   "basisNote": "Sub-clause numbers within §3.5 were not confirmed this pass; take the 90 m / 240 m length figures from SA-CATS 139 and the Annex 14 amendment current at the audit date.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "reconcile",
+  "complianceTest": "Measured RESA length and width at each end meeting the figure in the declared-distance calculation, clear of encroaching objects, standing water and uneven ground."
  },
  {
   "id": "KSIA-CIV-016",
@@ -8354,7 +8969,10 @@
   "basisConfidence": "high",
   "basisNote": "No SACAA or ICAO instrument publishes a numeric crack-width or rut-depth pass/fail figure; severity grading comes from ASTM D5340, and the COLTO Section 4000 repair standard D060 014M names is a workmanship specification, not a defect threshold.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "No conspicuous distress on the pavement that is absent from the latest survey, and the survey itself within its three-yearly cycle."
  },
  {
   "id": "KSIA-CIV-017",
@@ -8409,7 +9027,10 @@
   "basisConfidence": "high",
   "basisNote": "The 3 mm depth / 25 per cent area definition of standing water is a reporting definition, not a maintenance tolerance; vegetation in joints and loose aggregate remain qualitative FOD judgements.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "No area meeting the standing-water definition after rain, no loose aggregate that could become FOD, and no vegetation in joints beyond the 30 cm herbicide band."
  },
  {
   "id": "KSIA-CIV-018",
@@ -8458,7 +9079,10 @@
   "basisConfidence": "medium",
   "basisNote": "Cited at section level: the flush-surface sub-clause number within §3.4 was not confirmed, and no instrument publishes a numeric maximum step height, so the ~25 mm figure sometimes quoted must not be treated as a standard.",
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "No measurable step between pavement and shoulder at representative points — and, first, a documented tolerance to measure against."
  },
  {
   "id": "KSIA-CIV-019",
@@ -8501,7 +9125,10 @@
   "basisConfidence": "medium",
   "basisNote": "No aviation instrument sets a numeric edge-break depth or extent limit, so the finding must be framed on FOD generation, loss of edge support and drainage disruption rather than on a threshold.",
   "woCount": 5,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-CIV-020",
@@ -8541,7 +9168,10 @@
   "basisConfidence": "medium",
   "basisNote": "Cited at section level: the individual slope sub-clauses within §3.1 were not confirmed this pass, and the limits are code-number dependent, so the figures in the check target should be re-read from SA-CATS 139 before being used as pass/fail limits.",
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Current survey profile within the code-based longitudinal and transverse limits, and no localised reverse grade at a joint or patch holding water."
  },
  {
   "id": "KSIA-CIV-021",
@@ -8594,7 +9224,10 @@
   "basisConfidence": "high",
   "basisNote": "The graded half-widths of roughly 40 m and 75 m are code- and approach-type dependent; read the applicable figure from SA-CATS 139, and note that ACSA's 50 m grass-cutting width is a vegetation control width, not the strip's graded width.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "reconcile",
+  "complianceTest": "Graded extent matching the design drawing for the runway's code number, grass under 20 cm across the 50 m band, and no fencing, drainage or service road inside the graded width."
  },
  {
   "id": "KSIA-CIV-022",
@@ -8619,7 +9252,10 @@
   "basisConfidence": "medium",
   "basisNote": "No instrument publishes a CBR or other numeric bearing figure for the strip; compliance is demonstrated through the aerodrome's approved geotechnical and pavement design, so the audit test is whether that design documentation exists and is current.",
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "CBR results or a geotechnical report for the graded strip showing it will carry an RFF vehicle, and ground visibly firm at the time of the audit."
  },
  {
   "id": "KSIA-CIV-023",
@@ -8670,7 +9306,10 @@
   "basisConfidence": "high",
   "basisNote": "Frangibility is a design certification matter, so the practical evidence is a frangible-mount certificate or type approval per object, held against an object register for the strip and RESA.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-CIV-024",
@@ -8742,7 +9381,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Signed friction results for RWY 06/24 at the three-monthly interval, tested at 1 mm self-wetting with a smooth tread tyre, every section above the maintenance planning level — or a corrective-action record where it was not."
  },
  {
   "id": "KSIA-CIV-025",
@@ -8802,7 +9444,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "A PCI survey to ASTM D5340 within the three-yearly cycle, every distress it records carrying a programmed repair or a closed work order, concrete apron joint material replaced on the five-yearly cycle, and nothing visibly serious on the pavement that is absent from the survey."
  },
  {
   "id": "KSIA-CIV-026",
@@ -8861,7 +9506,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-CIV-027",
@@ -8910,7 +9558,10 @@
   "basisConfidence": "high",
   "basisNote": "The traffic ladder itself (<15 = yearly through >210 = weekly) originates in ICAO Doc 9137 Part 2, not in the SA regulations, which set the outcome obligation rather than the frequency; the annual-mass column is an ACSA addition.",
   "woCount": 0,
-  "optionCount": 25
+  "optionCount": 25,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": "Average daily turbo-jet arrivals per runway end, the Table A band that number falls in, and test dates showing that interval actually applied — plus a Z001 003M change record if traffic moved the band."
  },
  {
   "id": "KSIA-CIV-028",
@@ -8959,7 +9610,10 @@
   "basisConfidence": "medium",
   "basisNote": "No SACAA-prescribed retention period for friction records was confirmed; the five-year retention is ACSA's own procedural rule, so a finding on retention rests on D060 010 cl. 11 and not on Part 139.",
   "woCount": 0,
-  "optionCount": 26
+  "optionCount": 26,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": "Register covering 2-3 years with date, runway end, device and tyre, measured Mu by section, and the corrective-action reference — each signed off within two weeks and retained five years."
  },
  {
   "id": "KSIA-CIV-029",
@@ -9019,7 +9673,10 @@
   "basisConfidence": "high",
   "basisNote": "ACSA's D060 010 already adopts ICAO Doc 9137 Part 2 as the analysis method, so the external instrument is incorporated by reference into the procedure being audited.",
   "woCount": 0,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Practice",
+  "inspect": "none",
+  "complianceTest": "For each reading at or below the maintenance planning level, a corrective work order, the treatment record, and a post-treatment re-test above the level — and for any at or below minimum, the NOTAM."
  },
  {
   "id": "KSIA-CIV-030",
@@ -9062,7 +9719,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-CIV-031",
@@ -9102,7 +9762,10 @@
   "basisConfidence": "high",
   "basisNote": "ACR-PCR replaced ACN-PCN with effect from 28 November 2024, and each pavement is rated in its own right — the test is taxiway PCR ≥ ACR of the aircraft using it, not numerical equality with the runway.",
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Taxiway-specific PCR report and no ACR in the using traffic above it."
  },
  {
   "id": "KSIA-CIV-032",
@@ -9151,7 +9814,10 @@
   "basisConfidence": "high",
   "basisNote": "Neither Annex 14 nor Part 139 publishes a numeric crack-width or rut-depth limit; the grading standard is whatever ACSA's pavement management methodology documents, commonly TMH 9 locally or ASTM D5340 for airport pavements.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-CIV-033",
@@ -9200,7 +9866,10 @@
   "basisConfidence": "high",
   "basisNote": "The 3 mm depth over 25 per cent of the area definition of standing water quoted in the target is a guidance threshold, not a Part 139 regulation — cite the removal obligation, and use the depth figure only as the assessment convention.",
   "woCount": 6,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-CIV-034",
@@ -9243,7 +9912,10 @@
   "basisConfidence": "medium",
   "basisNote": "The flush-edge provision in Annex 14 is a Recommended Practice rather than a Standard and carries no numeric step tolerance, which limits the severity a finding can carry; cited at chapter level because the clause number was not confirmed.",
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-CIV-035",
@@ -9286,7 +9958,10 @@
   "basisConfidence": "high",
   "basisNote": "COLTO 1998 is progressively being replaced by the COTO Standard Specifications, and severity grading of edge breaks comes from TMH 9 or ASTM D5340 rather than from any SACAA-published limit.",
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-CIV-036",
@@ -9331,7 +10006,10 @@
   "basisConfidence": "medium",
   "basisNote": "Annex 14 slope values are cited at chapter level because the clause number was not confirmed, and they are design standards for new or reconstructed taxiways — on an existing taxiway the auditable requirement is drainage performance (no ponding), not retrofit of the slope.",
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "No ponding after rainfall; where there is ponding on a design-compliant cross-section, a downstream blockage identified and a work order raised within the same operational day."
  },
  {
   "id": "KSIA-CIV-037",
@@ -9373,7 +10051,10 @@
   "basisConfidence": "medium",
   "basisNote": "The distances quoted in the target (15.5 / 20 / 26 / 37 / 43.5 / 51 m) are the Annex 14 Table 3-1 taxiway-centre-line-to-object separation distances; confirm the taxiway's code letter and the current Annex 14 amendment before applying them as a pass-fail limit.",
   "woCount": 6,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Asset",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-CIV-038",
@@ -9428,7 +10109,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Monthly taxiway and taxilane inspection plus the three-yearly visual assessment, manoeuvring areas inspected at least three times a week, concrete joint material replaced five-yearly, and no unsafe condition on the walk — one that could affect aircraft handling or generate FOD — that is not already recorded against a specific check."
  },
  {
   "id": "KSIA-CIV-039",
@@ -9481,7 +10165,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-CIV-040",
@@ -9521,7 +10208,10 @@
   "basisConfidence": "high",
   "basisNote": "Apron loading (static, parked, tight turning) is accounted for inside the ACR-PCR evaluation, so the compliance test is apron PCR ≥ ACR of the aircraft using it, not equality with the runway's PCR.",
   "woCount": 5,
-  "optionCount": 28
+  "optionCount": 28,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Apron PCR report whose method accounts for static parking loads, and no stand routinely taking an aircraft heavier than its rating."
  },
  {
   "id": "KSIA-CIV-041",
@@ -9576,7 +10266,10 @@
   "basisConfidence": "high",
   "basisNote": "No SACAA numeric crack or rut threshold exists; ASTM D5340 (airport Pavement Condition Index) or TMH 9 supplies the severity grading as industry practice, and ACSA should be able to name which it applies.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-CIV-042",
@@ -9631,7 +10324,10 @@
   "basisConfidence": "high",
   "basisNote": "Vegetation and spilled aggregate on an apron are treated as FOD sources under Annex 14 §10.2 rather than under a separate vegetation standard; the 3 mm / 25 per cent standing-water figure is an assessment convention, not a regulation.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-CIV-043",
@@ -9679,7 +10375,10 @@
   "basisConfidence": "medium",
   "basisNote": "Neither Annex 14 nor Part 139 sets a numeric lip or step tolerance at an apron edge — ACSA's own B090 001M criterion ('no greater than necessary to drain off the pavement') remains the only measurable rule, so a finding must be framed as a hazard, not as a dimensional breach.",
   "woCount": 5,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-CIV-044",
@@ -9724,7 +10423,10 @@
   "basisConfidence": "high",
   "basisNote": "The five-yearly joint material replacement in D060 014M is an ACSA maintenance interval, not an external requirement; ASTM D5340 supplies the distress definitions but no mandatory intervention threshold.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "No corner break or failed joint sealant absent from the survey, and concrete joint material replaced on the five-yearly cycle."
  },
  {
   "id": "KSIA-CIV-045",
@@ -9785,7 +10487,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Stand pavement sound with joint sealant intact, no fuel or oil staining, tie-down rings and aircraft grounding points present, unbroken and uncorroded — plus a spill response procedure with containment inside 2 hours, oil separators tested annually for efficiency, sludge depth under 25% of chamber depth and disposal records retained 5 years."
  },
  {
   "id": "KSIA-CIV-046",
@@ -9831,7 +10536,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "For every major repair or construction in the period, a post-works PCR reassessment, a pre-return-to-service friction verification, and the updated figure submitted to the AIP."
  },
  {
   "id": "KSIA-CIV-047",
@@ -9856,7 +10564,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 4,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "A published pavement strength rating supported by a current evaluation and matching the AIP entry, with a controlled approval on file for every overload operation. NOTE: the check says PCN, which ICAO replaced with PCR — read it as the PCR published under CIV-014."
  },
  {
   "id": "KSIA-CIV-048",
@@ -9908,7 +10619,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Practice",
+  "inspect": "examine",
+  "complianceTest": "Removal log showing elapsed time from detection to completion against the friction trigger, the method used, and a post-treatment friction result back above the maintenance planning level."
  },
  {
   "id": "KSIA-CIV-049",
@@ -9972,7 +10686,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Practice",
+  "inspect": "examine",
+  "complianceTest": "FOD Management Programme document, sweep log covering runway, taxiway AND apron with location, date, time and nature of each item, bins inspected twice daily and emptied at three-quarters, and FOD in induction training records."
  },
  {
   "id": "KSIA-CIV-050",
@@ -10032,7 +10749,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "No visible blockage in accessible drains, catchpits and culvert outlets; the cleaning schedule covering every airside drainage asset group; and blocked inlets on a runway or taxiway closed within 2 hours."
  },
  {
   "id": "KSIA-CIV-051",
@@ -10087,7 +10807,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 33
+  "optionCount": 33,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Stormwater drains, culverts and channels clear of silt, debris and vegetation with an inspection register covering every airside drainage asset group; oil/water separators tested annually for efficiency with sludge depth under 25% of chamber depth and hazardous waste disposal at a licensed facility recorded and retained 5 years; and no ponding on any movement area."
  },
  {
   "id": "KSIA-CIV-052",
@@ -10145,7 +10868,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Practice",
+  "inspect": "reconcile",
+  "complianceTest": "Three logged manoeuvring-area inspections every day with no unexplained gap, the apron audit twice a month, the bay inspection daily during turnaround, and the most recent annual inspection signed by a qualified civil engineer."
  },
  {
   "id": "KSIA-CIV-053",
@@ -10208,7 +10934,10 @@
   "basisConfidence": "high",
   "basisNote": "FALE is a code 4 aerodrome, so reg 139.02.23(8)(e)(i) fixes a minimum of two movement area inspections a day independently of whatever frequency ACSA's own procedures set.",
   "woCount": 0,
-  "optionCount": 26
+  "optionCount": 26,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": "The documented inspection programme and procedure in the Aerodrome Manual or SMS, naming who inspects what at what interval and the timeframe for correcting each defect priority."
  },
  {
   "id": "KSIA-CIV-054",
@@ -10272,7 +11001,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Practice",
+  "inspect": "reconcile",
+  "complianceTest": "A daily movement-area serviceability log with today's entry present, checklists forwarded daily to the responsible Manager and audited by them, every defect raised carrying an Oracle eAM work request with a Date of Call, and the recent defects visibly fixed or in progress on site — plus wildlife and FOD reports for the period."
  },
  {
   "id": "KSIA-CIV-055",
@@ -10323,7 +11055,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Road pavement and expansion joints sound, signage present and legible, vehicle control markings visible — and the specific locations from the March 2025 finding actually repaired."
  },
  {
   "id": "KSIA-CIV-056",
@@ -10378,7 +11113,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 34
+  "optionCount": 34,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Perimeter fence with no holes, gaps, sagging or corroded sections and nothing climbable against it; clear zone free of vegetation and stored materials, perimeter grass under 20 cm across the 3 m band; weekly gate visual checks and monthly condition monitoring records; fence voltage tests within the site design range; and a sample gate and access-control point observed working."
  },
  {
   "id": "KSIA-BFM-001",
@@ -10403,7 +11141,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-002",
@@ -10428,7 +11169,10 @@
   "basisConfidence": "high",
   "basisNote": "Occupation under a written local-authority permission granted pending issue of the certificate is time-limited and conditional and is not a substitute for the certificate itself.",
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-003",
@@ -10485,7 +11229,10 @@
   "basisConfidence": "high",
   "basisNote": "GMR 2(4) and 2(5) key the appointee's qualification to installed power in kW and distribution capacity in kVA, not to supply voltage — the 11 kV trigger in S010 001M cl. 4.9 is ACSA's own threshold and should not be presented as the statutory test.",
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-004",
@@ -10533,7 +11280,10 @@
   "basisConfidence": "high",
   "basisNote": "Two attributions in the register need correcting: extinguisher inspection and maintenance intervals sit in SANS 10105-1, not SANS 1475-1 (which governs the production of reconditioned extinguishers), and Environmental Regulations for Workplaces reg 9 contains no fire-warden requirement — it covers means of egress and the provision and maintenance of equipment only.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-005",
@@ -10574,7 +11324,10 @@
   "basisConfidence": "high",
   "basisNote": "D080 028M cl. 4.2.5 cites 'the OHS Act of 1995'; the Act is No. 85 of 1993, and Construction Regulations 2014 reg 11(2) is both the correct citation and the external source of ACSA's six-monthly and yearly structural inspection intervals.",
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-006",
@@ -10628,7 +11381,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "An occupancy certificate describing the building's CURRENT use and layout, local-authority fire compliance current, an electrical Certificate of Compliance per building in the latest SANS 10142-1 format with its test report and not older than two years, and current lift/escalator certificates — all accounted for in the yearly COC reconciliation across the BDG, SBD, TRF and LGT asset groups."
  },
  {
   "id": "KSIA-BFM-007",
@@ -10675,7 +11431,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-008",
@@ -10721,7 +11480,10 @@
   "basisConfidence": "high",
   "basisNote": "The register cites 'NBR&BS Act ss12/13' for dangerous-building powers; s13 is the exemption and authorisation provision — the dangerous-building powers are s12, supported by s21.",
   "woCount": 6,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-009",
@@ -10761,7 +11523,10 @@
   "basisConfidence": "medium",
   "basisNote": "No South African instrument prescribes a movement-survey frequency or a numeric settlement limit for an existing building, so the audit test is the recorded design basis and the SANS 10160-1 serviceability criteria, not a published threshold.",
   "woCount": 6,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-010",
@@ -10807,7 +11572,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Roof sheeting sound and fixed, gutters, drop boxes and downpipes clear and undamaged, waterproofing intact with no bubbling, cracking or lifted membrane, no ponding on the roof, and no ceiling water damage left unrepaired — against three-monthly roof/gutter/drop box inspections and monthly ceiling, walkway and canopy inspections, with a work order raised for each defect."
  },
  {
   "id": "KSIA-BFM-011",
@@ -10860,7 +11628,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-012",
@@ -10911,7 +11682,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 0,
-  "optionCount": 25
+  "optionCount": 25,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-013",
@@ -10957,7 +11731,10 @@
   "basisConfidence": "high",
   "basisNote": "T050 005M cl. 4.3 defers the quality limits to 'the effluent discharge permit'; the permit takes its limits from the eThekwini Sewage Disposal By-law schedules, so the by-law is the auditable standard behind the permit.",
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-014",
@@ -11006,7 +11783,10 @@
   "basisConfidence": "high",
   "basisNote": "No instrument requires an 'odour control record' as such — the auditable duty is Facilities Regulations reg 9 and reg A15, evidenced by the ablution inspection and servicing records ACSA already keeps.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-015",
@@ -11058,7 +11838,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-016",
@@ -11083,7 +11866,10 @@
   "basisConfidence": "high",
   "basisNote": "'PP26' and 'PP27' are not SANS or National Building Regulations designations — the two tests are SANS 10400-P cl. 4.26 and 4.27, and the SANS 1200 LD test method they invoke survives in SANS 10400-P even though the wider SANS 1200 series has largely been replaced by SANS 2001 for new works.",
   "woCount": 0,
-  "optionCount": 24
+  "optionCount": 24,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-017",
@@ -11135,7 +11921,10 @@
   "basisConfidence": "high",
   "basisNote": "The register's target text cites 'Facilities Regulations 2004 reg 2(1)' for the good-repair duty; reg 2 is sanitation — the maintenance duty is reg 9, 'Condition of rooms and facilities'.",
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Practice",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-018",
@@ -11185,7 +11974,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-019",
@@ -11236,7 +12028,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-020",
@@ -11277,7 +12072,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-021",
@@ -11329,7 +12127,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Practice",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-022",
@@ -11369,7 +12170,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-023",
@@ -11425,7 +12229,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-024",
@@ -11478,7 +12285,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Hot water measured at the outlet within the design range, no persistent drain or sewer odour in ablutions, backflow prevention devices fitted and tested where required, leaks found and closed out on the monthly water reticulation inspection, and ablution fixtures working — with the two-hourly signed ablution sheet countersigned and the weekly B&FM audit on file."
  },
  {
   "id": "KSIA-BFM-025",
@@ -11525,7 +12335,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-026",
@@ -11566,7 +12379,10 @@
   "basisConfidence": "high",
   "basisNote": "The 2013 Norms and Standards bite only above the 100 m³ general / 80 m³ hazardous capacity thresholds, so confirm KSIA's yard capacity before citing them as binding rather than as good practice.",
   "woCount": 5,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "A refuse storage area that exists on the ground where the approved drawings show it, listed in the Register of On-Site Waste Stores EMS 111, with AEMR written approval for any temporary or stakeholder-controlled area, and NO informal collection point that has grown up outside the register. NOTE: ACSA prescribes no area, volume or number — the compliance test is registration and approval, not size."
  },
  {
   "id": "KSIA-BFM-027",
@@ -11613,7 +12429,10 @@
   "basisConfidence": "high",
   "basisNote": "The register states no SANS 10400-U sub-regulation covers odour, which is correct — but the 2013 Norms and Standards do state an express odour requirement, so the check is better anchored there than on the by-law's general nuisance wording alone.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-028",
@@ -11660,7 +12479,10 @@
   "basisConfidence": "high",
   "basisNote": "No national instrument fixes a removal frequency: the external test is the by-law duty to have waste effectively and timeously removed by an authorised contractor, so the audit finding turns on capacity against actual fill rate rather than on a stated interval.",
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-029",
@@ -11695,7 +12517,10 @@
   "basisConfidence": "high",
   "basisNote": "Two different senses of 'access' apply: reg U2 is collection-vehicle access to the satisfaction of the local authority, while GN R.926 s8 is security access control — T050 002M cl. 4.5 addresses only the second, so the collection-access requirement is uncovered.",
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-030",
@@ -11754,7 +12579,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Waste areas clean, with no spillage or overflow; labelled recycling and general bins actually in use, not merely present; a Waste Register EMS 112 whose generated, disposed and recycled quantities reconcile; a manifest and safe disposal certificate for every removal, from a contractor whose receiving site permit is on file; and pest control records. All retained five years."
  },
  {
   "id": "KSIA-BFM-031",
@@ -11805,7 +12633,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Structural steel, canopy soffits, cladding supports and PLB gantries with corrosion protection intact — no rust staining, coating breakdown or bare steel — against three-monthly roof and gutter rust checks and monthly canopy, walkway and paint checks, with a repainting programme whose frequency is justified by the inspection reports, and the March 2025 finding locations actually repaired."
  },
  {
   "id": "KSIA-BFM-032",
@@ -11844,7 +12675,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Movement and expansion joint sealants intact — not torn, perished or missing — cover plates present and secure, with no water ingress or trip hazard, across terminal floors, walkways and parkade decks and ramps. Three-monthly wall expansion observations and the yearly PLB fixed-tunnel expansion joint check on record. NOTE: ACSA states no sealant type or joint gap tolerance."
  },
  {
   "id": "KSIA-BFM-033",
@@ -11895,7 +12729,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Curtain wall and glazing panels uncracked and unchipped and of safety glass where required, seals unperished and gap-free, fixings and brackets tight and uncorroded — checked monthly and three-monthly — plus a façade inspection programme, and any cleaning above 1.7 m done by a certified height contractor with an approved Safety File and FALE proof of training at height."
  },
  {
   "id": "KSIA-BFM-034",
@@ -11957,7 +12794,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Floors undamaged and slip-resistant, especially at entrances and wet areas; ceilings without missing tiles or water staining; doors, finishes and furniture safe; housekeeping to the QMS 85% monthly cleanliness benchmark and FALE's ASQ rating of 4.2, with helpdesk logs evidencing the 5-minute response and 15-minute correction the FALE SLA requires."
  },
  {
   "id": "KSIA-BFM-035",
@@ -12008,7 +12848,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Ramps at a usable gradient and unobstructed, accessible lifts in service, accessible ablutions unlocked, working and not used for storage, the disabled lift alarm button at 900-1200 mm; way-finding legible and consistent with the Wayfinding Signage Design Manual; and statutory safety signage plus exit indication present and lit, with escape routes checked clear daily."
  },
  {
   "id": "KSIA-BFM-036",
@@ -12055,7 +12898,10 @@
   "basisConfidence": "high",
   "basisNote": "No external instrument prescribes a daily interval or a checklist format; the target's citation of 'Facilities Regulations 2004 reg 2(1)' for the duty of care is misattributed — the maintenance duty is reg 9, 'Condition of rooms and facilities'.",
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Practice",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-037",
@@ -12107,7 +12953,10 @@
   "basisConfidence": "medium",
   "basisNote": "No external instrument prescribes the format of a job-card backlog report or a maximum age for an open job card, so the finding must be framed against the statutory duty the open item breaches, not against the report itself.",
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Practice",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-BFM-038",
@@ -12160,7 +13009,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Practice",
+  "inspect": "examine",
+  "complianceTest": "A building maintenance plan in Oracle eAM with PM work orders executed within the 14-day or 7-day window, a backlog report scored against that window, condition grading against D060 026M's six hazards, and — the actual test — a sample of assets marked 'PM completed' showing the work is evident on site."
  },
  {
   "id": "KSIA-EDM-001",
@@ -12185,7 +13037,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 0,
-  "optionCount": 25
+  "optionCount": 25,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-EDM-002",
@@ -12225,7 +13080,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 0,
-  "optionCount": 26
+  "optionCount": 26,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": "The authority or licence to distribute and resell electricity to tenants, and the distribution agreement with the municipality, read for SCOPE — does it actually authorise reselling — plus tenant lease agreements carrying the energy efficiency requirements and a metering schedule showing every kiosk ready board and distribution board on the electronic metering system."
  },
  {
   "id": "KSIA-EDM-003",
@@ -12259,7 +13117,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-EDM-004",
@@ -12292,7 +13153,10 @@
   "basisConfidence": "medium",
   "basisNote": "NRS 057 was issued as SANS 474 and is now in its second edition (SANS 474:2022); the 10-year tier for 1 MVA to 10 MVA sits in that code's verification table, but the clause could not be confirmed from an authoritative copy, so it is cited at document level.",
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-EDM-005",
@@ -12325,7 +13189,10 @@
   "basisConfidence": "medium",
   "basisNote": "The 20-year tier is the longest interval band in the metering code and could not be confirmed to clause level, so the code is cited at document level; the trade-measurement duty under the Legal Metrology Act applies to tenant sub-metering irrespective of that interval.",
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-EDM-006",
@@ -12376,7 +13243,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Calibration certificates for every bulk and tenant meter held by the Electrical Maintenance Department, calibration tags on the meters matching the register, CT/VT nameplate ratios matching what is recorded and programmed for that meter, and a transformer routine test report evidencing the CT ratio and polarity check. NOTE: ACSA states no calibration interval — NRS 057 supplies it."
  },
  {
   "id": "KSIA-EDM-007",
@@ -12401,7 +13271,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Practice",
+  "inspect": "reconcile",
+  "complianceTest": "A reconciliation of every metering point and intake substation on site against the municipal bills, with the tariff category confirmed correct for the demand profile, and NO supply found on the walk — a newer building, a generator, a tenant connection — that has no corresponding municipal account. This is kick-off risk item 6.5.1 and an unbilled premium supply is found by walking, not by reading the reconciliation that omits it."
  },
  {
   "id": "KSIA-EDM-008",
@@ -12459,7 +13332,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-EDM-009",
@@ -12500,7 +13376,10 @@
   "basisConfidence": "medium",
   "basisNote": "No South African instrument fixes a numeric energy cost-saving target for an airport operator, so a finding here should be framed as the absence of a measurable, verified target rather than as breach of a threshold.",
   "woCount": 0,
-  "optionCount": 26
+  "optionCount": 26,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-EDM-010",
@@ -12545,7 +13424,10 @@
   "basisConfidence": "medium",
   "basisNote": "Whether KSIA is a data provider under the reporting regulations turns on its own combustion capacity rather than on its electricity purchases, so confirm registration status before treating the 2% target as a regulatory obligation; no South African instrument fixes a percentage reduction for an airport's purchased electricity.",
   "woCount": 0,
-  "optionCount": 24
+  "optionCount": 24,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-EDM-011",
@@ -12596,7 +13478,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Monthly consumption records for KSIA with kWh/pax and kWh/m² tracked against a stated target, hourly energy-use model data per asset, system, process or area, BMS out-of-range alerts raised as CMMS energy audit job cards, and the dashboards the reports cite live and showing current data on the walk."
  },
  {
   "id": "KSIA-EDM-012",
@@ -12621,7 +13506,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 0,
-  "optionCount": 24
+  "optionCount": 24,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-EDM-013",
@@ -12661,7 +13549,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Practice",
+  "inspect": "examine",
+  "complianceTest": "Interval demand data showing maximum demand never exceeding the registered Notified Maximum Demand, municipal accounts checked for exceedance penalties, and a peak/load-shed strategy that physically exists — demand-limiting configured in the BMS, generator or load-shed triggers installed — with control-room staff able to describe what happens as a peak approaches. NOTE: ACSA states no NMD figure or penalty rule."
  },
  {
   "id": "KSIA-EDM-014",
@@ -12686,7 +13577,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-EDM-015",
@@ -12711,7 +13605,10 @@
   "basisConfidence": "medium",
   "basisNote": "The 50-70 W/m2 minimum irradiance threshold is an inverter start-up and design parameter set by the OEM and the plant designer, not a figure fixed by any standard; what is externally governed is the quality, calibration and upkeep of the irradiance measurement used to judge it, and IEC 61724-1 is cited at document level because its clause numbering could not be confirmed.",
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-EDM-016",
@@ -12751,7 +13648,10 @@
   "basisConfidence": "medium",
   "basisNote": "No external standard sets a minimum performance ratio; 0.9 sits above the 0.75 to 0.85 range typical of a well-performing fixed-tilt plant, so it is an ACSA design target and a shortfall against it is a performance observation rather than a breach of a standard.",
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-EDM-017",
@@ -12776,7 +13676,10 @@
   "basisConfidence": "medium",
   "basisNote": "No statute or SANS standard imposes a shade-free duty on an operating array; the external authority is the inspection and monitoring regime in the IEC 62446 series, and freedom from shading is usually also a condition of the module and yield warranties, which is contract and recommended practice rather than law.",
   "woCount": 6,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "No shadow falling on any panel from trees, structures or equipment at the time of the visit — checked early morning or late afternoon when shadows are longest — and string-level monitoring showing no string persistently underperforming its neighbours, which is shading the eye missed."
  },
  {
   "id": "KSIA-EDM-018",
@@ -12827,7 +13730,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Performance ratio monitored on a live system, inverter and panel cleaning and maintenance records, a PV installation Certificate of Compliance in the latest SANS 10142-1 format with its test report and not older than two years, and earthing and lightning protection test results. NOTE: the earthing results are not required by any ACSA clause found — they must be requested."
  },
  {
   "id": "KSIA-EDM-019",
@@ -12852,7 +13758,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 0,
-  "optionCount": 25
+  "optionCount": 25,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-EDM-020",
@@ -12909,7 +13818,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Ventilation louvres and fans unobstructed and running, fire detection heads present, undamaged and in service tag date, gas suppression maintained yearly with cylinders inside the 10-yearly hydrostatic test, isolation switches located and labelled, manufacturer maintenance current, and the room inside 0-40 °C and 20-80% RH. NOTE: D118MAN cl. 8.6 requires lithium-ion for UPS batteries."
  },
  {
   "id": "KSIA-EDM-021",
@@ -12965,7 +13877,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Practice",
+  "inspect": "examine",
+  "complianceTest": "No plant left in manual or hand override, the active alarm list free of unresolved or aged alarms, set-points and schedules matching what the plant is actually doing on site, car park lighting at 100% on presence and 40% on absence, motion sensor timeouts configured as specified, and BMS out-of-range alerts converted to CMMS energy audit job cards."
  },
  {
   "id": "KSIA-EDM-022",
@@ -13011,7 +13926,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 0,
-  "optionCount": 25
+  "optionCount": 25,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-EDM-023",
@@ -13036,7 +13954,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 0,
-  "optionCount": 24
+  "optionCount": 24,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-EDM-024",
@@ -13094,7 +14015,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Practice",
+  "inspect": "examine",
+  "complianceTest": "Bulk and sub-meters functional and readable, monthly or quarterly consumption recorded, a continual leak investigation programme with walkabout records for leaking tanks and pipelines, monthly water reticulation inspections covering meter operation, rain and grey-water use where installed, and the Register of Effluent and Storm Water Discharge Points EMS 105 current."
  },
  {
   "id": "KSIA-EDM-025",
@@ -13134,7 +14058,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-EDM-026",
@@ -13186,7 +14113,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 0,
-  "optionCount": 26
+  "optionCount": 26,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": "Carbon footprint calculations for KSIA against a stated boundary and methodology, the ACI Airport Carbon Accreditation certificate, environmental objectives and targets set under the KSIA EMS with review records, and the reduction trend in the Integrated Annual Report — supported by the annual EMS peer-review audit and the ISO 14001 certification cycle."
  },
  {
   "id": "KSIA-PSR-001",
@@ -13243,7 +14173,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "A site HIRA to B170 001M using the 25-cell Severity A-E × Likelihood 1-5 matrix, reviewed annually or after any change or incident, with the eight-column ICAO SMM log carrying both the initial (column 6) and residual (column 8) Safety Risk Index, controls and named owners against each risk, evidence of all five B170 cl. 4.1 triggers, HIRA reports submitted to the SACAA Director of Civil Aviation — and 2-3 listed controls confirmed to physically exist on site as described."
  },
  {
   "id": "KSIA-PSR-002",
@@ -13301,7 +14234,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 0,
-  "optionCount": 26
+  "optionCount": 26,
+  "confirmedBy": "Practice",
+  "inspect": "none",
+  "complianceTest": "An Engineering Asset Modification Request M&E 088 for every change, a change record in the Asset Modification Register for every request INCLUDING rejected ones, the five sequential D060 020M stages evidenced in order (each a prerequisite of the next), the ten mandatory steps for tenant-initiated modifications, a formal HIRA before each named trigger, and Asset Modification Committee minutes approving it before implementation."
  },
  {
   "id": "KSIA-PSR-003",
@@ -13359,7 +14295,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "A control physically checked per top risk area — fuel: overfill and bonding protection; electrical: a lockout/isolation point; heights: fall-arrest anchors and edge protection; airside vehicles: speed control — each traceable to the Compliance Risk Management Plan GOV 006 with all nine mandatory fields including residual rating, responsibility and target date, and the residual band matched to the mandated strategy (Avoidance / Reduction / Segregation of exposure)."
  },
  {
   "id": "KSIA-PSR-004",
@@ -13433,7 +14372,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "MHI notification on site with signage, an AIA risk assessment within five years, an emergency plan tested within twelve months and submitted to NERSA annually, bund walls uncracked and the bund dry with its drain valve closed, and hydrant pit lids sitting flush with no water pooling — water in a pit is both the ingress and the contamination route this check exists for."
  },
  {
   "id": "KSIA-PSR-005",
@@ -13458,7 +14400,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Hazardous-area classification drawings covering the fuel farm, hydrant pits AND generator rooms, current for the plant as built, with electrical fittings in every classified zone carrying a visible Ex marking at or above the zone's requirement and a current inspection tag. NOTE: the register names no ACSA evidence for this check — the drawings must be requested by name."
  },
  {
   "id": "KSIA-PSR-006",
@@ -13525,7 +14470,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Spill kits at the fuel farm and at every fuelling position, sealed, complete and in date; oil/water separators with a service tag, tested annually for efficiency, sludge depth under 25% of chamber depth and not full of oil or debris; spill drills recorded; and a spillage report logged with the Helpdesk for every environmental incident, with containment inside the 2-hour limit and safe disposal certificates retained 5 years."
  },
  {
   "id": "KSIA-PSR-007",
@@ -13578,7 +14526,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "A fire cut-out or isolation point in each generator room, present, labelled and accessible; the diesel tank separated from the generator and bunded to at least 110% of the largest container; fire extinguishers present, in date and unobstructed; and the weekly off-load and monthly on-load test records evidencing the fuel shut-off valve check."
  },
  {
   "id": "KSIA-PSR-008",
@@ -13636,7 +14587,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Bulk diesel tank with a certification plate, permits on file for above and underground tanks, a bund that is empty, uncracked and drain-valve-closed at at least 110% of the biggest container, visible fire separation from the generator, a contained dispensing point with access control, and the tank entered on the Register of Dangerous Goods EMS 109."
  },
  {
   "id": "KSIA-PSR-009",
@@ -13688,7 +14642,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "A current aerodrome emergency plan, evacuation and emergency drills held and recorded within period, the Fuel Depot plan tested at least every twelve months with the practice-test records kept, Emergency Co-ordinator, Evacuation Officer and Fire Warden appointments in writing and inside their three-year validity — and the assembly points, signage and equipment the plan names actually present, visible and unobstructed on site."
  },
  {
   "id": "KSIA-PSR-010",
@@ -13745,7 +14702,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Emergency showers and eyewash with a current tag, water flowing and unobstructed; first-aid boxes stocked and in date at the ratio the headcount requires (one trained first aider per fifty employees, at least one per working environment, appointed on OHS 004 with a current certificate from a DoL-registered provider); spill kits sealed and complete; fire equipment in date, gauge in the green and unobstructed; assembly points signed."
  },
  {
   "id": "KSIA-PSR-011",
@@ -13810,7 +14770,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Practice",
+  "inspect": "examine",
+  "complianceTest": "Incident and near-miss investigations that visibly change something — the HIRA updated, a maintenance regime changed, a recurring failure mode (generator, fuel pit) trended — with preliminary reports inside 7 days, full reports inside one month, Annexure 1 submitted to the DoL where required, and any corrective action involving a physical change confirmed implemented on site."
  },
  {
   "id": "KSIA-PSR-012",
@@ -13863,7 +14826,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "A current fire risk assessment; fire doors that close fully and are not propped; compartmentation intact; escape routes and fire equipment unobstructed; exit signage visible and lit with daily escape-route clearance checks; the yearly record of Fire Hazard Classes per occupancy to SANS 10400-T; council-approved designs validated yearly; and Fire Warden appointments in writing, inside their three-year validity and on the OHS Appointments Register."
  },
  {
   "id": "KSIA-PSR-013",
@@ -13919,7 +14885,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "A fire-water assessment showing storage, pump capacity and hydrant coverage adequate for the terminal, fuel farm and plant rooms; hydrant markers and covers visible and accessible; the pump room sound with its weekly and monthly test records complete and the quarterly six-hour full-load run done; and fire-service access routes clear of vehicles, materials and parked equipment."
  },
  {
   "id": "KSIA-PSR-014",
@@ -13989,7 +14958,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Practice",
+  "inspect": "examine",
+  "complianceTest": "A permit-to-work system covering hot work, confined space, electrical isolation and working at heights, permits signed by BOTH parties at issue AND at cancellation, gas testing results recorded on the permit face, a fire watch held at least 30 minutes after hot work with the area inspected at one hour and monitored a further three, permits audited, and any live permit on site matching the controls actually in place."
  },
  {
   "id": "KSIA-PSR-015",
@@ -14060,7 +15032,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "A hazardous chemical inventory classified to SANS 10228, SDS physically accessible at the store rather than filed centrally, storage segregated (flammables away from oxidisers), ventilated and signed, bunding at at least 110% of the biggest container, LPG installations certified, an Asbestos Register EMS 103, and confined-space and hot-work procedures approved by the GMR 2(1) and 2(7) appointees."
  },
  {
   "id": "KSIA-PSR-016",
@@ -14119,7 +15094,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": "Cylinders upright, chained or strapped, segregated by gas type, in a ventilated and signed area, with empty and full clearly separated; Written Safe Work Procedures for compressed gas cylinders approved by the GMR 2(1) and 2(7) appointees; the Pressure Equipment Regulations register with three-yearly inspection and test; and SCBA cylinders at 300 bar and never below 80% of filling pressure, hydrostatically tested at least every 4 years."
  },
  {
   "id": "KSIA-PSR-017",
@@ -14177,7 +15155,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-PSR-018",
@@ -14233,7 +15214,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-PSR-019",
@@ -14280,7 +15264,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 30
+  "optionCount": 30,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-PSR-020",
@@ -14340,7 +15327,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-PSR-021",
@@ -14398,7 +15388,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-PSR-022",
@@ -14445,7 +15438,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-PSR-023",
@@ -14497,7 +15493,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 29
+  "optionCount": 29,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-PSR-024",
@@ -14556,7 +15555,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Asset",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-PSR-025",
@@ -14603,7 +15605,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Practice",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-PSR-026",
@@ -14662,7 +15667,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-PSR-027",
@@ -14717,7 +15725,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-PSR-028",
@@ -14770,7 +15781,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": null
  },
  {
   "id": "KSIA-PSR-029",
@@ -14830,7 +15844,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 0,
-  "optionCount": 26
+  "optionCount": 26,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-PSR-030",
@@ -14889,7 +15906,10 @@
   "basisConfidence": "high",
   "basisNote": "The target misattributes responsible corporate citizenship to King IV Principle 2 — it is Principle 3, Principle 2 being organisational ethics — and no South African statute imposes a general \"sustainability\" duty, so a finding must rest on Companies Regulation 43(5)(a)(iii) or NEMA s.28(1) rather than on King IV or on GBCSA star ratings, which are voluntary certification.",
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": "Evidence for whatever 'Sustainability' is being tested — GBCSA certification at the 4 Star minimum, the business case with IRR, NPV, profitability index and payback, the 36-month maintenance schedule, FMEA and RAM studies, and operations and maintenance competency records against D100MAN cl. 4's targets (99.5% availability, 20-year design life, power factor 0.95, >40% saving on retrofits). NOTE: the requirement is a single word and is not an appointment or a competency — it does not belong in this asset system."
  },
  {
   "id": "KSIA-PSR-031",
@@ -14947,7 +15967,10 @@
   "basisConfidence": "high",
   "basisNote": "The target is right that Treasury Regulation 3.2.1 is departmental and cannot be cited against ACSA, but it misattributes risk governance to King IV Principle 4 — risk and opportunity governance is Principle 11, Principle 4 being value creation and sustainable development.",
   "woCount": 0,
-  "optionCount": 26
+  "optionCount": 26,
+  "confirmedBy": "Document",
+  "inspect": "none",
+  "complianceTest": null
  },
  {
   "id": "KSIA-PSR-032",
@@ -15005,7 +16028,10 @@
   "basisConfidence": "medium",
   "basisNote": "SAE JA1011 was revised in November 2024 and the commonly quoted 2009 revision is superseded, and ISO 55001:2014 is superseded by ISO 55001:2024, so any ACSA reference to the earlier editions is out of date; the Annex 14 table number is cited from the current edition and should be checked against the edition SACAA has adopted.",
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-PSR-033",
@@ -15064,7 +16090,10 @@
   "basisConfidence": "high",
   "basisNote": "ACSA reports under IFRS Accounting Standards rather than GRAP, so IAS 16 and not GRAP 17 governs the useful-life adjustment that closes out a renewal decision; ISO 55001:2014 has been superseded by the 2024 second edition.",
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "examine",
+  "complianceTest": null
  },
  {
   "id": "KSIA-PSR-034",
@@ -15133,7 +16162,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "Written appointments for GMR 2(1) on OHS 008, GMR 2(7) on OHS 009, Section 16(2) on OHS 001, supervisors on OHS 002 and the electrical EIR/EMR and LI/LMI roles, each inside its three-year validity, carrying all four mandatory content elements, with the competency evidence the role requires — at or above 11kV the GMR 2(1) appointee needs a recognised Engineering Qualification AND the legislative training — and the named person actually performing the role, evidenced by inspection, SOP or permit records bearing their name."
  },
  {
   "id": "KSIA-PSR-035",
@@ -15192,7 +16224,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Document",
+  "inspect": "reconcile",
+  "complianceTest": "A training matrix completed with the Line Manager covering trade tests, wireman's licence, LPG and working at heights, with OHS induction inside 30 days of commencing work, on-the-job training inside 30 days of employment or transfer, GMR 2(1) and 2(7) legislative training inside 6 months of appointment; standby rosters and call-out records; and a sample of staff doing height, gas or electrical work on site holding a current matching competency."
  },
  {
   "id": "KSIA-PSR-036",
@@ -15269,7 +16304,10 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 6,
-  "optionCount": 32
+  "optionCount": 32,
+  "confirmedBy": "Practice",
+  "inspect": "reconcile",
+  "complianceTest": "A Section 37(2) mandatary agreement OHS 040 for every contractor on site, a SHE File submitted at least 14 days before commencement and reviewed within 7 working days scoring at least 90% on OHS 037 for high-risk work, permit-to-work and hot-work permits for the work actually in progress, induction records — and the contractor teams observed on site matching the names on the filed agreements."
  },
  {
   "id": "KSIA-PSR-037",
@@ -15349,6 +16387,9 @@
   "basisConfidence": null,
   "basisNote": null,
   "woCount": 5,
-  "optionCount": 31
+  "optionCount": 31,
+  "confirmedBy": "Practice",
+  "inspect": "none",
+  "complianceTest": "An incident register with near-misses in it, notification inside ACSA's clock (12 hours for a fatality, 24 hours for a Section 24 injury or LTI, 36 hours for Section 24(c) equipment failure, 72 hours for a near miss), Annexure 1 submitted to the DoL, investigations closed with their corrective actions, and a trend review. The real test is asking maintenance staff how they report a near-miss and finding the examples they describe in the register."
  }
 ]

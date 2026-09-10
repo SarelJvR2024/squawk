@@ -416,7 +416,7 @@ tests/                thirty-five suites — see tests/README.md
   with an industry norm. The screen says so explicitly and the Answer Library
   raises it as an issue.
 
-- **Site variants are real.** 33 checks carry a threshold stricter than the
+- **Site variants are real.** 40 checks carry a threshold stricter than the
   network default at FALE — monthly water sampling, yearly hydrant pressure
   test, vacuum-only circuit breakers. They are shown above the default, not in
   a tooltip.

@@ -110,7 +110,7 @@ check(
   "the reference is still shown, not hidden",
   !/hidden lg:block[\s\S]{0,200}?reference/.test(detail) &&
     /siteVariant &&/.test(detail),
-  "the site variant must never be collapsed away — 33 checks are stricter here"
+  "the site variant must never be collapsed away — 40 checks are stricter here"
 );
 
 /* ------------------------- Part 3: field mode does the walkabout it is for */

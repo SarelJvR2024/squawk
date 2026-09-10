@@ -612,11 +612,55 @@ export default function CheckDetail({
           {check.target || "—"}
         </div>
 
-        {check.siteVariant && (
-          /* 33 checks carry a threshold stricter than the network default at
-             this site. It goes above ACSA's network wording, not in a tooltip
-             — an auditor who reads the network figure and misses this one
-             audits against the wrong standard. */
+        {check.siteVariant?.conflict ? (
+          /* BOTH FIGURES, SIDE BY SIDE, AND THE CHECK IS NOT REWRITTEN.
+             ACSA's register is the client's document. A row quietly edited to
+             say something ACSA never wrote is a row nobody can reconcile
+             against their own copy at the out-brief — so the check keeps its
+             wording and the site's requirement sits beside it, labelled.
+             The auditor decides against the one that governs here; the report
+             can cite both. */
+          <div
+            className="mt-2.5 rounded-[9px] border px-[10px] py-[8px]"
+            style={{ background: "var(--bad-bg)", borderColor: "var(--bad-line)" }}
+          >
+            <div className="label-xs" style={{ color: "var(--bad)" }}>
+              Conflict — the check and ACSA&rsquo;s own manual disagree at {check.siteVariant.site}
+            </div>
+            <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
+              <div>
+                <div className="label-xs" style={{ color: "var(--ink-3)" }}>
+                  The check as written says
+                </div>
+                <div className="mt-[3px] text-[12.5px] leading-[1.5]" style={{ color: "var(--ink-2)" }}>
+                  {check.siteVariant.conflict.checkSays}
+                </div>
+              </div>
+              <div>
+                <div className="label-xs" style={{ color: "var(--bad)" }}>
+                  {check.siteVariant.site} requires — this governs
+                </div>
+                <div className="mt-[3px] text-[12.5px] leading-[1.5] font-semibold" style={{ color: "var(--bad)" }}>
+                  {check.siteVariant.conflict.siteRequires}
+                </div>
+              </div>
+            </div>
+            <div className="mt-1.5 font-mono text-[9.5px]" style={{ color: "var(--bad)" }}>
+              {check.siteVariant.conflict.source}
+              {check.siteVariant.conflict.direction === "stricter" &&
+                " · auditing to the check as written would pass an installation this site's own manual says is overdue"}
+              {check.siteVariant.conflict.direction === "looser" &&
+                " · the check asks for more than ACSA requires here — see the evidence question before raising a finding"}
+              {check.siteVariant.conflict.direction === "different" &&
+                " · not stricter or looser, a different obligation — read both"}
+            </div>
+          </div>
+        ) : check.siteVariant ? (
+          /* 40 checks carry a threshold stricter than the network default at
+             this site — 32 of them plain variants, the other 8 conflicts,
+             handled in the branch above. It goes above ACSA's network wording,
+             not in a tooltip — an auditor who reads the network figure and
+             misses this one audits against the wrong standard. */
           <div
             className="mt-2.5 rounded-[9px] border px-[10px] py-[8px]"
             style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)" }}
@@ -629,6 +673,30 @@ export default function CheckDetail({
               style={{ color: "var(--warn)" }}
             >
               {check.siteVariant.note}
+            </div>
+          </div>
+        ) : null}
+
+        {/* WHAT MAKES IT COMPLIANT. Written for the 95 checks whose evidence
+            column was a stub — "Test records", "Inspection; programme", nine
+            of them empty — and for every check whose ACSA threshold fights its
+            own wording. It sits directly under the standard, because it is the
+            sentence the evidence gets held against. */}
+        {check.complianceTest && (
+          <div
+            className="mt-2.5 rounded-[9px] border px-[10px] py-[8px]"
+            style={{ background: "var(--good-bg)", borderColor: "var(--good-line)" }}
+          >
+            <div className="label-xs" style={{ color: "var(--good)" }}>
+              Compliant when — agreed in the register review, {check.confirmedBy?.toLowerCase()}
+              {check.inspect === "reconcile"
+                ? ", reconciled on the walk"
+                : check.inspect === "examine"
+                  ? ", seen on the walk"
+                  : ", nothing to see on site"}
+            </div>
+            <div className="mt-1 max-w-[92ch] text-[12.5px] leading-[1.55]" style={{ color: "var(--ink-2)" }}>
+              {check.complianceTest}
             </div>
           </div>
         )}
@@ -902,7 +970,33 @@ export default function CheckDetail({
             );
           })}
           {check.coverage === "none" && <Pill tone="bad">NO ACSA BASIS</Pill>}
-          {check.siteVariant && <Pill tone="warn">{check.siteVariant.site} VARIANT</Pill>}
+          {/* A CONFLICT IS NOT A VARIANT, and it does not get a variant's pill.
+              Sarel: "highlight it in the heading so that it is clear there is a
+              conflict." A variant adds detail the network default omits; a
+              conflict means the check's own title says something ACSA
+              contradicts at this site — MEC-037 is titled "A 3 yearly ...
+              Piping Pressure test" while D060 021M cl. 4.17.5 makes it YEARLY
+              at King Shaka. An auditor who reads the title and nothing else
+              audits to the wrong interval, so the heading has to say so before
+              anything else does. */}
+          {check.siteVariant?.conflict ? (
+            <Pill tone="bad">
+              CONFLICT · {check.siteVariant.site} {check.siteVariant.conflict.direction.toUpperCase()}
+            </Pill>
+          ) : (
+            check.siteVariant && <Pill tone="warn">{check.siteVariant.site} VARIANT</Pill>
+          )}
+          {/* What settles this check, from the register review. Two axes, so
+              two pills: a Document check that is also a reconcile says both,
+              which is the pair the old single vtype tag could not express. */}
+          {check.confirmedBy && (
+            <Pill tone={check.confirmedBy === "Asset" ? "warn" : check.confirmedBy === "Practice" ? "accent" : "neutral"}>
+              {check.confirmedBy.toUpperCase()}
+            </Pill>
+          )}
+          {check.inspect && check.inspect !== "none" && (
+            <Pill tone="neutral">{check.inspect === "reconcile" ? "GO AND RECONCILE" : "GO AND SEE"}</Pill>
+          )}
           {pf && (
             <Pill tone={pf.rating === "Unacceptable" ? "bad" : pf.rating === "Tolerable" ? "warn" : "good"}>
               {pf.key} · 2025 {pf.rating.toUpperCase()}

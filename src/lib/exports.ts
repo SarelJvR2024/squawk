@@ -130,11 +130,31 @@ export function registerSheet(x: ExportInput): Sheet {
       c.area,
       c.assetClass,
       c.requirement,
+      c.confirmedBy ?? "",
+      /* Spelled out rather than left as the stored token. "none" in a cell
+         reads as missing data; "nothing to see on site" is a finding about the
+         check, and it is one an auditor should be able to sort on. */
+      c.inspect === "reconcile"
+        ? "Reconcile the record"
+        : c.inspect === "examine"
+          ? "Go and see"
+          : c.inspect === "none"
+            ? "Nothing to see on site"
+            : "",
+      c.complianceTest ?? c.evidenceExpected ?? "",
       c.vtype ?? "",
       c.target,
       c.acsaThreshold || "ACSA states no threshold",
       docs(c),
-      c.siteVariant ? `${c.siteVariant.site}: ${c.siteVariant.note}` : "",
+      /* A CONFLICT READS AS A CONFLICT IN THE WORKBOOK TOO. This column is
+         where a reviewer at ACSA head office will meet it, and "FALE: yearly"
+         beside a requirement headed "3 yearly" is a discrepancy they have to
+         spot for themselves. Say it. */
+      c.siteVariant?.conflict
+        ? `CONFLICT (${c.siteVariant.conflict.direction}) — the check says "${c.siteVariant.conflict.checkSays}"; ${c.siteVariant.site} requires "${c.siteVariant.conflict.siteRequires}" per ${c.siteVariant.conflict.source}`
+        : c.siteVariant
+          ? `${c.siteVariant.site}: ${c.siteVariant.note}`
+          : "",
       c.basis,
       c.basisConfidence === "medium" ? "cited at document level" : "",
       c.basisNote ?? "",
@@ -180,6 +200,14 @@ export function registerSheet(x: ExportInput): Sheet {
       { header: "Area", width: 20 },
       { header: "Class", width: 10 },
       { header: "Requirement", width: 58, wrap: true },
+      /* From the register review, agreed 2026-09-10. These three sit next to
+         the requirement rather than at the far right, because they are how the
+         reader decides what to go and do about the row. "Verification type" is
+         kept beside them deliberately, not replaced — it is ACSA's own column
+         and their copy of the workbook has to reconcile against ours. */
+      { header: "Confirmed by", width: 13 },
+      { header: "On the walk", width: 15 },
+      { header: "Compliant when", width: 66, wrap: true },
       { header: "Verification type", width: 22, wrap: true },
       { header: "Target / limit", width: 58, wrap: true },
       { header: "ACSA states", width: 58, wrap: true },

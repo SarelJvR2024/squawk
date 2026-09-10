@@ -43,7 +43,15 @@ export function composeObservation(
   if (lib && r.walkaboutPicked !== null && lib.WO[r.walkaboutPicked]) {
     parts.push(`On the walkabout: ${lower(lib.WO[r.walkaboutPicked].label)}.`);
   }
-  if (check.siteVariant) {
+  if (check.siteVariant?.conflict) {
+    /* The composed observation is a sentence that goes into a client
+       deliverable, so it names the standard actually applied. "Assessed
+       against the site-specific threshold" is true and useless in a report
+       somebody reads a year later. */
+    parts.push(
+      `Assessed against ${check.siteVariant.site}'s requirement (${check.siteVariant.conflict.siteRequires}, ${check.siteVariant.conflict.source}), which differs from the register's own wording.`
+    );
+  } else if (check.siteVariant) {
     parts.push(`Assessed against the ${check.siteVariant.site} site-specific threshold.`);
   }
   return parts.join(" ").replace(/\s+/g, " ").trim();
@@ -364,7 +372,25 @@ export function checkContext(check: Check, r?: Response, lib?: AnswerLibrary | n
     check.acsaDocs?.length &&
       `ACSA documents: ${check.acsaDocs.map((d) => `${d.doc} cl. ${d.clause}`).join("; ")}`,
     check.acsaConflict && `Contradiction already identified: ${check.acsaConflict}`,
-    check.siteVariant && `Site-specific variant (${check.siteVariant.site}): ${check.siteVariant.note}`,
+    /* THE CONFLICT GOES IN BEFORE THE VARIANT, and it is spelled out both ways.
+       A model given only "site-specific variant: yearly" beside a requirement
+       headed "3 yearly" will reconcile them into something plausible and
+       wrong. Given both quoted statements and which one governs, it has
+       nothing to reconcile. */
+    check.siteVariant?.conflict &&
+      `CONFLICT at ${check.siteVariant.site}: the check as written says "${check.siteVariant.conflict.checkSays}", but ACSA requires "${check.siteVariant.conflict.siteRequires}" (${check.siteVariant.conflict.source}). The site requirement is ${check.siteVariant.conflict.direction}. Assess against ACSA's, cite both, and do not restate the check's own interval as the standard.`,
+    check.siteVariant && !check.siteVariant.conflict &&
+      `Site-specific variant (${check.siteVariant.site}): ${check.siteVariant.note}`,
+    /* What settles this check, from the register review. */
+    check.confirmedBy &&
+      `Compliance is confirmed by: ${check.confirmedBy}${
+        check.inspect === "reconcile"
+          ? ", reconciled against the asset on the walk"
+          : check.inspect === "examine"
+            ? ", seen on the walk"
+            : ", with nothing to inspect on site"
+      }.`,
+    check.complianceTest && `Compliant when: ${check.complianceTest}`,
     check.question && `Question put to ACSA: ${check.question}`,
     check.walkabout && `Walkabout instruction: ${check.walkabout}`,
   ].filter(Boolean) as string[];

@@ -43,6 +43,32 @@ export interface AcsaDocRef {
 export interface SiteVariant {
   site: string;
   note: string;
+  /** Set when this site's own requirement CONTRADICTS the check as written —
+   *  not merely adds detail to it.
+   *
+   *  Sarel, 2026-09-10: "still keep the check as the ACSA audit check but add
+   *  the airport specific requirement and highlight it in the heading so that
+   *  it is clear there is a conflict."
+   *
+   *  The check text is NOT rewritten. ACSA's register is the client's document
+   *  and a row silently edited to say something ACSA never wrote is a row
+   *  nobody can reconcile against their copy. Both figures are carried, both
+   *  are shown, and the heading says which one governs here — so an auditor
+   *  cannot read the title alone and audit to the wrong interval, which is
+   *  exactly what MEC-037 invites today: it is titled "A 3 yearly ... Piping
+   *  Pressure test" while D060 021M cl. 4.17.5 makes it YEARLY at King Shaka. */
+  conflict?: {
+    /** What the check's own requirement text says, quoted. */
+    checkSays: string;
+    /** What ACSA requires at THIS site, quoted. */
+    siteRequires: string;
+    /** The clause that settles it. */
+    source: string;
+    /** Which way the site's rule cuts against the check, in one word.
+     *  "stricter" is the dangerous one — auditing to the check would pass an
+     *  installation the site's own manual says is overdue. */
+    direction: "stricter" | "looser" | "different";
+  };
 }
 
 export interface EvidenceOption {
@@ -99,6 +125,49 @@ export interface Check {
   acsaConflict: string;
   coverage: Coverage;
   siteVariant: SiteVariant | null;
+  /* ---- the register review, agreed with Sarel 2026-09-10 ---------------- */
+  /** WHAT DECIDES WHETHER THIS CHECK IS COMPLIANT.
+   *
+   *  Three values, and they answer one question — not "what activities happen
+   *  on an audit", which is what `vtype` records and why `vtype` says almost
+   *  nothing (it reads "Site Physical Verification" on 299 of the 324 and
+   *  "Evidence" on 313; almost every check is in almost every category).
+   *
+   *    Document  a certificate, report, register, drawing or lab result. The
+   *              number or the signature IS the compliance, and nothing on site
+   *              substitutes for it.
+   *    Asset     a physical thing or a condition of one — a colour, a vent, a
+   *              guard, a crack, a lid. No file makes a faded marking compliant.
+   *    Practice  a way of working. Whether the round actually happens, whether
+   *              a below-threshold reading actually produces the action. Fails
+   *              while every document in the file reads clean.
+   *
+   *  THE THRESHOLD IS NOT A FOURTH VALUE. 274 of the 324 carry a measurable
+   *  figure, so a "Specification" category would swallow the register and
+   *  distinguish nothing. It belongs in `complianceTest`. */
+  confirmedBy: "Document" | "Asset" | "Practice" | null;
+  /** What the WALK contributes — a separate axis from `confirmedBy`, and
+   *  deliberately so.
+   *
+   *    examine    go and look; the walk can settle it
+   *    reconcile  go and look to prove the record is THIS asset's — a serial
+   *               number against a certificate, a measured distance against a
+   *               drawing, the cooling towers on site against the certificates
+   *               held
+   *    none       there is nothing to see; a walk here would be theatre
+   *
+   *  A Document check is very often `reconcile`, which is the whole point of
+   *  keeping two axes: a calibration certificate IS the compliance AND the walk
+   *  is what proves it belongs to the meter in front of you. Collapsing the two
+   *  loses that, and losing it is how a certificate for a spare instrument gets
+   *  accepted for the one in the field. */
+  inspect: "examine" | "reconcile" | "none" | null;
+  /** WHAT MAKES IT COMPLIANT, in a sentence an auditor can hold the evidence
+   *  against. Written for the 95 checks whose `evidenceExpected` was a stub —
+   *  "Test records", "Inspection; programme", nine of them empty — and for
+   *  every check whose ACSA threshold conflicts with its own wording. Null
+   *  where `evidenceExpected` already says it properly. */
+  complianceTest: string | null;
   /** How firm the external citation is. "medium" means the instrument certainly
    *  applies but the clause is cited at document level — say so on screen rather
    *  than letting an auditor quote a clause number nobody confirmed. */

@@ -158,10 +158,30 @@ check(
   ""
 );
 
+/* DECIDED 2026-09-10. This assertion used to read the other way: "no
+   classification field has been written into checks.json", because putting the
+   three categories into the master data is a schema change and CLAUDE.md
+   reserves those for Sarel. He made the call — "go ahead and make sure it is
+   updated across the system" — so the fields are now master data and the
+   assertion is inverted rather than deleted, since the reason it existed is
+   worth keeping visible.
+
+   What this file still owns is the ARGUMENT — the gap notes and the split
+   proposals, which are the input to re-cutting the register and have no
+   business in checks.json. tests/reviewfields.test.mjs owns the agreement
+   between the two files and the wiring through the app. */
 check(
-  "and no classification field has been written into checks.json",
-  !checks.some((c) => "confirmedBy" in c || "by" in c || "proof" in c),
-  "putting the three categories into the master data is a schema change and it is Sarel's call — see OPEN-QUESTIONS §10"
+  "the three categories are now master data, as Sarel decided",
+  checks.every((c) => "confirmedBy" in c && "inspect" in c && "complianceTest" in c),
+  ""
+);
+
+check(
+  "and this file keeps only what checks.json should not hold",
+  Object.values(review).some((r) => r.gaps) &&
+    Object.values(review).some((r) => r.split) &&
+    !checks.some((c) => "gaps" in c || "split" in c),
+  "a gap note is an argument for changing the register, not a property of a check"
 );
 
 check(
