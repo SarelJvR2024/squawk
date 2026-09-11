@@ -164,6 +164,17 @@ const controlled = (page) =>
 
     await page.goto(B + "/findings", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(2500);
+    /* 2026-09-10: /findings opens on the ASSET SYSTEM assessment. The asset
+       picker belongs to a finding — which asset the finding is about — so it
+       lives in the finding pane, one press away on the register half of the
+       same screen. Pressing it is part of what is being tested: the register
+       has to be reachable with no signal too. */
+    await page
+      .locator('button[role="radio"]', { hasText: /Findings raised/ })
+      .first()
+      .click()
+      .catch(() => {});
+    await page.waitForTimeout(900);
     const picker = page.locator("summary", { hasText: "Assets" }).first();
     let assetsOffline = "no picker on the page";
     if (await picker.count()) {

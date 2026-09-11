@@ -241,6 +241,115 @@ const fresh = async (ctx) => { const p = await ctx.newPage(); return p; };
     await ctx.close();
   }
 
+  // ---------- SEEN ON THE WALK ----------
+  /* The three things that would be silently wrong rather than visibly broken.
+     Each one looks correct from a screenshot when it is not:
+
+     · An ad-hoc item that gated on the ACSA asset register would simply have
+       no add button on a device where the register never arrived, which is
+       every device today — the register is a Contract Data 25.2 deliverable
+       that is still outstanding and may not land this round.
+     · A collapse that discarded unsaved text loses evidence with no error and
+       no trace, on the field whose whole point is that it is hard to retype.
+     · A completion figure that counted walk items would keep counting, keep
+       looking plausible, and be wrong by however many we happened to find. */
+  {
+    const ctx = await browser.newContext({viewport:{width:375,height:664}});
+    const p = await ctx.newPage();
+    const bad=[]; p.on('pageerror',e=>bad.push(String(e)));
+
+    await p.goto(B+'/field',{waitUntil:'networkidle'}); await p.waitForTimeout(1600);
+
+    /* The denominator BEFORE anything is added. Read off the screen rather
+       than assumed, so the assertion is about what an auditor sees. */
+    const before = (await p.locator('body').innerText()).match(/(\d+)\/(\d+)/);
+    const denomBefore = before ? before[2] : null;
+
+    const add = p.locator('button', { hasText: /^Add item$/ }).first();
+    ok('the add control is on the screen at 375px with no asset register loaded',
+       await add.isVisible().catch(()=>false));
+    const box = await add.boundingBox();
+    ok('and it is at least 56px tall', !!box && box.height >= 56, box ? String(box.height) : 'no box');
+
+    await add.click(); await p.waitForTimeout(500);
+    await p.locator('textarea').first().fill('Bund wall cracked through at the day tank.');
+    await p.locator('button', { hasText: /^Record it$/ }).first().click();
+    await p.waitForTimeout(900);
+
+    const after = await p.locator('body').innerText();
+    ok('an item can be recorded with a description alone', /Bund wall cracked through/.test(after));
+    /* 2026-09-10: the mark moved onto the row itself. Walk items used to be a
+       block above the register under the heading "Seen on the walk · not part
+       of the 324"; Sarel asked for them to be filed into the asset system they
+       belong to, so each row now carries the mark instead. Same invariant —
+       a row that is not one of ACSA's check-points says so, in words. */
+    ok('it is marked as not being one of the register check-points',
+       /added on the walk/i.test(after));
+
+    /* AND THE AUDITOR CAN SEE IT. The asset systems are shut by default, so
+       filing it correctly and showing nothing was a real defect for exactly
+       one build: the toast said it was recorded and the screen looked
+       identical. Saving opens the group it landed in. */
+    ok('recording it opens the group it landed in',
+       /Bund wall cracked through/.test(after));
+    ok('its id cannot be mistaken for a check-point id', /WALK-/.test(after));
+
+    const denomAfter = (after.match(/(\d+)\/(\d+)/)||[])[2];
+    ok('THE COMPLETION DENOMINATOR DID NOT MOVE',
+       denomBefore !== null && denomAfter === denomBefore,
+       `${denomBefore} -> ${denomAfter}`);
+    ok('and the walk count is stated separately', /\+\s*1 seen on the walk/.test(after));
+
+    /* CLOSING MUST HIDE, NEVER DISCARD. The check opened in place at first and
+       now opens in a sheet — Sarel on a real phone: too much scrolling, and
+       "the save button is not easily visible to find to save it". The
+       invariant did not change with the layout, and it is the one worth
+       testing either way: type into the observation, dismiss, reopen, read it
+       back. Every control writes straight to the store, so nothing is held in
+       a draft that a dismissal could drop. */
+    /* ONE LEVEL, NOT TWO, since 2026-09-10: the discipline came out of the tree
+       and became the filter above it, so the same element carries both
+       data-group and data-system and there is one header to open, not two.
+       Opening it twice would shut it again. The wrapper carries the attribute;
+       the thing that opens it is the button inside. */
+    await p.locator('[data-group] > button').first().click(); await p.waitForTimeout(400);
+    const row = p.locator('[data-check] button').first();
+    await row.click(); await p.waitForTimeout(600);
+    ok('a check opens in a sheet', await p.locator('[role="dialog"]').isVisible());
+    const save = p.locator('[role="dialog"] button', { hasText: /Save &/ }).first();
+    const saveBox = await save.boundingBox();
+    ok('AND ITS SAVE IS ON SCREEN WITHOUT SCROLLING THE SHEET',
+       !!saveBox && saveBox.y > 0 && saveBox.y + saveBox.height <= 664,
+       saveBox ? `y=${Math.round(saveBox.y)}` : 'not found');
+    const typed = 'Coupler worn past the wear mark; photographed from the north side.';
+    await p.locator('[role="dialog"] textarea').first().fill(typed);
+    await p.waitForTimeout(400);
+    await p.locator('[role="dialog"] button[aria-label="Close"]').click(); await p.waitForTimeout(400);
+    ok('closing it puts the controls away', (await p.locator('[role="dialog"]').count()) === 0);
+    await row.click(); await p.waitForTimeout(600);
+    const back = await p.locator('[role="dialog"] textarea').first().inputValue();
+    ok('CLOSING AND REOPENING LOSES NOTHING', back === typed, back.slice(0,40));
+    await p.locator('[role="dialog"] button[aria-label="Close"]').click(); await p.waitForTimeout(300);
+
+    /* And it survived the round trip to storage, not just to React state. */
+    await p.reload({waitUntil:'networkidle'}); await p.waitForTimeout(1600);
+    /* Through the search, because a reload puts every group back shut — which
+       groups are open is session state, deliberately, and the record is what
+       has to survive. The search opens everything it matches, so this reads
+       the item back off the screen rather than out of the store. */
+    await p.locator('input[aria-label="Search any check"]').fill('Bund wall');
+    await p.waitForTimeout(600);
+    const persisted = await p.locator('body').innerText();
+    ok('the walk item is still there after a reload', /Bund wall cracked through/.test(persisted));
+    await p.locator('input[aria-label="Search any check"]').fill('');
+    await p.waitForTimeout(300);
+
+    ok('no horizontal scroll on the inspection screen at 375px',
+       !(await p.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)));
+    ok('no page errors on the walk path', bad.length===0, bad[0]||'');
+    await ctx.close();
+  }
+
   console.log(log.join('\n'));
   console.log(`\n${pass} passed, ${fail} failed`);
   await browser.close();

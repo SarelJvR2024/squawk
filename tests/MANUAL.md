@@ -172,3 +172,45 @@ Anything an automated suite already asserts. If a check below could be written
 as a suite, it should be — and if one of these finds a bug, the fix ships with a
 suite that would have caught it, which is how every silent-failure class in
 `tests/README.md` got there.
+
+---
+
+## 12 · Things seen on the walk, and the number they must not touch
+
+Machine-checked: that the completion denominator does not move, that the item
+persists a reload, that collapse and re-expand lose nothing, and that no export
+column can be read as a register check-point.
+
+**SILENT if broken — a person has to look:**
+
+- **Take an actual photograph on an actual phone from inside the Add item
+  sheet.** The file input, the downscale and the blob store are all covered by
+  tests; what is not is whether the rear camera opens, whether the sheet
+  survives the camera app taking over the screen, and whether the photograph is
+  still attached to the right item when it comes back. On iOS the browser may
+  discard the page while the camera is up. If the item is gone or empty when you
+  return, the whole feature is worthless on the device it exists for.
+- **Record one with gloves on, walking.** The button is 56px and bottom-right;
+  that is a measurement, not a test. Whether it is *hittable* is not something a
+  headless browser can answer.
+- **Check the item is still there tomorrow.** Everything is local-first: an
+  observation that reached React state but not IndexedDB looks identical to one
+  that persisted, until the tab is closed.
+- **Two auditors, two devices, one audit.** Record a walk item on each, sync,
+  and confirm both survive. The merge unions by id and the ids are random, so
+  a collision is not the risk — a walk item never reaching the shared record at
+  all is, and it would look exactly like an auditor who forgot to record one.
+
+## 13 · The Follow-up timeline
+
+**SILENT if broken:**
+
+- **Count the cells against the cycle strip.** The strip is one cell per visit
+  at this entity, oldest first. If a visit is missing from the strip, an item
+  that survived it looks a visit younger than it is — and "survived 3 visits" is
+  the figure the close-out conversation runs on.
+- **Confirm the hatched cells are the visits nobody audited.** At King Shaka
+  today those are Sep 2025 and Mar 2026, both marked `skipped` in
+  `programme.json`. A hatched cell where an audit actually happened, or a blank
+  where one did not, both read as "nothing was wrong" — which is the opposite of
+  what they mean, and the reason this is drawn at all.

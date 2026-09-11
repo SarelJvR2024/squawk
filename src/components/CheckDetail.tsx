@@ -20,8 +20,11 @@ import HazardAdvice from "./HazardAdvice";
 import RecordActions from "./RecordActions";
 import {
   IconCheck,
+  IconClipboard,
   IconClock,
   IconDash,
+  IconHelp,
+  IconInfo,
   IconLeft,
   IconPin,
   IconRight,
@@ -30,6 +33,23 @@ import {
   IconX,
 } from "@/components/ui/icons";
 import { Btn, Chip, Panel, Pill } from "@/components/ui/primitives";
+
+/** HOW A CHECK IS ANSWERED, as a shape.
+ *
+ *  ACSA's register declares this per check-point in its `vtype` column, and
+ *  the three are genuinely different jobs: one is a conversation, one is a
+ *  document you take away, one is a walk to the asset. 290 of the 324 are more
+ *  than one of them at once. A row of three identically-shaped pills makes
+ *  that distinction something an auditor has to read rather than see, which on
+ *  a list of a hundred check-points is a distinction nobody reads.
+ *
+ *  The word stays beside the icon. An icon on its own is a guess, and this is
+ *  the field that decides whether a check can be closed at a desk at all. */
+const MODE_ICON: Record<string, typeof IconHelp> = {
+  Question: IconHelp,
+  Evidence: IconClipboard,
+  Physical: IconPin,
+};
 
 const STATUSES: { key: Compliance; label: string; Icon: typeof IconCheck; tone: string }[] = [
   { key: "C", label: "Compliant", Icon: IconCheck, tone: "good" },
@@ -120,7 +140,7 @@ export default function CheckDetail({
    *  evidence — and being thrown back to the first tab on every Save & next is
    *  a press per check for the whole walk. A key that this check does not
    *  carry falls back to the first one it does. */
-  const [panel, setPanel] = useState("evidence");
+  const [panel, setPanel] = useState("standard");
   /* Whether this screen has been scrolled at all.
    *
    *  From lg the two columns scroll inside themselves and this container never
@@ -222,7 +242,7 @@ export default function CheckDetail({
     key: string;
     label: string;
     badge?: string;
-    group: "do" | "read";
+    group: "acsa" | "do" | "read";
     body: React.ReactNode;
   };
   const panels: PanelDef[] = [];
@@ -557,20 +577,90 @@ export default function CheckDetail({
      out loud. */
   panels.push({
     key: "standard",
-    label: "The standard",
-    group: "read",
+    label: "ACSA requirement",
+    /* ITS OWN GROUP, RENDERED FIRST. It was "The standard", fourth in the
+       Reference group, behind five tabs of our own material — so the screen
+       opened on what we suggest the auditor collect, and ACSA's actual
+       requirement was four presses away. That is the wrong way round: you read
+       the requirement, then you go and get the evidence for it. The strip now
+       renders this group, then the Answer library, then the rest of the
+       Reference tabs, and the screen opens here. */
+    group: "acsa",
     body: (
       <>
-        <div className="label-xs">The standard to audit against</div>
+        {/* ACSA'S OWN WORDS FIRST, verbatim and in quotation marks where the
+            register quotes them, with the document and clause that carry them.
+            This is the only text on this screen that can be put to ACSA as
+            their own. */}
+        {check.acsaRequirement && (
+          <div className="mb-2.5">
+            <div className="label-xs" style={{ color: "var(--ink-4)" }}>
+              What ACSA requires
+              {check.acsaDocs.length > 0 &&
+                ` · ${check.acsaDocs
+                  .map((d) => `${d.doc}${d.clause ? ` cl. ${d.clause}` : ""}`)
+                  .join("; ")}`}
+            </div>
+            <div className="mt-1 max-w-[92ch] text-[12.5px] leading-[1.55]">
+              {check.acsaRequirement}
+            </div>
+          </div>
+        )}
+
+        <div className="label-xs">The standard to audit against · the register&rsquo;s own column</div>
         <div className="mt-1 max-w-[92ch] text-[13.5px] leading-[1.5] font-semibold">
           {check.target || "—"}
         </div>
 
-        {check.siteVariant && (
-          /* 33 checks carry a threshold stricter than the network default at
-             this site. It goes above ACSA's network wording, not in a tooltip
-             — an auditor who reads the network figure and misses this one
-             audits against the wrong standard. */
+        {check.siteVariant?.conflict ? (
+          /* BOTH FIGURES, SIDE BY SIDE, AND THE CHECK IS NOT REWRITTEN.
+             ACSA's register is the client's document. A row quietly edited to
+             say something ACSA never wrote is a row nobody can reconcile
+             against their own copy at the out-brief — so the check keeps its
+             wording and the site's requirement sits beside it, labelled.
+             The auditor decides against the one that governs here; the report
+             can cite both. */
+          <div
+            className="mt-2.5 rounded-[9px] border px-[10px] py-[8px]"
+            style={{ background: "var(--bad-bg)", borderColor: "var(--bad-line)" }}
+          >
+            <div className="label-xs" style={{ color: "var(--bad)" }}>
+              Conflict — the check and ACSA&rsquo;s own manual disagree at {check.siteVariant.site}
+            </div>
+            <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
+              <div>
+                <div className="label-xs" style={{ color: "var(--ink-3)" }}>
+                  The check as written says
+                </div>
+                <div className="mt-[3px] text-[12.5px] leading-[1.5]" style={{ color: "var(--ink-2)" }}>
+                  {check.siteVariant.conflict.checkSays}
+                </div>
+              </div>
+              <div>
+                <div className="label-xs" style={{ color: "var(--bad)" }}>
+                  {check.siteVariant.site} requires — this governs
+                </div>
+                <div className="mt-[3px] text-[12.5px] leading-[1.5] font-semibold" style={{ color: "var(--bad)" }}>
+                  {check.siteVariant.conflict.siteRequires}
+                </div>
+              </div>
+            </div>
+            <div className="mt-1.5 font-mono text-[9.5px]" style={{ color: "var(--bad)" }}>
+              {check.siteVariant.conflict.source}
+              {check.siteVariant.conflict.direction === "stricter" &&
+                " · auditing to the check as written would pass an installation this site's own manual says is overdue"}
+              {check.siteVariant.conflict.direction === "looser" &&
+                " · the check asks for more than ACSA requires here — see the evidence question before raising a finding"}
+              {check.siteVariant.conflict.direction === "different" &&
+                " · not stricter or looser, a different obligation — read both"}
+            </div>
+          </div>
+        ) : check.siteVariant ? (
+          /* 40 checks carry a threshold stricter than the network default at
+             this site — 32 of them plain variants, the other 8 conflicts,
+             handled in the branch above. It goes above ACSA's network wording,
+             not in a tooltip — an auditor who reads the network figure and
+             misses this one audits against the wrong standard. */
           <div
             className="mt-2.5 rounded-[9px] border px-[10px] py-[8px]"
             style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)" }}
@@ -583,6 +673,30 @@ export default function CheckDetail({
               style={{ color: "var(--warn)" }}
             >
               {check.siteVariant.note}
+            </div>
+          </div>
+        ) : null}
+
+        {/* WHAT MAKES IT COMPLIANT. Written for the 95 checks whose evidence
+            column was a stub — "Test records", "Inspection; programme", nine
+            of them empty — and for every check whose ACSA threshold fights its
+            own wording. It sits directly under the standard, because it is the
+            sentence the evidence gets held against. */}
+        {check.complianceTest && (
+          <div
+            className="mt-2.5 rounded-[9px] border px-[10px] py-[8px]"
+            style={{ background: "var(--good-bg)", borderColor: "var(--good-line)" }}
+          >
+            <div className="label-xs" style={{ color: "var(--good)" }}>
+              Compliant when — agreed in the register review, {check.confirmedBy?.toLowerCase()}
+              {check.inspect === "reconcile"
+                ? ", reconciled on the walk"
+                : check.inspect === "examine"
+                  ? ", seen on the walk"
+                  : ", nothing to see on site"}
+            </div>
+            <div className="mt-1 max-w-[92ch] text-[12.5px] leading-[1.55]" style={{ color: "var(--ink-2)" }}>
+              {check.complianceTest}
             </div>
           </div>
         )}
@@ -836,16 +950,53 @@ export default function CheckDetail({
           <span>{portalId}</span>
           <span>·</span>
           <span>{check.system}</span>
-          {/* What this check actually requires, from the register's vtype.
-              "Physical" also means it is waiting on the tablet in Field mode —
-              saving here does not answer that half. */}
-          {modeLabels(check).map((m) => (
-            <Pill key={m} tone={m === "Physical" ? "warn" : "accent"}>
-              {m.toUpperCase()}
-            </Pill>
-          ))}
+          {/* HOW THIS CHECK IS ANSWERED, as an icon and a word.
+              From the register's own `vtype`, which is one of seven
+              combinations — a check can be any of asking, collecting and
+              looking, or all three at once, and 290 of the 324 are more than
+              one. The icon is what an auditor reads at a glance across a list
+              of pills that otherwise all look alike; the word stays because an
+              icon alone is a guess, and "Physical" in particular carries a
+              consequence the shape cannot say — the check is also waiting on
+              the tablet in Field mode, and saving here does not answer that
+              half. */}
+          {modeLabels(check).map((m) => {
+            const Icon = MODE_ICON[m] ?? IconInfo;
+            return (
+              <Pill key={m} tone={m === "Physical" ? "warn" : "accent"}>
+                <Icon width={10} height={10} aria-hidden />
+                {m.toUpperCase()}
+              </Pill>
+            );
+          })}
           {check.coverage === "none" && <Pill tone="bad">NO ACSA BASIS</Pill>}
-          {check.siteVariant && <Pill tone="warn">{check.siteVariant.site} VARIANT</Pill>}
+          {/* A CONFLICT IS NOT A VARIANT, and it does not get a variant's pill.
+              Sarel: "highlight it in the heading so that it is clear there is a
+              conflict." A variant adds detail the network default omits; a
+              conflict means the check's own title says something ACSA
+              contradicts at this site — MEC-037 is titled "A 3 yearly ...
+              Piping Pressure test" while D060 021M cl. 4.17.5 makes it YEARLY
+              at King Shaka. An auditor who reads the title and nothing else
+              audits to the wrong interval, so the heading has to say so before
+              anything else does. */}
+          {check.siteVariant?.conflict ? (
+            <Pill tone="bad">
+              CONFLICT · {check.siteVariant.site} {check.siteVariant.conflict.direction.toUpperCase()}
+            </Pill>
+          ) : (
+            check.siteVariant && <Pill tone="warn">{check.siteVariant.site} VARIANT</Pill>
+          )}
+          {/* What settles this check, from the register review. Two axes, so
+              two pills: a Document check that is also a reconcile says both,
+              which is the pair the old single vtype tag could not express. */}
+          {check.confirmedBy && (
+            <Pill tone={check.confirmedBy === "Asset" ? "warn" : check.confirmedBy === "Practice" ? "accent" : "neutral"}>
+              {check.confirmedBy.toUpperCase()}
+            </Pill>
+          )}
+          {check.inspect && check.inspect !== "none" && (
+            <Pill tone="neutral">{check.inspect === "reconcile" ? "GO AND RECONCILE" : "GO AND SEE"}</Pill>
+          )}
           {pf && (
             <Pill tone={pf.rating === "Unacceptable" ? "bad" : pf.rating === "Tolerable" ? "warn" : "good"}>
               {pf.key} · 2025 {pf.rating.toUpperCase()}
@@ -861,6 +1012,16 @@ export default function CheckDetail({
           ) : r.deskDoneAt ? (
             <Pill tone="warn">DESK DONE</Pill>
           ) : null}
+        </div>
+        {/* THE REGISTER'S OWN CHECK TEXT, VERBATIM, AND LABELLED AS SUCH.
+            `check.requirement` is the Rev A2 check-point wording — ACSA's
+            words, not ours — and it is what a finding must cite. It was
+            already the heading; what it did not say was whose it is, and on a
+            screen that also carries our question, our evidence list and our
+            suggested answers, "the biggest text on the page" is not the same
+            as "attributed". Not summarised, not truncated, not title-cased. */}
+        <div className="label-xs mb-[2px]" style={{ color: "var(--ink-4)" }}>
+          ACSA check-point · the register&rsquo;s wording
         </div>
         {/* 27 register rows run past 140 characters and one reaches 569. Left
             unclamped they turn the sticky header into half the screen, so a long
@@ -919,8 +1080,15 @@ export default function CheckDetail({
         >
           {check.question && (
             <div className="flex items-baseline gap-2">
-              <span className="label-xs shrink-0 pt-[2px]" style={{ color: "var(--acc)" }}>
-                Ask
+              {/* OURS, AND IT SAYS SO. This is TPJV's reading of the
+                  check-point above — how we propose to test whether it is met
+                  — and it is not in ACSA's register. An auditor quoting it as
+                  though ACSA wrote it can be contested on the spot; ACSA
+                  cannot contest a finding raised against their own wording,
+                  which is why the two are one above the other and labelled
+                  differently. Same rule the Inspection screen follows. */}
+              <span className="label-xs shrink-0 pt-[2px] whitespace-nowrap" style={{ color: "var(--acc)" }}>
+                TPJV asks
               </span>
               <span
                 /* Full at rest — half a question is worse than a third line —
@@ -977,14 +1145,20 @@ export default function CheckDetail({
         className="flex items-center gap-x-[14px] gap-y-[5px] overflow-x-auto border-b px-5 py-[8px] whitespace-nowrap sm:flex-wrap sm:overflow-visible"
         style={{ background: "var(--panel)", borderColor: "var(--line)" }}
       >
-        {(["do", "read"] as const).map((group) => {
+        {(["acsa", "do", "read"] as const).map((group) => {
           const mine = panels.filter((t) => t.group === group);
           if (mine.length === 0) return null;
           return (
             <div
               key={group}
               role="tablist"
-              aria-label={group === "do" ? "Answer library" : "Reference"}
+              aria-label={
+                group === "acsa"
+                  ? "The requirement"
+                  : group === "do"
+                    ? "Answer library"
+                    : "Reference"
+              }
               className="flex shrink-0 gap-[5px] sm:flex-wrap"
             >
               {mine.map((t) => {
@@ -1154,79 +1328,6 @@ export default function CheckDetail({
             style={{ background: "var(--focus-surface)", borderColor: "var(--line-2)" }}
           />
 
-          {/* ONE ROW THAT SCROLLS, not two rows that wrap. At 44px a wrapped
-              toolbar is a second 50px band taken off a 664px phone for the
-              whole session; sideways it costs nothing and every label stays
-              the length it needs to be. */}
-          <div className="mt-[7px] flex flex-nowrap items-center gap-[6px] overflow-x-auto [&>*]:shrink-0">
-            <button
-              onClick={() => {
-                const text = composeObservation(check, r, a);
-                if (text) setDraft(text);
-                else onSaved("Nothing tapped yet to compose from");
-              }}
-              className="flex items-center gap-[6px] rounded-[8px] border px-[11px] py-[6px] text-[11px] transition-[var(--t)]"
-              style={{
-                background: "var(--panel)",
-                borderColor: "var(--line-2)",
-                color: "var(--ink-2)",
-              }}
-              title="Builds a sentence from the buttons you have tapped. Works offline, no model needed."
-            >
-              <IconWand width={13} height={13} />
-              Compose from taps
-            </button>
-            {aiOn && (
-              <button
-                disabled={thinking === "observation"}
-                onClick={async () => {
-                  setThinking("observation");
-                  try {
-                    setDraft(await assist("observation", checkContext(check, r, a)));
-                  } catch (err) {
-                    onSaved(err instanceof Error ? err.message : "The assistant is unavailable");
-                  } finally {
-                    setThinking(null);
-                  }
-                }}
-                className="flex items-center gap-[6px] rounded-[8px] border px-[11px] py-[6px] text-[11px] transition-[var(--t)] disabled:opacity-55"
-                style={{
-                  background: "var(--panel)",
-                  borderColor: "var(--line-2)",
-                  color: "var(--ink-2)",
-                }}
-                title="Drafts the observation from this check's own material. Advisory — you decide."
-              >
-                <IconSpark width={13} height={13} />
-                {thinking === "observation" ? "Drafting…" : "Draft with AI"}
-              </button>
-            )}
-            <VoiceNoteButton
-              onCaptured={(m) => {
-                addAttachment(check.id, { ...m, createdBy: auditor });
-                /* The transcript is attached to the note, not spliced into
-                   the observation. An auditor writes the observation; the
-                   recording is evidence beside it. */
-                onSaved(
-                  m.transcript ? "Voice note attached with transcript" : "Voice note attached"
-                );
-              }}
-            />
-            <PhotoButton
-              onCaptured={(m) => {
-                addAttachment(check.id, { ...m, createdBy: auditor });
-                onSaved(`Photo attached to ${portalId}`);
-              }}
-            />
-            {/* What is already attached, in the row that scrolls — the label
-                row above it is desk-only. */}
-            {photos > 0 && (
-              <Pill>
-                {photos} photo{photos > 1 ? "s" : ""}
-              </Pill>
-            )}
-            {voice && <Pill tone="accent">voice note</Pill>}
-          </div>
         </div>
 
         {/* THE ANSWER, AND WHAT COMMITS IT, IN THE SAME PINNED BAR.
@@ -1240,11 +1341,14 @@ export default function CheckDetail({
             bar is pinned too — they are under the thumb rather than across the
             screen from Save, and the check gets the height back. */}
         <div
-          className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t px-5 py-2.5"
+          /* Tighter vertically than it looks like it should be, because on a
+             phone this is three 44px rows and the targets are the thing that
+             may not shrink. The gaps give back what the third row costs. */
+          className="flex flex-wrap items-center gap-x-3 gap-y-[6px] border-t px-5 py-2 sm:gap-y-2 sm:py-2.5"
           style={{
             background: "var(--panel)",
             borderColor: "var(--line)",
-            paddingBottom: "calc(0.625rem + var(--sticky-safe))",
+            paddingBottom: "calc(0.5rem + var(--sticky-safe))",
           }}
         >
           <div
@@ -1278,10 +1382,90 @@ export default function CheckDetail({
             {r.issuesPicked.length > 0 &&
               ` · ${r.issuesPicked.length} finding${r.issuesPicked.length > 1 ? "s" : ""}`}
           </div>
-          {/* Two by two on a phone, one row wherever four labelled buttons
-              fit. Four full labels do not fit 350px and wrapped three-then-one,
-              which reads as a rendering fault rather than a choice. */}
-          <div className="grid min-w-[250px] flex-1 grid-cols-4 gap-[5px] sm:flex sm:flex-wrap">
+          {/* WRITING IT DOWN AND ANSWERING IT, IN ONE BAR.
+
+              These four used to be their own row above the observation field,
+              which put a band of 31-44px controls between the box you type in
+              and the buttons that answer the check — three stacked strips of
+              furniture where two would do. They belong beside the answer: on a
+              phone they are one row above the compliance buttons, on a desk
+              they sit inline with them.
+
+              IT STILL SCROLLS SIDEWAYS RATHER THAN WRAPPING on a phone, which
+              is the same reasoning as before the move: at 44px a wrapped
+              toolbar is a second 50px band taken off a 664px screen for the
+              whole session, and this bar already spends a third of it.
+              Sideways it costs nothing and every label stays the length it
+              needs to be. */}
+          <div className="no-scrollbar flex w-full flex-nowrap items-center gap-[6px] overflow-x-auto sm:w-auto sm:overflow-visible [&>*]:shrink-0">
+            <Btn
+              onClick={() => {
+                const text = composeObservation(check, r, a);
+                if (text) setDraft(text);
+                else onSaved("Nothing tapped yet to compose from");
+              }}
+              title="Builds a sentence from the buttons you have tapped. Works offline, no model needed."
+            >
+              <IconWand width={14} height={14} />
+              Compose from taps
+            </Btn>
+            {aiOn && (
+              <Btn
+                disabled={thinking === "observation"}
+                onClick={async () => {
+                  setThinking("observation");
+                  try {
+                    setDraft(await assist("observation", checkContext(check, r, a)));
+                  } catch (err) {
+                    onSaved(err instanceof Error ? err.message : "The assistant is unavailable");
+                  } finally {
+                    setThinking(null);
+                  }
+                }}
+                title="Drafts the observation from this check's own material. Advisory — you decide."
+              >
+                <IconSpark width={14} height={14} />
+                {thinking === "observation" ? "Drafting…" : "Draft with AI"}
+              </Btn>
+            )}
+            <VoiceNoteButton
+              onCaptured={(m) => {
+                addAttachment(check.id, { ...m, createdBy: auditor });
+                /* The transcript is attached to the note, not spliced into
+                   the observation. An auditor writes the observation; the
+                   recording is evidence beside it. */
+                onSaved(
+                  m.transcript ? "Voice note attached with transcript" : "Voice note attached"
+                );
+              }}
+            />
+            <PhotoButton
+              onCaptured={(m) => {
+                addAttachment(check.id, { ...m, createdBy: auditor });
+                onSaved(`Photo attached to ${portalId}`);
+              }}
+            />
+            {/* What is already attached. The label row above the observation
+                says the same thing and is desk-only, so on a phone these pills
+                are the only place it is said. */}
+            {photos > 0 && (
+              <Pill>
+                {photos} photo{photos > 1 ? "s" : ""}
+              </Pill>
+            )}
+            {voice && <Pill tone="accent">voice note</Pill>}
+          </div>
+
+          {/* FOUR ACROSS AT EVERY WIDTH, and a grid rather than a wrapping
+              flex row so it stays that way. As `sm:flex sm:flex-wrap` these
+              four broke two-and-two the moment the capture tools joined this
+              bar — Compliant and Non-compliant on one line, N/A and Not
+              available on the next — which is exactly the "reads as a
+              rendering fault rather than a choice" this comment was already
+              warning about, reintroduced by crowding the row rather than by
+              narrowing the screen. A grid cannot split; when the bar runs out
+              of width the whole group wraps as one, which is legible. */}
+          <div className="grid min-w-[300px] flex-1 grid-cols-4 gap-[5px]">
             {STATUSES.map(({ key, label, Icon, tone }) => (
               <button
                 key={key}

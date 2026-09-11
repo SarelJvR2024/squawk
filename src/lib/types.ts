@@ -43,6 +43,32 @@ export interface AcsaDocRef {
 export interface SiteVariant {
   site: string;
   note: string;
+  /** Set when this site's own requirement CONTRADICTS the check as written —
+   *  not merely adds detail to it.
+   *
+   *  Sarel, 2026-09-10: "still keep the check as the ACSA audit check but add
+   *  the airport specific requirement and highlight it in the heading so that
+   *  it is clear there is a conflict."
+   *
+   *  The check text is NOT rewritten. ACSA's register is the client's document
+   *  and a row silently edited to say something ACSA never wrote is a row
+   *  nobody can reconcile against their copy. Both figures are carried, both
+   *  are shown, and the heading says which one governs here — so an auditor
+   *  cannot read the title alone and audit to the wrong interval, which is
+   *  exactly what MEC-037 invites today: it is titled "A 3 yearly ... Piping
+   *  Pressure test" while D060 021M cl. 4.17.5 makes it YEARLY at King Shaka. */
+  conflict?: {
+    /** What the check's own requirement text says, quoted. */
+    checkSays: string;
+    /** What ACSA requires at THIS site, quoted. */
+    siteRequires: string;
+    /** The clause that settles it. */
+    source: string;
+    /** Which way the site's rule cuts against the check, in one word.
+     *  "stricter" is the dangerous one — auditing to the check would pass an
+     *  installation the site's own manual says is overdue. */
+    direction: "stricter" | "looser" | "different";
+  };
 }
 
 export interface EvidenceOption {
@@ -99,6 +125,49 @@ export interface Check {
   acsaConflict: string;
   coverage: Coverage;
   siteVariant: SiteVariant | null;
+  /* ---- the register review, agreed with Sarel 2026-09-10 ---------------- */
+  /** WHAT DECIDES WHETHER THIS CHECK IS COMPLIANT.
+   *
+   *  Three values, and they answer one question — not "what activities happen
+   *  on an audit", which is what `vtype` records and why `vtype` says almost
+   *  nothing (it reads "Site Physical Verification" on 299 of the 324 and
+   *  "Evidence" on 313; almost every check is in almost every category).
+   *
+   *    Document  a certificate, report, register, drawing or lab result. The
+   *              number or the signature IS the compliance, and nothing on site
+   *              substitutes for it.
+   *    Asset     a physical thing or a condition of one — a colour, a vent, a
+   *              guard, a crack, a lid. No file makes a faded marking compliant.
+   *    Practice  a way of working. Whether the round actually happens, whether
+   *              a below-threshold reading actually produces the action. Fails
+   *              while every document in the file reads clean.
+   *
+   *  THE THRESHOLD IS NOT A FOURTH VALUE. 274 of the 324 carry a measurable
+   *  figure, so a "Specification" category would swallow the register and
+   *  distinguish nothing. It belongs in `complianceTest`. */
+  confirmedBy: "Document" | "Asset" | "Practice" | null;
+  /** What the WALK contributes — a separate axis from `confirmedBy`, and
+   *  deliberately so.
+   *
+   *    examine    go and look; the walk can settle it
+   *    reconcile  go and look to prove the record is THIS asset's — a serial
+   *               number against a certificate, a measured distance against a
+   *               drawing, the cooling towers on site against the certificates
+   *               held
+   *    none       there is nothing to see; a walk here would be theatre
+   *
+   *  A Document check is very often `reconcile`, which is the whole point of
+   *  keeping two axes: a calibration certificate IS the compliance AND the walk
+   *  is what proves it belongs to the meter in front of you. Collapsing the two
+   *  loses that, and losing it is how a certificate for a spare instrument gets
+   *  accepted for the one in the field. */
+  inspect: "examine" | "reconcile" | "none" | null;
+  /** WHAT MAKES IT COMPLIANT, in a sentence an auditor can hold the evidence
+   *  against. Written for the 95 checks whose `evidenceExpected` was a stub —
+   *  "Test records", "Inspection; programme", nine of them empty — and for
+   *  every check whose ACSA threshold conflicts with its own wording. Null
+   *  where `evidenceExpected` already says it properly. */
+  complianceTest: string | null;
   /** How firm the external citation is. "medium" means the instrument certainly
    *  applies but the clause is cited at document level — say so on screen rather
    *  than letting an auditor quote a clause number nobody confirmed. */
@@ -215,6 +284,21 @@ export interface Attachment {
   width?: number;
   height?: number;
   bytes?: number;
+  /** WHERE THIS PHOTOGRAPH WAS TAKEN, in the auditor's own words.
+   *
+   *  Not the register's `area` column and not a coordinate. "Stand 12", "north
+   *  switch room", "Pier B roof" — the words somebody would use on the radio to
+   *  send a maintenance team to the same spot. A photograph without one is an
+   *  image of a defect nobody can find again, which is a photograph that proves
+   *  nothing.
+   *
+   *  Inherited from the inspection it is attached to at the moment of capture,
+   *  because on a walk the camera is always where the auditor is; editable per
+   *  photograph, because one inspection can carry evidence from two places.
+   *
+   *  Optional and absent-means-empty — see Response.location for why that does
+   *  not need a persist version bump. */
+  location?: string;
   /** EXIF DateTimeOriginal, where the file carried one. When a photograph was
    *  taken is audit evidence; the canvas re-encode strips EXIF, so this is read
    *  off the original before it is downscaled. */
@@ -300,6 +384,26 @@ export interface Response {
   /** The field half — the asset seen, from Field inspection. */
   fieldDoneBy: string;
   fieldDoneAt: number | null;
+  /** WHERE THE ASSET WAS INSPECTED, in the auditor's own words.
+   *
+   *  The register's `area` column is a CATEGORY — 133 of them at KSIA and a
+   *  third are not places at all ("Appointments", "Documentation", "Lessons
+   *  learnt"). It cannot say where the auditor was standing, and a finding that
+   *  cannot be walked back to is a finding nobody can close.
+   *
+   *  Free text with the site's areas offered as suggestions, never a closed
+   *  list: real zone names have not been supplied by ACSA yet, and forcing a
+   *  wrong category is worse than a blank.
+   *
+   *  Optional because every record captured before this field existed has no
+   *  location, and absent is the honest reading of that — not-captured, never
+   *  "nowhere". Same shape as `feedback?` and `adhoc?`: an absent optional that
+   *  reads as empty needs no persist version bump, because there is nothing for
+   *  a migration to convert.
+   *
+   *  Written on commit from the screen's running location, so the auditor types
+   *  where they are once per place rather than once per check. */
+  location?: string;
   flaggedForField: boolean;
   /** When this record last changed, on whichever device changed it.
    *
@@ -557,6 +661,120 @@ export interface ProgressNote {
   note: string;
 }
 
+/** A HAZARDOUS EVENT THIS FINDING COULD LEAD TO, AND HOW LIKELY IT IS.
+ *
+ *  Plural, and that is the point. "TRF 02 oil below the minimum threshold" is
+ *  one finding with at least three futures: a transformer trip that takes a
+ *  stand off supply, a winding failure that costs a replacement and a
+ *  lead-time, and an oil fire. They are not variations of one event — they have
+ *  different likelihoods and different consequences, and an audit that records
+ *  only the worst one over-rates the common case while an audit that records
+ *  only the likely one under-rates the severe. Recording them separately is
+ *  what makes a finding's risk arguable rather than asserted.
+ *
+ *  The LIKELIHOOD here is ACSA B170 001M's 1–5, the same scale the finding's
+ *  own rating uses — not the ERM instrument's. They are separate instruments
+ *  and must never be derived from one another; see the header of src/lib/erm.ts.
+ *
+ *  Severity is deliberately NOT on this record. A hazard's severity is agreed
+ *  by the group on the matrix and lives on the Hazard, which is where a rating
+ *  of record belongs; this is the walk-up list that feeds that conversation.
+ *  Adding a severity here would create a second, un-agreed rating for the same
+ *  event, which is exactly the drift ratingConfirmed exists to stop.
+ *
+ *  Optional on its holder and absent-means-empty, so no persist version has to
+ *  move: an item recorded before this existed has no possible events, and that
+ *  is the honest reading of an absent field. */
+export interface PossibleEvent {
+  id: string;
+  /** The event, not the paperwork. "Uncontained oil fire at AS1", not
+   *  "maintenance report inadequate" — the finding already says that. */
+  event: string;
+  likelihood: Likelihood | null;
+  /** Why it is that likely, in the auditor's own words. Optional, and worth
+   *  more than the number on its own when the group argues the rating. */
+  note: string;
+  createdAt: number;
+  createdBy: string;
+}
+
+/* ---------- the asset system's own assessment ----------
+
+   THE RATING OF RECORD, AND WHERE IT FINALLY LIVES.
+
+   ACSA rates, reports and compares ASSET SYSTEMS year on year — that is the row
+   in their register and the unit a Cluster report is written about. Squawk had
+   ratings on findings and on hazards and none on the thing ACSA actually
+   publishes, so an asset system's band was something a reader had to infer from
+   the worst finding under it. Inferring it is wrong twice over: three Amber
+   findings on one system is not an Amber system, and a system with no findings
+   at all is not automatically Green — it may simply not have been looked at.
+
+   So the asset system carries its own severity, its own likelihood and its own
+   `ratingConfirmed`, agreed by the group on B170 001M like every other rating
+   in this product, and the band and treatment strategy are DERIVED from the
+   cell rather than typed. Nothing here is computed from the findings under it:
+   the findings are evidence the group reads before agreeing the cell, and the
+   screen shows them all for that reason. */
+
+/** One root cause, of several. ACSA's own list is a closed vocabulary — see
+ *  ROOT_CAUSES in src/lib/store.ts — but an asset system regularly fails for
+ *  more than one reason at once (no budget AND no competent person), and
+ *  forcing a single choice loses whichever the auditor did not pick. */
+export interface RootCauseNote {
+  id: string;
+  /** From ROOT_CAUSES where it fits, free text where it does not. The list is
+   *  ACSA's and this is not the place to extend it, so anything outside it is
+   *  recorded as written rather than mapped onto the nearest member. */
+  cause: string;
+  note: string;
+  createdAt: number;
+  createdBy: string;
+}
+
+/** One mitigation action, of several. Each carries its own owner, date and
+ *  status, because an asset system's remediation is regularly three jobs owned
+ *  by three people on three timelines — a single owner/date pair forces the
+ *  auditor to write the other two into a comment where nothing tracks them. */
+export interface MitigationAction {
+  id: string;
+  action: string;
+  owner: string;
+  /** ISO date, as everywhere else. Blank is a real state and it is flagged
+   *  rather than defaulted: a target date nobody agreed is worse than none. */
+  dueDate: string;
+  status: ActionStatus;
+  createdAt: number;
+  createdBy: string;
+  updatedAt?: number;
+}
+
+export interface SystemAssessment {
+  /** `${discipline}|${system}` — the pair, because an asset system name is only
+   *  unique within its discipline. */
+  key: string;
+  discipline: string;
+  system: string;
+  severity: Severity | null;
+  likelihood: Likelihood | null;
+  /** THE GATE, as everywhere else. A severity and likelihood that nobody tapped
+   *  on the matrix is a suggestion; every count, dashboard and export ignores
+   *  the rating until this is true. */
+  ratingConfirmed: boolean;
+  /** Why the group agreed that cell. Not optional in spirit — a band with no
+   *  reasoning is the thing ACSA sends back — but blank is allowed, because
+   *  forcing prose produces prose nobody means. */
+  ratingRationale: string;
+  rootCauses: RootCauseNote[];
+  actions: MitigationAction[];
+  /** The assessor's summary of the asset system as a whole. */
+  note: string;
+  assessedBy: string;
+  assessedAt: number | null;
+  /** See Response.updatedAt — what lets two devices' work be combined. */
+  updatedAt?: number;
+}
+
 export interface Verification {
   pf: string;
   outcome: VerificationOutcome | null;
@@ -573,6 +791,20 @@ export interface Verification {
   /** Progress at this visit. The timeline across visits is assembled by
    *  historyFor() in carryforward.ts, which reads every visit's copy. */
   progress?: ProgressNote[];
+  /** WHAT HAPPENS NEXT, as distinct from `action`.
+   *
+   *  `action` is the remediation — what has to be done to fix the thing. This
+   *  is the next step in getting it done: who is being chased, what the site
+   *  committed to at the close-out meeting, which report is being waited for.
+   *  ACSA's own sheet folds the two into one cell and it is regularly filled
+   *  with the chase rather than the fix, which is how a finding arrives at the
+   *  next audit with no recorded remedy at all. Two fields, two questions.
+   *
+   *  Optional and absent-means-empty — no persist version has to move. */
+  nextStep?: string;
+  /** The hazardous events this finding could lead to, each with its own
+   *  likelihood. See PossibleEvent. Absent-means-empty. */
+  possibleEvents?: PossibleEvent[];
   /** When this record last changed. See the note on Response.updatedAt — it is
    *  what lets two devices' work be combined without guessing. */
   updatedAt?: number;
@@ -593,6 +825,26 @@ export interface Capture {
    *  dictated in the tray keeps its provenance once it reaches a check. */
   transcriptSource?: "browser" | "service";
   unavailable?: boolean;
+  /* DECLARING WHAT WAS ALREADY BEING WRITTEN (2026-09-10, task #67).
+   *
+   *  The walk screen's camera does `addCapture({ ...m, area, createdBy })` and
+   *  `m` is PhotoButton's full payload, so every one of these has been landing
+   *  in the persisted record since captures existed — undeclared, because
+   *  TypeScript does not excess-property-check a spread. Nothing about the
+   *  stored data changes here and no migration is needed; the type is being
+   *  corrected to match what is on disk.
+   *
+   *  `thumbDataUrl` is the one that matters. It is the copy that rides the
+   *  shared record between devices, so an unassigned capture can be reviewed by
+   *  an engineer who was not on the apron — which is the whole point of the
+   *  tray. Without this declaration the Visual review screen could not read it
+   *  and every loose photograph would have rendered as "on the device that took
+   *  it" while its thumbnail sat in the same object. */
+  thumbDataUrl?: string;
+  caption?: string;
+  width?: number;
+  height?: number;
+  bytes?: number;
   area: string;
   createdAt: number;
   createdBy: string;
@@ -628,4 +880,64 @@ export interface FeedbackNote {
   /** Set when someone marks the point dealt with. The note stays — a thread
    *  that erases itself is no use at the next visit. */
   resolvedAt: number | null;
+}
+
+/** SOMETHING SEEN ON THE WALK THAT THE REGISTER DOES NOT COVER.
+ *
+ *  The 324 check-points are what ACSA asked us to look at. They are not
+ *  everything there is to see, and the most valuable thing in an audit is
+ *  regularly the thing nobody thought to put on the list. Until this existed
+ *  an auditor standing in front of an undocumented defect had two options —
+ *  raise a Finding, which demands a discipline, a title and eventually a
+ *  rating, or lose it. Ten seconds of typing on an apron is the budget, so
+ *  most of them were lost.
+ *
+ *  IT IS NOT ONE OF THE 324, AND NOTHING MAY LET IT LOOK LIKE ONE.
+ *
+ *  · Its own id series — WALK-xxxxx, which no register row can collide with.
+ *    Random rather than sequential for the same reason findings are: two
+ *    auditors on two devices both minting WALK-03 would merge into one record
+ *    and lose an observation, and the merge keys on id.
+ *  · It creates no Response, so it cannot reach the completion figure. That
+ *    figure counts responses to register checks and nothing else — a "312 of
+ *    324" reading must not become 313 because somebody recorded an
+ *    observation.
+ *  · Every export says which it is.
+ *
+ *  Almost everything is optional on purpose. An unattributed observation is a
+ *  real state and forcing a discipline on it produces a lie; a half-captured
+ *  item completed back at the hotel is worth infinitely more than a lost one.
+ *  The description is the one thing that cannot be blank, because an item with
+ *  no description is not a record of anything. */
+export interface AdHocItem {
+  /** WALK-xxxxx. Never a register id. */
+  id: string;
+  /** Same vocabulary as a Hazard's, deliberately — a parallel origin
+   *  vocabulary is how two words come to mean the same thing and neither can
+   *  be reported on. "consolidated" is absent because an ad-hoc item is by
+   *  definition not consolidated from anything. */
+  origin: "field" | "acsa" | "tpjv";
+  /** What you found. Required. */
+  description: string;
+  /** Optional, and null is a real answer. */
+  discipline: string | null;
+  /** The register asset system, where the auditor can name one. Null is
+   *  common and honest: plenty of what is worth recording is not about a
+   *  system on our list, and that is itself evidence about the register. */
+  system: string | null;
+  /** Where it was seen, in whatever words are true. Free text, because zone
+   *  names do not exist yet and the register's categories are not places. */
+  area: string;
+  /** Same four values as a check's, so the control and the vocabulary are the
+   *  same everywhere. Usually NC. Not forced. */
+  outcome: Compliance | null;
+  note: string;
+  attachments: Attachment[];
+  /** Set when somebody raises a finding from this item, so the observation and
+   *  the finding stay attached rather than becoming two accounts of one thing.
+   *  Null until then, which is the normal state on the walk. */
+  findingId: string | null;
+  createdAt: number;
+  createdBy: string;
+  updatedAt?: number;
 }

@@ -329,3 +329,343 @@ export function useHistory(portalId: string): HistoryEntry[] {
     [byVisit, entityCode, visitId, portalId, visits]
   );
 }
+
+/* ------------------------------------------------- one item, every audit */
+
+/** What one carried item looked like at one audit.
+ *
+ *  `notAudited` is the state this exists for. A visit at which this entity was
+ *  not audited must never render as a blank cell: a blank reads as *nothing
+ *  was wrong* and it means the opposite — we do not know. The programme file
+ *  already records those visits as `skipped`, so the honest answer is in the
+ *  data and only the rendering was throwing it away.
+ *
+ *  `carried` is the other one worth naming. A visit that happened, at which
+ *  nobody recorded anything against this item, is not the same as a visit that
+ *  did not happen — it means the item was open and went unanswered, which is a
+ *  worse fact than either and the one an ageing figure is counting. */
+export type TimelineState =
+  | "before"
+  | "raised"
+  | "carried"
+  | "partial"
+  | "closed"
+  | "repeat"
+  | "notVerified"
+  | "notAudited"
+  | "scheduled";
+
+export interface TimelineCell {
+  visit: string;
+  label: string;
+  state: TimelineState;
+  /** Who recorded the outcome at that visit, where one was recorded. */
+  by: string;
+  at: number | null;
+  evidence: string;
+}
+
+const STATE_OF: Record<VerificationOutcome, TimelineState> = {
+  Closed: "closed",
+  "Partially closed": "partial",
+  "Open - repeat": "repeat",
+  "Not verified": "notVerified",
+};
+
+/** The whole life of one carried item, one cell per visit, oldest first.
+ *
+ *  Every visit gets a cell — including the ones with nothing recorded and the
+ *  ones that never happened. `historyFor` above deliberately drops empty
+ *  visits, because it renders a narrative of what was said and an empty entry
+ *  says nothing; this renders a SHAPE, and in a shape the gaps are the
+ *  information. Both are right for what they do; they must not be merged. */
+export function timelineFor(
+  byVisit: Record<string, VisitData>,
+  entityCode: string,
+  currentVisit: string,
+  item: Outstanding,
+  visits: { id: string; label: string; state?: string }[]
+): TimelineCell[] {
+  return visits.map((v) => {
+    const rec = byVisit[scopeKey(entityCode, v.id)]?.verifications?.[item.key];
+    const base = {
+      visit: v.id,
+      label: v.label,
+      by: rec?.verifiedBy ?? "",
+      at: rec?.verifiedAt ?? null,
+      evidence: rec?.evidence ?? "",
+    };
+    /* Order matters. A skipped visit is "not audited" even where it sits after
+       the item was raised — nobody looked, so nothing about the item can be
+       claimed for it. */
+    if (v.state === "skipped") return { ...base, state: "notAudited" as const };
+    if (v.id < item.originVisit) return { ...base, state: "before" as const };
+    if (v.id === item.originVisit) return { ...base, state: "raised" as const };
+    if (rec?.outcome) return { ...base, state: STATE_OF[rec.outcome] };
+    if (v.id > currentVisit) return { ...base, state: "scheduled" as const };
+    return { ...base, state: "carried" as const };
+  });
+}
+
+/** How many visits this item has SURVIVED — visits that actually happened,
+ *  after the one that raised it, at which it was not closed.
+ *
+ *  Measured in visits rather than days because the cycle is two visits a year:
+ *  "survived three visits" says what "412 days" cannot.
+ *
+ *  TWO EXCLUSIONS, and both matter because this figure has to agree with
+ *  visitsOpen() above — two numbers on one screen counting the same thing
+ *  differently is how a screen stops being believed:
+ *
+ *  · A SKIPPED visit does not count. Nobody was there, so the item did not
+ *    survive anything; it was simply not looked at. King Shaka's Sep 2025 and
+ *    Mar 2026 are both skipped, so a finding raised in Mar 2025 has survived
+ *    nothing yet however long it has been open.
+ *  · THE CURRENT VISIT does not count. It is being decided now — an item is
+ *    not shown as having survived the meeting it is sitting in. It starts
+ *    counting once this visit is behind it. */
+export function visitsSurvived(cells: TimelineCell[], currentVisit: string): number {
+  let n = 0;
+  for (const c of cells) {
+    if (c.visit >= currentVisit) return n;
+    if (c.state === "closed") return n;
+    if (c.state === "carried" || c.state === "partial" || c.state === "repeat" || c.state === "notVerified") n++;
+  }
+  return n;
+}
+
+/* ------------------------------------------- one item, everything that happened */
+
+/** One thing that happened to a carried item, at a moment in time.
+ *
+ *  The kinds are separate rather than one "note" kind because a reader
+ *  scanning a column of twenty entries is looking for a shape, not reading
+ *  prose: when did evidence arrive, when did somebody actually go and look,
+ *  when did an audit say it was closed. Colour is never the only carrier —
+ *  every entry states its kind in words. */
+export type StreamKind =
+  | "raised"
+  | "outcome"
+  | "evidence"
+  | "action"
+  | "next"
+  | "photo"
+  | "voice"
+  | "note"
+  | "event"
+  | "check";
+
+export interface StreamEntry {
+  /** Milliseconds. Entries the record dates only to a MONTH (the 2025 register
+   *  carries "2025-03-23", a verification that was never stamped carries
+   *  nothing) get the visit's own start, and `dated` says which it was — a
+   *  timeline that shows an invented time to the minute is lying about
+   *  precision it does not have. */
+  at: number;
+  dated: "exact" | "visit";
+  kind: StreamKind;
+  /** The visit this belongs to, so the stream can be read audit by audit. */
+  visit: string;
+  visitLabel: string;
+  /** What happened, in words, always. */
+  label: string;
+  /** The content, where there is any — the note, the caption, the evidence. */
+  detail: string;
+  by: string;
+}
+
+/** EVERYTHING RECORDED AGAINST ONE CARRIED ITEM, IN ONE ORDER.
+ *
+ *  Sarel, on the Follow-up screen: "we show the details of the finding and the
+ *  timeline of all the comments and updates — when it was logged, when evidence
+ *  was uploaded, when comments was added, when visual inspections was added,
+ *  when next audits reviewed it and confirmed the compliance or non compliance.
+ *  In some cases it might be opened then next audit closed and then opened
+ *  again the next audit, we want to see that history."
+ *
+ *  Every one of those facts was already in the record and none of them were
+ *  shown together. A verification per visit carries the outcome, the evidence,
+ *  the action, the progress log and the attachments; the item itself carries
+ *  when it was raised and at what band. The screen read the current visit's
+ *  copy and one flat history list, so an item that was closed in 2026 and found
+ *  open again in 2027 looked like an item somebody had simply not finished.
+ *
+ *  This assembles the lot, oldest first, in the ONE order that makes the
+ *  open→closed→open sequence readable. It reads; it never writes, and it never
+ *  invents an entry for a visit that recorded nothing — a blank is a visit at
+ *  which nobody wrote anything down, and saying so would be putting words in
+ *  their mouth. */
+export function streamFor(
+  byVisit: Record<string, VisitData>,
+  entityCode: string,
+  portalId: string,
+  visits: { id: string; label: string }[],
+  raised?: { at: number; dated: "exact" | "visit"; visit: string; rating: string | null }
+): StreamEntry[] {
+  const out: StreamEntry[] = [];
+  const labelOf = (id: string) => visits.find((v) => v.id === id)?.label ?? id;
+
+  if (raised) {
+    out.push({
+      at: raised.at,
+      dated: raised.dated,
+      kind: "raised",
+      visit: raised.visit,
+      visitLabel: labelOf(raised.visit),
+      label: raised.rating ? `Raised · ${raised.rating}` : "Raised",
+      detail: "",
+      by: "",
+    });
+  }
+
+  for (const v of visits) {
+    const rec = byVisit[scopeKey(entityCode, v.id)]?.verifications?.[portalId];
+    if (!rec) continue;
+    /* The visit's own start, for anything the record dates no more precisely
+       than "this audit". Visit ids are "YYYY-MM", which Date parses as UTC
+       midnight on the first — a stable, honest floor rather than a guess. */
+    const visitAt = Date.parse(`${v.id}-01T00:00:00Z`);
+    const at = (exact: number | null | undefined): [number, "exact" | "visit"] =>
+      exact ? [exact, "exact"] : [visitAt, "visit"];
+
+    if (rec.outcome) {
+      const [t, d] = at(rec.verifiedAt);
+      out.push({
+        at: t,
+        dated: d,
+        kind: "outcome",
+        visit: v.id,
+        visitLabel: v.label,
+        /* The words the screen's own buttons use, so the timeline and the
+           control that wrote it cannot come to say different things. */
+        label: `Audit found it ${OUTCOME_WORD[rec.outcome]}`,
+        detail: "",
+        by: rec.verifiedBy ?? "",
+      });
+    }
+    if (rec.evidence?.trim()) {
+      const [t, d] = at(rec.verifiedAt);
+      out.push({
+        at: t,
+        dated: d,
+        kind: "evidence",
+        visit: v.id,
+        visitLabel: v.label,
+        label: "Evidence of closure recorded",
+        detail: rec.evidence.trim(),
+        by: rec.verifiedBy ?? "",
+      });
+    }
+    if (rec.action?.trim()) {
+      const [t, d] = at(rec.verifiedAt);
+      out.push({
+        at: t,
+        dated: d,
+        kind: "action",
+        visit: v.id,
+        visitLabel: v.label,
+        label: "Remediation action",
+        detail: rec.action.trim(),
+        by: rec.verifiedBy ?? "",
+      });
+    }
+    if (rec.nextStep?.trim()) {
+      const [t, d] = at(rec.verifiedAt);
+      out.push({
+        at: t,
+        dated: d,
+        kind: "next",
+        visit: v.id,
+        visitLabel: v.label,
+        label: "Next step",
+        detail: rec.nextStep.trim(),
+        by: rec.verifiedBy ?? "",
+      });
+    }
+    for (const a of rec.attachments ?? []) {
+      const [t, d] = at(a.createdAt);
+      out.push({
+        at: t,
+        dated: d,
+        kind: a.kind === "voice" ? "voice" : "photo",
+        visit: v.id,
+        visitLabel: v.label,
+        label:
+          a.kind === "voice"
+            ? "Voice note attached"
+            : /* A photograph on a follow-up IS the visual inspection — somebody
+                 went and looked. Named for what it means rather than for the
+                 file type. */
+              "Photograph — went and looked",
+        detail:
+          a.kind === "voice"
+            ? a.transcript?.trim() || ""
+            : [a.caption?.trim(), a.location?.trim()].filter(Boolean).join(" · "),
+        by: a.createdBy ?? "",
+      });
+    }
+    for (const n of rec.progress ?? []) {
+      out.push({
+        at: n.at,
+        dated: "exact",
+        kind: "note",
+        visit: n.visit || v.id,
+        visitLabel: labelOf(n.visit || v.id),
+        /* THE STATUS AS IT STOOD, on the entry. Each progress note records the
+           outcome at the moment it was written precisely so a reader can see an
+           item move — "PO raised" while it was Open - repeat means something
+           different from the same words after it closed. Dropping it here would
+           have quietly thrown away the one field that makes the log a history
+           rather than a list of remarks. */
+        label: n.outcome ? `Update logged · ${n.outcome}` : "Update logged",
+        detail: n.note,
+        by: n.by,
+      });
+    }
+    for (const e of rec.possibleEvents ?? []) {
+      out.push({
+        at: e.createdAt,
+        dated: "exact",
+        kind: "event",
+        visit: v.id,
+        visitLabel: v.label,
+        label: e.likelihood
+          ? `Possible event · likelihood ${e.likelihood}`
+          : "Possible event · unrated",
+        detail: [e.event, e.note].filter(Boolean).join(" — "),
+        by: e.createdBy ?? "",
+      });
+    }
+  }
+
+  /* Oldest first. A stable secondary sort on kind keeps two entries stamped in
+     the same millisecond — which happens whenever a visit dated nothing and
+     several fall back to the visit's start — in the same order on every
+     render, so the list does not shuffle under the reader. */
+  return out.sort((a, b) => a.at - b.at || a.kind.localeCompare(b.kind));
+}
+
+/** The verification outcomes in the words the screen's own buttons use. */
+const OUTCOME_WORD: Record<VerificationOutcome, string> = {
+  Closed: "closed",
+  "Partially closed": "partially closed",
+  "Open - repeat": "still open — a repeat",
+  "Not verified": "not verified",
+};
+
+/** The same stream, for the entity in view. */
+export function useStream(
+  portalId: string,
+  raised?: { at: number; dated: "exact" | "visit"; visit: string; rating: string | null }
+): StreamEntry[] {
+  const byVisit = useStore((s) => s.byVisit);
+  const entityCode = useEntityCode();
+  const visits = useMemo(
+    () => PROGRAMME_VISITS.filter((v) => v.entity === entityCode),
+    [entityCode]
+  );
+  return useMemo(
+    () => streamFor(byVisit, entityCode, portalId, visits, raised),
+    [byVisit, entityCode, portalId, visits, raised]
+  );
+}

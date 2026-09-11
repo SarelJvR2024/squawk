@@ -26,7 +26,7 @@ import { createContext, createElement, useCallback, useContext, useEffect, useRe
 import { useStore } from "./store";
 import type { Bundle } from "./merge";
 import { BUNDLE_KIND, BUNDLE_VERSION } from "./merge";
-import type { Attachment, Capture, FeedbackNote, Finding, Hazard, Response, Verification } from "./types";
+import type { AdHocItem, Attachment, Capture, FeedbackNote, Finding, Hazard, Response, Verification } from "./types";
 
 const PASS_KEY = "squawk-team-passphrase";
 /* Whether this deployment HAS a shared record, remembered across launches.
@@ -42,7 +42,10 @@ const pushedKey = (entity: string, visit: string) => `squawk-pushed:${entity}/${
 
 /** Rows are what travels: one per record, with the device clock that stamped it. */
 export interface SharedRow {
-  kind: "response" | "verification" | "finding" | "hazard" | "feedback" | "capture";
+  /* `kind` is a bare text column in Postgres with no CHECK constraint (see
+     supabase/0001_shared_record.sql), deliberately — adding a record type must
+     not need a schema migration run by hand on a live audit. */
+  kind: "response" | "verification" | "finding" | "hazard" | "feedback" | "capture" | "adhoc";
   id: string;
   updated_at: number;
   payload: unknown;
@@ -104,6 +107,10 @@ export function rowsToPush(since: number): SharedRow[] {
      append-only and their identity is their id, so the newest thing in the list
      is the list's clock. */
   for (const c of d.captures ?? []) add("capture", c.id, c.createdAt ?? 0, c);
+  /* Things seen on the walk sync like anything else. They are the one record
+     type nobody can re-derive: a register check missed on one device is still
+     on the list, an unshared observation is simply gone. */
+  for (const a of d.adhoc ?? []) add("adhoc", a.id, when(a), a);
   for (const [checkId, notes] of Object.entries(d.feedback ?? {})) {
     const at = notes.reduce((n, x) => Math.max(n, x.createdAt ?? 0), 0);
     add("feedback", checkId, at, notes);
@@ -117,6 +124,7 @@ export function bundleFromRows(entity: string, visit: string, rows: SharedRow[])
   const verifications: Record<string, Verification> = {};
   const feedback: Record<string, FeedbackNote[]> = {};
   const captures: Capture[] = [];
+  const adhoc: AdHocItem[] = [];
   const findings: Finding[] = [];
   const hazards: Hazard[] = [];
 
@@ -125,6 +133,7 @@ export function bundleFromRows(entity: string, visit: string, rows: SharedRow[])
     else if (r.kind === "verification") verifications[r.id] = r.payload as Verification;
     else if (r.kind === "feedback") feedback[r.id] = (r.payload ?? []) as FeedbackNote[];
     else if (r.kind === "capture") captures.push(r.payload as Capture);
+    else if (r.kind === "adhoc") adhoc.push(r.payload as AdHocItem);
     else if (r.kind === "finding") findings.push(r.payload as Finding);
     else if (r.kind === "hazard") hazards.push(r.payload as Hazard);
   }
@@ -151,7 +160,7 @@ export function bundleFromRows(entity: string, visit: string, rows: SharedRow[])
       },
       photographsNotUploaded,
     },
-    visit: { responses, verifications, captures, feedback },
+    visit: { responses, verifications, captures, feedback, adhoc },
     findings,
     hazards,
   };

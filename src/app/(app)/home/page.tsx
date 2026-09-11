@@ -94,15 +94,19 @@ const FLOW = [
   },
   {
     href: "/findings",
-    label: "Findings",
+    label: "Asset Assurance",
     icon: IconLoop,
-    line: "What was wrong. Rated on ACSA's B170 001M matrix — and only once the group agrees the cell.",
+    line: "The band each asset system carries — agreed by the group on ACSA's B170 001M, with every finding, check and walk item behind it.",
   },
   {
+    /* HIRA, matching the navigation exactly. An auditor told to go to HIRA has
+       to find a destination called HIRA — a map that names a screen differently
+       from the tab that opens it is a map you stop trusting. The route stays
+       /hazards: renaming a URL to match a label is churn. */
     href: "/hazards",
-    label: "Hazards",
+    label: "HIRA",
     icon: IconFlag,
-    line: "Consolidate findings into the event they expose, and rate that on both of ACSA's instruments.",
+    line: "Consolidate findings into the hazardous event they expose, and rate that event on B170 001M.",
   },
   {
     href: "/closure",

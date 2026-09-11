@@ -6,7 +6,9 @@ import {
   priorFindingsAt,
   useResponses,
   useEntityCode,
+  useSystems,
   useVerifications,
+  useAdhoc,
   useVisitFindings,
   useVisitHazards,
   useVisitId,
@@ -26,6 +28,7 @@ import {
   photographsSheet,
   registerSheet,
   summarySheet,
+  systemsSheet,
   type ExportInput,
 } from "@/lib/exports";
 import { downloadBytes, downloadText, downloadWorkbook, toCsv, type Sheet } from "@/lib/xlsx";
@@ -37,6 +40,7 @@ import { IconDownload, IconX } from "@/components/ui/icons";
 type Kind =
   | "full"
   | "register"
+  | "systems"
   | "findings"
   | "hazards"
   | "closure"
@@ -49,13 +53,19 @@ const OPTIONS: { kind: Kind; title: string; blurb: string }[] = [
     kind: "full",
     title: "Everything",
     blurb:
-      "Eight sheets: a cover note explaining what a blank cell means, the summary, the register, the findings, the hazards, the closure position, the evidence request and the photograph index.",
+      "Ten sheets: a cover note explaining what a blank cell means, the summary, the register, the asset-system ratings, the findings, the hazards, the closure position, what the walk found, the evidence request and the photograph index.",
   },
   {
     kind: "register",
     title: "Register",
     blurb:
       "One row per check-point in the shape the workbook already has, with this visit's capture alongside it. This is the sheet that goes back to ACSA.",
+  },
+  {
+    kind: "systems",
+    title: "Asset systems",
+    blurb:
+      "One row per asset system with the band the group agreed, the treatment strategy that follows from the cell, every root cause and every mitigation action. A system nobody rated is a row that says so — it is the gap, not an absence of risk.",
   },
   {
     kind: "findings",
@@ -104,7 +114,9 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
   const responses = useResponses();
   const findings = useVisitFindings();
   const hazards = useVisitHazards();
+  const adhoc = useAdhoc();
   const verifications = useVerifications();
+  const assessedSystems = useSystems();
   const entityCode = useEntityCode();
   const [budget, setBudget] = useState({ count: 0, bytes: 0 });
   const [persisted, setPersisted] = useState<boolean | null>(null);
@@ -197,12 +209,15 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
         responses,
         findings,
         hazards,
+        adhoc,
         prior: priorFindingsAt(entityCode),
         verifications,
+        systems: assessedSystems,
         library,
       };
       const one: Record<Exclude<Kind, "full">, () => Sheet> = {
         register: () => registerSheet(x),
+        systems: () => systemsSheet(x),
         findings: () => findingsSheet(x),
         hazards: () => hazardsSheet(x),
         closure: () => closureSheet(x),

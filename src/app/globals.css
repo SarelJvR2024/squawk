@@ -249,9 +249,18 @@
   box-sizing: border-box;
 }
 
+/* THE DOCUMENT DOES NOT SCROLL. Every screen scrolls inside `.app-scroll`,
+   under a masthead, an audit strip and a navigation that are fixed furniture —
+   so a document scroll can only ever be a bug, and when one appeared it took
+   the entire chrome off the top of the screen with it. See the note on the
+   shell root in src/components/AppShell.tsx for the sr-only defect that caused
+   it. This is the belt to that fix's braces: with no scroll to give, nothing
+   that escapes the shell can move the app. */
 html,
 body {
   height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
@@ -493,4 +502,13 @@ h4 {
    content. */
 .toast-bottom {
   bottom: calc(22px + var(--bottom-nav));
+}
+
+/* And above the sticky ACTION bar as well, on the screens that have one.
+   Measured at 375x664: the action bar's top edge sits 122px off the bottom of
+   the viewport, and a toast at 70px landed squarely on top of "Add item" — the
+   primary control, obscured for 2.4 seconds immediately after every use of it,
+   which is exactly when somebody wants to press it again. */
+.toast-above-bar {
+  bottom: calc(var(--bottom-nav) + var(--sticky-safe) + 88px);
 }

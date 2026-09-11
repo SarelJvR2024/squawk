@@ -34,7 +34,16 @@
  *     is a bad afternoon.
  */
 
-import type { Attachment, Finding, Hazard, ProgressNote, Response, Verification } from "./types";
+import type {
+  Attachment,
+  Finding,
+  Hazard,
+  PossibleEvent,
+  ProgressNote,
+  Response,
+  SystemAssessment,
+  Verification,
+} from "./types";
 import type { VisitData } from "./store";
 
 export const BUNDLE_KIND = "squawk-capture-bundle";
@@ -151,6 +160,29 @@ function unionProgress(mine: ProgressNote[] = [], theirs: ProgressNote[] = []): 
   return merged.sort((a, b) => a.at - b.at);
 }
 
+/** POSSIBLE EVENTS ARE A LIST TWO PEOPLE ADD TO, so they union rather than
+ *  losing to whoever saved last. Two auditors standing at the same transformer
+ *  will name different futures for it — that is the point of recording them —
+ *  and last-writer-wins on the whole array would silently drop one of their
+ *  lists with nothing on screen to say so. They carry an id, so identity is
+ *  straightforward; order is by when they were recorded, so the list reads the
+ *  way it was thought of. */
+function unionEvents(mine: PossibleEvent[] = [], theirs: PossibleEvent[] = []): PossibleEvent[] {
+  const seen = new Set(mine.map((e) => e.id));
+  return [...mine, ...theirs.filter((e) => !seen.has(e.id))].sort(
+    (a, b) => a.createdAt - b.createdAt
+  );
+}
+
+/** Union by id, theirs appended where this device has never seen it. The
+ *  generic form of unionAttachments, for the lists an asset-system assessment
+ *  carries: two auditors add root causes and mitigation actions independently
+ *  at the same out-brief, and keeping only the later save loses one of them. */
+function unionById<T extends { id: string }>(mine: T[], theirs: T[]): T[] {
+  const seen = new Set(mine.map((x) => x.id));
+  return [...mine, ...theirs.filter((x) => !seen.has(x.id))];
+}
+
 /** Why a bundle cannot be merged here, or null if it can. */
 export function refuse(
   bundle: Bundle | null,
@@ -259,10 +291,11 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
     }
     const attachments = unionAttachments(m.attachments ?? [], t.attachments ?? []);
     const progress = unionProgress(m.progress, t.progress);
+    const possibleEvents = unionEvents(m.possibleEvents, t.possibleEvents);
     report.attachmentsAdded += attachments.length - (m.attachments?.length ?? 0);
     report.progressAdded += progress.length - (m.progress?.length ?? 0);
     const newer = when(t) > when(m) ? t : m;
-    verifications[pf] = { ...newer, attachments, progress };
+    verifications[pf] = { ...newer, attachments, progress, possibleEvents };
     if (when(t) > when(m)) report.verifications.updated.push(pf);
     else report.verifications.kept.push(pf);
     if (when(m) > 0 && when(t) > 0 && when(m) !== when(t)) {
@@ -276,12 +309,45 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
     }
   }
 
+  /* ------------------------------------------ asset-system assessments --- */
+  /* THE RATING IS LAST-WRITER-WINS; THE LISTS UNDER IT ARE NOT.
+     A band is one decision the group made, so the later of two devices' copies
+     is the one to keep — the same rule every other rated record here follows.
+     Root causes and mitigation actions are lists two people add to
+     independently at the same out-brief, and last-writer-wins on the arrays
+     would drop one auditor's whole list with nothing on screen to say so. Both
+     carry ids, so both union. */
+  const assessedSystems: Record<string, SystemAssessment> = { ...(mine.visitData.systems ?? {}) };
+  for (const [key, t] of Object.entries(theirs.visit.systems ?? {})) {
+    const m = assessedSystems[key];
+    if (!m) {
+      assessedSystems[key] = t;
+      continue;
+    }
+    const rootCauses = unionById(m.rootCauses ?? [], t.rootCauses ?? []);
+    const actions = unionById(m.actions ?? [], t.actions ?? []);
+    const newer = when(t) > when(m) ? t : m;
+    assessedSystems[key] = { ...newer, rootCauses, actions };
+  }
+
   /* --------------------------------------------------- captures, notes --- */
   const captureIds = new Set((mine.visitData.captures ?? []).map((c) => c.id));
   const captures = [
     ...(mine.visitData.captures ?? []),
     ...(theirs.visit.captures ?? []).filter((c) => !captureIds.has(c.id)),
   ];
+
+  /* Things seen on the walk. Union by id, newer wins — the same rule findings
+     get, without a report bucket of its own: an ad-hoc item has no progress log
+     to reconcile and no issue button to be a duplicate of, so there is nothing
+     for a person to arbitrate. Losing one silently is the only failure worth
+     guarding, and unioning by id is what prevents it. */
+  const adhocById = new Map((mine.visitData.adhoc ?? []).map((a) => [a.id, a]));
+  for (const t of theirs.visit.adhoc ?? []) {
+    const m = adhocById.get(t.id);
+    if (!m || (t.updatedAt ?? 0) > (m.updatedAt ?? 0)) adhocById.set(t.id, t);
+  }
+  const adhoc = [...adhocById.values()];
 
   const feedback = { ...(mine.visitData.feedback ?? {}) };
   for (const [checkId, notes] of Object.entries(theirs.visit.feedback ?? {})) {
@@ -323,7 +389,7 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
   }
 
   return {
-    visitData: { responses, verifications, captures, feedback },
+    visitData: { responses, verifications, captures, feedback, adhoc, systems: assessedSystems },
     findings,
     hazards,
     report,

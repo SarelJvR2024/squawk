@@ -73,7 +73,19 @@ const ok = (n, c, x = "") => {
   await p.waitForTimeout(300);
   /* WHICH asset. The caption says what is wrong; these say what it is wrong
      with, which is the half a maintenance planner needs. Optional on screen,
-     so this proves they survive to the workbook when someone does fill them. */
+     so this proves they survive to the workbook when someone does fill them.
+
+     UPDATED 2026-09-10: asset and location moved behind a "+ asset & location"
+     toggle, shut by default, when per-photograph location was added. Three
+     empty boxes on every thumbnail was furniture; a closed panel hides nothing
+     because the button reads the values back once they are filled. The panel
+     has to be opened before the fields exist — and this suite ran red from the
+     commit that collapsed them until this line was written, which is exactly
+     the drift a browser suite is for. */
+  await p.locator('button[aria-expanded="false"]', { hasText: /asset & location/ })
+    .first()
+    .click();
+  await p.waitForTimeout(300);
   await p.locator('input[aria-label^="Asset name for"]').first()
     .fill("MV Switchboard 3B");
   await p.locator('input[aria-label^="Asset number or reference for"]').first()
@@ -85,6 +97,14 @@ const ok = (n, c, x = "") => {
   // agree a rating so the findings sheet has an agreed row AND a suggested one
   await p.goto(B + "/findings", { waitUntil: "networkidle" });
   await p.waitForTimeout(1200);
+  /* UPDATED 2026-09-10, with four other browser suites: /findings now lands on
+     the asset-system assessment, and the flat register of findings is behind
+     the "Findings raised" mode. This suite is about the WORKBOOK, so it wants
+     the shortest path to a finding it can rate — but pressing the mode is part
+     of the real flow, not a workaround: an auditor rating what they raised this
+     morning presses exactly this. */
+  await p.locator('button[role="radio"]', { hasText: /Findings raised/ }).first().click();
+  await p.waitForTimeout(700);
   await p.locator("button[aria-label*=' by ']").nth(12).click();
   await p.waitForTimeout(400);
   await p
@@ -155,8 +175,19 @@ const ok = (n, c, x = "") => {
   ok("csv downloads", /\.csv$/.test(d2.suggestedFilename()), d2.suggestedFilename());
 
   // findings-only workbook
+  /* UPDATED 2026-09-10: this was `.nth(2)` and it broke the day an "Asset
+     systems" export was added at index 2 — the click still worked, a workbook
+     still downloaded, and the only thing that said anything was wrong was the
+     filename assertion below. Positional selectors over a list somebody will
+     add to are a trap: name the card instead, so a new export shifts nothing
+     and a RENAMED one fails loudly, which is the failure worth having. */
   const dl3 = p.waitForEvent("download", { timeout: 60000 });
-  await p.locator("button", { hasText: /^Excel$/ }).nth(2).click();
+  await p
+    .locator('b:text-is("Findings")')
+    .locator("xpath=ancestor::div[.//button][1]")
+    .locator("button", { hasText: /^Excel$/ })
+    .first()
+    .click();
   const d3 = await dl3;
   await d3.saveAs("/home/claude/delivery/" + d3.suggestedFilename());
   ok("a single-sheet export downloads", /findings/.test(d3.suggestedFilename()), d3.suggestedFilename());
@@ -175,7 +206,11 @@ const ok = (n, c, x = "") => {
   ok("the photographs sheet exports", /photographs/i.test(d4.suggestedFilename()), d4.suggestedFilename());
   ok(
     "its columns are the index, in order, and File comes first",
-    /^\ufeff?File,Reference,Check,Discipline,Asset system,Area,Asset,Asset no\. \/ ref,Caption,Caption source,Taken,Attached/.test(head),
+    /* "Where it was taken" added 2026-09-10 with per-photograph location. It
+       sits before Asset deliberately: a maintenance planner reading this index
+       asks where before what, and a photograph whose location is known but
+       whose asset is not is the common case on a walk, not the exception. */
+    /^\ufeff?File,Reference,Check,Discipline,Asset system,Area,Where it was taken,Asset,Asset no\. \/ ref,Caption,Caption source,Taken,Attached/.test(head),
     head.slice(0, 160)
   );
   ok(

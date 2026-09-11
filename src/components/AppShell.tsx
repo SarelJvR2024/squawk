@@ -63,8 +63,22 @@ const NAV = [
   { href: "/capture", label: "Checks", icon: IconClipboard },
   { href: "/field", label: "Inspection", icon: IconPin },
   { href: "/review", label: "Review", icon: IconCamera },
-  { href: "/findings", label: "Findings", icon: IconLoop },
-  { href: "/hazards", label: "Hazards", icon: IconFlag },
+  /* ASSET ASSURANCE, not "Findings".
+     The screen stopped being a findings register when it became the place the
+     group agrees an asset system's band — which is the number ACSA publishes
+     and the whole reason the engagement exists. "Findings" named the evidence
+     rather than the work, and it named it in a way that suggested the register
+     of findings was the destination; the findings are still there, one press
+     inside it. "Asset assurance" is what TPJV was appointed to do. */
+  { href: "/findings", label: "Asset Assurance", icon: IconLoop },
+  /* HIRA, not "Hazards" and never "Risks".
+     It names the instrument: B170 001M IS a Hazard Identification and Risk
+     Assessment, and that is the language SACAA expects to see. "Risks" was the
+     alternative and is the one word that cannot be used here — the asset system
+     carries ACSA's ERM business-risk rating, and two things called risk, rated
+     on two different matrices and going to two different committees, is exactly
+     how the last round of confusion started. The route stays /hazards. */
+  { href: "/hazards", label: "HIRA", icon: IconFlag },
   { href: "/closure", label: "Follow-up", icon: IconLoop },
   { href: "/dashboard", label: "Dashboard", icon: IconGrid },
   /* Last, and in the nav rather than behind the shortcut sheet, because the
@@ -211,7 +225,35 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const C = 2 * Math.PI * 12;
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
+    /* THE SHELL IS LOCKED TO THE VIEWPORT, and it took a real defect to make
+       that explicit rather than incidental.
+
+       Sarel, on the laptop: "when i scroll to the bottom the whole UI moves up,
+       it should be locked so that this doesn't happen." Measured on /closure at
+       1440x900: the shell was 900px and `overflow: hidden`, the page's own
+       scroller held the 1,178px of content correctly — and the DOCUMENT still
+       reported a scrollHeight of 1077 and scrolled 177px, carrying the masthead,
+       the audit strip and the navigation off the top of the screen.
+
+       The cause was `sr-only`. Tailwind's sr-only is `position: absolute`, and
+       with no positioned ancestor those spans resolve against the INITIAL
+       containing block — so a screen-reader label sitting 1,077px down the
+       inner scroller inflated the html box by exactly that much. Nine of them
+       on that screen; the document's scrollHeight matched the last one to the
+       pixel.
+
+       Two fixes, because either alone leaves a way back in:
+         `position: relative` here gives every absolutely positioned descendant
+         a containing block INSIDE the shell, where `overflow: hidden` can clip
+         it — so a stray absolute added later cannot reach the document.
+         `overflow: hidden` on html and body (globals.css) means the document
+         has no scroll to give even if something does escape.
+
+       And the height is `100dvh` where the browser has it, falling back to the
+       `h-screen` class where it does not: on a phone `100vh` is the viewport
+       WITH the browser chrome retracted, so a shell sized to it is taller than
+       what you can see and the bottom navigation sits under the address bar. */
+    <div className="relative flex h-screen flex-col overflow-hidden" style={{ height: "100dvh" }}>
       {/* One row, and it must FIT.
        *
        *  It did not. Measured on the device this is built for, the header
@@ -495,6 +537,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       export or start again. The menu is then the shortcuts
                       sheet alone, which is still worth a menu — it is the only
                       place that says the keys exist. */}
+                  {/* FIRST, because on a phone it is the ONLY route to another
+                      site or another audit — the strip that used to carry them
+                      is desk-only now. The hint names what is live, so the menu
+                      answers "which audit am I in" as well as changing it. */}
+                  <MoreItem
+                    icon={<IconGrid width={14} height={14} />}
+                    label="All audits"
+                    hint={`Switch site or audit — ${entityOf(entityCode).short} ${visitLabel} now`}
+                    onClick={() => { setMore(false); setAudits(true); }}
+                  />
+                  <div className="my-[4px] h-px" style={{ background: "var(--menu-line)" }} />
                   {role !== "acsa" && (
                     <MoreItem
                       icon={<IconCloudUp width={14} height={14} />}
@@ -661,8 +714,27 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
+      {/* THE AUDIT STRIP — DESK ONLY, and that is Sarel's call on his own
+          phone: "there is a duplication in KSIA label. As long as the top
+          purple header is visible then we don't need the second one to also be
+          visible the whole time."
+
+          He is right twice over. The masthead already says KSIA and Sep 2026,
+          in the app's largest type, and it never scrolls. And this strip is not
+          cheap: it is a fixed band above every screen, so on a 664px phone it
+          spent about 40px permanently restating a fact already on screen — on
+          top of a 52px masthead, a sticky filter bar, an action bar and the
+          navigation. Measured on Inspection, the fixed furniture was two thirds
+          of the viewport.
+
+          NOTHING IS LOST ON A PHONE. Everything this strip does — switching
+          site, switching audit, starting a new one — is what "All audits" does,
+          and that is now the first item in the More menu, which is present at
+          every width. From sm up there is room for the strip and it stays,
+          because on a tablet at a desk the visit timeline is genuinely useful
+          at a glance. */}
       <div
-        className="no-scrollbar flex shrink-0 items-center overflow-x-auto border-b px-3.5 py-[7px]"
+        className="no-scrollbar hidden shrink-0 items-center overflow-x-auto border-b px-3.5 py-[7px] sm:flex"
         style={{ background: "var(--panel)", borderColor: "var(--line)" }}
       >
         {/* Which audit everything below belongs to. Ten entities, six visits
@@ -692,7 +764,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <IconGrid width={11} height={11} />
           All audits
         </button>
-        <span className="mr-3 whitespace-nowrap font-mono text-[8.5px] tracking-[0.1em] uppercase" style={{ color: "var(--ink-4)" }}>
+        {/* Desk only. On a phone this row is a horizontal scroller carrying an
+            entity picker, a button, this hint and six visit chips — it reads as
+            cut off because most of it is off-screen, and the hint is the part
+            that earns its place least. Everything it points at is behind
+            "All audits", which is right there. */}
+        <span className="mr-3 hidden whitespace-nowrap font-mono text-[8.5px] tracking-[0.1em] uppercase sm:inline" style={{ color: "var(--ink-4)" }}>
           tap a visit to open it
         </span>
         {visits.length === 0 && (

@@ -59,9 +59,19 @@ check(
   ""
 );
 
+/* 2026-09-10: the field screen's four commit sites went through one helper,
+   `saveField`, so that saving a check also writes WHERE it was inspected — see
+   Response.location. The assertion is the same one it always was (the field
+   screen credits the FIELD half and never the bare combined flag); it just
+   follows the call through the helper instead of matching the literal, and it
+   pins the helper to "field" so a later edit cannot quietly make Save credit
+   the desk. */
 check(
   "the field screen commits field work",
-  /commit\(c\.id, "field"\)/.test(field) && !/commit\(c\.id\);/.test(field),
+  /const saveField = \(id: string\) => \{[\s\S]{0,400}?commit\(id, "field"\);/.test(field) &&
+    /saveField\(c\.id\)/.test(field) &&
+    !/commit\(c\.id\);/.test(field) &&
+    !/commit\(id\);/.test(field),
   ""
 );
 

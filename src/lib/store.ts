@@ -14,6 +14,7 @@ import { useMemo } from "react";
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
 import { clearAllMedia, delBlob, delBlobs } from "./media";
 import type {
+  AdHocItem,
   Attachment,
   Capture,
   Check,
@@ -24,6 +25,10 @@ import type {
   Likelihood,
   PriorFinding,
   PriorRating,
+  MitigationAction,
+  PossibleEvent,
+  RootCauseNote,
+  SystemAssessment,
   ProgressNote,
   Response,
   Role,
@@ -160,6 +165,23 @@ export interface VisitData {
    *  correctly as "nobody has commented yet". Bumping the version to add a
    *  field that is absent-means-empty would risk a migration for no gain. */
   feedback?: Record<string, FeedbackNote[]>;
+  /** Things seen on the walk that the register does not cover. Optional for
+   *  the same reason `feedback` is: an older persisted visit simply has none,
+   *  which reads correctly as "nobody recorded any". Absent-means-empty is the
+   *  one shape change that does not need a version bump, and inventing a
+   *  migration to write `[]` into every historical visit would be a risk taken
+   *  for no gain. */
+  adhoc?: AdHocItem[];
+  /** THE ASSET SYSTEM'S OWN RATING, keyed by `${discipline}|${system}`.
+   *
+   *  ACSA rates asset systems, not findings — see SystemAssessment. Per visit,
+   *  because the whole point is comparing this audit's band to the last one's;
+   *  a single rating carried across visits could not say a system improved.
+   *
+   *  Absent-means-empty, like `feedback` and `adhoc`: a visit persisted before
+   *  this existed simply has none, which reads correctly as "nobody assessed
+   *  any", so no persist version has to move. */
+  systems?: Record<string, SystemAssessment>;
 }
 
 const EMPTY_VISIT: VisitData = Object.freeze({
@@ -167,6 +189,8 @@ const EMPTY_VISIT: VisitData = Object.freeze({
   verifications: Object.freeze({}) as Record<string, Verification>,
   captures: Object.freeze([]) as unknown as Capture[],
   feedback: Object.freeze({}) as Record<string, FeedbackNote[]>,
+  adhoc: Object.freeze([]) as unknown as AdHocItem[],
+  systems: Object.freeze({}) as Record<string, SystemAssessment>,
 });
 
 function emptyResponse(checkId: string): Response {
@@ -318,6 +342,43 @@ interface State {
   /** Appends a dated, attributed entry to a carried item's progress log. */
   addProgress: (pf: string, note: string) => void;
   patchVerification: (pf: string, p: Partial<Verification>) => void;
+  /** The hazardous events one carried finding could lead to, each with its own
+   *  likelihood. Recorded per visit, so the timeline says which audit thought
+   *  of which. See PossibleEvent. Returns the new id, or "" if the event was
+   *  blank. */
+  addPossibleEvent: (
+    pf: string,
+    event: string,
+    likelihood?: Likelihood | null,
+    note?: string
+  ) => string;
+  patchPossibleEvent: (pf: string, id: string, p: Partial<PossibleEvent>) => void;
+  removePossibleEvent: (pf: string, id: string) => void;
+
+  /* ---- the asset system's own rating. See SystemAssessment. ---- */
+  /** The pair, in one place, so no caller invents its own separator. */
+  systemKey: (discipline: string, system: string) => string;
+  /** Never undefined: an asset system nobody has assessed reads as an empty
+   *  assessment, which is the honest state, rather than forcing every caller to
+   *  handle a null. Nothing is written to the store by reading. */
+  systemAssessment: (discipline: string, system: string) => SystemAssessment;
+  patchSystem: (discipline: string, system: string, p: Partial<SystemAssessment>) => void;
+  addRootCause: (discipline: string, system: string, cause: string, note?: string) => string;
+  patchRootCause: (
+    discipline: string,
+    system: string,
+    id: string,
+    p: Partial<RootCauseNote>
+  ) => void;
+  removeRootCause: (discipline: string, system: string, id: string) => void;
+  addMitigation: (discipline: string, system: string, action: string) => string;
+  patchMitigation: (
+    discipline: string,
+    system: string,
+    id: string,
+    p: Partial<MitigationAction>
+  ) => void;
+  removeMitigation: (discipline: string, system: string, id: string) => void;
 
   addAttachment: (checkId: string, a: Omit<Attachment, "id" | "createdAt">) => void;
   /** Write a transcript, its provenance or a revision back onto a note that is
@@ -340,6 +401,15 @@ interface State {
   importBundle: (b: Bundle) => MergeReport | string;
   toggleFeedbackResolved: (checkId: string, id: string) => void;
   removeFeedback: (checkId: string, id: string) => void;
+
+  /** Things seen on the walk. See AdHocItem — these are NOT part of the 324
+   *  and no count may treat them as though they were. */
+  adhoc: () => AdHocItem[];
+  addAdhoc: (a: Omit<AdHocItem, "id" | "createdAt">) => string;
+  updateAdhoc: (id: string, p: Partial<AdHocItem>) => void;
+  removeAdhoc: (id: string) => void;
+  addAdhocAttachment: (id: string, a: Omit<Attachment, "id" | "createdAt">) => void;
+  removeAdhocAttachment: (id: string, attachmentId: string) => void;
 
   addCapture: (c: Omit<Capture, "id" | "createdAt">) => void;
   assignCapture: (captureId: string, checkId: string) => void;
@@ -706,6 +776,180 @@ export const useStore = create<State>()(
           set({ lastSavedAt: Date.now() });
         },
 
+        /* THE HAZARDOUS EVENTS ONE FINDING COULD LEAD TO — see PossibleEvent.
+           Recorded against the VERIFICATION, so they belong to the visit that
+           thought of them: an event nobody had considered in 2025 and that the
+           2026 walk turned up is 2026's contribution, and flattening them onto
+           the carried finding would lose which audit saw it. The next visit
+           reads every earlier visit's list through the timeline. */
+        addPossibleEvent: (pf, event, likelihood, note) => {
+          const text = event.trim();
+          if (!text) return "";
+          const cur = get().verification(pf);
+          const item: PossibleEvent = {
+            id: `EV-${uid().toUpperCase().slice(0, 5)}`,
+            event: text,
+            /* UNRATED IS A REAL STATE and the default. The likelihood is the
+               group's, agreed on the matrix; a walk-up guess filed as one is
+               the drift ratingConfirmed exists to stop. */
+            likelihood: likelihood ?? null,
+            note: note?.trim() ?? "",
+            createdAt: Date.now(),
+            createdBy: get().auditor,
+          };
+          const next: Verification = {
+            ...cur,
+            possibleEvents: [...(cur.possibleEvents ?? []), item],
+            verifiedBy: get().auditor,
+            updatedAt: Date.now(),
+          };
+          writeScope((d) => ({ verifications: { ...d.verifications, [pf]: next } }));
+          set({ lastSavedAt: Date.now() });
+          return item.id;
+        },
+
+        patchPossibleEvent: (pf, id, p) => {
+          const cur = get().verification(pf);
+          const next: Verification = {
+            ...cur,
+            possibleEvents: (cur.possibleEvents ?? []).map((e) =>
+              e.id === id ? { ...e, ...p } : e
+            ),
+            verifiedBy: get().auditor,
+            updatedAt: Date.now(),
+          };
+          writeScope((d) => ({ verifications: { ...d.verifications, [pf]: next } }));
+          set({ lastSavedAt: Date.now() });
+        },
+
+        removePossibleEvent: (pf, id) => {
+          const cur = get().verification(pf);
+          const next: Verification = {
+            ...cur,
+            possibleEvents: (cur.possibleEvents ?? []).filter((e) => e.id !== id),
+            verifiedBy: get().auditor,
+            updatedAt: Date.now(),
+          };
+          writeScope((d) => ({ verifications: { ...d.verifications, [pf]: next } }));
+          set({ lastSavedAt: Date.now() });
+        },
+
+        /* ------------------------------- the asset system's own rating --- */
+
+        systemKey: (discipline, system) => `${discipline}|${system}`,
+
+        systemAssessment: (discipline, system) => {
+          const key = `${discipline}|${system}`;
+          return (
+            get().visitData().systems?.[key] ?? {
+              key,
+              discipline,
+              system,
+              /* UNRATED, and unrated is a real state. A band nobody agreed must
+                 never render as Green — see ratingConfirmed. */
+              severity: null,
+              likelihood: null,
+              ratingConfirmed: false,
+              ratingRationale: "",
+              rootCauses: [],
+              actions: [],
+              note: "",
+              assessedBy: "",
+              assessedAt: null,
+            }
+          );
+        },
+
+        patchSystem: (discipline, system, p) => {
+          const key = `${discipline}|${system}`;
+          const next: SystemAssessment = {
+            ...get().systemAssessment(discipline, system),
+            ...p,
+            updatedAt: Date.now(),
+          };
+          /* WHO AGREED IT AND WHEN, stamped by the tap that confirms the
+             rating and by nothing else. A stamp written on every keystroke
+             would say the rating was agreed at the moment somebody fixed a
+             typo in the rationale. */
+          if (p.ratingConfirmed === true) {
+            next.assessedBy = get().auditor;
+            next.assessedAt = Date.now();
+          }
+          writeScope((d) => ({ systems: { ...(d.systems ?? {}), [key]: next } }));
+          set({ lastSavedAt: Date.now() });
+        },
+
+        addRootCause: (discipline, system, cause, note) => {
+          const text = cause.trim();
+          if (!text) return "";
+          const cur = get().systemAssessment(discipline, system);
+          /* Recorded once. Pressing an ACSA cause that is already on the list
+             is a mis-tap, not a second cause, and two identical chips is a
+             list nobody can read. */
+          const already = cur.rootCauses.find((r) => r.cause === text);
+          if (already) return already.id;
+          const item: RootCauseNote = {
+            id: `RC-${uid().toUpperCase().slice(0, 5)}`,
+            cause: text,
+            note: note?.trim() ?? "",
+            createdAt: Date.now(),
+            createdBy: get().auditor,
+          };
+          get().patchSystem(discipline, system, { rootCauses: [...cur.rootCauses, item] });
+          return item.id;
+        },
+
+        patchRootCause: (discipline, system, id, p) => {
+          const cur = get().systemAssessment(discipline, system);
+          get().patchSystem(discipline, system, {
+            rootCauses: cur.rootCauses.map((r) => (r.id === id ? { ...r, ...p } : r)),
+          });
+        },
+
+        removeRootCause: (discipline, system, id) => {
+          const cur = get().systemAssessment(discipline, system);
+          get().patchSystem(discipline, system, {
+            rootCauses: cur.rootCauses.filter((r) => r.id !== id),
+          });
+        },
+
+        addMitigation: (discipline, system, action) => {
+          const text = action.trim();
+          if (!text) return "";
+          const cur = get().systemAssessment(discipline, system);
+          const item: MitigationAction = {
+            id: `MA-${uid().toUpperCase().slice(0, 5)}`,
+            action: text,
+            /* NO OWNER AND NO DATE BY DEFAULT, deliberately. Defaulting the
+               owner to whoever typed it puts a name against a job nobody
+               accepted, and a target date nobody agreed is worse than a blank
+               the screen can flag. */
+            owner: "",
+            dueDate: "",
+            status: "Open",
+            createdAt: Date.now(),
+            createdBy: get().auditor,
+          };
+          get().patchSystem(discipline, system, { actions: [...cur.actions, item] });
+          return item.id;
+        },
+
+        patchMitigation: (discipline, system, id, p) => {
+          const cur = get().systemAssessment(discipline, system);
+          get().patchSystem(discipline, system, {
+            actions: cur.actions.map((a) =>
+              a.id === id ? { ...a, ...p, updatedAt: Date.now() } : a
+            ),
+          });
+        },
+
+        removeMitigation: (discipline, system, id) => {
+          const cur = get().systemAssessment(discipline, system);
+          get().patchSystem(discipline, system, {
+            actions: cur.actions.filter((a) => a.id !== id),
+          });
+        },
+
         feedbackFor: (checkId) => get().visitData().feedback?.[checkId] ?? [],
 
         addFeedback: (checkId, text) => {
@@ -824,6 +1068,73 @@ export const useStore = create<State>()(
             },
           })),
 
+        /* ---------- things seen on the walk ----------
+
+           Scoped to the visit like a response, because an observation made at
+           King Shaka in September is not something Cape Town has to account
+           for. Stored as a list rather than a map: there is no natural key,
+           and the order they were recorded in is the order they were seen. */
+
+        adhoc: () => get().visitData().adhoc ?? [],
+
+        addAdhoc: (a) => {
+          /* WALK-, and random. A sequential number would read better and merge
+             worse: two auditors on two devices would both mint WALK-03, the
+             merge keys on id, and one of the two observations would vanish
+             without anything saying so. Same reason findings are F-xxxxx. */
+          const id = `WALK-${uid().toUpperCase().slice(0, 5)}`;
+          writeScope((d) => ({
+            adhoc: [...(d.adhoc ?? []), { ...a, id, createdAt: Date.now(), updatedAt: Date.now() }],
+          }));
+          set({ lastSavedAt: Date.now() });
+          return id;
+        },
+
+        updateAdhoc: (id, p) =>
+          writeScope((d) => ({
+            adhoc: (d.adhoc ?? []).map((x) =>
+              x.id === id ? { ...x, ...p, updatedAt: Date.now() } : x
+            ),
+          })),
+
+        removeAdhoc: (id) => {
+          /* The bytes go with it. An orphaned blob is invisible and counts
+             against the storage budget forever. */
+          const item = (get().visitData().adhoc ?? []).find((x) => x.id === id);
+          const keys = (item?.attachments ?? []).map((a) => a.blobKey).filter(Boolean) as string[];
+          if (keys.length) void delBlobs(keys);
+          writeScope((d) => ({ adhoc: (d.adhoc ?? []).filter((x) => x.id !== id) }));
+        },
+
+        addAdhocAttachment: (id, a) => {
+          const item = (get().visitData().adhoc ?? []).find((x) => x.id === id);
+          if (!item) return;
+          get().updateAdhoc(id, {
+            attachments: [
+              ...item.attachments,
+              {
+                ...a,
+                id: uid(),
+                /* The item's own id is the prefix, so a walk photograph reads
+                   WALK-A3F2K_P01 and can never be mistaken in the zip for one
+                   attached to a register check-point. */
+                ...(a.kind === "photo" ? { ref: nextPhotoRef(id, item.attachments) } : {}),
+                createdAt: Date.now(),
+              },
+            ],
+          });
+        },
+
+        removeAdhocAttachment: (id, attachmentId) => {
+          const item = (get().visitData().adhoc ?? []).find((x) => x.id === id);
+          if (!item) return;
+          const a = item.attachments.find((x) => x.id === attachmentId);
+          if (a?.blobKey) void delBlob(a.blobKey);
+          get().updateAdhoc(id, {
+            attachments: item.attachments.filter((x) => x.id !== attachmentId),
+          });
+        },
+
         addCapture: (c) =>
           writeScope((d) => ({
             captures: [...d.captures, { ...c, id: `CAP-${uid()}`, createdAt: Date.now() }],
@@ -874,6 +1185,7 @@ export const useStore = create<State>()(
                 v.attachments.map((a) => a.blobKey)
               ),
               ...data.captures.map((c) => c.blobKey),
+              ...(data.adhoc ?? []).flatMap((x) => x.attachments.map((a) => a.blobKey)),
             ].filter((k): k is string => !!k);
             if (keys.length) void delBlobs(keys);
           }
@@ -1303,8 +1615,17 @@ export const useResponses = () => useVisitData().responses;
 export const useVerifications = () => useVisitData().verifications;
 export const useCaptures = () => useVisitData().captures;
 export const useFeedback = () => useVisitData().feedback ?? EMPTY_FEEDBACK;
+/** Things seen on the walk at the entity and visit in view. NOT part of the
+ *  324 — see AdHocItem, and every count that touches these. */
+export const useAdhoc = () => useVisitData().adhoc ?? EMPTY_ADHOC;
+
+/** Every asset-system assessment at the entity and visit in view, keyed by
+ *  `${discipline}|${system}`. Absent reads as none assessed. */
+export const useSystems = () => useVisitData().systems ?? EMPTY_SYSTEMS;
 
 const EMPTY_FEEDBACK: Record<string, FeedbackNote[]> = Object.freeze({});
+const EMPTY_ADHOC: AdHocItem[] = Object.freeze([]) as unknown as AdHocItem[];
+const EMPTY_SYSTEMS: Record<string, SystemAssessment> = Object.freeze({});
 
 /** Findings raised on the visit currently in view. */
 export function useVisitFindings(): Finding[] {

@@ -297,7 +297,24 @@ check("hazards are scoped to entity and visit like everything else", /export fun
 /* --------------------------------- Part 6: one rating block, not three copies */
 
 check("RecordActions exists", actions.length > 0);
-check("the findings screen renders it", /<RecordActions/.test(findingsPage));
+/* 2026-09-10: the asset-system screen picks severity and likelihood with
+   RatingPicker instead — Sarel: "remove the large rating matrix, make it more
+   simple to select severity and likelihood". The block itself did not fork: the
+   FINDING still renders RecordActions in full, in FindingDetail, which is what
+   this assertion has always been about. RatingPicker takes its scales and its
+   banding from the same src/lib/risk.ts, so there is still exactly one
+   vocabulary for the instrument. */
+check(
+  "the finding pane renders it",
+  /<RecordActions/.test(src("components", "FindingDetail.tsx"))
+);
+check(
+  "and the asset-system screen picks the same scales from the same place",
+  /import \{ LIKELIHOODS, LIKELIHOOD_DEF, SEVERITIES, SEVERITY_DEF \} from "@\/lib\/risk";/.test(
+    src("components", "RatingPicker.tsx")
+  ),
+  "a second copy of B170 001M's scales is how two screens come to carry two vocabularies"
+);
 check("the hazard register renders it", /<RecordActions/.test(hazardsPage));
 check(
   "the findings screen no longer carries its own matrix",
@@ -326,7 +343,17 @@ check("the ERM block sits directly under the B170 001M one",
   actions.indexOf("showErm &&") < actions.indexOf("What the scales mean"));
 check("hazards ask for the ERM block and findings do not", /showErm\b/.test(hazardsPage) && !/showErm/.test(findingsPage));
 check("RootCauseAdvice is used from the hazard register too", /<RootCauseAdvice/.test(hazardsPage));
-check("and still from the check screen and the findings screen", /<RootCauseAdvice/.test(detail) && /<RootCauseAdvice/.test(findingsPage));
+/* 2026-09-10: the per-finding pane moved out of findings/page.tsx into
+   FindingDetail.tsx when the Findings screen became an asset-system assessment.
+   The advice renders in exactly the same place in the same JSX — it is lifted,
+   not rewritten — so the assertion follows it to the file it now lives in. */
+check(
+  "and still from the check screen and the finding pane",
+  /<RootCauseAdvice/.test(detail) &&
+    /<RootCauseAdvice/.test(
+      src("components", "FindingDetail.tsx")
+    )
+);
 
 /* ------------------------------- Part 7: the prompts, and the rules in them */
 

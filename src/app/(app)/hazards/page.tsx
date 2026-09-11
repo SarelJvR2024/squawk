@@ -353,11 +353,15 @@ export default function HazardsPage() {
       <div className="mx-auto w-full max-w-[1240px] px-5 pt-5 pb-16">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-[18px] font-bold">Hazard register</h2>
+            <h2 className="text-[18px] font-bold">
+              HIRA — this audit&rsquo;s hazard identification &amp; risk assessment
+            </h2>
             <p className="mt-1 max-w-[78ch] text-[12.5px]" style={{ color: "var(--ink-2)" }}>
-              What the findings expose, rated as events on ACSA&apos;s B170 001M matrix. A missing
-              record is a finding; what the record was protecting against is the hazard, and that is
-              the thing worth a severity.
+              What the findings expose, rated as events on ACSA&apos;s B170 001M matrix — which is
+              itself a Hazard Identification and Risk Assessment, and the language SACAA expects. A
+              missing record is a finding; what the record was protecting against is the hazard, and
+              that is the thing worth a severity. Business risk on the asset system is rated
+              separately, on ACSA&apos;s ERM matrix, and goes somewhere else.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">

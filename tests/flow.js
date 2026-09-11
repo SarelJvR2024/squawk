@@ -272,6 +272,15 @@ async function badge(p, href) {
   /* ---------------- 5. agree the rating ---------------- */
   await p.goto(B + "/findings", { waitUntil: "networkidle" });
   await p.waitForTimeout(1500);
+  /* 2026-09-10: the screen is the ASSET SYSTEM assessment now and opens on it,
+     which is what Sarel asked for. The flat register of findings is the other
+     half of the same screen, one press away, and that is where an auditor
+     rating what they raised this morning works — they do not know or care which
+     asset systems the eleven findings are under. Pressing it is part of the
+     flow, not a workaround: if the register ever stops being reachable in one
+     press, this line fails, which is exactly the regression worth catching. */
+  await p.locator('button[role="radio"]', { hasText: /Findings raised/ }).first().click();
+  await p.waitForTimeout(700);
   const cell = p.locator("button[aria-label*=' by likelihood ']").first();
   ok("the findings screen offers the B170 001M matrix", (await cell.count()) > 0);
   /* Agree 5A on EVERY finding — the worst cell, so the effect is unambiguous. */
@@ -397,7 +406,12 @@ async function badge(p, href) {
      fresh device there was no way to record a hazard at all. */
   await p.goto(B + "/field", { waitUntil: "networkidle" });
   await p.waitForTimeout(2000);
-  const newHazard = p.locator("button", { hasText: /New hazard/ });
+  /* BY WHAT IT DOES, not by the word it used to carry. The bottom bar was
+     rebuilt around "Add item" as its primary and the two secondary buttons
+     lost their "+ New " prefixes to make room at 375px — the hazard path is
+     unchanged, only shorter to read. Matched loosely so the next tightening of
+     that bar does not fail a test about hazards. */
+  const newHazard = p.locator("button", { hasText: /^\+?\s*(New )?[Hh]azard$/ });
   ok("the walk offers a way to raise a hazard where it is seen",
      (await newHazard.count()) > 0);
   await newHazard.first().click();
@@ -435,11 +449,22 @@ async function badge(p, href) {
      time. That difference is the whole point of following up. */
   await p.locator("button.min-h-\\[56px\\]", { hasText: /^Repeat$/ }).first().click();
   await p.waitForTimeout(800);
-  ok("a mitigation action is asked for when an item does not close",
-     (await p.locator("text=Mitigation action").count()) > 0,
+  /* 2026-09-10: "Mitigation action — what must still happen", shown only when
+     the outcome was not Closed, became TWO fields shown always — "Remediation
+     action — what fixes it" and "Next step — what happens next". ACSA's own
+     sheet folds the fix and the chase into one cell and it gets filled with the
+     chase, which is how a finding arrives at the next audit with no recorded
+     remedy at all. The assertion is the same one: what has to be done is
+     recorded against the CARRIED item, never raised as a new finding, which
+     would break the chain back to the audit that found it. */
+  ok("a remediation action is asked for, against the carried item",
+     (await p.locator("text=Remediation action").count()) > 0,
      "recorded against the carried item, not raised as a new finding");
+  ok("and the next step is asked for separately",
+     (await p.locator("text=Next step").count()) > 0,
+     "the fix and the chase are different questions");
   await p
-    .locator('textarea[placeholder^="What is outstanding"]')
+    .locator('textarea[aria-label="Remediation action"]')
     .first()
     .fill("Contractor appointed; parts on 6-week lead time.");
   await p.waitForTimeout(300);
@@ -450,7 +475,12 @@ async function badge(p, href) {
     await p.waitForTimeout(600);
   }
   const timeline = await p.locator("body").innerText();
-  ok("the history is shown as a timeline", /every audit that touched this/i.test(timeline));
+  /* 2026-09-10: the per-audit history became one merged stream — every visit's
+     outcome, evidence, photographs, voice notes and updates in one order — so
+     the heading changed with it. Same property under test: the screen shows
+     what happened across audits rather than only this visit's copy. */
+  ok("the history is shown as a timeline",
+     /everything recorded against this/i.test(timeline));
   ok("including the audit that raised it", /raised/i.test(timeline));
   /* The one that matters: ACSA's Progress/Update is a single cell that gets
      typed over, so a second entry would replace the first. */
@@ -459,8 +489,11 @@ async function badge(p, href) {
      "a cell that gets typed over cannot say when an item moved or who said so");
   ok("each entry carries its author and the status at the time",
      /Sarel/.test(timeline) && /Open - repeat/i.test(timeline));
+  /* The remediation is an entry in the stream now rather than a line of its own
+     under the log, so the assertion follows the text it was always about. */
   ok("and what is still outstanding is called out",
-     /still to happen/i.test(timeline));
+     /Remediation action/i.test(timeline) &&
+       /Contractor appointed/.test(timeline));
 
   ok("no page errors anywhere in the flow", errs.length === 0, errs[0] || "");
 

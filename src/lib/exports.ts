@@ -1,4 +1,5 @@
 import type {
+  AdHocItem,
   AnswerLibrary,
   Attachment,
   Check,
@@ -6,6 +7,9 @@ import type {
   Hazard,
   PriorFinding,
   Response,
+  MitigationAction,
+  RootCauseNote,
+  SystemAssessment,
   Verification,
 } from "./types";
 import { BAND_AS_RATING, BAND_META, bandFor, cellCode, movement } from "./risk";
@@ -83,8 +87,19 @@ export interface ExportInput {
    *  or a fixture written before the register existed — still produces a
    *  workbook, with an empty Hazards sheet rather than a crash. */
   hazards?: Hazard[];
+  /** Things seen on the walk that the register does not cover. Optional for
+   *  the same reason hazards are — an older caller still produces a workbook.
+   *  They are NEVER folded into the register sheet or the completion figure:
+   *  the whole value of an ad-hoc observation is that it was not on the list,
+   *  and a row that cannot say so is a row that misrepresents our coverage. */
+  adhoc?: AdHocItem[];
   prior: PriorFinding[];
   verifications: Record<string, Verification>;
+  /** The asset systems' own ratings, keyed `${discipline}|${system}`. Optional
+   *  for the same reason `adhoc` is — an older caller still produces a
+   *  workbook, and an asset system nobody rated is reported as unrated rather
+   *  than omitted. */
+  systems?: Record<string, SystemAssessment>;
   /** Loaded lazily; when absent the evidence and issue labels fall back to indices. */
   library: Record<string, AnswerLibrary> | null;
 }
@@ -115,11 +130,31 @@ export function registerSheet(x: ExportInput): Sheet {
       c.area,
       c.assetClass,
       c.requirement,
+      c.confirmedBy ?? "",
+      /* Spelled out rather than left as the stored token. "none" in a cell
+         reads as missing data; "nothing to see on site" is a finding about the
+         check, and it is one an auditor should be able to sort on. */
+      c.inspect === "reconcile"
+        ? "Reconcile the record"
+        : c.inspect === "examine"
+          ? "Go and see"
+          : c.inspect === "none"
+            ? "Nothing to see on site"
+            : "",
+      c.complianceTest ?? c.evidenceExpected ?? "",
       c.vtype ?? "",
       c.target,
       c.acsaThreshold || "ACSA states no threshold",
       docs(c),
-      c.siteVariant ? `${c.siteVariant.site}: ${c.siteVariant.note}` : "",
+      /* A CONFLICT READS AS A CONFLICT IN THE WORKBOOK TOO. This column is
+         where a reviewer at ACSA head office will meet it, and "FALE: yearly"
+         beside a requirement headed "3 yearly" is a discrepancy they have to
+         spot for themselves. Say it. */
+      c.siteVariant?.conflict
+        ? `CONFLICT (${c.siteVariant.conflict.direction}) — the check says "${c.siteVariant.conflict.checkSays}"; ${c.siteVariant.site} requires "${c.siteVariant.conflict.siteRequires}" per ${c.siteVariant.conflict.source}`
+        : c.siteVariant
+          ? `${c.siteVariant.site}: ${c.siteVariant.note}`
+          : "",
       c.basis,
       c.basisConfidence === "medium" ? "cited at document level" : "",
       c.basisNote ?? "",
@@ -130,6 +165,11 @@ export function registerSheet(x: ExportInput): Sheet {
       priorFor(x.entity, c.discipline, c.system)?.key ?? "",
       /* Capture starts here. */
       r?.compliance ? STATUS_WORD[r.compliance] : "",
+      /* WHERE THE ASSET WAS INSPECTED, and it is a different column from
+         `Area`. Area is ACSA's category on the register; this is the auditor's
+         own words for where they were standing, which is the half that lets
+         somebody walk back to the thing and close the finding. */
+      r?.location?.trim() ?? "",
       r?.observation ?? "",
       evidence ?? "",
       issues ?? "",
@@ -160,6 +200,14 @@ export function registerSheet(x: ExportInput): Sheet {
       { header: "Area", width: 20 },
       { header: "Class", width: 10 },
       { header: "Requirement", width: 58, wrap: true },
+      /* From the register review, agreed 2026-09-10. These three sit next to
+         the requirement rather than at the far right, because they are how the
+         reader decides what to go and do about the row. "Verification type" is
+         kept beside them deliberately, not replaced — it is ACSA's own column
+         and their copy of the workbook has to reconcile against ours. */
+      { header: "Confirmed by", width: 13 },
+      { header: "On the walk", width: 15 },
+      { header: "Compliant when", width: 66, wrap: true },
       { header: "Verification type", width: 22, wrap: true },
       { header: "Target / limit", width: 58, wrap: true },
       { header: "ACSA states", width: 58, wrap: true },
@@ -174,6 +222,7 @@ export function registerSheet(x: ExportInput): Sheet {
       { header: "Walkabout instruction", width: 48, wrap: true },
       { header: "Mar 2025 finding", width: 14 },
       { header: `Status (${visitLabel(x.visit)})`, width: 16 },
+      { header: "Where it was inspected", width: 28 },
       { header: "Observation", width: 60, wrap: true },
       { header: "Evidence requested", width: 42, wrap: true },
       { header: "Issues found", width: 52, wrap: true },
@@ -333,6 +382,11 @@ export function photographsSheet(x: ExportInput): Sheet {
         c.discipline,
         c.system,
         c.area,
+        /* WHERE IT WAS TAKEN, in the auditor's own words, and it is a different
+           column from `Area` on purpose. Area is the register's category — a
+           third of the values at KSIA are not places at all. This is the one a
+           maintenance planner can act on. */
+        a.location?.trim() ?? "",
         /* WHICH asset, as the auditor read it off the plate. Both blank is a
            legitimate answer — plenty of evidence is not about one asset — so
            these stay empty rather than shouting the way the caption column
@@ -356,6 +410,44 @@ export function photographsSheet(x: ExportInput): Sheet {
             ? "On the device and in the record store"
             : "On the device only",
         a.cloudUrl ?? "",
+        "Register check-point",
+      ]);
+    }
+  }
+  /* Photographs attached to something seen on the walk. Same sheet, because a
+     reader looking for an image should not have to know which of two places it
+     was captured from — and the last column says which it was. */
+  for (const item of x.adhoc ?? []) {
+    for (const a of item.attachments) {
+      if (a.kind !== "photo") continue;
+      rows.push([
+        photoFilename(a),
+        a.ref ?? "",
+        item.id,
+        item.discipline ?? "",
+        item.system ?? "",
+        item.area,
+        a.location?.trim() ?? "",
+        a.assetName?.trim() ?? "",
+        a.assetRef?.trim() ?? "",
+        a.caption?.trim() ?? "",
+        a.caption?.trim()
+          ? a.captionSource === "assistant"
+            ? "Assistant, accepted by the auditor"
+            : "Auditor"
+          : "NO CAPTION",
+        when(a.takenAt) ?? "",
+        when(a.createdAt),
+        a.createdBy,
+        a.width && a.height ? `${a.width}×${a.height}` : "",
+        a.bytes ? Math.round(a.bytes / 1024) : "",
+        a.unavailable
+          ? "No image stored"
+          : a.cloudUrl
+            ? "On the device and in the record store"
+            : "On the device only",
+        a.cloudUrl ?? "",
+        "Seen on the walk — NOT one of the register check-points",
       ]);
     }
   }
@@ -369,6 +461,7 @@ export function photographsSheet(x: ExportInput): Sheet {
       { header: "Discipline", width: 20 },
       { header: "Asset system", width: 26 },
       { header: "Area", width: 20 },
+      { header: "Where it was taken", width: 28 },
       { header: "Asset", width: 28 },
       { header: "Asset no. / ref", width: 18 },
       { header: "Caption", width: 62, wrap: true },
@@ -380,6 +473,63 @@ export function photographsSheet(x: ExportInput): Sheet {
       { header: "Size (KB)", width: 10 },
       { header: "Where the image is", width: 34 },
       { header: "Record copy", width: 60 },
+      { header: "Source", width: 46 },
+    ],
+    rows,
+  };
+}
+
+/* --------------------------------------------------------- seen on the walk */
+
+/** One row per thing seen on the walk that the register does not cover.
+ *
+ *  ITS OWN SHEET, and that is the point rather than a filing convenience. An
+ *  ad-hoc observation put on the register sheet would be a 325th row on a
+ *  324-row deliverable, and every count anybody took off that sheet would be
+ *  wrong by however many we happened to see. Here it is unambiguous: this is
+ *  what we found that nobody asked us to look for.
+ *
+ *  A cluster of these in one discipline is evidence about the check-list, not
+ *  about the airport. Nothing computes that yet; the data is kept clean enough
+ *  that it can be asked later. */
+export function walkSheet(x: ExportInput): Sheet {
+  const rows = (x.adhoc ?? []).map((a) => [
+    a.id,
+    ORIGIN_TEXT[a.origin],
+    /* Blank is a real answer on all three. An observation nobody could
+       attribute to a discipline is a normal state on a walk, and forcing one
+       would put a guess in a client deliverable. */
+    a.discipline ?? "",
+    a.system ?? "",
+    a.area,
+    a.description,
+    a.outcome ? STATUS_WORD[a.outcome] : "",
+    a.note,
+    a.attachments.filter((t) => t.kind === "photo").length,
+    a.attachments.filter((t) => t.kind === "voice").length,
+    /* Whether this observation became a finding. Empty means it has not — which
+       is legitimate, and visible, rather than lost. */
+    a.findingId ?? "",
+    when(a.createdAt),
+    a.createdBy,
+  ]);
+
+  return {
+    name: "Seen on the walk",
+    columns: [
+      { header: "Item", width: 14 },
+      { header: "Origin", width: 34 },
+      { header: "Discipline", width: 20 },
+      { header: "Asset system", width: 26 },
+      { header: "Where", width: 26 },
+      { header: "What was found", width: 66, wrap: true },
+      { header: "Outcome", width: 16 },
+      { header: "Notes", width: 50, wrap: true },
+      { header: "Photographs", width: 12 },
+      { header: "Voice notes", width: 12 },
+      { header: "Raised as finding", width: 18 },
+      { header: "Recorded", width: 18 },
+      { header: "Recorded by", width: 22 },
     ],
     rows,
   };
@@ -579,8 +729,19 @@ export function closureSheet(x: ExportInput): Sheet {
       p.observation,
       v?.outcome ?? "",
       v?.evidence ?? "",
-      /* What is still outstanding, where the item did not close. */
+      /* WHAT FIXES IT, and separately WHAT HAPPENS NEXT. ACSA's own sheet
+         folds the two into one cell, which is how a finding regularly arrives
+         at the next audit with the chase recorded and no remedy at all. */
       v?.action ?? "",
+      v?.nextStep ?? "",
+      /* THE HAZARDOUS EVENTS THIS FINDING COULD LEAD TO, one per line with its
+         likelihood. Plural because one finding usually has more than one, and
+         an audit that records only the worst over-rates the common case. An
+         event nobody has rated says so rather than being left blank — blank
+         would read as "no likelihood", which is not a state. */
+      (v?.possibleEvents ?? [])
+        .map((e) => `${e.event} · ${e.likelihood ?? "likelihood not agreed"}${e.note ? ` — ${e.note}` : ""}`)
+        .join("\n"),
       /* ACSA's Progress/Update is one cell, so the log is flattened into it —
          their format, our history. Each entry keeps its date, its author and
          the outcome as it stood, because a cell that has been typed over
@@ -618,7 +779,9 @@ export function closureSheet(x: ExportInput): Sheet {
       { header: "Finding as raised in Mar 2025", width: 66, wrap: true },
       { header: `Verification (${visitLabel(x.visit)})`, width: 16 },
       { header: "Evidence of closure", width: 58, wrap: true },
-      { header: "Mitigation action outstanding", width: 50, wrap: true },
+      { header: "Remediation action", width: 50, wrap: true },
+      { header: "Next step", width: 44, wrap: true },
+      { header: "Possible hazardous events", width: 62, wrap: true },
       { header: "Progress / Update", width: 66, wrap: true },
       { header: "Verified by", width: 22 },
       { header: "Verified on", width: 12 },
@@ -673,6 +836,103 @@ export function evidenceRequestSheet(x: ExportInput): Sheet {
   };
 }
 
+/* --------------------------------------------------------- asset systems */
+
+/** ONE ROW PER ASSET SYSTEM — the rating ACSA actually publishes.
+ *
+ *  Every asset system at the site, not only the ones somebody assessed: a
+ *  system that was never rated is the gap this sheet exists to make visible,
+ *  and omitting it would report the gap as an absence of risk. `Rating agreed`
+ *  is the column that decides whether the band means anything, because a
+ *  severity and likelihood nobody tapped on the matrix is a suggestion.
+ *
+ *  The band and the strategy are DERIVED here as they are on screen, from the
+ *  same bandFor()/BAND_META, so the workbook cannot come to disagree with the
+ *  app about what C4 means. */
+export function systemsSheet(x: ExportInput): Sheet {
+  const seen = new Set<string>();
+  const rows: CellValue[][] = [];
+  for (const c of x.checks) {
+    const system = c.system?.trim() || "No asset system recorded";
+    const key = `${c.discipline}|${system}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const a = x.systems?.[key];
+    const band = bandFor(a?.severity ?? null, a?.likelihood ?? null);
+    const agreed = a?.ratingConfirmed === true;
+    const checks = x.checks.filter(
+      (k) => k.discipline === c.discipline && (k.system?.trim() || "No asset system recorded") === system
+    );
+    const rs = checks.map((k) => x.responses[k.id]);
+    const findings = x.findings.filter((f) => f.discipline === c.discipline && f.system === system);
+    rows.push([
+      c.discipline,
+      system,
+      a?.severity ?? "",
+      a?.likelihood ?? "",
+      /* THE CELL, AND ONLY WHERE IT WAS AGREED. A code printed against an
+         unconfirmed pair would read in a workbook exactly like one the group
+         settled, which is the one thing ratingConfirmed exists to prevent. */
+      agreed && band ? (cellCode(a!.severity, a!.likelihood) ?? "") : "",
+      agreed && band ? BAND_META[band].label : band ? "SUGGESTED — not agreed" : "NOT RATED",
+      agreed && band ? BAND_META[band].strategy : "",
+      agreed ? "Yes" : "No",
+      a?.ratingRationale ?? "",
+      (a?.rootCauses ?? [])
+        .map((r: RootCauseNote) => (r.note ? `${r.cause} — ${r.note}` : r.cause))
+        .join("\n"),
+      (a?.actions ?? [])
+        .map(
+          (m: MitigationAction) =>
+            `${m.action} · ${m.owner || "NO OWNER"} · ${m.dueDate || "NO TARGET DATE"} · ${m.status}`
+        )
+        .join("\n"),
+      /* The evidence the band was agreed on, as counts. Not the band's
+         derivation — nothing here computes it — but what a reader needs to
+         argue with it. */
+      checks.length,
+      rs.filter((r) => r?.compliance === "C").length,
+      rs.filter((r) => r?.compliance === "NC").length,
+      rs.filter((r) => !r?.compliance).length,
+      findings.length,
+      x.prior.filter(
+        (p) => p.discipline === c.discipline && (p.assetSystem ?? p.assetSystemRecorded) === system
+      ).length,
+      a?.assessedBy ?? "",
+      when(a?.assessedAt),
+      a?.note ?? "",
+    ]);
+  }
+  rows.sort((a, b) => String(a[0]).localeCompare(String(b[0])) || String(a[1]).localeCompare(String(b[1])));
+
+  return {
+    name: "Asset systems",
+    columns: [
+      { header: "Discipline", width: 22 },
+      { header: "Asset system", width: 32 },
+      { header: "Severity", width: 20 },
+      { header: "Likelihood", width: 22 },
+      { header: "Cell", width: 8 },
+      { header: "Rating", width: 26 },
+      { header: "Treatment strategy (cl. 4.6)", width: 44, wrap: true },
+      { header: "Rating agreed", width: 13 },
+      { header: "Why that cell", width: 56, wrap: true },
+      { header: "Root causes", width: 56, wrap: true },
+      { header: "Mitigation actions", width: 70, wrap: true },
+      { header: "Check-points", width: 13 },
+      { header: "Compliant", width: 11 },
+      { header: "Non-compliant", width: 14 },
+      { header: "Not captured", width: 13 },
+      { header: "Findings raised", width: 15 },
+      { header: "2025 findings", width: 14 },
+      { header: "Assessed by", width: 22 },
+      { header: "Assessed on", width: 13 },
+      { header: "Assessor's note", width: 60, wrap: true },
+    ],
+    rows,
+  };
+}
+
 /* ------------------------------------------------------------------- summary */
 
 export function summarySheet(x: ExportInput): Sheet {
@@ -693,6 +953,12 @@ export function summarySheet(x: ExportInput): Sheet {
        therefore reads higher than the register's count by design. */
     const hs = (x.hazards ?? []).filter((h) => h.disciplines.includes(d));
     const hAgreed = hs.filter((h) => h.ratingConfirmed);
+    /* ITS OWN COLUMN, never added to Check-points or to Complete. "312 of 324"
+       must not become "313 of 324" because somebody recorded an observation —
+       the denominator is ACSA's list and the numerator has to be answers to it.
+       Shown alongside so both numbers are readable at once, which is the whole
+       ask: what we were sent to look at, and what we found anyway. */
+    const walk = (x.adhoc ?? []).filter((a) => a.discipline === d);
     return [
       d,
       cs.length,
@@ -710,6 +976,7 @@ export function summarySheet(x: ExportInput): Sheet {
       hs.length,
       hAgreed.length,
       hAgreed.filter((h) => bandFor(h.severity, h.likelihood) === "Red").length,
+      walk.length,
     ];
   });
 
@@ -732,6 +999,7 @@ export function summarySheet(x: ExportInput): Sheet {
       { header: "Hazards", width: 9 },
       { header: "Hazard rating agreed", width: 19 },
       { header: "Hazards red", width: 12 },
+      { header: "Seen on the walk (not in the 324)", width: 28 },
     ],
     rows,
   };
@@ -776,10 +1044,18 @@ export function aboutSheet(x: ExportInput): Sheet {
         ).length,
       ],
       ["2025 findings verified", `${verified} of ${x.prior.length}`],
+      [
+        "Seen on the walk (NOT part of the check-points in scope)",
+        (x.adhoc ?? []).length,
+      ],
       ["", ""],
       [
         "A blank status",
         "means the check-point has not been captured. It does not mean compliant.",
+      ],
+      [
+        "Seen on the walk",
+        "Things the audit team found on site that the check-list does not cover. They are on their own sheet and in their own count, and they are DELIBERATELY excluded from Check-points in scope and from Complete: the completion figure is answers to ACSA's list, and an observation nobody asked for must not move it. Their identifiers begin WALK- and can never be confused with a check-point. Where several of them fall in one discipline, that is worth reading as evidence about the check-list rather than about the airport.",
       ],
       [
         "Suggested vs agreed ratings",
@@ -823,9 +1099,14 @@ export function fullWorkbook(x: ExportInput): Sheet[] {
     aboutSheet(x),
     summarySheet(x),
     registerSheet(x),
+    /* Before the findings, deliberately: the asset system is the unit ACSA
+       reports, and a reader opening the workbook should meet the ratings before
+       the evidence they were agreed on. */
+    systemsSheet(x),
     findingsSheet(x),
     hazardsSheet(x),
     closureSheet(x),
+    walkSheet(x),
     evidenceRequestSheet(x),
     photographsSheet(x),
   ];
