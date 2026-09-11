@@ -733,13 +733,15 @@ tests/                thirty-five suites — see tests/README.md
   beside a rail and a check list left the check itself about 500px of it.
   `tests/tablet.test.mjs` enforces it.
 
-- **A check appears where it can be answered.** `vtype` on every register row
-  declares Evidence / Question / Site Physical Verification, and
-  `src/lib/verification.ts` is the only place that reads it. Capture lists the
-  315 a desk can progress, Field lists the 299 that need the asset seen, they
-  overlap on 290, and nothing is orphaned. The overlap is not duplication —
-  reading the maintenance record and looking at the pump are two acts on one
-  requirement — but a check in a view that cannot progress it is.
+- **A check appears where it can be answered.** `src/lib/verification.ts` is
+  the only place that decides, and it reads two different fields for the two
+  lists. Capture lists the 315 a desk can progress — `vtype`'s Evidence or
+  Question, because 313 of the 324 carry a document to collect and that is the
+  question the desk asks. Field lists the 290 with something on site to do —
+  the register review's `inspect`, which is not "none". They overlap on 281 and
+  nothing is orphaned. The overlap is not duplication — reading the maintenance
+  record and looking at the pump are two acts on one requirement — but a check
+  in a view that cannot progress it is.
   `tests/portals.test.mjs` parses the register independently to check this.
 
 - **Complete means every declared mode is answered.** A response carries a desk

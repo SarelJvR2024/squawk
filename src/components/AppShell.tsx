@@ -62,7 +62,6 @@ import { Pill } from "@/components/ui/primitives";
 const NAV = [
   { href: "/capture", label: "Checks", icon: IconClipboard },
   { href: "/field", label: "Inspection", icon: IconPin },
-  { href: "/review", label: "Review", icon: IconCamera },
   /* ASSET ASSURANCE, not "Findings".
      The screen stopped being a findings register when it became the place the
      group agrees an asset system's band — which is the number ACSA publishes
@@ -80,6 +79,15 @@ const NAV = [
      how the last round of confusion started. The route stays /hazards. */
   { href: "/hazards", label: "HIRA", icon: IconFlag },
   { href: "/closure", label: "Follow-up", icon: IconLoop },
+  /* REVIEW SITS AFTER FOLLOW-UP (Sarel, 2026-09-11), not third.
+     It used to follow Inspection, on the reasoning that it is where the
+     evidence those two screens capture gets looked at. But it is not a capture
+     screen and nobody opens it on an apron: it is where an engineer who was
+     NOT on site reads what came back — a different person, on a different day,
+     usually after the audit. Third place put it in the middle of the capture
+     run, ahead of the screens an auditor actually works through. After
+     Follow-up it sits with the other after-the-fact views. */
+  { href: "/review", label: "Review", icon: IconCamera },
   { href: "/dashboard", label: "Dashboard", icon: IconGrid },
   /* Last, and in the nav rather than behind the shortcut sheet, because the
      shortcut sheet is hidden below sm — and the phone is exactly the device

@@ -29,7 +29,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `reset.test.mjs` | no | 18 |
 | `completion.test.mjs` | no | 19 |
 | `location.test.mjs` | no | 50 |
-| `followup.test.mjs` | no | 45 |
+| `followup.test.mjs` | no | 51 |
 | `systems.test.mjs` | no | 70 |
 | `register-review.test.mjs` | no | 24 |
 | `suite-table.test.mjs` | no | 5 |
@@ -61,7 +61,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 43 |
 | `a11y.js` | yes | 51 |
 
-**1,611 assertions in total**, every count above verified by running the suite,
+**1,617 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -429,8 +429,10 @@ short of what the distribution tempts you into, because the
 `Site Physical Verification + Question` rows are desk work as well and it is
 easy to count them once.
 
-The routing it asserts: **desk 315 · field 299 · overlap 290 · desk-only 60 ·
-field-only 9 · orphaned 0.** Both failure modes are guarded and they pull in
+The routing it asserts: **desk 315 · field 290 · overlap 281 · desk-only 34 ·
+field-only 9 · orphaned 0.** Field fell from 299 on 2026-09-11, when the walk
+list moved off `vtype` onto the register review's `inspect` and nine checks
+with nothing whatever to look at came off the tablet. Both failure modes are guarded and they pull in
 opposite directions — blanket duplication makes each list meaningless, and an
 orphaned check is worse because nothing on screen would ever say so.
 
