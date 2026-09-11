@@ -825,6 +825,26 @@ export interface Capture {
    *  dictated in the tray keeps its provenance once it reaches a check. */
   transcriptSource?: "browser" | "service";
   unavailable?: boolean;
+  /* DECLARING WHAT WAS ALREADY BEING WRITTEN (2026-09-10, task #67).
+   *
+   *  The walk screen's camera does `addCapture({ ...m, area, createdBy })` and
+   *  `m` is PhotoButton's full payload, so every one of these has been landing
+   *  in the persisted record since captures existed — undeclared, because
+   *  TypeScript does not excess-property-check a spread. Nothing about the
+   *  stored data changes here and no migration is needed; the type is being
+   *  corrected to match what is on disk.
+   *
+   *  `thumbDataUrl` is the one that matters. It is the copy that rides the
+   *  shared record between devices, so an unassigned capture can be reviewed by
+   *  an engineer who was not on the apron — which is the whole point of the
+   *  tray. Without this declaration the Visual review screen could not read it
+   *  and every loose photograph would have rendered as "on the device that took
+   *  it" while its thumbnail sat in the same object. */
+  thumbDataUrl?: string;
+  caption?: string;
+  width?: number;
+  height?: number;
+  bytes?: number;
   area: string;
   createdAt: number;
   createdBy: string;

@@ -38,10 +38,33 @@ const check = (name, cond, detail = "") => {
 
 /* ------------------------------- Part 1: feedback never becomes the record */
 
+/* REWRITTEN 2026-09-10 (task #67). This used to read
+     !/appendObservation|observation:/.test(review)
+   which tested for a STRING, not for the rule. The moment the screen grew a
+   view model with an `observation` field on it — a READ, for display, of what
+   the auditor already wrote — the assertion failed while the rule it protects
+   was never in danger. A test that fires on the wrong thing gets edited to
+   pass, and then it is guarding nothing.
+
+   The rule is about WRITES. This screen may mutate exactly three things, all of
+   them feedback, and anything else reaching the store from here would be the
+   real violation. */
+const STORE_WRITERS_ALLOWED = ["addFeedback", "toggleFeedbackResolved", "removeFeedback"];
+const writersUsed = [...review.matchAll(/useStore\(\(s\) => s\.(\w+)\)/g)].map((m) => m[1]);
+const forbidden = writersUsed.filter(
+  (w) => !STORE_WRITERS_ALLOWED.includes(w) && !["role"].includes(w)
+);
+
 check(
-  "the review screen never writes an observation",
-  !/appendObservation|observation:/.test(review),
-  "a comment about a photograph is not the auditor's record of what they found"
+  "the review screen writes nothing but feedback",
+  forbidden.length === 0,
+  `reaches the store for: ${forbidden.join(", ")} — a comment about a photograph is not the auditor's record of what they found`
+);
+
+check(
+  "and never touches the observation or the finding text",
+  !/\bpatch\(|appendObservation|setObservation|patchFinding|addFinding/.test(review),
+  ""
 );
 
 check(
@@ -142,9 +165,93 @@ check(
 );
 
 check(
-  "only checks that actually carry evidence are listed",
-  /responses\[c\.id\]\?\.attachments\.length \?\? 0\) > 0/.test(review),
-  "what was skipped is the dashboard's job, not this screen's"
+  "only rows that actually carry evidence are listed",
+  /if \(!r \|\| r\.attachments\.length === 0\) continue;/.test(review) &&
+    /if \(w\.attachments\.length === 0\) continue;/.test(review),
+  "what was skipped is the dashboard's job, not this screen's — and it holds for a walk item as much as a check"
+);
+
+/* ---- task #67 · the walk is evidence too --------------------------------- */
+
+/* An auditor photographs something ACSA's list does not cover. Until this, the
+   photograph existed on the tablet and was invisible to the engineer reviewing
+   evidence — and those are disproportionately the ones worth a second opinion,
+   because nobody wrote a check for them and there is no threshold to fall back
+   on. */
+check(
+  "walk items reach the review screen",
+  /const adhoc = useAdhoc\(\);/.test(review) && /for \(const w of adhoc\)/.test(review),
+  ""
+);
+
+check(
+  "and are marked as hand-added rather than passed off as register checks",
+  /isWalk: true,/.test(review) && /\{it\.isWalk && \(/.test(review) &&
+    /ADDED ON THE WALK/.test(review),
+  "'this was not on ACSA's list' is the single most useful thing a reviewer can know about the row"
+);
+
+check(
+  "an unattributed walk item gets a named bucket, not a blank one",
+  /const NO_SYSTEM = "No asset system recorded";/.test(review) &&
+    /const NO_DISCIPLINE = "No discipline recorded";/.test(review) &&
+    /w\.discipline \?\? NO_DISCIPLINE/.test(review),
+  "discipline is nullable on a walk item and null is honest — but a blank in a filter list reads as a bug and silently hides the row"
+);
+
+check(
+  "a walk item is opened where it was recorded, not on a check screen it has no id for",
+  /active\.isWalk \? "\/field" : `\/capture\?check=\$\{active\.key\}`/.test(review) &&
+    /Open on the walk/.test(review),
+  ""
+);
+
+check(
+  "comments key off the row's own id, so a walk item can carry a thread",
+  /addFeedback\(active\.key, draft\)/.test(review) &&
+    /toggleFeedbackResolved\(active\.key, n\.id\)/.test(review) &&
+    /removeFeedback\(active\.key, n\.id\)/.test(review),
+  "the feedback map is keyed by string, so a WALK id needs no schema change"
+);
+
+/* The tray is the third source, and the one most worth a second opinion: a
+   capture is a photograph nobody has yet said what it is OF. */
+check(
+  "the fields a capture already carried are declared, without a store migration",
+  /thumbDataUrl\?: string;\n  caption\?: string;/.test(types) &&
+    /DECLARING WHAT WAS ALREADY BEING WRITTEN/.test(types),
+  "the walk bar spreads PhotoButton's whole payload into addCapture, so these have been on disk all along — correcting the type changes no stored data and needs no version bump"
+);
+
+check(
+  "unassigned captures reach the review screen too",
+  /const captures = useCaptures\(\);/.test(review) && /for \(const cap of captures\)/.test(review),
+  "a loose photograph is the one a discipline lead can settle in five seconds and an auditor can wonder about all week"
+);
+
+check(
+  "and each is its own row with its own thread",
+  /key: cap\.id,/.test(review) && /feedback\[cap\.id\]/.test(review),
+  "a pile with one comment box is a pile nobody triages"
+);
+
+check(
+  "a capture is adapted to an Attachment rather than the media components learning a second shape",
+  /function captureAsAttachment\(c: Capture\): Attachment/.test(review) &&
+    /thumbDataUrl: c\.thumbDataUrl,/.test(review),
+  "one renderer, one set of fallbacks, one placeholder wording"
+);
+
+check(
+  "an unassigned capture says it is unassigned rather than reading as uncaptured",
+  /NOT ASSIGNED TO A CHECK/.test(review) && /Assign it on the walk/.test(review),
+  ""
+);
+
+check(
+  "the list sorts on one clock, whichever kind of row it is",
+  /rows\.sort\(\(a, b\) => b\.capturedAt - a\.capturedAt\)/.test(review),
+  "a check's capturedAt and a walk item's createdAt are both flattened onto the row, so the newest evidence leads regardless of where it came from"
 );
 
 check(
