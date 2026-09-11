@@ -733,13 +733,15 @@ tests/                thirty-five suites — see tests/README.md
   beside a rail and a check list left the check itself about 500px of it.
   `tests/tablet.test.mjs` enforces it.
 
-- **A check appears where it can be answered.** `vtype` on every register row
-  declares Evidence / Question / Site Physical Verification, and
-  `src/lib/verification.ts` is the only place that reads it. Capture lists the
-  315 a desk can progress, Field lists the 299 that need the asset seen, they
-  overlap on 290, and nothing is orphaned. The overlap is not duplication —
-  reading the maintenance record and looking at the pump are two acts on one
-  requirement — but a check in a view that cannot progress it is.
+- **A check appears where it can be answered.** `src/lib/verification.ts` is
+  the only place that decides, and it reads two different fields for the two
+  lists. Capture lists the 315 a desk can progress — `vtype`'s Evidence or
+  Question, because 313 of the 324 carry a document to collect and that is the
+  question the desk asks. Field lists the 290 with something on site to do —
+  the register review's `inspect`, which is not "none". They overlap on 281 and
+  nothing is orphaned. The overlap is not duplication — reading the maintenance
+  record and looking at the pump are two acts on one requirement — but a check
+  in a view that cannot progress it is.
   `tests/portals.test.mjs` parses the register independently to check this.
 
 - **Complete means every declared mode is answered.** A response carries a desk
@@ -1133,12 +1135,25 @@ One step only Sarel can do, once:
    with no policies, and adds the conditional-upsert function. It is idempotent.
 3. Set `SUPABASE_URL`, `SUPABASE_SECRET_KEY` and `SQUAWK_TEAM_PASSPHRASE` in
    Vercel — none of them `NEXT_PUBLIC_` — and redeploy.
-4. On each auditor's device: **Export → Shared record → the passphrase → Join the
-   audit.** Once per device, and it is remembered.
+4. On each auditor's device: enter the passphrase in the **banner across the top
+   of the work area** that a device which has not joined shows on arrival — or,
+   if somebody waved it away, **More → Export the workbook → Shared record →
+   Join the audit.** Once per device, and it is remembered.
 
 `/preflight` says which of those has happened on the device in front of you.
 Until all of it has, the app is unchanged and captures are handed over as a file
 from the same sheet.
+
+**A device that has not joined says so rather than looking broken.** The
+passphrase box existed from the start, at the bottom of the export sheet behind
+a menu, and nothing pointed at it — so a second device opened the app, showed
+0/315 and an empty Visual review, and read exactly like a deployment with no
+data in it. Nothing had gone wrong; the device had simply not been let in, and
+nothing said so. The banner is that sentence. It is not a gate: Squawk is
+local-first, a device that never joins still captures and exports and merges
+from a file, so it is dismissible and stays dismissed. It shows only where it is
+true — a deployment that HAS a shared record, a device that has captured
+nothing, and nobody having waved it away.
 
 ### Checking it is on
 
@@ -1149,11 +1164,23 @@ returns a key's value:
 /api/photos      → {"available":true,"via":"SQUAWK_READ_WRITE_TOKEN"}
 /api/assist      → {"available":true,"model":"claude-opus-5","vision":false}
 /api/transcribe  → {"available":true,"model":"scribe_v1"}
-/api/sync        → {"available":true}
+/api/sync        → {"available":true,"missing":[]}
 ```
 
 `available: false` means the variable did not reach the *running* deployment —
-usually because it was added after the last build. Redeploy. On `/api/photos`,
+usually because it was added after the last build. Redeploy.
+
+**On `/api/sync`, `missing` names which of the three are empty** — by name only,
+never a value, a length or a prefix, and empty on a working deployment. Two of
+three set looks identical to none set through `available` alone, and the only
+way to tell used to be guessing in the Vercel dashboard. Pre-flight repeats the
+same names in plain words, so the deployment can be diagnosed from the device
+without anyone opening the dashboard at all. Naming an absent variable discloses
+nothing: with no `SQUAWK_TEAM_PASSPHRASE` set, every passphrase is refused and
+no row moves in either direction, so the list says only that there is nothing
+here to get into. Note that variables **scoped to Production only do not reach a
+Preview deployment** — the same three have to be scoped to Preview as well, and
+this is what that looks like when they are not. On `/api/photos`,
 `via` is how you tell a working prefix from one being silently ignored.
 
 `available: true` only means the token is present. If the store was created

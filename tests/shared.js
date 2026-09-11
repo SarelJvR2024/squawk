@@ -23,6 +23,7 @@ const ROOT = path.join(__dirname, "..");
 const SUPA_PORT = 3901;
 const APP_PORT = 3902;
 const BARE_PORT = 3903; // the same build with nothing configured
+const HALF_PORT = 3904; // and one with the URL set but the other two missing
 const PASS = "harbour-cassette-nine-lantern-drift";
 const BASE = `http://127.0.0.1:${APP_PORT}`;
 
@@ -172,7 +173,7 @@ const syncNow = async (page) => {
 (async () => {
   const { fakeSupabase } = await import("./fake-supabase.mjs");
   const supa = await fakeSupabase(SUPA_PORT);
-  let app, bare, browser;
+  let app, bare, half, browser;
 
   try {
     app = await startApp(APP_PORT, {
@@ -182,6 +183,14 @@ const syncNow = async (page) => {
     });
     bare = await startApp(BARE_PORT, {
       SUPABASE_URL: "",
+      SUPABASE_SECRET_KEY: "",
+      SQUAWK_TEAM_PASSPHRASE: "",
+    });
+    /* The realistic half-configured deployment. Sarel set some of the three in
+       Vercel and could not tell which were still empty — nothing said. This one
+       exists so the answer is tested, not assumed. */
+    half = await startApp(HALF_PORT, {
+      SUPABASE_URL: supa.url,
       SUPABASE_SECRET_KEY: "",
       SQUAWK_TEAM_PASSPHRASE: "",
     });
@@ -196,6 +205,40 @@ const syncNow = async (page) => {
     const bareAvail = await (await api.request.get(`http://127.0.0.1:${BARE_PORT}/api/sync`)).json();
     ok("AN UNCONFIGURED ONE SAYS IT HAS NONE — it never falls open",
        bareAvail.available === false, JSON.stringify(bareAvail));
+
+    /* WHICH ONES ARE EMPTY. The route answers with names and nothing else —
+       never a value, never a length, never a prefix — so a deployment can be
+       diagnosed from Pre-flight without anybody reading a secret out of it. */
+    ok("an unconfigured one names all three missing variables",
+       Array.isArray(bareAvail.missing) && bareAvail.missing.length === 3 &&
+       ["SUPABASE_URL", "SUPABASE_SECRET_KEY", "SQUAWK_TEAM_PASSPHRASE"]
+         .every((k) => bareAvail.missing.includes(k)), JSON.stringify(bareAvail));
+
+    ok("a configured one names none", Array.isArray(avail.missing) && avail.missing.length === 0,
+       JSON.stringify(avail));
+
+    const halfAvail = await (await api.request.get(`http://127.0.0.1:${HALF_PORT}/api/sync`)).json();
+    ok("A HALF-CONFIGURED ONE NAMES EXACTLY THE TWO THAT ARE EMPTY",
+       halfAvail.available === false && Array.isArray(halfAvail.missing) &&
+       halfAvail.missing.length === 2 &&
+       halfAvail.missing.includes("SUPABASE_SECRET_KEY") &&
+       halfAvail.missing.includes("SQUAWK_TEAM_PASSPHRASE"), JSON.stringify(halfAvail));
+
+    /* And it is still shut. Naming what is missing must not be mistaken for
+       degrading gracefully into an open door. */
+    const halfTry = await api.request.post(`http://127.0.0.1:${HALF_PORT}/api/sync`, {
+      data: { passphrase: "anything at all", entity: "KSIA", visit: "2026-09", records: [] },
+    });
+    ok("and a half-configured one still refuses to sync", halfTry.status() === 503,
+       String(halfTry.status()));
+
+    /* The secret this route holds must not be inferable from what it says about
+       itself — no value, no length, no first characters, in any field. */
+    const halfBody = JSON.stringify(halfAvail) + JSON.stringify(bareAvail) + JSON.stringify(avail);
+    ok("nothing it reports carries a value, a length or a prefix of one",
+       !halfBody.includes(supa.url) && !halfBody.includes(PASS) &&
+       !halfBody.includes("sb_secret") && !/\b(length|len|prefix|value|starts)\b/i.test(halfBody),
+       halfBody.slice(0, 200));
 
     const bareTry = await api.request.post(`http://127.0.0.1:${BARE_PORT}/api/sync`, {
       data: { passphrase: "anything at all", entity: "KSIA", visit: "2026-09", records: [] },
@@ -428,6 +471,26 @@ const syncNow = async (page) => {
 
     /* ====================== a device that never joined ===================== */
     const C = await auditor(browser, "Auditor C", { unlock: false });
+
+    /* IT SAYS SO WITHOUT BEING ASKED. The passphrase box has always existed, at
+       the bottom of the export sheet behind More → Export the workbook, and
+       nothing pointed at it — so a second device showed 0/315 and an empty
+       review and looked for all the world like a broken deployment. The banner
+       is the thing that would have saved Sarel a day. */
+    const cFirst = await C.page.locator("body").innerText();
+    ok("A DEVICE THAT HAS NOT JOINED IS TOLD SO ON ARRIVAL, unprompted",
+       /has not joined the audit/i.test(cFirst), cFirst.slice(0, 160).replace(/\n/g, " "));
+
+    ok("and the banner is in the flow of the page, never over the work",
+       await C.page.evaluate(() => {
+         const el = document.querySelector('section[aria-label="Join the shared audit"]');
+         if (!el) return false;
+         const pos = getComputedStyle(el).position;
+         /* Anything fixed or absolute here lands on the check screen's sticky
+            compliance bar — the three buttons the whole audit is made of. */
+         return pos !== "fixed" && pos !== "absolute";
+       }));
+
     await openExport(C.page);
     const lockedText = await C.page.locator("body").innerText();
     ok("a device that has not been given the passphrase says exactly that",
@@ -450,6 +513,44 @@ const syncNow = async (page) => {
     const cBody = await C.page.locator("body").innerText();
     ok("THE RIGHT ONE LETS A THIRD DEVICE STRAIGHT INTO THE AUDIT",
        !/not captured yet/.test(cBody), cBody.slice(0, 140).replace(/\n/g, " "));
+
+    ok("and once it is in, the banner is gone rather than nagging",
+       !/has not joined the audit/i.test(cBody), cBody.slice(0, 160).replace(/\n/g, " "));
+
+    /* Devices A and B have both captured and joined; neither should ever have
+       seen it. A prompt that appears on a working device is noise. */
+    ok("a device already in the audit is never shown it",
+       !/has not joined the audit/i.test(await A.page.locator("body").innerText()));
+
+    /* AND THE BANNER ACTUALLY JOINS. C went in through the export sheet, which
+       is the path that already existed; this is the new one, and a prompt that
+       appears but does not work would be worse than no prompt at all. */
+    const E = await auditor(browser, "Auditor E", { unlock: false });
+    await E.page.locator("input[aria-label='Team passphrase to join the audit']").fill(PASS);
+    await E.page.locator('section[aria-label="Join the shared audit"] button[type="submit"]').click();
+    await E.page.waitForTimeout(3000);
+    const eBody = await E.page.locator("body").innerText();
+    ok("JOINING FROM THE BANNER ITSELF PUTS THE DEVICE IN THE AUDIT",
+       !/not captured yet/.test(eBody) && !/has not joined the audit/i.test(eBody),
+       eBody.slice(0, 160).replace(/\n/g, " "));
+    const eKept = await E.page.evaluate(() => localStorage.getItem("squawk-team-passphrase"));
+    ok("and the passphrase it accepted is the one it kept", eKept === PASS, String(eKept));
+
+    /* Waving it away has to stick across a reload, or it is not a dismissal,
+       it is a delay. */
+    const F = await auditor(browser, "Auditor F", { unlock: false });
+    await F.page.locator('section[aria-label="Join the shared audit"] button', { hasText: /Not now/ })
+      .first().click();
+    await F.page.reload({ waitUntil: "networkidle" });
+    await F.page.waitForTimeout(2000);
+    ok("NOT NOW MEANS NOT AGAIN — it stays dismissed across a reload",
+       !/has not joined the audit/i.test(await F.page.locator("body").innerText()));
+    ok("and dismissing it never quietly let the device in",
+       (await F.page.evaluate(() => localStorage.getItem("squawk-team-passphrase"))) === null);
+    ok("no page errors for Auditor E", E.errs.length === 0, E.errs[0] ?? "");
+    ok("no page errors for Auditor F", F.errs.length === 0, F.errs[0] ?? "");
+    await E.ctx.close();
+    await F.ctx.close();
 
     /* ============ both auditors answered the same check, in a basement ====== */
     await A.page.goto(BASE + "/capture", { waitUntil: "networkidle" });
@@ -613,6 +714,7 @@ const syncNow = async (page) => {
     if (browser) await browser.close();
     killTree(app);
     killTree(bare);
+    killTree(half);
     await supa.close();
   }
 

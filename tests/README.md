@@ -29,7 +29,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `reset.test.mjs` | no | 18 |
 | `completion.test.mjs` | no | 19 |
 | `location.test.mjs` | no | 50 |
-| `followup.test.mjs` | no | 45 |
+| `followup.test.mjs` | no | 51 |
 | `systems.test.mjs` | no | 70 |
 | `register-review.test.mjs` | no | 24 |
 | `suite-table.test.mjs` | no | 5 |
@@ -58,10 +58,10 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `offline.js` | yes | 19 |
 | `team.js` | yes | 15 |
 | `preflight.js` | yes | 18 |
-| `shared.js` | starts its own | 43 |
+| `shared.js` | starts its own | 58 |
 | `a11y.js` | yes | 51 |
 
-**1,611 assertions in total**, every count above verified by running the suite,
+**1,632 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -429,8 +429,10 @@ short of what the distribution tempts you into, because the
 `Site Physical Verification + Question` rows are desk work as well and it is
 easy to count them once.
 
-The routing it asserts: **desk 315 · field 299 · overlap 290 · desk-only 60 ·
-field-only 9 · orphaned 0.** Both failure modes are guarded and they pull in
+The routing it asserts: **desk 315 · field 290 · overlap 281 · desk-only 34 ·
+field-only 9 · orphaned 0.** Field fell from 299 on 2026-09-11, when the walk
+list moved off `vtype` onto the register review's `inspect` and nine checks
+with nothing whatever to look at came off the tablet. Both failure modes are guarded and they pull in
 opposite directions — blanket duplication makes each list meaningless, and an
 orphaned check is worse because nothing on screen would ever say so.
 
@@ -842,7 +844,16 @@ negative half is the half that matters**. A sync that works when everything is
 fine is table stakes. What decides whether a team trusts it:
 
 - an **unconfigured deployment says so and refuses to sync** — it never falls
-  open;
+  open, and it **names which of the three variables are empty**, by name only:
+  a half-configured deployment names exactly the two that are missing, a working
+  one names none, and nothing it reports carries a value, a length or a prefix
+  of one;
+- **a device that has not joined is told so on arrival**, unprompted, by a
+  banner in the flow of the page rather than a panel over the sticky compliance
+  bar; joining from the banner puts the device in the audit and keeps the
+  passphrase it accepted; "Not now" stays dismissed across a reload without
+  quietly letting the device in; and a device already in the audit never sees
+  it;
 - a wrong passphrase is refused, tells you nothing about the real one, and is
   never kept on the device;
 - guessing is slowed to a crawl, and one client being throttled does not lock

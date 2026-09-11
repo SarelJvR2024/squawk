@@ -78,6 +78,20 @@ const QUESTIONS = checks.filter(needsQuestion).length;
 const evidenceOf = (c) =>
   Array.isArray(c.evidenceExpected) ? c.evidenceExpected.join(" ") : String(c.evidenceExpected ?? "");
 const STUBS = checks.filter((c) => evidenceOf(c).trim().length < 40).length;
+
+/* The size of the road not taken, derived so the argument against it stays
+   true. verification.ts explains why the desk list was NOT moved onto
+   `confirmedBy`: doing so drops every Asset check that has no record to
+   reconcile, and each one of those still has evidence ACSA names by document
+   and clause. If a reclassification ever changed how many that is, the comment
+   would go stale silently — so the number is computed here. */
+const WOULD_LEAVE_DESK = checks.filter(
+  (c) =>
+    ((c.vtype ?? "").includes("Evidence") || (c.vtype ?? "").includes("Question")) &&
+    c.confirmedBy === "Asset" &&
+    c.inspect !== "reconcile" &&
+    !(c.vtype ?? "").includes("Question")
+).length;
 const NO_EVIDENCE = checks.filter((c) => evidenceOf(c).trim() === "").length;
 
 /* And the review's own two headline figures, read off the review file rather
@@ -110,7 +124,7 @@ check(
 
 const ALLOWED = new Set([
   TOTAL, DESK, FIELD, BOTH, OPTIONS, PORTFOLIO, VARIANTS, QUESTIONS,
-  STUBS, NO_EVIDENCE, GAPPED, GAP_NOTES,
+  STUBS, NO_EVIDENCE, GAPPED, GAP_NOTES, WOULD_LEAVE_DESK,
 ]);
 const fmt = (n) => n.toLocaleString("en-US");
 
@@ -184,7 +198,8 @@ check(
 
 check(
   "and how the work splits between the desk and the walk",
-  readme.includes(`${DESK} a desk can progress`) && readme.includes(`the ${FIELD} that need the asset seen`),
+  readme.includes(`${DESK} a desk can progress`) &&
+    readme.includes(`Field lists the ${FIELD} with something on site to do`),
   `expected desk ${DESK}, field ${FIELD}`
 );
 

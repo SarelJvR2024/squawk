@@ -211,6 +211,49 @@ check(
   "ACSA's Progress/Update is one cell that gets typed over"
 );
 
+/* ---- 4b · the panel's own furniture (Sarel, 2026-09-11) ------------------ */
+
+check(
+  "Save & next walks the order the left panel draws, not register order",
+  /const displayOrder = useMemo\(\s*\n\s*\(\) => grouped\.flatMap\(\(g\) => g\.byAudit\.flatMap\(\(round\) => round\.items\)\),/.test(
+    closureCode
+  ) && /const i = displayOrder\.findIndex\(\(p\) => p\.key === active\.key\);/.test(closureCode),
+  "it walked `list`, which is carry-forward order and has no relation to what is on screen — so next landed several asset systems away"
+);
+
+check(
+  "and the order is derived from the grouping rather than sorted a second time",
+  !/displayOrder[\s\S]{0,200}\.sort\(/.test(closureCode),
+  "two definitions of one order is how the list and the button come to disagree"
+);
+
+check(
+  "landing in a folded asset system opens it",
+  /if \(next\.system !== active\.system\) \{/.test(closureCode) &&
+    /setOpenSystems\(\(cur\) => \{/.test(closureCode),
+  "a detail pane showing a finding whose row is inside a shut group is a screen that has lost track of what it is showing"
+);
+
+check(
+  "the last item says so rather than silently re-selecting itself",
+  /that was the last one/.test(closure),
+  "`list[i + 1] ?? active.key` made the end of the list indistinguishable from a save that did nothing"
+);
+
+check(
+  "the save bar is stuck to the bottom of the panel",
+  /className="sticky bottom-0 z-\[6\] -mx-\[18px\] -mb-\[18px\] mt-4 flex flex-wrap items-center justify-between/.test(
+    closure
+  ),
+  "Sarel: the save button should stick at the bottom so that it is always visible"
+);
+
+check(
+  "and it is opaque, so the pane scrolls under it rather than through it",
+  /background: "var\(--panel\)" \}\}\s*\n\s*>/.test(closure),
+  ""
+);
+
 /* ---- 5 · many possible events, each with a likelihood ------------------- */
 
 check(

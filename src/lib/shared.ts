@@ -176,6 +176,12 @@ export type SharedState =
 
 export interface SharedRecord {
   state: SharedState;
+  /** Which of the three server variables the deployment is missing, by NAME.
+   *  Empty on a configured deployment and on a device that has never reached
+   *  the probe — see the note on GET /api/sync for why naming the absent ones
+   *  discloses nothing. It exists so "not set up" can say WHICH, instead of
+   *  sending somebody guessing through the Vercel dashboard. */
+  missing: string[];
   /** Never the passphrase itself — only whether this device has one. */
   unlocked: boolean;
   lastSyncAt: number | null;
@@ -205,6 +211,7 @@ export function useSharedRecord(): SharedRecord {
   const lastSavedAt = useStore((s) => s.lastSavedAt);
 
   const [available, setAvailable] = useState<boolean | null>(null);
+  const [missing, setMissing] = useState<string[]>([]);
   const [unlocked, setUnlocked] = useState(false);
   /* Only the part of the state a sync actually decides. Everything else —
      off, locked, offline — is DERIVED below rather than stored, so the two can
@@ -224,12 +231,18 @@ export function useSharedRecord(): SharedRecord {
       /* Read after the await, not before: this component is server-rendered
          too, and localStorage does not exist there. */
       const j = await fetch("/api/sync")
-        .then((r) => r.json() as Promise<{ available?: boolean }>)
+        .then((r) => r.json() as Promise<{ available?: boolean; missing?: string[] }>)
         .catch(() => null);
       if (!live) return;
       setUnlocked(!!local.get(PASS_KEY));
       if (j) {
         setAvailable(!!j.available);
+        /* Deliberately NOT remembered across launches the way `available` is.
+           An offline device should say "waiting for signal", not recite a list
+           of variables it cannot currently check — and a deployment that got
+           configured since the last launch would otherwise keep showing the
+           stale list until somebody happened to be online. */
+        setMissing(Array.isArray(j.missing) ? j.missing : []);
         local.set(AVAIL_KEY, j.available ? "1" : "0");
       } else {
         /* No answer. Fall back to what this device last learned rather than
@@ -412,6 +425,7 @@ export function useSharedRecord(): SharedRecord {
 
   return {
     state,
+    missing,
     unlocked,
     lastSyncAt,
     lastError,

@@ -192,6 +192,26 @@ export default function ClosurePage() {
       .sort((a, b) => a.sys.localeCompare(b.sys));
   }, [list, verifications, outstanding, discipline]);
 
+  /* THE ORDER THE LEFT PANEL ACTUALLY DRAWS, flattened once.
+   *
+   *  Sarel, 2026-09-11: "clicking on save and next jump to almost the end of
+   *  the items on the left panel, it should move to the next finding in the
+   *  hierarchy as it is displayed on the left."
+   *
+   *  Save & next walked `list`, which is register order — the order the items
+   *  came out of the carry-forward, with no relation to what is on screen. The
+   *  left panel draws `grouped`: asset systems sorted by name, each one a
+   *  timeline of audit rounds oldest first. So "next" could be anywhere,
+   *  including several asset systems away, and the row you land on is usually
+   *  nowhere near the row you just left.
+   *
+   *  Derived from `grouped` rather than re-sorted here, so there is exactly one
+   *  definition of the order and the two can never disagree. */
+  const displayOrder = useMemo(
+    () => grouped.flatMap((g) => g.byAudit.flatMap((round) => round.items)),
+    [grouped]
+  );
+
   /* SHUT BY DEFAULT — and this reverses what it was.
      2026-09-09: everything opened by default, on the reasoning that this is a
      worklist to burn down rather than a tree to explore, and an auditor
@@ -909,7 +929,19 @@ export default function ClosurePage() {
                 </div>
               )}
 
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-3.5" style={{ borderColor: "var(--line)" }}>
+              {/* STUCK TO THE BOTTOM OF THE PANEL.
+                  Sarel: "the save button should stick at the bottom so that it
+                  is always visible." The pane runs long — the event stream, the
+                  remediation and next-step boxes, the possible-events list —
+                  and Save & next was below all of it, so working an item meant
+                  scrolling back down to leave it. `-mx-[18px] px-[18px]` lets
+                  the bar span the panel's full width against its own padding,
+                  and the background is opaque so the content scrolls under it
+                  rather than showing through. */}
+              <div
+                className="sticky bottom-0 z-[6] -mx-[18px] -mb-[18px] mt-4 flex flex-wrap items-center justify-between gap-3 border-t px-[18px] pt-3.5 pb-[18px]"
+                style={{ borderColor: "var(--line)", background: "var(--panel)" }}
+              >
                 <div className="flex flex-wrap items-center gap-2.5">
                   <span className="font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
                     current: <b style={{ color: "var(--ink)" }}>{cur}</b>
@@ -923,8 +955,25 @@ export default function ClosurePage() {
                 <Btn
                   variant="primary"
                   onClick={() => {
-                    const i = list.findIndex((p) => p.key === active.key);
-                    setActivePf(list[i + 1]?.key ?? active.key);
+                    const i = displayOrder.findIndex((p) => p.key === active.key);
+                    const next = displayOrder[i + 1];
+                    if (!next) {
+                      say(`${active.key} saved — that was the last one`);
+                      return;
+                    }
+                    setActivePf(next.key);
+                    /* Opening the group it landed in, when the next item is in
+                       a different asset system that happens to be folded. The
+                       row is otherwise invisible while its detail fills the
+                       right-hand panel, which is the same trap the Inspection
+                       screen fell into with a newly recorded walk item. */
+                    if (next.system !== active.system) {
+                      setOpenSystems((cur) => {
+                        const sys = next.system?.trim() || "No asset system recorded";
+                        if (cur === null) return [sys];
+                        return cur.includes(sys) ? cur : [...cur, sys];
+                      });
+                    }
                     say(`${active.key} saved`);
                   }}
                 >

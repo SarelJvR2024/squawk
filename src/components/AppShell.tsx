@@ -26,6 +26,7 @@ import { requestPersistentStorage } from "@/lib/media";
 import { usePhotoSync } from "@/lib/sync";
 import { useShared } from "@/lib/shared";
 import ExportPanel from "@/components/ExportPanel";
+import JoinPrompt from "@/components/JoinPrompt";
 import { SyncPanel } from "@/components/SyncPanel";
 import ResetPanel from "@/components/ResetPanel";
 import AuditsPanel from "@/components/AuditsPanel";
@@ -62,7 +63,6 @@ import { Pill } from "@/components/ui/primitives";
 const NAV = [
   { href: "/capture", label: "Checks", icon: IconClipboard },
   { href: "/field", label: "Inspection", icon: IconPin },
-  { href: "/review", label: "Review", icon: IconCamera },
   /* ASSET ASSURANCE, not "Findings".
      The screen stopped being a findings register when it became the place the
      group agrees an asset system's band — which is the number ACSA publishes
@@ -80,6 +80,15 @@ const NAV = [
      how the last round of confusion started. The route stays /hazards. */
   { href: "/hazards", label: "HIRA", icon: IconFlag },
   { href: "/closure", label: "Follow-up", icon: IconLoop },
+  /* REVIEW SITS AFTER FOLLOW-UP (Sarel, 2026-09-11), not third.
+     It used to follow Inspection, on the reasoning that it is where the
+     evidence those two screens capture gets looked at. But it is not a capture
+     screen and nobody opens it on an apron: it is where an engineer who was
+     NOT on site reads what came back — a different person, on a different day,
+     usually after the audit. Third place put it in the middle of the capture
+     run, ahead of the screens an auditor actually works through. After
+     Follow-up it sits with the other after-the-fact views. */
+  { href: "/review", label: "Review", icon: IconCamera },
   { href: "/dashboard", label: "Dashboard", icon: IconGrid },
   /* Last, and in the nav rather than behind the shortcut sheet, because the
      shortcut sheet is hidden below sm — and the phone is exactly the device
@@ -839,6 +848,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           titled by the masthead for a sighted auditor; it names the screen AND
           the audit, because "Findings" without the airport is the one thing
           this app must never be ambiguous about. */}
+      {/* Asks a device with nothing captured to join the shared audit. Renders
+          itself only when there is one to join and nobody has waved it away —
+          see JoinPrompt.
+
+          IN FLOW, ABOVE THE WORK, not floating over a corner of it. The first
+          build put it bottom-right, which on the check screen lands squarely on
+          the sticky compliance bar: the prompt would have covered the three
+          buttons the whole audit is made of. A banner that pushes the work down
+          costs a strip of height once and can never swallow a tap. */}
+      <JoinPrompt />
+
       <main id="work" className="flex min-h-0 flex-1">
         <h1 className="sr-only">
           {/* /home is reached from the brand mark rather than the nav, so it has

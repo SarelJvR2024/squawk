@@ -98,6 +98,29 @@ export async function GET() {
     /* Whether a shared record exists for this deployment. Says nothing about
        what it holds and nothing about the passphrase. */
     available: configured(),
+    /* WHICH OF THE THREE IS MISSING, BY NAME ONLY — never a value, never a
+       hint at one.
+
+       `available` is all-or-nothing, which is correct for the app's behaviour
+       and useless for fixing it: a deployment with two of three set looks
+       identical to one with none, and the only way to tell was to guess in the
+       Vercel dashboard. Sarel lost most of a day to exactly that, on a preview
+       where the variables had been scoped to Production only.
+
+       WHY THIS IS SAFE TO SAY OUT LOUD. It reports the ABSENCE of
+       configuration. A missing SQUAWK_TEAM_PASSPHRASE is not a way in — with
+       no passphrase set, passphraseOk() returns false for every input and no
+       row moves in either direction, so naming it tells an attacker only that
+       there is nothing here to attack. No value, no length, no prefix, and
+       nothing at all once the deployment is configured: the array is empty and
+       stays empty, so a working deployment discloses nothing. */
+    missing: configured()
+      ? []
+      : [
+          !URL_ && "SUPABASE_URL",
+          !KEY && "SUPABASE_SECRET_KEY",
+          !PASS && "SQUAWK_TEAM_PASSPHRASE",
+        ].filter(Boolean),
     /* The server's clock, so a device can find out whether its own is wrong.
 
        Every contested record — over the wire and in the file merge alike — is

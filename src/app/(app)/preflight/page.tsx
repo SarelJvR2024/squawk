@@ -407,7 +407,17 @@ export default function PreflightPage() {
                 : `Synced${shared.lastSyncAt ? ` at ${new Date(shared.lastSyncAt).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}` : ""}`,
     hint:
       !shared || shared.state === "off"
-        ? "Captures stay on this device. Hand them to whoever is assembling the audit as a file, from Export → Team captures."
+        ? /* NAMING WHAT IS MISSING, when the probe told us.
+             "No shared record on this deployment" is true and leaves somebody
+             guessing which of three server variables to look at — Sarel spent
+             most of a day on exactly that, on a preview where they had been
+             scoped to Production only. The names come from GET /api/sync and
+             are names only; see the note there on why that is safe to say. */
+          shared?.missing?.length
+          ? `Not configured on this deployment — ${shared.missing.join(", ")} ${
+              shared.missing.length === 1 ? "is" : "are"
+            } not set. All three are needed, or none works. Captures stay on this device meanwhile; hand them over as a file from Export → Team captures.`
+          : "Captures stay on this device. Hand them to whoever is assembling the audit as a file, from Export → Team captures."
         : shared.state === "locked"
           ? "Open Export and enter the team passphrase once. Until then this device is auditing on its own."
           : shared.state === "error"
