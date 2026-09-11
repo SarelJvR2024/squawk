@@ -58,10 +58,10 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `offline.js` | yes | 19 |
 | `team.js` | yes | 15 |
 | `preflight.js` | yes | 18 |
-| `shared.js` | starts its own | 43 |
+| `shared.js` | starts its own | 58 |
 | `a11y.js` | yes | 51 |
 
-**1,617 assertions in total**, every count above verified by running the suite,
+**1,632 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -844,7 +844,16 @@ negative half is the half that matters**. A sync that works when everything is
 fine is table stakes. What decides whether a team trusts it:
 
 - an **unconfigured deployment says so and refuses to sync** — it never falls
-  open;
+  open, and it **names which of the three variables are empty**, by name only:
+  a half-configured deployment names exactly the two that are missing, a working
+  one names none, and nothing it reports carries a value, a length or a prefix
+  of one;
+- **a device that has not joined is told so on arrival**, unprompted, by a
+  banner in the flow of the page rather than a panel over the sticky compliance
+  bar; joining from the banner puts the device in the audit and keeps the
+  passphrase it accepted; "Not now" stays dismissed across a reload without
+  quietly letting the device in; and a device already in the audit never sees
+  it;
 - a wrong passphrase is refused, tells you nothing about the real one, and is
   never kept on the device;
 - guessing is slowed to a crawl, and one client being throttled does not lock

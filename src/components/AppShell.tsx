@@ -26,6 +26,7 @@ import { requestPersistentStorage } from "@/lib/media";
 import { usePhotoSync } from "@/lib/sync";
 import { useShared } from "@/lib/shared";
 import ExportPanel from "@/components/ExportPanel";
+import JoinPrompt from "@/components/JoinPrompt";
 import { SyncPanel } from "@/components/SyncPanel";
 import ResetPanel from "@/components/ResetPanel";
 import AuditsPanel from "@/components/AuditsPanel";
@@ -847,6 +848,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           titled by the masthead for a sighted auditor; it names the screen AND
           the audit, because "Findings" without the airport is the one thing
           this app must never be ambiguous about. */}
+      {/* Asks a device with nothing captured to join the shared audit. Renders
+          itself only when there is one to join and nobody has waved it away —
+          see JoinPrompt.
+
+          IN FLOW, ABOVE THE WORK, not floating over a corner of it. The first
+          build put it bottom-right, which on the check screen lands squarely on
+          the sticky compliance bar: the prompt would have covered the three
+          buttons the whole audit is made of. A banner that pushes the work down
+          costs a strip of height once and can never swallow a tap. */}
+      <JoinPrompt />
+
       <main id="work" className="flex min-h-0 flex-1">
         <h1 className="sr-only">
           {/* /home is reached from the brand mark rather than the nav, so it has
