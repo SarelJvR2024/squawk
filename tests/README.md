@@ -9,6 +9,25 @@ Forty-one suites, no framework. Thirteen need a running server; twenty-eight do 
 **Check each suite's exit status, not its output**: a `for` loop over them
 reports the status of the loop.
 
+**To run everything: `bash tests/run-all.sh`.** It builds, starts the two
+deployments the browser suites need between them, runs all forty-one, and
+prints the measured assertion count for each. Each suite's own section below
+still gives the single command for running it alone, which is what you want
+while working on one; the runner exists because assembling all forty-one by
+hand from those sections is how three of the browser rows in the table below
+drifted from what the suites actually assert without anybody noticing. **The
+numbers in that table are measured, never remembered** — paste them from a run.
+
+```bash
+bash tests/run-all.sh              # everything: build, servers, 41 suites
+bash tests/run-all.sh --source     # the 28 that need no server; seconds
+bash tests/run-all.sh --no-build   # browser suites against the existing .next
+```
+
+Never rebuild `.next` while a browser suite is running against it. The suite
+starts failing on half-written chunks and the failures look exactly like real
+ones; the runner builds before it starts anything for that reason.
+
 All run with plain `node` except `sharepoint.test.mjs`, `merge.test.mjs` and
 `figures.test.mjs`, which need the alias loader so they can import the app's
 real modules:
@@ -47,21 +66,21 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `figures.test.mjs` | no | 7 |
 | `home.test.mjs` | no | 51 |
 | `adhoc.test.mjs` | no | 43 |
-| `e2e.js` | yes | 22 |
-| `robustness.js` | yes | 50 |
+| `e2e.js` | yes | 24 |
+| `robustness.js` | yes | 53 |
 | `exports.js` | yes | 33 |
 | `ai.js` | yes, two of them | 26 |
 | `persite.js` | yes | 25 |
 | `vision.js` | starts its own | 23 |
 | `record.js` | starts its own | 14 |
-| `flow.js` | yes | 49 |
+| `flow.js` | yes | 50 |
 | `offline.js` | yes | 19 |
 | `team.js` | yes | 15 |
 | `preflight.js` | yes | 18 |
 | `shared.js` | starts its own | 58 |
 | `a11y.js` | yes | 51 |
 
-**1,632 assertions in total**, every count above verified by running the suite,
+**1,638 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -945,7 +964,9 @@ node tests/record.js
 
 ## `ai.js`
 
-Needs the app running twice: once with no keys, once fully configured. It
+Needs the app running twice: once with no keys, once fully configured — the only
+suite here that wants two deployments at the same time, because what it is
+really testing is whether the app is honest about which one it is talking to. It
 asserts that the offline composer works without a model, that the AI controls
 are hidden without one and shown with one, that a model failure is reported
 honestly and leaves the record untouched, that a draft is never written to the
@@ -965,6 +986,15 @@ BASE_NO_KEY=http://localhost:3000 BASE_WITH_KEY=http://localhost:3001 node tests
 Neither key has to be valid — invalid ones exercise the failure paths, which are
 the branches worth testing. The transcription *success* path cannot be tested
 without a real key and is the one thing here that has never run.
+
+**Both keys, on the keyed server.** `ELEVENLABS_API_KEY` is not optional on the
+second deployment even though most of this suite is about the model: Transcribe
+is offered only when `/api/transcribe` reports itself available, so a server
+started with `ANTHROPIC_API_KEY` alone hides the button and *"Transcribe is
+offered on the note"* fails. That failure is the suite being right about a
+deployment that really is missing a key — it is not the suite being stale, and
+it was misread as staleness for a day. `tests/run-all.sh` sets both, which is
+the reason to run it from there rather than by hand.
 
 ## `a11y.js`
 
