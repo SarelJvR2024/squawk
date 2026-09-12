@@ -363,6 +363,28 @@ export interface Attachment {
 export interface Response {
   checkId: string;
   compliance: Compliance | null;
+  /** ACSA SAYS COMPLIANT, AND THE EVIDENCE IS STILL TO COME.
+   *
+   *  Sarel, 2026-09-12: "ACSA's explanation is that they are compliant but
+   *  need to be verified when they submit the evidence" — and "we can maybe
+   *  later use this tag to generate an RFI to request the information".
+   *
+   *  DELIBERATELY A FLAG ON "C" AND NOT A FIFTH `Compliance` VALUE. A fifth
+   *  token would fall through every count, rating, export and completion rule
+   *  that currently switches on the four — ten sites in `src/lib` alone — and
+   *  each one is a place a check silently stops being counted. This is also
+   *  what the state actually is: compliant, with the proof outstanding. So
+   *  every existing rule keeps treating it as "C" and nothing had to be
+   *  rewired to add it.
+   *
+   *  The invariant, enforced in `setCompliance` and nowhere else: this can
+   *  only ever be true while `compliance === "C"`. Any other answer clears it,
+   *  because "evidence pending" against a non-compliance is not a statement
+   *  anybody made.
+   *
+   *  Optional, so a record written before this existed reads as false and no
+   *  store migration is needed. */
+  evidencePending?: boolean;
   observation: string;
   evidencePicked: number[];
   issuesPicked: number[];

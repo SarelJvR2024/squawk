@@ -129,14 +129,14 @@ const header = codeOnly.slice(at('className="relative z-[6] sm:sticky'), at("{ne
 const pinnedBar = codeOnly.slice(at('className="sticky bottom-0 z-[7]"'));
 
 check(
-  "THE FOUR COMPLIANCE BUTTONS ARE IN THE PINNED BOTTOM BAR, WITH SAVE",
-  /STATUSES\.map/.test(pinnedBar) && /setCompliance\(check\.id/.test(pinnedBar),
+  "THE COMPLIANCE BUTTONS ARE IN THE PINNED BOTTOM BAR, WITH SAVE",
+  /STATUSES\.filter\(/.test(pinnedBar) && /setCompliance\(check\.id/.test(pinnedBar),
   "they were the biggest thing on the screen and they were above the material the decision is made from"
 );
 
 check(
   "and they are gone from the header, not copied into two places",
-  !/STATUSES\.map/.test(header),
+  !/STATUSES\./.test(header),
   "two sets of compliance buttons is two things to keep in step"
 );
 
@@ -146,17 +146,47 @@ check(
   "moving them down is only safe because this bar does not scroll away"
 );
 
+/* THE VERDICT AND THE NON-ANSWERS ARE TWO ROWS, and that is the decision's
+   shape rather than a way to fit five boxes across 390px. The top row is what
+   the audit concludes about the asset — compliant, compliant with the proof
+   still to come, non-compliant. The bottom row is this check not applying here
+   and ACSA not producing the document while we were on site. Rendered as five
+   identical boxes those read as five equal choices.
+
+   Grids, not a wrapping flex row, for the same reason as before: a wrapping
+   row broke two-and-two the moment anything else joined the bar, which reads
+   as a rendering fault rather than a choice. A grid cannot split. */
 check(
-  "four across on a phone, carrying ACSA's own code, and the full word everywhere else",
-  /grid min-w-\[300px\] flex-1 grid-cols-4 gap-\[5px\]/.test(codeOnly) &&
-    /<span className="sm:hidden">\{key\}<\/span>/.test(codeOnly) &&
-    /aria-label=\{label\}/.test(codeOnly),
-  "four full labels wrap to two rows at 390px, and the full word must still reach a screen reader"
+  "THE VERDICT IS ITS OWN ROW, THE QUALIFIERS THEIRS",
+  /grid grid-cols-3 gap-\[5px\]/.test(codeOnly) && /grid grid-cols-2 gap-\[5px\]/.test(codeOnly),
+  "five identical boxes said a verdict and a not-applicable were the same kind of answer"
+);
+
+check(
+  "both rows come from ONE list, so the keyboard and the screen cannot disagree",
+  (codeOnly.match(/^const STATUSES/gm) || []).length === 1 &&
+    /STATUSES\.filter\(\(x\) => x\.group === "verdict"\)/.test(codeOnly) &&
+    /STATUSES\.filter\(\(x\) => x\.group === "qualifier"\)/.test(codeOnly),
+  "two arrays would let key 3 mean one thing to the hand and another to the eye"
+);
+
+check(
+  "ACSA's own code on a phone, the full phrase to a screen reader at every width",
+  /<span className="sm:hidden">\{st\.short\}<\/span>/.test(codeOnly) &&
+    /aria-label=\{st\.label\}/.test(codeOnly),
+  "\"C\" read out loud is not an answer anybody should have to decode"
 );
 
 check(
   "and each is still a 44px target",
-  /min-h-\[44px\] flex-1 items-center justify-center/.test(codeOnly)
+  (codeOnly.match(/min-h-\[44px\] items-center justify-center/g) || []).length === 2
+);
+
+check(
+  "the chosen answer carries a ring, not just a tint — it is read in daylight",
+  /boxShadow: `inset 0 0 0 1px var\(--\$\{tone\}\)`/.test(codeOnly) &&
+    /aria-pressed=\{on\}/.test(codeOnly),
+  "tinted background plus a coloured border washes out on a tablet at midday"
 );
 
 /* ------------------- the answer box, the voice note, the camera ----------- */
@@ -190,29 +220,47 @@ check(
 
 check(
   "the box is an input at rest and a box to write in once the cursor is in it",
-  /min-h-\[44px\][\s\S]{0,120}focus:min-h-\[112px\][\s\S]{0,60}sm:min-h-\[68px\]/.test(codeOnly),
+  /min-h-\[44px\][\s\S]{0,200}focus:min-h-\[112px\][\s\S]{0,60}sm:min-h-\[68px\]/.test(codeOnly),
   "a pinned six-line box leaves two lines of check above it on a phone"
 );
 
-/* THE TOOLBAR MOVED DOWN, and the reason it scrolls did not move with it.
-   Compose, Draft, Voice and Photo used to be their own row above the
-   observation field; they are in the answer bar now, beside the compliance
-   buttons, because three stacked strips of furniture between the box you type
-   in and the buttons that answer the check was one strip too many. On a phone
-   they are still ONE ROW THAT SCROLLS rather than two that wrap: at 44px a
-   wrapped toolbar is a second 50px band off a 664px screen for the whole
-   session, and this bar already spends better than a third of it. */
+/* THE WRITING TOOLS ARE IN THE BOX THEY WRITE INTO.
+   Sarel, 2026-09-12: "Move mic icon and choose from taps and draft with ai as
+   small icons in the text box on the right."
+
+   They were three labelled buttons in the bar, which put the three ways of
+   filling the observation in a different place from the observation, and spent
+   a row the compliance answer now uses for its second line. What is left in
+   the bar is Photo — the one control used in gloves on an apron, where a 34px
+   icon in a text field is the wrong target — and the pills saying what is
+   attached. That row still scrolls rather than wrapping: at 44px a wrapped
+   toolbar is a second 50px band off a 664px screen for the whole session. */
 check(
-  "the toolbar scrolls sideways rather than wrapping to a second 50px band",
-  /flex w-full flex-nowrap items-center gap-\[6px\] overflow-x-auto sm:w-auto sm:overflow-visible \[&>\*\]:shrink-0/.test(
+  "COMPOSE, DRAFT AND THE MIC ARE INSIDE THE OBSERVATION BOX",
+  /aria-label="Compose from taps"/.test(codeOnly) &&
+    /"Drafting…" : "Draft with AI"/.test(codeOnly) &&
+    /<VoiceNoteButton\s+inline/.test(codeOnly),
+  "three labelled buttons in the bar put the ways in somewhere other than the field"
+);
+check(
+  "the box reserves room for them rather than running text underneath",
+  /pr-\[124px\]/.test(codeOnly)
+);
+check(
+  "and they are anchored to the top, so they do not walk down a box that grows on focus",
+  /absolute top-\[5px\] right-\[5px\]/.test(codeOnly)
+);
+check(
+  "PHOTO KEEPS ITS FULL-SIZE LABELLED BUTTON IN THE BAR",
+  /<PhotoButton/.test(pinned),
+  "it is the one of the four reached for in gloves"
+);
+check(
+  "the remaining row still scrolls sideways rather than wrapping to a second 50px band",
+  /flex flex-nowrap items-center gap-\[6px\] overflow-x-auto sm:overflow-visible \[&>\*\]:shrink-0/.test(
     codeOnly
   ),
   ""
-);
-check(
-  "and it sits in the answer bar, not above the observation field",
-  pinned.indexOf("Compose from taps") > pinned.indexOf("THE ANSWER, AND WHAT COMMITS IT"),
-  "Sarel asked for these on the same row as Compliant / Non-compliant"
 );
 
 check(
@@ -281,9 +329,10 @@ check(
 );
 
 check(
-  "there is exactly ONE set of compliance buttons in the file",
-  (codeOnly.match(/STATUSES\.map/g) || []).length === 1,
-  "two sets of compliance buttons is two things to keep in step"
+  "there is exactly ONE definition of the compliance buttons in the file",
+  (codeOnly.match(/^const STATUSES/gm) || []).length === 1 &&
+    (codeOnly.match(/STATUSES\.filter\(/g) || []).length === 2,
+  "the two rows are two views of one list; two lists would be two things to keep in step"
 );
 
 /* --------------------------- NOTHING WAS DROPPED -------------------------- */

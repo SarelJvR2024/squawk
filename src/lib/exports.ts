@@ -165,6 +165,9 @@ export function registerSheet(x: ExportInput): Sheet {
       priorFor(x.entity, c.discipline, c.system)?.key ?? "",
       /* Capture starts here. */
       r?.compliance ? STATUS_WORD[r.compliance] : "",
+      /* Spelled out rather than "Yes": a reader scanning this column should
+         not have to look up what a bare yes is answering. */
+      r?.evidencePending ? "ACSA says compliant — evidence still to be produced" : "",
       /* WHERE THE ASSET WAS INSPECTED, and it is a different column from
          `Area`. Area is ACSA's category on the register; this is the auditor's
          own words for where they were standing, which is the half that lets
@@ -222,6 +225,13 @@ export function registerSheet(x: ExportInput): Sheet {
       { header: "Walkabout instruction", width: 48, wrap: true },
       { header: "Mar 2025 finding", width: 14 },
       { header: `Status (${visitLabel(x.visit)})`, width: 16 },
+      /* NEXT TO THE STATUS, NOT INSIDE IT. The status cell still reads exactly
+         "Compliant", so every filter, count and pivot built on the four words
+         keeps working; the caveat lives in its own column where adjacency
+         makes it impossible to read the one without the other. This is the
+         column an RFI gets generated from — filter it, and "Compliant when"
+         above says what to ask each site for. */
+      { header: "Evidence pending", width: 18, wrap: true },
       { header: "Where it was inspected", width: 28 },
       { header: "Observation", width: 60, wrap: true },
       { header: "Evidence requested", width: 42, wrap: true },
@@ -964,6 +974,7 @@ export function summarySheet(x: ExportInput): Sheet {
       cs.length,
       rs.filter((r) => r.captured).length,
       count("C"),
+      rs.filter((r) => r.compliance === "C" && r.evidencePending).length,
       count("NC"),
       count("N/A"),
       count("NV"),
@@ -987,6 +998,11 @@ export function summarySheet(x: ExportInput): Sheet {
       { header: "Check-points", width: 13 },
       { header: "Complete", width: 10 },
       { header: "Compliant", width: 11 },
+      /* A SUBSET OF THE COLUMN BEFORE IT, not a fifth answer — these rows are
+         counted under Compliant as well. It is here because "how many RFIs
+         does this discipline owe us" is the question the tag exists to
+         answer, and per-discipline is how the requests get sent. */
+      { header: "of which evidence pending", width: 24, wrap: true },
       { header: "Non-compliant", width: 14 },
       { header: "Not applicable", width: 14 },
       { header: "Not available", width: 13 },

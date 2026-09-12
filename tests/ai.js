@@ -20,17 +20,24 @@ const ok=(n,c,x='')=>{c?(pass++,log.push('PASS  '+n)):(fail++,log.push('FAIL  '+
   const errs=[]; p.on('pageerror',e=>errs.push(String(e)));
   await p.goto(''+B0+'/capture',{waitUntil:'networkidle'}); await p.waitForTimeout(2200);
   const t=await p.locator('body').innerText();
-  ok('offline composer is offered with no model', /Compose from taps/.test(t));
-  ok('AI buttons are hidden with no model', !/Draft with AI|Explain this check/.test(t));
+  /* UPDATED 2026-09-12: Compose, Draft and the mic moved into the observation
+     box as icons, so the label is an aria-label and a title rather than body
+     text. Counting the control is the assertion that survives that; reading
+     the page's words was only ever a proxy for it. */
+  ok('offline composer is offered with no model',
+     (await p.locator('button[aria-label="Compose from taps"]').count()) === 1);
+  ok('AI buttons are hidden with no model',
+     (await p.locator('button[aria-label="Draft with AI"]').count()) === 0 &&
+     !/Explain this check/.test(t));
   // the composer must work with nothing tapped -> a clear message, not a crash
-  await p.locator('button',{hasText:'Compose from taps'}).first().click(); await p.waitForTimeout(700);
+  await p.locator('button[aria-label="Compose from taps"]').first().click(); await p.waitForTimeout(700);
   const t0=await p.locator('body').innerText();
   ok('composer with nothing tapped says so', /Nothing tapped/.test(t0), t0.slice(0,80).replace(/\n/g,' '));
   // now tap a status + evidence + issue, then compose
   await p.keyboard.press('2'); await p.waitForTimeout(400);
   await openTab(p, 'Evidence to request'); await panelChip(p, 'evidence').click(); await p.waitForTimeout(400);
   await openTab(p, 'Issues found'); await panelChip(p, 'issues').click(); await p.waitForTimeout(600);
-  await p.locator('button',{hasText:'Compose from taps'}).first().click(); await p.waitForTimeout(700);
+  await p.locator('button[aria-label="Compose from taps"]').first().click(); await p.waitForTimeout(700);
   const t1=await p.locator('body').innerText();
   ok('composer produces a draft from taps', /suggested wording/i.test(t1), t1.slice(0,80).replace(/\n/g,' '));
   ok('draft mentions the requested evidence', /Evidence requested/.test(t1));
@@ -60,7 +67,8 @@ const ok=(n,c,x='')=>{c?(pass++,log.push('PASS  '+n)):(fail++,log.push('FAIL  '+
      lives under "In plain English". This assertion had been failing on main
      since that shipped — reading body text and expecting both strings is only
      right while everything is stacked. Open the tab, then assert. */
-  const draftVisible = /Draft with AI/.test(await p.locator('body').innerText());
+  /* Also an icon now, so it is counted rather than read out of the page. */
+  const draftVisible = (await p.locator('button[aria-label="Draft with AI"]').count()) === 1;
   await openTab(p, 'In plain English'); await p.waitForTimeout(500);
   const t=await p.locator('body').innerText();
   ok('AI buttons appear when a model is configured', draftVisible && /Explain this check/.test(t));
@@ -68,7 +76,7 @@ const ok=(n,c,x='')=>{c?(pass++,log.push('PASS  '+n)):(fail++,log.push('FAIL  '+
   await openTab(p, 'ACSA requirement'); await p.waitForTimeout(400);
   // a failing model must surface an honest message and leave the record alone
   const before = await p.locator('textarea[aria-label="Observation"]').first().inputValue();
-  await p.locator('button',{hasText:'Draft with AI'}).first().click();
+  await p.locator('button[aria-label="Draft with AI"]').first().click();
   let seen=''; for(let i=0;i<40;i++){ await p.waitForTimeout(150); const s=await p.locator('body').innerText(); if(/model service returned|unavailable/i.test(s)){seen=s;break;} }
   ok('a model failure is reported honestly', !!seen, 'no toast seen within 6s');
   ok('a model failure leaves the record untouched', (await p.locator('textarea[aria-label="Observation"]').first().inputValue())===before);
@@ -120,7 +128,14 @@ const ok=(n,c,x='')=>{c?(pass++,log.push('PASS  '+n)):(fail++,log.push('FAIL  '+
   await p.locator('button[aria-label="Record a voice note"]').first().click();
   await p.waitForTimeout(400);
   const rec = await p.locator('body').innerText();
-  ok('recording shows a running timer', /Stop · \d+:\d\d/.test(rec), rec.slice(0,60).replace(/\n/g,' '));
+  /* UPDATED 2026-09-12: the mic moved into the observation box, where there is
+     34px for it and no room for the word. It still says it is running — a red
+     fill and the clock counting — and the control still announces itself as
+     "Stop recording", which is what a screen reader and this assertion both
+     go on. The labelled form elsewhere in the app keeps "Stop · 0:03". */
+  ok('recording shows a running timer', /\d+:\d\d/.test(rec), rec.slice(0,60).replace(/\n/g,' '));
+  ok('and the control says what tapping it does, even with no room for a label',
+     (await p.locator('button[aria-label="Stop recording"]').count()) === 1);
   ok('live text is NOT running, because nobody switched it on',
      !/speech sent to the browser/i.test(rec));
   await p.waitForTimeout(1600);

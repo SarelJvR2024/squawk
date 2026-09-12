@@ -61,6 +61,20 @@ export interface CapturedMedia {
 const TAP =
   "inline-flex h-[44px] items-center justify-center gap-[7px] rounded-[11px] border px-[13px] text-[12px] font-semibold transition-[var(--t)] active:translate-y-[1px] disabled:opacity-40 disabled:cursor-not-allowed";
 
+/** The square, label-less form for sitting INSIDE the observation box.
+ *
+ *  A separate constant rather than a `className` override: both strings set
+ *  height and padding, and which one wins is decided by the order Tailwind
+ *  emitted the rules, not by the order they appear in the template. A prop
+ *  that swaps the whole base class is the version that cannot surprise
+ *  somebody later.
+ *
+ *  34px, not 44. These are a convenience at a desk, sat in a text field; the
+ *  controls an auditor reaches for in gloves on an apron — Photo, and the
+ *  compliance answer — keep their 44px in the bar below. */
+const TAP_INLINE =
+  "inline-flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border text-[12px] font-semibold transition-[var(--t)] active:translate-y-[1px] disabled:opacity-40 disabled:cursor-not-allowed";
+
 /** What to say when this device cannot store a capture.
  *
  *  EVIDENCE THAT WAS NOT STORED MUST NEVER BE SILENT. Both write paths used to
@@ -87,10 +101,16 @@ function whyItFailed(err: unknown): string {
 export function VoiceNoteButton({
   onCaptured,
   compact = false,
+  inline = false,
   className = "",
 }: {
   onCaptured: (m: CapturedMedia) => void;
   compact?: boolean;
+  /** Square and 34px, for sitting inside the observation box. Implies
+   *  `compact` — there is no room for a label — and while recording it still
+   *  widens to carry the running timer, because a recording that does not
+   *  show it is running is how an auditor loses a note. */
+  inline?: boolean;
   /* So a caller can stretch it in a grid cell, as PhotoButton already allows.
      It lands on the wrapper AND the button, because the wrapper is what a
      grid or flex parent actually measures. */
@@ -161,10 +181,15 @@ export function VoiceNoteButton({
     }
   }
 
+  /* Recording always shows the timer, so the inline form drops its fixed
+     width for as long as it is running rather than clipping the clock. */
+  const base = inline ? (recording ? `${TAP_INLINE} w-auto px-[9px] gap-[5px]` : TAP_INLINE) : TAP;
+  const labelled = !compact && !inline;
+
   if (!supported) {
     return (
       <span
-        className={TAP}
+        className={base}
         style={{
           background: "var(--sunken)",
           borderColor: "var(--line-2)",
@@ -173,7 +198,7 @@ export function VoiceNoteButton({
         title="This browser cannot record audio. Type the observation instead."
       >
         <IconMic width={15} height={15} />
-        {compact ? null : "Voice unavailable"}
+        {labelled ? "Voice unavailable" : null}
       </span>
     );
   }
@@ -185,7 +210,8 @@ export function VoiceNoteButton({
         onClick={toggle}
         disabled={busy || rec.state === "requesting"}
         aria-label={recording ? "Stop recording" : "Record a voice note"}
-        className={`${TAP} ${className}`}
+        title={recording ? "Stop recording" : "Record a voice note"}
+        className={`${base} ${className}`}
         style={
           recording
             ? { background: "var(--bad)", borderColor: "var(--bad)", color: "#fff" }
@@ -198,12 +224,18 @@ export function VoiceNoteButton({
       >
         <IconMic width={15} height={15} />
         {rec.state === "requesting"
-          ? "Allow microphone…"
+          ? inline
+            ? null
+            : "Allow microphone…"
           : recording
-            ? `Stop · ${formatDuration(rec.elapsed)}`
-            : compact
-              ? null
-              : "Voice note"}
+            ? /* The inline form shows the clock alone; the labelled one keeps
+                 "Stop · 0:03", which is what says the tap stops it. */
+              inline
+              ? formatDuration(rec.elapsed)
+              : `Stop · ${formatDuration(rec.elapsed)}`
+            : labelled
+              ? "Voice note"
+              : null}
       </button>
       {recording && (
         <button
@@ -214,7 +246,7 @@ export function VoiceNoteButton({
             rec.cancel();
           }}
           aria-label="Discard this recording"
-          className={TAP}
+          className={base}
           style={{
             background: "var(--panel)",
             borderColor: "var(--line-2)",

@@ -51,12 +51,103 @@ const MODE_ICON: Record<string, typeof IconHelp> = {
   Physical: IconPin,
 };
 
-const STATUSES: { key: Compliance; label: string; Icon: typeof IconCheck; tone: string }[] = [
-  { key: "C", label: "Compliant", Icon: IconCheck, tone: "good" },
-  { key: "NC", label: "Non-compliant", Icon: IconX, tone: "bad" },
-  { key: "N/A", label: "N/A", Icon: IconDash, tone: "neu" },
-  { key: "NV", label: "Not available", Icon: IconClock, tone: "warn" },
+/** THE ANSWER, AND WHAT IS NOT AN ANSWER.
+ *
+ *  Five options, and they were never five peers. Two of them are the audit's
+ *  verdict on the asset; one is that verdict with the proof still outstanding;
+ *  two are housekeeping — this check does not apply here, or ACSA could not
+ *  produce the document while we were on site. Rendered as five identical
+ *  boxes in a row, an auditor reads five equal choices and the shape of the
+ *  decision is lost. So `group` splits them, and the qualifiers are drawn
+ *  quieter than the verdicts.
+ *
+ *  ONE FLAT LIST ALL THE SAME, because both rows are filtered out of it. Two
+ *  arrays would let the keyboard and the screen disagree about what a key
+ *  means, which is the kind of drift nobody notices until an answer lands on
+ *  the wrong check.
+ *
+ *  THE HOTKEY IS DECLARED, NOT THE POSITION IN THIS ARRAY. The first cut
+ *  indexed the array, which put "compliant, evidence pending" on 2 and pushed
+ *  Non-compliant to 3 — silently rewriting a shortcut an auditor has already
+ *  learned, and the fastest way to file a wrong answer on a check. 1-4 keep
+ *  exactly what they have always meant; the new option is additive on 5.
+ *
+ *  `pending` is not a fifth `Compliance` token — see Response.evidencePending
+ *  in types.ts for why it is a flag on "C" instead. */
+const STATUSES: {
+  key: Compliance;
+  /** True only for the "compliant, evidence pending" row. */
+  pending?: boolean;
+  /** The number key that sets it. Declared, never positional — see above. */
+  hotkey: string;
+  label: string;
+  /** ACSA's own code, for a phone that cannot fit the word. */
+  short: string;
+  Icon: typeof IconCheck;
+  tone: string;
+  group: "verdict" | "qualifier";
+}[] = [
+  {
+    key: "C",
+    hotkey: "1",
+    label: "Compliant",
+    short: "C",
+    Icon: IconCheck,
+    tone: "good",
+    group: "verdict",
+  },
+  {
+    key: "C",
+    pending: true,
+    hotkey: "5",
+    /* Sarel's words for it: ACSA's explanation is that they are compliant, and
+       it has to be verified when they submit the evidence. */
+    label: "Compliant, evidence pending",
+    short: "C · pending",
+    Icon: IconClipboard,
+    /* `acc` rather than `warn`. Not-available is already warn, and the two are
+       the pair most worth telling apart: one is compliant-with-proof-to-come,
+       the other is nothing produced at all. */
+    tone: "acc",
+    group: "verdict",
+  },
+  {
+    key: "NC",
+    hotkey: "2",
+    label: "Non-compliant",
+    short: "NC",
+    Icon: IconX,
+    tone: "bad",
+    group: "verdict",
+  },
+  {
+    key: "N/A",
+    hotkey: "3",
+    label: "N/A",
+    short: "N/A",
+    Icon: IconDash,
+    tone: "neu",
+    group: "qualifier",
+  },
+  {
+    key: "NV",
+    hotkey: "4",
+    label: "Not available",
+    short: "NV",
+    Icon: IconClock,
+    tone: "warn",
+    group: "qualifier",
+  },
 ];
+
+/** Which row is showing as chosen. The pending flag is part of the identity:
+ *  "C" alone and "C" with evidence outstanding are two different answers and
+ *  exactly one of them may look selected. */
+const isOn = (
+  s: (typeof STATUSES)[number],
+  compliance: Compliance | null,
+  evidencePending: boolean | undefined
+) => compliance === s.key && !!s.pending === !!evidencePending;
 
 /** Every reference extract reads the same way: the document's words, set as
  *  the document set them. Whitespace is preserved because ACSA's procedures
@@ -73,14 +164,30 @@ function RefText({ children }: { children: React.ReactNode }) {
   );
 }
 
-const toneStyle = (tone: string, on: boolean): React.CSSProperties =>
+/** THE CHOSEN ANSWER HAS TO BE OBVIOUS ON AN APRON AT MIDDAY.
+ *
+ *  A tinted background plus a coloured border was too quiet: on a tablet in
+ *  daylight the difference between chosen and not chosen is a wash. The inset
+ *  ring doubles the border's apparent weight without changing the box model,
+ *  so nothing shifts as the answer is tapped.
+ *
+ *  Tint-and-ring rather than a solid fill with white text, because half the
+ *  tone colours inverse in dark mode — `--good` is #157d51 in light and
+ *  #4ecb8b in dark — and white on that would be unreadable. Both halves of
+ *  this come from per-theme variables, so both themes stay correct. */
+const toneStyle = (tone: string, on: boolean, quiet = false): React.CSSProperties =>
   on
     ? {
         background: `var(--${tone}-bg)`,
         borderColor: `var(--${tone})`,
         color: `var(--${tone})`,
+        boxShadow: `inset 0 0 0 1px var(--${tone})`,
       }
-    : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" };
+    : {
+        background: quiet ? "transparent" : "var(--panel)",
+        borderColor: quiet ? "var(--line)" : "var(--line-2)",
+        color: quiet ? "var(--ink-3)" : "var(--ink-2)",
+      };
 
 export default function CheckDetail({
   check,
@@ -98,6 +205,7 @@ export default function CheckDetail({
     compliance: null,
     observation: "",
     evidencePicked: [],
+    evidencePending: false,
     issuesPicked: [],
     walkaboutPicked: null,
     attachments: [],
@@ -200,16 +308,24 @@ export default function CheckDetail({
         (document.activeElement as HTMLElement)?.tagName ?? ""
       );
       if (typing) return;
-      if (["1", "2", "3", "4"].includes(e.key)) {
-        const next = STATUSES[Number(e.key) - 1].key;
-        setCompliance(check.id, r.compliance === next ? null : next);
+      /* Found by its declared hotkey, not by position — 1-4 are what they
+         have always been and 5 is the new one. The flag is part of what the
+         key sets: 5 is "C" plus the tag, and 1 is "C" without it. */
+      const hit = STATUSES.find((x) => x.hotkey === e.key);
+      if (hit) {
+        const on = isOn(hit, r.compliance, r.evidencePending);
+        setCompliance(check.id, on ? null : hit.key, !on && !!hit.pending);
       }
       if (e.key === "ArrowRight") onNext();
       if (e.key === "ArrowLeft") onPrev();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [check.id, r.compliance, setCompliance, onNext, onPrev]);
+    /* r.evidencePending belongs here: the handler decides whether a key
+       toggles OFF from what is already selected, and "C" with the tag and "C"
+       without it are two different selections. A stale flag here makes key 1
+       or 2 clear the answer when it should switch between them. */
+  }, [check.id, r.compliance, r.evidencePending, setCompliance, onNext, onPrev]);
 
   const save = (advance: boolean) => {
     commit(check.id, "desk");
@@ -1253,9 +1369,19 @@ export default function CheckDetail({
         <div className="border-t px-5 pt-[9px] pb-[9px]" style={{ borderColor: "var(--line)" }}>
           <div className="mb-[6px] hidden items-center justify-between gap-3 sm:flex">
             <b className="font-display text-[11px] font-semibold">Observation</b>
+            {/* It used to read "type · speak · photograph", naming the three
+                ways in. The tools are in the box now and say that themselves,
+                so this says what is ALREADY HERE instead — which is the thing
+                the label could not tell you before. */}
             <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-              {voice ? "voice note attached" : "type · speak · photograph"}
-              {photos > 0 ? ` · ${photos} photo${photos > 1 ? "s" : ""}` : ""}
+              {voice || photos > 0
+                ? [
+                    voice ? "voice note attached" : "",
+                    photos > 0 ? `${photos} photo${photos > 1 ? "s" : ""}` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                : "nothing attached yet"}
             </span>
           </div>
 
@@ -1314,19 +1440,95 @@ export default function CheckDetail({
             </div>
           )}
 
-          <textarea
-            ref={obsRef}
-            value={r.observation}
-            onChange={(e) => patch(check.id, { observation: e.target.value })}
-            placeholder="Composed from your taps — edit freely…"
-            aria-label="Observation"
-            /* 44px at rest, 112px once the cursor is in it, and full height
-               from sm. A phone that pins a six-line box has two lines of check
-               left above it; one that pins a single line has nowhere to write.
-               It grows when there is something to write in it. */
-            className="max-h-[26vh] min-h-[44px] w-full resize-y rounded-[11px] border px-3 py-2 text-[12.5px] leading-[1.55] outline-none transition-[var(--t)] focus:min-h-[112px] focus:border-[var(--acc)] sm:min-h-[68px] sm:py-2.5"
-            style={{ background: "var(--focus-surface)", borderColor: "var(--line-2)" }}
-          />
+          {/* THE WRITING TOOLS SIT IN THE BOX THEY WRITE INTO.
+              Sarel, 2026-09-12: "Move mic icon and choose from taps and draft
+              with ai as small icons in the text box on the right."
+
+              They were three labelled buttons in the bar below, which put the
+              three ways of filling this field in a different place from the
+              field, and cost the row that the compliance answer now uses. In
+              the box they are where the hand already is.
+
+              Photo deliberately stays a full 44px labelled button in the bar.
+              It is the one of the four used in gloves on an apron, and a 34px
+              icon in a text field is the wrong target for that. */}
+          <div className="relative">
+            <textarea
+              ref={obsRef}
+              value={r.observation}
+              onChange={(e) => patch(check.id, { observation: e.target.value })}
+              placeholder="Type, or use the tools on the right…"
+              aria-label="Observation"
+              /* 44px at rest, 112px once the cursor is in it, and full height
+                 from sm. A phone that pins a six-line box has two lines of check
+                 left above it; one that pins a single line has nowhere to write.
+                 It grows when there is something to write in it.
+
+                 pr-[124px] keeps the text clear of the icon cluster. The
+                 padding is on the RIGHT rather than the bottom because the box
+                 is 44px at rest — a bottom gutter would leave a single line of
+                 writing nowhere to sit. */
+              className="max-h-[26vh] min-h-[44px] w-full resize-y rounded-[11px] border py-2 pr-[124px] pl-3 text-[12.5px] leading-[1.55] outline-none transition-[var(--t)] focus:min-h-[112px] focus:border-[var(--acc)] sm:min-h-[68px] sm:py-2.5"
+              style={{ background: "var(--focus-surface)", borderColor: "var(--line-2)" }}
+            />
+            {/* top-right, not centred: the box grows to 112px on focus and a
+                vertically centred cluster would walk down the field as it
+                does. Pinned to the top it stays where the eye left it. */}
+            <div className="absolute top-[5px] right-[5px] flex items-center gap-[4px]">
+              <button
+                type="button"
+                onClick={() => {
+                  const text = composeObservation(check, r, a);
+                  if (text) setDraft(text);
+                  else onSaved("Nothing tapped yet to compose from");
+                }}
+                aria-label="Compose from taps"
+                title="Compose from taps — builds a sentence from the buttons you have tapped. Works offline, no model needed."
+                className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border transition-[var(--t)] active:translate-y-[1px]"
+                style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+              >
+                <IconWand width={14} height={14} />
+              </button>
+              {aiOn && (
+                <button
+                  type="button"
+                  disabled={thinking === "observation"}
+                  onClick={async () => {
+                    setThinking("observation");
+                    try {
+                      setDraft(await assist("observation", checkContext(check, r, a)));
+                    } catch (err) {
+                      onSaved(err instanceof Error ? err.message : "The assistant is unavailable");
+                    } finally {
+                      setThinking(null);
+                    }
+                  }}
+                  aria-label={thinking === "observation" ? "Drafting…" : "Draft with AI"}
+                  title="Draft with AI — drafts the observation from this check's own material. Advisory, you decide."
+                  className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border transition-[var(--t)] active:translate-y-[1px] disabled:opacity-40"
+                  style={
+                    thinking === "observation"
+                      ? { background: "var(--acc-bg)", borderColor: "var(--acc)", color: "var(--acc)" }
+                      : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
+                  }
+                >
+                  <IconSpark width={14} height={14} />
+                </button>
+              )}
+              <VoiceNoteButton
+                inline
+                onCaptured={(m) => {
+                  addAttachment(check.id, { ...m, createdBy: auditor });
+                  /* The transcript is attached to the note, not spliced into
+                     the observation. An auditor writes the observation; the
+                     recording is evidence beside it. */
+                  onSaved(
+                    m.transcript ? "Voice note attached with transcript" : "Voice note attached"
+                  );
+                }}
+              />
+            </div>
+          </div>
 
         </div>
 
@@ -1397,48 +1599,10 @@ export default function CheckDetail({
               whole session, and this bar already spends a third of it.
               Sideways it costs nothing and every label stays the length it
               needs to be. */}
-          <div className="no-scrollbar flex w-full flex-nowrap items-center gap-[6px] overflow-x-auto sm:w-auto sm:overflow-visible [&>*]:shrink-0">
-            <Btn
-              onClick={() => {
-                const text = composeObservation(check, r, a);
-                if (text) setDraft(text);
-                else onSaved("Nothing tapped yet to compose from");
-              }}
-              title="Builds a sentence from the buttons you have tapped. Works offline, no model needed."
-            >
-              <IconWand width={14} height={14} />
-              Compose from taps
-            </Btn>
-            {aiOn && (
-              <Btn
-                disabled={thinking === "observation"}
-                onClick={async () => {
-                  setThinking("observation");
-                  try {
-                    setDraft(await assist("observation", checkContext(check, r, a)));
-                  } catch (err) {
-                    onSaved(err instanceof Error ? err.message : "The assistant is unavailable");
-                  } finally {
-                    setThinking(null);
-                  }
-                }}
-                title="Drafts the observation from this check's own material. Advisory — you decide."
-              >
-                <IconSpark width={14} height={14} />
-                {thinking === "observation" ? "Drafting…" : "Draft with AI"}
-              </Btn>
-            )}
-            <VoiceNoteButton
-              onCaptured={(m) => {
-                addAttachment(check.id, { ...m, createdBy: auditor });
-                /* The transcript is attached to the note, not spliced into
-                   the observation. An auditor writes the observation; the
-                   recording is evidence beside it. */
-                onSaved(
-                  m.transcript ? "Voice note attached with transcript" : "Voice note attached"
-                );
-              }}
-            />
+          {/* Compose, Draft and the mic moved INTO the observation box above —
+              see the note there. What is left is the one control that has to
+              stay a proper 44px target, and the pills saying what is attached. */}
+          <div className="no-scrollbar flex flex-nowrap items-center gap-[6px] overflow-x-auto sm:overflow-visible [&>*]:shrink-0">
             <PhotoButton
               onCaptured={(m) => {
                 addAttachment(check.id, { ...m, createdBy: auditor });
@@ -1456,38 +1620,72 @@ export default function CheckDetail({
             {voice && <Pill tone="accent">voice note</Pill>}
           </div>
 
-          {/* FOUR ACROSS AT EVERY WIDTH, and a grid rather than a wrapping
-              flex row so it stays that way. As `sm:flex sm:flex-wrap` these
-              four broke two-and-two the moment the capture tools joined this
-              bar — Compliant and Non-compliant on one line, N/A and Not
-              available on the next — which is exactly the "reads as a
-              rendering fault rather than a choice" this comment was already
-              warning about, reintroduced by crowding the row rather than by
-              narrowing the screen. A grid cannot split; when the bar runs out
-              of width the whole group wraps as one, which is legible. */}
-          <div className="grid min-w-[300px] flex-1 grid-cols-4 gap-[5px]">
-            {STATUSES.map(({ key, label, Icon, tone }) => (
-              <button
-                key={key}
-                onClick={() => setCompliance(check.id, r.compliance === key ? null : key)}
-                /* The full word, always, to a screen reader — the phone shows
-                   the code to fit four targets across 390px, and "C" read out
-                   loud is not an answer anybody should have to decode. */
-                aria-label={label}
-                className="flex min-h-[44px] flex-1 items-center justify-center gap-[6px] rounded-[10px] border-[1.5px] px-[7px] font-display text-[11px] font-semibold whitespace-nowrap transition-[var(--t)] sm:px-[10px] sm:text-[11.5px]"
-                style={toneStyle(tone, r.compliance === key)}
-              >
-                <Icon width={14} height={14} />
-                {/* ACSA's own code on a phone, the word everywhere else.
-                    Four full labels wrap to two rows at 390px, and a second
-                    50px band of pinned bar is 50px of check nobody can see —
-                    on a screen where the bar already takes 290 of 664. C, NC,
-                    N/A and NV are not an abbreviation invented here: they are
-                    what the record stores and what the export column says. */}
-                <span className="sm:hidden">{key}</span>
-                <span className="hidden sm:inline">{label}</span>
-              </button>
-            ))}
+          {/* THE VERDICT, THEN THE THINGS THAT ARE NOT A VERDICT.
+              Two rows, at every width, and grids rather than a wrapping flex
+              row so they stay that way — as a single wrapping row these broke
+              two-and-two the moment the capture tools joined this bar, which
+              reads as a rendering fault rather than a choice.
+
+              Splitting them is not a layout trick to fit five across 390px
+              (though it does that too). It is the decision's actual shape: the
+              top row is what the audit concludes about the asset, the bottom
+              row is this check not applying here and ACSA not producing the
+              document while we were on site. Five identical boxes said those
+              were the same kind of answer. */}
+          <div className="flex min-w-[280px] flex-1 flex-col gap-[5px]">
+            <div className="grid grid-cols-3 gap-[5px]">
+              {STATUSES.filter((x) => x.group === "verdict").map((st) => {
+                const on = isOn(st, r.compliance, r.evidencePending);
+                return (
+                  <button
+                    key={st.label}
+                    onClick={() =>
+                      setCompliance(check.id, on ? null : st.key, !on && !!st.pending)
+                    }
+                    /* The full phrase, always, to a screen reader — the phone
+                       shows the code to fit the targets across 390px, and "C"
+                       read out loud is not an answer anybody should have to
+                       decode. */
+                    aria-label={st.label}
+                    aria-pressed={on}
+                    title={st.label}
+                    className="flex min-h-[44px] items-center justify-center gap-[6px] rounded-[10px] border-[1.5px] px-[7px] font-display text-[11px] font-semibold whitespace-nowrap transition-[var(--t)] sm:px-[10px] sm:text-[11.5px]"
+                    style={toneStyle(st.tone, on)}
+                  >
+                    <st.Icon width={14} height={14} />
+                    {/* ACSA's own code on a phone, the words everywhere else.
+                        C, NC, N/A and NV are not abbreviations invented here:
+                        they are what the record stores and what the export
+                        column says. */}
+                    <span className="sm:hidden">{st.short}</span>
+                    <span className="hidden sm:inline">{st.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {/* Drawn quieter — transparent, a lighter border, muted text —
+                because reaching for one of these is saying there is nothing to
+                assess, and that should not compete with the answer above it. */}
+            <div className="grid grid-cols-2 gap-[5px]">
+              {STATUSES.filter((x) => x.group === "qualifier").map((st) => {
+                const on = isOn(st, r.compliance, r.evidencePending);
+                return (
+                  <button
+                    key={st.label}
+                    onClick={() => setCompliance(check.id, on ? null : st.key)}
+                    aria-label={st.label}
+                    aria-pressed={on}
+                    title={st.label}
+                    className="flex min-h-[44px] items-center justify-center gap-[6px] rounded-[10px] border px-[7px] font-display text-[11px] font-semibold whitespace-nowrap transition-[var(--t)] sm:px-[10px]"
+                    style={toneStyle(st.tone, on, true)}
+                  >
+                    <st.Icon width={13} height={13} />
+                    <span className="sm:hidden">{st.short}</span>
+                    <span className="hidden sm:inline">{st.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="flex gap-[7px]">

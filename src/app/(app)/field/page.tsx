@@ -1382,7 +1382,18 @@ export default function FieldPage() {
             <OutcomeControl
               value={r?.compliance ?? null}
               onChange={(nextOutcome) => {
-                setCompliance(c.id, nextOutcome);
+                /* CARRY THE EVIDENCE-PENDING TAG, do not silently drop it.
+                   setCompliance clears the flag on any answer that is not "C",
+                   which is the right invariant — but a desk answer of
+                   "compliant, evidence pending" followed by the field half
+                   confirming compliance is the same verdict, and losing the
+                   tag there would quietly take a row off the RFI list nobody
+                   asked to remove. Any other outcome supersedes it. */
+                setCompliance(
+                  c.id,
+                  nextOutcome,
+                  nextOutcome === "C" ? !!r?.evidencePending : false
+                );
                 if (nextOutcome) {
                   saveField(c.id);
                   say(`${c.id} — ${OUTCOMES.find((o) => o.key === nextOutcome)?.label}`);

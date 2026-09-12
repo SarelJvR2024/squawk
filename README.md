@@ -643,7 +643,7 @@ tests/                thirty-five suites — see tests/README.md
   tabs come in two groups in one strip: what the auditor *does* with this check
   (the evidence, likely answers, issues, walkabout and snippet chips, each
   carrying a count so nothing tapped is hidden by a panel that is closed), then
-  what the auditor *reads* to do it. The four compliance buttons are in the
+  what the auditor *reads* to do it. The compliance buttons are in the
   pinned bottom bar with Save rather than at the top of the screen: they are
   still on screen at every scroll position, under the thumb rather than across
   the screen from what commits them, and the check gets the height back. The
@@ -651,6 +651,25 @@ tests/                thirty-five suites — see tests/README.md
   phone they used to be below six groups of chips.
   `tests/checkscreen.test.mjs` asserts both the shape and, field by field, that
   nothing was dropped to get it.
+
+  **The verdict and the things that are not a verdict are two rows.** Compliant,
+  *compliant with the evidence still to come*, and non-compliant are what the
+  audit concludes about the asset; N/A and Not available are this check not
+  applying here and ACSA not producing the document while we were on site.
+  Drawn as five identical boxes those read as five equal choices, so the
+  qualifiers sit on their own quieter row. The chosen answer carries an inset
+  ring as well as a tint — a tint alone washes out on a tablet in daylight.
+  **The number keys are declared per option, never the array position:** 1-4
+  are what they have always been and the new option is additive on 5, because a
+  shortcut that quietly changes meaning is the fastest way to file a wrong
+  answer against a check.
+
+  **The writing tools are inside the box they write into.** Compose from taps,
+  Draft with AI and the microphone are 34px icons at the top right of the
+  observation field rather than labelled buttons in the bar — three ways of
+  filling a field belong at the field. Photo stays a full 44px labelled button
+  in the bar: it is the one of the four reached for in gloves on an apron, where
+  a small icon in a text field is the wrong target.
 
 - **The Inspection list is a filter over one level, not a tree of two.**
   Discipline was the first level of the hierarchy: six rows, every one of which
@@ -766,6 +785,44 @@ tests/                thirty-five suites — see tests/README.md
 - **Answer Library content is reviewed content.** Issue buttons seed findings
   with suggested severities, so they carry weight. A discipline lead signs off
   each set before it goes live (design document Q9).
+
+## "Compliant, evidence pending" — a tag, and an RFI later
+
+Sarel, 2026-09-12: ACSA's explanation on a check is that they *are* compliant,
+and it has to be verified when they submit the evidence. That is a real third
+state on the desk and it was being recorded as plain Compliant, which loses the
+fact that somebody still owes us a document.
+
+**It is a flag on Compliant, not a fifth answer.** `Compliance` is still
+`"C" | "NC" | "N/A" | "NV"`; the tag is `Response.evidencePending`. A fifth
+token would look tidier and would fall through every rule that switches on the
+four — the discipline counts, the rating gate in `carryforward.ts`, the
+completion logic and four export sheets — and each one is a place a check
+silently stops being counted. It is also what the state actually *is*:
+compliant, with the proof outstanding. So every existing count keeps treating
+it as compliant and nothing had to be rewired to add it.
+
+**The invariant: the flag can only ever be true while the answer is `"C"`.**
+It is written in exactly one place — `setCompliance` — which forces it false on
+any other answer, so "evidence pending" can never be left stranded on a
+non-compliance and an RFI built from it cannot ask ACSA to prove a failure.
+`tests/evidencepending.test.mjs` asserts there is no second writer.
+
+The field screen is the one place that needed care: it sets compliance too, and
+the naive version cleared the tag when the field half confirmed the same
+verdict — quietly taking a row off the list. It carries the tag through when the
+outcome is still `C`; any other outcome supersedes it.
+
+**Where the RFI comes from.** The register sheet has an `Evidence pending`
+column of its own, immediately after the status. The status cell still reads
+exactly `Compliant`, so every existing filter, count and pivot keeps working;
+the caveat lives beside it where adjacency makes it impossible to read one
+without the other. Filter that column and the `Compliant when` column already
+says what each site has to produce. The discipline summary also counts *of which
+evidence pending*, because "how many does this discipline owe us" is the
+question the tag exists to answer and per-discipline is how the requests get
+sent. **Generating the RFI itself is not built** — the logic is Sarel's to
+define; what is built is a tag that can carry it.
 
 ## Ten sites, one register
 

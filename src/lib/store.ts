@@ -202,6 +202,7 @@ function emptyResponse(checkId: string): Response {
     issuesPicked: [],
     walkaboutPicked: null,
     attachments: [],
+    evidencePending: false,
     captured: false,
     capturedBy: "",
     capturedAt: null,
@@ -314,7 +315,10 @@ interface State {
   visitData: () => VisitData;
   response: (checkId: string) => Response;
   patch: (checkId: string, p: Partial<Response>) => void;
-  setCompliance: (checkId: string, c: Compliance | null) => void;
+  /** `evidencePending` marks ACSA's "compliant, proof still to come". It is
+   *  only honoured with c === "C"; every other answer clears it, so the flag
+   *  can never be left stranded on a non-compliance. */
+  setCompliance: (checkId: string, c: Compliance | null, evidencePending?: boolean) => void;
   toggleEvidence: (checkId: string, i: number) => void;
   toggleIssue: (
     checkId: string,
@@ -555,7 +559,16 @@ export const useStore = create<State>()(
             },
           })),
 
-        setCompliance: (checkId, c) => get().patch(checkId, { compliance: c }),
+        /* ONE ENTRY POINT, so the two fields cannot drift apart. Both are
+           written on every call — including from the walkabout chips and the
+           field screen, which pass no flag and therefore clear it — which is
+           what keeps "evidence pending" a trustworthy filter for the RFI list
+           rather than a stale marker left behind by a changed answer. */
+        setCompliance: (checkId, c, evidencePending = false) =>
+          get().patch(checkId, {
+            compliance: c,
+            evidencePending: c === "C" ? evidencePending : false,
+          }),
 
         toggleEvidence: (checkId, i) => {
           const r = get().response(checkId);

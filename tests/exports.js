@@ -52,13 +52,20 @@ const ok = (n, c, x = "") => {
   await openTab(p, "Issues found");
   await panelChip(p, "issues").click();
   await p.waitForTimeout(500);
-  /* The OBSERVATION field by its placeholder, not "the first textarea".
-     The check screen now carries a collapsed treatment block per raised
-     finding, which puts a hidden textarea earlier in the DOM — and a test that
-     says "the first one" was always going to break the first time the page
-     grew a field above it. */
+  /* The OBSERVATION field by its ARIA LABEL, not "the first textarea" and not
+     its placeholder either. The check screen carries a collapsed treatment
+     block per raised finding, which puts a hidden textarea earlier in the DOM,
+     so "the first one" was always going to break the first time the page grew
+     a field above it.
+
+     UPDATED 2026-09-12: it was keyed on the placeholder, which then read
+     "Composed from your taps…" — and that is user-facing copy. It changed the
+     day Compose, Draft and the mic moved into the box and the placeholder
+     stopped needing to advertise them. The aria-label is the field's identity
+     and the thing a screen reader announces, so it is the hook that does not
+     move when the wording does. */
   await p
-    .locator('textarea[placeholder^="Composed from your taps"]')
+    .locator('textarea[aria-label="Observation"]')
     .first()
     .fill('Register produced; three of eleven entries unsigned & "undated".');
   await p.waitForTimeout(300);
