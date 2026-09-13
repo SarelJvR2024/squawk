@@ -1,6 +1,6 @@
 # The checks a machine cannot make
 
-Thirty-four automated suites cover what can be asserted from source or driven
+Forty-two automated suites cover what can be asserted from source or driven
 in a headless browser. This file is the rest: the things that need a real
 device, a real network, a real Supabase project and a person who can tell
 whether a photograph shows the right panel.
@@ -18,6 +18,48 @@ Record the result beside each line — date, device, pass or what happened. A ti
 with no device name is worth very little.
 
 ---
+
+## 0 · READS AS A FAULT, IS NOT
+
+Walked end to end on 2026-09-13, on the build now in production. Every screen
+renders, every count moves when it should, and nothing was found broken. These
+four will still look wrong on a first pass, and each is deliberate. Check them
+against this list before writing them down as defects — that is the whole
+reason this section exists.
+
+- **The dashboard says `Captured · 0/324` and `0%` after you have answered
+  checks.** Correct. "Captured" means the check is FINISHED — every half its
+  type declares, desk *and* site. Answer three at the desk and the nav reads
+  `Checks 3/315` while the dashboard still reads 0 captured, because nobody has
+  been to look at the asset yet. The two numbers measure different things and
+  both are right. This is the property that stops 290 checks reading as
+  complete with nobody having walked the apron, so it is not going to change
+  without a decision to change it.
+- **`Checks 3/315` and `Inspection 0/290` do not add up to 324.** Correct.
+  315 is what a desk can answer, 290 is what has something to go and see, and
+  the two overlap: most checks are in both. 324 is the register.
+- **A check answered but not saved shows a hollow dot**, and the count says
+  "to save". That is the warning working, not a failed save.
+- **Fonts come from Google.** With no signal the app paints immediately in the
+  fallback typeface — measured at 149ms even with the font host hanging — so a
+  different-looking font on the apron is not a fault. Nothing waits on it.
+
+## 0b · NEW SINCE THE LAST ROUND — worth a deliberate look
+
+- [ ] **The compliance answer is two rows now.** Compliant · Compliant,
+      evidence pending · Non-compliant on top; N/A and Not available below, drawn
+      quieter. Confirm the chosen one is unmistakable **outdoors in daylight** —
+      it gained an inset ring for exactly that, and a tablet in the sun is the
+      only place to judge it.
+- [ ] **Number keys 1–4 still mean what they always meant**; the new option is
+      on 5. Worth one deliberate press of each if you use the keyboard.
+- [ ] **"Compliant, evidence pending"** records ACSA saying they comply with the
+      proof still to come. Tag one, save, reload — it is still tagged. It counts
+      as Compliant everywhere, and appears as its own column in the workbook.
+- [ ] **Compose from taps, Draft with AI and the microphone are now icons inside
+      the observation box**, top right. Photo stayed a full-size button in the
+      bar. **Judge this with gloves on if you can** — it is the one change that
+      trades target size for proximity, and the apron is where that is decided.
 
 ## 1. Before the walk
 
@@ -139,6 +181,17 @@ with no device name is worth very little.
 - [ ] The check ids are the **site's** ids (`KSIA-…`, or the right prefix for
       whichever site you are in) — never another airport's.
 - [ ] No `SAMPLE-` tag appears anywhere in the output.
+
+**One gap worth deciding on, not a defect.** The *Evidence request* sheet — the
+list that leaves the room for ACSA to action — is built from the evidence chips
+an auditor TAPPED (`evidencePicked`). A check tagged **"Compliant, evidence
+pending"** does not appear on it unless a chip was also tapped, and its State
+column would read "Requested" rather than naming the tag. If the RFI is going to
+be generated from that tag, this sheet is where the two have to meet. The tag
+does reach the workbook — its own column on the Register sheet, plus an "of
+which evidence pending" count per discipline — so the data is there; what is not
+decided is whether the Evidence request sheet should draw on it. That is a
+logic decision, and it is Sarel's.
 
 ## 10. The sync — once the portal is configured
 
