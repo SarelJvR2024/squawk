@@ -669,8 +669,8 @@ check(
 check(
   "and the panel opens on a readiness list, not on a dead end",
   /const steps: Step\[\]/.test(panel) &&
-    /state: configured \? "ok" : "todo"/.test(panel),
-  ""
+    /state: configured && !graph\.tenantLooksWrong\(\) \? "ok" : "todo"/.test(panel),
+  "the first step is green only when the four variables are set AND the tenant is one the registration will accept"
 );
 
 check(
@@ -774,26 +774,42 @@ check(
  *  building, with an AADSTS number for a message. */
 
 check(
-  "the tenant is the GUID, never a common endpoint",
-  (() => {
-    const m = graphCode.match(/DEFAULT_TENANT\s*=\s*"([^"]+)"/);
-    return !!m && /^[0-9a-f-]{36}$/.test(m[1]);
-  })(),
-  "the registration is single tenant; /organizations refuses it with AADSTS50194"
+  "NO REGISTRATION VALUE IS IN THE REPOSITORY — this one is public",
+  !/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(graphCode) &&
+    !/sharepoint\.com/i.test(graphCode) &&
+    !/vercel\.app/i.test(graphCode),
+  "a client id and a tenant id are not credentials, and are still not worth publishing next to the site they open"
 );
 
 check(
-  "the client id is a real GUID and the site is TPJV's",
-  /DEFAULT_CLIENT_ID\s*=\s*"[0-9a-f-]{36}"/.test(graphCode) &&
-    /DEFAULT_SITE\s*=\s*"https:\/\/[a-z]+\.sharepoint\.com\/sites\//.test(graphCode)
+  "and every one of them comes from the environment, with no fallback to hide an empty one",
+  /NEXT_PUBLIC_GRAPH_CLIENT_ID \?\? ""/.test(graphCode) &&
+    /NEXT_PUBLIC_GRAPH_TENANT \?\? ""/.test(graphCode) &&
+    /NEXT_PUBLIC_GRAPH_SITE \?\? ""/.test(graphCode) &&
+    /NEXT_PUBLIC_GRAPH_ORIGIN \?\? ""/.test(graphCode)
 );
 
 check(
-  "and every one of them is still overridable by environment",
-  /NEXT_PUBLIC_GRAPH_CLIENT_ID\s*\|\|/.test(graphCode) &&
-    /NEXT_PUBLIC_GRAPH_TENANT\s*\|\|/.test(graphCode) &&
-    /NEXT_PUBLIC_GRAPH_SITE\s*\|\|/.test(graphCode),
-  "a default is a default, not a hardcoding"
+  "THE TENANT IS NAMED WHEN IT IS MISSING",
+  /NEXT_PUBLIC_GRAPH_TENANT/.test(
+    graphCode.slice(graphCode.indexOf("export function graphMissing"), graphCode.indexOf("export function tenantLooksWrong"))
+  ),
+  "it used to default to organizations, so an empty one was never reported and the sign-in failed instead"
+);
+
+check(
+  "and a tenant set to a common endpoint is refused BEFORE a sign-in, by name",
+  /organizations/.test(graphCode) && /AADSTS50194/.test(graphCode) &&
+    /graph\.tenantLooksWrong\(\)/.test(panel),
+  "the single-tenant registration refuses /common, /organizations and /consumers"
+);
+
+check(
+  "an unset redirect origin reads as NOT CHECKED, never as fine",
+  /if \(!GRAPH_ORIGIN\) return true;/.test(graphCode) &&
+    /redirectOriginKnown/.test(graphCode) &&
+    /graph\.redirectOriginKnown\(\)/.test(panel),
+  "a red step that fires because a variable is empty teaches people to ignore the step"
 );
 
 check(

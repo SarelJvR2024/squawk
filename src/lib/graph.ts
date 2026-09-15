@@ -25,76 +25,100 @@
  *  token cache with its own storage policy to reason about — which is the
  *  entire point of the paragraph above. */
 
-/** TPJV'S REGISTRATION, AS THE DEFAULT. Overridable by environment, but it
- *  does not have to be set for the sync to work on the day.
+/** THE REGISTRATION IS CONFIGURATION, NOT CODE — AND THIS REPOSITORY IS PUBLIC.
  *
- *  Prince Mahlangu completed the Microsoft side on 15 September 2026: a
- *  single-tenant app registration with an SPA redirect, no client secret, and
- *  delegated `Sites.ReadWrite.All` consented for TPJV.
+ *  Prince completed the Microsoft side on 15 September 2026: a single-tenant
+ *  app registration with an SPA redirect, no client secret, and delegated
+ *  `Sites.ReadWrite.All` consented for TPJV. The obvious convenience was to
+ *  put his three values here as defaults, so that a Vercel variable nobody
+ *  remembered to set could not silently produce an app with no sync. That was
+ *  done and then undone within the hour, on finding that github.com/
+ *  SarelJvR2024/squawk is a PUBLIC repository.
  *
- *  NONE OF THE THREE IS A CREDENTIAL, and that is not a judgement call here —
- *  it is what the flow requires. Authorization code with PKCE is a PUBLIC
- *  client flow: the client id is transmitted in a URL in the address bar of
- *  the sign-in window, the tenant id is in the path of that same URL, and the
- *  site is a SharePoint address anybody on the audit can open. Holding all
- *  three grants nothing — a sign-in still needs a TPJV account, that account's
- *  password, and its MFA prompt, and Graph then grants exactly what that
- *  person already had.
+ *  None of the three is a credential — a client id travels in the address bar
+ *  of the sign-in window, a tenant id is resolvable from any tenant's domain
+ *  through Microsoft's own public discovery endpoint, and the site is an
+ *  address anybody on the audit can open. Holding all three grants nothing: a
+ *  sign-in still needs a TPJV account, its password and its MFA prompt.
  *
- *  They are here rather than only in Vercel because a build-time variable that
- *  nobody set is invisible: it does not fail, it produces an app that quietly
- *  has no sync, and that already cost a day on the Supabase three. An
- *  environment variable still wins where one is set, so a second tenant or a
- *  test registration needs no code change.
+ *  But "not a credential" is not the same as "worth publishing". The three
+ *  together name the exact app registration to aim a consent prompt at, and
+ *  the exact SharePoint site to aim it for, at a national key point, in a
+ *  place with no audience control. Nothing here needs them to be legible to
+ *  strangers, so they live in Vercel and the code stays empty.
  *
- *  Sarel: if you would rather these lived only in Vercel, say so and they come
- *  out — the env path below is unchanged and already works. */
-const DEFAULT_CLIENT_ID = "7589f18c-914d-449d-9914-24ea0f10b4cc";
-const DEFAULT_TENANT = "56363c2a-78ac-4fab-a846-860b3e6282af";
-const DEFAULT_SITE = "https://tpjv.sharepoint.com/sites/ACSA-Asset-Assurance";
-/** The ONE origin registered as a redirect on the app. Microsoft matches this
- *  string exactly and refuses anything else (AADSTS50011), so a preview
- *  deployment cannot sign in — see `redirectRegistered()`. */
-const DEFAULT_ORIGIN = "https://squawk-delta.vercel.app";
+ *  The cost of that is the failure this was meant to prevent: an unset
+ *  variable does not error, it produces an app that quietly has no sync. So
+ *  every one of them is named on the sync screen and on /preflight when it is
+ *  missing, rather than left to be discovered. */
 
-/** Configured at build time. None of these is secret. */
-export const GRAPH_CLIENT_ID = process.env.NEXT_PUBLIC_GRAPH_CLIENT_ID || DEFAULT_CLIENT_ID;
-/** A tenant id, or "organizations" for any work account.
+/** Configured at build time. None of these is secret; none of them is in the
+ *  repository either. See above. */
+export const GRAPH_CLIENT_ID = process.env.NEXT_PUBLIC_GRAPH_CLIENT_ID ?? "";
+/** A tenant id.
  *
- *  THE GUID, NOT "organizations". The registration is single tenant, and the
- *  common endpoints refuse a single-tenant app with AADSTS50194 — a sentence
+ *  A GUID, NOT "organizations" — the registration is single tenant, and the
+ *  common endpoints refuse a single-tenant app with AADSTS50194: a sentence
  *  about a multi-tenant application that reads, to somebody standing in a
- *  terminal building, like the app is broken. */
-export const GRAPH_TENANT = process.env.NEXT_PUBLIC_GRAPH_TENANT || DEFAULT_TENANT;
+ *  terminal building, as though the app is broken. `tenantLooksWrong()` below
+ *  is what says so before a sign-in rather than after one. */
+export const GRAPH_TENANT = process.env.NEXT_PUBLIC_GRAPH_TENANT ?? "";
 /** The SharePoint host and site path the audit portal lives at. */
-export const GRAPH_SITE = process.env.NEXT_PUBLIC_GRAPH_SITE || DEFAULT_SITE;
-/** Where the redirect is registered. */
-export const GRAPH_ORIGIN = process.env.NEXT_PUBLIC_GRAPH_ORIGIN || DEFAULT_ORIGIN;
+export const GRAPH_SITE = process.env.NEXT_PUBLIC_GRAPH_SITE ?? "";
+/** The origin whose `/graph-callback` is registered as a redirect on the app.
+ *  Only used to warn, in advance, that a sign-in from anywhere else will be
+ *  refused — see `redirectRegistered()`. Empty means the check is skipped,
+ *  because a guess here would be worse than no warning. */
+export const GRAPH_ORIGIN = process.env.NEXT_PUBLIC_GRAPH_ORIGIN ?? "";
 
 export function graphConfigured(): boolean {
-  return !!GRAPH_CLIENT_ID && !!GRAPH_SITE;
+  return !!GRAPH_CLIENT_ID && !!GRAPH_SITE && !!GRAPH_TENANT;
 }
 
-/** What is missing, in the words of somebody who has to go and set it. */
+/** What is missing, in the words of somebody who has to go and set it.
+ *
+ *  THE TENANT IS ON THIS LIST NOW. It used to default to "organizations" and
+ *  so was never reported — which was right while the registration might have
+ *  been multi-tenant, and is wrong against the one TPJV actually has: an
+ *  unset tenant would sign in against the common endpoint and be refused, and
+ *  nothing would have named the variable that was empty. */
 export function graphMissing(): string[] {
   const out: string[] = [];
   if (!GRAPH_CLIENT_ID) out.push("NEXT_PUBLIC_GRAPH_CLIENT_ID");
+  if (!GRAPH_TENANT) out.push("NEXT_PUBLIC_GRAPH_TENANT");
   if (!GRAPH_SITE) out.push("NEXT_PUBLIC_GRAPH_SITE");
   return out;
 }
 
+/** Set, but set to something the registration will refuse.
+ *
+ *  Returns the sentence to show, or null when there is nothing to say. Kept
+ *  separate from `graphMissing()` because "you have not set this" and "what
+ *  you set will not work" send a person to two different places. */
+export function tenantLooksWrong(): string | null {
+  if (!GRAPH_TENANT) return null;
+  if (/^[0-9a-fA-F-]{36}$/.test(GRAPH_TENANT)) return null;
+  if (/^(common|organizations|consumers)$/i.test(GRAPH_TENANT)) {
+    return `NEXT_PUBLIC_GRAPH_TENANT is "${GRAPH_TENANT}". TPJV's registration is single tenant, and the common endpoints refuse one with AADSTS50194 — set it to the directory (tenant) ID.`;
+  }
+  return `NEXT_PUBLIC_GRAPH_TENANT is "${GRAPH_TENANT}", which is not a tenant ID. Sign-in will be refused before a password is asked for.`;
+}
+
 /** Is THIS origin the one Microsoft will redirect back to?
  *
- *  Only `https://squawk-delta.vercel.app/graph-callback` is registered. A
- *  preview deployment, a branch URL or localhost is refused by Microsoft
- *  before any password is typed, with a message naming a URI rather than
- *  saying "this deployment is not the one". Checked here so the sync screen
- *  can say it in advance instead of an auditor meeting it mid-sign-in.
+ *  One redirect URI is registered on the app, and a deployment that is not it
+ *  — a preview build, a branch URL, localhost — is refused by Microsoft before
+ *  any password is typed, with a message naming a URI rather than saying "this
+ *  deployment is not the one". Checked here so the sync screen can say it in
+ *  advance instead of an auditor meeting it mid-sign-in.
  *
  *  Not a security control — Microsoft enforces the real one. This is only so
  *  the refusal is not a surprise. */
 export function redirectRegistered(): boolean {
   if (typeof window === "undefined") return true;
+  /* Unset means unknown, and unknown is not a warning. A red step that fires
+     because a variable is empty teaches people to ignore the step. */
+  if (!GRAPH_ORIGIN) return true;
   return window.location.origin === GRAPH_ORIGIN;
 }
 
@@ -103,6 +127,12 @@ export function redirectRegistered(): boolean {
 export function redirectUri(): string {
   const origin = typeof window === "undefined" ? GRAPH_ORIGIN : window.location.origin;
   return `${origin}/graph-callback`;
+}
+
+/** Whether the "which origin is registered" check is being made at all. The
+ *  sync screen says "not checked" rather than "fine" when it is not. */
+export function redirectOriginKnown(): boolean {
+  return !!GRAPH_ORIGIN;
 }
 
 /* ------------------------------------------------------------------- auth */
@@ -289,7 +319,8 @@ export interface GraphSite {
   webUrl: string;
 }
 
-/** Resolve `tpjv.sharepoint.com:/sites/ACSA-Asset-Assurance` to a site id. */
+/** Resolve `NEXT_PUBLIC_GRAPH_SITE` — a `host/sites/name` address — to a site
+ *  id. */
 export async function resolveSite(): Promise<GraphSite> {
   const [host, ...rest] = GRAPH_SITE.replace(/^https?:\/\//, "").split("/");
   const serverRelative = "/" + rest.join("/");

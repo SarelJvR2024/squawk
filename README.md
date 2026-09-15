@@ -144,10 +144,10 @@ npx vercel --prod   # promote to production
 | `SUPABASE_SECRET_KEY` | The **secret** key (`sb_secret_…`), never the publishable one. It stays on the server; no browser ever sees it, and the table has row-level security on with no policies so the publishable key can do nothing at all. |
 | `SQUAWK_TEAM_PASSPHRASE` | What lets a device join the audit. Five or six unrelated words — somebody will read it to a colleague once and type it on a phone. It is the only thing between a URL and every site's findings and photographs. |
 | `BLOB_TOKEN_VAR` | Names which `*_READ_WRITE_TOKEN` to use, for a project with more than one blob store. Only needed when two are set; see *Checking it is on*. |
-| `NEXT_PUBLIC_GRAPH_CLIENT_ID` | The client id of the Entra ID app registration; a public value by design in this flow, **not a credential**. Defaults to TPJV's, so the sync works without it being set. |
-| `NEXT_PUBLIC_GRAPH_TENANT` | The tenant to sign in against. Defaults to TPJV's tenant id. It must be a tenant id, not `organizations` — the registration is single tenant and the common endpoints refuse one with AADSTS50194. |
-| `NEXT_PUBLIC_GRAPH_SITE` | The SharePoint site the portal lives at. Defaults to `https://tpjv.sharepoint.com/sites/ACSA-Asset-Assurance`. |
-| `NEXT_PUBLIC_GRAPH_ORIGIN` | The origin whose `/graph-callback` is registered as a redirect. Defaults to `https://squawk-delta.vercel.app`. Only used to warn, in advance, that sign-in from anywhere else will be refused. |
+| `NEXT_PUBLIC_GRAPH_CLIENT_ID` | Turns **Sync to the portal** on. The client id of the Entra ID app registration; a public value by design in this flow, **not a credential** — but not in the repository either, see below. |
+| `NEXT_PUBLIC_GRAPH_TENANT` | The tenant to sign in against. **A tenant ID, not `organizations`** — the registration is single tenant and the common endpoints refuse one with AADSTS50194. The sync screen says so if it is set wrong. |
+| `NEXT_PUBLIC_GRAPH_SITE` | The SharePoint site the portal lives at. |
+| `NEXT_PUBLIC_GRAPH_ORIGIN` | The origin whose `/graph-callback` is registered as a redirect. Only used to warn, in advance, that sign-in from anywhere else will be refused. Unset means the check is skipped, not passed. |
 | `SQUAWK_READ_WRITE_TOKEN` | Turns the **record copy** on: every photograph is also written to Vercel Blob, privately. This is the live deployment's name — the store `squawk-blob` was created with the custom prefix `SQUAWK`, and **Vercel generates the value; you never type it**. The route accepts any `*_READ_WRITE_TOKEN`, so the default `BLOB_READ_WRITE_TOKEN` works too, and `GET /api/photos` reports which name it found. Without one the app is unchanged — capture, caption, export, all local — and says on screen that photographs are on the device only. |
 
 Setting any of these is a **data-governance decision, not a technical one** —
@@ -292,43 +292,53 @@ display name. A field with no column is reported in the plan and skipped.
 
 ### The registration — done, 15 September 2026
 
-Prince Mahlangu completed the Microsoft side. The app ships pointing at it, so
-there is **nothing to set in Vercel** for the sync to work:
+Prince Mahlangu completed the Microsoft side: a **single-tenant** registration,
+an **SPA** redirect at `/graph-callback` on the live origin, **no client
+secret**, delegated `Sites.ReadWrite.All` with admin consent for TPJV, and a
+service account holding Read on the site plus **Contribute without Delete** on
+Check-points, Findings and Evidence.
 
-| | |
+**The four values themselves are in Vercel, not in this repository, and this
+section deliberately does not print them.** They were briefly committed as
+defaults in `src/lib/graph.ts` on the reasoning that none of them is a
+credential — which is true; a client id travels in the address bar of the
+sign-in window and a tenant id is resolvable from any tenant's domain through
+Microsoft's own public discovery endpoint — and on the assumption that the
+repository was private, which it is not. "Not a credential" is not the same as
+"worth publishing": together they name the exact app registration to aim a
+consent prompt at, and the exact site to aim it for, at a national key point.
+So they were taken back out the same hour. Set:
+
+| Variable | What it is |
 |---|---|
-| Application (client) ID | `7589f18c-914d-449d-9914-24ea0f10b4cc` |
-| Directory (tenant) ID | `56363c2a-78ac-4fab-a846-860b3e6282af` — single tenant |
-| Site | `https://tpjv.sharepoint.com/sites/ACSA-Asset-Assurance` |
-| Redirect | `https://squawk-delta.vercel.app/graph-callback`, platform **SPA** |
-| Secret | none, and none wanted |
-| Permission | delegated `Sites.ReadWrite.All`, admin consent granted for TPJV |
-| Service account | `portal@tpjv.co.za` — Read on the site, **Contribute without Delete** on Check-points, Findings and Evidence |
+| `NEXT_PUBLIC_GRAPH_CLIENT_ID` | Application (client) ID |
+| `NEXT_PUBLIC_GRAPH_TENANT` | Directory (tenant) ID — **the GUID**, not `organizations` |
+| `NEXT_PUBLIC_GRAPH_SITE` | The SharePoint site the portal lives at |
+| `NEXT_PUBLIC_GRAPH_ORIGIN` | The origin whose `/graph-callback` is registered |
 
-These three values are the DEFAULTS in `src/lib/graph.ts`, not secrets kept out
-of the repo, and that is deliberate on both counts. None of them is a
-credential: authorization code with PKCE is a public-client flow, so the client
-id travels in the address bar of the sign-in window and the tenant id is in the
-path of that same URL. Holding all three grants nothing — a sign-in still needs
-a TPJV account, its password and its MFA prompt, and Graph then grants exactly
-what that person already had. They are defaults rather than Vercel-only because
-a build-time variable nobody set does not fail; it produces an app that quietly
-has no sync, which is how the Supabase three cost a day. `NEXT_PUBLIC_GRAPH_*`
-still overrides every one of them, so a second tenant needs no code change.
+They are read at **BUILD** time — setting them without a new deploy changes
+nothing.
 
-**Two consequences worth knowing before the day:**
+**The cost of keeping them out of the code is the failure this was meant to
+prevent:** an unset build-time variable does not error, it produces an app that
+quietly has no sync, which is how the Supabase three cost a day. So each one is
+named on the sync screen and on `/preflight` when it is empty, rather than left
+to be discovered, and a tenant set to `organizations` is called out on sight
+instead of failing mid-sign-in with AADSTS50194.
 
-- **Only the live origin can sign in.** One redirect URI is registered. A
+**Three consequences worth knowing before the day:**
+
+- **Only the registered origin can sign in.** One redirect URI exists. A
   preview deployment or `localhost` is refused by Microsoft with AADSTS50011,
-  *after* a password and an MFA prompt. The sync screen now checks this and
-  says so up front, before you reach for the phone.
+  *after* a password and an MFA prompt. The sync screen checks this up front,
+  before you reach for the phone — as long as `NEXT_PUBLIC_GRAPH_ORIGIN` is
+  set. Unset, it says "not checked" rather than pretending it is fine.
 - **The sync creates and updates; it never deletes.** That matches the
   Contribute-without-Delete grant exactly, and there is no DELETE anywhere in
   the Graph layer — asserted in `tests/sharepoint.test.mjs`, not just intended.
-
-**MFA is on `portal@tpjv.co.za` and the authenticator is on Prince's phone**, so
-the first real sign-in has to be arranged with him. Squawk asks for it once per
-tab and the token dies with the tab.
+- **MFA on the service account sits on Prince's phone**, so the first real
+  sign-in has to be arranged with him. Squawk asks once per tab and the token
+  dies with the tab.
 
 #### If it ever has to be rebuilt
 
@@ -343,7 +353,7 @@ tab and the token dies with the tab.
 5. Set `NEXT_PUBLIC_GRAPH_CLIENT_ID`, `NEXT_PUBLIC_GRAPH_TENANT`,
    `NEXT_PUBLIC_GRAPH_SITE` and `NEXT_PUBLIC_GRAPH_ORIGIN` in Vercel, and
    redeploy. They are read at BUILD time — setting them without a new deploy
-   changes nothing.
+   changes nothing. **Put them in Vercel only**, never in this repository.
 
 **No credential is ever typed into Squawk and none is stored in it.** The
 access token lives in the tab's memory for as long as the tab is open and is

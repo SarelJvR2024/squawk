@@ -248,10 +248,10 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   const steps: Step[] = [
     {
       label: "This deployment knows where the portal is",
-      state: configured ? "ok" : "todo",
-      detail: configured
-        ? `${graph.GRAPH_SITE} · tenant ${graph.GRAPH_TENANT.slice(0, 8)}…`
-        : `Set ${graph.graphMissing().join(" and ")} in Vercel and redeploy. These are read at BUILD time, so setting them without a new deploy changes nothing.`,
+      state: configured && !graph.tenantLooksWrong() ? "ok" : "todo",
+      detail: !configured
+        ? `Set ${graph.graphMissing().join(", ")} in Vercel and redeploy. These are read at BUILD time, so setting them without a new deploy changes nothing.`
+        : (graph.tenantLooksWrong() ?? `${graph.GRAPH_SITE} · tenant ${graph.GRAPH_TENANT.slice(0, 8)}…`),
     },
     {
       /* BEFORE sign-in, because this is the one that fails AFTER a password and
@@ -259,14 +259,27 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
          redirect; a preview build hitting it gets AADSTS50011 and reads like a
          broken app rather than the wrong URL. */
       label: "Microsoft will redirect back to this deployment",
-      state: !configured ? "waiting" : graph.redirectRegistered() ? "ok" : "todo",
-      detail: graph.redirectRegistered()
-        ? `${graph.redirectUri()} — the registered SPA redirect.`
-        : `Only ${graph.GRAPH_ORIGIN}/graph-callback is registered on the app. Sign-in from here (${graph.redirectUri()}) will be refused by Microsoft before you type anything. Use the live site, or ask Prince to add this URI as an SPA redirect.`,
+      state: !configured
+        ? "waiting"
+        : !graph.redirectOriginKnown()
+          ? "waiting"
+          : graph.redirectRegistered()
+            ? "ok"
+            : "todo",
+      detail: !graph.redirectOriginKnown()
+        ? "Not checked — NEXT_PUBLIC_GRAPH_ORIGIN is not set, so Squawk does not know which origin the app registration will redirect to. Sign-in may still work; it simply cannot be warned about in advance."
+        : graph.redirectRegistered()
+          ? `${graph.redirectUri()} — the registered SPA redirect.`
+          : `Only ${graph.GRAPH_ORIGIN}/graph-callback is registered on the app. Sign-in from here (${graph.redirectUri()}) will be refused by Microsoft before you type anything. Use the live site, or have this URI added as an SPA redirect.`,
     },
     {
       label: "You are signed in to Microsoft",
-      state: !configured || !graph.redirectRegistered() ? "waiting" : who ? "ok" : "todo",
+      state:
+        !configured || graph.tenantLooksWrong() || !graph.redirectRegistered()
+          ? "waiting"
+          : who
+            ? "ok"
+            : "todo",
       detail: who
         ? `${who} — held in this tab only, never written to the device.`
         : "Sign in below. Squawk writes as you, not as itself, so the portal's history shows a person.",
