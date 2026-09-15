@@ -37,8 +37,38 @@
  *    non-GET          nothing that changes state is ever answered from a cache.
  */
 
-/* Bump this to retire every cache from the previous build. Activation deletes
-   anything not carrying the current prefix. */
+/* THE BUILD STAMP, AND WHY THIS LINE EXISTS AT ALL.
+ *
+ *  A browser installs a new service worker only when the bytes of /sw.js
+ *  differ from the ones it already has. This file is hand-written and static,
+ *  so across every deploy those bytes were identical — which meant no second
+ *  worker was ever installed, `registration.waiting` was never populated, and
+ *  the "Apply update" button on /preflight, the whole affordance for letting
+ *  an auditor choose when to take a new build, could not appear. It was not
+ *  broken. It was unreachable, which is worse, because it looked fine.
+ *
+ *  (The app still turned over: `promote()` below refreshes the cached shell
+ *  behind the auditor once the build it names can actually be served. But it
+ *  did so silently and one load late, which is exactly the choice the button
+ *  was meant to hand over.)
+ *
+ *  So `scripts/stamp-sw.mjs` rewrites this line at build time with the commit
+ *  being deployed. It runs as npm's `prebuild`, and only when a build id is in
+ *  the environment — a local `next build` leaves it as "dev" so the working
+ *  tree stays clean. */
+const BUILD = "dev";
+/* Named so a page can ask which build its worker came from. */
+self.SQUAWK_BUILD = BUILD;
+
+/* THE CACHE VERSION IS DELIBERATELY NOT THE BUILD STAMP.
+ *
+ *  Activation deletes every cache that does not carry this prefix, so tying it
+ *  to the commit would empty the shell and all 216 assets on every deploy —
+ *  and an auditor who takes an update on a thin signal would be left with a
+ *  worker that has to re-fetch the entire app before it can open offline
+ *  again. The freshness problem is already solved properly by `promote()`,
+ *  which stores a newer shell only once every chunk it names is held. Bump
+ *  this by hand, and only to retire a cache whose SHAPE has changed. */
 const VERSION = "squawk-v1";
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
