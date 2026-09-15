@@ -220,17 +220,26 @@ with.
 
 ## 10. The sync — the portal is configured now
 
-Prince completed the Entra registration on 15 September 2026 and the app ships
-pointing at it, so there is nothing to set first. Two things to know before you
-press anything:
+Prince completed the Entra registration on 15 September 2026. **The four
+`NEXT_PUBLIC_GRAPH_*` variables are yours to set in Vercel** — they were briefly
+committed as defaults and taken straight back out on finding this repository is
+public. Until they are set and redeployed, step 1 names exactly which are empty.
 
-- **Only `squawk-delta.vercel.app` can sign in.** One redirect URI is
-  registered. A preview build is refused by Microsoft *after* the password and
-  the MFA prompt — the readiness list now says so before you get there.
-- **MFA on `portal@tpjv.co.za` is on Prince's phone.** Arrange the first real
+Three things to know before you press anything:
+
+- **Only the registered origin can sign in.** One redirect URI exists. A
+  preview build is refused by Microsoft *after* the password and the MFA
+  prompt — the readiness list says so before you get there, provided
+  `NEXT_PUBLIC_GRAPH_ORIGIN` is set. Unset, step 2 reads *not checked*, which
+  is the truth rather than a pass.
+- **The tenant must be the GUID.** Set to `organizations` the registration is
+  refused with AADSTS50194, which reads like a broken app. Step 1 catches it
+  on sight now.
+- **MFA on the service account is on Prince's phone.** Arrange the first real
   sign-in with him; it is one prompt, once per tab.
 
 - [ ] **More → Sync to the portal**: steps 1–6 of the readiness list all green.
+- [ ] Step 1 names any variable that is still empty, by name.
 - [ ] Step 2 — *Microsoft will redirect back to this deployment* — is green on
       the live site and **red on a preview**, naming the registered URI. Worth
       opening a preview once just to see it refuse in advance.
@@ -263,6 +272,8 @@ press anything:
 - [ ] The end-to-end dry run itself — item #52 in the backlog is blocked on it.
 - [ ] Anything touching credentials: the Entra registration, the sync account,
       and the environment variables in Vercel.
+- [ ] **The four `NEXT_PUBLIC_GRAPH_*` variables in Vercel**, then a redeploy.
+      They are read at build time, so setting them without one changes nothing.
 - [ ] **The first real Microsoft sign-in**, with Prince on the phone for the MFA
       prompt. Tell him when.
 - [ ] **`SQUAWK_TEAM_PASSPHRASE` scoped to Production as well as Preview.**
