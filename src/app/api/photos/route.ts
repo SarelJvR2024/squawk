@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
-import { put } from "@vercel/blob";
+import { createHash, timingSafeEqual } from "node:crypto";
+import { get, put } from "@vercel/blob";
 
 /* The record copy of a photograph.
  *
@@ -18,9 +19,37 @@ import { put } from "@vercel/blob";
  *
  *  It does not make the object public. `access: "private"` — these are
  *  photographs of a national key point, and a public blob URL is a URL anybody
- *  who ever sees it can keep. Reading one back needs a signed URL, which is a
- *  route to build when somebody actually needs to; the local copy serves the
- *  app today.
+ *  who ever sees it can keep. Reading one back needs a signed URL.
+ *
+ *  THAT ROUTE NOW EXISTS, because somebody needed it. Sarel, on the Visual
+ *  review screen on his laptop: "the photos are coming through at very low
+ *  quality, we cant actually use these images."
+ *
+ *  He was looking at the 240px THUMBNAIL. The full 1600px image lives in this
+ *  store and in the capture device's IndexedDB, and a `blobKey` resolves only
+ *  on the device that took the photograph — so every other device fell back to
+ *  the thumbnail, which is a list-row preview and was never evidence. Raising
+ *  the thumbnail is not the fix: it rides inside the persisted JSON that
+ *  rewrites on every keystroke, and measured on a real page of text, 640px
+ *  costs 78 KB against 240px's 7 KB — 7.6 MB of JSON rewritten per keystroke
+ *  across a hundred-photograph day.
+ *
+ *  So POST { pathname, passphrase } STREAMS THE FULL IMAGE BACK through this
+ *  route, and the review screens show the real evidence.
+ *
+ *  Streaming the bytes rather than handing out a signed URL is the safer of the
+ *  two: a signed URL, however short its life, is a bare link to a key-point
+ *  photograph that exists outside the app and can be copied out of a network
+ *  log. Proxying means the store's URL never reaches a browser at all, and
+ *  every read is one this route authorised.
+ *
+ *  IT IS GATED ON THE TEAM PASSPHRASE, the same secret and the same constant-
+ *  time comparison as /api/sync, and it NEVER falls open: with no
+ *  SQUAWK_TEAM_PASSPHRASE set the route refuses every read rather than serving
+ *  key-point photographs to anybody who guesses a pathname. Cross-device
+ *  photographs are a TEAM feature and the team passphrase is what defines the
+ *  team, so a deployment that has not configured the shared record does not get
+ *  them — it still has the local copy, which is what it always had.
  *
  *  Without BLOB_READ_WRITE_TOKEN the route reports itself unavailable and the
  *  app carries on exactly as before: capture, caption, export, all local. */
@@ -113,6 +142,20 @@ const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
  *  traversal or an absolute path would put an object somewhere nobody looks. */
 const PATH = /^[A-Z0-9]{2,6}\/\d{4}-\d{2}\/[A-Za-z0-9._-]{1,120}$/;
 
+/** The team passphrase, read here for the same reason /api/sync reads it: the
+ *  check has to happen on this side, where a client cannot get round it. */
+const TEAM_PASS = process.env.SQUAWK_TEAM_PASSPHRASE;
+
+/** Digests, so the comparison is constant time and does not leak the length of
+ *  the real passphrase. Identical to the sync route's, deliberately — one way
+ *  of proving you are on this audit, not two. */
+function passphraseOk(given: unknown): boolean {
+  if (!TEAM_PASS || typeof given !== "string" || given.length === 0) return false;
+  const a = createHash("sha256").update(given).digest();
+  const b = createHash("sha256").update(TEAM_PASS).digest();
+  return timingSafeEqual(a, b);
+}
+
 export async function GET() {
   const names = blobTokenNames();
   const via = blobTokenName();
@@ -132,6 +175,19 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const token = blobToken();
+
+  /* TWO JOBS, TOLD APART BY CONTENT-TYPE. An upload arrives as multipart form
+     data; a request for a signed view URL arrives as JSON. One route, because
+     both need the same store token and the same "which token" diagnosis above,
+     and duplicating that logic is how the two drift apart.
+
+     JSON rather than a query string, and this is not a style choice: the team
+     passphrase is in the body, and a passphrase in a URL is a passphrase in
+     every access log, proxy and browser history it passes through. */
+  if ((req.headers.get("content-type") ?? "").includes("application/json")) {
+    return serveFullImage(req, token);
+  }
+
   if (!token) {
     /* Two different silences, and they need two different answers. No store at
        all is the documented, supported state — the app is local-only and says
@@ -220,5 +276,85 @@ export async function POST(req: NextRequest) {
       },
       { status: 502 }
     );
+  }
+}
+
+/** THE FULL IMAGE, STREAMED BACK TO A DEVICE THAT PROVED IT IS ON THIS AUDIT.
+ *
+ *  What this exists for: the full 1600px image lives in this store and in the
+ *  capture device's IndexedDB. A `blobKey` is a pointer into local storage, so
+ *  it resolves on the device that took the photograph and nowhere else — which
+ *  left every other device on the audit falling back to the 240px thumbnail
+ *  that rides the shared record. The thumbnail is a list-row preview. This is
+ *  the evidence.
+ *
+ *  THE GATE, and it never falls open:
+ *    - no store token            -> 503, the deployment has no record copy
+ *    - no SQUAWK_TEAM_PASSPHRASE -> 503, and NOT the image. A deployment that
+ *      has not set a passphrase has no way to tell an auditor from anybody who
+ *      can reach the URL, and these are photographs of a national key point. It
+ *      refuses rather than guessing.
+ *    - wrong passphrase          -> 401, saying nothing about the real one
+ *    - a pathname that is not a photograph path -> 400, so this cannot be
+ *      turned into a reader for arbitrary objects in the store
+ *
+ *  The response is marked private and no-store: this is evidence, and it has no
+ *  business sitting in a shared cache on the way back. */
+async function serveFullImage(req: NextRequest, token: string | undefined) {
+  if (!token) {
+    return Response.json(
+      { error: "No record store is configured for this deployment.", available: false },
+      { status: 503 }
+    );
+  }
+  if (!TEAM_PASS) {
+    return Response.json(
+      {
+        error:
+          "This deployment has no team passphrase, so it cannot tell who is asking. " +
+          "Photographs stay on the device that took them until the shared record is set up.",
+        available: false,
+      },
+      { status: 503 }
+    );
+  }
+
+  let pathname = "";
+  let passphrase: unknown = null;
+  try {
+    const body = (await req.json()) as { pathname?: unknown; passphrase?: unknown };
+    pathname = typeof body.pathname === "string" ? body.pathname : "";
+    passphrase = body.passphrase;
+  } catch {
+    return Response.json({ error: "Malformed request." }, { status: 400 });
+  }
+
+  if (!passphraseOk(passphrase)) {
+    /* The same answer for a wrong passphrase as for none: nothing about the
+       real one, not its length, and not whether this pathname exists. */
+    return Response.json({ error: "That passphrase is not right." }, { status: 401 });
+  }
+  if (!PATH.test(pathname)) {
+    return Response.json({ error: "That is not a photograph path." }, { status: 400 });
+  }
+
+  try {
+    const found = await get(pathname, { token, access: "private" });
+    if (!found || found.statusCode !== 200) {
+      return Response.json({ error: "No record copy of that photograph." }, { status: 404 });
+    }
+    return new Response(found.stream, {
+      headers: {
+        "content-type": found.blob.contentType || "image/jpeg",
+        "content-length": String(found.blob.size),
+        /* Evidence, and authorised per request — never a shared cache. */
+        "cache-control": "private, no-store",
+      },
+    });
+  } catch (e) {
+    /* Never swallowed — a photograph that cannot be fetched has to say why, or
+       an auditor is left looking at a blank tile deciding the app is broken. */
+    const message = e instanceof Error ? e.message : "The record store refused the request.";
+    return Response.json({ error: message }, { status: 502 });
   }
 }

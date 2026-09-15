@@ -357,21 +357,41 @@ check(
 
 /* ---- 10 · a photograph taken on one device is visible on the other ------- */
 
+/* UPDATED 2026-09-15. These three asserted the fallback chain by its literal
+   text — `url ?? a.thumbDataUrl ?? a.dataUrl`. The chain grew a middle step and
+   moved into a hook, so the letter changed while the property did not, and the
+   property is the thing worth protecting: a photograph taken on one device is
+   visible on the other, in the tile AND the lightbox, and "missing" is only
+   said when it truly is.
+
+   What grew: the 240px thumbnail is no longer the best a second device can do.
+   The full 1600px record copy is fetched from the blob store, and the thumbnail
+   is the last resort rather than the only one — which is the whole point of
+   src/lib/recordimage.ts. See tests/photoview.test.mjs for the gate in front of
+   it. */
 check(
-  "Review falls back to the thumbnail that actually crosses between devices",
-  /const src = url \?\? a\.thumbDataUrl \?\? a\.dataUrl \?\? null;/.test(review),
-  "a blobKey is a pointer into local IndexedDB; the thumbnail rides inside the persisted JSON"
+  "Review resolves a photograph through the hook that can reach the record copy",
+  /import \{ useRecordImage \} from "@\/lib\/recordimage";/.test(review),
+  "a blobKey is a pointer into local IndexedDB and resolves on one device only"
 );
 
 check(
   "in the lightbox as well as the tile",
-  (review.match(/url \?\? a\.thumbDataUrl \?\? a\.dataUrl \?\? null/g) ?? []).length >= 2,
+  (review.match(/useRecordImage\(/g) ?? []).length >= 2,
   "a tile that paints and a lightbox that does not is a photograph you can see until you tap it"
 );
 
 check(
+  "and the thumbnail is still the fallback underneath it, so an offline device shows SOMETHING",
+  /url: full \?\? a\.thumbDataUrl \?\? a\.dataUrl \?\? null/.test(
+    fs.readFileSync(path.join(here, "..", "src/lib/recordimage.ts"), "utf8")
+  ),
+  ""
+);
+
+check(
   "and it is only called missing when it truly is",
-  /if \(a\.unavailable \|\| \(missing && !a\.thumbDataUrl && !a\.dataUrl\)\) \{/.test(review),
+  /if \(a\.unavailable \|\| \(missing && !src\)\) \{/.test(review),
   ""
 );
 

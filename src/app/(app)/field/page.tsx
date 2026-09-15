@@ -160,6 +160,28 @@ export default function FieldPage() {
      does on a walk. Collapsing HIDES; nothing is discarded, because every
      control writes straight to the store on change. */
   const [openItem, setOpenItem] = useState<string | null>(null);
+  /* THE ANSWER LIBRARY IS FOLDED ON A PHONE.
+     Sarel, from the apron: "when capturing findings on my phone, minimise the
+     list of issues, give the user an option to maximise the list when needed."
+
+     Eleven researched options are the most valuable content in the product and
+     they are never trimmed — but on a 390px screen they are also eleven rows
+     between the check and the camera, which is most of the screen before an
+     auditor can do the thing they came to do. Folded to the first few with the
+     rest one tap away: nothing is removed, it is just not all in the way.
+
+     Reset per check, deliberately — expanding for one item should not decide
+     the layout of the next. */
+  /* Which item's list is expanded, not a bare boolean — so opening a different
+     check reads as folded without an effect resetting it. Same shape as
+     useBlobUrl's `resolved.key`: carry the thing the state is ABOUT, and
+     staleness answers itself. */
+  const [issuesOpenFor, setIssuesOpenFor] = useState<string | null>(null);
+  const allIssues = !!openItem && issuesOpenFor === openItem;
+  const setAllIssues = (v: boolean | ((p: boolean) => boolean)) => {
+    const next = typeof v === "function" ? v(allIssues) : v;
+    setIssuesOpenFor(next ? openItem : null);
+  };
 
   /* WHERE A STICKY GROUP HEADER HAS TO STOP.
      The filter bar is sticky at top 0. A group header also sticky at top 0
@@ -1193,12 +1215,6 @@ export default function FieldPage() {
         const picked = r?.walkaboutPicked;
         const needsPhoto = picked != null && wo[picked]?.photo === true && photos.length === 0;
         const pf = priorFor(entityCode, c.discipline, c.system);
-        /* The next check in the same asset system, so Save & next walks the
-           system rather than jumping somewhere unrelated. */
-        const sameSystem = visible.filter(
-          (x) => x.discipline === c.discipline && x.system === c.system
-        );
-        const next = sameSystem[sameSystem.findIndex((x) => x.id === c.id) + 1];
         return (
           <Sheet
             open
@@ -1282,31 +1298,33 @@ export default function FieldPage() {
                     }}
                   />
                 </span>
-                {next ? (
-                  <Btn
-                    variant="primary"
-                    onClick={() => {
-                      saveField(c.id);
-                      setOpenItem(next.id);
-                      say(`Saved · ${portalIdFor(entityCode, next.id)}`);
-                    }}
-                  >
-                    <IconCheck width={14} height={14} />
-                    Save &amp; next
-                  </Btn>
-                ) : (
-                  <Btn
-                    variant="primary"
-                    onClick={() => {
-                      saveField(c.id);
-                      setOpenItem(null);
-                      say(`Saved · ${c.system} done`);
-                    }}
-                  >
-                    <IconCheck width={14} height={14} />
-                    Save &amp; close
-                  </Btn>
-                )}
+                {/* SAVE & CLOSE, ALWAYS — never "save and next".
+                    Sarel, from the apron: "the save and next button should
+                    rather be a save and close button because the inspections
+                    wont necessarily flow in sequence."
+
+                    That is the difference between the desk and the walk. At a
+                    desk an auditor works a discipline top to bottom and the
+                    next check is the right one to open. On a walk they are
+                    standing in front of a thing, and what they inspect next is
+                    decided by where their feet are, not by register order.
+                    Advancing for them opened a check about somewhere else and
+                    made them close it again — a press against them on every
+                    item.
+
+                    Closing returns to the list, which is where the next choice
+                    is actually made. `next` is no longer computed for this. */}
+                <Btn
+                  variant="primary"
+                  onClick={() => {
+                    saveField(c.id);
+                    setOpenItem(null);
+                    say(`Saved · ${portalIdFor(entityCode, c.id)}`);
+                  }}
+                >
+                  <IconCheck width={14} height={14} />
+                  Save &amp; close
+                </Btn>
               </>
             }
           >
@@ -1326,12 +1344,33 @@ export default function FieldPage() {
               </div>
             )}
 
-            {/* THE ANSWER LIBRARY, IN FULL AND UNCHANGED. Researched per check
-                and carrying a suggested severity — the most valuable content in
-                the product. Never trimmed: eleven options render as eleven. */}
-            {wo.length > 0 && (
+            {/* THE ANSWER LIBRARY. Researched per check and carrying a
+                suggested severity — the most valuable content in the product,
+                and still never TRIMMED: every option is reachable.
+
+                What changed is how many are in the way at once on a phone.
+                Below sm the list folds to the first four with a control that
+                opens the rest; from sm up every option renders as it always
+                has, because a tablet has the room. An option the auditor has
+                already picked is always rendered, so a folded list can never
+                hide the answer that is selected. */}
+            {wo.length > 0 && (() => {
+              const FOLD = 4;
+              const folds = wo.length > FOLD;
+              const hiddenHasPick = picked != null && picked >= FOLD;
+              return (
               <div className="chip-row mb-3 flex flex-wrap gap-[5px]">
                 {wo.map((w, i) => (
+                  <span
+                    key={`w${i}`}
+                    /* Hidden only below sm, and only while folded — and never
+                       for the option that is currently picked. */
+                    className={
+                      folds && !allIssues && i >= FOLD && !(picked === i)
+                        ? "hidden sm:contents"
+                        : "contents"
+                    }
+                  >
                   <Chip
                     key={i}
                     selected={r?.walkaboutPicked === i}
@@ -1358,9 +1397,28 @@ export default function FieldPage() {
                     {w.label}
                     {w.photo ? " 📷" : ""}
                   </Chip>
+                  </span>
                 ))}
+                {folds && (
+                  <button
+                    type="button"
+                    onClick={() => setAllIssues((v) => !v)}
+                    aria-expanded={allIssues}
+                    className="min-h-[36px] rounded-[9px] border px-[11px] text-[11.5px] font-semibold sm:hidden"
+                    style={{
+                      background: "var(--panel)",
+                      borderColor: "var(--line-2)",
+                      color: "var(--ink-2)",
+                    }}
+                  >
+                    {allIssues
+                      ? "Show fewer"
+                      : `Show all ${wo.length}${hiddenHasPick ? "" : ` · ${wo.length - FOLD} more`}`}
+                  </button>
+                )}
               </div>
-            )}
+              );
+            })()}
 
             {needsPhoto && (
               <div

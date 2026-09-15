@@ -61,6 +61,22 @@ reason this section exists.
       bar. **Judge this with gloves on if you can** — it is the one change that
       trades target size for proximity, and the apron is where that is decided.
 
+- [ ] **More → Shared record** is its own line in the menu now, next to Sync.
+      The line itself says the state — *Enter the team passphrase*, *Joined*,
+      *Not set up*. Open it on a device that has not joined and one that has,
+      and check the line agrees with the sheet.
+- [ ] **A photograph you did not take now opens at full size** on Visual review,
+      fetched from the record copy. Take one on device A, join on device B, open
+      it there and **try to read the smallest text in it**. Blurred means it fell
+      back to the 240px preview — say so, that is the whole fix.
+- [ ] **The photographs zip on a device that took none of them.** It should
+      contain every image, not a short one. If any are missing they are listed
+      at the bottom of `MANIFEST.csv` under *NOT IN THIS ZIP* and a yellow line
+      says so on screen. **SILENT if it regresses** — a short zip looks fine.
+- [ ] **Field inspection: Save & close, not Save & next**, and the issue list on
+      a phone folds to four with a *Show all* under it. Judge the fold on the
+      phone, standing up.
+
 ## 1. Before the walk
 
 - [ ] `/preflight` on the **actual tablet**, on the **actual network**, outdoors.
@@ -182,20 +198,42 @@ reason this section exists.
       whichever site you are in) — never another airport's.
 - [ ] No `SAMPLE-` tag appears anywhere in the output.
 
-**One gap worth deciding on, not a defect.** The *Evidence request* sheet — the
-list that leaves the room for ACSA to action — is built from the evidence chips
-an auditor TAPPED (`evidencePicked`). A check tagged **"Compliant, evidence
-pending"** does not appear on it unless a chip was also tapped, and its State
-column would read "Requested" rather than naming the tag. If the RFI is going to
-be generated from that tag, this sheet is where the two have to meet. The tag
-does reach the workbook — its own column on the Register sheet, plus an "of
-which evidence pending" count per discipline — so the data is there; what is not
-decided is whether the Evidence request sheet should draw on it. That is a
-logic decision, and it is Sarel's.
+**The gap named here last round is closed — check it reads right.** The
+*Evidence request* sheet — the list that leaves the room for ACSA to action —
+was built from the evidence chips an auditor TAPPED (`evidencePicked`) alone, so
+a check tagged **"Compliant, evidence pending"** with no chip produced no row at
+all. It does now:
 
-## 10. The sync — once the portal is configured
+- [ ] Tag a check *Compliant, evidence pending*, **pick no evidence chip**, and
+      export. It has a row on the *Evidence request* sheet, with *Record
+      requested* reading **"Not named — the auditor flagged evidence outstanding
+      without picking the record"**.
+- [ ] Its *State* reads **"Compliant on the auditor's assessment — record still
+      to be produced"**, not "Requested".
+- [ ] A check with chips tapped AND the tag set shows one row per chip, each
+      with that same State.
 
-- [ ] **More → Sync to the portal**: steps 1–5 of the readiness list all green.
+**Still Sarel's to decide:** whether that row is what an RFI should actually be
+generated from, and what the RFI itself looks like. The sheet now carries the
+data either way; the wording above is a first cut and is meant to be argued
+with.
+
+## 10. The sync — the portal is configured now
+
+Prince completed the Entra registration on 15 September 2026 and the app ships
+pointing at it, so there is nothing to set first. Two things to know before you
+press anything:
+
+- **Only `squawk-delta.vercel.app` can sign in.** One redirect URI is
+  registered. A preview build is refused by Microsoft *after* the password and
+  the MFA prompt — the readiness list now says so before you get there.
+- **MFA on `portal@tpjv.co.za` is on Prince's phone.** Arrange the first real
+  sign-in with him; it is one prompt, once per tab.
+
+- [ ] **More → Sync to the portal**: steps 1–6 of the readiness list all green.
+- [ ] Step 2 — *Microsoft will redirect back to this deployment* — is green on
+      the live site and **red on a preview**, naming the registered URI. Worth
+      opening a preview once just to see it refuse in advance.
 - [ ] Read the plan. Rows to add, rows to change, fields with no column, and
       everything left out with its reason.
 - [ ] Write. The result reports what was written and what failed.
@@ -204,6 +242,15 @@ logic decision, and it is Sarel's.
       and the lists do not double. **SILENT** — a doubling sync looks like it
       worked, twice.
 - [ ] A check with no compliance status is skipped and the plan says so.
+- [ ] **A check tagged *Compliant, evidence pending* goes across as `C`** with
+      the observation starting *EVIDENCE PENDING — …*. The portal has four
+      compliance values and Squawk does not invent a fifth; this is how the flag
+      travels. Confirm it reads sensibly to somebody looking at the list.
+- [ ] **Photographs upload from a device that did not take them.** Same test as
+      the zip, through the sync.
+- [ ] **Nothing is ever deleted.** The account has Contribute without Delete, so
+      a delete would 403 — there is none in the code, but if you ever see one,
+      that is the bug.
 - [ ] An unagreed ERM rating goes across as a row with **no** severity,
       likelihood, priority or tolerance.
 - [ ] ACSA role sees no Sync and no Export at all.
@@ -216,6 +263,12 @@ logic decision, and it is Sarel's.
 - [ ] The end-to-end dry run itself — item #52 in the backlog is blocked on it.
 - [ ] Anything touching credentials: the Entra registration, the sync account,
       and the environment variables in Vercel.
+- [ ] **The first real Microsoft sign-in**, with Prince on the phone for the MFA
+      prompt. Tell him when.
+- [ ] **`SQUAWK_TEAM_PASSPHRASE` scoped to Production as well as Preview.**
+      The record copy of every photograph is served through it — without it the
+      full-size images do not reach a second device, and the zip on that device
+      comes out short.
 
 ---
 

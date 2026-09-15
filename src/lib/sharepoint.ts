@@ -53,6 +53,7 @@ import * as erm from "./erm";
 import { photoFilename } from "./photos";
 import { portalIdFor, siteCodeFor, siteFor } from "./sites";
 import type {
+  Attachment,
   Check,
   ErmConsequence,
   ErmLikelihood,
@@ -294,7 +295,16 @@ export interface PlannedRow {
 export interface PlannedFile {
   checkId: string;
   filename: string;
-  blobKey: string;
+  /** The attachment itself, not just its local key.
+   *
+   *  A photograph's BYTES live in up to two places — this device's IndexedDB
+   *  and the record copy — and which of them answers is not a thing the plan
+   *  can know: the local key rides in the persisted JSON and crosses to every
+   *  device on the audit, while the image does not. Planning on `blobKey`
+   *  alone meant an auditor who joined the audit rather than taking the
+   *  photographs uploaded nothing and was told the images were "no longer on
+   *  this device", when the record held every one of them. */
+  attachment: Attachment;
   caption: string;
 }
 
@@ -406,19 +416,37 @@ export function buildPlan(
         discipline: c.discipline,
         assetSystem: c.system,
         compliance: r.compliance,
-        observation: r.observation?.trim() || "",
+        /* EVIDENCE PENDING GOES ACROSS, IN THE OBSERVATION.
+           The portal's compliance column has four values and "Compliant,
+           evidence pending" is not one of them — it is a C with a flag on it,
+           and inventing a fifth token for ACSA's list is the one thing this
+           file will not do. But writing a bare C for a check whose record has
+           not been produced says "we looked and it was fine", which is rule 2
+           of this file's header in the other direction. So the flag travels as
+           the first sentence of the observation, where a reader of the portal
+           sees it on the same row as the C. */
+        observation: [
+          r.evidencePending ? "EVIDENCE PENDING — compliant on the auditor's assessment; the record was not produced during the audit." : "",
+          r.observation?.trim() || "",
+        ]
+          .filter(Boolean)
+          .join(" "),
         auditor: x.auditor,
         assessedOn: new Date().toISOString(),
       },
-      summary: `${key} · ${c.discipline} · ${r.compliance}`,
+      summary: `${key} · ${c.discipline} · ${r.compliance}${r.evidencePending ? " (evidence pending)" : ""}`,
     });
 
     for (const a of r.attachments ?? []) {
-      if (a.kind !== "photo" || !a.blobKey) continue;
+      /* Either source will do. `unavailable` is the one real exclusion: it is
+         set when the browser evicted the image and there is no record copy,
+         and it means the bytes are gone rather than elsewhere. */
+      if (a.kind !== "photo" || a.unavailable) continue;
+      if (!a.blobKey && !a.cloudUrl) continue;
       evidence.push({
         checkId: c.id,
         filename: photoFilename(a),
-        blobKey: a.blobKey,
+        attachment: a,
         caption: a.caption?.trim() ?? "",
       });
     }
@@ -564,4 +592,7 @@ export function planTotals(plan: SyncPlan) {
   };
 }
 
-export type PhotoBlobReader = (blobKey: string) => Promise<Blob | null>;
+/** How the writer gets an image's bytes. Takes the attachment, not a local
+ *  key, and THROWS rather than returning null — a photograph that cannot be
+ *  read is reported by filename with the reason, never dropped. */
+export type PhotoBlobReader = (a: Attachment) => Promise<Blob>;

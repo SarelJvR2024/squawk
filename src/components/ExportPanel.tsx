@@ -14,7 +14,8 @@ import {
   useVisitId,
 } from "@/lib/store";
 import { loadAnswers } from "@/lib/answers";
-import { formatBytes, getBlob, isStoragePersisted, photoBudget } from "@/lib/media";
+import { formatBytes, isStoragePersisted, photoBudget } from "@/lib/media";
+import { fullPhotoBlob } from "@/lib/recordimage";
 import { buildPhotoZip, photoFilename, type PhotoFile } from "@/lib/photos";
 import { portalIdFor } from "@/lib/sites";
 import {
@@ -136,12 +137,21 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
   const visitId = useVisitId();
   const [busy, setBusy] = useState<Kind | "images" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /* A partial result is not a failure and must not be dressed as one. The zip
+     downloaded; some of it could not be read here. Red would say the export
+     did not happen, and the auditor would run it again. */
+  const [note, setNote] = useState<string | null>(null);
 
+  /* A photograph is exportable if its BYTES can be reached — on this device,
+     or in the record copy. `blobKey` alone is not that test: the key rides in
+     the persisted JSON and crosses to every device on the audit, while the
+     image itself does not. Filtering on it is how a second auditor's zip came
+     out short with nothing saying so. */
   const photos = useMemo(
     () =>
       Object.entries(responses).flatMap(([checkId, r]) =>
         r.attachments
-          .filter((a) => a.kind === "photo" && a.blobKey && !a.unavailable)
+          .filter((a) => a.kind === "photo" && (a.blobKey || a.cloudUrl) && !a.unavailable)
           .map((a) => ({ checkId, a }))
       ),
     [responses]
@@ -155,16 +165,27 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
   const downloadImages = async () => {
     setBusy("images");
     setError(null);
+    setNote(null);
     try {
       const files: PhotoFile[] = [];
       const rows: string[] = [
         "file,reference,check,caption,caption source,taken,attached,attached by",
       ];
       const q = (v: string) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+      const unreachable: string[] = [];
       for (const { checkId, a } of photos) {
-        const blob = await getBlob(a.blobKey!);
-        if (!blob) continue;
         const name = photoFilename(a);
+        let blob: Blob;
+        try {
+          blob = await fullPhotoBlob(a, entityCode, visitId);
+        } catch (e) {
+          /* NAMED, never skipped. A zip that is quietly short is worse than one
+             that is short and says which photographs are missing and why —
+             somebody can still go and fetch those from the device that took
+             them, but only if they know to. */
+          unreachable.push(`${name} — ${e instanceof Error ? e.message : "could not be read"}`);
+          continue;
+        }
         files.push({ name, bytes: new Uint8Array(await blob.arrayBuffer()) });
         rows.push(
           [
@@ -181,12 +202,33 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
             .join(",")
         );
       }
-      if (!files.length) throw new Error("No stored images to export.");
+      if (!files.length) {
+        throw new Error(
+          unreachable.length
+            ? `None of the ${unreachable.length} photograph${unreachable.length === 1 ? "" : "s"} on this audit could be read here. ${unreachable[0]}`
+            : "No stored images to export."
+        );
+      }
+      /* The gaps go INTO the zip, on the manifest, so the file is
+         self-describing once it has been emailed on and this screen is gone. */
+      const manifest = unreachable.length
+        ? [
+            ...rows,
+            "",
+            `"NOT IN THIS ZIP — ${unreachable.length} photograph${unreachable.length === 1 ? "" : "s"} could not be read on the device that exported it"`,
+            ...unreachable.map((u) => `"${u.replace(/"/g, '""')}"`),
+          ]
+        : rows;
       downloadBytes(
-        buildPhotoZip(files, rows.join("\n")),
+        buildPhotoZip(files, manifest.join("\n")),
         exportFilename(entityCode, visitId, "photographs", "zip"),
         "application/zip"
       );
+      if (unreachable.length) {
+        setNote(
+          `${files.length} photograph${files.length === 1 ? "" : "s"} exported. ${unreachable.length} could not be read on this device and ${unreachable.length === 1 ? "is" : "are"} listed at the bottom of the manifest.`
+        );
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "The images could not be zipped.");
     } finally {
@@ -347,6 +389,15 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
             style={{ borderColor: "var(--bad)", background: "var(--bad-bg)", color: "var(--bad)" }}
           >
             {error}
+          </div>
+        )}
+
+        {note && (
+          <div
+            className="mb-3 rounded-[11px] border px-3.5 py-2.5 text-[12px]"
+            style={{ borderColor: "var(--warn-line)", background: "var(--warn-bg)", color: "var(--warn)" }}
+          >
+            {note}
           </div>
         )}
 

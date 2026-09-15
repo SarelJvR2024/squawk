@@ -108,6 +108,18 @@ const openExport = async (page) => {
   await page.locator('[role="menuitem"]', { hasText: "Export the workbook" }).first().click();
   await page.waitForTimeout(900);
 };
+/** THE NEW ROUTE, and the one an auditor is actually told about.
+ *
+ *  Sarel, 2026-09-15: "move the passphrase to this level of the menu, it is
+ *  too hidden." It had been two presses and a scroll to the bottom of the
+ *  export sheet — a sheet whose title says nothing about joining anything. */
+const openShared = async (page) => {
+  if (await sheetUp(page)) return;
+  await page.locator("button", { hasText: /^More$/ }).first().click();
+  await page.waitForTimeout(400);
+  await page.locator('[role="menuitem"]', { hasText: "Shared record" }).first().click();
+  await page.waitForTimeout(900);
+};
 const closeSheet = async (page) => {
   if (!(await sheetUp(page))) return;
   /* The backdrop, not the close button: there is more than one aria-label
@@ -247,6 +259,7 @@ const syncNow = async (page) => {
        bareTry.status() === 503, String(bareTry.status()));
 
     const wrong = await api.request.post(`${BASE}/api/sync`, {
+      headers: { "x-forwarded-for": "203.0.113.7" },
       data: { passphrase: "not the passphrase", entity: "KSIA", visit: "2026-09", records: [] },
     });
     ok("a wrong passphrase is refused", wrong.status() === 401, String(wrong.status()));
@@ -256,28 +269,61 @@ const syncNow = async (page) => {
        wrongBody.error);
 
     const empty = await api.request.post(`${BASE}/api/sync`, {
+      headers: { "x-forwarded-for": "203.0.113.7" },
       data: { entity: "KSIA", visit: "2026-09", records: [] },
     });
     ok("so is no passphrase at all", empty.status() === 401, String(empty.status()));
 
-    /* Brute force. FREE_TRIES is 8; the ninth in a minute is refused. */
+    /* Brute force. FREE_TRIES is 8; the ninth in a minute is refused.
+     *
+     *  FROM ITS OWN ADDRESS, and that is not tidiness — it is what makes the
+     *  rest of this suite mean anything. The brake is keyed on the caller's
+     *  `x-forwarded-for`, and a request that carries none — every one of these
+     *  api.request calls, and every request from every browser context below —
+     *  falls into one shared bucket named "unknown". Guessing twelve times
+     *  above therefore locked out the auditors BELOW for the next sixty
+     *  seconds, and each of their pushes came back 429: the record stayed
+     *  empty, the second device saw nothing, and six assertions failed
+     *  describing a shared record that was working perfectly.
+     *
+     *  It passed for weeks on the margin — the assertions in between used to
+     *  take just over a minute, and the lockout had expired by the time the
+     *  first auditor pressed Save. A comment here even claimed the success
+     *  below "clears the first caller for the rest of the suite"; it does not.
+     *  `attempts.delete()` clears the caller that SUCCEEDED, which was
+     *  203.0.113.9, never "unknown".
+     *
+     *  Worth saying plainly because the product question is real and is
+     *  Sarel's, not this suite's: on the day, every tablet at King Shaka is
+     *  behind one airport IP, so eight typos from anybody brakes the whole
+     *  team for a minute. That is the brake working as designed — but it is
+     *  worth knowing before it happens in a terminal building. */
     let locked = 0;
     for (let i = 0; i < 12; i++) {
       const r = await api.request.post(`${BASE}/api/sync`, {
+        headers: { "x-forwarded-for": "203.0.113.8" },
         data: { passphrase: `guess-${i}`, entity: "KSIA", visit: "2026-09", records: [] },
       });
       if (r.status() === 429) locked++;
     }
     ok("GUESSING IS SLOWED DOWN, not left open", locked > 0, `${locked} of 12 refused outright`);
 
-    /* The brake is per-caller; a different one is unaffected. Also clears the
-       first caller for the rest of the suite. */
+    /* The brake is per-caller; a different one is unaffected. */
     const other = await api.request.post(`${BASE}/api/sync`, {
       headers: { "x-forwarded-for": "203.0.113.9" },
       data: { passphrase: PASS, entity: "KSIA", visit: "2026-09", records: [] },
     });
     ok("and one client being throttled does not lock out another",
        other.status() === 200, String(other.status()));
+
+    /* AND THE BRAKED CALLER IS STILL BRAKED — the assertion the missing header
+       above was silently standing in for. */
+    const stillBraked = await api.request.post(`${BASE}/api/sync`, {
+      headers: { "x-forwarded-for": "203.0.113.8" },
+      data: { passphrase: PASS, entity: "KSIA", visit: "2026-09", records: [] },
+    });
+    ok("and the braked one stays braked even with the right passphrase",
+       stillBraked.status() === 429, String(stillBraked.status()));
 
     /* Spoofing the audit inside the rows. */
     await api.request.post(`${BASE}/api/sync`, {
@@ -474,7 +520,7 @@ const syncNow = async (page) => {
 
     /* IT SAYS SO WITHOUT BEING ASKED. The passphrase box has always existed, at
        the bottom of the export sheet behind More → Export the workbook, and
-       nothing pointed at it — so a second device showed 0/315 and an empty
+       nothing pointed at it (it has its own menu line now, checked below) — so a second device showed 0/315 and an empty
        review and looked for all the world like a broken deployment. The banner
        is the thing that would have saved Sarel a day. */
     const cFirst = await C.page.locator("body").innerText();
@@ -491,7 +537,22 @@ const syncNow = async (page) => {
          return pos !== "fixed" && pos !== "absolute";
        }));
 
-    await openExport(C.page);
+    /* THE MENU CARRIES IT AT THE TOP LEVEL, next to Sync — both answer "is my
+       work leaving this device" and both used to fail silently. Checked on the
+       open menu before anything is pressed, because the whole complaint was
+       that the line was not there to see. */
+    await C.page.locator("button", { hasText: /^More$/ }).first().click();
+    await C.page.waitForTimeout(400);
+    const menuText = await C.page.locator('[role="menu"][aria-label="More"]').first().innerText();
+    ok("THE SHARED RECORD HAS ITS OWN LINE IN THE MENU, not a scroll inside another sheet",
+       /Shared record/i.test(menuText), menuText.replace(/\n/g, " · ").slice(0, 200));
+    ok("and the line says the state, so the menu answers it without opening anything",
+       /passphrase|joined|not set up|syncing|signal/i.test(menuText),
+       menuText.replace(/\n/g, " · ").slice(0, 200));
+    await C.page.keyboard.press("Escape");
+    await C.page.waitForTimeout(400);
+
+    await openShared(C.page);
     const lockedText = await C.page.locator("body").innerText();
     ok("a device that has not been given the passphrase says exactly that",
        /locked/i.test(lockedText) && /team passphrase/i.test(lockedText),
@@ -522,8 +583,8 @@ const syncNow = async (page) => {
     ok("a device already in the audit is never shown it",
        !/has not joined the audit/i.test(await A.page.locator("body").innerText()));
 
-    /* AND THE BANNER ACTUALLY JOINS. C went in through the export sheet, which
-       is the path that already existed; this is the new one, and a prompt that
+    /* AND THE BANNER ACTUALLY JOINS. C went in through the menu's own line;
+       this is the third route, and a prompt that
        appears but does not work would be worse than no prompt at all. */
     const E = await auditor(browser, "Auditor E", { unlock: false });
     await E.page.locator("input[aria-label='Team passphrase to join the audit']").fill(PASS);

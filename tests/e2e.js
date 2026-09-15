@@ -22,8 +22,17 @@ function ok(n,c,extra=''){ if(c){pass++;log.push('PASS  '+n);} else {fail++;log.
      in its fallback stack — so it is excluded here rather than left to fail an
      assertion the reader then has to be told to ignore. Anything else that
      fails to load is a real error and still counts. */
+  /* ERR_CERT_AUTHORITY_INVALID joined that list on 15 September 2026. The
+     sandbox now reaches the internet through a proxy that terminates TLS with
+     its own CA, which this Chromium has no reason to trust — so the font
+     request is refused at the certificate rather than at the connection, and
+     Chromium logs it WITHOUT the URL, as a bare "Failed to load resource:
+     net::ERR_CERT_AUTHORITY_INVALID". The host test above therefore cannot
+     see it and the whole suite failed on the environment's plumbing. Same
+     class as the three below it: the network, not the app. */
   const envNoise = (t) => /fonts\.(googleapis|gstatic)\.com/.test(t) ||
-    (/Failed to load resource/.test(t) && /ERR_CONNECTION_RESET|ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED/.test(t));
+    (/Failed to load resource/.test(t) &&
+      /ERR_CONNECTION_RESET|ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED|ERR_CERT_AUTHORITY_INVALID|ERR_PROXY_CONNECTION_FAILED/.test(t));
   const note = (t) => { if (!envNoise(t)) errs.push(t); };
   page.on('pageerror', e=>note(String(e))); page.on('console', m=>{ if(m.type()==='error') note('console: '+m.text()); });
 

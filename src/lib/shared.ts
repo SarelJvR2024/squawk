@@ -28,7 +28,12 @@ import type { Bundle } from "./merge";
 import { BUNDLE_KIND, BUNDLE_VERSION } from "./merge";
 import type { AdHocItem, Attachment, Capture, FeedbackNote, Finding, Hazard, Response, Verification } from "./types";
 
-const PASS_KEY = "squawk-team-passphrase";
+/** Where the team passphrase lives on a device. Exported so the one other
+ *  place that needs it — fetching the record copy of a photograph, in
+ *  recordimage.ts — reads the SAME key rather than repeating the literal. Two
+ *  spellings of this string is a device that is joined for syncing and not
+ *  joined for photographs. */
+export const PASS_KEY = "squawk-team-passphrase";
 /* Whether this deployment HAS a shared record, remembered across launches.
  *
  *  Without this an offline device says "no shared record on this deployment",

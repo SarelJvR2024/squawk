@@ -30,6 +30,7 @@ import JoinPrompt from "@/components/JoinPrompt";
 import { SyncPanel } from "@/components/SyncPanel";
 import ResetPanel from "@/components/ResetPanel";
 import AuditsPanel from "@/components/AuditsPanel";
+import SharedSheet from "@/components/SharedSheet";
 import {
   IconClipboard,
   IconCamera,
@@ -115,6 +116,28 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
      signal" is not one of them — an auditor in a basement does not need a dot
      telling them they are in a basement. */
   const sharedNeedsYou = shared?.state === "locked" || shared?.state === "error";
+  /* The menu line says the state, so "is this device on the team record" is
+     answered without opening anything. Locked reads as an instruction rather
+     than a status, because locked is the one state that is somebody's job. */
+  const sharedHint =
+    shared?.state === "locked"
+      ? "Enter the team passphrase to join this audit"
+      : shared?.state === "synced"
+        ? `Joined — everyone sees the same record${
+            shared.lastSyncAt
+              ? `, last sync ${new Date(shared.lastSyncAt).toLocaleTimeString("en-ZA", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}`
+              : ""
+          }`
+        : shared?.state === "syncing"
+          ? "Syncing with the team record now"
+          : shared?.state === "offline"
+            ? "Joined — waiting for signal, nothing is lost"
+            : shared?.state === "error"
+              ? "Not syncing — open to see why"
+              : "Not set up on this deployment";
   const visitId = useVisitId();
   const setEntity = useStore((s) => s.setEntity);
   const setVisit = useStore((s) => s.setVisit);
@@ -141,6 +164,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [more, setMore] = useState(false);
   const [roleOpen, setRoleOpen] = useState(false);
   const [audits, setAudits] = useState(false);
+  const [sharedOpen, setSharedOpen] = useState(false);
   const [q, setQ] = useState("");
 
   const done = useMemo(
@@ -205,6 +229,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         setSyncing(false);
         setResetting(false);
         setAudits(false);
+        setSharedOpen(false);
         /* The masthead popovers close on Escape like everything else here. A
            panel that can only be dismissed by finding its own button again is
            one an auditor learns to avoid opening. */
@@ -565,6 +590,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       onClick={() => { setMore(false); setSyncing(true); }}
                     />
                   )}
+                  {/* AT THIS LEVEL, because it was two presses and a scroll
+                      down the export sheet before — see SharedSheet. Next to
+                      Sync, not next to Export: both answer "is my work leaving
+                      this device", and they are the two that fail silently. */}
+                  <MoreItem
+                    icon={<IconTeam width={14} height={14} />}
+                    label="Shared record"
+                    hint={sharedHint}
+                    onClick={() => { setMore(false); setSharedOpen(true); }}
+                  />
                   {role !== "acsa" && (
                     <MoreItem
                       icon={<IconDownload width={14} height={14} />}
@@ -1055,6 +1090,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {syncing && <SyncPanel onClose={() => setSyncing(false)} />}
       {resetting && <ResetPanel onClose={() => setResetting(false)} />}
       {audits && <AuditsPanel onClose={() => setAudits(false)} />}
+      {sharedOpen && <SharedSheet onClose={() => setSharedOpen(false)} />}
 
       {role === "acsa" && (
         <div

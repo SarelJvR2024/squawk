@@ -810,20 +810,57 @@ export function closureSheet(x: ExportInput): Sheet {
  *  This is the list that leaves the room at the end of a workshop. */
 export function evidenceRequestSheet(x: ExportInput): Sheet {
   const rows: (string | number | Date | null)[][] = [];
+  /* THE STATE COLUMN IS THE POINT OF THIS SHEET, so it reads the pending flag
+     as well as the compliance token. "Compliant, evidence pending" is a C with
+     a flag on it, and a C that reached this sheet saying only "Requested"
+     would be filed as a record somebody has in hand. */
+  const state = (r: Response) =>
+    r.compliance === "NV"
+      ? "Outstanding — not produced during the audit"
+      : r.evidencePending
+        ? "Compliant on the auditor's assessment — record still to be produced"
+        : "Requested";
+
   for (const c of x.checks) {
     const r = x.responses[c.id];
-    if (!r?.evidencePicked.length) continue;
+    if (!r) continue;
     const lib = x.library?.[c.id];
-    for (const i of r.evidencePicked) {
-      const e = lib?.EO[i];
+
+    if (r.evidencePicked.length) {
+      for (const i of r.evidencePicked) {
+        const e = lib?.EO[i];
+        rows.push([
+          portalIdFor(x.entity, c.id),
+          c.discipline,
+          c.system,
+          e?.label ?? `Evidence item #${i}`,
+          e?.hint ?? "",
+          docs(c),
+          state(r),
+          r.capturedBy,
+          when(r.capturedAt),
+        ]);
+      }
+      continue;
+    }
+
+    /* A CHECK FLAGGED PENDING WITH NOTHING PICKED STILL GETS A ROW.
+       This sheet used to be driven by evidencePicked alone, so an auditor who
+       tapped "Compliant, evidence pending" without going on to name the record
+       — which is most of them, because the flag is one tap in the bottom bar
+       and the evidence list is a tab away — produced NO row here at all. The
+       one register of what TPJV still has to chase left out exactly the checks
+       it was told were outstanding. The row says the record was not named
+       rather than pretending to know which one it is. */
+    if (r.evidencePending) {
       rows.push([
         portalIdFor(x.entity, c.id),
         c.discipline,
         c.system,
-        e?.label ?? `Evidence item #${i}`,
-        e?.hint ?? "",
+        "Not named — the auditor flagged evidence outstanding without picking the record",
+        "",
         docs(c),
-        r.compliance === "NV" ? "Outstanding — not produced during the audit" : "Requested",
+        state(r),
         r.capturedBy,
         when(r.capturedAt),
       ]);
