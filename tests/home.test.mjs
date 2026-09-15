@@ -264,5 +264,56 @@ check(
   "a hex is a colour that only works in one theme"
 );
 
+/* ---- THE UPDATE PATH IS REACHABLE --------------------------------------
+ *
+ *  /preflight offers an "Apply update" button, and it renders only when
+ *  `registration.waiting` holds a second worker. A browser installs a second
+ *  worker only when the bytes of /sw.js differ from the ones it has. sw.js is
+ *  hand-written and static, so for months those bytes never changed across a
+ *  deploy and the button could not appear on any device, ever. It read as a
+ *  feature and behaved as dead code, which is the failure mode worth a test:
+ *  nothing was red, and the affordance simply was not there.
+ *
+ *  Found on 15 September 2026 by sending Sarel to press it. */
+
+const stamper = fs.readFileSync(path.join(root, "scripts", "stamp-sw.mjs"), "utf8");
+const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+
+check(
+  "THE WORKER CARRIES A BUILD STAMP, so a deploy changes its bytes",
+  /^const BUILD = "[^"]*";$/m.test(sw),
+  "identical bytes mean no second worker, no registration.waiting, and no Apply update button"
+);
+
+check(
+  "and the stamper rewrites exactly that line",
+  /const BUILD = "\$\{stamp\}";/.test(stamper) &&
+    /\^const BUILD = "\[\^"\]\*";\$/.test(stamper)
+);
+
+check(
+  "it runs before every build, without anybody remembering to",
+  pkg.scripts.prebuild === "node scripts/stamp-sw.mjs",
+  "npm runs prebuild ahead of build; a stamp somebody has to invoke is a stamp that goes stale"
+);
+
+check(
+  "and it does NOTHING without a build id, so a local build leaves the tree clean",
+  /if \(!id\) \{[\s\S]{0,200}process\.exit\(0\)/.test(stamper),
+  "otherwise every developer carries a modified public/sw.js forever"
+);
+
+check(
+  "THE CACHE VERSION IS NOT THE BUILD STAMP",
+  /const VERSION = "squawk-v\d+";/.test(sw),
+  "activate deletes every cache without this prefix — per-commit would re-fetch the whole app on each deploy, on whatever signal the auditor happens to have"
+);
+
+check(
+  "the page still decides when to swap, not the worker",
+  /squawk:activate-update/.test(sw) && !/self\.skipWaiting\(\);\s*\}\);\s*self\.addEventListener\("install"/.test(sw),
+  "skipWaiting on install would swap builds under somebody mid-observation"
+);
+
 console.log(`\n${failures === 0 ? "OK" : `${failures} FAILED`}`);
 process.exit(failures ? 1 : 0);
