@@ -25,13 +25,51 @@
  *  token cache with its own storage policy to reason about — which is the
  *  entire point of the paragraph above. */
 
-/** Configured at build time. Neither value is secret. Absent means the sync is
- *  simply not offered, and the app is completely usable without it. */
-export const GRAPH_CLIENT_ID = process.env.NEXT_PUBLIC_GRAPH_CLIENT_ID ?? "";
-/** A tenant id, or "organizations" for any work account. */
-export const GRAPH_TENANT = process.env.NEXT_PUBLIC_GRAPH_TENANT ?? "organizations";
+/** TPJV'S REGISTRATION, AS THE DEFAULT. Overridable by environment, but it
+ *  does not have to be set for the sync to work on the day.
+ *
+ *  Prince Mahlangu completed the Microsoft side on 15 September 2026: a
+ *  single-tenant app registration with an SPA redirect, no client secret, and
+ *  delegated `Sites.ReadWrite.All` consented for TPJV.
+ *
+ *  NONE OF THE THREE IS A CREDENTIAL, and that is not a judgement call here —
+ *  it is what the flow requires. Authorization code with PKCE is a PUBLIC
+ *  client flow: the client id is transmitted in a URL in the address bar of
+ *  the sign-in window, the tenant id is in the path of that same URL, and the
+ *  site is a SharePoint address anybody on the audit can open. Holding all
+ *  three grants nothing — a sign-in still needs a TPJV account, that account's
+ *  password, and its MFA prompt, and Graph then grants exactly what that
+ *  person already had.
+ *
+ *  They are here rather than only in Vercel because a build-time variable that
+ *  nobody set is invisible: it does not fail, it produces an app that quietly
+ *  has no sync, and that already cost a day on the Supabase three. An
+ *  environment variable still wins where one is set, so a second tenant or a
+ *  test registration needs no code change.
+ *
+ *  Sarel: if you would rather these lived only in Vercel, say so and they come
+ *  out — the env path below is unchanged and already works. */
+const DEFAULT_CLIENT_ID = "7589f18c-914d-449d-9914-24ea0f10b4cc";
+const DEFAULT_TENANT = "56363c2a-78ac-4fab-a846-860b3e6282af";
+const DEFAULT_SITE = "https://tpjv.sharepoint.com/sites/ACSA-Asset-Assurance";
+/** The ONE origin registered as a redirect on the app. Microsoft matches this
+ *  string exactly and refuses anything else (AADSTS50011), so a preview
+ *  deployment cannot sign in — see `redirectRegistered()`. */
+const DEFAULT_ORIGIN = "https://squawk-delta.vercel.app";
+
+/** Configured at build time. None of these is secret. */
+export const GRAPH_CLIENT_ID = process.env.NEXT_PUBLIC_GRAPH_CLIENT_ID || DEFAULT_CLIENT_ID;
+/** A tenant id, or "organizations" for any work account.
+ *
+ *  THE GUID, NOT "organizations". The registration is single tenant, and the
+ *  common endpoints refuse a single-tenant app with AADSTS50194 — a sentence
+ *  about a multi-tenant application that reads, to somebody standing in a
+ *  terminal building, like the app is broken. */
+export const GRAPH_TENANT = process.env.NEXT_PUBLIC_GRAPH_TENANT || DEFAULT_TENANT;
 /** The SharePoint host and site path the audit portal lives at. */
-export const GRAPH_SITE = process.env.NEXT_PUBLIC_GRAPH_SITE ?? "";
+export const GRAPH_SITE = process.env.NEXT_PUBLIC_GRAPH_SITE || DEFAULT_SITE;
+/** Where the redirect is registered. */
+export const GRAPH_ORIGIN = process.env.NEXT_PUBLIC_GRAPH_ORIGIN || DEFAULT_ORIGIN;
 
 export function graphConfigured(): boolean {
   return !!GRAPH_CLIENT_ID && !!GRAPH_SITE;
@@ -43,6 +81,28 @@ export function graphMissing(): string[] {
   if (!GRAPH_CLIENT_ID) out.push("NEXT_PUBLIC_GRAPH_CLIENT_ID");
   if (!GRAPH_SITE) out.push("NEXT_PUBLIC_GRAPH_SITE");
   return out;
+}
+
+/** Is THIS origin the one Microsoft will redirect back to?
+ *
+ *  Only `https://squawk-delta.vercel.app/graph-callback` is registered. A
+ *  preview deployment, a branch URL or localhost is refused by Microsoft
+ *  before any password is typed, with a message naming a URI rather than
+ *  saying "this deployment is not the one". Checked here so the sync screen
+ *  can say it in advance instead of an auditor meeting it mid-sign-in.
+ *
+ *  Not a security control — Microsoft enforces the real one. This is only so
+ *  the refusal is not a surprise. */
+export function redirectRegistered(): boolean {
+  if (typeof window === "undefined") return true;
+  return window.location.origin === GRAPH_ORIGIN;
+}
+
+/** The redirect URI this deployment would send, for a person adding it to the
+ *  registration. */
+export function redirectUri(): string {
+  const origin = typeof window === "undefined" ? GRAPH_ORIGIN : window.location.origin;
+  return `${origin}/graph-callback`;
 }
 
 /* ------------------------------------------------------------------- auth */
@@ -84,7 +144,7 @@ export async function signIn(): Promise<string> {
   if (!graphConfigured()) throw new Error("Microsoft Graph is not configured for this deployment.");
   const { verifier, challenge } = await pkce();
   const state = base64url(crypto.getRandomValues(new Uint8Array(16)));
-  const redirect = `${window.location.origin}/graph-callback`;
+  const redirect = redirectUri();
 
   const url =
     `https://login.microsoftonline.com/${encodeURIComponent(GRAPH_TENANT)}/oauth2/v2.0/authorize` +

@@ -29,7 +29,7 @@ import {
   useVisitHazards,
   useVisitId,
 } from "@/lib/store";
-import { getBlob } from "@/lib/media";
+import { fullPhotoBlob } from "@/lib/recordimage";
 import * as graph from "@/lib/graph";
 import {
   buildPlan,
@@ -203,8 +203,10 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
         for (const f of plan.evidence) {
           setProgress({ done: written, total, what: `photograph ${f.filename}` });
           try {
-            const blob = await getBlob(f.blobKey);
-            if (!blob) throw new Error("the image is no longer on this device");
+            /* This device's copy if it has one, the record copy otherwise. An
+               auditor who joined the audit rather than taking the photographs
+               still uploads every one of them. */
+            const blob = await fullPhotoBlob(f.attachment, entityCode, visitId);
             await graph.uploadEvidence(resolved.driveId, plan.folder, f.filename, blob);
             written++;
           } catch (e) {
@@ -248,12 +250,23 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       label: "This deployment knows where the portal is",
       state: configured ? "ok" : "todo",
       detail: configured
-        ? `${graph.GRAPH_SITE}`
+        ? `${graph.GRAPH_SITE} · tenant ${graph.GRAPH_TENANT.slice(0, 8)}…`
         : `Set ${graph.graphMissing().join(" and ")} in Vercel and redeploy. These are read at BUILD time, so setting them without a new deploy changes nothing.`,
     },
     {
+      /* BEFORE sign-in, because this is the one that fails AFTER a password and
+         an MFA prompt have already been given. Prince registered exactly one
+         redirect; a preview build hitting it gets AADSTS50011 and reads like a
+         broken app rather than the wrong URL. */
+      label: "Microsoft will redirect back to this deployment",
+      state: !configured ? "waiting" : graph.redirectRegistered() ? "ok" : "todo",
+      detail: graph.redirectRegistered()
+        ? `${graph.redirectUri()} — the registered SPA redirect.`
+        : `Only ${graph.GRAPH_ORIGIN}/graph-callback is registered on the app. Sign-in from here (${graph.redirectUri()}) will be refused by Microsoft before you type anything. Use the live site, or ask Prince to add this URI as an SPA redirect.`,
+    },
+    {
       label: "You are signed in to Microsoft",
-      state: !configured ? "waiting" : who ? "ok" : "todo",
+      state: !configured || !graph.redirectRegistered() ? "waiting" : who ? "ok" : "todo",
       detail: who
         ? `${who} — held in this tab only, never written to the device.`
         : "Sign in below. Squawk writes as you, not as itself, so the portal's history shows a person.",

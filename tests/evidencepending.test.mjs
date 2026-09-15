@@ -205,6 +205,48 @@ ok(
   /inline\s*\?\s*formatDuration\(rec\.elapsed\)/.test(read("src/components/Capture.tsx"))
 );
 
+/* ------------------------- THE FOURTH WAY IT COULD GO WRONG ---------------
+ *
+ * FOUR: it reaches the workbook but not the ONE SHEET somebody chases records
+ * from. The Evidence request sheet was driven by evidencePicked alone, so a
+ * check flagged pending without a named record produced no row at all — the
+ * register of what TPJV still owes ACSA leaving out exactly the checks it was
+ * told were outstanding. And the portal got a bare "C" for the same check,
+ * which on ACSA's side is indistinguishable from a record in hand. */
+
+const exportsSrc = read("src/lib/exports.ts");
+const sheet = exportsSrc.slice(
+  exportsSrc.indexOf("export function evidenceRequestSheet"),
+  exportsSrc.indexOf("export function systemsSheet")
+);
+
+ok(
+  "THE EVIDENCE REQUEST SHEET READS THE PENDING FLAG, not only what was picked",
+  /evidencePending/.test(sheet),
+  "an RFI generated from this sheet is the tag's whole purpose"
+);
+ok(
+  "a check flagged pending with nothing picked still gets a row",
+  /if \(r\.evidencePending\) \{[\s\S]{0,400}rows\.push/.test(sheet),
+  "most auditors tap the flag in the bottom bar and never open the evidence tab"
+);
+ok(
+  "and the row says the record was not named rather than guessing which one",
+  /Not named/.test(sheet)
+);
+ok(
+  "the State column distinguishes pending from a record already requested",
+  /Compliant on the auditor's assessment/.test(sheet) && /Outstanding/.test(sheet)
+);
+
+const spSrc = read("src/lib/sharepoint.ts");
+ok(
+  "THE PORTAL IS TOLD, and still only ever sees the four compliance tokens",
+  /EVIDENCE PENDING/.test(spSrc) &&
+    /compliance: r\.compliance,/.test(spSrc),
+  "a fifth token in ACSA's list would be Squawk inventing their vocabulary"
+);
+
 console.log(log.join("\n"));
 if (fail) {
   console.log(`\n${fail} FAILURES`);

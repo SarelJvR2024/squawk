@@ -6,8 +6,11 @@
  *  device to join the audit."
  *
  *  The passphrase box exists and always has — at the bottom of the export
- *  sheet, which is behind More → Export the workbook. Nothing ever pointed at
- *  it. So a second device opened the app, showed 0/315 and an empty Visual
+ *  sheet, which was behind More → Export the workbook. Nothing ever pointed at
+ *  it. (It has its own line in the menu now, More → Shared record, added four
+ *  days later when Sarel hit the same wall from the other side: "move the
+ *  passphrase to this level of the menu, it is too hidden." This prompt is
+ *  still the one that reaches a device nobody thought to check.) So a second device opened the app, showed 0/315 and an empty Visual
  *  review, and looked for all the world like a deployment with no data in it.
  *  There was no error, because nothing had gone wrong: the device simply had
  *  not been let in, and nothing said so.
@@ -140,7 +143,7 @@ export default function JoinPrompt() {
         <button
           type="button"
           onClick={dismiss}
-          title="It is under More → Export the workbook whenever you have it"
+          title="It is under More → Shared record whenever you have it"
           className="flex min-h-[44px] shrink-0 items-center gap-[5px] rounded-[9px] border px-[10px] text-[11.5px]"
           style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-3)" }}
         >

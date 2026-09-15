@@ -31,6 +31,7 @@ import {
 } from "@/lib/store";
 import { PROGRAMME_VISITS } from "@/lib/programme";
 import { useBlobUrl, formatDuration } from "@/lib/media";
+import { useRecordImage } from "@/lib/recordimage";
 import { bandFor, BAND_META } from "@/lib/risk";
 import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
 import { IconCamera, IconCheck, IconMic, IconPlus, IconX } from "@/components/ui/icons";
@@ -150,10 +151,24 @@ interface Item {
    device is not that, and telling an auditor their evidence is corrupt old data
    when it is one sync away is worse than telling them nothing. Two states, two
    sentences. */
-function Photo({ a, onOpen }: { a: Attachment; onOpen?: () => void }) {
-  const { url, missing } = useBlobUrl(a.blobKey);
-  const src = url ?? a.thumbDataUrl ?? a.dataUrl ?? null;
-  if (a.unavailable || (missing && !a.thumbDataUrl && !a.dataUrl)) {
+function Photo({
+  a,
+  entityCode,
+  visitId,
+  onOpen,
+}: {
+  a: Attachment;
+  entityCode: string;
+  visitId: string;
+  onOpen?: () => void;
+}) {
+  const { missing } = useBlobUrl(a.blobKey);
+  /* Local blob, then the RECORD COPY out of the blob store, then the 240px
+     preview. The middle one is what was missing: a photograph taken on the
+     phone has its bytes in the phone's IndexedDB and in the store, and this
+     laptop can reach the second. */
+  const { url: src } = useRecordImage(a, entityCode, visitId);
+  if (a.unavailable || (missing && !src)) {
     return (
       <div
         className="flex aspect-[4/3] w-full items-center justify-center rounded-[11px] border px-2 text-center text-[10.5px] leading-[1.4]"
@@ -185,15 +200,23 @@ function Photo({ a, onOpen }: { a: Attachment; onOpen?: () => void }) {
   );
 }
 
-function Lightbox({ a, onClose }: { a: Attachment; onClose: () => void }) {
-  const { url } = useBlobUrl(a.blobKey);
+function Lightbox({
+  a,
+  entityCode,
+  visitId,
+  onClose,
+}: {
+  a: Attachment;
+  entityCode: string;
+  visitId: string;
+  onClose: () => void;
+}) {
   /* Same chain as the tile, and it has to be — a tile that paints from the
-     thumbnail and a lightbox that does not is a photograph you can see until
-     you tap it. The thumbnail is small and will look it blown up; a small
-     picture of the evidence beats a black rectangle, and the line under it
-     says which device holds the full one. */
-  const src = url ?? a.thumbDataUrl ?? a.dataUrl ?? null;
-  const thumbOnly = !url && !!a.thumbDataUrl;
+     record copy and a lightbox that does not is a photograph you can read
+     until you tap it. When all that can be found is the 240px preview the line
+     underneath says so, because a blurred document with no explanation reads
+     as a broken app rather than as evidence sitting on another device. */
+  const { url: src, thumbOnly, loading, error } = useRecordImage(a, entityCode, visitId);
   return (
     <div
       className="fixed inset-0 z-[110] flex items-center justify-center p-5"
@@ -206,7 +229,13 @@ function Lightbox({ a, onClose }: { a: Attachment; onClose: () => void }) {
           <img src={src} alt={a.name} className="max-h-full max-w-full rounded-[13px]" />
           {thumbOnly && (
             <span className="text-[11px]" style={{ color: "rgba(255,255,255,.72)" }}>
-              Preview only — the full image is on the device that took it.
+              {loading
+                ? "Fetching the record copy…"
+                : error
+                  ? `Preview only — ${error}`
+                  : a.cloudUrl
+                    ? "Preview only — join the audit with the team passphrase to see the full image."
+                    : "Preview only — the full image is on the device that took it."}
             </span>
           )}
         </div>
@@ -575,7 +604,13 @@ export default function ReviewPage() {
                     }`}
                   >
                     {active.photos.map((a) => (
-                      <Photo key={a.id} a={a} onOpen={() => setZoom(a)} />
+                      <Photo
+                        key={a.id}
+                        a={a}
+                        entityCode={entityCode}
+                        visitId={visitId}
+                        onOpen={() => setZoom(a)}
+                      />
                     ))}
                   </div>
                 )}
@@ -740,7 +775,9 @@ export default function ReviewPage() {
         )}
       </div>
 
-      {zoom && <Lightbox a={zoom} onClose={() => setZoom(null)} />}
+      {zoom && (
+        <Lightbox a={zoom} entityCode={entityCode} visitId={visitId} onClose={() => setZoom(null)} />
+      )}
     </div>
   );
 }

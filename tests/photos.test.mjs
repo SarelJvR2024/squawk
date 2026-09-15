@@ -560,9 +560,23 @@ check(
 );
 
 check(
-  "it is built from the stored blobs, not from what the records claim",
-  /const blob = await getBlob\(a\.blobKey!\);/.test(panel) && /if \(!blob\) continue;/.test(panel),
-  "a record pointing at a blob that is not there is the case worth catching"
+  "it is built from BYTES ACTUALLY FETCHED, not from what the records claim",
+  /blob = await fullPhotoBlob\(a, entityCode, visitId\);/.test(panel) &&
+    /unreachable\.push/.test(panel),
+  "a record pointing at an image that is nowhere is the case worth catching"
+);
+
+/* THIS ASSERTION USED TO READ `getBlob(a.blobKey!)` AND `if (!blob) continue`,
+   and it passed for weeks while describing a defect. The local key rides in the
+   persisted JSON and crosses to every device on the audit; the image does not.
+   So on the second auditor's tablet every getBlob returned undefined, every
+   photograph was skipped by that `continue`, and the zip came out short with
+   nothing anywhere saying so. Reaching the record copy is the fix; naming what
+   it still could not read is the half that keeps the failure loud. */
+check(
+  "a photograph it cannot read is named in the manifest rather than skipped",
+  /NOT IN THIS ZIP/.test(panel),
+  "a quietly short evidence zip is the worst outcome available here"
 );
 
 check(

@@ -363,6 +363,94 @@ check(
 );
 
 check(
+  "A PHOTOGRAPH THIS DEVICE NEVER TOOK IS STILL QUEUED, if the record holds it",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": {
+            compliance: "NC", observation: "x",
+            attachments: [
+              /* No blobKey: the bytes are not here. This is every photograph on
+                 the audit as seen by the auditor who did not take it, and the
+                 plan used to skip all of them silently. */
+              { id: "a1", kind: "photo", name: "n", cloudUrl: "https://blob/x", ref: "KSIA-ELE-001_P01", caption: "c" },
+            ],
+          },
+        },
+      },
+      NOTHING
+    );
+    return p.evidence.length === 1 && !!p.evidence[0].attachment;
+  })(),
+  "the plan carries the attachment, so the writer can go to the record copy for the bytes"
+);
+
+check(
+  "an evicted photograph with no record copy is NOT queued",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": {
+            compliance: "NC", observation: "x",
+            attachments: [
+              { id: "a1", kind: "photo", name: "n", blobKey: "b1", unavailable: true, ref: "R" },
+              { id: "a2", kind: "photo", name: "n", ref: "R2" },
+            ],
+          },
+        },
+      },
+      NOTHING
+    );
+    return p.evidence.length === 0;
+  })(),
+  "unavailable means the bytes are gone, not elsewhere — queueing it would fail every run"
+);
+
+check(
+  "EVIDENCE PENDING REACHES THE PORTAL, and never as a fifth compliance token",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": {
+            compliance: "C", evidencePending: true, observation: "Register sighted on screen.",
+            attachments: [],
+          },
+        },
+      },
+      NOTHING
+    );
+    const row = p.checkpoints[0];
+    return (
+      row.values.compliance === "C" &&
+      /EVIDENCE PENDING/.test(String(row.values.observation)) &&
+      /Register sighted on screen\./.test(String(row.values.observation)) &&
+      /evidence pending/i.test(row.summary)
+    );
+  })(),
+  "a bare C on a check whose record was never produced reads as 'we looked and it was fine'"
+);
+
+check(
+  "a check with no pending flag gets its observation unaltered",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        responses: { "KSIA-ELE-001": { compliance: "C", observation: "Plain.", attachments: [] } },
+      },
+      NOTHING
+    );
+    return p.checkpoints[0].values.observation === "Plain.";
+  })()
+);
+
+check(
   "the totals a person confirms against are the rows that would actually be written",
   (() => {
     const p = sp.buildPlan(
@@ -675,6 +763,67 @@ check(
 check(
   "the app says what is missing rather than half-working without a portal",
   /graphMissing/.test(graphSrc) && /graph\.graphMissing\(\)/.test(panel)
+);
+
+/* ------------------------------- TPJV's registration, as Prince built it --
+ *
+ *  15 September 2026: single tenant, SPA redirect on the live origin only, no
+ *  client secret, delegated Sites.ReadWrite.All with admin consent, and the
+ *  service account holding Contribute WITHOUT Delete. Each of those four is a
+ *  property the code has to match or the sync fails on the day, in a terminal
+ *  building, with an AADSTS number for a message. */
+
+check(
+  "the tenant is the GUID, never a common endpoint",
+  (() => {
+    const m = graphCode.match(/DEFAULT_TENANT\s*=\s*"([^"]+)"/);
+    return !!m && /^[0-9a-f-]{36}$/.test(m[1]);
+  })(),
+  "the registration is single tenant; /organizations refuses it with AADSTS50194"
+);
+
+check(
+  "the client id is a real GUID and the site is TPJV's",
+  /DEFAULT_CLIENT_ID\s*=\s*"[0-9a-f-]{36}"/.test(graphCode) &&
+    /DEFAULT_SITE\s*=\s*"https:\/\/[a-z]+\.sharepoint\.com\/sites\//.test(graphCode)
+);
+
+check(
+  "and every one of them is still overridable by environment",
+  /NEXT_PUBLIC_GRAPH_CLIENT_ID\s*\|\|/.test(graphCode) &&
+    /NEXT_PUBLIC_GRAPH_TENANT\s*\|\|/.test(graphCode) &&
+    /NEXT_PUBLIC_GRAPH_SITE\s*\|\|/.test(graphCode),
+  "a default is a default, not a hardcoding"
+);
+
+check(
+  "THE ONE REGISTERED REDIRECT IS CHECKED BEFORE A PASSWORD IS TYPED",
+  /redirectRegistered/.test(graphCode) && /graph\.redirectRegistered\(\)/.test(panel),
+  "only the live origin is registered; a preview build meets AADSTS50011 mid-sign-in"
+);
+
+check(
+  "and the sign-in step waits on it rather than offering a sign-in that cannot work",
+  /!graph\.redirectRegistered\(\)\s*\?\s*"waiting"/.test(panel) ||
+    /!configured \|\| !graph\.redirectRegistered\(\)/.test(panel)
+);
+
+check(
+  "NOTHING IN THE GRAPH LAYER CAN DELETE",
+  !/method:\s*"DELETE"/i.test(graphCode) && !/\bdeleteItem\b/.test(graphCode),
+  "the service account has Contribute without Delete — a DELETE would 403, and should never be written in the first place"
+);
+
+check(
+  "the writer uses create and update only",
+  /createItem/.test(panel) && /updateItem/.test(panel) && !/delete/i.test(panel.replace(/\/\*[\s\S]*?\*\//g, "")),
+  "create and update, as Prince permissioned it"
+);
+
+check(
+  "photographs are uploaded from wherever the bytes are, not only from this device",
+  /fullPhotoBlob/.test(panel) && !/getBlob/.test(panel),
+  "an auditor who joined the audit rather than taking the photographs still uploads every one"
 );
 
 check(
