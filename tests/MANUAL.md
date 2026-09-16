@@ -255,8 +255,17 @@ Three things to know before you press anything:
       the observation starting *EVIDENCE PENDING — …*. The portal has four
       compliance values and Squawk does not invent a fifth; this is how the flag
       travels. Confirm it reads sensibly to somebody looking at the list.
-- [ ] **Photographs upload from a device that did not take them.** Same test as
-      the zip, through the sync.
+- [ ] **The photographs are OFF by default** and the button's count excludes
+      them — 33 rows and 5 photographs reads *Write 33*, not 38. Ticking the
+      box puts them back. Sarel, 16 September: not wanted in the portal at this
+      stage.
+- [ ] **Photographs upload from a device that did not take them** — only worth
+      testing once the box above is ticked. Same test as the zip, through the
+      sync.
+- [ ] **A partial write says so.** If anything fails, the summary reads *"N of
+      M written"* and every missing row is named underneath. **SILENT if it
+      regresses** — the first real write reported "33 written. Everything in the
+      plan reached the portal" while five photographs had gone nowhere.
 - [ ] **Nothing is ever deleted.** The account has Contribute without Delete, so
       a delete would 403 — there is none in the code, but if you ever see one,
       that is the bug.

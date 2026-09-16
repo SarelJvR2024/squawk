@@ -553,6 +553,64 @@ check(
   "only the display name Title is accepted, and mapFields treats read-only as absent"
 );
 
+/* ---- PHOTOGRAPHS ARE OFF UNTIL SOMEBODY TICKS THE BOX -------------------
+ *  Sarel, 16 September 2026: "we dont need to send the photos itself to
+ *  sharepoint at this stage." Off rather than deleted, and off rather than
+ *  remembered — a switch that stayed on from a previous session would put a
+ *  national key point's photographs into SharePoint without anybody deciding
+ *  to this time. */
+
+check(
+  "the photograph upload is switched OFF by default",
+  /useState\(false\);/.test(panel.slice(panel.indexOf("const [sendPhotos"), panel.indexOf("const [sendPhotos") + 120)),
+  "and not read back from storage, so the decision is made each time"
+);
+
+check(
+  "nothing is uploaded unless it is on",
+  /if \(sendPhotos && resolved\.driveId && plan\.evidence\.length\)/.test(panel)
+);
+
+check(
+  "and the count on the button drops with it, rather than promising writes it will not make",
+  /t\.writes - \(sendPhotos \? 0 : t\.photographs\)/.test(panel) &&
+    /totals\.writes - \(sendPhotos \? 0 : totals\.photographs\)/.test(panel) &&
+    /`Write \$\{writes\} to the portal`/.test(panel)
+);
+
+/* ---- A PARTIAL WRITE NEVER READS AS A COMPLETE ONE ----------------------
+ *  The first real write: 33 rows landed, the evidence folder call threw, and
+ *  the panel said "33 written. Everything in the plan reached the portal."
+ *  `failed` was empty because ensureFolder sat outside the per-photograph try,
+ *  so five photographs went missing and the screen called it a success. */
+
+check(
+  "a folder that could not be prepared names every photograph it took down",
+  /folderReady/.test(panel) && /could not be prepared/.test(panel),
+  "one call failing all five must not be one silence"
+);
+
+check(
+  "and whatever stops the sync is counted against the plan, not left out of it",
+  /const short = total - written - failed\.length;/.test(panel) &&
+    /never attempted/.test(panel)
+);
+
+check(
+  "the summary says how many OF HOW MANY",
+  /\{result\.written\} of \{totals\?\.writes \?\? result\.written\} written/.test(panel),
+  "a bare count cannot be checked against anything"
+);
+
+/* ---- AND THE ROOT OF A LIBRARY IS ADDRESSED DIFFERENTLY ----------------- */
+
+check(
+  "a folder at the top of the library is created against /root/children",
+  /`\/drives\/\$\{driveId\}\/root\/children`/.test(graphCode) &&
+    /root:\/\$\{encodeURI\(parent\)\}:\/children/.test(graphCode),
+  "an empty path renders /root:/:/children, and Graph answers \"Resource not found for the segment 'root:'\""
+);
+
 check(
   "the totals a person confirms against are the rows that would actually be written",
   (() => {
@@ -729,8 +787,8 @@ check(
 
 check(
   "the confirm button says how many writes it is about to make",
-  /Write \$\{totals\.writes\} to the portal/.test(panel),
-  "a button labelled only 'Sync' asks for trust it has not earned"
+  /`Write \$\{writes\} to the portal`/.test(panel),
+  "a button labelled only 'Sync' asks for trust it has not earned — and the number is what it will ACTUALLY send, which is not the plan's total while the photographs are off"
 );
 
 check(
