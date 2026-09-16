@@ -641,6 +641,52 @@ export function evidenceFolder(
   return parts.join("/");
 }
 
+/** What a sync would write against a site NOBODY HAS AUDITED YET.
+ *
+ *  Twice in September 2026 a sync ran while the app was set to Bram Fischer —
+ *  once writing six BFIA check-point rows and once a photograph — against a
+ *  site whose audit is 27 to 29 October. ACSA reads those lists: the portal's
+ *  dashboard shows every site at once, so Bram Fischer read as part-audited six
+ *  weeks early, and Prince asked for the rows to be reversed.
+ *
+ *  Nothing in the sync was wrong. The Check-points list holds all ten sites by
+ *  design, the rows carried the correct BFIA prefix, and belongsToSite passed
+ *  because Bram Fischer WAS the site the app was on. Every check the code had
+ *  said yes. What nobody checked is whether that site has been audited yet, and
+ *  that is the only question that would have caught it.
+ *
+ *  BEFORE THE WINDOW OPENS ONLY, and that restraint is the point. A sync after
+ *  the audit is ordinary — write-ups, follow-ups, a correction in November to
+ *  something captured in September — and a warning that fires on those gets
+ *  dismissed by reflex within a week, which is worth less than no warning at
+ *  all. Before the window is the one case that cannot be legitimate: the site
+ *  has not been visited, so there is nothing to have captured.
+ *
+ *  Dates are compared as plain `YYYY-MM-DD` strings, deliberately. The audit
+ *  window is a calendar date in South Africa, not an instant, and parsing it
+ *  into a Date drags in the device's timezone to no purpose. A wrong device
+ *  clock is caught separately, on the pre-flight screen. */
+export interface EarlySync {
+  site: string;
+  icao: string;
+  /** First day of the audit, `YYYY-MM-DD`. */
+  from: string;
+  to: string;
+  /** Whole days from today until the audit opens. Always 1 or more. */
+  days: number;
+}
+
+export function syncedBeforeAudit(entityCode: string, today: string): EarlySync | null {
+  const s = siteFor(entityCode);
+  if (!s?.audit?.from) return null;
+  const now = (today ?? "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(now)) return null;
+  if (now >= s.audit.from) return null;
+  const day = 86_400_000;
+  const days = Math.ceil((Date.parse(`${s.audit.from}T00:00:00Z`) - Date.parse(`${now}T00:00:00Z`)) / day);
+  return { site: s.name, icao: s.icao, from: s.audit.from, to: s.audit.to, days };
+}
+
 /** The folder THE LIBRARY ALREADY HAS for this site, if it has one.
  *
  *  ACSA pre-created ten folders at the top of the Evidence library, one per
