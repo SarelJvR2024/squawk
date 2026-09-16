@@ -188,7 +188,9 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       if (!list) return;
       for (const row of rows) {
         setProgress({ done: written, total, what: `${what} ${row.key}` });
-        const fields = projectFields(list.map, row.values);
+        /* The row's own action decides whether a blank may overwrite. An
+           update never empties a cell; see projectFields. */
+        const fields = projectFields(list.map, row.values, row.action);
         try {
           if (row.itemId) {
             await graph.updateItem(resolved.siteId, list.id, row.itemId, fields);

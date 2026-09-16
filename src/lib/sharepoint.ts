@@ -265,8 +265,24 @@ export function mapFields(
 
 /** Drop anything with no column, and anything with nothing to say.
  *
- *  `undefined` and `null` are skipped; the empty string is NOT — clearing a
- *  cell somebody emptied on purpose is a legitimate write. */
+ *  `undefined` and `null` are always skipped. THE EMPTY STRING DEPENDS ON THE
+ *  ACTION, and that distinction is the whole point of this signature.
+ *
+ *  On a CREATE there is nothing underneath to lose, so an empty string is just
+ *  an empty new cell.
+ *
+ *  On an UPDATE it would write over whatever is already in the portal. The
+ *  first real sync, 16 September 2026, updated 33 rows in a list ACSA had
+ *  seeded themselves — and every check answered without an observation typed
+ *  carried `observation: ""`, which went in and blanked theirs. Nobody asked
+ *  for that. Tapping Compliant without adding a note is not a statement that
+ *  the portal's existing text should go.
+ *
+ *  Sarel's rule, the same day: "make updates skip empty values." So an update
+ *  can fill a cell and change a cell, and can never empty one. The cost is
+ *  that a deletion made in Squawk does not propagate — rare, visible in the
+ *  workbook either way, and a person can clear the cell in SharePoint. That is
+ *  the cheaper mistake by a distance. */
 /** CAN THIS LIST BE SYNCED AT ALL?
  *
  *  `title` is not one field among the others — it is the JOIN. Every row is
@@ -297,12 +313,16 @@ export function joinRefusal(list: string): string {
 
 export function projectFields(
   map: FieldMap,
-  values: Record<string, string | number | null | undefined>
+  values: Record<string, string | number | null | undefined>,
+  /* Defaults to "create" — the permissive case — so a caller that forgets to
+     say which it is cannot silently acquire the power to blank cells. */
+  action: RowAction = "create"
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, v] of Object.entries(values)) {
     const col = map.resolved[key];
     if (!col || v === undefined || v === null) continue;
+    if (action === "update" && v === "") continue;
     out[col] = v;
   }
   return out;
