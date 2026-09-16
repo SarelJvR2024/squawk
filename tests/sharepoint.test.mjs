@@ -417,6 +417,105 @@ check(
   "the doubled folder was exactly this, and a test is cheaper than another move"
 );
 
+/* A SITE NOBODY HAS AUDITED YET — the check that would have caught both Bram
+ * Fischer incidents, added 16 September 2026 at Sarel's request. Every other
+ * guard passed on those syncs, correctly: the rows carried the right BFIA
+ * prefix, the list holds all ten sites by design, and belongsToSite passed
+ * because Bram Fischer WAS the site the app was on. Nobody asked whether that
+ * site had been visited. Bram Fischer's audit is 27 to 29 October 2026. */
+
+check(
+  "a sync a month before the audit is flagged, with the dates and the count of days",
+  (() => {
+    const e = sp.syncedBeforeAudit("FABL", "2026-09-16");
+    return e && e.icao === "FABL" && e.from === "2026-10-27" && e.to === "2026-10-29" && e.days === 41;
+  })(),
+  JSON.stringify(sp.syncedBeforeAudit("FABL", "2026-09-16"))
+);
+
+check(
+  "THE DAY BEFORE IS STILL BEFORE",
+  sp.syncedBeforeAudit("FALE", "2026-09-14")?.days === 1,
+  "King Shaka opens on the 15th"
+);
+
+check(
+  "the first morning of the audit is not early — the auditor is on site",
+  sp.syncedBeforeAudit("FALE", "2026-09-15") === null
+);
+
+check(
+  "and nothing fires during the audit",
+  ["2026-09-15", "2026-09-16", "2026-09-17", "2026-09-18"].every(
+    (d) => sp.syncedBeforeAudit("FALE", d) === null
+  )
+);
+
+/* AFTER THE AUDIT IS SILENT, and that restraint is the design. A sync in
+ * November against September's captures is ordinary — write-ups, follow-ups, a
+ * correction — and a warning that fires on those gets dismissed by reflex
+ * within a week, which is worth less than no warning at all. */
+check(
+  "NOTHING FIRES AFTER THE AUDIT, however long after",
+  ["2026-09-19", "2026-10-30", "2027-06-01"].every(
+    (d) => sp.syncedBeforeAudit("FALE", d) === null
+  ),
+  "a warning that cries wolf on legitimate follow-up syncs is worse than none"
+);
+
+check(
+  "every one of the ten sites is early before its own window and not after",
+  sites.SITES.every((s) => {
+    const before = sp.syncedBeforeAudit(s.entityCode, "2026-09-01");
+    const onDay = sp.syncedBeforeAudit(s.entityCode, s.audit.from);
+    /* King Shaka is the only site already open on 1 September? No — none are;
+       the first audit is 15 September. So all ten are early on 1 September. */
+    return before !== null && before.days >= 1 && onDay === null;
+  }),
+  "derived from the site table, so a rescheduled audit moves the warning with it"
+);
+
+check(
+  "an unknown site and a malformed date say nothing rather than guessing",
+  sp.syncedBeforeAudit("NOPE", "2026-09-16") === null &&
+    sp.syncedBeforeAudit("FABL", "") === null &&
+    sp.syncedBeforeAudit("FABL", "tomorrow") === null
+);
+
+check(
+  "a full timestamp is accepted, because that is what the app has to hand",
+  sp.syncedBeforeAudit("FABL", "2026-09-16T19:54:28.000Z")?.days === 41
+);
+
+check(
+  "THE PANEL WILL NOT WRITE EARLY UNTIL SOMEBODY TICKS IT",
+  /!!early && !earlyOk/.test(panel) && /disabled=\{/.test(panel),
+  "a notice is what both Bram Fischer syncs would have scrolled past"
+);
+
+check(
+  "and the button says which site it is refusing for, not just that it is refusing",
+  /early && !earlyOk\s*\?\s*`\$\{early\.site\} is not audited yet`/.test(panel)
+);
+
+check(
+  "the acknowledgement is reset on every new plan, never carried over",
+  /setEarlyOk\(false\);\s*\n\s*setStage\("planned"\)/.test(panel),
+  "a tick on one plan must not authorise the next one"
+);
+
+check(
+  "nothing else in the sync is refused by it — it is a tick, not a block",
+  (() => {
+    /* The early check appears in the disabled expression and the label, and
+       nowhere in readPortal or run. Writing is gated; reading and planning are
+       not, because seeing what WOULD be written is how you notice. */
+    const run = panel.slice(panel.indexOf("async function run()"), panel.indexOf("async function run()") + 3000);
+    return !/early/.test(run);
+  })(),
+  "the auditor must still be able to read the portal and see the plan"
+);
+
 /* AND THE LIBRARY ALREADY HAS FOLDERS. Read from the live library on
  * 16 September 2026, before anything was moved — ACSA pre-created one per site,
  * in their spelling, not Squawk's. Minting "King Shaka International Airport

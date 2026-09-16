@@ -312,6 +312,17 @@ Three things to know before you press anything:
       M written"* and every missing row is named underneath. **SILENT if it
       regresses** — the first real write reported "33 written. Everything in the
       plan reached the portal" while five photographs had gone nowhere.
+- [ ] **A site that has not been audited yet stops the write.** Switch the app
+      to Bram Fischer (27–29 Oct), plan a sync, and the button should read
+      *"Bram Fischer International Airport is not audited yet"* and refuse until
+      the red box above it is ticked. This is the check that would have caught
+      both September incidents; every other guard passed on those, correctly.
+- [ ] **And it does NOT fire during or after King Shaka's own audit.** 15 to 18
+      September is silent, and so is every date after it — a warning that fires
+      on legitimate follow-up syncs gets dismissed by reflex and is then worth
+      less than none.
+- [ ] **The tick does not carry over.** Tick it, read the portal again, and the
+      new plan should be refused again until you tick it afresh.
 - [ ] **Nothing is ever deleted.** The account has Contribute without Delete, so
       a delete would 403 — there is none in the code, but if you ever see one,
       that is the bug.

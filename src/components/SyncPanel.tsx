@@ -48,6 +48,7 @@ import {
   FINDING_FIELDS,
   LIST_NAMES,
   siteFolderIn,
+  syncedBeforeAudit,
   type FieldMap,
   type PlannedRow,
   type SyncPlan,
@@ -119,6 +120,10 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
      SharePoint without anybody deciding to this time. It is one tick when it
      is wanted. */
   const [sendPhotos, setSendPhotos] = useState(false);
+  /* Ticked only to write against a site whose audit has not happened yet. Reset
+     whenever a new plan is built, so an acknowledgement never carries over to a
+     plan the auditor has not looked at. */
+  const [earlyOk, setEarlyOk] = useState(false);
 
   const checks = useMemo(() => checksAt(entityCode), [entityCode]);
   const prior = useMemo(() => priorFindingsAt(entityCode), [entityCode]);
@@ -226,6 +231,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
           unconsolidated
         )
       );
+      setEarlyOk(false);
       setStage("planned");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not read the portal.");
@@ -344,6 +350,11 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
     ...(indexes?.checkpoints?.duplicates ?? []),
     ...(indexes?.findings?.duplicates ?? []),
   ];
+  /* The site's audit has not started. See syncedBeforeAudit — this is the check
+     that would have caught both Bram Fischer incidents, and the only one that
+     could have: every other guard passed, correctly. Computed from today rather
+     than from the plan, because the question is about now. */
+  const early = syncedBeforeAudit(entityCode, new Date().toISOString().slice(0, 10));
   const foreign = (indexes?.checkpoints?.foreign ?? 0) + (indexes?.findings?.foreign ?? 0);
 
   /* Values bound for a Choice column that will not accept them. */
@@ -805,6 +816,37 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                   </ul>
                 </details>
 
+                {/* THE SITE HAS NOT BEEN AUDITED YET. Deliberately the last thing
+                    above the button, and deliberately a tick rather than a
+                    notice: a notice is what the two Bram Fischer syncs would
+                    have scrolled past. Nothing here refuses the write — there
+                    are legitimate reasons to load a site early — it only makes
+                    the auditor say so. */}
+                {early && (
+                  <label
+                    className="mb-2 flex cursor-pointer items-start gap-[9px] rounded-[10px] border px-[11px] py-[9px] text-[11.5px] leading-[1.5]"
+                    style={{ background: "var(--bad-bg)", borderColor: "var(--bad-line)", color: "var(--bad)" }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={earlyOk}
+                      onChange={(e) => setEarlyOk(e.target.checked)}
+                      className="mt-[2px] h-[15px] w-[15px] shrink-0"
+                    />
+                    <span>
+                      <b>
+                        {early.site} has not been audited yet — it is booked for{" "}
+                        {early.from} to {early.to}, {early.days} day
+                        {early.days === 1 ? "" : "s"} from now.
+                      </b>{" "}
+                      You are about to write {writes} row{writes === 1 ? "" : "s"} against it, and
+                      ACSA&rsquo;s dashboard shows every site at once, so they will read as audit results.
+                      Check the airport in the masthead is the one you are standing in. Tick to write
+                      anyway.
+                    </span>
+                  </label>
+                )}
+
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[11.5px]" style={{ color: "var(--ink-3)" }}>
                     {progress ? `${progress.done}/${progress.total} — ${progress.what}` : "Nothing has been written yet."}
@@ -813,13 +855,20 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                     variant="primary"
                     className="ml-auto"
                     onClick={run}
-                    disabled={stage === "writing" || writes === 0 || blockedCreates.length > 0}
+                    disabled={
+                      stage === "writing" ||
+                      writes === 0 ||
+                      blockedCreates.length > 0 ||
+                      (!!early && !earlyOk)
+                    }
                   >
                     {stage === "writing"
                       ? "Writing…"
                       : blockedCreates.length
                         ? "Cannot create rows — no Title column"
-                        : `Write ${writes} to the portal`}
+                        : early && !earlyOk
+                          ? `${early.site} is not audited yet`
+                          : `Write ${writes} to the portal`}
                   </Btn>
                 </div>
               </>
