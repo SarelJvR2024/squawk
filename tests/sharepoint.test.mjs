@@ -745,6 +745,65 @@ check(
   })()
 );
 
+/* ---- AND IT DOES NOT GO ACROSS WORDLESS ---------------------------------
+ *  Sarel: "it might be NC because the airport could not provide compliant
+ *  evidence. So let's by default on the sync just say NC - No compliance
+ *  evidence could be provided, or something like that but technically
+ *  correct."
+ *
+ *  The technically-correct part is the constraint. Squawk knows an auditor
+ *  marked it non-compliant and that nobody wrote anything down. It does NOT
+ *  know the airport was asked and could not produce evidence — likely, but a
+ *  cause nobody recorded, and ACSA acts on these rows. */
+
+check(
+  "A NON-COMPLIANT CHECK WITH NO OBSERVATION CARRIES A PLACEHOLDER",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE, responses: { "KSIA-ELE-001": { compliance: "NC", observation: "", attachments: [] } } },
+      NOTHING
+    );
+    return p.checkpoints[0].values.observation === sp.NC_WITHOUT_DETAIL;
+  })(),
+  "since an update no longer writes a blank, the alternative is ACSA's old text under a fresh NC"
+);
+
+check(
+  "and the placeholder claims only what is known",
+  /no supporting evidence or observation was recorded/i.test(sp.NC_WITHOUT_DETAIL) &&
+    !/could not provide|refused|failed to produce|unable to/i.test(sp.NC_WITHOUT_DETAIL),
+  "why it is non-compliant is a cause nobody recorded; saying it would be Squawk making the finding"
+);
+
+check(
+  "a typed observation beats the placeholder",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE, responses: { "KSIA-ELE-001": { compliance: "NC", observation: "Panel door missing.", attachments: [] } } },
+      NOTHING
+    );
+    return p.checkpoints[0].values.observation === "Panel door missing.";
+  })()
+);
+
+check(
+  "and a compliant or not-applicable check with nothing typed gets no sentence",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": { compliance: "C", observation: "", attachments: [] },
+          "KSIA-ELE-002": { compliance: "N/A", observation: "", attachments: [] },
+        },
+      },
+      NOTHING
+    );
+    return p.checkpoints.every((r) => r.values.observation === "");
+  })(),
+  "the status is the whole statement; a sentence there would be padding in a system of record"
+);
+
 check(
   "and it still goes across — a warning is not a refusal",
   (() => {
@@ -787,6 +846,103 @@ check(
   "the readiness step names the lists it will write to",
   /chose: \{/.test(panel) && /Writing to/.test(panel),
   "\"all found\" does not say WHICH, and each airport has its own list"
+);
+
+/* ---- THE JOIN IS SITE-AWARE, AND AMBIGUITY IS REFUSED -------------------
+ *
+ *  Six rows for Bram Fischer came out of a King Shaka test, and Squawk is the
+ *  only thing writing to that portal. The mechanism is still unproven, but the
+ *  index it joined on could not have caught it either way: it took EVERY Title
+ *  in the list with no notion of which airport a row was for, into a plain Map,
+ *  so two rows sharing a Title silently collapsed to whichever came last and an
+ *  update could land on a row nobody meant.
+ *
+ *  Each airport has its own list of checks — Sarel, 16 September 2026 — which
+ *  makes both of those a live risk rather than a theoretical one. */
+
+check(
+  "ANOTHER AIRPORT'S ROW IS NEVER INDEXED, so it can never be written",
+  (() => {
+    const i = sp.indexExisting(
+      [
+        { title: "KSIA-ELE-001", id: "1" },
+        { title: "BFIA-ELE-001", id: "2" },
+        { title: "ORTIA-ELE-001", id: "3" },
+      ],
+      "KSIA"
+    );
+    return i.byTitle.size === 1 && i.byTitle.get("KSIA-ELE-001") === "1" && i.foreign === 2;
+  })()
+);
+
+check(
+  "A TITLE THE SITE HAS TWICE IS REFUSED, not resolved by arrival order",
+  (() => {
+    const i = sp.indexExisting(
+      [
+        { title: "KSIA-ELE-001", id: "1" },
+        { title: "KSIA-ELE-001", id: "9" },
+        { title: "KSIA-ELE-002", id: "2" },
+      ],
+      "KSIA"
+    );
+    return (
+      i.duplicates.length === 1 &&
+      i.duplicates[0] === "KSIA-ELE-001" &&
+      !i.byTitle.has("KSIA-ELE-001") &&
+      i.byTitle.has("KSIA-ELE-002")
+    );
+  })(),
+  "a Map kept the last one and updated a row nobody meant"
+);
+
+check(
+  "an untitled row is counted rather than indexed under the empty string",
+  (() => {
+    const i = sp.indexExisting([{ title: "", id: "1" }, { title: "   ", id: "2" }], "KSIA");
+    return i.untitled === 2 && i.byTitle.size === 0;
+  })()
+);
+
+check(
+  "the prefix match is on the site code and its separator, not a loose contains",
+  (() => {
+    const i = sp.indexExisting(
+      [
+        { title: "KSIA-ELE-001", id: "1" },
+        { title: "NOTKSIA-ELE-001", id: "2" },
+        { title: "KSIAX-ELE-001", id: "3" },
+      ],
+      "KSIA"
+    );
+    return i.byTitle.size === 1 && i.foreign === 2;
+  })()
+);
+
+check(
+  "belongsToSite is the same rule, for the gate before a write",
+  sp.belongsToSite("KSIA-ELE-001", "KSIA") &&
+    !sp.belongsToSite("BFIA-ELE-001", "KSIA") &&
+    !sp.belongsToSite("KSIAX-1", "KSIA")
+);
+
+check(
+  "AND THE WRITER GATES ON IT, refusing rather than trusting the plan",
+  /belongsToSite\(row\.key, indexes\.siteCode\)/.test(panel) &&
+    /does not belong to/.test(panel),
+  "every Title the plan mints leads with the site code, so a failure here is a bug in Squawk"
+);
+
+check(
+  "the reader indexes per site instead of hoovering the whole list",
+  /indexExisting\(/.test(panel) && !/existing\.checkpoints\.set\(/.test(panel),
+  "the three lines this replaced had no idea which airport a row was for"
+);
+
+check(
+  "duplicates and another airport's rows are both reported in the plan",
+  /dupes\.length > 0/.test(panel) && /belong to another/.test(panel),
+  "\"nothing matched\" and \"half this list is another airport's\" are different answers"
 );
 
 check(
