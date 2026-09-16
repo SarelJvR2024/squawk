@@ -726,6 +726,47 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                   </Note>
                 ))}
 
+                {/* WHAT IS ACTUALLY IN THOSE LISTS.
+                    Squawk reads every Title in both on each run and already
+                    knows this; it was simply never shown. Six rows for another
+                    airport turned up in a dashboard built off this site, and
+                    answering "which rows?" meant a five-step walk through
+                    SharePoint by hand. It is one press now, from the sign-in
+                    that is already open. */}
+                {indexes && (
+                  <details className="mb-3">
+                    <summary className="cursor-pointer text-[11.5px]" style={{ color: "var(--ink-3)" }}>
+                      What is in these lists, as read just now
+                    </summary>
+                    <div className="mt-2 text-[11px] leading-[1.6]" style={{ color: "var(--ink-2)" }}>
+                      {([
+                        ["Check-points", indexes.checkpoints],
+                        ["Findings", indexes.findings],
+                      ] as [string, ExistingIndex | null][]).map(([label, idx]) =>
+                        !idx ? null : (
+                          <div key={label} className="mb-2">
+                            <b className="font-display text-[11.5px]">{label}</b> —{" "}
+                            {idx.byTitle.size + idx.foreign + idx.untitled + idx.duplicates.length} rows
+                            read · <b>{idx.byTitle.size}</b> are {indexes.siteCode}&apos;s ·{" "}
+                            {idx.foreign} another airport&apos;s · {idx.duplicates.length} duplicated ·{" "}
+                            {idx.untitled} with no Title.
+                            {idx.foreignTitles.length > 0 && (
+                              <ul className="mt-1 max-h-[160px] overflow-y-auto font-mono text-[10.5px]">
+                                {idx.foreignTitles.slice(0, 50).map((t, i) => (
+                                  <li key={`${t}-${i}`}>{t}</li>
+                                ))}
+                                {idx.foreignTitles.length > 50 && (
+                                  <li>…and {idx.foreignTitles.length - 50} more</li>
+                                )}
+                              </ul>
+                            )}
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </details>
+                )}
+
                 <details className="mb-3">
                   <summary className="cursor-pointer text-[11.5px]" style={{ color: "var(--ink-3)" }}>
                     Every row, one line each ({plan.checkpoints.length + plan.findings.length})
