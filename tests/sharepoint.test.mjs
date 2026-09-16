@@ -473,15 +473,76 @@ check(
 );
 
 check(
-  "THE PANEL REFUSES TO WRITE, rather than warning and letting it through",
-  /unjoinable\.length > 0/.test(panel) && /Cannot write — no Title column/.test(panel),
+  "THE PANEL REFUSES TO CREATE, rather than warning and letting it through",
+  /blockedCreates\.length > 0/.test(panel) && /Cannot create rows — no Title column/.test(panel),
   "an enabled button next to a warning is a warning nobody reads"
+);
+
+/* BUT ONLY WHEN IT BITES. An UPDATE was found by the Title already in the
+   portal and is addressed by its item id; its Title does not change and not
+   writing one costs nothing. The first cut refused the whole write, which on
+   the day it shipped would have blocked 33 perfectly safe updates — and a
+   guard that stops work it did not need to stop is a guard somebody switches
+   off. */
+check(
+  "an update-only plan on an unjoinable list is still allowed",
+  /r\.action === "create"/.test(panel) &&
+    /blockedCreates/.test(panel) &&
+    /updates only/.test(panel),
+  "a row addressed by its item id does not need its Title rewritten"
+);
+
+/* ---- AND THE COLUMN IS FOUND BY ITS INTERNAL NAME TOO ------------------
+ *
+ *  What actually happened: the built-in Title column was still internally
+ *  `Title` and still held every portal id — the sync READ 33 of them and
+ *  matched them — but its display name had been changed in the list UI, and
+ *  the mapper only ever looked at display names. */
+
+check(
+  "a renamed column is still found by the internal name it was created with",
+  (() => {
+    const m = sp.mapFields(
+      [{ name: "Title", displayName: "Check-point reference" }],
+      ["title"]
+    );
+    return m.resolved.title === "Title" && m.missing.length === 0;
+  })(),
+  "renaming in SharePoint's list UI changes the display name only"
+);
+
+check(
+  "and the display name still wins when both could match",
+  (() => {
+    const m = sp.mapFields(
+      [
+        { name: "field_7", displayName: "Observation" },
+        { name: "Observation", displayName: "Something else" },
+      ],
+      ["observation"]
+    );
+    return m.resolved.observation === "field_7";
+  })(),
+  "the display name is what a person deliberately chose"
+);
+
+check(
+  "a read-only column is still absent, by either name",
+  (() => {
+    const m = sp.mapFields(
+      [{ name: "Title", displayName: "Title", readOnly: true }],
+      ["title"]
+    );
+    return m.missing.includes("title");
+  })(),
+  "writing to a read-only column fails the whole PATCH and takes the good rows with it"
 );
 
 check(
   "it is told apart from an ordinary skipped field, in its own tone",
-  /tone="bad"/.test(panel) && /joinRefusal\(l\)/.test(panel),
-  "a missing Owner column costs one field; a missing Title costs idempotency"
+  /tone=\{blockedCreates\.includes\(l\) \? "bad" : "warn"\}/.test(panel) &&
+    /joinRefusal\(l\)/.test(panel),
+  "a missing Owner column costs one field; a missing Title costs idempotency — and the tone follows whether it actually blocks"
 );
 
 check(

@@ -242,6 +242,25 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
     resolved?.findingList && !canJoin(resolved.findingList.map) ? "Findings" : null,
   ].filter((v): v is string => !!v);
 
+  /* AND WHETHER IT ACTUALLY BITES, which is not the same question.
+   *
+   *  A row being UPDATED was found by the Title already in the portal and is
+   *  addressed by its item id; its Title does not change and not writing one
+   *  costs nothing. Only a CREATE needs to put a Title in, and only a create
+   *  can therefore go missing.
+   *
+   *  The first cut of this refused the whole write on an unjoinable list,
+   *  which would have blocked 33 perfectly safe updates on the day it shipped.
+   *  A guard that stops work it did not need to stop gets switched off. */
+  const blockedCreates = [
+    resolved?.checkList && !canJoin(resolved.checkList.map) && (plan?.checkpoints ?? []).some((r) => r.action === "create")
+      ? "Check-points"
+      : null,
+    resolved?.findingList && !canJoin(resolved.findingList.map) && (plan?.findings ?? []).some((r) => r.action === "create")
+      ? "Findings"
+      : null,
+  ].filter((v): v is string => !!v);
+
   /* WHAT IS READY AND WHAT IS NOT, as a list rather than as an absence.
    *
    *  This screen used to be unreachable until the whole thing worked: the
@@ -325,7 +344,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       detail: !resolved
         ? "Checked when the portal is read."
         : unjoinable.length
-          ? `${unjoinable.join(" and ")} ${unjoinable.length === 1 ? "has" : "have"} no writable Title, which is the key every row is matched on. Nothing will be written there until that is fixed — see below.`
+          ? `${unjoinable.join(" and ")} ${unjoinable.length === 1 ? "has" : "have"} no writable Title, which is the key every row is matched on. Existing rows can still be updated; NEW rows cannot be created there until that is fixed — see below.`
           : missing.length === 0
             ? "Nothing will be silently dropped."
             : `${missing.length} field${missing.length === 1 ? "" : "s"} would be skipped: ${missing.join(", ")}. Add the columns below, or accept the gap — the plan will keep saying so.`,
@@ -496,8 +515,16 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                 )}
 
                 {unjoinable.map((l) => (
-                  <Note key={l} tone="bad">
-                    <b>{l} cannot be written to.</b> {joinRefusal(l)}
+                  <Note key={l} tone={blockedCreates.includes(l) ? "bad" : "warn"}>
+                    <b>
+                      {blockedCreates.includes(l)
+                        ? `${l}: new rows cannot be created.`
+                        : `${l}: updates only.`}
+                    </b>{" "}
+                    {joinRefusal(l)}
+                    {blockedCreates.includes(l)
+                      ? " This plan contains new rows for that list, so the write is blocked."
+                      : " This plan only updates rows that are already there, which is safe — they are addressed by their item id and their Title does not change."}
                   </Note>
                 ))}
 
@@ -540,12 +567,12 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                     variant="primary"
                     className="ml-auto"
                     onClick={run}
-                    disabled={stage === "writing" || totals.writes === 0 || unjoinable.length > 0}
+                    disabled={stage === "writing" || totals.writes === 0 || blockedCreates.length > 0}
                   >
                     {stage === "writing"
                       ? "Writing…"
-                      : unjoinable.length
-                        ? "Cannot write — no Title column"
+                      : blockedCreates.length
+                        ? "Cannot create rows — no Title column"
                         : `Write ${totals.writes} to the portal`}
                   </Btn>
                 </div>
