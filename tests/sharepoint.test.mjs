@@ -450,6 +450,48 @@ check(
   })()
 );
 
+/* ---- THE JOIN KEY IS A REFUSAL, NOT A WARNING ---------------------------
+ *
+ *  16 September 2026, the first real read of TPJV's site: both lists came back
+ *  with no writable Title, the plan listed it as one of three skipped fields,
+ *  and the write button was enabled. Rows written without a Title can never be
+ *  matched again, so the NEXT run would have created every one of them a second
+ *  time — the doubling sync this file's third rule exists to prevent, arriving
+ *  through the field mapper rather than through the plan. */
+
+check(
+  "a list with no writable Title cannot be joined",
+  !sp.canJoin({ resolved: {}, missing: ["title"] }) &&
+    !sp.canJoin({ resolved: {}, missing: ["title", "owner"] }) &&
+    sp.canJoin({ resolved: { title: "Title" }, missing: ["owner"] }),
+  "Title is how every row is found; without it each run recreates what the last one wrote"
+);
+
+check(
+  "and a missing map is not quietly treated as joinable",
+  !sp.canJoin(null) && !sp.canJoin(undefined)
+);
+
+check(
+  "THE PANEL REFUSES TO WRITE, rather than warning and letting it through",
+  /unjoinable\.length > 0/.test(panel) && /Cannot write — no Title column/.test(panel),
+  "an enabled button next to a warning is a warning nobody reads"
+);
+
+check(
+  "it is told apart from an ordinary skipped field, in its own tone",
+  /tone="bad"/.test(panel) && /joinRefusal\(l\)/.test(panel),
+  "a missing Owner column costs one field; a missing Title costs idempotency"
+);
+
+check(
+  "the refusal says what to go and look at",
+  /renamed/.test(sp.joinRefusal("Findings")) &&
+    /read-only/.test(sp.joinRefusal("Findings")) &&
+    /Findings/.test(sp.joinRefusal("Findings")),
+  "only the display name Title is accepted, and mapFields treats read-only as absent"
+);
+
 check(
   "the totals a person confirms against are the rows that would actually be written",
   (() => {

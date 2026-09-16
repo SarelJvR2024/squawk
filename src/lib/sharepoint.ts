@@ -246,6 +246,34 @@ export function mapFields(
  *
  *  `undefined` and `null` are skipped; the empty string is NOT — clearing a
  *  cell somebody emptied on purpose is a legitimate write. */
+/** CAN THIS LIST BE SYNCED AT ALL?
+ *
+ *  `title` is not one field among the others — it is the JOIN. Every row is
+ *  matched on Title in both directions: `buildPlan` reads the Titles already
+ *  in the list to decide create against update, and `mintPortalId` continues
+ *  the portal's own sequence from them. A list Squawk cannot write a Title to
+ *  is a list where every run creates the same rows again, because nothing it
+ *  wrote is findable next time.
+ *
+ *  That is the doubling sync — the failure this whole file's third rule exists
+ *  to prevent, and the one that looks like it worked, twice, until somebody
+ *  reads the report. So it is a refusal, not a warning among warnings.
+ *
+ *  Seen for real on 16 September 2026: TPJV's Check-points and Findings lists
+ *  both came back with no writable Title, and the plan offered to write anyway.
+ *  Either the column was renamed (only the display name "Title" is accepted)
+ *  or it is read-only, which `mapFields` treats as absent on purpose — writing
+ *  to a read-only column fails the whole PATCH and takes the good rows with
+ *  it. */
+export function canJoin(map: FieldMap | null | undefined): boolean {
+  return !!map && !map.missing.includes("title");
+}
+
+/** The sentence to put in front of somebody, naming the list. */
+export function joinRefusal(list: string): string {
+  return `${list} has no writable Title column, so Squawk cannot match rows in it. Title is the key every row is found by — without it each run would create the same rows again instead of updating them. Check whether Title has been renamed (only the display name "Title" is accepted) or made read-only.`;
+}
+
 export function projectFields(
   map: FieldMap,
   values: Record<string, string | number | null | undefined>
