@@ -35,9 +35,12 @@ import {
   buildPlan,
   columnContract,
   mapFields,
+  belongsToSite,
   canJoin,
   choiceMismatches,
+  indexExisting,
   joinRefusal,
+  type ExistingIndex,
   planTotals,
   projectFields,
   CHECK_FIELDS,
@@ -47,6 +50,7 @@ import {
   type PlannedRow,
   type SyncPlan,
 } from "@/lib/sharepoint";
+import { siteCodeFor } from "@/lib/sites";
 import { Btn } from "@/components/ui/primitives";
 import { IconX } from "@/components/ui/icons";
 
@@ -91,6 +95,14 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [resolved, setResolved] = useState<Resolved | null>(null);
   const [plan, setPlan] = useState<SyncPlan | null>(null);
+  /* What the portal's own lists looked like when they were read: how many rows
+     belong to another airport, and which Titles this site has more than one
+     of. Both decide whether the plan can be trusted. */
+  const [indexes, setIndexes] = useState<{
+    checkpoints: ExistingIndex | null;
+    findings: ExistingIndex | null;
+    siteCode: string;
+  } | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number; what: string } | null>(null);
   const [result, setResult] = useState<{ written: number; failed: { key: string; why: string }[] } | null>(null);
   /* PHOTOGRAPHS ARE OFF BY DEFAULT. Sarel, 16 September 2026: "we dont need to
@@ -129,6 +141,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
     setStage("reading");
     setError(null);
     setResult(null);
+    setIndexes(null);
     try {
       const site = await graph.resolveSite();
       const all = await graph.lists(site.id);
@@ -140,22 +153,38 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       let findPart: Resolved["findingList"] = null;
       const existing = { checkpoints: new Map<string, string>(), findings: new Map<string, string>() };
 
+      /* Indexed per SITE, not per list — see indexExisting. A row for another
+         airport is never matched, and a Title this site has twice is refused
+         rather than resolved by arrival order. */
+      const siteCode = siteCodeFor(entityCode);
+      let checkIdx: ExistingIndex | null = null;
+      let findIdx: ExistingIndex | null = null;
+
       if (checkList) {
         const map = mapFields(await graph.columns(site.id, checkList.id), [...CHECK_FIELDS]);
         checkPart = { id: checkList.id, map };
-        for (const it of await graph.items(site.id, checkList.id, ["Title"])) {
-          const t = String(it.fields.Title ?? "");
-          if (t) existing.checkpoints.set(t, it.id);
-        }
+        checkIdx = indexExisting(
+          (await graph.items(site.id, checkList.id, ["Title"])).map((it) => ({
+            title: String(it.fields.Title ?? ""),
+            id: it.id,
+          })),
+          siteCode
+        );
+        existing.checkpoints = checkIdx.byTitle;
       }
       if (findingList) {
         const map = mapFields(await graph.columns(site.id, findingList.id), [...FINDING_FIELDS]);
         findPart = { id: findingList.id, map };
-        for (const it of await graph.items(site.id, findingList.id, ["Title"])) {
-          const t = String(it.fields.Title ?? "");
-          if (t) existing.findings.set(t, it.id);
-        }
+        findIdx = indexExisting(
+          (await graph.items(site.id, findingList.id, ["Title"])).map((it) => ({
+            title: String(it.fields.Title ?? ""),
+            id: it.id,
+          })),
+          siteCode
+        );
+        existing.findings = findIdx.byTitle;
       }
+      setIndexes({ checkpoints: checkIdx, findings: findIdx, siteCode });
 
       const drive = (await graph.drives(site.id)).find((d) => LIST_NAMES.evidence.test(d.name))
         ?? (await graph.drives(site.id))[0];
@@ -200,6 +229,16 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       if (!list) return;
       for (const row of rows) {
         setProgress({ done: written, total, what: `${what} ${row.key}` });
+        /* THE LAST GATE. Every Title the plan mints leads with this site's
+           code, so a row that fails here is a bug in Squawk rather than a
+           mis-typed list — and it must not reach another airport's row. */
+        if (indexes && !belongsToSite(row.key, indexes.siteCode)) {
+          failed.push({
+            key: row.key,
+            why: `refused — the Title does not belong to ${indexes.siteCode}, and writing it could land on another airport's row`,
+          });
+          continue;
+        }
         /* The row's own action decides whether a blank may overwrite. An
            update never empties a cell; see projectFields. */
         const fields = projectFields(list.map, row.values, row.action);
@@ -283,6 +322,12 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   /* What the button will actually send, which is not the plan's own total
      while the photographs are switched off. */
   const writes = totals ? totals.writes - (sendPhotos ? 0 : totals.photographs) : 0;
+  const dupes = [
+    ...(indexes?.checkpoints?.duplicates ?? []),
+    ...(indexes?.findings?.duplicates ?? []),
+  ];
+  const foreign = (indexes?.checkpoints?.foreign ?? 0) + (indexes?.findings?.foreign ?? 0);
+
   /* Values bound for a Choice column that will not accept them. */
   const mismatches = plan
     ? [
@@ -625,6 +670,32 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                       includes every one of them.
                     </span>
                   </label>
+                )}
+
+                {dupes.length > 0 && (
+                  <Note tone="bad">
+                    <b>
+                      {dupes.length} Title{dupes.length === 1 ? " is" : "s are"} in the portal more
+                      than once
+                    </b>{" "}
+                    — {dupes.slice(0, 8).join(", ")}
+                    {dupes.length > 8 ? ", …" : ""}. Squawk cannot tell which row a duplicated Title
+                    means, so those rows are left alone rather than guessed at. The duplicates have
+                    to be removed in SharePoint.
+                  </Note>
+                )}
+
+                {foreign > 0 && (
+                  <Note tone="plain">
+                    <b>
+                      {foreign} row{foreign === 1 ? "" : "s"} in these lists belong to another
+                      airport
+                    </b>{" "}
+                    and are not indexed, matched or written — every Title Squawk touches leads with{" "}
+                    <span className="font-mono text-[10.5px]">{indexes?.siteCode}-</span>. A number
+                    near the size of the whole list means the matcher has picked the wrong list;
+                    check the names in step 5.
+                  </Note>
                 )}
 
                 {mismatches.length > 0 && (

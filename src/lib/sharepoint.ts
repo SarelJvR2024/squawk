@@ -410,6 +410,78 @@ export function projectFields(
   return out;
 }
 
+/* ------------------------------------------- indexing what is already there */
+
+export interface ExistingIndex {
+  /** Title -> item id, for THIS SITE'S rows only. */
+  byTitle: Map<string, string>;
+  /** Titles this site has more than one row for. The join is ambiguous for
+   *  every one of them, so they are refused rather than resolved. */
+  duplicates: string[];
+  /** Rows in the list belonging to some other site. Counted, never touched. */
+  foreign: number;
+  /** Rows whose Title is empty. Counted so a list full of them is visible. */
+  untitled: number;
+}
+
+/** Build the Title -> item id index the plan joins on.
+ *
+ *  THIS USED TO BE THREE LINES IN THE PANEL AND IT WAS WRONG IN TWO WAYS.
+ *
+ *  It indexed EVERY row in the list with no notion of which site the row
+ *  belonged to, and it did so into a plain Map — so two rows sharing a Title
+ *  silently collapsed to whichever came last, and an update could land on a
+ *  row nobody meant. Squawk is the only thing writing to that portal, and six
+ *  rows for Bram Fischer came out of a King Shaka test; the mechanism is still
+ *  unproven, but a join that cannot say which site a row is for, and that
+ *  resolves an ambiguous key by arrival order, is not a join anybody should be
+ *  betting a system of record on.
+ *
+ *  So: rows whose Title does not carry this site's code are not indexed at
+ *  all — they cannot be matched, so they cannot be written. A Title this site
+ *  has twice is recorded as ambiguous and refused. Both counts are reported,
+ *  because "nothing matched" and "half the list is another airport's" are very
+ *  different answers to why a plan looks wrong. */
+export function indexExisting(
+  rows: { title: string; id: string }[],
+  siteCode: string
+): ExistingIndex {
+  const prefix = `${siteCode}-`.toLowerCase();
+  const byTitle = new Map<string, string>();
+  const seen = new Set<string>();
+  const dupes = new Set<string>();
+  let foreign = 0;
+  let untitled = 0;
+
+  for (const r of rows) {
+    const t = (r.title ?? "").trim();
+    if (!t) {
+      untitled++;
+      continue;
+    }
+    if (!t.toLowerCase().startsWith(prefix)) {
+      foreign++;
+      continue;
+    }
+    if (seen.has(t)) dupes.add(t);
+    seen.add(t);
+    byTitle.set(t, r.id);
+  }
+  for (const t of dupes) byTitle.delete(t);
+
+  return { byTitle, duplicates: [...dupes], foreign, untitled };
+}
+
+/** Does this Title belong to the site being synced?
+ *
+ *  The last gate before a write. Every Title the plan mints comes from
+ *  portalIdFor, which always leads with the site's code — so a row that fails
+ *  this is a bug in Squawk, not a mis-typed list, and it must not reach the
+ *  portal. */
+export function belongsToSite(title: string, siteCode: string): boolean {
+  return title.toLowerCase().startsWith(`${siteCode}-`.toLowerCase());
+}
+
 /* --------------------------------------------------------------- the plan */
 
 export interface SyncInput {
@@ -552,6 +624,35 @@ export function mintPortalId(
  *
  *  So a finding nobody has consolidated yet does not go across, and the plan
  *  says so out loud rather than letting it look synced. */
+/** WHAT A NON-COMPLIANT CHECK SAYS WHEN NOBODY TYPED ANYTHING.
+ *
+ *  Sarel, 16 September 2026: "it might be NC because the airport could not
+ *  provide compliant evidence. So let's by default on the sync just say
+ *  NC - No compliance evidence could be provided, or something like that but
+ *  technically correct."
+ *
+ *  The "technically correct" is the whole difficulty, and the reason this is a
+ *  named constant rather than a string in a template. Squawk knows exactly two
+ *  things about such a check: an auditor marked it non-compliant, and nobody
+ *  wrote anything down. It does NOT know that the airport was asked and could
+ *  not produce evidence — that may well be what happened, and it is the most
+ *  likely reading, but it is a cause nobody recorded. Writing it as though it
+ *  were observed would put a claim into ACSA's system of record that no
+ *  auditor made, on a row ACSA reads and acts on.
+ *
+ *  So the sentence states what IS known and nothing more. It is still useful:
+ *  it tells a reader the gap is real rather than a sync fault, and it tells
+ *  the audit team the detail is owed.
+ *
+ *  IT ALSO CLOSES A HOLE THIS FILE OPENED EARLIER TODAY. Since an update no
+ *  longer writes an empty string, a check that went non-compliant with no
+ *  observation would otherwise leave whatever the portal already had sitting
+ *  underneath the new answer — old text under a fresh NC, which reads as
+ *  though somebody wrote it about this audit. A placeholder is better than
+ *  either a blank or a stranger's sentence. */
+export const NC_WITHOUT_DETAIL =
+  "Non-compliant. No supporting evidence or observation was recorded during the audit — detail to follow from the audit team.";
+
 export function buildPlan(
   x: SyncInput,
   existing: { checkpoints: Map<string, string>; findings: Map<string, string> },
@@ -591,12 +692,19 @@ export function buildPlan(
            of this file's header in the other direction. So the flag travels as
            the first sentence of the observation, where a reader of the portal
            sees it on the same row as the C. */
-        observation: [
-          r.evidencePending ? "EVIDENCE PENDING — compliant on the auditor's assessment; the record was not produced during the audit." : "",
-          r.observation?.trim() || "",
-        ]
-          .filter(Boolean)
-          .join(" "),
+        observation:
+          [
+            r.evidencePending
+              ? "EVIDENCE PENDING — compliant on the auditor's assessment; the record was not produced during the audit."
+              : "",
+            r.observation?.trim() || "",
+          ]
+            .filter(Boolean)
+            .join(" ") ||
+          /* Only for a non-compliant answer. A compliant or not-applicable
+             check with nothing typed needs no sentence — the status is the
+             whole statement. See NC_WITHOUT_DETAIL. */
+          (r.compliance === "NC" ? NC_WITHOUT_DETAIL : ""),
         auditor: x.auditor,
         assessedOn: new Date().toISOString(),
       },
@@ -625,7 +733,7 @@ export function buildPlan(
     });
   }
 
-  /* A NON-COMPLIANT ANSWER WITH NOTHING BEHIND IT.
+  /* PLACEHOLDER: what a non-compliant check says when nobody typed anything.
    *
    *  It still goes across — a non-compliant check is the truth and the portal
    *  should carry it. But the portal rates an asset system from its FINDINGS,

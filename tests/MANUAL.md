@@ -256,6 +256,14 @@ Three things to know before you press anything:
 - [ ] **The compliance values in SharePoint read as the portal's own choices**
       — `C - Compliant`, not a bare `C`. The options are read off the column on
       every run; if one has no match the plan says so and writes it unchanged.
+- [ ] **A non-compliant check with no observation carries a placeholder** in
+      SharePoint rather than a blank or ACSA's old text — *"Non-compliant. No
+      supporting evidence or observation was recorded during the audit…"*. Read
+      it once and tell me if the wording is wrong for ACSA; it is one constant.
+- [ ] **Another airport's rows are never touched.** The plan says how many rows
+      in the list belong elsewhere. If that number is close to the size of the
+      whole list, the matcher has the wrong list — check the names in step 5.
+- [ ] **A Title the portal holds twice is refused**, named, and left alone.
 - [ ] **A non-compliant check with no finding is warned about, and still syncs.**
       The plan should say so many non-compliant check-points have no finding
       behind them. It is a warning, never a refusal — a non-compliant answer is
