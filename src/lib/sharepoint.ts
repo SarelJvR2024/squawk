@@ -502,6 +502,14 @@ export interface SyncInput {
    *  a check's are; see the walk over them in buildPlan. */
   adhoc?: AdHocItem[];
   visitLabel: string;
+  /** The display name of the document library the photographs are going into,
+   *  so evidenceFolder knows whether it is already inside "Evidence". Optional
+   *  because the plan builder's own tests do not resolve a library. */
+  library?: string;
+  /** The folder that library ALREADY has for this site, from siteFolderIn.
+   *  Undefined means the sync did not find one and the site table's own
+   *  spelling is used. */
+  siteFolder?: string | null;
   checks: Check[];
   responses: Record<string, Response>;
   /** The CONSOLIDATED view. The portal's Findings list receives hazards, not
@@ -578,8 +586,21 @@ export function flattenProgress(notes: ProgressNote[] | undefined): string {
     .join("\n");
 }
 
-/** The evidence folder for one VISIT to one site:
- *  `Evidence/King Shaka International Airport FALE/2026-09`.
+/** The evidence folder for one VISIT to one site, RELATIVE TO THE LIBRARY it
+ *  is being written into: `King Shaka International Airport FALE/2026-09`.
+ *
+ *  THE PATH IS RELATIVE, and that word is the whole of the second fix here.
+ *  The document library on the ACSA site is itself named "Evidence", and this
+ *  function used to prepend `Evidence/` to a path that Graph already resolves
+ *  from that library's root. The first real upload therefore landed in
+ *  `.../Evidence/Evidence/King Shaka International Airport FALE/2026-09/`,
+ *  which reads to anybody browsing it as a mistake, because it is one.
+ *
+ *  The prefix is kept when the library is called anything else — a generic
+ *  "Documents" library wants its evidence in a folder of its own rather than
+ *  loose among whatever else lives there. So the caller passes the name of the
+ *  library it actually resolved, and this decides from that, rather than from
+ *  an assumption about how the site is laid out.
  *
  *  Per site, derived from the site table so a new airport gets the same shape
  *  without anybody editing a path by hand — that part was always right.
@@ -602,11 +623,53 @@ export function flattenProgress(notes: ProgressNote[] | undefined): string {
  *  does not. It is also exactly what the record copy in the blob store already
  *  uses (see photoObjectPath), so the two stores describe the same audit the
  *  same way. */
-export function evidenceFolder(entityCode: string, visitId?: string): string {
+export function evidenceFolder(
+  entityCode: string,
+  visitId?: string,
+  library?: string,
+  siteFolder?: string | null
+): string {
   const s = siteFor(entityCode);
-  const site = s ? `Evidence/${s.name} ${s.icao}` : "Evidence";
-  const visit = (visitId ?? "").trim();
-  return visit ? `${site}/${visit}` : site;
+  /* An unknown library keeps the prefix: that is the old behaviour, and it is
+     the right one for a library that is not already about evidence. */
+  const nested = !/^evidence$/i.test((library ?? "").trim());
+  const parts = [
+    nested ? "Evidence" : "",
+    (siteFolder ?? "").trim() || (s ? `${s.name} ${s.icao}` : ""),
+    (visitId ?? "").trim(),
+  ].filter(Boolean);
+  return parts.join("/");
+}
+
+/** The folder THE LIBRARY ALREADY HAS for this site, if it has one.
+ *
+ *  ACSA pre-created ten folders at the top of the Evidence library, one per
+ *  site, and their spelling is not Squawk's: "King Shaka International FALE",
+ *  not "King Shaka International Airport FALE"; "OR Tambo International FAOR",
+ *  not "O.R. Tambo International Airport FAOR"; "Corporate Office", with no
+ *  code at all. Minting Squawk's own name would leave two folders per airport
+ *  and no way for a reader to know which one holds the evidence.
+ *
+ *  Three passes, most certain first. The ICAO code is what actually identifies
+ *  a site, so the second pass takes any folder ending in it — that is how a
+ *  person reads these names, and it survives ACSA renaming the words in front
+ *  of the code. The last pass is for Corporate Office, which has no code.
+ *  Nothing matched means nothing is assumed: the caller falls back to the site
+ *  table's spelling and creates it. */
+export function siteFolderIn(entityCode: string, names: string[]): string | null {
+  const s = siteFor(entityCode);
+  if (!s) return null;
+  const strip = (t: string) =>
+    t.toLowerCase().replace(/\b(acsa|international|airport)\b/g, "").replace(/[^a-z0-9]/g, "");
+  const withCode = strip(`${s.name} ${s.icao}`);
+  const nameOnly = strip(s.name);
+  const endsWithCode = new RegExp(`(^|[^a-z0-9])${s.icao}$`, "i");
+  return (
+    names.find((n) => strip(n) === withCode) ??
+    names.find((n) => endsWithCode.test(n.trim())) ??
+    names.find((n) => strip(n) === nameOnly) ??
+    null
+  );
 }
 
 /** The Title for a hazard that has never been in the portal.
@@ -923,7 +986,7 @@ export function buildPlan(
     });
   }
 
-  return { checkpoints, findings, evidence, skipped, warnings, folder: evidenceFolder(x.entity, x.visit) };
+  return { checkpoints, findings, evidence, skipped, warnings, folder: evidenceFolder(x.entity, x.visit, x.library, x.siteFolder) };
 }
 
 /** Asset links that are safe to send.

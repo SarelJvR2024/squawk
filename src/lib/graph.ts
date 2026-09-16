@@ -428,9 +428,29 @@ export async function drives(siteId: string): Promise<GraphDrive[]> {
   return all<GraphDrive>(`/sites/${siteId}/drives?$select=id,name&$top=100`);
 }
 
+/** The names of the folders already at the top of a document library.
+ *
+ *  ACSA pre-created a folder per airport — "King Shaka International FALE",
+ *  "OR Tambo International FAOR", "Corporate Office" — before Squawk ever wrote
+ *  to the library. Minting a second folder from the site table's own spelling
+ *  would put "King Shaka International Airport FALE" next to it, which is the
+ *  same class of mistake as the doubled path: two folders for one airport, and
+ *  a reader with no way to know which holds the evidence. So the sync reads
+ *  what is there and writes into it. See siteFolderIn in sharepoint.ts. */
+export async function rootFolders(driveId: string): Promise<string[]> {
+  const kids = await all<{ name: string; folder?: unknown }>(
+    `/drives/${driveId}/root/children?$select=name,folder&$top=200`
+  );
+  return kids.filter((k) => k.folder).map((k) => k.name);
+}
+
 /** Create the folder if it is not there, and say nothing if it is. */
 export async function ensureFolder(driveId: string, folderPath: string): Promise<void> {
   const clean = folderPath.replace(/^\/+|\/+$/g, "");
+  /* Nothing to create: the caller is writing to the library's own root, which
+     always exists. evidenceFolder returns an empty path when the library is
+     itself the evidence folder and the site is unknown. */
+  if (!clean) return;
   try {
     await call(`/drives/${driveId}/root:/${encodeURI(clean)}`);
     return;

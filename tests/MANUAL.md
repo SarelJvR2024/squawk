@@ -293,11 +293,21 @@ Three things to know before you press anything:
       not a portal row** — it reaches the portal only through a finding
       consolidated into a hazard, which is a decision for ACSA rather than a
       gap to fill quietly.
-- [ ] **They land under the airport AND the visit** —
-      `Evidence/King Shaka International Airport FALE/2026-09/`. The site folder
+- [ ] **They land under the airport AND the visit** — in the **Evidence**
+      library, `King Shaka International Airport FALE/2026-09/`. The site folder
       comes from the site table, so another airport gets its own for free. The
       visit folder is what stops March 2027 overwriting September 2026: the
       filename repeats across visits and the upload replaces on conflict.
+- [ ] **It is ACSA's folder, not a second one beside it.** The library already
+      has ten folders, one per site, in ACSA's spelling — `King Shaka
+      International FALE`, not `King Shaka International Airport FALE`. The sync
+      reads the library's top level and writes into the one it finds. Two King
+      Shaka folders side by side is the regression to watch for.
+- [ ] **The path does not repeat the library's own name.** The first five real
+      photographs landed in `Evidence/Evidence/King Shaka…` because the folder
+      was prefixed `Evidence/` inside a library already called Evidence. The
+      prefix now depends on the library's name, so check the breadcrumb: one
+      **Evidence**, then the airport.
 - [ ] **A partial write says so.** If anything fails, the summary reads *"N of
       M written"* and every missing row is named underneath. **SILENT if it
       regresses** — the first real write reported "33 written. Everything in the

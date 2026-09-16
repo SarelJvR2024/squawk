@@ -47,6 +47,7 @@ import {
   CHECK_FIELDS,
   FINDING_FIELDS,
   LIST_NAMES,
+  siteFolderIn,
   type FieldMap,
   type PlannedRow,
   type SyncPlan,
@@ -192,6 +193,20 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       const drive = (await graph.drives(site.id)).find((d) => LIST_NAMES.evidence.test(d.name))
         ?? (await graph.drives(site.id))[0];
 
+      /* What the library already calls this site. ACSA pre-created a folder per
+         airport with their own spelling; writing next to it rather than into it
+         would leave two folders per airport. A failure here is not fatal — the
+         sync falls back to the site table's spelling — so it does not take the
+         read down with it. */
+      let siteFolder: string | null = null;
+      if (drive?.id) {
+        try {
+          siteFolder = siteFolderIn(entityCode, await graph.rootFolders(drive.id));
+        } catch {
+          siteFolder = null;
+        }
+      }
+
       setResolved({
         siteId: site.id,
         checkList: checkPart,
@@ -206,7 +221,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       });
       setPlan(
         buildPlan(
-          { entity: entityCode, visit: visitId, visitLabel: visitId, checks, responses, hazards, prior, verifications, auditor, findings, adhoc },
+          { entity: entityCode, visit: visitId, visitLabel: visitId, library: drive?.name, siteFolder, checks, responses, hazards, prior, verifications, auditor, findings, adhoc },
           existing,
           unconsolidated
         )
@@ -667,7 +682,11 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                     />
                     <span>
                       <b>Also upload the {plan.evidence.length} photograph{plan.evidence.length === 1 ? "" : "s"}</b>{" "}
-                      into <span className="font-mono text-[10.5px]">{plan.folder}</span>. Off by
+                      into{" "}
+                      <span className="font-mono text-[10.5px]">
+                        {resolved?.chose.drive ?? "the library"}/{plan.folder}
+                      </span>
+                      . Off by
                       default — the rows carry the audit, and the images are large, of a national
                       key point, and not yet wanted in the portal. The workbook export still
                       includes every one of them.
@@ -889,7 +908,9 @@ function Contract() {
         ))}
         <p>
           Photographs go to a document library whose name contains <b>Document</b>, <b>Shared</b> or{" "}
-          <b>Evidence</b>, in a folder named for the site.
+          <b>Evidence</b>, in a folder named for the site and then for the visit. The path is
+          relative to that library, so a library already called <b>Evidence</b> does not get an{" "}
+          <b>Evidence</b> folder inside it.
         </p>
         <p className="mt-2" style={{ color: "var(--ink-3)" }}>
           Start every column as text, and dates as Date. A Choice column rejects any value not in its

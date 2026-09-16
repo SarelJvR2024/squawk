@@ -31,6 +31,7 @@ const check = (name, cond, detail = "") => {
 };
 
 const sp = await import("../src/lib/sharepoint.ts");
+const sites = await import("../src/lib/sites.ts");
 
 /** The source with its COMMENTS REMOVED.
  *
@@ -374,17 +375,126 @@ check(
   sp.flattenProgress(undefined) === "" && sp.flattenProgress([]) === ""
 );
 
+/* THE PATH IS RELATIVE TO THE LIBRARY, and it was not until 16 September 2026.
+ * The library on the ACSA site is itself called "Evidence", and the folder was
+ * prefixed "Evidence/" regardless, so the first five real photographs landed in
+ * .../Evidence/Evidence/King Shaka International Airport FALE/2026-09/.
+ * Sarel, seeing it: "fix the folder and move the 5 files." */
+
 check(
-  "the evidence folder is the one the library already has, per site",
+  "a library already called Evidence does not get an Evidence folder inside it",
+  sp.evidenceFolder("FALE", "2026-09", "Evidence") ===
+    "King Shaka International Airport FALE/2026-09",
+  sp.evidenceFolder("FALE", "2026-09", "Evidence")
+);
+
+check(
+  "and it is the library's NAME that decides, however it is cased or spaced",
+  sp.evidenceFolder("FALE", "2026-09", " evidence ") ===
+    sp.evidenceFolder("FALE", "2026-09", "Evidence")
+);
+
+check(
+  "a library that is not about evidence still gets an Evidence folder of its own",
+  sp.evidenceFolder("FALE", "2026-09", "Documents") ===
+    "Evidence/King Shaka International Airport FALE/2026-09",
+  "loose among whatever else lives in Documents is not where audit evidence goes"
+);
+
+check(
+  "an unnamed library keeps the old shape rather than guessing",
   sp.evidenceFolder("FALE", "2026-09") ===
     "Evidence/King Shaka International Airport FALE/2026-09",
   sp.evidenceFolder("FALE", "2026-09")
 );
 
 check(
+  "NO PATH EVER REPEATS A SEGMENT",
+  ["Evidence", "Documents", "Shared Documents", undefined].every((lib) => {
+    const parts = sp.evidenceFolder("FALE", "2026-09", lib).split("/");
+    return new Set(parts).size === parts.length;
+  }),
+  "the doubled folder was exactly this, and a test is cheaper than another move"
+);
+
+/* AND THE LIBRARY ALREADY HAS FOLDERS. Read from the live library on
+ * 16 September 2026, before anything was moved — ACSA pre-created one per site,
+ * in their spelling, not Squawk's. Minting "King Shaka International Airport
+ * FALE" next to their "King Shaka International FALE" would leave two folders
+ * per airport and no way to know which holds the evidence. */
+const ACSA_FOLDERS = [
+  "Bram Fischer International FABL",
+  "Cape Town International FACT",
+  "Chief Dawid Stuurman International FAPE",
+  "Corporate Office",
+  "George FAGG",
+  "Kimberley FAKM",
+  "King Phalo FAEL",
+  "King Shaka International FALE",
+  "OR Tambo International FAOR",
+  "Upington International FAUP",
+];
+
+check(
+  "EVERY ONE OF ACSA'S TEN FOLDERS IS MATCHED TO ITS SITE",
+  (() => {
+    const hits = sites.SITES.map((s) => sp.siteFolderIn(s.entityCode, ACSA_FOLDERS));
+    return hits.every(Boolean) && new Set(hits).size === sites.SITES.length;
+  })(),
+  sites.SITES.map((s) => `${s.entityCode}→${sp.siteFolderIn(s.entityCode, ACSA_FOLDERS)}`).join(", ")
+);
+
+check(
+  "King Shaka matches THEIR spelling, which is not the site table's",
+  sp.siteFolderIn("FALE", ACSA_FOLDERS) === "King Shaka International FALE",
+  "the site table says King Shaka International Airport FALE; the library does not"
+);
+
+check(
+  "O.R. Tambo matches OR Tambo — punctuation is not identity",
+  sp.siteFolderIn("FAOR", ACSA_FOLDERS) === "OR Tambo International FAOR"
+);
+
+check(
+  "Corporate Office matches with no code at all",
+  sp.siteFolderIn("HO", ACSA_FOLDERS) === "Corporate Office",
+  "the last pass exists for exactly this one"
+);
+
+check(
+  "a library with nothing in it matches nothing, rather than guessing",
+  sp.siteFolderIn("FALE", []) === null &&
+    sp.siteFolderIn("FALE", ["Some other folder", "Templates"]) === null
+);
+
+check(
+  "and the fallback is the site table's spelling, so a bare library still works",
+  sp.evidenceFolder("FALE", "2026-09", "Evidence", sp.siteFolderIn("FALE", [])) ===
+    "King Shaka International Airport FALE/2026-09"
+);
+
+check(
+  "THE FOLDER THE LIBRARY HAS WINS over the one Squawk would mint",
+  sp.evidenceFolder("FALE", "2026-09", "Evidence", sp.siteFolderIn("FALE", ACSA_FOLDERS)) ===
+    "King Shaka International FALE/2026-09",
+  sp.evidenceFolder("FALE", "2026-09", "Evidence", sp.siteFolderIn("FALE", ACSA_FOLDERS))
+);
+
+check(
+  "and the plan carries it, so what is written is what was read",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE, visit: "2026-09", library: "Evidence", siteFolder: sp.siteFolderIn("FALE", ACSA_FOLDERS) },
+      NOTHING
+    );
+    return p.folder === "King Shaka International FALE/2026-09";
+  })()
+);
+
+check(
   "and per site means PER SITE — another airport gets its own, from the site table",
-  sp.evidenceFolder("FAOR", "2026-09") ===
-    "Evidence/O.R. Tambo International Airport FAOR/2026-09",
+  sp.evidenceFolder("FAOR", "2026-09", "Evidence") ===
+    "O.R. Tambo International Airport FAOR/2026-09",
   "nothing is hardcoded to King Shaka; a new airport gets the shape for free"
 );
 
@@ -400,20 +510,21 @@ check(
 
 check(
   "TWO VISITS TO ONE AIRPORT DO NOT SHARE A FOLDER",
-  sp.evidenceFolder("FALE", "2026-09") !== sp.evidenceFolder("FALE", "2027-03"),
+  sp.evidenceFolder("FALE", "2026-09", "Evidence") !==
+    sp.evidenceFolder("FALE", "2027-03", "Evidence"),
   "the filename repeats across visits and the upload replaces on conflict"
 );
 
 check(
   "the folder sorts, because 2026-09 does and Sep 2026 does not",
-  /\/\d{4}-\d{2}$/.test(sp.evidenceFolder("FALE", "2026-09"))
+  /\/\d{4}-\d{2}$/.test(sp.evidenceFolder("FALE", "2026-09", "Evidence"))
 );
 
 check(
   "and the plan's folder carries the visit it was built for",
   (() => {
-    const p = sp.buildPlan({ ...BASE, visit: "2027-03" }, NOTHING);
-    return p.folder.endsWith("/2027-03");
+    const p = sp.buildPlan({ ...BASE, visit: "2027-03", library: "Evidence" }, NOTHING);
+    return p.folder === "King Shaka International Airport FALE/2027-03";
   })()
 );
 
@@ -425,7 +536,7 @@ check(
     /* photoObjectPath is `FALE/2026-09/...`; the portal folder now ends the
        same way, so somebody looking at both stores sees one audit twice rather
        than two schemes. */
-    return sp.evidenceFolder("FALE", "2026-09").endsWith("/2026-09");
+    return sp.evidenceFolder("FALE", "2026-09", "Evidence").endsWith("/2026-09");
   })()
 );
 
