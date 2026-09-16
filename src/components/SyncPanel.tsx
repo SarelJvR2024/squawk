@@ -25,6 +25,7 @@ import {
   useResponses,
   useStore,
   useVerifications,
+  useAdhoc,
   useVisitFindings,
   useVisitHazards,
   useVisitId,
@@ -87,6 +88,8 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   const findings = useVisitFindings();
   const hazards = useVisitHazards();
   const verifications = useVerifications();
+  /* Inspection items — their photographs are evidence too; see buildPlan. */
+  const adhoc = useAdhoc();
   const auditor = useStore((s) => s.auditor);
   const updateHazard = useStore((s) => s.updateHazard);
 
@@ -203,7 +206,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       });
       setPlan(
         buildPlan(
-          { entity: entityCode, visit: visitId, visitLabel: visitId, checks, responses, hazards, prior, verifications, auditor, findings },
+          { entity: entityCode, visit: visitId, visitLabel: visitId, checks, responses, hazards, prior, verifications, auditor, findings, adhoc },
           existing,
           unconsolidated
         )

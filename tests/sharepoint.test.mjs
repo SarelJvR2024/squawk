@@ -477,6 +477,81 @@ check(
   "the plan carries the attachment, so the writer can go to the record copy for the bytes"
 );
 
+/* ---- AN INSPECTION'S PHOTOGRAPH IS EVIDENCE TOO -------------------------
+ *  Sarel, 16 September 2026, having just captured one: "not sure how to sync
+ *  the photo now to sharepoint." He could not. The evidence walk iterated the
+ *  REGISTER and read each check's response; an inspection item is ad-hoc, in
+ *  its own slice with a WALK- id, so it was never visited and its photographs
+ *  were invisible — not even a count on the tile to notice was wrong. */
+
+check(
+  "AN INSPECTION ITEM'S PHOTOGRAPH IS QUEUED FOR UPLOAD",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        adhoc: [
+          {
+            id: "WALK-A3F2K",
+            attachments: [
+              { id: "x1", kind: "photo", name: "n", blobKey: "b1", ref: "WALK-A3F2K_P01" },
+              { id: "x2", kind: "voice", name: "v", blobKey: "b2" },
+            ],
+          },
+        ],
+      },
+      NOTHING
+    );
+    return p.evidence.length === 1 && p.evidence[0].filename === "WALK-A3F2K_P01.jpg";
+  })(),
+  "a voice note on a walk item is no more evidence for the library than one on a check"
+);
+
+check(
+  "and it is named so it can never be mistaken for a check-point's",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        adhoc: [{ id: "WALK-A3F2K", attachments: [{ id: "x1", kind: "photo", name: "n", cloudUrl: "https://blob/x", ref: "WALK-A3F2K_P01" }] }],
+        responses: {
+          "KSIA-ELE-001": {
+            compliance: "NC", observation: "x",
+            attachments: [{ id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-001_P01" }],
+          },
+        },
+      },
+      NOTHING
+    );
+    const names = p.evidence.map((e) => e.filename).sort();
+    return names.length === 2 && names[0] === "KSIA-ELE-001_P01.jpg" && names[1] === "WALK-A3F2K_P01.jpg";
+  })(),
+  "the two references are distinct by construction, so one folder is safe"
+);
+
+check(
+  "the same exclusions apply — evicted is gone, and the record copy counts",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        adhoc: [
+          { id: "WALK-1", attachments: [{ id: "x1", kind: "photo", name: "n", blobKey: "b", unavailable: true, ref: "R" }] },
+          { id: "WALK-2", attachments: [{ id: "x2", kind: "photo", name: "n", ref: "R2" }] },
+          { id: "WALK-3", attachments: [{ id: "x3", kind: "photo", name: "n", cloudUrl: "https://blob/y", ref: "WALK-3_P01" }] },
+        ],
+      },
+      NOTHING
+    );
+    return p.evidence.length === 1 && p.evidence[0].filename === "WALK-3_P01.jpg";
+  })()
+);
+
+check(
+  "the writer is given the inspection items, not just the register",
+  /auditor, findings, adhoc \}/.test(panel) && /const adhoc = useAdhoc\(\)/.test(panel)
+);
+
 check(
   "an evicted photograph with no record copy is NOT queued",
   (() => {

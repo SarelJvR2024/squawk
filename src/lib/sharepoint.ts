@@ -53,6 +53,7 @@ import * as erm from "./erm";
 import { photoFilename } from "./photos";
 import { portalIdFor, siteCodeFor, siteFor } from "./sites";
 import type {
+  AdHocItem,
   Attachment,
   Check,
   Finding,
@@ -497,6 +498,9 @@ export interface SyncInput {
    *  nothing written behind it. Optional so the plan builder's own tests do
    *  not have to care. */
   findings?: Finding[];
+  /** This visit's inspection items. Their photographs are evidence exactly as
+   *  a check's are; see the walk over them in buildPlan. */
+  adhoc?: AdHocItem[];
   visitLabel: string;
   checks: Check[];
   responses: Record<string, Response>;
@@ -526,6 +530,9 @@ export interface PlannedRow {
 }
 
 export interface PlannedFile {
+  /** The record this photograph belongs to: a check-point id for a register
+   *  check, or the WALK- id for an inspection item. Informational — the upload
+   *  addresses the file by name — but it is what makes the plan readable. */
   checkId: string;
   filename: string;
   /** The attachment itself, not just its local key.
@@ -779,6 +786,41 @@ export function buildPlan(
       why: "they go across as non-compliant, but the portal rates an asset system from its findings — so the rating will read better than the evidence until each one has its finding written",
       count: bareNC,
     });
+  }
+
+  /* --- AND THE INSPECTION ITEMS' PHOTOGRAPHS --------------------------
+   *
+   *  Sarel, 16 September 2026, having just captured one: "not sure how to sync
+   *  the photo now to sharepoint." He could not, and nothing said so.
+   *
+   *  The evidence walk above iterates the REGISTER and reads each check's
+   *  response. An inspection item is ad-hoc — a WALK- id, not a register id,
+   *  held in its own slice — so it was never visited, and its photographs were
+   *  invisible to the sync entirely. The count on the tile did not include
+   *  them, so there was not even a number to notice was wrong.
+   *
+   *  A photograph of something found on a walk is evidence in exactly the way
+   *  a photograph attached to a check-point is. The reference already keeps
+   *  them apart without anybody thinking about it — `WALK-A3F2K_P01.jpg`
+   *  against `KSIA-ELE-001_P01.jpg` — so they can share a folder safely.
+   *
+   *  The ITEM itself still does not become a portal row. That is a different
+   *  and larger question: the Check-points list is keyed on register ids and a
+   *  walk item has none, so where an inspection belongs in the portal is a
+   *  decision for ACSA rather than a gap to fill quietly. Today it reaches the
+   *  portal the way it always has — through a finding, consolidated into a
+   *  hazard. */
+  for (const item of x.adhoc ?? []) {
+    for (const a of item.attachments ?? []) {
+      if (a.kind !== "photo" || a.unavailable) continue;
+      if (!a.blobKey && !a.cloudUrl) continue;
+      evidence.push({
+        checkId: item.id,
+        filename: photoFilename(a),
+        attachment: a,
+        caption: a.caption?.trim() ?? "",
+      });
+    }
   }
 
   /* --- this visit's hazards ------------------------------------------- */
