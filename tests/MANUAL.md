@@ -251,6 +251,12 @@ Three things to know before you press anything:
       and the lists do not double. **SILENT** — a doubling sync looks like it
       worked, twice.
 - [ ] A check with no compliance status is skipped and the plan says so.
+- [ ] **AN UPDATE NEVER BLANKS A CELL.** Put text in a check-point's Observation
+      column in SharePoint by hand, answer that check in Squawk WITHOUT typing
+      an observation, sync, and the SharePoint text is **still there**. Then
+      type an observation and sync again — now it is replaced. **SILENT if it
+      regresses**: the first real sync blanked ACSA's own text on 33 rows and
+      nothing said so.
 - [ ] **A check tagged *Compliant, evidence pending* goes across as `C`** with
       the observation starting *EVIDENCE PENDING — …*. The portal has four
       compliance values and Squawk does not invent a fifth; this is how the flag

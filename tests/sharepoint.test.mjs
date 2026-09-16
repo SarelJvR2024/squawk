@@ -140,13 +140,54 @@ check(
 );
 
 check(
-  "and drops null and undefined, but KEEPS an empty string",
+  "null and undefined are always dropped",
   (() => {
     const m = sp.mapFields(COLS, ["title", "riskPriority"]);
-    const out = sp.projectFields(m, { title: "", riskPriority: null });
-    return out.Title === "" && !("field_3" in out);
+    const out = sp.projectFields(m, { title: "X", riskPriority: null });
+    return out.Title === "X" && !("field_3" in out);
+  })()
+);
+
+/* AN EMPTY STRING DEPENDS ON THE ACTION, and this is the assertion that came
+ * out of the first real sync. 33 rows were updated in a list ACSA had seeded
+ * themselves, and every check answered without an observation typed carried
+ * `observation: ""` — which went in and blanked theirs. Tapping Compliant
+ * without adding a note is not a statement that the portal's text should go.
+ *
+ * Sarel, 16 September 2026: "overwrite if there is a value but if blank then
+ * dont override with a blank." */
+
+check(
+  "AN UPDATE NEVER EMPTIES A CELL",
+  (() => {
+    const m = sp.mapFields(COLS, ["title", "riskPriority"]);
+    const out = sp.projectFields(m, { title: "", riskPriority: "I" }, "update");
+    return !("Title" in out) && out.field_3 === "I";
   })(),
-  "clearing a cell somebody emptied on purpose is a legitimate write; a null is not"
+  "a blank leaves whatever the portal already has; a value still overwrites it"
+);
+
+check(
+  "but a create may write an empty cell, having nothing underneath to lose",
+  (() => {
+    const m = sp.mapFields(COLS, ["title"]);
+    return sp.projectFields(m, { title: "" }, "create").Title === "";
+  })()
+);
+
+check(
+  "and the default is the permissive one, so a caller cannot silently gain the power to blank",
+  (() => {
+    const m = sp.mapFields(COLS, ["title"]);
+    return sp.projectFields(m, { title: "" }).Title === "";
+  })(),
+  "forgetting the argument must not turn an update into a create"
+);
+
+check(
+  "the writer passes each row's own action rather than one for the batch",
+  /projectFields\(list\.map, row\.values, row\.action\)/.test(panel),
+  "a plan mixes creates and updates in the same list"
 );
 
 /* -------------------------------- Part 1c: the plan ----------------------- */
