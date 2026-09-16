@@ -229,13 +229,34 @@ export function mapFields(
 ): FieldMap {
   const byDisplay = new Map<string, { name: string; readOnly?: boolean }>();
   for (const c of columns) byDisplay.set(norm(c.displayName), c);
+  /* AND BY INTERNAL NAME, as a second pass.
+   *
+   *  Display names are what somebody building a list types, which is why they
+   *  are what FIELD_CANDIDATES holds — but they are also what somebody RENAMES
+   *  later, and renaming a column in SharePoint's list UI changes only the
+   *  display name. The internal name it was created with never moves.
+   *
+   *  TPJV's Check-points and Findings lists, read on 16 September 2026, are
+   *  exactly that case: the built-in Title column is still internally `Title`
+   *  and still holds every portal id — the sync READ 33 of them and matched
+   *  them — but its display name had been changed, so a display-only lookup
+   *  reported the join key as absent and the plan offered to write rows that
+   *  could never be found again.
+   *
+   *  Display name still wins: it is what a person deliberately chose, and a
+   *  list with both an "Observation" column and something internally named
+   *  `Observation` should write to the one the builder meant. This only
+   *  catches what the first pass missed. */
+  const byInternal = new Map<string, { name: string; readOnly?: boolean }>();
+  for (const c of columns) byInternal.set(norm(c.name), c);
 
   const resolved: Record<string, string> = {};
   const missing: string[] = [];
   for (const key of wanted) {
-    const hit = (FIELD_CANDIDATES[key] ?? [])
-      .map((d) => byDisplay.get(norm(d)))
-      .find((c) => c && !c.readOnly);
+    const names = FIELD_CANDIDATES[key] ?? [];
+    const hit =
+      names.map((d) => byDisplay.get(norm(d))).find((c) => c && !c.readOnly) ??
+      names.map((d) => byInternal.get(norm(d))).find((c) => c && !c.readOnly);
     if (hit) resolved[key] = hit.name;
     else missing.push(key);
   }
