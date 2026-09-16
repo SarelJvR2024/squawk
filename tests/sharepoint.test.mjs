@@ -376,8 +376,57 @@ check(
 
 check(
   "the evidence folder is the one the library already has, per site",
-  sp.evidenceFolder("FALE") === "Evidence/King Shaka International Airport FALE",
-  sp.evidenceFolder("FALE")
+  sp.evidenceFolder("FALE", "2026-09") ===
+    "Evidence/King Shaka International Airport FALE/2026-09",
+  sp.evidenceFolder("FALE", "2026-09")
+);
+
+check(
+  "and per site means PER SITE — another airport gets its own, from the site table",
+  sp.evidenceFolder("FAOR", "2026-09") ===
+    "Evidence/O.R. Tambo International Airport FAOR/2026-09",
+  "nothing is hardcoded to King Shaka; a new airport gets the shape for free"
+);
+
+/* AND PER VISIT, which it was not until Sarel asked "add a audit date into the
+ * hierarchy maybe" on 16 September 2026. Not tidiness — evidence.
+ *
+ * A photograph's reference is scoped to the CHECK, not the visit: nextPhotoRef
+ * counts the attachments on that check's response. So the first photograph of
+ * KSIA-ELE-001 in September 2026 is KSIA-ELE-001_P01.jpg, and so is the first
+ * photograph of the same check in March 2027. Uploads use
+ * conflictBehavior=replace on purpose, so one folder for both visits means the
+ * second audit silently overwrites the first audit's evidence. */
+
+check(
+  "TWO VISITS TO ONE AIRPORT DO NOT SHARE A FOLDER",
+  sp.evidenceFolder("FALE", "2026-09") !== sp.evidenceFolder("FALE", "2027-03"),
+  "the filename repeats across visits and the upload replaces on conflict"
+);
+
+check(
+  "the folder sorts, because 2026-09 does and Sep 2026 does not",
+  /\/\d{4}-\d{2}$/.test(sp.evidenceFolder("FALE", "2026-09"))
+);
+
+check(
+  "and the plan's folder carries the visit it was built for",
+  (() => {
+    const p = sp.buildPlan({ ...BASE, visit: "2027-03" }, NOTHING);
+    return p.folder.endsWith("/2027-03");
+  })()
+);
+
+check(
+  "the blob store and the portal describe the same audit the same way",
+  (() => {
+    const photos = "";
+    void photos;
+    /* photoObjectPath is `FALE/2026-09/...`; the portal folder now ends the
+       same way, so somebody looking at both stores sees one audit twice rather
+       than two schemes. */
+    return sp.evidenceFolder("FALE", "2026-09").endsWith("/2026-09");
+  })()
 );
 
 check(

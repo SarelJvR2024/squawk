@@ -571,15 +571,35 @@ export function flattenProgress(notes: ProgressNote[] | undefined): string {
     .join("\n");
 }
 
-/** The evidence folder for a site: `Evidence/King Shaka International FALE`.
+/** The evidence folder for one VISIT to one site:
+ *  `Evidence/King Shaka International Airport FALE/2026-09`.
  *
- *  One folder per site, matching the ten already in the library. Derived from
- *  the site table so a new site gets the same shape without anybody editing a
- *  path by hand. */
-export function evidenceFolder(entityCode: string): string {
+ *  Per site, derived from the site table so a new airport gets the same shape
+ *  without anybody editing a path by hand — that part was always right.
+ *
+ *  THE VISIT WAS NOT, AND IT WOULD HAVE COST THE EVIDENCE. Sarel, 16 September
+ *  2026: "add a audit date into the hierarchy maybe." He is right, and it is
+ *  not a tidiness question.
+ *
+ *  A photograph's reference is scoped to the CHECK, not to the visit —
+ *  nextPhotoRef counts the attachments on that check's response, and the
+ *  response belongs to one entity and one visit. So the first photograph of
+ *  KSIA-ELE-001 in September 2026 is `KSIA-ELE-001_P01.jpg`, and so is the
+ *  first photograph of the same check in March 2027. Uploads use
+ *  `conflictBehavior=replace`, deliberately, so that re-running a sync does not
+ *  litter the library with `..._P01 1.jpg`. Put both visits in one folder and
+ *  the second audit silently overwrites the first audit's evidence — at a
+ *  national key point, in the system ACSA reads.
+ *
+ *  The visit id rather than its label, because `2026-09` sorts and `Sep 2026`
+ *  does not. It is also exactly what the record copy in the blob store already
+ *  uses (see photoObjectPath), so the two stores describe the same audit the
+ *  same way. */
+export function evidenceFolder(entityCode: string, visitId?: string): string {
   const s = siteFor(entityCode);
-  if (!s) return "Evidence";
-  return `Evidence/${s.name} ${s.icao}`;
+  const site = s ? `Evidence/${s.name} ${s.icao}` : "Evidence";
+  const visit = (visitId ?? "").trim();
+  return visit ? `${site}/${visit}` : site;
 }
 
 /** The Title for a hazard that has never been in the portal.
@@ -861,7 +881,7 @@ export function buildPlan(
     });
   }
 
-  return { checkpoints, findings, evidence, skipped, warnings, folder: evidenceFolder(x.entity) };
+  return { checkpoints, findings, evidence, skipped, warnings, folder: evidenceFolder(x.entity, x.visit) };
 }
 
 /** Asset links that are safe to send.

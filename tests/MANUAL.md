@@ -286,6 +286,11 @@ Three things to know before you press anything:
 - [ ] **Photographs upload from a device that did not take them** — only worth
       testing once the box above is ticked. Same test as the zip, through the
       sync.
+- [ ] **They land under the airport AND the visit** —
+      `Evidence/King Shaka International Airport FALE/2026-09/`. The site folder
+      comes from the site table, so another airport gets its own for free. The
+      visit folder is what stops March 2027 overwriting September 2026: the
+      filename repeats across visits and the upload replaces on conflict.
 - [ ] **A partial write says so.** If anything fails, the summary reads *"N of
       M written"* and every missing row is named underneath. **SILENT if it
       regresses** — the first real write reported "33 written. Everything in the
