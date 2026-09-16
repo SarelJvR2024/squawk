@@ -436,7 +436,23 @@ export async function ensureFolder(driveId: string, folderPath: string): Promise
   const parent = cut < 0 ? "" : clean.slice(0, cut);
   const name = cut < 0 ? clean : clean.slice(cut + 1);
   if (parent) await ensureFolder(driveId, parent);
-  await call(`/drives/${driveId}/root:/${encodeURI(parent)}:/children`, {
+  /* THE ROOT IS ADDRESSED DIFFERENTLY FROM EVERY OTHER FOLDER, and this is the
+     one place that bites.
+   *
+   *  Graph's path syntax is `/root:/{path}:` — the colons bracket a path. With
+   *  an empty path that renders `/root:/:/children`, and Graph answers
+   *  "Resource not found for the segment 'root:'", which reads like the drive
+   *  is wrong rather than like a URL with nothing between two colons. The root
+   *  itself has no path, so it is `/root/children` and nothing else.
+   *
+   *  Found on the first real photograph upload, 16 September 2026: the folder
+   *  "Evidence/King Shaka International Airport FALE" recursed down to creating
+   *  "Evidence" at the top of the library, hit this, and took all five
+   *  photographs with it. */
+  const into = parent
+    ? `/drives/${driveId}/root:/${encodeURI(parent)}:/children`
+    : `/drives/${driveId}/root/children`;
+  await call(into, {
     method: "POST",
     body: JSON.stringify({ name, folder: {}, "@microsoft.graph.conflictBehavior": "fail" }),
   }).catch((e) => {

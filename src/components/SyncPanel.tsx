@@ -86,6 +86,16 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   const [plan, setPlan] = useState<SyncPlan | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number; what: string } | null>(null);
   const [result, setResult] = useState<{ written: number; failed: { key: string; why: string }[] } | null>(null);
+  /* PHOTOGRAPHS ARE OFF BY DEFAULT. Sarel, 16 September 2026: "we dont need to
+     send the photos itself to sharepoint at this stage."
+   *
+     Off rather than deleted, because "at this stage" is a stage — the upload
+     works and the evidence library is where the photographs eventually belong.
+     Off rather than remembered, because a switch that silently stayed on from
+     a previous session would put a national key point's photographs into
+     SharePoint without anybody deciding to this time. It is one tick when it
+     is wanted. */
+  const [sendPhotos, setSendPhotos] = useState(false);
 
   const checks = useMemo(() => checksAt(entityCode), [entityCode]);
   const prior = useMemo(() => priorFindingsAt(entityCode), [entityCode]);
@@ -171,7 +181,8 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
     setError(null);
     const failed: { key: string; why: string }[] = [];
     let written = 0;
-    const total = planTotals(plan).writes;
+    const t = planTotals(plan);
+    const total = t.writes - (sendPhotos ? 0 : t.photographs);
 
     const writeRows = async (rows: PlannedRow[], list: { id: string; map: FieldMap } | null, what: string) => {
       if (!list) return;
@@ -200,9 +211,25 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       await writeRows(plan.checkpoints, resolved.checkList, "check-point");
       await writeRows(plan.findings, resolved.findingList, "finding");
 
-      if (resolved.driveId && plan.evidence.length) {
-        await graph.ensureFolder(resolved.driveId, plan.folder);
-        for (const f of plan.evidence) {
+      if (sendPhotos && resolved.driveId && plan.evidence.length) {
+        /* THE FOLDER IS ONE CALL THAT CAN FAIL ALL FIVE.
+           It used to sit outside the per-photograph try, so when it threw, the
+           outer catch set an error — and then reported "33 written. Everything
+           in the plan reached the portal", because `failed` was still empty.
+           A partial write calling itself complete is the one outcome this
+           screen exists to prevent. Every photograph it takes down is now
+           named. */
+        let folderReady = true;
+        try {
+          await graph.ensureFolder(resolved.driveId, plan.folder);
+        } catch (e) {
+          folderReady = false;
+          const why = `the evidence folder "${plan.folder}" could not be prepared — ${
+            e instanceof Error ? e.message : "failed"
+          }`;
+          for (const f of plan.evidence) failed.push({ key: f.filename, why });
+        }
+        for (const f of folderReady ? plan.evidence : []) {
           setProgress({ done: written, total, what: `photograph ${f.filename}` });
           try {
             /* This device's copy if it has one, the record copy otherwise. An
@@ -219,7 +246,18 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       setResult({ written, failed });
       setStage("done");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "The sync stopped.");
+      /* Whatever stopped it, the rows that never went are not "everything
+         reached the portal". Anything unaccounted for is counted here so the
+         result cannot read as a success. */
+      const why = e instanceof Error ? e.message : "the sync stopped";
+      const short = total - written - failed.length;
+      if (short > 0) {
+        failed.push({
+          key: `${short} more row${short === 1 ? "" : "s"}`,
+          why: `never attempted — ${why}`,
+        });
+      }
+      setError(why);
       setResult({ written, failed });
       setStage("done");
     } finally {
@@ -228,6 +266,9 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   }
 
   const totals = plan ? planTotals(plan) : null;
+  /* What the button will actually send, which is not the plan's own total
+     while the photographs are switched off. */
+  const writes = totals ? totals.writes - (sendPhotos ? 0 : totals.photographs) : 0;
   const missing = [
     ...(resolved?.checkList?.map.missing ?? []).map((m) => `Check-points · ${m}`),
     ...(resolved?.findingList?.map.missing ?? []).map((m) => `Findings · ${m}`),
@@ -498,8 +539,11 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                   <Tile n={totals.checkpointsChanged} label="check-points to update" />
                   <Tile n={totals.findingsNew} label="findings to add" />
                   <Tile n={totals.findingsChanged} label="findings to update" />
-                  <Tile n={totals.photographs} label="photographs to upload" />
-                  <Tile n={totals.writes} label="writes in total" strong />
+                  <Tile
+                    n={totals.photographs}
+                    label={sendPhotos ? "photographs to upload" : "photographs, not being sent"}
+                  />
+                  <Tile n={writes} label="writes in total" strong />
                 </div>
 
                 {!resolved?.findingList && (
@@ -537,6 +581,30 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                   </Note>
                 )}
 
+                {/* The switch, next to the count it governs rather than in a
+                    settings corner — this is the one screen where "are the
+                    photographs going" is a live question. */}
+                {plan.evidence.length > 0 && (
+                  <label
+                    className="mb-2 flex cursor-pointer items-start gap-[9px] rounded-[10px] border px-[11px] py-[9px] text-[11.5px] leading-[1.5]"
+                    style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={sendPhotos}
+                      onChange={(e) => setSendPhotos(e.target.checked)}
+                      className="mt-[2px] h-[15px] w-[15px] shrink-0"
+                    />
+                    <span>
+                      <b>Also upload the {plan.evidence.length} photograph{plan.evidence.length === 1 ? "" : "s"}</b>{" "}
+                      into <span className="font-mono text-[10.5px]">{plan.folder}</span>. Off by
+                      default — the rows carry the audit, and the images are large, of a national
+                      key point, and not yet wanted in the portal. The workbook export still
+                      includes every one of them.
+                    </span>
+                  </label>
+                )}
+
                 {plan.skipped.map((s) => (
                   <Note key={s.what} tone="plain">
                     <b>{s.count} {s.what}</b> not going across — {s.why}.
@@ -567,13 +635,13 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                     variant="primary"
                     className="ml-auto"
                     onClick={run}
-                    disabled={stage === "writing" || totals.writes === 0 || blockedCreates.length > 0}
+                    disabled={stage === "writing" || writes === 0 || blockedCreates.length > 0}
                   >
                     {stage === "writing"
                       ? "Writing…"
                       : blockedCreates.length
                         ? "Cannot create rows — no Title column"
-                        : `Write ${totals.writes} to the portal`}
+                        : `Write ${writes} to the portal`}
                   </Btn>
                 </div>
               </>
@@ -583,9 +651,11 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
             {stage === "done" && result && (
               <>
                 <Note tone={result.failed.length ? "warn" : "good"}>
-                  <b>{result.written} written.</b>{" "}
+                  <b>
+                    {result.written} of {totals?.writes ?? result.written} written.
+                  </b>{" "}
                   {result.failed.length
-                    ? `${result.failed.length} did not go across.`
+                    ? `${result.failed.length} did not go across — each one named below.`
                     : "Everything in the plan reached the portal."}
                 </Note>
                 {result.failed.length > 0 && (
