@@ -250,6 +250,16 @@ Three things to know before you press anything:
 - [ ] **Run the sync a second time.** The plan now says *update*, not *create*,
       and the lists do not double. **SILENT** — a doubling sync looks like it
       worked, twice.
+- [ ] **Step 5 names the two lists it will write to**, not just "all found".
+      Each airport has its own Check-points list, so read the names and confirm
+      they are King Shaka's before writing anything.
+- [ ] **The compliance values in SharePoint read as the portal's own choices**
+      — `C - Compliant`, not a bare `C`. The options are read off the column on
+      every run; if one has no match the plan says so and writes it unchanged.
+- [ ] **A non-compliant check with no finding is warned about, and still syncs.**
+      The plan should say so many non-compliant check-points have no finding
+      behind them. It is a warning, never a refusal — a non-compliant answer is
+      the truth and belongs in the portal.
 - [ ] A check with no compliance status is skipped and the plan says so.
 - [ ] **AN UPDATE NEVER BLANKS A CELL.** Put text in a check-point's Observation
       column in SharePoint by hand, answer that check in Squawk WITHOUT typing

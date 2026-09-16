@@ -36,6 +36,7 @@ import {
   columnContract,
   mapFields,
   canJoin,
+  choiceMismatches,
   joinRefusal,
   planTotals,
   projectFields,
@@ -67,6 +68,12 @@ interface Resolved {
   findingList: { id: string; map: FieldMap } | null;
   driveId: string | null;
   lists: string[];
+  /* THE NAMES IT ACTUALLY CHOSE.
+     The site has thirteen lists and the matcher takes the first whose name
+     fits a pattern. Which one it picked is not a detail — it decides where 33
+     rows land — so it is shown rather than left to be inferred from the fact
+     that something was found. */
+  chose: { checkList: string | null; findingList: string | null; drive: string | null };
 }
 
 export function SyncPanel({ onClose }: { onClose: () => void }) {
@@ -159,10 +166,15 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
         findingList: findPart,
         driveId: drive?.id ?? null,
         lists: all.map((l) => l.displayName),
+        chose: {
+          checkList: checkList?.displayName ?? null,
+          findingList: findingList?.displayName ?? null,
+          drive: drive?.name ?? null,
+        },
       });
       setPlan(
         buildPlan(
-          { entity: entityCode, visit: visitId, visitLabel: visitId, checks, responses, hazards, prior, verifications, auditor },
+          { entity: entityCode, visit: visitId, visitLabel: visitId, checks, responses, hazards, prior, verifications, auditor, findings },
           existing,
           unconsolidated
         )
@@ -271,6 +283,13 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   /* What the button will actually send, which is not the plan's own total
      while the photographs are switched off. */
   const writes = totals ? totals.writes - (sendPhotos ? 0 : totals.photographs) : 0;
+  /* Values bound for a Choice column that will not accept them. */
+  const mismatches = plan
+    ? [
+        ...(resolved?.checkList ? choiceMismatches(resolved.checkList.map, plan.checkpoints) : []),
+        ...(resolved?.findingList ? choiceMismatches(resolved.findingList.map, plan.findings) : []),
+      ]
+    : [];
   const missing = [
     ...(resolved?.checkList?.map.missing ?? []).map((m) => `Check-points · ${m}`),
     ...(resolved?.findingList?.map.missing ?? []).map((m) => `Findings · ${m}`),
@@ -379,7 +398,8 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
             resolved.driveId ? null : "no document library to put photographs in",
           ]
             .filter(Boolean)
-            .join(" · ") || `Check-points, Findings and a library — all found.`,
+            .join(" · ") ||
+          `Writing to “${resolved.chose.checkList}” and “${resolved.chose.findingList}”, photographs to “${resolved.chose.drive}”. ${resolved.lists.length} lists on the site — check these are the right ones.`,
     },
     {
       label: "Every field has a column to go in",
@@ -606,6 +626,28 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                     </span>
                   </label>
                 )}
+
+                {mismatches.length > 0 && (
+                  <Note tone="warn">
+                    <b>
+                      {mismatches.length} value{mismatches.length === 1 ? "" : "s"} the portal&apos;s
+                      own columns do not offer
+                    </b>{" "}
+                    and will go across as they are:{" "}
+                    {mismatches
+                      .map((m) => `${m.field} “${m.value}” (offered: ${m.offered.join(", ")})`)
+                      .join("; ")}
+                    . The options are read off each column on every run, so this is what the
+                    portal accepts today.
+                  </Note>
+                )}
+
+                {/* Going across, and worth saying anyway — see SyncPlan.warnings. */}
+                {plan.warnings.map((w) => (
+                  <Note key={w.what} tone="warn">
+                    <b>{w.count} {w.what}</b> — {w.why}.
+                  </Note>
+                ))}
 
                 {plan.skipped.map((s) => (
                   <Note key={s.what} tone="plain">

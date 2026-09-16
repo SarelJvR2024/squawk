@@ -342,6 +342,11 @@ export interface GraphColumn {
   name: string;
   displayName: string;
   readOnly?: boolean;
+  /** Present only on a Choice column, and the reason this shape is fetched at
+   *  all: a Choice column will not accept a value that is not one of these.
+   *  Squawk was writing the bare code "C" into a column whose options read
+   *  "C - Compliant", and the list showed the code. See `portalChoice`. */
+  choice?: { choices?: string[]; allowTextEntry?: boolean };
 }
 
 /** The internal column names, read at run time.
@@ -357,7 +362,7 @@ export interface GraphColumn {
  *  not there is named and the sync refuses to start. */
 export async function columns(siteId: string, listId: string): Promise<GraphColumn[]> {
   return all<GraphColumn>(
-    `/sites/${siteId}/lists/${listId}/columns?$select=name,displayName,readOnly&$top=200`
+    `/sites/${siteId}/lists/${listId}/columns?$select=name,displayName,readOnly,choice&$top=200`
   );
 }
 

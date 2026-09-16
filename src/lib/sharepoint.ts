@@ -55,6 +55,7 @@ import { portalIdFor, siteCodeFor, siteFor } from "./sites";
 import type {
   Attachment,
   Check,
+  Finding,
   ErmConsequence,
   ErmLikelihood,
   Hazard,
@@ -216,6 +217,9 @@ export interface FieldMap {
   resolved: Record<string, string>;
   /** Logical names this list has no column for. Reported, never guessed. */
   missing: string[];
+  /** logical name -> the options a Choice column will accept, read off the
+   *  column itself. Absent for every other kind of column. See `portalChoice`. */
+  choices: Record<string, string[]>;
 }
 
 /** Build the map from the list's own columns.
@@ -224,10 +228,16 @@ export interface FieldMap {
  *  exists, and writing to it fails the whole PATCH, which would take the rows
  *  that were fine down with it. */
 export function mapFields(
-  columns: { name: string; displayName: string; readOnly?: boolean }[],
+  columns: {
+    name: string;
+    displayName: string;
+    readOnly?: boolean;
+    choice?: { choices?: string[] };
+  }[],
   wanted: string[]
 ): FieldMap {
-  const byDisplay = new Map<string, { name: string; readOnly?: boolean }>();
+  type Col = { name: string; readOnly?: boolean; choice?: { choices?: string[] } };
+  const byDisplay = new Map<string, Col>();
   for (const c of columns) byDisplay.set(norm(c.displayName), c);
   /* AND BY INTERNAL NAME, as a second pass.
    *
@@ -247,20 +257,84 @@ export function mapFields(
    *  list with both an "Observation" column and something internally named
    *  `Observation` should write to the one the builder meant. This only
    *  catches what the first pass missed. */
-  const byInternal = new Map<string, { name: string; readOnly?: boolean }>();
+  const byInternal = new Map<string, Col>();
   for (const c of columns) byInternal.set(norm(c.name), c);
 
   const resolved: Record<string, string> = {};
   const missing: string[] = [];
+  const choices: Record<string, string[]> = {};
   for (const key of wanted) {
     const names = FIELD_CANDIDATES[key] ?? [];
     const hit =
       names.map((d) => byDisplay.get(norm(d))).find((c) => c && !c.readOnly) ??
       names.map((d) => byInternal.get(norm(d))).find((c) => c && !c.readOnly);
-    if (hit) resolved[key] = hit.name;
-    else missing.push(key);
+    if (hit) {
+      resolved[key] = hit.name;
+      if (hit.choice?.choices?.length) choices[key] = hit.choice.choices;
+    } else missing.push(key);
   }
-  return { resolved, missing };
+  return { resolved, missing, choices };
+}
+
+/* ------------------------------------------- speaking the column's language */
+
+/** Turn a value into the option the column will actually accept.
+ *
+ *  Prince Mahlangu, 16 September 2026, reading the lists after the first real
+ *  sync: "the values are the bare codes C, NC and NV instead of the portal
+ *  choices 'C - Compliant', 'NC - Non-compliant' and 'NV - Not available' —
+ *  the web part copes, the lists show codes."
+ *
+ *  THE STRINGS ARE NOT WRITTEN DOWN HERE, and that is the whole point. ACSA's
+ *  choice wording appears nowhere in the vendored register, so typing it into
+ *  this file would be Squawk inventing their vocabulary — the one thing this
+ *  project does not do. It is read off the column instead, the same way the
+ *  internal column names are, so a choice ACSA rewords is picked up by the
+ *  next run rather than drifting silently.
+ *
+ *  THE MATCH IS ON THE CODE, not on the words: "C" finds "C - Compliant"
+ *  because the option's leading code is C. An exact option is taken as-is,
+ *  which is why the severity and likelihood values — already the portal's own
+ *  strings, derived from the register — pass through untouched.
+ *
+ *  Returns null when the column offers options and NONE of them fit. That is
+ *  reported rather than written: a value a Choice column will reject either
+ *  fails the whole PATCH or lands as something nobody chose. */
+export function portalChoice(value: string, choices: string[] | undefined): string | null {
+  if (!choices?.length) return value;
+  const v = value.trim();
+  if (!v) return v;
+  const exact = choices.find((c) => c.trim() === v);
+  if (exact) return exact;
+  const loose = choices.find((c) => norm(c) === norm(v));
+  if (loose) return loose;
+  /* The option's leading code, up to the first separator: "C - Compliant" -> C,
+     "3 - Likely" -> 3. Compared case-insensitively against the whole value. */
+  const code = (c: string) => c.split(/[\s\-–—:,/]+/)[0]?.trim().toLowerCase() ?? "";
+  const byCode = choices.find((c) => code(c) === v.toLowerCase());
+  return byCode ?? null;
+}
+
+/** Every value in these rows that the column it is bound for will refuse.
+ *  Shown in the plan, so a mismatch is seen before it is written. */
+export function choiceMismatches(
+  map: FieldMap,
+  rows: PlannedRow[]
+): { field: string; value: string; offered: string[] }[] {
+  const seen = new Set<string>();
+  const out: { field: string; value: string; offered: string[] }[] = [];
+  for (const r of rows) {
+    for (const [key, v] of Object.entries(r.values)) {
+      const offered = map.choices[key];
+      if (!offered?.length || typeof v !== "string" || !v.trim()) continue;
+      if (portalChoice(v, offered) !== null) continue;
+      const k = `${key}\u0000${v}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push({ field: key, value: v, offered });
+    }
+  }
+  return out;
 }
 
 /** Drop anything with no column, and anything with nothing to say.
@@ -323,6 +397,14 @@ export function projectFields(
     const col = map.resolved[key];
     if (!col || v === undefined || v === null) continue;
     if (action === "update" && v === "") continue;
+    /* A Choice column takes one of its own options or nothing. An option that
+       matches is substituted; a value with no match is left as it is and
+       reported by choiceMismatches, because guessing at a column's vocabulary
+       is how "C" ended up in a list whose options read "C - Compliant". */
+    if (typeof v === "string" && map.choices[key]?.length) {
+      out[col] = portalChoice(v, map.choices[key]) ?? v;
+      continue;
+    }
     out[col] = v;
   }
   return out;
@@ -333,6 +415,10 @@ export function projectFields(
 export interface SyncInput {
   entity: string;
   visit: string;
+  /** This visit's findings, used only to notice a non-compliant check with
+   *  nothing written behind it. Optional so the plan builder's own tests do
+   *  not have to care. */
+  findings?: Finding[];
   visitLabel: string;
   checks: Check[];
   responses: Record<string, Response>;
@@ -383,6 +469,16 @@ export interface SyncPlan {
   evidence: PlannedFile[];
   /** Why rows were left out, in the words of somebody who might disagree. */
   skipped: { what: string; why: string; count: number }[];
+  /** Things that ARE going across and should be said out loud anyway.
+   *
+   *  Distinct from `skipped` on purpose. Skipped is "this is not being
+   *  written"; a warning is "this is being written and it will read as less
+   *  than it is". Prince Mahlangu found the first one by reading the portal:
+   *  fifteen non-compliant check-points with no finding behind any of them, so
+   *  Energy and Demand Management came out Acceptable with a non-compliant
+   *  check underneath it. Sarel's rule: warn, do not block — a non-compliant
+   *  answer is still the truth and still belongs in the portal. */
+  warnings: { what: string; why: string; count: number }[];
   folder: string;
 }
 
@@ -465,6 +561,7 @@ export function buildPlan(
   const findings: PlannedRow[] = [];
   const evidence: PlannedFile[] = [];
   const skipped: SyncPlan["skipped"] = [];
+  const warnings: SyncPlan["warnings"] = [];
 
   /* --- check-points: only the ones somebody actually answered --------- */
   let unanswered = 0;
@@ -525,6 +622,28 @@ export function buildPlan(
       what: "check-points",
       why: "no compliance captured — a blank status is NOT compliant, and writing one would say we looked",
       count: unanswered,
+    });
+  }
+
+  /* A NON-COMPLIANT ANSWER WITH NOTHING BEHIND IT.
+   *
+   *  It still goes across — a non-compliant check is the truth and the portal
+   *  should carry it. But the portal rates an asset system from its FINDINGS,
+   *  so an NC nobody wrote a finding for leaves the rating reading better than
+   *  the evidence. Found in the real portal by Prince Mahlangu, 16 September
+   *  2026: Energy and Demand Management at King Shaka reading Acceptable with
+   *  a non-compliant check-point behind it. */
+  const withFinding = new Set(
+    (x.findings ?? []).map((f) => f.checkId).filter((id): id is string => !!id)
+  );
+  const bareNC = x.checks.filter(
+    (c) => x.responses[c.id]?.compliance === "NC" && !withFinding.has(c.id)
+  ).length;
+  if (bareNC) {
+    warnings.push({
+      what: "non-compliant check-points have no finding behind them",
+      why: "they go across as non-compliant, but the portal rates an asset system from its findings — so the rating will read better than the evidence until each one has its finding written",
+      count: bareNC,
     });
   }
 
@@ -628,7 +747,7 @@ export function buildPlan(
     });
   }
 
-  return { checkpoints, findings, evidence, skipped, folder: evidenceFolder(x.entity) };
+  return { checkpoints, findings, evidence, skipped, warnings, folder: evidenceFolder(x.entity) };
 }
 
 /** Asset links that are safe to send.

@@ -652,6 +652,143 @@ check(
   "an empty path renders /root:/:/children, and Graph answers \"Resource not found for the segment 'root:'\""
 );
 
+/* ---- SPEAKING THE COLUMN'S OWN LANGUAGE ---------------------------------
+ *
+ *  Prince Mahlangu, reading the lists after the first real sync: "the values
+ *  are the bare codes C, NC and NV instead of the portal choices 'C -
+ *  Compliant', 'NC - Non-compliant' and 'NV - Not available' — the web part
+ *  copes, the lists show codes."
+ *
+ *  The strings are NOT in this repo and must not be: ACSA's choice wording
+ *  appears nowhere in the vendored register, so typing it out would be Squawk
+ *  inventing their vocabulary. It is read off the column instead, exactly as
+ *  the internal column names are. */
+
+check(
+  "THE CHOICE WORDING IS NOWHERE IN THE SOURCE — it is read off the column",
+  !/C - Compliant|NC - Non-compliant|NV - Not available/.test(src("lib", "sharepoint.ts").replace(/\/\*[\s\S]*?\*\//g, "")) &&
+    /choice/.test(graphCode) &&
+    /\$select=name,displayName,readOnly,choice/.test(graphCode),
+  "a hardcoded vocabulary drifts the moment somebody rewords an option"
+);
+
+check(
+  "a bare code finds the option whose code it is",
+  sp.portalChoice("C", ["C - Compliant", "NC - Non-compliant", "NV - Not available"]) ===
+    "C - Compliant" &&
+    sp.portalChoice("NC", ["C - Compliant", "NC - Non-compliant"]) === "NC - Non-compliant"
+);
+
+check(
+  "an exact option passes through untouched",
+  sp.portalChoice("4 - Critical", ["4 - Critical", "3 - Major"]) === "4 - Critical",
+  "severity and likelihood already carry the portal's own words, derived from the register"
+);
+
+check(
+  "a column with no options leaves the value alone",
+  sp.portalChoice("anything", undefined) === "anything" &&
+    sp.portalChoice("anything", []) === "anything",
+  "a free-text column is not a Choice column"
+);
+
+check(
+  "AND A VALUE NOTHING OFFERS IS REPORTED, not quietly written as something else",
+  sp.portalChoice("Q", ["C - Compliant", "NC - Non-compliant"]) === null,
+  "guessing at a column's vocabulary is how C ended up in a list offering C - Compliant"
+);
+
+check(
+  "projectFields substitutes the option a Choice column will take",
+  (() => {
+    const m = sp.mapFields(
+      [{ name: "Compliance", displayName: "Compliance", choice: { choices: ["C - Compliant", "NC - Non-compliant"] } }],
+      ["compliance"]
+    );
+    return sp.projectFields(m, { compliance: "NC" }).Compliance === "NC - Non-compliant";
+  })()
+);
+
+check(
+  "and mapFields carries the options it found, per field",
+  (() => {
+    const m = sp.mapFields(
+      [
+        { name: "Compliance", displayName: "Compliance", choice: { choices: ["C - Compliant"] } },
+        { name: "Observation", displayName: "Observation" },
+      ],
+      ["compliance", "observation"]
+    );
+    return m.choices.compliance?.length === 1 && !("observation" in m.choices);
+  })()
+);
+
+/* ---- A NON-COMPLIANT ANSWER WITH NOTHING BEHIND IT ----------------------
+ *  Prince again: the fifteen non-compliant check-points carry no finding, so
+ *  Energy and Demand Management at King Shaka reads Acceptable with a
+ *  non-compliant check-point behind it.
+ *
+ *  Sarel's rule, the same day: "in the app we need to have a warning or
+ *  reminder that there are NC with no details, but it should still sync
+ *  through as non compliant to sharepoint." Warn, never block — a
+ *  non-compliant answer is the truth and belongs in the portal. */
+
+check(
+  "A NON-COMPLIANT CHECK WITH NO FINDING IS WARNED ABOUT",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE, responses: { "KSIA-ELE-001": { compliance: "NC", observation: "", attachments: [] } } },
+      NOTHING
+    );
+    return p.warnings.some((w) => /no finding behind them/.test(w.what)) &&
+      p.warnings.find((w) => /no finding/.test(w.what))?.count === 1;
+  })()
+);
+
+check(
+  "and it still goes across — a warning is not a refusal",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE, responses: { "KSIA-ELE-001": { compliance: "NC", observation: "", attachments: [] } } },
+      NOTHING
+    );
+    return p.checkpoints.length === 1 && p.checkpoints[0].values.compliance === "NC";
+  })()
+);
+
+check(
+  "a non-compliant check that HAS a finding is not warned about",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        findings: [{ id: "f1", checkId: "KSIA-ELE-001" }],
+        responses: { "KSIA-ELE-001": { compliance: "NC", observation: "", attachments: [] } },
+      },
+      NOTHING
+    );
+    return !p.warnings.some((w) => /no finding/.test(w.what));
+  })()
+);
+
+check(
+  "warnings are told apart from skipped — one is written, the other is not",
+  (() => {
+    const p = sp.buildPlan({ ...BASE }, NOTHING);
+    return Array.isArray(p.warnings) && Array.isArray(p.skipped);
+  })() && /plan\.warnings\.map/.test(panel) && /plan\.skipped\.map/.test(panel)
+);
+
+/* ---- AND WHICH LIST IT CHOSE IS SHOWN, NOT INFERRED ---------------------
+ *  The site has thirteen lists and the matcher takes the first whose name
+ *  fits. Which one it picked decides where every row lands. */
+
+check(
+  "the readiness step names the lists it will write to",
+  /chose: \{/.test(panel) && /Writing to/.test(panel),
+  "\"all found\" does not say WHICH, and each airport has its own list"
+);
+
 check(
   "the totals a person confirms against are the rows that would actually be written",
   (() => {
