@@ -420,6 +420,10 @@ export interface ExistingIndex {
   duplicates: string[];
   /** Rows in the list belonging to some other site. Counted, never touched. */
   foreign: number;
+  /** And their Titles, so "which rows are these?" is answerable from inside
+   *  Squawk rather than by hand in SharePoint. A diagnosis nobody can run
+   *  without a SharePoint tutorial is a diagnosis that does not get run. */
+  foreignTitles: string[];
   /** Rows whose Title is empty. Counted so a list full of them is visible. */
   untitled: number;
 }
@@ -451,6 +455,7 @@ export function indexExisting(
   const seen = new Set<string>();
   const dupes = new Set<string>();
   let foreign = 0;
+  const foreignTitles: string[] = [];
   let untitled = 0;
 
   for (const r of rows) {
@@ -461,6 +466,7 @@ export function indexExisting(
     }
     if (!t.toLowerCase().startsWith(prefix)) {
       foreign++;
+      foreignTitles.push(t);
       continue;
     }
     if (seen.has(t)) dupes.add(t);
@@ -469,7 +475,7 @@ export function indexExisting(
   }
   for (const t of dupes) byTitle.delete(t);
 
-  return { byTitle, duplicates: [...dupes], foreign, untitled };
+  return { byTitle, duplicates: [...dupes], foreign, foreignTitles, untitled };
 }
 
 /** Does this Title belong to the site being synced?

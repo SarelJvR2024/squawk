@@ -897,6 +897,23 @@ check(
 );
 
 check(
+  "and it keeps their Titles, so 'which rows?' is answerable from inside Squawk",
+  (() => {
+    const i = sp.indexExisting(
+      [{ title: "KSIA-ELE-001", id: "1" }, { title: "BFIA-ELE-001", id: "2" }],
+      "KSIA"
+    );
+    return i.foreignTitles.length === 1 && i.foreignTitles[0] === "BFIA-ELE-001";
+  })(),
+  "a diagnosis that needs a SharePoint tutorial is a diagnosis nobody runs"
+);
+
+check(
+  "and the plan shows the census without anybody asking for it",
+  /What is in these lists, as read just now/.test(panel) && /foreignTitles/.test(panel)
+);
+
+check(
   "an untitled row is counted rather than indexed under the empty string",
   (() => {
     const i = sp.indexExisting([{ title: "", id: "1" }, { title: "   ", id: "2" }], "KSIA");
