@@ -286,6 +286,13 @@ Three things to know before you press anything:
 - [ ] **Photographs upload from a device that did not take them** — only worth
       testing once the box above is ticked. Same test as the zip, through the
       sync.
+- [ ] **An inspection's photograph is in the count and lands too.** Capture an
+      inspection with a photo, read the portal, and the photograph tile should
+      include it. It is named `WALK-xxxxx_P01.jpg`, so it cannot be confused
+      with a check-point's in the same folder. **The inspection ITEM is still
+      not a portal row** — it reaches the portal only through a finding
+      consolidated into a hazard, which is a decision for ACSA rather than a
+      gap to fill quietly.
 - [ ] **They land under the airport AND the visit** —
       `Evidence/King Shaka International Airport FALE/2026-09/`. The site folder
       comes from the site table, so another airport gets its own for free. The
