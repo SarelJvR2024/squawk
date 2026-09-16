@@ -47,6 +47,7 @@ import {
   CHECK_FIELDS,
   FINDING_FIELDS,
   LIST_NAMES,
+  siteFolderIn,
   type FieldMap,
   type PlannedRow,
   type SyncPlan,
@@ -192,6 +193,20 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       const drive = (await graph.drives(site.id)).find((d) => LIST_NAMES.evidence.test(d.name))
         ?? (await graph.drives(site.id))[0];
 
+      /* What the library already calls this site. ACSA pre-created a folder per
+         airport with their own spelling; writing next to it rather than into it
+         would leave two folders per airport. A failure here is not fatal — the
+         sync falls back to the site table's spelling — so it does not take the
+         read down with it. */
+      let siteFolder: string | null = null;
+      if (drive?.id) {
+        try {
+          siteFolder = siteFolderIn(entityCode, await graph.rootFolders(drive.id));
+        } catch {
+          siteFolder = null;
+        }
+      }
+
       setResolved({
         siteId: site.id,
         checkList: checkPart,
@@ -206,7 +221,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       });
       setPlan(
         buildPlan(
-          { entity: entityCode, visit: visitId, visitLabel: visitId, library: drive?.name, checks, responses, hazards, prior, verifications, auditor, findings, adhoc },
+          { entity: entityCode, visit: visitId, visitLabel: visitId, library: drive?.name, siteFolder, checks, responses, hazards, prior, verifications, auditor, findings, adhoc },
           existing,
           unconsolidated
         )

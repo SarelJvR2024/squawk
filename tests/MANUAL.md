@@ -298,6 +298,11 @@ Three things to know before you press anything:
       comes from the site table, so another airport gets its own for free. The
       visit folder is what stops March 2027 overwriting September 2026: the
       filename repeats across visits and the upload replaces on conflict.
+- [ ] **It is ACSA's folder, not a second one beside it.** The library already
+      has ten folders, one per site, in ACSA's spelling — `King Shaka
+      International FALE`, not `King Shaka International Airport FALE`. The sync
+      reads the library's top level and writes into the one it finds. Two King
+      Shaka folders side by side is the regression to watch for.
 - [ ] **The path does not repeat the library's own name.** The first five real
       photographs landed in `Evidence/Evidence/King Shaka…` because the folder
       was prefixed `Evidence/` inside a library already called Evidence. The

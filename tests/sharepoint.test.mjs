@@ -31,6 +31,7 @@ const check = (name, cond, detail = "") => {
 };
 
 const sp = await import("../src/lib/sharepoint.ts");
+const sites = await import("../src/lib/sites.ts");
 
 /** The source with its COMMENTS REMOVED.
  *
@@ -414,6 +415,80 @@ check(
     return new Set(parts).size === parts.length;
   }),
   "the doubled folder was exactly this, and a test is cheaper than another move"
+);
+
+/* AND THE LIBRARY ALREADY HAS FOLDERS. Read from the live library on
+ * 16 September 2026, before anything was moved — ACSA pre-created one per site,
+ * in their spelling, not Squawk's. Minting "King Shaka International Airport
+ * FALE" next to their "King Shaka International FALE" would leave two folders
+ * per airport and no way to know which holds the evidence. */
+const ACSA_FOLDERS = [
+  "Bram Fischer International FABL",
+  "Cape Town International FACT",
+  "Chief Dawid Stuurman International FAPE",
+  "Corporate Office",
+  "George FAGG",
+  "Kimberley FAKM",
+  "King Phalo FAEL",
+  "King Shaka International FALE",
+  "OR Tambo International FAOR",
+  "Upington International FAUP",
+];
+
+check(
+  "EVERY ONE OF ACSA'S TEN FOLDERS IS MATCHED TO ITS SITE",
+  (() => {
+    const hits = sites.SITES.map((s) => sp.siteFolderIn(s.entityCode, ACSA_FOLDERS));
+    return hits.every(Boolean) && new Set(hits).size === sites.SITES.length;
+  })(),
+  sites.SITES.map((s) => `${s.entityCode}→${sp.siteFolderIn(s.entityCode, ACSA_FOLDERS)}`).join(", ")
+);
+
+check(
+  "King Shaka matches THEIR spelling, which is not the site table's",
+  sp.siteFolderIn("FALE", ACSA_FOLDERS) === "King Shaka International FALE",
+  "the site table says King Shaka International Airport FALE; the library does not"
+);
+
+check(
+  "O.R. Tambo matches OR Tambo — punctuation is not identity",
+  sp.siteFolderIn("FAOR", ACSA_FOLDERS) === "OR Tambo International FAOR"
+);
+
+check(
+  "Corporate Office matches with no code at all",
+  sp.siteFolderIn("HO", ACSA_FOLDERS) === "Corporate Office",
+  "the last pass exists for exactly this one"
+);
+
+check(
+  "a library with nothing in it matches nothing, rather than guessing",
+  sp.siteFolderIn("FALE", []) === null &&
+    sp.siteFolderIn("FALE", ["Some other folder", "Templates"]) === null
+);
+
+check(
+  "and the fallback is the site table's spelling, so a bare library still works",
+  sp.evidenceFolder("FALE", "2026-09", "Evidence", sp.siteFolderIn("FALE", [])) ===
+    "King Shaka International Airport FALE/2026-09"
+);
+
+check(
+  "THE FOLDER THE LIBRARY HAS WINS over the one Squawk would mint",
+  sp.evidenceFolder("FALE", "2026-09", "Evidence", sp.siteFolderIn("FALE", ACSA_FOLDERS)) ===
+    "King Shaka International FALE/2026-09",
+  sp.evidenceFolder("FALE", "2026-09", "Evidence", sp.siteFolderIn("FALE", ACSA_FOLDERS))
+);
+
+check(
+  "and the plan carries it, so what is written is what was read",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE, visit: "2026-09", library: "Evidence", siteFolder: sp.siteFolderIn("FALE", ACSA_FOLDERS) },
+      NOTHING
+    );
+    return p.folder === "King Shaka International FALE/2026-09";
+  })()
 );
 
 check(
