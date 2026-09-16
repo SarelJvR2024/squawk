@@ -431,6 +431,10 @@ export async function drives(siteId: string): Promise<GraphDrive[]> {
 /** Create the folder if it is not there, and say nothing if it is. */
 export async function ensureFolder(driveId: string, folderPath: string): Promise<void> {
   const clean = folderPath.replace(/^\/+|\/+$/g, "");
+  /* Nothing to create: the caller is writing to the library's own root, which
+     always exists. evidenceFolder returns an empty path when the library is
+     itself the evidence folder and the site is unknown. */
+  if (!clean) return;
   try {
     await call(`/drives/${driveId}/root:/${encodeURI(clean)}`);
     return;

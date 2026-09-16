@@ -502,6 +502,10 @@ export interface SyncInput {
    *  a check's are; see the walk over them in buildPlan. */
   adhoc?: AdHocItem[];
   visitLabel: string;
+  /** The display name of the document library the photographs are going into,
+   *  so evidenceFolder knows whether it is already inside "Evidence". Optional
+   *  because the plan builder's own tests do not resolve a library. */
+  library?: string;
   checks: Check[];
   responses: Record<string, Response>;
   /** The CONSOLIDATED view. The portal's Findings list receives hazards, not
@@ -578,8 +582,21 @@ export function flattenProgress(notes: ProgressNote[] | undefined): string {
     .join("\n");
 }
 
-/** The evidence folder for one VISIT to one site:
- *  `Evidence/King Shaka International Airport FALE/2026-09`.
+/** The evidence folder for one VISIT to one site, RELATIVE TO THE LIBRARY it
+ *  is being written into: `King Shaka International Airport FALE/2026-09`.
+ *
+ *  THE PATH IS RELATIVE, and that word is the whole of the second fix here.
+ *  The document library on the ACSA site is itself named "Evidence", and this
+ *  function used to prepend `Evidence/` to a path that Graph already resolves
+ *  from that library's root. The first real upload therefore landed in
+ *  `.../Evidence/Evidence/King Shaka International Airport FALE/2026-09/`,
+ *  which reads to anybody browsing it as a mistake, because it is one.
+ *
+ *  The prefix is kept when the library is called anything else — a generic
+ *  "Documents" library wants its evidence in a folder of its own rather than
+ *  loose among whatever else lives there. So the caller passes the name of the
+ *  library it actually resolved, and this decides from that, rather than from
+ *  an assumption about how the site is laid out.
  *
  *  Per site, derived from the site table so a new airport gets the same shape
  *  without anybody editing a path by hand — that part was always right.
@@ -602,11 +619,21 @@ export function flattenProgress(notes: ProgressNote[] | undefined): string {
  *  does not. It is also exactly what the record copy in the blob store already
  *  uses (see photoObjectPath), so the two stores describe the same audit the
  *  same way. */
-export function evidenceFolder(entityCode: string, visitId?: string): string {
+export function evidenceFolder(
+  entityCode: string,
+  visitId?: string,
+  library?: string
+): string {
   const s = siteFor(entityCode);
-  const site = s ? `Evidence/${s.name} ${s.icao}` : "Evidence";
-  const visit = (visitId ?? "").trim();
-  return visit ? `${site}/${visit}` : site;
+  /* An unknown library keeps the prefix: that is the old behaviour, and it is
+     the right one for a library that is not already about evidence. */
+  const nested = !/^evidence$/i.test((library ?? "").trim());
+  const parts = [
+    nested ? "Evidence" : "",
+    s ? `${s.name} ${s.icao}` : "",
+    (visitId ?? "").trim(),
+  ].filter(Boolean);
+  return parts.join("/");
 }
 
 /** The Title for a hazard that has never been in the portal.
@@ -923,7 +950,7 @@ export function buildPlan(
     });
   }
 
-  return { checkpoints, findings, evidence, skipped, warnings, folder: evidenceFolder(x.entity, x.visit) };
+  return { checkpoints, findings, evidence, skipped, warnings, folder: evidenceFolder(x.entity, x.visit, x.library) };
 }
 
 /** Asset links that are safe to send.

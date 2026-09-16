@@ -374,17 +374,52 @@ check(
   sp.flattenProgress(undefined) === "" && sp.flattenProgress([]) === ""
 );
 
+/* THE PATH IS RELATIVE TO THE LIBRARY, and it was not until 16 September 2026.
+ * The library on the ACSA site is itself called "Evidence", and the folder was
+ * prefixed "Evidence/" regardless, so the first five real photographs landed in
+ * .../Evidence/Evidence/King Shaka International Airport FALE/2026-09/.
+ * Sarel, seeing it: "fix the folder and move the 5 files." */
+
 check(
-  "the evidence folder is the one the library already has, per site",
+  "a library already called Evidence does not get an Evidence folder inside it",
+  sp.evidenceFolder("FALE", "2026-09", "Evidence") ===
+    "King Shaka International Airport FALE/2026-09",
+  sp.evidenceFolder("FALE", "2026-09", "Evidence")
+);
+
+check(
+  "and it is the library's NAME that decides, however it is cased or spaced",
+  sp.evidenceFolder("FALE", "2026-09", " evidence ") ===
+    sp.evidenceFolder("FALE", "2026-09", "Evidence")
+);
+
+check(
+  "a library that is not about evidence still gets an Evidence folder of its own",
+  sp.evidenceFolder("FALE", "2026-09", "Documents") ===
+    "Evidence/King Shaka International Airport FALE/2026-09",
+  "loose among whatever else lives in Documents is not where audit evidence goes"
+);
+
+check(
+  "an unnamed library keeps the old shape rather than guessing",
   sp.evidenceFolder("FALE", "2026-09") ===
     "Evidence/King Shaka International Airport FALE/2026-09",
   sp.evidenceFolder("FALE", "2026-09")
 );
 
 check(
+  "NO PATH EVER REPEATS A SEGMENT",
+  ["Evidence", "Documents", "Shared Documents", undefined].every((lib) => {
+    const parts = sp.evidenceFolder("FALE", "2026-09", lib).split("/");
+    return new Set(parts).size === parts.length;
+  }),
+  "the doubled folder was exactly this, and a test is cheaper than another move"
+);
+
+check(
   "and per site means PER SITE — another airport gets its own, from the site table",
-  sp.evidenceFolder("FAOR", "2026-09") ===
-    "Evidence/O.R. Tambo International Airport FAOR/2026-09",
+  sp.evidenceFolder("FAOR", "2026-09", "Evidence") ===
+    "O.R. Tambo International Airport FAOR/2026-09",
   "nothing is hardcoded to King Shaka; a new airport gets the shape for free"
 );
 
@@ -400,20 +435,21 @@ check(
 
 check(
   "TWO VISITS TO ONE AIRPORT DO NOT SHARE A FOLDER",
-  sp.evidenceFolder("FALE", "2026-09") !== sp.evidenceFolder("FALE", "2027-03"),
+  sp.evidenceFolder("FALE", "2026-09", "Evidence") !==
+    sp.evidenceFolder("FALE", "2027-03", "Evidence"),
   "the filename repeats across visits and the upload replaces on conflict"
 );
 
 check(
   "the folder sorts, because 2026-09 does and Sep 2026 does not",
-  /\/\d{4}-\d{2}$/.test(sp.evidenceFolder("FALE", "2026-09"))
+  /\/\d{4}-\d{2}$/.test(sp.evidenceFolder("FALE", "2026-09", "Evidence"))
 );
 
 check(
   "and the plan's folder carries the visit it was built for",
   (() => {
-    const p = sp.buildPlan({ ...BASE, visit: "2027-03" }, NOTHING);
-    return p.folder.endsWith("/2027-03");
+    const p = sp.buildPlan({ ...BASE, visit: "2027-03", library: "Evidence" }, NOTHING);
+    return p.folder === "King Shaka International Airport FALE/2027-03";
   })()
 );
 
@@ -425,7 +461,7 @@ check(
     /* photoObjectPath is `FALE/2026-09/...`; the portal folder now ends the
        same way, so somebody looking at both stores sees one audit twice rather
        than two schemes. */
-    return sp.evidenceFolder("FALE", "2026-09").endsWith("/2026-09");
+    return sp.evidenceFolder("FALE", "2026-09", "Evidence").endsWith("/2026-09");
   })()
 );
 
