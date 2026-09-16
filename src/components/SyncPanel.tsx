@@ -35,6 +35,8 @@ import {
   buildPlan,
   columnContract,
   mapFields,
+  canJoin,
+  joinRefusal,
   planTotals,
   projectFields,
   CHECK_FIELDS,
@@ -231,6 +233,15 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
     ...(resolved?.findingList?.map.missing ?? []).map((m) => `Findings · ${m}`),
   ];
 
+  /* THE JOIN KEY, SEPARATED OUT FROM THE REST OF THE GAPS.
+     A missing Owner column costs one field. A missing Title costs idempotency:
+     rows written without one can never be found again, so every run recreates
+     them. That is a refusal, not an item in a list of skipped fields. */
+  const unjoinable = [
+    resolved?.checkList && !canJoin(resolved.checkList.map) ? "Check-points" : null,
+    resolved?.findingList && !canJoin(resolved.findingList.map) ? "Findings" : null,
+  ].filter((v): v is string => !!v);
+
   /* WHAT IS READY AND WHAT IS NOT, as a list rather than as an absence.
    *
    *  This screen used to be unreachable until the whole thing worked: the
@@ -313,9 +324,11 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       state: !resolved ? "waiting" : missing.length === 0 ? "ok" : "todo",
       detail: !resolved
         ? "Checked when the portal is read."
-        : missing.length === 0
-          ? "Nothing will be silently dropped."
-          : `${missing.length} field${missing.length === 1 ? "" : "s"} would be skipped: ${missing.join(", ")}. Add the columns below, or accept the gap — the plan will keep saying so.`,
+        : unjoinable.length
+          ? `${unjoinable.join(" and ")} ${unjoinable.length === 1 ? "has" : "have"} no writable Title, which is the key every row is matched on. Nothing will be written there until that is fixed — see below.`
+          : missing.length === 0
+            ? "Nothing will be silently dropped."
+            : `${missing.length} field${missing.length === 1 ? "" : "s"} would be skipped: ${missing.join(", ")}. Add the columns below, or accept the gap — the plan will keep saying so.`,
     },
   ];
 
@@ -482,6 +495,12 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                   </Note>
                 )}
 
+                {unjoinable.map((l) => (
+                  <Note key={l} tone="bad">
+                    <b>{l} cannot be written to.</b> {joinRefusal(l)}
+                  </Note>
+                ))}
+
                 {missing.length > 0 && (
                   <Note tone="warn">
                     <b>{missing.length} field{missing.length === 1 ? " has" : "s have"} no column</b> and
@@ -521,9 +540,13 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                     variant="primary"
                     className="ml-auto"
                     onClick={run}
-                    disabled={stage === "writing" || totals.writes === 0}
+                    disabled={stage === "writing" || totals.writes === 0 || unjoinable.length > 0}
                   >
-                    {stage === "writing" ? "Writing…" : `Write ${totals.writes} to the portal`}
+                    {stage === "writing"
+                      ? "Writing…"
+                      : unjoinable.length
+                        ? "Cannot write — no Title column"
+                        : `Write ${totals.writes} to the portal`}
                   </Btn>
                 </div>
               </>
@@ -640,13 +663,24 @@ function Tile({ n, label, strong }: { n: number; label: string; strong?: boolean
   );
 }
 
-function Note({ tone, children }: { tone: "warn" | "good" | "plain"; children: React.ReactNode }) {
+function Note({
+  tone,
+  children,
+}: {
+  /* "bad" is not a louder "warn". Warn is a gap somebody may accept — a field
+     that will not be written. Bad is a refusal: the sync will not run at all
+     until it is fixed. */
+  tone: "warn" | "good" | "plain" | "bad";
+  children: React.ReactNode;
+}) {
   const s =
     tone === "warn"
       ? { background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }
-      : tone === "good"
-        ? { background: "var(--good-bg)", borderColor: "var(--good-line)", color: "var(--good)" }
-        : { background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-2)" };
+      : tone === "bad"
+        ? { background: "var(--bad-bg)", borderColor: "var(--bad-line)", color: "var(--bad)" }
+        : tone === "good"
+          ? { background: "var(--good-bg)", borderColor: "var(--good-line)", color: "var(--good)" }
+          : { background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-2)" };
   return (
     <p className="mb-2 rounded-[10px] border px-[11px] py-[8px] text-[11.5px] leading-[1.5]" style={s}>
       {children}
