@@ -639,6 +639,186 @@ check(
   })()
 );
 
+/* THE PHOTOGRAPHS CARRY THEIR METADATA, AND THE CHECK-POINT NAMES THEM.
+ *
+ * Prince Mahlangu on the first five files to reach the library, 17 September
+ * 2026: "They carry no metadata at all: CheckID, AssetSystem,
+ * PhotographReference, CaptionSource and AttachedBy are blank, and the Photos
+ * column on the check-points is empty, so nothing links a picture to its
+ * check-point."
+ *
+ * Never written rather than written wrongly — the upload PUT the bytes and
+ * stopped. A photograph filed under no check-point is an image in a folder. */
+
+const WITH_PHOTO = {
+  ...BASE,
+  responses: {
+    "KSIA-ELE-001": {
+      compliance: "NC",
+      observation: "Busbar corroded",
+      attachments: [
+        {
+          id: "a1", kind: "photo", name: "n", blobKey: "b1",
+          ref: "KSIA-ELE-001_P01", caption: "Corroded busbar, MV board 3B",
+          captionSource: "auditor", createdBy: "Sarel Jansen van Rensburg",
+          location: "North switch room", takenAt: Date.UTC(2026, 8, 16, 9, 30),
+        },
+        {
+          id: "a2", kind: "photo", name: "n2", blobKey: "b2",
+          ref: "KSIA-ELE-001_P02", caption: "Assistant wrote this one",
+          captionSource: "assistant", createdBy: "Sarel Jansen van Rensburg",
+        },
+      ],
+    },
+  },
+};
+
+check(
+  "EVERY COLUMN PRINCE NAMED IS FILLED, none of them blank",
+  (() => {
+    const v = sp.buildPlan(WITH_PHOTO, NOTHING).evidence[0].values;
+    return (
+      v.checkId === "KSIA-ELE-001" &&
+      v.photographReference === "KSIA-ELE-001_P01" &&
+      v.assetSystem &&
+      v.discipline &&
+      v.caption === "Corroded busbar, MV board 3B" &&
+      v.captionSource === "Auditor" &&
+      v.attachedBy === "Sarel Jansen van Rensburg"
+    );
+  })(),
+  JSON.stringify(sp.buildPlan(WITH_PHOTO, NOTHING).evidence[0].values)
+);
+
+check(
+  "the CheckID is the PORTAL id, which is what the check-points list joins on",
+  sp.buildPlan(WITH_PHOTO, NOTHING).evidence[0].values.checkId === "KSIA-ELE-001",
+  "a library row keyed on anything else links to nothing"
+);
+
+check(
+  "an assistant's caption says so, in words, not as a token nobody can read",
+  (() => {
+    const e = sp.buildPlan(WITH_PHOTO, NOTHING).evidence;
+    return /assistant/i.test(e[1].values.captionSource) && e[0].values.captionSource === "Auditor";
+  })(),
+  "a caption an auditor wrote and one a model proposed are not the same evidence"
+);
+
+check(
+  "where the photograph was taken and when it was taken travel too",
+  (() => {
+    const v = sp.buildPlan(WITH_PHOTO, NOTHING).evidence[0].values;
+    return v.location === "North switch room" && /^2026-09-16T/.test(v.takenAt);
+  })()
+);
+
+check(
+  "THE CHECK-POINT ROW NAMES ITS PHOTOGRAPHS — the other half of the complaint",
+  (() => {
+    const row = sp.buildPlan(WITH_PHOTO, NOTHING).checkpoints.find((r) => r.key === "KSIA-ELE-001");
+    return row.values.photos === "KSIA-ELE-001_P01, KSIA-ELE-001_P02";
+  })(),
+  sp.buildPlan(WITH_PHOTO, NOTHING).checkpoints.find((r) => r.key === "KSIA-ELE-001")?.values.photos
+);
+
+check(
+  "a check with no photographs leaves the column ALONE rather than blanking it",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE, responses: { "KSIA-ELE-001": { compliance: "C", observation: "fine", attachments: [] } } },
+      NOTHING
+    );
+    const row = p.checkpoints[0];
+    /* Absent, not "". An update with "" would wipe whatever ACSA has there —
+       the rule Sarel set on 16 September: overwrite a value, never with a
+       blank. */
+    return !("photos" in row.values);
+  })()
+);
+
+check(
+  "photos is in the check-point contract, so the column gets asked for",
+  sp.CHECK_FIELDS.includes("photos") &&
+    sp.columnContract(sp.CHECK_FIELDS).some((c) => c.create === "Photos")
+);
+
+check(
+  "the EVIDENCE LIBRARY has a column contract of its own, in Prince's own names",
+  (() => {
+    const c = sp.columnContract(sp.EVIDENCE_FIELDS).map((x) => x.create);
+    return ["CheckID", "PhotographReference", "CaptionSource", "AttachedBy"].every((n) =>
+      c.includes(n)
+    );
+  })(),
+  sp.columnContract(sp.EVIDENCE_FIELDS).map((x) => x.create).join(", ")
+);
+
+check(
+  "and every one of those names is one the matcher would actually accept",
+  (() => {
+    const cols = sp.columnContract(sp.EVIDENCE_FIELDS).map((c, i) => ({
+      name: `field_${i}`, displayName: c.create, readOnly: false,
+    }));
+    const map = sp.mapFields(cols, [...sp.EVIDENCE_FIELDS]);
+    return map.missing.length === 0;
+  })(),
+  "a column called something Squawk does not recognise is silently skipped"
+);
+
+check(
+  "AN INSPECTION'S PHOTOGRAPH IS LABELLED TOO, with its own id as the CheckID",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        adhoc: [
+          {
+            id: "WALK-A3F2K", title: "Cracked kerb",
+            attachments: [{ id: "w1", kind: "photo", name: "n", blobKey: "b9", ref: "WALK-A3F2K_P01", caption: "Kerb", createdBy: "Sarel" }],
+          },
+        ],
+      },
+      NOTHING
+    );
+    const v = p.evidence[0].values;
+    /* Discipline and asset system blank rather than guessed: an inspection is
+       something seen on a walk, not an item off the register. An empty column
+       reads as "not applicable here"; a wrong one reads as fact. */
+    return v.checkId === "WALK-A3F2K" && v.discipline === "" && v.assetSystem === "";
+  })()
+);
+
+check(
+  "THE GRAPH LAYER CAN WRITE A FILE'S COLUMNS, and does it as a PATCH",
+  /setFileFields/.test(graphSrc) &&
+    /\/listItem\/fields`/.test(graphSrc) &&
+    /method: "PATCH"/.test(graphSrc),
+  "a PATCH is an update; the account is Contribute WITHOUT delete"
+);
+
+check(
+  "the upload hands back the item id rather than looking it up again by path",
+  /Promise<\{ id: string; webUrl: string \}>/.test(graphSrc),
+  "a second lookup is a round trip and a chance to address the wrong file"
+);
+
+check(
+  "AND THE PANEL ACTUALLY WRITES THEM after each upload",
+  /graph\.setFileFields\(/.test(panel) && /projectFields\(resolved\.driveMap/.test(panel),
+  "this is the step that did not exist; the upload PUT the bytes and stopped"
+);
+
+check(
+  "a metadata failure is NOT reported as a failed upload",
+  (() => {
+    /* The file is in the library and correct. Calling that a failed upload
+       sends somebody looking for a photograph that is right there. It is still
+       said out loud — unlabelled is rendered, not swallowed. */
+    return /unlabelled\.push\(/.test(panel) && /result\.unlabelled\.length > 0 &&/.test(panel);
+  })()
+);
+
 check(
   "photographs on an answered check are queued for upload",
   (() => {

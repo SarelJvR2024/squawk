@@ -303,6 +303,23 @@ Three things to know before you press anything:
       International FALE`, not `King Shaka International Airport FALE`. The sync
       reads the library's top level and writes into the one it finds. Two King
       Shaka folders side by side is the regression to watch for.
+- [ ] **EVERY PHOTOGRAPH CARRIES ITS COLUMNS.** Open the library, switch to a
+      view with the columns showing, and each file should have **CheckID**,
+      **PhotographReference**, **Discipline**, **AssetSystem**, **Caption**,
+      **CaptionSource**, **AttachedBy**, and Location/TakenAt where they were
+      captured. Blank CheckID is the regression: the first five files had every
+      one of these empty, because nothing wrote them.
+- [ ] **An assistant caption says so in words** — *"Assistant, accepted by the
+      auditor"*, not the raw token.
+- [ ] **The check-point row names its photographs.** `KSIA-ELE-001` should have
+      a **Photos** value reading `KSIA-ELE-001_P01, KSIA-ELE-001_P02`. A check
+      with no photographs leaves the column alone rather than blanking it.
+- [ ] **A missing library column is named before the write**, not after —
+      tick the photographs box and the readiness step should list any
+      `Evidence · …` field the library has no column for.
+- [ ] **An upload that lands but cannot be labelled says exactly that.** The
+      summary must NOT count it as a failed upload — the file is there and
+      correct — and must still name it.
 - [ ] **The path does not repeat the library's own name.** The first five real
       photographs landed in `Evidence/Evidence/King Shaka…` because the folder
       was prefixed `Evidence/` inside a library already called Evidence. The

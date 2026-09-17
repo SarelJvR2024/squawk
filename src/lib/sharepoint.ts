@@ -164,6 +164,31 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
   assessedOn: ["Assessed on", "Date assessed", "Assessed"],
   reference: ["Reference", "Source"],
   assets: ["Assets", "Asset", "Asset tag", "Asset ID", "Equipment"],
+  /* THE PHOTOGRAPH COLUMNS. Prince Mahlangu, 17 September 2026, on the first
+     five files to reach the library: "They carry no metadata at all: CheckID,
+     AssetSystem, PhotographReference, CaptionSource and AttachedBy are blank,
+     and the Photos column on the check-points is empty, so nothing links a
+     picture to its check-point."
+
+     He is right, and it was never written rather than written wrongly: the
+     upload PUT the bytes and stopped. A photograph filed under no check-point
+     is an image in a folder, not evidence. His own column names lead each
+     list, because those are the ones the library actually has. */
+  checkId: ["CheckID", "Check ID", "Check-point", "Check point", "CheckPoint"],
+  photographReference: [
+    "PhotographReference", "Photograph reference", "Photograph Reference",
+    "Photo reference", "PhotoRef",
+  ],
+  captionSource: ["CaptionSource", "Caption source", "Caption Source"],
+  attachedBy: ["AttachedBy", "Attached by", "Attached By", "Captured by", "Photographer"],
+  caption: ["Caption", "Description", "What it shows"],
+  location: ["Location", "Where", "Where taken"],
+  takenAt: ["TakenAt", "Taken at", "Taken On", "Date taken", "Photograph date"],
+  /* On the CHECK-POINT row, not on the file: the references of every
+     photograph filed against that check, so a reader on the check-point can
+     see there is evidence and what it is called. The other half of Prince's
+     second point. */
+  photos: ["Photos", "Photographs", "Photograph", "Evidence"],
 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -193,6 +218,19 @@ export const LIST_NAMES = {
 
 export const CHECK_FIELDS = [
   "title", "discipline", "assetSystem", "compliance", "observation", "auditor", "assessedOn",
+  "photos",
+] as const;
+
+/** The columns on the EVIDENCE LIBRARY itself — metadata on the uploaded file,
+ *  not on a list row. Every one of these is something the library cannot
+ *  reconstruct from the file: which check-point the photograph answers, what it
+ *  shows, whether a person or the assistant wrote that, and who attached it.
+ *
+ *  A library with no `checkId` on its files is a folder of JPEGs. That is what
+ *  the first upload produced, and the reason this list exists. */
+export const EVIDENCE_FIELDS = [
+  "checkId", "photographReference", "discipline", "assetSystem", "caption",
+  "captionSource", "attachedBy", "location", "takenAt",
 ] as const;
 
 export const FINDING_FIELDS = [
@@ -554,6 +592,11 @@ export interface PlannedFile {
    *  this device", when the record held every one of them. */
   attachment: Attachment;
   caption: string;
+  /** The library columns for this file, in the same shape as PlannedRow.values
+   *  so projectFields writes both the same way. Everything the library cannot
+   *  work out from the bytes: which check-point it answers, what it shows, who
+   *  attached it. See EVIDENCE_FIELDS. */
+  values: Record<string, string>;
 }
 
 export interface SyncPlan {
@@ -795,6 +838,37 @@ export function mintPortalId(
 export const NC_WITHOUT_DETAIL =
   "Non-compliant. No supporting evidence or observation was recorded during the audit — detail to follow from the audit team.";
 
+/** The library columns for one photograph.
+ *
+ *  `captionSource` is spelled out rather than passed through as the stored
+ *  token: "assistant" in a portal column read by ACSA should say what it means,
+ *  because the difference between a caption an auditor wrote and one a model
+ *  proposed is exactly the kind of thing that gets lost and should not be.
+ *  Absent means an auditor typed it, which is the same rule the export uses. */
+function evidenceValues(
+  a: Attachment,
+  checkId: string,
+  discipline: string,
+  assetSystem: string
+): Record<string, string> {
+  return {
+    checkId,
+    photographReference: a.ref ?? "",
+    discipline,
+    assetSystem,
+    caption: a.caption?.trim() ?? "",
+    captionSource:
+      a.captionSource === "assistant"
+        ? "Assistant, accepted by the auditor"
+        : a.caption?.trim()
+          ? "Auditor"
+          : "",
+    attachedBy: a.createdBy ?? "",
+    location: a.location?.trim() ?? "",
+    takenAt: a.takenAt ? new Date(a.takenAt).toISOString() : "",
+  };
+}
+
 export function buildPlan(
   x: SyncInput,
   existing: { checkpoints: Map<string, string>; findings: Map<string, string> },
@@ -816,7 +890,9 @@ export function buildPlan(
     }
     const key = portalIdFor(x.entity, c.id);
     const itemId = existing.checkpoints.get(key);
-    checkpoints.push({
+    /* Held rather than pushed inline, because the photograph walk below fills
+       in its `photos` column once it knows what the references are. */
+    const row: PlannedRow = {
       key,
       action: itemId ? "update" : "create",
       itemId,
@@ -851,8 +927,10 @@ export function buildPlan(
         assessedOn: new Date().toISOString(),
       },
       summary: `${key} · ${c.discipline} · ${r.compliance}${r.evidencePending ? " (evidence pending)" : ""}`,
-    });
+    };
+    checkpoints.push(row);
 
+    const refs: string[] = [];
     for (const a of r.attachments ?? []) {
       /* Either source will do. `unavailable` is the one real exclusion: it is
          set when the browser evicted the image and there is no record copy,
@@ -860,12 +938,18 @@ export function buildPlan(
       if (a.kind !== "photo" || a.unavailable) continue;
       if (!a.blobKey && !a.cloudUrl) continue;
       evidence.push({
-        checkId: c.id,
+        checkId: key,
         filename: photoFilename(a),
         attachment: a,
         caption: a.caption?.trim() ?? "",
+        values: evidenceValues(a, key, c.discipline, c.system),
       });
+      /* And the other direction: the check-point row names its photographs, so
+         a reader on the check-point can see there IS evidence and what it is
+         called, rather than having to go looking in a library. */
+      if (a.ref) refs.push(a.ref);
     }
+    if (refs.length) row.values.photos = refs.join(", ");
   }
   if (unanswered) {
     skipped.push({
@@ -928,6 +1012,11 @@ export function buildPlan(
         filename: photoFilename(a),
         attachment: a,
         caption: a.caption?.trim() ?? "",
+        /* An inspection has no register discipline or asset system — it is a
+           thing seen on a walk, not an item off the list. Blank rather than
+           guessed: an empty column reads as "not applicable here", a wrong one
+           reads as fact. */
+        values: evidenceValues(a, item.id, "", ""),
       });
     }
   }
