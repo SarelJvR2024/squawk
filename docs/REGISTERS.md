@@ -1,10 +1,12 @@
 # The project's own registers and logs
 
-What TPJV has to keep during the ACSA Asset Assurance engagement, beyond the
-audit capture itself — and which of it Squawk takes over.
+What TPJV keeps during the ACSA Asset Assurance engagement, beyond the audit
+capture itself — and which of it Squawk takes over.
 
-Researched 17 September 2026 from the sources at the bottom. **Nothing here is
-built yet.** This is the list the build works from.
+**Rewritten 17 September 2026** against TPJV's own documents. The first version
+of this file was inferred from ACSA's procedures because the template set was
+empty; TK-003 and SF-005 have since arrived, and the inferred six-form list was
+wrong in three places. What follows is read off the real documents.
 
 ---
 
@@ -19,28 +21,46 @@ So the line is drawn at **a form somebody fills in and signs**, not at
 "anything the project keeps". A certificate is a document — it gets stored, not
 re-typed. An attendance sheet is a form — it gets replaced.
 
-That rule takes this list from about twenty-five items to six, which is the
-point of having it.
-
 ---
 
-## 1 · Forms the tablet replaces
+## 1 · The forms the tablet replaces — TK-003
 
-Each of these is a page in a book somebody carries, fills in and signs. All six
-are the same shape: a person, a date, a signature.
+`TPJV-ACSA-AA-TK-003 Field Forms`, 2 September 2026. Eight forms, carried on
+site in hard copy today. All eight are in scope: each is a page somebody fills
+in and signs on site.
 
-| Register | Signed by | When | Why it is on the list |
-|---|---|---|---|
-| **Attendance** | each person | daily, per site | Who was on site, on the day a finding was raised |
-| **PPE issue** | receiver | on issue and on replacement | Standard SHE file requirement |
-| **Induction** | inductee | once per person per site | **S010 011M §4.15(b)** — ACSA OHS induction before site access, explicitly |
-| **Toolbox talk** | attendees | per talk | Standard; the topic is worthless without who heard it |
-| **Site diary** | site lead | daily | The project filing plan has `13. Site Working Documents`, and it is empty |
-| **Incident / near-miss** | reporter | as it happens | A report written later is a report written differently |
+| # | Form | Completed | Signed by | Feeds |
+|---|---|---|---|---|
+| 1 | **Immediate Safety Finding** | on identification, without delay | reporter + ACSA escort | SF-005 sheet 9 |
+| 2 | **Site Attendance & Induction Confirmation** | on arrival, each day | each person, per day | SF-005 sheet 4 |
+| 3 | **PPE Check** | before entering site, each day | checker | SF-005 sheet 6 |
+| 4 | **Escort & Access Log** | continuously while airside | — | SF-005 sheet 4 |
+| 5 | **Incident / Near-Miss Report** | on any incident | completer + competent person | SF-005 sheet 8 |
+| 6 | **Toolbox Talk Record** | before each mobilisation | every attendee | SF-005 sheet 10 |
+| 7 | **Document & Evidence Collection Log** | as evidence is collected | collector | the findings register, TK-012 |
+| 8 | **Daily Site Closeout** | end of each site day | team lead + ACSA escort | confirms sheet 9 is complete |
+
+### Where the inferred list was wrong
+
+Worth recording, because the same mistake is easy to repeat:
+
+- **Form 4 (Escort & Access Log) was not on the inferred list at all.** It is
+  specific to how this contract actually works — escorted at all times airside
+  — and no generic SHE-file list would have produced it.
+- **Form 8 (Daily Site Closeout) was inferred as a "site diary".** It is not a
+  diary. It is a closeout check whose real purpose is the line *"any safety
+  findings today (Y/N) — all logged in SF-005 sheet 9 (Y/N)"*: it exists to
+  catch a finding that was raised and not reported.
+- **Form 7 (Document & Evidence Collection Log) was missed**, because it looks
+  like audit capture. It is not — it tracks *ACSA's* documents handed over on
+  site, which is a chain-of-custody record, not an observation.
+
+Form 1 is the one to build first. It is the only form whose value is destroyed
+by delay, and SWP-07 requires written notification the same day.
 
 ### What this needs that Squawk does not have
 
-**A signature.** Attendance, PPE and induction are worth nothing unsigned — an
+**A signature.** Forms 2, 3, 5, 6 and 8 are worth nothing unsigned — an
 attendance register without signatures is a list somebody typed.
 
 Signature capture has to be held to the same rules as a photograph, and for the
@@ -52,12 +72,46 @@ same reason:
   is a signature that can be lost;
 - never silently dropped — a capture that could not be stored says so.
 
-That is the only genuinely new capability in the six. Everything else is a form
-over data the app already knows how to hold.
+Form 1 and Form 8 additionally need an **ACSA escort signature**, which is a
+second person signing on our device. That is a different trust question from a
+team member signing, and it is worth deciding deliberately rather than by
+default.
 
 ---
 
-## 2 · Forms the tablet tracks but must NOT replace
+## 2 · The registers the forms feed — SF-005
+
+`TPJV-ACSA-AA-SF-005 H&S Live Registers`, 1 September 2026. Thirteen sheets,
+kept live across all ten sites for the duration of the contract.
+
+| Sheet | Register | Fed by | App role |
+|---|---|---|---|
+| 1 | Cover | — | — |
+| 2 | Legal Appointments | appointment letters | store only |
+| 3 | Competent Persons | certificates | store only |
+| 4 | Induction & Access | TK-003 forms 2 and 4 | **generated** |
+| 5 | Training Record | certificates | store only |
+| 6 | PPE Register | TK-003 form 3 | **generated** |
+| 7 | Medical Surveillance | certificates | store only |
+| 8 | Incident & Near-Miss | TK-003 form 5 | **generated** |
+| 9 | Immediate Safety Findings | TK-003 form 1 | **generated** |
+| 10 | Toolbox Talks | TK-003 form 6 | **generated** |
+| 11 | Emergency Contacts | ACSA, at site induction | store only |
+| 12 | Document & Permit Tracker | correspondence | store only |
+| 13 | COIDA & Insurance | certificates | store only |
+
+The sheet numbers matter: **TK-003 cites them directly** — form 1 says *"logged
+in SF-005 sheet 9"*, form 8 asks *"all logged in SF-005 sheet 9 (Y/N)"*. Any
+screen or export the app produces has to use the same numbers, or a form and a
+register will disagree about which is which.
+
+The distinction matters: **five registers become a derived view** the app emits
+from captured forms, and the app should never ask anyone to type them. The rest
+hold documents, and the app at most tracks whether one is current.
+
+---
+
+## 3 · Forms the tablet tracks but must NOT replace
 
 These are **ACSA's own forms, issued to TPJV**. We hold the paper. Replacing
 them is not ours to do; knowing they are valid is.
@@ -73,12 +127,12 @@ replacement. Useful, and a different job.
 
 ---
 
-## 3 · What stays out of the app entirely
+## 4 · What stays out of the app entirely
 
 **Documents.** Certificates of competency, medical fitness certificates,
-appointment letters, the Section 37(2) mandatary agreement (OHS 040), HIRAs,
-method statements, the SHE plan, the SHE file itself. These are stored and
-produced on demand; nobody re-types them into a tablet.
+appointment letters, the Section 37(2) mandatary agreement, baseline risk
+assessments, safe working procedures, the safety file itself. These are stored
+and produced on demand; nobody re-types them into a tablet.
 
 **Desk registers.** RFI, risk / early warning, actions, meeting minutes,
 compensation events, correspondence, document control. These are project
@@ -89,45 +143,44 @@ deliberately left out.
 
 ---
 
-## 4 · Known before building
+## 5 · Known before building
 
-The list above is **inferred from ACSA's requirements, not read off TPJV's own
-forms.** `05. Live Registers`, `08. Templates` and `13. Site Working Documents`
-in the project filing plan are all empty, so there is no template set to work
-from.
+The blocker recorded in the first version of this file — *"there is no template
+set to work from"* — **is now closed.** TK-003 and SF-005 are the templates,
+and the field names above are read off them rather than guessed.
 
-Two things are needed from Sarel before any of this is built:
+Two things remain open:
 
-1. **The forms themselves**, or photographs of the ones that go in the bag. The
-   fields matter — mine would be a guess, and a register with the wrong columns
-   is worse than none.
-2. **Whether anything is missing.** Six is what ACSA's procedure and standard
-   practice imply. It is not what a site lead necessarily carries.
+1. **Whether the ACSA escort signs on our device** (forms 1 and 8). A second
+   party signing on a TPJV tablet is a different proposition from a team member
+   signing, and it should be a decision rather than an implementation detail.
+2. **The risk classification of this work**, because it changes how much file is
+   needed. S010 011M §4.13 lists *"Consulting services"* under **Low Risk** —
+   annual audit. §4.11(c) lists *"Work on the airside"* as a **high-risk
+   activity** — monthly SHE file review audits, and below 90% the work permit is
+   revoked. TPJV are consultants doing airside work, and appear to meet both
+   descriptions. Raised with ACSA in the O.R. Tambo safety file (SF-006, part
+   B4); pending written confirmation.
 
-One question outstanding with ACSA, because it changes how much file is needed:
-
-> **S010 011M §4.13** lists *"Consulting services"* under **Low Risk** — annual
-> audit. **§4.11(c)** lists *"Work on the airside"* as a **high-risk activity** —
-> monthly SHE file review audits, and below 90% the work permit is revoked.
->
-> TPJV are consultants doing airside work. Which classification applies should
-> be confirmed in writing.
+The build itself waits until after the O.R. Tambo dry run, so that the forms
+are built against a site day that actually happened.
 
 ---
 
 ## Sources
 
+- **TPJV-ACSA-AA-TK-003 Field Forms**, 2 September 2026 — the eight forms in
+  section 1, read field by field.
+- **TPJV-ACSA-AA-SF-005 H&S Live Registers**, 1 September 2026 — the thirteen
+  registers in section 2.
+- **TPJV-ACSA-AA-SF-004 Safety Plan and SWPs**, Rev 01B, 2 September 2026 —
+  SWP-07 sets the reporting obligation Form 1 discharges.
 - **S010 011M Contractor Management Requirements Procedure**, version 3,
-  effective 19 May 2026 — the binding one. §4.5.1 lists the SHE file contents,
-  §4.8 the Permit to Work, §4.15 access and induction, §4.17 monthly reporting.
+  effective 19 May 2026. §4.5.1 SHE file contents, §4.8 Permit to Work, §4.15
+  access and induction, §4.17 monthly reporting, §§4.11/4.13 risk
+  classification.
 - **NEC3 Professional Services Contract COR 7633/2024/RFP**, signed 29 April
   2026, on the portal under `Contract/01 Signed contract/`. **Not yet read in
-  full** — the NEC obligations above come from the standard form and the
-  kick-off minutes, not from its Z-clauses. Reading it properly will change
-  section 3.
-- **Onboarding / kick-off minutes**, 7 July 2026 — monthly RFI, monthly progress
-  meetings whose minutes *are* the progress report, permit contingency funding,
-  specialist studies by on-site contractors.
-- **The project filing plan** itself, `01 Projects/ACSA Asset Assurance/` —
-  thirteen numbered folders, of which `05. Live Registers` is the one this
-  document is about.
+  full** — the NEC obligations cited elsewhere come from the standard form and
+  the kick-off minutes, not from its Z-clauses.
+- **Onboarding / kick-off minutes**, 7 July 2026.
