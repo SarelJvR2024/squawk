@@ -44,7 +44,10 @@ export interface Site {
   icao: string;
   name: string;
   class: SiteClass;
-  audit: { from: string; to: string; visit: string };
+  /** `tbc` means the MONTH is agreed and the days are not — from/to are the
+   *  month's bounds so comparisons still work, and nothing prints them as a
+   *  four-week audit. See auditWindow and syncedBeforeAudit. */
+  audit: { from: string; to: string; visit: string; tbc?: boolean };
   /** What Rev A2 says this site's count is. Asserted against the derived set. */
   checks: number;
   /** False for the five site codes ACSA will add to the portal next release. */
