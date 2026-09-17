@@ -236,7 +236,7 @@ export const EVIDENCE_FIELDS = [
 export const FINDING_FIELDS = [
   "title", "discipline", "assetSystem", "observation", "severity", "likelihood",
   "riskPriority", "tolerance", "status", "rootCause", "treatment", "owner",
-  "targetDate", "progress", "dateRaised", "assets",
+  "targetDate", "progress", "dateRaised", "assets", "photos",
 ] as const;
 
 /** The column contract, for a person to build against: the name to create, and
@@ -717,6 +717,10 @@ export interface EarlySync {
   to: string;
   /** Whole days from today until the audit opens. Always 1 or more. */
   days: number;
+  /** The month is agreed, the days are not. The warning says so rather than
+   *  quoting from/to, which are the month's bounds and would read as a
+   *  four-week audit nobody agreed to. */
+  tbc: boolean;
 }
 
 export function syncedBeforeAudit(entityCode: string, today: string): EarlySync | null {
@@ -727,7 +731,7 @@ export function syncedBeforeAudit(entityCode: string, today: string): EarlySync 
   if (now >= s.audit.from) return null;
   const day = 86_400_000;
   const days = Math.ceil((Date.parse(`${s.audit.from}T00:00:00Z`) - Date.parse(`${now}T00:00:00Z`)) / day);
-  return { site: s.name, icao: s.icao, from: s.audit.from, to: s.audit.to, days };
+  return { site: s.name, icao: s.icao, from: s.audit.from, to: s.audit.to, days, tbc: !!s.audit.tbc };
 }
 
 /** The folder THE LIBRARY ALREADY HAS for this site, if it has one.
@@ -867,6 +871,42 @@ function evidenceValues(
     location: a.location?.trim() ?? "",
     takenAt: a.takenAt ? new Date(a.takenAt).toISOString() : "",
   };
+}
+
+/** THE PHOTOGRAPHS BEHIND A HAZARD, by reference.
+ *
+ *  Sarel, 17 September 2026, with a screenshot of the portal's Findings list:
+ *  "findings tab is where the info goes." He is right that this is where ACSA
+ *  reads — a check-point row is the register, a finding is the thing somebody
+ *  has to act on — and a finding whose evidence you cannot find is an assertion.
+ *
+ *  Three hops, because that is genuinely how far apart they sit: a photograph
+ *  hangs off a CHECK, a finding names the check it came from, and a hazard
+ *  consolidates findings. Squawk never attached a photograph to a hazard
+ *  directly and should not start — the photograph is evidence of what was seen
+ *  at one check, and a hazard spanning four checks would otherwise claim all
+ *  four images as one observation.
+ *
+ *  Deduplicated and ordered: two findings on one check are ordinary after a
+ *  consolidation, and the same reference twice in a cell reads as two
+ *  photographs. */
+function hazardPhotoRefs(
+  h: Hazard,
+  findings: Finding[] | undefined,
+  responses: Record<string, Response>
+): string[] {
+  if (!findings?.length || !h.findingIds?.length) return [];
+  const mine = new Set(h.findingIds);
+  const refs = new Set<string>();
+  for (const f of findings) {
+    if (!mine.has(f.id) || !f.checkId) continue;
+    for (const a of responses[f.checkId]?.attachments ?? []) {
+      if (a.kind !== "photo" || a.unavailable || !a.ref) continue;
+      if (!a.blobKey && !a.cloudUrl) continue;
+      refs.add(a.ref);
+    }
+  }
+  return [...refs].sort();
 }
 
 export function buildPlan(
@@ -1037,6 +1077,7 @@ export function buildPlan(
     taken.add(key);
     const itemId = existing.findings.get(key);
     const priority = agreed ? erm.ermPriority(h.ermConsequence!, h.ermLikelihood!) : null;
+    const hazardRefs = hazardPhotoRefs(h, x.findings, x.responses);
     findings.push({
       key,
       action: itemId ? "update" : "create",
@@ -1059,6 +1100,9 @@ export function buildPlan(
         progress: flattenProgress(h.progress),
         assets: sendableAssets(h.assetIds).join(", ") || null,
         dateRaised: h.createdAt ? new Date(h.createdAt).toISOString() : null,
+        /* Absent, never "" — an update with an empty string would wipe
+           whatever ACSA has in the cell. Same rule as the check-point's. */
+        ...(hazardRefs.length ? { photos: hazardRefs.join(", ") } : {}),
       },
       summary: agreed
         ? `${key} · ${priority} · ${priority ? erm.ERM_PRIORITY_META[priority].tolerance : ""}`

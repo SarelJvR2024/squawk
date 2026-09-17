@@ -884,9 +884,11 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                     />
                     <span>
                       <b>
-                        {early.site} has not been audited yet — it is booked for{" "}
-                        {early.from} to {early.to}, {early.days} day
-                        {early.days === 1 ? "" : "s"} from now.
+                        {early.site} has not been audited yet —{" "}
+                        {early.tbc
+                          ? `it has moved to ${early.from.slice(0, 7)} and the dates are not confirmed`
+                          : `it is booked for ${early.from} to ${early.to}, ${early.days} day${early.days === 1 ? "" : "s"} from now`}
+                        .
                       </b>{" "}
                       You are about to write {writes} row{writes === 1 ? "" : "s"} against it, and
                       ACSA&rsquo;s dashboard shows every site at once, so they will read as audit results.

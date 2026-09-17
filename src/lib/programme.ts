@@ -29,6 +29,15 @@ export interface Entity {
   /** This site's Round 1 audit window, from the register's calendar. */
   auditFrom: string;
   auditTo: string;
+  /** THE MONTH IS AGREED, THE DAYS ARE NOT.
+   *
+   *  King Shaka's audit was 15–18 September 2026 and moved to December with no
+   *  dates confirmed (Sarel, 17 September 2026). from/to are the month's bounds
+   *  so that everything which sorts or compares still works; this flag stops
+   *  them being PRINTED as though ACSA had agreed to a month-long audit. */
+  auditTbc?: boolean;
+  /** Why the window moved, for somebody reading the calendar in six months. */
+  auditNote?: string;
   /** Physical zones on the site. Empty until ACSA supplies real names. */
   zones: string[];
 }
@@ -61,8 +70,12 @@ const MONTHS = [
  *  table and the home screen's programme strip both print this, and a window
  *  that reads "15–18 Sep 2026" on one screen and "15 Sep – 18 Sep 2026" on the
  *  other reads as two different facts about the same audit. */
-export function auditWindow(from: string, to: string): string {
+export function auditWindow(from: string, to: string, tbc = false): string {
   const [fy, fm, fd] = from.split("-");
+  /* Unconfirmed prints the month and says so. "1–31 Dec 2026" would read as an
+     agreed four-week audit, which is a worse lie than admitting we do not have
+     the dates. */
+  if (tbc) return `${MONTHS[Number(fm) - 1]} ${fy} · dates to be confirmed`;
   const [, tm, td] = to.split("-");
   const day = (d: string) => String(Number(d));
   return fm === tm

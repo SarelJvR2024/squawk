@@ -417,6 +417,90 @@ check(
   "the doubled folder was exactly this, and a test is cheaper than another move"
 );
 
+/* THE FINDINGS ROW NAMES ITS PHOTOGRAPHS TOO.
+ *
+ * Sarel, 17 September 2026, with a screenshot of the portal's Findings list:
+ * "findings tab is where the info goes." A check-point row is the register; a
+ * finding is the thing somebody has to act on, and a finding whose evidence you
+ * cannot find is an assertion. Three hops to get there — photograph hangs off a
+ * CHECK, a finding names its check, a hazard consolidates findings. */
+
+const HAZ = {
+  ...BASE,
+  responses: {
+    "KSIA-ELE-001": {
+      compliance: "NC", observation: "Busbar corroded",
+      attachments: [
+        { id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-001_P01", caption: "c" },
+        { id: "a2", kind: "photo", name: "n", blobKey: "b2", ref: "KSIA-ELE-001_P02", caption: "c" },
+      ],
+    },
+    "KSIA-ELE-002": {
+      compliance: "NC", observation: "Second one",
+      attachments: [{ id: "a3", kind: "photo", name: "n", blobKey: "b3", ref: "KSIA-ELE-002_P01", caption: "c" }],
+    },
+  },
+  findings: [
+    { id: "f1", checkId: "KSIA-ELE-001" },
+    { id: "f2", checkId: "KSIA-ELE-002" },
+    { id: "f3", checkId: "KSIA-ELE-001" },
+  ],
+  hazards: [
+    {
+      id: "h1", portalId: "KSIA-ELE-P01", findingIds: ["f1", "f2", "f3"],
+      disciplines: ["Electrical"], systems: ["Switchgear"],
+      event: "Busbar failure", description: "d",
+      ermConfirmed: true, ermConsequence: "C", ermLikelihood: "3",
+      createdAt: Date.UTC(2026, 8, 16),
+    },
+  ],
+};
+
+check(
+  "A HAZARD'S ROW CARRIES THE PHOTOGRAPHS OF EVERY CHECK BEHIND IT",
+  (() => {
+    const row = sp.buildPlan(HAZ, NOTHING).findings.find((r) => r.key === "KSIA-ELE-P01");
+    return row.values.photos === "KSIA-ELE-001_P01, KSIA-ELE-001_P02, KSIA-ELE-002_P01";
+  })(),
+  sp.buildPlan(HAZ, NOTHING).findings.find((r) => r.key === "KSIA-ELE-P01")?.values.photos
+);
+
+check(
+  "TWO FINDINGS ON ONE CHECK DO NOT LIST ITS PHOTOGRAPHS TWICE",
+  (() => {
+    /* f1 and f3 are both on KSIA-ELE-001. Ordinary after a consolidation, and
+       the same reference twice in a cell reads as two photographs. */
+    const v = sp.buildPlan(HAZ, NOTHING).findings.find((r) => r.key === "KSIA-ELE-P01").values.photos;
+    return v.split(", ").length === new Set(v.split(", ")).size;
+  })()
+);
+
+check(
+  "a hazard with no findings behind it leaves the column ALONE, not blank",
+  (() => {
+    const p = sp.buildPlan(
+      { ...HAZ, hazards: [{ ...HAZ.hazards[0], findingIds: [] }] },
+      NOTHING
+    );
+    return !("photos" in p.findings.find((r) => r.key === "KSIA-ELE-P01").values);
+  })(),
+  "an update writing \"\" would wipe whatever ACSA has there"
+);
+
+check(
+  "a hazard claims only ITS OWN findings' photographs, not every photograph in the visit",
+  (() => {
+    const p = sp.buildPlan({ ...HAZ, hazards: [{ ...HAZ.hazards[0], findingIds: ["f2"] }] }, NOTHING);
+    return p.findings.find((r) => r.key === "KSIA-ELE-P01").values.photos === "KSIA-ELE-002_P01";
+  })(),
+  "a hazard spanning four checks must not claim all four images as one observation"
+);
+
+check(
+  "photos is in the FINDINGS contract as well, so the column gets asked for",
+  sp.FINDING_FIELDS.includes("photos")
+);
+
 /* A SITE NOBODY HAS AUDITED YET — the check that would have caught both Bram
  * Fischer incidents, added 16 September 2026 at Sarel's request. Every other
  * guard passed on those syncs, correctly: the rows carried the right BFIA
@@ -433,21 +517,25 @@ check(
   JSON.stringify(sp.syncedBeforeAudit("FABL", "2026-09-16"))
 );
 
+/* O.R. Tambo rather than King Shaka, because King Shaka's window moved to
+ * December with no dates and is no longer a confirmed one to test against.
+ * O.R. Tambo is 29 Sep to 2 Oct 2026 and is the next real audit. */
+
 check(
   "THE DAY BEFORE IS STILL BEFORE",
-  sp.syncedBeforeAudit("FALE", "2026-09-14")?.days === 1,
-  "King Shaka opens on the 15th"
+  sp.syncedBeforeAudit("FAOR", "2026-09-28")?.days === 1,
+  "O.R. Tambo opens on the 29th"
 );
 
 check(
   "the first morning of the audit is not early — the auditor is on site",
-  sp.syncedBeforeAudit("FALE", "2026-09-15") === null
+  sp.syncedBeforeAudit("FAOR", "2026-09-29") === null
 );
 
 check(
   "and nothing fires during the audit",
-  ["2026-09-15", "2026-09-16", "2026-09-17", "2026-09-18"].every(
-    (d) => sp.syncedBeforeAudit("FALE", d) === null
+  ["2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02"].every(
+    (d) => sp.syncedBeforeAudit("FAOR", d) === null
   )
 );
 
@@ -457,8 +545,8 @@ check(
  * within a week, which is worth less than no warning at all. */
 check(
   "NOTHING FIRES AFTER THE AUDIT, however long after",
-  ["2026-09-19", "2026-10-30", "2027-06-01"].every(
-    (d) => sp.syncedBeforeAudit("FALE", d) === null
+  ["2026-10-03", "2026-11-30", "2027-06-01"].every(
+    (d) => sp.syncedBeforeAudit("FAOR", d) === null
   ),
   "a warning that cries wolf on legitimate follow-up syncs is worse than none"
 );
@@ -466,13 +554,39 @@ check(
 check(
   "every one of the ten sites is early before its own window and not after",
   sites.SITES.every((s) => {
-    const before = sp.syncedBeforeAudit(s.entityCode, "2026-09-01");
+    const before = sp.syncedBeforeAudit(s.entityCode, "2026-08-01");
     const onDay = sp.syncedBeforeAudit(s.entityCode, s.audit.from);
     /* King Shaka is the only site already open on 1 September? No — none are;
        the first audit is 15 September. So all ten are early on 1 September. */
     return before !== null && before.days >= 1 && onDay === null;
   }),
   "derived from the site table, so a rescheduled audit moves the warning with it"
+);
+
+/* KING SHAKA MOVED TO DECEMBER with no dates confirmed (Sarel, 17 September
+ * 2026). The month is agreed and the days are not, so from/to are the month's
+ * bounds — everything that sorts or compares still works — and `tbc` stops them
+ * being printed as a four-week audit nobody agreed to. */
+
+check(
+  "an unconfirmed window still warns, and says the dates are not confirmed",
+  (() => {
+    const e = sp.syncedBeforeAudit("FALE", "2026-09-17");
+    return e && e.tbc === true && e.from.startsWith("2026-12");
+  })(),
+  JSON.stringify(sp.syncedBeforeAudit("FALE", "2026-09-17"))
+);
+
+check(
+  "KING SHAKA HAS A GUARD AGAIN — a slipped audit must not silently lose one",
+  sp.syncedBeforeAudit("FALE", "2026-09-17") !== null,
+  "its September window had passed, so the warning had gone quiet for the one site whose audit did not happen"
+);
+
+check(
+  "and the panel prints the month rather than the month's bounds",
+  /early\.tbc/.test(panel) && /dates are not confirmed/.test(panel),
+  "\"1 Dec to 31 Dec\" would read as an agreed four-week audit"
 );
 
 check(

@@ -247,7 +247,7 @@ export default function DashboardPage() {
                           {n.short}
                         </td>
                         <td className={cell} style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
-                          {n.auditFrom && n.auditTo ? auditWindow(n.auditFrom, n.auditTo) : "—"}
+                          {n.auditFrom && n.auditTo ? auditWindow(n.auditFrom, n.auditTo, n.auditTbc) : "—"}
                         </td>
                         <td className={num} style={{ borderColor: "var(--line)" }}>
                           {row?.checks ?? "—"}

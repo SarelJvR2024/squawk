@@ -329,6 +329,15 @@ Three things to know before you press anything:
       M written"* and every missing row is named underneath. **SILENT if it
       regresses** — the first real write reported "33 written. Everything in the
       plan reached the portal" while five photographs had gone nowhere.
+- [ ] **An unconfirmed audit window reads as a month, not as four weeks.** King
+      Shaka moved to December 2026 with no dates. The home screen and dashboard
+      should read *"Dec 2026 · dates to be confirmed"*, never "1–31 Dec 2026",
+      which would say ACSA agreed to a month-long audit.
+- [ ] **THE FINDINGS ROW NAMES ITS PHOTOGRAPHS.** A hazard consolidating two
+      findings on two checks should carry both checks' references in its Photos
+      column. Two findings on ONE check must not list that check's photographs
+      twice, and a hazard must never carry a photograph from a check that is not
+      behind one of its own findings.
 - [ ] **A site that has not been audited yet stops the write.** Switch the app
       to Bram Fischer (27–29 Oct), plan a sync, and the button should read
       *"Bram Fischer International Airport is not audited yet"* and refuse until

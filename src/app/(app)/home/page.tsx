@@ -355,7 +355,7 @@ export default function HomePage() {
                   {nextIsOpen && <Pill tone="good">OPEN NOW</Pill>}
                 </h2>
                 <p className="mt-[6px] text-[12.5px]" style={{ color: "var(--ink-2)" }}>
-                  {auditWindow(next.auditFrom, next.auditTo)} · {nextVisit.label} · {nextVisit.note}
+                  {auditWindow(next.auditFrom, next.auditTo, next.auditTbc)} · {nextVisit.label} · {nextVisit.note}
                 </p>
                 <p className="mt-[3px] text-[11.5px]" style={{ color: "var(--ink-3)" }}>
                   {checksAt(next.code).length} check-points on this site&apos;s list
@@ -623,7 +623,7 @@ export default function HomePage() {
                       {e.name}
                     </span>
                     <span className="font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>
-                      {auditWindow(e.auditFrom, e.auditTo)}
+                      {auditWindow(e.auditFrom, e.auditTo, e.auditTbc)}
                     </span>
                     <span className="text-[10px]" style={{ color: "var(--ink-4)" }}>
                       {checksAt(e.code).length} check-points
