@@ -188,7 +188,19 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
      photograph filed against that check, so a reader on the check-point can
      see there is evidence and what it is called. The other half of Prince's
      second point. */
-  photos: ["Photos", "Photographs", "Photograph", "Evidence"],
+  photos: ["Photos", "Photographs", "Photograph"],
+  /* A LINK, NOT A REFERENCE. The Photos column names the photographs; this one
+     gets you to them.
+     Sarel, 17 September 2026, choosing it over attaching the files: a reader on
+     a Findings row saw "KSIA-ELE-001_P01" as text and had three or four clicks
+     to the image. Attaching the real files would have meant a tenant-wide
+     SharePoint write scope in a browser token, a sync that could no longer be
+     safely re-run, and every photograph stored twice. A link is one click and
+     costs none of that.
+     Deliberately NOT sharing a candidate with `photos` — "Evidence" used to be
+     on both and two logical fields resolving to one column means the second
+     quietly overwrites the first. */
+  evidenceLink: ["EvidenceLink", "Evidence link", "Evidence folder", "Evidence", "Photos link"],
 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -218,7 +230,7 @@ export const LIST_NAMES = {
 
 export const CHECK_FIELDS = [
   "title", "discipline", "assetSystem", "compliance", "observation", "auditor", "assessedOn",
-  "photos",
+  "photos", "evidenceLink",
 ] as const;
 
 /** The columns on the EVIDENCE LIBRARY itself — metadata on the uploaded file,
@@ -236,7 +248,7 @@ export const EVIDENCE_FIELDS = [
 export const FINDING_FIELDS = [
   "title", "discipline", "assetSystem", "observation", "severity", "likelihood",
   "riskPriority", "tolerance", "status", "rootCause", "treatment", "owner",
-  "targetDate", "progress", "dateRaised", "assets", "photos",
+  "targetDate", "progress", "dateRaised", "assets", "photos", "evidenceLink",
 ] as const;
 
 /** The column contract, for a person to build against: the name to create, and
@@ -259,6 +271,15 @@ export interface FieldMap {
   /** logical name -> the options a Choice column will accept, read off the
    *  column itself. Absent for every other kind of column. See `portalChoice`. */
   choices: Record<string, string[]>;
+  /** The resolved fields whose column is a HYPERLINK, read off the column.
+   *
+   *  A hyperlink column does not take a string. Graph wants
+   *  `{ Url, Description }`, and writing the bare URL to one is rejected — so
+   *  this is not cosmetic, it decides whether the write lands at all. It is
+   *  read from the column rather than assumed, because the same field is a
+   *  plain text column on a list somebody built differently, and Squawk should
+   *  write whichever the list actually is. */
+  links: Record<string, true>;
 }
 
 /** Build the map from the list's own columns.
@@ -272,10 +293,16 @@ export function mapFields(
     displayName: string;
     readOnly?: boolean;
     choice?: { choices?: string[] };
+    hyperlinkOrPicture?: unknown;
   }[],
   wanted: string[]
 ): FieldMap {
-  type Col = { name: string; readOnly?: boolean; choice?: { choices?: string[] } };
+  type Col = {
+    name: string;
+    readOnly?: boolean;
+    choice?: { choices?: string[] };
+    hyperlinkOrPicture?: unknown;
+  };
   const byDisplay = new Map<string, Col>();
   for (const c of columns) byDisplay.set(norm(c.displayName), c);
   /* AND BY INTERNAL NAME, as a second pass.
@@ -302,6 +329,7 @@ export function mapFields(
   const resolved: Record<string, string> = {};
   const missing: string[] = [];
   const choices: Record<string, string[]> = {};
+  const links: Record<string, true> = {};
   for (const key of wanted) {
     const names = FIELD_CANDIDATES[key] ?? [];
     const hit =
@@ -310,9 +338,10 @@ export function mapFields(
     if (hit) {
       resolved[key] = hit.name;
       if (hit.choice?.choices?.length) choices[key] = hit.choice.choices;
+      if (hit.hyperlinkOrPicture) links[key] = true;
     } else missing.push(key);
   }
-  return { resolved, missing, choices };
+  return { resolved, missing, choices, links };
 }
 
 /* ------------------------------------------- speaking the column's language */
@@ -444,6 +473,16 @@ export function projectFields(
       out[col] = portalChoice(v, map.choices[key]) ?? v;
       continue;
     }
+    /* A HYPERLINK COLUMN DOES NOT TAKE A STRING. Graph wants
+       `{ Url, Description }`, and a bare URL is rejected — so this decides
+       whether the write lands, not how it looks. The description is the last
+       path segment, which is the visit folder ("2026-09"), because "click
+       here" in an audit record helps nobody. */
+    if (typeof v === "string" && map.links[key]) {
+      const label = decodeURIComponent(v.split("/").filter(Boolean).pop() ?? "Evidence");
+      out[col] = { Url: v, Description: label };
+      continue;
+    }
     out[col] = v;
   }
   return out;
@@ -548,6 +587,11 @@ export interface SyncInput {
    *  Undefined means the sync did not find one and the site table's own
    *  spelling is used. */
   siteFolder?: string | null;
+  /** The document library's own webUrl, straight off the drive rather than
+   *  built from its display name — "Shared Documents" lives at
+   *  /Shared%20Documents and guessing that is how a link column ends up
+   *  pointing at nothing. Undefined means no link is written at all. */
+  libraryUrl?: string;
   checks: Check[];
   responses: Record<string, Response>;
   /** The CONSOLIDATED view. The portal's Findings list receives hazards, not
@@ -909,11 +953,30 @@ function hazardPhotoRefs(
   return [...refs].sort();
 }
 
+/** The URL of this visit's evidence folder, for the link column.
+ *
+ *  Built from the library's own webUrl plus the folder the plan is already
+ *  writing to, so the link and the upload cannot disagree — the alternative was
+ *  assembling it from the library's DISPLAY name, and "Shared Documents" lives
+ *  at /Shared%20Documents.
+ *
+ *  Each segment is encoded separately: the folder is "King Shaka International
+ *  FALE/2026-09" and encodeURI would leave the slash alone but so would
+ *  encodeURIComponent on the whole string mangle it. */
+function evidenceFolderUrl(libraryUrl: string | undefined, folder: string): string {
+  const base = (libraryUrl ?? "").replace(/\/+$/, "");
+  if (!base) return "";
+  const path = folder.split("/").filter(Boolean).map(encodeURIComponent).join("/");
+  return path ? `${base}/${path}` : base;
+}
+
 export function buildPlan(
   x: SyncInput,
   existing: { checkpoints: Map<string, string>; findings: Map<string, string> },
   unconsolidatedFindings = 0
 ): SyncPlan {
+  const folder = evidenceFolder(x.entity, x.visit, x.library, x.siteFolder);
+  const folderUrl = evidenceFolderUrl(x.libraryUrl, folder);
   const checkpoints: PlannedRow[] = [];
   const findings: PlannedRow[] = [];
   const evidence: PlannedFile[] = [];
@@ -989,7 +1052,12 @@ export function buildPlan(
          called, rather than having to go looking in a library. */
       if (a.ref) refs.push(a.ref);
     }
-    if (refs.length) row.values.photos = refs.join(", ");
+    if (refs.length) {
+      row.values.photos = refs.join(", ");
+      /* Only where there are photographs to reach. A link on a row with no
+         evidence behind it sends a reader to a folder to find nothing. */
+      if (folderUrl) row.values.evidenceLink = folderUrl;
+    }
   }
   if (unanswered) {
     skipped.push({
@@ -1103,6 +1171,7 @@ export function buildPlan(
         /* Absent, never "" — an update with an empty string would wipe
            whatever ACSA has in the cell. Same rule as the check-point's. */
         ...(hazardRefs.length ? { photos: hazardRefs.join(", ") } : {}),
+        ...(hazardRefs.length && folderUrl ? { evidenceLink: folderUrl } : {}),
       },
       summary: agreed
         ? `${key} · ${priority} · ${priority ? erm.ERM_PRIORITY_META[priority].tolerance : ""}`
@@ -1165,7 +1234,7 @@ export function buildPlan(
     });
   }
 
-  return { checkpoints, findings, evidence, skipped, warnings, folder: evidenceFolder(x.entity, x.visit, x.library, x.siteFolder) };
+  return { checkpoints, findings, evidence, skipped, warnings, folder };
 }
 
 /** Asset links that are safe to send.

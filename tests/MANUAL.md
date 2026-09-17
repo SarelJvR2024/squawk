@@ -333,6 +333,14 @@ Three things to know before you press anything:
       Shaka moved to December 2026 with no dates. The home screen and dashboard
       should read *"Dec 2026 · dates to be confirmed"*, never "1–31 Dec 2026",
       which would say ACSA agreed to a month-long audit.
+- [ ] **The link works, and lands among the right photographs.** Both lists
+      should carry an **EvidenceLink** that opens
+      `Evidence/King Shaka International FALE/2026-09` in one click. It must be
+      a **Hyperlink** column, not text — Squawk writes `{ Url, Description }`,
+      and SharePoint rejects that on a text column. The link reads as the visit
+      (`2026-09`), never "click here".
+- [ ] **A row with no photographs has no link** — not a link to a folder with
+      nothing of theirs in it.
 - [ ] **THE FINDINGS ROW NAMES ITS PHOTOGRAPHS.** A hazard consolidating two
       findings on two checks should carry both checks' references in its Photos
       column. Two findings on ONE check must not list that check's photographs

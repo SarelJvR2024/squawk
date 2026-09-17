@@ -338,6 +338,10 @@ export async function lists(siteId: string): Promise<GraphList[]> {
 }
 
 export interface GraphColumn {
+  /** Present when the column is a Hyperlink or Picture. Its presence is the
+   *  whole signal — a hyperlink column takes { Url, Description }, not a
+   *  string, and a bare URL written to one is rejected. */
+  hyperlinkOrPicture?: unknown;
   /** The INTERNAL name — what a write actually addresses. */
   name: string;
   displayName: string;
@@ -362,7 +366,7 @@ export interface GraphColumn {
  *  not there is named and the sync refuses to start. */
 export async function columns(siteId: string, listId: string): Promise<GraphColumn[]> {
   return all<GraphColumn>(
-    `/sites/${siteId}/lists/${listId}/columns?$select=name,displayName,readOnly,choice&$top=200`
+    `/sites/${siteId}/lists/${listId}/columns?$select=name,displayName,readOnly,choice,hyperlinkOrPicture&$top=200`
   );
 }
 
@@ -430,7 +434,7 @@ export async function uploadEvidence(
  *  and resolving one to the other is an extra call to learn nothing. */
 export async function driveColumns(driveId: string): Promise<GraphColumn[]> {
   const r = await call<{ columns?: GraphColumn[] }>(
-    `/drives/${driveId}/list?$expand=columns($select=name,displayName,readOnly,choice)`
+    `/drives/${driveId}/list?$expand=columns($select=name,displayName,readOnly,choice,hyperlinkOrPicture)`
   );
   return r.columns ?? [];
 }
@@ -459,10 +463,15 @@ export async function setFileFields(
 export interface GraphDrive {
   id: string;
   name: string;
+  /** The library's real address. Needed for the evidence link column, and NOT
+   *  reconstructible from `name`: a library displayed as "Shared Documents"
+   *  lives at /Shared%20Documents, and one that has been renamed keeps the URL
+   *  it was created with. */
+  webUrl: string;
 }
 
 export async function drives(siteId: string): Promise<GraphDrive[]> {
-  return all<GraphDrive>(`/sites/${siteId}/drives?$select=id,name&$top=100`);
+  return all<GraphDrive>(`/sites/${siteId}/drives?$select=id,name,webUrl&$top=100`);
 }
 
 /** The names of the folders already at the top of a document library.
