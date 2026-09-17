@@ -411,12 +411,49 @@ export async function uploadEvidence(
   folderPath: string,
   filename: string,
   blob: Blob
-): Promise<{ webUrl: string }> {
+): Promise<{ id: string; webUrl: string }> {
   const path = `${folderPath}/${filename}`.replace(/^\/+/, "");
-  return call<{ webUrl: string }>(
+  /* The item id is what the metadata write needs, and it comes back on the
+     upload itself — asking for it again by path afterwards is a round trip and
+     a chance to address the wrong file. See setFileFields. */
+  return call<{ id: string; webUrl: string }>(
     `/drives/${driveId}/root:/${encodeURI(path)}:/content?@microsoft.graph.conflictBehavior=replace`,
     { method: "PUT", body: blob, headers: { "Content-Type": blob.type || "image/jpeg" } }
   );
+}
+
+/** The columns of a document library, for mapping evidence metadata.
+ *
+ *  A library IS a list in Graph's model, reached through the drive rather than
+ *  through the site's list collection, which is why this exists beside
+ *  `columns()` instead of reusing it: the caller has a driveId, not a listId,
+ *  and resolving one to the other is an extra call to learn nothing. */
+export async function driveColumns(driveId: string): Promise<GraphColumn[]> {
+  const r = await call<{ columns?: GraphColumn[] }>(
+    `/drives/${driveId}/list?$expand=columns($select=name,displayName,readOnly,choice)`
+  );
+  return r.columns ?? [];
+}
+
+/** Write the library columns on an uploaded file.
+ *
+ *  A PATCH on the file's listItem, which is an update and not a delete — the
+ *  service account is Contribute WITHOUT Delete and this stays inside that.
+ *
+ *  Separate from the upload on purpose. The bytes are the evidence; the
+ *  metadata makes them findable. If this fails the photograph is still in the
+ *  library and still correct, so a failure here is reported as its own thing
+ *  rather than as a failed upload — see the count in SyncPanel. */
+export async function setFileFields(
+  driveId: string,
+  itemId: string,
+  fields: Record<string, unknown>
+): Promise<void> {
+  if (!Object.keys(fields).length) return;
+  await call(`/drives/${driveId}/items/${itemId}/listItem/fields`, {
+    method: "PATCH",
+    body: JSON.stringify(fields),
+  });
 }
 
 export interface GraphDrive {

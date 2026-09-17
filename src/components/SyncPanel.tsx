@@ -48,6 +48,7 @@ import {
   FINDING_FIELDS,
   LIST_NAMES,
   siteFolderIn,
+  EVIDENCE_FIELDS,
   syncedBeforeAudit,
   type FieldMap,
   type PlannedRow,
@@ -74,6 +75,10 @@ interface Resolved {
   checkList: { id: string; map: FieldMap } | null;
   findingList: { id: string; map: FieldMap } | null;
   driveId: string | null;
+  /** The EVIDENCE LIBRARY'S own columns. A document library is a list, and its
+   *  columns are where a photograph's CheckID, reference and caption go — the
+   *  metadata that was blank on the first upload because nothing wrote it. */
+  driveMap: FieldMap | null;
   lists: string[];
   /* THE NAMES IT ACTUALLY CHOSE.
      The site has thirteen lists and the matcher takes the first whose name
@@ -109,7 +114,12 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
     siteCode: string;
   } | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number; what: string } | null>(null);
-  const [result, setResult] = useState<{ written: number; failed: { key: string; why: string }[] } | null>(null);
+  const [result, setResult] = useState<{
+    written: number;
+    failed: { key: string; why: string }[];
+    /** Uploaded but not labelled — see the metadata step in `run`. */
+    unlabelled: { key: string; why: string }[];
+  } | null>(null);
   /* PHOTOGRAPHS ARE OFF BY DEFAULT. Sarel, 16 September 2026: "we dont need to
      send the photos itself to sharepoint at this stage."
    *
@@ -204,11 +214,20 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
          sync falls back to the site table's spelling — so it does not take the
          read down with it. */
       let siteFolder: string | null = null;
+      let driveMap: FieldMap | null = null;
       if (drive?.id) {
         try {
           siteFolder = siteFolderIn(entityCode, await graph.rootFolders(drive.id));
         } catch {
           siteFolder = null;
+        }
+        /* Same treatment as the two lists: map by name, report what is missing,
+           never guess. A library with none of these columns still takes the
+           photographs — the bytes are the evidence — and the panel says so. */
+        try {
+          driveMap = mapFields(await graph.driveColumns(drive.id), [...EVIDENCE_FIELDS]);
+        } catch {
+          driveMap = null;
         }
       }
 
@@ -217,6 +236,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
         checkList: checkPart,
         findingList: findPart,
         driveId: drive?.id ?? null,
+        driveMap,
         lists: all.map((l) => l.displayName),
         chose: {
           checkList: checkList?.displayName ?? null,
@@ -245,6 +265,9 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
     setStage("writing");
     setError(null);
     const failed: { key: string; why: string }[] = [];
+    /* Uploaded, but its library columns did not get written. A different thing
+       from a failed write and reported as one. */
+    const unlabelled: { key: string; why: string }[] = [];
     let written = 0;
     const t = planTotals(plan);
     const total = t.writes - (sendPhotos ? 0 : t.photographs);
@@ -313,14 +336,36 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                auditor who joined the audit rather than taking the photographs
                still uploads every one of them. */
             const blob = await fullPhotoBlob(f.attachment, entityCode, visitId);
-            await graph.uploadEvidence(resolved.driveId, plan.folder, f.filename, blob);
+            const up = await graph.uploadEvidence(resolved.driveId, plan.folder, f.filename, blob);
             written++;
+            /* THE METADATA IS ITS OWN STEP, AND ITS OWN FAILURE.
+               Prince Mahlangu, 17 September 2026: "They carry no metadata at
+               all … nothing links a picture to its check-point." Nothing wrote
+               it — the upload PUT the bytes and stopped.
+               Counted apart from `failed` on purpose: if this throws, the
+               photograph IS in the library and IS correct, and calling that a
+               failed upload would send somebody looking for a missing file.
+               It is still said out loud; it is not swallowed. */
+            if (resolved.driveMap) {
+              try {
+                await graph.setFileFields(
+                  resolved.driveId,
+                  up.id,
+                  projectFields(resolved.driveMap, f.values, "create")
+                );
+              } catch (e) {
+                unlabelled.push({
+                  key: f.filename,
+                  why: e instanceof Error ? e.message : "the columns could not be written",
+                });
+              }
+            }
           } catch (e) {
             failed.push({ key: f.filename, why: e instanceof Error ? e.message : "failed" });
           }
         }
       }
-      setResult({ written, failed });
+      setResult({ written, failed, unlabelled });
       setStage("done");
     } catch (e) {
       /* Whatever stopped it, the rows that never went are not "everything
@@ -335,7 +380,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
         });
       }
       setError(why);
-      setResult({ written, failed });
+      setResult({ written, failed, unlabelled });
       setStage("done");
     } finally {
       setProgress(null);
@@ -367,6 +412,10 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   const missing = [
     ...(resolved?.checkList?.map.missing ?? []).map((m) => `Check-points · ${m}`),
     ...(resolved?.findingList?.map.missing ?? []).map((m) => `Findings · ${m}`),
+    /* Only when photographs are actually going. A library with no CheckID
+       column costs nothing on a rows-only sync, and a warning about a column
+       nobody is about to write is noise. */
+    ...(sendPhotos ? (resolved?.driveMap?.missing ?? []).map((m) => `Evidence · ${m}`) : []),
   ];
 
   /* THE JOIN KEY, SEPARATED OUT FROM THE REST OF THE GAPS.
@@ -894,6 +943,24 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                     ))}
                   </ul>
                 )}
+                {/* UPLOADED BUT NOT LABELLED. Its own line, because the file is
+                    in the library and correct — calling it a failed upload
+                    would send somebody looking for a photograph that is right
+                    there. Said out loud all the same: an unlabelled photograph
+                    is not linked to its check-point, which is the whole
+                    complaint this metadata answers. */}
+                {result.unlabelled.length > 0 && (
+                  <Note tone="warn">
+                    <b>
+                      {result.unlabelled.length} photograph
+                      {result.unlabelled.length === 1 ? " is" : "s are"} in the library without
+                      their columns
+                    </b>{" "}
+                    — {result.unlabelled.map((u) => u.key).join(", ")}. The images are there and
+                    correct; what is missing is the CheckID, reference and caption that link them to
+                    a check-point. First reason given: {result.unlabelled[0].why}
+                  </Note>
+                )}
                 <p className="mb-3 text-[11.5px]" style={{ color: "var(--ink-3)" }}>
                   Nothing was removed from the tablet. Run it again at any time — rows already in the
                   portal are updated, not duplicated.
@@ -920,6 +987,15 @@ function Contract() {
   const rows = [
     { list: "Check-points", alsoNamed: "Checkpoints · Check point · Check points", fields: columnContract(CHECK_FIELDS) },
     { list: "Findings", alsoNamed: "Finding", fields: columnContract(FINDING_FIELDS) },
+    /* The library's columns belong in the same contract as the two lists. They
+       were not here, which is how five photographs reached the library with
+       every column blank: nothing asked for the columns and nothing wrote
+       them. */
+    {
+      list: "Evidence (the document library)",
+      alsoNamed: "Documents · Shared Documents",
+      fields: columnContract(EVIDENCE_FIELDS),
+    },
   ];
   return (
     <details className="mt-1">
