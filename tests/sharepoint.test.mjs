@@ -417,6 +417,121 @@ check(
   "the doubled folder was exactly this, and a test is cheaper than another move"
 );
 
+/* AND CARRIES A LINK TO THEM.
+ *
+ * Sarel, 17 September 2026, choosing this over attaching the real files: a
+ * reader on a Findings row saw "KSIA-ELE-001_P01" as text and had three or four
+ * clicks to the image. Attaching the files needs the SharePoint REST API, which
+ * needs a tenant-wide write scope in a browser token, and would end the sync's
+ * idempotency — AttachmentFiles/add cannot replace, and the service account has
+ * no Delete. A link is one click and costs none of that. */
+
+const LINKED = {
+  ...BASE,
+  library: "Evidence",
+  libraryUrl: "https://tpjv.sharepoint.com/sites/ACSA-Asset-Assurance/Evidence",
+  siteFolder: "King Shaka International FALE",
+  responses: {
+    "KSIA-ELE-001": {
+      compliance: "NC", observation: "x",
+      attachments: [{ id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-001_P01", caption: "c" }],
+    },
+  },
+};
+
+check(
+  "THE LINK POINTS AT THE FOLDER THE PHOTOGRAPHS ACTUALLY WENT TO",
+  (() => {
+    const p = sp.buildPlan(LINKED, NOTHING);
+    const row = p.checkpoints.find((r) => r.key === "KSIA-ELE-001");
+    return (
+      row.values.evidenceLink ===
+      "https://tpjv.sharepoint.com/sites/ACSA-Asset-Assurance/Evidence/King%20Shaka%20International%20FALE/2026-09"
+    );
+  })(),
+  sp.buildPlan(LINKED, NOTHING).checkpoints.find((r) => r.key === "KSIA-ELE-001")?.values.evidenceLink
+);
+
+check(
+  "the link and the upload CANNOT DISAGREE — both are built from the plan's folder",
+  (() => {
+    const p = sp.buildPlan(LINKED, NOTHING);
+    const link = p.checkpoints.find((r) => r.key === "KSIA-ELE-001").values.evidenceLink;
+    return link.endsWith(p.folder.split("/").map(encodeURIComponent).join("/"));
+  })(),
+  "a link assembled from the library's display name would point at nothing when it is Shared Documents"
+);
+
+check(
+  "a row with no photographs gets NO LINK — not a link to an empty folder",
+  (() => {
+    const p = sp.buildPlan(
+      { ...LINKED, responses: { "KSIA-ELE-001": { compliance: "C", observation: "fine", attachments: [] } } },
+      NOTHING
+    );
+    return !("evidenceLink" in p.checkpoints[0].values);
+  })()
+);
+
+check(
+  "and no library url means no link at all, rather than a broken one",
+  (() => {
+    const p = sp.buildPlan({ ...LINKED, libraryUrl: undefined }, NOTHING);
+    return !("evidenceLink" in p.checkpoints.find((r) => r.key === "KSIA-ELE-001").values);
+  })()
+);
+
+check(
+  "A HYPERLINK COLUMN IS WRITTEN AS { Url, Description }, NOT AS A STRING",
+  (() => {
+    const map = sp.mapFields(
+      [{ name: "field_1", displayName: "EvidenceLink", readOnly: false, hyperlinkOrPicture: {} }],
+      ["evidenceLink"]
+    );
+    const out = sp.projectFields(map, { evidenceLink: "https://x/Evidence/KSIA%20FALE/2026-09" }, "create");
+    return out.field_1?.Url === "https://x/Evidence/KSIA%20FALE/2026-09" && out.field_1?.Description === "2026-09";
+  })(),
+  "Graph rejects a bare URL on a hyperlink column, so this decides whether the write lands"
+);
+
+check(
+  "the label is the visit folder, decoded — never \"click here\" in an audit record",
+  (() => {
+    const map = sp.mapFields(
+      [{ name: "f", displayName: "EvidenceLink", readOnly: false, hyperlinkOrPicture: {} }],
+      ["evidenceLink"]
+    );
+    return sp.projectFields(map, { evidenceLink: "https://x/a/b/2027-03" }).f.Description === "2027-03";
+  })()
+);
+
+check(
+  "and a PLAIN TEXT column of the same name still gets a plain string",
+  (() => {
+    const map = sp.mapFields(
+      [{ name: "f", displayName: "EvidenceLink", readOnly: false }],
+      ["evidenceLink"]
+    );
+    return sp.projectFields(map, { evidenceLink: "https://x/a/2026-09" }).f === "https://x/a/2026-09";
+  })(),
+  "the list decides, not this file — the same field is text on a list somebody built differently"
+);
+
+check(
+  "photos and evidenceLink NEVER RESOLVE TO THE SAME COLUMN",
+  (() => {
+    /* "Evidence" used to be a candidate for both, and two logical fields on one
+       column means the second quietly overwrites the first. */
+    const a = new Set(sp.FIELD_CANDIDATES.photos.map((n) => n.toLowerCase()));
+    return sp.FIELD_CANDIDATES.evidenceLink.every((n) => !a.has(n.toLowerCase()));
+  })()
+);
+
+check(
+  "the link is in both contracts, so both lists get asked for the column",
+  sp.CHECK_FIELDS.includes("evidenceLink") && sp.FINDING_FIELDS.includes("evidenceLink")
+);
+
 /* THE FINDINGS ROW NAMES ITS PHOTOGRAPHS TOO.
  *
  * Sarel, 17 September 2026, with a screenshot of the portal's Findings list:

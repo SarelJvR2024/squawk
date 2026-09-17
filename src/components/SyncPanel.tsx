@@ -246,7 +246,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       });
       setPlan(
         buildPlan(
-          { entity: entityCode, visit: visitId, visitLabel: visitId, library: drive?.name, siteFolder, checks, responses, hazards, prior, verifications, auditor, findings, adhoc },
+          { entity: entityCode, visit: visitId, visitLabel: visitId, library: drive?.name, siteFolder, libraryUrl: drive?.webUrl, checks, responses, hazards, prior, verifications, auditor, findings, adhoc },
           existing,
           unconsolidated
         )
@@ -1040,8 +1040,11 @@ function Contract() {
           <b>Evidence</b> folder inside it.
         </p>
         <p className="mt-2" style={{ color: "var(--ink-3)" }}>
-          Start every column as text, and dates as Date. A Choice column rejects any value not in its
-          own list, which fails the write for the whole row — easier to tighten later than to debug.
+          Start every column as text, and dates as Date — except <b>EvidenceLink</b>, which must be a{" "}
+          <b>Hyperlink</b> column: Squawk writes it as a link rather than as text, and a text column
+          would show the address instead of something to click. A Choice column rejects any value not
+          in its own list, which fails the write for the whole row — easier to tighten later than to
+          debug.
         </p>
       </div>
     </details>
