@@ -1,6 +1,7 @@
 const { chromium } = require("playwright");
 const fs = require("fs");
 const B = process.env.BASE || "http://localhost:3000";
+const pinSite = require("./pin-site.js");
 
 /** The answer library is TABBED — Evidence, Likely answers, Issues, Walkabout,
  *  Snippets — so a panel has to be opened before its chips are in the DOM. The
@@ -38,6 +39,7 @@ const ok = (n, c, x = "") => {
     acceptDownloads: true,
   });
   const p = await ctx.newPage();
+  await pinSite(p, B);
   const errs = [];
   p.on("pageerror", (e) => errs.push(String(e)));
 

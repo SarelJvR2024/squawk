@@ -16,6 +16,7 @@
  */
 
 const { chromium } = require("playwright");
+const pinSite = require("./pin-site.js");
 const B = process.env.BASE || "http://localhost:3000";
 
 let pass = 0, fail = 0;
@@ -36,6 +37,7 @@ const ok = (n, c, x = "") => {
     const errs = [];
     page.on("pageerror", (e) => errs.push(String(e)));
 
+    await pinSite(page, B);
     await page.goto(B + "/preflight", { waitUntil: "networkidle" });
     await page.waitForTimeout(4500);
     const body = await page.locator("body").innerText();

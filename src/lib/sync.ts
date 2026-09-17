@@ -27,9 +27,16 @@ import { photoObjectPath } from "./photos";
 import { useStore } from "./store";
 import type { Attachment } from "./types";
 
+/** Which list a photograph hangs off, because writing `cloudUrl` back needs a
+ *  different action for each. "walk" is an inspection item, "check" a register
+ *  check-point. */
+export type PhotoOwner = "check" | "walk";
+
 export interface Outstanding {
+  /** A check-point id, or an inspection item's WALK- id. `owner` says which. */
   checkId: string;
   a: Attachment;
+  owner: PhotoOwner;
 }
 
 /** True where the deployment has a record store configured. */
@@ -83,6 +90,7 @@ export function usePhotoSync(): SyncState {
   const visit = useStore((s) => s.visit);
   const byVisit = useStore((s) => s.byVisit);
   const updateAttachment = useStore((s) => s.updateAttachment);
+  const updateAdhocAttachment = useStore((s) => s.updateAdhocAttachment);
 
   const [uploading, setUploading] = useState(false);
   const [online, setOnline] = useState(true);
@@ -104,10 +112,23 @@ export function usePhotoSync(): SyncState {
   const data = byVisit[`${entity}/${visit}`];
   const outstanding: Outstanding[] = [];
   let failed = 0;
+  const wants = (a: Attachment) =>
+    a.kind === "photo" && !!a.blobKey && !a.unavailable && !a.cloudUrl;
   for (const [checkId, r] of Object.entries(data?.responses ?? {})) {
     for (const a of r.attachments) {
-      if (a.kind !== "photo" || !a.blobKey || a.unavailable || a.cloudUrl) continue;
-      outstanding.push({ checkId, a });
+      if (!wants(a)) continue;
+      outstanding.push({ checkId, a, owner: "check" });
+      if (a.cloudError) failed++;
+    }
+  }
+  /* AND THE WALK. An inspection's photograph is evidence exactly as a
+     check-point's is, and this loop did not exist — so the only copy of it was
+     the one on the tablet that took it. The record and its 240px thumbnail
+     reached the shared record; the image did not. */
+  for (const item of data?.adhoc ?? []) {
+    for (const a of item.attachments) {
+      if (!wants(a)) continue;
+      outstanding.push({ checkId: item.id, a, owner: "walk" });
       if (a.cloudError) failed++;
     }
   }
@@ -120,26 +141,28 @@ export function usePhotoSync(): SyncState {
       const s = useStore.getState();
       const d = s.byVisit[`${s.entity}/${s.visit}`];
       const todo: Outstanding[] = [];
+      const due = (a: Attachment) =>
+        a.kind === "photo" && !!a.blobKey && !a.unavailable && !a.cloudUrl;
       for (const [checkId, r] of Object.entries(d?.responses ?? {})) {
-        for (const a of r.attachments) {
-          if (a.kind === "photo" && a.blobKey && !a.unavailable && !a.cloudUrl) {
-            todo.push({ checkId, a });
-          }
-        }
+        for (const a of r.attachments) if (due(a)) todo.push({ checkId, a, owner: "check" });
+      }
+      for (const item of d?.adhoc ?? []) {
+        for (const a of item.attachments) if (due(a)) todo.push({ checkId: item.id, a, owner: "walk" });
       }
       /* One at a time. Eight parallel uploads on airport wifi is eight
          timeouts. */
-      for (const { checkId, a } of todo) {
+      for (const { checkId, a, owner } of todo) {
         if (!navigator.onLine) break;
+        const write = owner === "walk" ? updateAdhocAttachment : updateAttachment;
         try {
           const { url } = await uploadOne(s.entity, s.visit, a);
-          updateAttachment(checkId, a.id, {
+          write(checkId, a.id, {
             cloudUrl: url,
             cloudAt: Date.now(),
             cloudError: undefined,
           });
         } catch (e) {
-          updateAttachment(checkId, a.id, {
+          write(checkId, a.id, {
             cloudError: e instanceof Error ? e.message : "The upload failed.",
           });
         }
@@ -148,7 +171,7 @@ export function usePhotoSync(): SyncState {
       running.current = false;
       setUploading(false);
     }
-  }, [on, updateAttachment]);
+  }, [on, updateAttachment, updateAdhocAttachment]);
 
   /* Drain when there is something to send and a network to send it on. The
      dependency is the COUNT, so capturing a photograph starts the queue and a

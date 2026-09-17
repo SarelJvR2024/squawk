@@ -14,6 +14,7 @@
  */
 
 const http = require("node:http");
+const pinSite = require("./pin-site.js");
 const { spawn } = require("node:child_process");
 const path = require("node:path");
 const { chromium } = require("playwright");
@@ -147,6 +148,10 @@ const mediaKeys = (page) =>
     const errs = [];
     p.on("pageerror", (e) => errs.push(String(e)));
 
+    /* The site is a choice, not the default. This suite asserts KSIA- object
+       paths, so it says KSIA rather than trusting the programme's starting
+       entity to stay King Shaka — which it did not. */
+    await pinSite(p, `http://127.0.0.1:${APP_PORT}`);
     await p.goto(`http://127.0.0.1:${APP_PORT}/capture`, { waitUntil: "networkidle" });
     await p.waitForTimeout(2200);
 

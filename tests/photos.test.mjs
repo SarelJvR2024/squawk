@@ -57,6 +57,7 @@ const photosLib = src("lib", "photos.ts");
 const sync = src("lib", "sync.ts");
 const photoRoute = src("app", "api", "photos", "route.ts");
 const store = src("lib", "store.ts");
+const sharedSrc = src("lib", "shared.ts");
 const shell = src("components", "AppShell.tsx");
 
 /* ------------------------ Part 0: one name, in every place ---------------- */
@@ -507,7 +508,12 @@ check(
 
 check(
   "uploads run one at a time",
-  /for \(const \{ checkId, a \} of todo\)/.test(sync) && !/Promise\.all\(todo/.test(sync),
+  /for \(const \{[^}]*\} of todo\)/.test(sync) && !/Promise\.all\(/.test(sync),
+  /* The destructure used to be pinned exactly — `{ checkId, a }` — and adding
+     `owner` to it for the inspection photographs failed this without anything
+     about the behaviour changing. What matters is that the loop is serial and
+     nothing awaits the queue in parallel; the shape of the binding is not the
+     rule. */
   "eight parallel uploads on airport wifi is eight timeouts"
 );
 
@@ -817,3 +823,59 @@ check(
 
 console.log(failures === 0 ? "\nPHOTOS OK" : `\n${failures} FAILURE${failures > 1 ? "S" : ""}`);
 process.exit(failures === 0 ? 0 : 1);
+
+/* ------------------------------------------- an inspection's photograph too */
+
+/* EVERY PHOTOGRAPH GETS A SECOND COPY, INCLUDING A WALK'S.
+ *
+ * Found on the O.R. Tambo dry run, 17 September 2026, answering Sarel's
+ * question "do we have enough backups in place to ensure this": usePhotoSync
+ * walked `responses` and nothing else. An inspection item's record and its
+ * 240px thumbnail reached the shared record, so you could see that a photograph
+ * had existed — but the full-resolution image lived in exactly one tablet's
+ * IndexedDB. Lose the tablet and it is gone.
+ *
+ * It was missed rather than broken: updateAttachment is keyed on checkId, so
+ * there was no way to write cloudUrl back onto a walk photograph, and the
+ * uploader could not have walked them even if somebody had tried. */
+
+check(
+  "THE RECORD-STORE QUEUE WALKS INSPECTIONS, not only check-points",
+  /adhoc/.test(sync),
+  "the word did not appear in sync.ts at all — that was the whole bug"
+);
+
+check(
+  "it counts them as outstanding, so the number on screen is the true one",
+  /for \(const item of data\?\.adhoc/.test(sync)
+);
+
+check(
+  "and the upload loop queues them",
+  /for \(const item of d\?\.adhoc/.test(sync)
+);
+
+check(
+  "a walk photograph's cloudUrl is written back through the ADHOC action",
+  /owner === "walk" \? updateAdhocAttachment : updateAttachment/.test(sync),
+  "updateAttachment is keyed on checkId and cannot reach an inspection's attachment"
+);
+
+check(
+  "the store HAS that action, and strips the fields that identify the evidence",
+  /updateAdhocAttachment: \(id, attachmentId, patch\)/.test(store) &&
+    /updateAdhocAttachment[\s\S]{0,500}?const \{ id: _i, blobKey: _b, createdAt: _c, \.\.\.safe \} = patch;/.test(store),
+  "id, blobKey and createdAt point at the bytes; a caller passing them renames the evidence"
+);
+
+check(
+  "every photograph the queue picks up still has bytes on this device",
+  /!!a\.blobKey && !a\.unavailable && !a\.cloudUrl/.test(sync),
+  "unavailable means the browser evicted it and there is nothing left to send"
+);
+
+check(
+  "the shared record's not-uploaded count includes inspections",
+  /adhoc\.reduce\(\(n, i\) => n \+ noCopy/.test(sharedSrc),
+  "a count whose job is to say how much evidence has no second copy must not undercount"
+);

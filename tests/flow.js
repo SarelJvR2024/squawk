@@ -18,6 +18,7 @@ const { chromium } = require("playwright");
  */
 
 const B = process.env.BASE || "http://localhost:3000";
+const pinSite = require("./pin-site.js");
 
 /** The answer library is TABBED — Evidence, Likely answers, Issues, Walkabout,
  *  Snippets — so a panel has to be opened before its chips are in the DOM. The
@@ -81,6 +82,7 @@ async function badge(p, href) {
   const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const p = await ctx.newPage();
+  await pinSite(p, B);
   const errs = [];
   p.on("pageerror", (e) => errs.push(String(e)));
 

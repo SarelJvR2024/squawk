@@ -303,6 +303,11 @@ Three things to know before you press anything:
       International FALE`, not `King Shaka International Airport FALE`. The sync
       reads the library's top level and writes into the one it finds. Two King
       Shaka folders side by side is the regression to watch for.
+- [ ] **AN INSPECTION'S PHOTOGRAPH HAS A SECOND COPY.** Capture one on the walk,
+      leave the tablet online a moment, and the record-store queue should clear
+      it the same way a check-point's photograph clears. Before 17 September
+      2026 it never did: the full-resolution image lived on one tablet and
+      nowhere else, and losing the tablet lost the evidence.
 - [ ] **EVERY PHOTOGRAPH CARRIES ITS COLUMNS.** Open the library, switch to a
       view with the columns showing, and each file should have **CheckID**,
       **PhotographReference**, **Discipline**, **AssetSystem**, **Caption**,

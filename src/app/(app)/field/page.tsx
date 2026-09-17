@@ -1043,7 +1043,7 @@ export default function FieldPage() {
                   <option value="">Assign to…</option>
                   {visible.slice(0, 60).map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.id}
+                      {portalIdFor(entityCode, c.id)}
                     </option>
                   ))}
                 </select>
@@ -1389,7 +1389,7 @@ export default function FieldPage() {
                       say(
                         w.photo && photos.length === 0
                           ? `${portalIdFor(entityCode, c.id)} — ${w.label}. Photograph expected.`
-                          : `${c.id} — ${w.label}`
+                          : `${portalIdFor(entityCode, c.id)} — ${w.label}`
                       );
                     }}
                     title={w.photo ? "This observation expects a photograph" : undefined}
@@ -1454,7 +1454,7 @@ export default function FieldPage() {
                 );
                 if (nextOutcome) {
                   saveField(c.id);
-                  say(`${c.id} — ${OUTCOMES.find((o) => o.key === nextOutcome)?.label}`);
+                  say(`${portalIdFor(entityCode, c.id)} — ${OUTCOMES.find((o) => o.key === nextOutcome)?.label}`);
                 }
               }}
               size={52}
@@ -1523,7 +1523,7 @@ export default function FieldPage() {
                   }
                   onAccept={(text) => {
                     appendObservation(c.id, text);
-                    say(`Written up into ${c.id}`);
+                    say(`Written up into ${portalIdFor(entityCode, c.id)}`);
                   }}
                 />
               </div>
