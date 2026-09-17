@@ -19,6 +19,7 @@
 
 import { useRef, useState } from "react";
 import { useStore } from "@/lib/store";
+import { portalIdFor } from "@/lib/sites";
 import { summarise, type Bundle, type MergeReport } from "@/lib/merge";
 import { entity as entityOf } from "@/lib/programme";
 import { Btn } from "@/components/ui/primitives";
@@ -225,7 +226,11 @@ export default function TeamMerge() {
                     className="font-mono text-[10.5px]"
                     style={{ color: "var(--ink-2)" }}
                   >
-                    {c.id} · kept {c.winner === "mine" ? "this device's" : "theirs"} ({stamp(
+                    {/* Only a response's id is a REGISTER id needing conversion. A
+                        verification's is a prior finding's portal id and a finding's or
+                        hazard's is its own — converting those would mangle them. */}
+                    {c.kind === "response" ? portalIdFor(entityCode, c.id) : c.id} · kept{" "}
+                    {c.winner === "mine" ? "this device's" : "theirs"} ({stamp(
                       c.winner === "mine" ? c.mineAt : c.theirsAt
                     )}
                     ), over {stamp(c.winner === "mine" ? c.theirsAt : c.mineAt)}

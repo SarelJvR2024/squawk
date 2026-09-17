@@ -3,6 +3,7 @@ const { chromium } = require('playwright');
    it and the downscale path actually runs. */
 const PIXEL_JPEG = '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==';
 const B = process.env.BASE || 'http://localhost:3000';
+const pinSite = require("./pin-site.js");
 
 /** The answer library is TABBED — Evidence, Likely answers, Issues, Walkabout,
  *  Snippets — so a panel has to be opened before its chips are in the DOM. The
@@ -13,7 +14,7 @@ const openTab = (page, label) =>
 const panelChip = (page, key) => page.locator(`[data-panel="${key}"] button`).first();
 let pass=0, fail=0; const log=[];
 const ok=(n,c,x='')=>{ c?(pass++,log.push('PASS  '+n)):(fail++,log.push('FAIL  '+n+(x?'  ['+x+']':''))); };
-const fresh = async (ctx) => { const p = await ctx.newPage(); return p; };
+const fresh = async (ctx) => { const p = await ctx.newPage(); await pinSite(p, B); return p; };
 
 (async () => {
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
@@ -22,6 +23,10 @@ const fresh = async (ctx) => { const p = await ctx.newPage(); return p; };
   {
     const ctx = await browser.newContext({viewport:{width:1440,height:900}});
     const p = await ctx.newPage();
+    /* Pinned like every other page here. "Empty" means nothing CAPTURED — the
+       site is still a choice, and leaving it to the default is what made this
+       block go red when the programme's starting entity moved. */
+    await pinSite(p, B);
     const bad=[]; p.on('pageerror',e=>bad.push(String(e)));
 
     await p.goto(B+'/findings',{waitUntil:'networkidle'}); await p.waitForTimeout(1200);

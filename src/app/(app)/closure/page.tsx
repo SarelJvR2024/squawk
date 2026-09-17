@@ -26,6 +26,7 @@ import ItemStream from "@/components/ItemStream";
 import PossibleEvents from "@/components/PossibleEvents";
 import GroupRow from "@/components/ui/GroupRow";
 import { PROGRAMME_VISITS } from "@/lib/programme";
+import { portalIdFor } from "@/lib/sites";
 import { movement } from "@/lib/risk";
 import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconClock, IconDash, IconX } from "@/components/ui/icons";
@@ -904,7 +905,11 @@ export default function ClosurePage() {
                         />
                         <span className="min-w-0 flex-1">
                           <span className="block font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                            {c.id}
+                            {/* THE SITE'S NUMBER, NOT THE REGISTER'S. The register is held
+                                once and its ids are KSIA-prefixed; portalIdFor turns one
+                                into the number this site actually uses. Printing c.id raw
+                                showed King Shaka check numbers on an O.R. Tambo screen. */}
+                            {portalIdFor(entityCode, c.id)}
                           </span>
                           <span className="block truncate text-[11.5px]">{c.requirement}</span>
                         </span>

@@ -143,11 +143,16 @@ export function bundleFromRows(entity: string, visit: string, rows: SharedRow[])
     else if (r.kind === "hazard") hazards.push(r.payload as Hazard);
   }
 
-  const photographsNotUploaded = Object.values(responses).reduce(
-    (n, r) =>
-      n + ((r.attachments ?? []) as Attachment[]).filter((a) => a.kind === "photo" && !a.cloudUrl).length,
-    0
-  );
+  /* Inspections count too. They did not, which understated the number on a
+     screen whose entire job is to say how much evidence has no second copy —
+     and an inspection's photograph was the one kind that had none at all. */
+  const noCopy = (list: Attachment[] | undefined) =>
+    (list ?? []).filter((a) => a.kind === "photo" && !a.unavailable && !a.cloudUrl).length;
+  const photographsNotUploaded =
+    Object.values(responses).reduce(
+      (n, r) => n + noCopy((r.attachments ?? []) as Attachment[]),
+      0
+    ) + adhoc.reduce((n, i) => n + noCopy(i.attachments as Attachment[]), 0);
 
   return {
     meta: {

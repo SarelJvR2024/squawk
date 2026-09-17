@@ -72,7 +72,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `robustness.js` | yes | 53 |
 | `exports.js` | yes | 33 |
 | `ai.js` | yes, two of them | 27 |
-| `persite.js` | yes | 25 |
+| `persite.js` | yes | 45 |
 | `vision.js` | starts its own | 23 |
 | `record.js` | starts its own | 14 |
 | `flow.js` | yes | 50 |
@@ -82,7 +82,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 61 |
 | `a11y.js` | yes | 51 |
 
-**1,835 assertions in total**, every count above verified by running the suite,
+**1,855 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —

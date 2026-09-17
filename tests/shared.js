@@ -16,6 +16,7 @@
  */
 
 const { chromium } = require("playwright");
+const pinSite = require("./pin-site.js");
 const { spawn } = require("node:child_process");
 const path = require("node:path");
 
@@ -72,6 +73,9 @@ async function auditor(browser, name, { unlock = true } = {}) {
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(String(e)));
+  /* Both auditors on the SAME site, said rather than inherited — two devices
+     agreeing is the whole subject here, and they cannot agree across sites. */
+  await pinSite(page, BASE);
   await page.goto(BASE + "/capture", { waitUntil: "networkidle" });
   await page.waitForTimeout(1500);
   /* Name them, so provenance in the record is a person rather than "unnamed". */

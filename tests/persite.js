@@ -72,6 +72,29 @@ const SITES = [
     ok(`${s.short}: a baseline site shows nothing outstanding`,
        /Nothing outstanding coming into/.test(clo), clo.slice(0,140).replace(/\n/g,' '));
   }
+  /* NO OTHER SITE'S CHECK NUMBER, ON ANY SINGLE-SITE SCREEN.
+   *
+   *  The register is held ONCE and its check ids are KSIA-prefixed —
+   *  KSIA-ELE-005 and ORTIA-ELE-005 are the same requirement — so every screen
+   *  has to run portalIdFor before it shows one. Some did and some did not.
+   *  Found on the O.R. Tambo dry run, 17 September 2026: the closure screen
+   *  listed KSIA-BFM-018 while the app was set to O.R. Tambo, and the field
+   *  screen SPOKE the register id aloud on one branch of the same say() call
+   *  that converted it on the other.
+   *
+   *  An auditor reading out another airport's check number on the apron is the
+   *  same class of error as the dashboard that once titled itself King Shaka
+   *  while showing another airport's numbers. The portfolio is deliberately
+   *  not in this list: it shows every site at once, on purpose. */
+  for (const screen of ['capture','field','closure','findings','review']) {
+    await p.goto(B+'/'+screen, {waitUntil:'networkidle'}).catch(()=>{});
+    await p.waitForTimeout(900);
+    const t = await p.locator('body').innerText();
+    const ids = (t.match(/\b[A-Z]{2,6}-[A-Z]{3}-P?\d+\b/g)||[]);
+    const foreign = [...new Set(ids.filter(x=>!x.startsWith(s.short+'-')))];
+    ok(`${s.short}: /${screen} shows no other site's ids`, foreign.length===0, foreign.slice(0,5).join(' '));
+  }
+
   await p.goto(B+'/capture', {waitUntil:'networkidle'});
   await p.waitForTimeout(900);
  }

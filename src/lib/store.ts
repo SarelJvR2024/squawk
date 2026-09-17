@@ -413,6 +413,15 @@ interface State {
   updateAdhoc: (id: string, p: Partial<AdHocItem>) => void;
   removeAdhoc: (id: string) => void;
   addAdhocAttachment: (id: string, a: Omit<Attachment, "id" | "createdAt">) => void;
+  /** The adhoc twin of updateAttachment. It did not exist, and that is why an
+   *  inspection's photograph never reached the record store: the uploader had
+   *  no way to write `cloudUrl` back onto one, so it did not walk them at all
+   *  and the full-resolution image lived on exactly one tablet. */
+  updateAdhocAttachment: (
+    id: string,
+    attachmentId: string,
+    patch: Partial<Attachment>
+  ) => void;
   removeAdhocAttachment: (id: string, attachmentId: string) => void;
 
   addCapture: (c: Omit<Capture, "id" | "createdAt">) => void;
@@ -1135,6 +1144,21 @@ export const useStore = create<State>()(
                 createdAt: Date.now(),
               },
             ],
+          });
+        },
+
+        updateAdhocAttachment: (id, attachmentId, patch) => {
+          const item = (get().visitData().adhoc ?? []).find((x) => x.id === id);
+          if (!item) return;
+          /* Same stripping as updateAttachment: id, blobKey and createdAt
+             identify the photograph and point at its bytes, so a caller passing
+             them would be renaming the evidence. */
+          const { id: _i, blobKey: _b, createdAt: _c, ...safe } = patch;
+          void _i; void _b; void _c;
+          get().updateAdhoc(id, {
+            attachments: item.attachments.map((x) =>
+              x.id === attachmentId ? { ...x, ...safe } : x
+            ),
           });
         },
 
