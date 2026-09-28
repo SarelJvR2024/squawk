@@ -54,7 +54,7 @@ not by how hard it is to build.
 | Tier | Item | Status | Evidence |
 |---|---|---|---|
 | 1 | **Immediate Safety Finding** | **BUILT** | `/isf`, `src/lib/isf.ts`, `tests/isf.test.mjs` (49 assertions) |
-| 1 | Interview record | not started | 30 check-points are confirmed by Practice; scope C3 mandates interviews |
+| 1 | **Interview record** | **BUILT** | `/interviews`, `src/lib/interviews.ts`, `tests/interviews.test.mjs` (74 assertions) |
 | 1 | Site attendance & daily diary | not started | not in SF-005 either; added as J14 of the safety file |
 | 1 | Document & evidence collection log | not started | 180 of 324 checks are confirmed by a document |
 | 2 | PPE check (daily) | not started | 113 PPE mentions in the register; C1.3 compliance item 7 |
@@ -68,11 +68,23 @@ not by how hard it is to build.
 | 3 | Permit-to-work verification log | not started | 16 checks reference permits |
 | 3 | Area access / scope limitation log | not started | turns "not inspected" into a recorded limitation |
 | — | **Signature capture** | not started | needed by five of the above; the only genuinely new capability |
-| — | Export sheet for safety findings | **open question** | whether the ISF reaches ACSA in the workbook or only as the notice |
+| — | Export sheets for the ISF and the interview record | **open question** | whether either reaches ACSA in the workbook, or only as the notice and the read-back record |
 
 Out, and deliberately: RFI tracker, early-warning and risk register, actions
 log, meeting minutes. Desk work, and the scope rule below draws the line at a
 form somebody fills in and signs.
+
+**Two of sixteen built.** The interview record (28 September) turned up one fact
+worth recording here, because it changes how this whole list should be argued
+for: interviews are not only mandated by the scope, they are a **separately
+priced line item** — pricing schedule **1.2.6(b)**, *"Interviews with key
+personnel and stakeholders"*, priced at each of the ten airports. The same
+schedule prices *"Conducting detailed on-site inspections for each airport"*
+(1.2.6(a)) and *"Immediate reporting of safety-related findings"* (1.2.6(c)).
+
+That is the argument for the rest of the tier in one sentence: ACSA is paying
+for named activities, and the register is the evidence the audit found
+something. It is not the evidence the activity happened.
 
 ---
 

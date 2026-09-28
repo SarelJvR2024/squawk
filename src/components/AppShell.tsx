@@ -44,6 +44,7 @@ import {
   IconHelp,
   IconLock,
   IconLoop,
+  IconMic,
   IconMore,
   IconPin,
   IconSearch,
@@ -109,6 +110,18 @@ const NAV = [
   { href: "/preflight", label: "Pre-flight", icon: IconGauge },
 ];
 
+/** Screens reached from somewhere other than the nav bar, and what the page's
+ *  one heading calls them.
+ *
+ *  /home hangs off the brand mark; /interviews off the More menu. Without this
+ *  both fall back to "Squawk", which names the app where every other screen
+ *  names the work — and a screen reader announcing "Squawk — KSIA Sep 2026" on
+ *  two different screens has told the listener nothing about either. */
+const OFF_NAV: Record<string, string> = {
+  "/home": "Home",
+  "/interviews": "Interview records",
+};
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -121,6 +134,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const findings = useVisitFindings();
   const hazards = useVisitHazards();
   const entityCode = useEntityCode();
+  /* The COUNT, not the list. This component re-renders on every keystroke in
+     every screen below it; subscribing it to an array would hand it a new
+     reference each time and re-render the masthead for nothing. */
+  const interviewCount = useStore(
+    (s) => s.interviews.filter((iv) => iv.entity === s.entity).length
+  );
   const shared = useShared();
   /* Only the states a person can actually do something about. "Waiting for
      signal" is not one of them — an auditor in a basement does not need a dot
@@ -591,6 +610,29 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     hint={`Switch site or audit — ${entityOf(entityCode).short} ${visitLabel} now`}
                     onClick={() => { setMore(false); setAudits(true); }}
                   />
+                  {/* A DESTINATION IN A MENU OF ACTIONS, and it is here rather
+                      than in the nav bar for one reason: the nav is full. The
+                      eighth entry already cost a swipe and the ninth was paid
+                      for deliberately, once, for the safety register whose
+                      clock starts when somebody reaches it. An interview is
+                      arranged, not stumbled into — the auditor is walking to a
+                      maintenance office, not reacting to something — so it can
+                      afford two presses, and the fourteen project-evidence
+                      forms still to be built cannot each afford a nav slot.
+                      Beside All audits because both are "go somewhere". */}
+                  {role !== "acsa" && (
+                    <MoreItem
+                      icon={<IconMic width={14} height={14} />}
+                      label="Interview records"
+                      hint={
+                        interviewCount
+                          ? `${interviewCount} recorded at ${entityOf(entityCode).short}`
+                          : "Who you asked, and what they said"
+                      }
+                      selected={pathname === "/interviews"}
+                      onClick={() => { setMore(false); router.push("/interviews"); }}
+                    />
+                  )}
                   <div className="my-[4px] h-px" style={{ background: "var(--menu-line)" }} />
                   {role !== "acsa" && (
                     <MoreItem
@@ -909,9 +951,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {/* /home is reached from the brand mark rather than the nav, so it has
               no NAV row to take a label from — and "Squawk — KSIA Sep 2026" is
               the app's name where every other screen names the work. */}
-          {pathname === "/home"
-            ? "Home"
-            : (NAV.find((n) => n.href === pathname)?.label ?? "Squawk")}{" "}
+          {OFF_NAV[pathname] ??
+            (NAV.find((n) => n.href === pathname)?.label ?? "Squawk")}{" "}
           — {entityOf(entityCode).short} {visitLabel}
         </h1>
         {children}

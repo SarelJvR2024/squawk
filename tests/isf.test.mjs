@@ -249,7 +249,10 @@ check(
 );
 check(
   "the persisted shape was versioned when the slice was added",
-  /version:\s*14,/.test(store)
+  Number(/version: (\d+),/.exec(store)?.[1] ?? 0) >= 14 &&
+    /name: "acsa-assurance-v1"/.test(store),
+  "the version goes UP as later slices land — 15 was the interview register. " +
+    "What must never change is the key, and what must never go backwards is 14"
 );
 check(
   "the migration defaults the slice rather than leaving it undefined",

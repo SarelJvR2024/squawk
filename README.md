@@ -62,7 +62,7 @@ npm run build && npm start
 
 ## Tests
 
-Thirty-three suites, no framework, all plain `node`. See `tests/README.md` — and
+Forty-five suites, no framework, all plain `node`. See `tests/README.md` — and
 check each suite's **exit status**, not the output: a `for` loop over them
 reports the status of the loop, not of the suites.
 
@@ -415,7 +415,7 @@ src/
     answers.json      9,836 researched options, loaded on demand
     priorFindings.json  the 23 March 2025 findings
     programme.json    entities, the 3-year cycle, zones
-tests/                thirty-five suites — see tests/README.md
+tests/                forty-five suites — see tests/README.md
 ```
 
 ## Notes for whoever picks this up
@@ -1018,6 +1018,64 @@ unknown instead of omitting it: a notice that silently drops the immediate
 action reads as though none was taken, and it goes out under TPJV's name.
 
 Rules live in `src/lib/isf.ts`, guarded by `tests/isf.test.mjs`.
+
+## Interview records
+
+`/interviews`, reached from the **More** menu. The second of the paper forms to
+move, and the one ACSA asked for by name.
+
+Scope of work 4.2, the on-site audit phase: *"Interview key personnel and
+stakeholders (e.g. Airport Operations Departments, Contractors, etc.) to gather
+information and insights."* It is also a separately priced activity — pricing
+schedule **1.2.6(b)**, *"Interviews with key personnel and stakeholders"*, at
+every one of the ten airports. An interview nobody wrote down is work TPJV did,
+invoiced for, and cannot show.
+
+It also does something no other screen can. Thirty of the 324 check-points are
+`confirmedBy: "Practice"` — compliance turns on whether the round actually
+happens and whether a bad reading actually produces an action, not on what the
+file says. Those are the ones that read clean on paper and fail in the corridor,
+and the only person who knows is the one who does the work. So the check-point
+picker offers those thirty first, by name, while still offering every other
+check-point: an interview frequently speaks to a document check too, and hiding
+those would force the sentence to be filed somewhere it does not belong.
+
+Four rules, and every one of them is about the reader rather than the auditor:
+
+**Testimony is not evidence.** A statement *bears on* the check-points it
+refers to. It does not answer them. There is no control on this screen that
+sets a check's status, and `tests/interviews.test.mjs` greps for every way one
+could be added. What somebody said is one input to a judgement the auditor
+makes with the document and the asset in front of them — and the thirty
+Practice checks are exactly where *"he said it gets done"* is the easiest thing
+in the world to file as compliance.
+
+**Attribution is both halves or it is nothing.** A name without a role does not
+tell a reader whether the speaker would know. A role without a name — *"the
+electrician said the generator is tested monthly"* — cannot be checked by
+anybody. The register marks such a record **NOT CITABLE** and says which half
+is missing, rather than letting it look finished.
+
+**A summary is not a quote.** Every statement is marked verbatim or summary,
+and `summary` is the default. Both directions of error exist and they are not
+equal: a verbatim answer filed as a summary loses a little force, and a
+paraphrase filed as a quote puts words in a named person's mouth under TPJV's
+letterhead. The unmarked case has to be the cautious one.
+
+**The confirmation dies with the text.** The app composes the record so the
+auditor can read it back in the ninety seconds while the person is still
+standing there — the only moment it can ever be confirmed. If any statement is
+then edited, added or removed, the confirmation is cleared, because what they
+agreed to was what they heard. A confirmation that survives an edit is a
+signature on a document somebody altered afterwards.
+
+It is **not in the nav bar**, deliberately. The bar already costs a swipe at
+eight entries, the ninth was paid for once for the safety register whose clock
+starts when somebody reaches it, and the fourteen project-evidence forms still
+to build cannot each take a slot. An interview is arranged rather than stumbled
+into, so it can afford two presses.
+
+Rules live in `src/lib/interviews.ts`, guarded by `tests/interviews.test.mjs`.
 
 ## Hazards
 

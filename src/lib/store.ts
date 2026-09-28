@@ -22,6 +22,8 @@ import type {
   FeedbackNote,
   Finding,
   Hazard,
+  Interview,
+  InterviewNote,
   Likelihood,
   PriorFinding,
   PriorRating,
@@ -47,6 +49,7 @@ import {
 import { needsDesk, needsField } from "./verification";
 import { portalIdFor } from "./sites";
 import { nextPhotoRef } from "./photos";
+import { DEFAULT_KIND, nextStatementRef } from "./interviews";
 
 /* The register and the 2025 data are pure lookups and live in ./register, so a
    non-React caller (src/lib/exports.ts) can use them without importing this
@@ -302,6 +305,11 @@ interface State {
    *  raised at O.R. Tambo in September is still the thing a March visit has to
    *  ask about, and a per-visit slice would hide it. */
   safetyFindings: SafetyFinding[];
+  /** Interview records. Flat for the same reason, and scoped by ENTITY on the
+   *  way out: who at this airport has already been asked about the inspection
+   *  round is exactly what the next visit needs, and a per-visit slice would
+   *  make every team start the introductions again. */
+  interviews: Interview[];
   lastSavedAt: number | null;
   hydrated: boolean;
 
@@ -360,6 +368,29 @@ interface State {
     patch: Partial<Attachment>
   ) => void;
   removeIsfAttachment: (id: string, attachmentId: string) => void;
+
+  /* ---- Interview records. See src/lib/interviews.ts. ----
+     Only a name is required, for the ISF's reason turned around: the auditor is
+     standing in front of somebody who has two minutes, and the record that
+     matters is what they said, not the form around it. Everything else is
+     filled in while the words are still fresh — or afterwards, and the register
+     says which parts are still owed. */
+  addInterview: (name: string, seed?: Partial<Interview>) => string;
+  updateInterview: (id: string, p: Partial<Interview>) => void;
+  removeInterview: (id: string) => void;
+  /** Appends a statement and returns its id. Clears any confirmation — see
+   *  the note on the implementation. */
+  addInterviewNote: (id: string, seed?: Partial<InterviewNote>) => string;
+  updateInterviewNote: (id: string, noteId: string, p: Partial<InterviewNote>) => void;
+  removeInterviewNote: (id: string, noteId: string) => void;
+  addInterviewAttachment: (id: string, a: Omit<Attachment, "id" | "createdAt">) => void;
+  updateInterviewAttachment: (
+    id: string,
+    attachmentId: string,
+    patch: Partial<Attachment>
+  ) => void;
+  removeInterviewAttachment: (id: string, attachmentId: string) => void;
+
   removeFindingsForIssue: (checkId: string, issueIndex: number) => void;
 
   verification: (pf: string) => Verification;
@@ -498,6 +529,7 @@ export const useStore = create<State>()(
         findings: [],
         hazards: [],
         safetyFindings: [],
+        interviews: [],
         lastSavedAt: null,
         hydrated: false,
 
@@ -866,6 +898,167 @@ export const useStore = create<State>()(
           void _i; void _b; void _c;
           get().updateSafetyFinding(id, {
             attachments: f.attachments.map((x) =>
+              x.id === attachmentId ? { ...x, ...safe } : x
+            ),
+          });
+        },
+
+        addInterview: (name, seed) => {
+          const id = `INT-${uid().toUpperCase().slice(0, 5)}`;
+          const now = Date.now();
+          const s0 = get();
+          set((s) => ({
+            interviews: [
+              ...s.interviews,
+              {
+                entity: s.entity,
+                originVisit: s.visit,
+                name,
+                role: "",
+                organisation: "",
+                party: null,
+                contact: "",
+                location: "",
+                discipline: null,
+                /* When the conversation began, not when the form was tidied up.
+                   It is the only time on this record that cannot be
+                   reconstructed afterwards. */
+                startedAt: now,
+                endedAt: null,
+                conductedBy: s0.auditor || "",
+                noticeGiven: false,
+                confirmedAt: null,
+                notes: [],
+                attachments: [],
+                ...seed,
+                id,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          }));
+          return id;
+        },
+
+        updateInterview: (id, p) =>
+          set((s) => ({
+            interviews: s.interviews.map((iv) =>
+              /* id, entity and startedAt are what the record IS. A caller
+                 passing them would be re-dating an interview after the fact,
+                 which is precisely what a reviewer has to be able to rule
+                 out. */
+              iv.id === id
+                ? {
+                    ...iv,
+                    ...p,
+                    id: iv.id,
+                    entity: iv.entity,
+                    startedAt: iv.startedAt,
+                    createdAt: iv.createdAt,
+                    updatedAt: Date.now(),
+                  }
+                : iv
+            ),
+          })),
+
+        removeInterview: (id) =>
+          set((s) => ({ interviews: s.interviews.filter((iv) => iv.id !== id) })),
+
+        addInterviewNote: (id, seed) => {
+          const iv = get().interviews.find((x) => x.id === id);
+          if (!iv) return "";
+          const noteId = uid();
+          const now = Date.now();
+          get().updateInterview(id, {
+            notes: [
+              ...iv.notes,
+              {
+                question: "",
+                answer: "",
+                /* summary, always, until somebody says otherwise — see
+                   DEFAULT_KIND in src/lib/interviews.ts. */
+                kind: DEFAULT_KIND,
+                checkIds: [],
+                ...seed,
+                id: noteId,
+                ref: nextStatementRef(id, iv.notes),
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+            /* A statement added after the read-back is a statement the person
+               did not confirm. */
+            confirmedAt: null,
+          });
+          return noteId;
+        },
+
+        updateInterviewNote: (id, noteId, p) => {
+          const iv = get().interviews.find((x) => x.id === id);
+          if (!iv) return;
+          /* id, ref and createdAt identify the statement; a report that cites
+             S02 has to keep meaning this sentence. */
+          const { id: _i, ref: _r, createdAt: _c, ...safe } = p;
+          void _i; void _r; void _c;
+          get().updateInterview(id, {
+            notes: iv.notes.map((n) =>
+              n.id === noteId ? { ...n, ...safe, updatedAt: Date.now() } : n
+            ),
+            /* THE CONFIRMATION DOES NOT SURVIVE THE EDIT. What the interviewee
+               agreed to was the text as it stood when it was read back to them.
+               Keeping the confirmation across a change to the words is a
+               signature on a document somebody altered afterwards, and it is
+               the one thing that would make this record worse than no record. */
+            confirmedAt: null,
+          });
+        },
+
+        removeInterviewNote: (id, noteId) => {
+          const iv = get().interviews.find((x) => x.id === id);
+          if (!iv) return;
+          get().updateInterview(id, {
+            notes: iv.notes.filter((n) => n.id !== noteId),
+            confirmedAt: null,
+          });
+        },
+
+        addInterviewAttachment: (id, a) => {
+          const iv = get().interviews.find((x) => x.id === id);
+          if (!iv) return;
+          get().updateInterview(id, {
+            attachments: [
+              ...iv.attachments,
+              {
+                ...a,
+                id: uid(),
+                /* INT-7K2P9_P01 — the record's own id is the prefix, exactly as
+                   a check's and an ISF's are. */
+                ...(a.kind === "photo"
+                  ? { ref: nextPhotoRef(id, iv.attachments) }
+                  : {}),
+                createdAt: Date.now(),
+              },
+            ],
+          });
+        },
+
+        removeInterviewAttachment: (id, attachmentId) => {
+          const iv = get().interviews.find((x) => x.id === id);
+          if (!iv) return;
+          const gone = iv.attachments.find((a) => a.id === attachmentId);
+          get().updateInterview(id, {
+            attachments: iv.attachments.filter((a) => a.id !== attachmentId),
+          });
+          if (gone?.blobKey) void delBlob(gone.blobKey);
+        },
+
+        updateInterviewAttachment: (id, attachmentId, patch) => {
+          const iv = get().interviews.find((x) => x.id === id);
+          if (!iv) return;
+          const { id: _i, blobKey: _b, createdAt: _c, ...safe } = patch;
+          void _i; void _b; void _c;
+          get().updateInterview(id, {
+            attachments: iv.attachments.map((x) =>
               x.id === attachmentId ? { ...x, ...safe } : x
             ),
           });
@@ -1382,13 +1575,14 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 14,
+      version: 15,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
           findings?: Finding[];
           hazards?: Hazard[];
           safetyFindings?: SafetyFinding[];
+          interviews?: Interview[];
           responses?: Record<string, Response>;
           verifications?: Record<string, Verification>;
           captures?: Capture[];
@@ -1653,6 +1847,12 @@ export const useStore = create<State>()(
              half-captured audit becomes a white screen on the apron. */
           if (!Array.isArray(st.safetyFindings)) st.safetyFindings = [];
         }
+        if (from < 15) {
+          /* The interview slice. Same reasoning as 14 above, and the same
+             failure if it is skipped: a tablet that hydrated last week has no
+             `interviews` key at all, and the register maps over it. */
+          if (!Array.isArray(st.interviews)) st.interviews = [];
+        }
         if (from < 13) {
           /* updatedAt, back-filled — the field that makes two devices' work
              mergeable.
@@ -1714,6 +1914,7 @@ export const useStore = create<State>()(
         findings: s.findings,
         hazards: s.hazards,
         safetyFindings: s.safetyFindings,
+        interviews: s.interviews,
         lastSavedAt: s.lastSavedAt,
       }),
     }
@@ -1829,6 +2030,25 @@ export function useSafetyFindings(): SafetyFinding[] {
   const entity = useStore((s) => s.entity);
   return useMemo(
     () => all.filter((f) => f.entity === entity).sort((a, b) => b.raisedAt - a.raisedAt),
+    [all, entity]
+  );
+}
+
+/** Interviews held at the entity in view, newest first.
+ *
+ *  Scoped by ENTITY ONLY, like the safety findings and unlike findings and
+ *  hazards. Two reasons, and the second is the one that earns it. An interview
+ *  is expensive to arrange — it needs somebody's time, an escort, and often a
+ *  second visit to the same building — so the team arriving in March should be
+ *  able to see that the Facilities Manager already answered this in September
+ *  rather than asking him again. And a statement does not expire: what the
+ *  maintenance planner said about the inspection round last visit is still the
+ *  thing to put to him this one, either to confirm or to contradict. */
+export function useInterviews(): Interview[] {
+  const all = useStore((s) => s.interviews);
+  const entity = useStore((s) => s.entity);
+  return useMemo(
+    () => all.filter((iv) => iv.entity === entity).sort((a, b) => b.startedAt - a.startedAt),
     [all, entity]
   );
 }

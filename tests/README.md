@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Forty-four suites, no framework. Thirteen need a running server; thirty-one do not.
+Forty-five suites, no framework. Thirteen need a running server; thirty-two do not.
 **Check each suite's exit status, not its output**: a `for` loop over them
 reports the status of the loop.
 
@@ -69,6 +69,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `home.test.mjs` | no | 58 |
 | `adhoc.test.mjs` | no | 43 |
 | `isf.test.mjs` | no | 49 |
+| `interviews.test.mjs` | no | 74 |
 | `e2e.js` | yes | 24 |
 | `robustness.js` | yes | 53 |
 | `exports.js` | yes | 33 |
@@ -81,9 +82,9 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `team.js` | yes | 15 |
 | `preflight.js` | yes | 18 |
 | `shared.js` | starts its own | 61 |
-| `a11y.js` | yes | 51 |
+| `a11y.js` | yes | 61 |
 
-**1,905 assertions in total**, every count above verified by running the suite,
+**1,989 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -242,6 +243,63 @@ record.
 
 **Scoped by entity, not by visit.** An ISF the last visit left open is exactly
 what the next team walking into that airport needs to see.
+
+## `interviews.test.mjs`
+
+Guards the interview record — the only record in the app whose subject is a
+named person rather than an asset.
+
+```bash
+node tests/interviews.test.mjs
+```
+
+ACSA asked for it by name and is paying for it as a line item: scope 4.2,
+"Interview key personnel and stakeholders (e.g. Airport Operations Departments,
+Contractors, etc.) to gather information and insights", and pricing schedule
+1.2.6(b), "Interviews with key personnel and stakeholders", at every one of the
+ten airports. Thirty of the 324 check-points are `confirmedBy: "Practice"` —
+compliance turns on whether the round actually happens, not on what the file
+says — and the person who does the work is the only evidence there is.
+
+Twelve parts. What makes this different from every other suite here is what
+being wrong costs: a misread figure corrupts a trend, a misattributed sentence
+puts words in somebody's mouth under TPJV's letterhead.
+
+**Summary is the default.** Both directions of error exist and they are not
+equal. A verbatim answer filed as a summary loses a little force. A paraphrase
+filed as a quote loses the audit. So the unmarked case is the cautious one and
+`DEFAULT_KIND` is `summary` — asserted here and asserted again against the
+store, which must use the constant rather than its own literal.
+
+**Attribution is both halves.** A name without a role does not tell a reader
+whether the speaker would know. A role without a name — "the electrician said"
+— cannot be checked by anybody. Either alone is a quotation from nobody, and
+the register says `NOT CITABLE` rather than letting the row look finished.
+
+**Testimony is not evidence.** A statement *bears on* a check-point; it does
+not answer one. There is no path from this screen to a `Response`, a status or
+a finding, and the suite greps for every one of them. The thirty Practice
+checks are precisely where "he said it gets done" is the easiest thing in the
+world to file as compliance.
+
+**The confirmation dies with the text.** What the interviewee agreed to was
+what was read back to them. Editing, adding or removing any statement clears
+`confirmedAt`. A confirmation that survives an edit is a signature on a
+document somebody altered afterwards.
+
+**The clock before it is read.** Same class of bug as the ISF overdue badge,
+guarded before it happened rather than after: `now` is 0 until the device's
+clock is known, and a running interview must report no duration rather than
+fifty-six years.
+
+**References are never reused.** Deleting `S02` does not free `S02`. A report
+citing a statement must still mean that sentence next year.
+
+**Off the nav bar, but not nameless.** The bar already costs a swipe at eight
+entries and the fourteen project-evidence forms still to come cannot each take
+a slot, so this one lives in the More menu — and `OFF_NAV` gives it a real
+heading, because a screen reader announcing "Squawk" on two different screens
+has said nothing about either.
 
 ## `adhoc.test.mjs`
 
@@ -1061,7 +1119,7 @@ BASE=http://localhost:3000 node tests/a11y.js
 
 It computes the contrast of every ink step against every surface it can land on,
 in **both** themes, from the tokens as the browser actually resolves them — not
-from the hex values in the stylesheet — and drives all eight screens looking for
+from the hex values in the stylesheet — and drives **every** screen looking for
 a control nobody could name, a field nobody could label, a missing landmark or
 heading, and colour carrying meaning on its own.
 
@@ -1069,6 +1127,20 @@ On its first run it found: no `main` landmark anywhere, no `h1` on seven of the
 eight screens, no skip link, two unlabelled fields on Follow-up, seven status
 dots that said nothing at all, and four light-theme tokens below WCAG AA — two
 of them at 2.34:1 and 3.23:1, used for 9px hint text.
+
+**The screen list is discovered, not written down** (28 September 2026). It was
+a hand-written array of nine paths and it stayed at nine while the app grew to
+eleven: the safety register shipped without ever being driven by this suite, and
+the interview register would have shipped the same way the next day. Nothing
+failed, because nothing ran. Adding the two of them turned up six real defects —
+each screen had an unnamed capture field, an unlabelled one, and a second `h1`
+competing with the shell's. Every screen here is a directory under
+`src/app/(app)` with no route parameters, so the suite now reads the routes off
+the filesystem and a screen added tomorrow is covered the moment it exists.
+
+It still only drives each screen in its **empty** state. A register with a
+record open exposes controls this suite never reaches, and the aria-labels on
+those were added by reading rather than by failing a test.
 
 The dot assertion is the one worth understanding. A small round span passes if it
 says what its colour means, **or** if it is marked `aria-hidden` *and the row it
