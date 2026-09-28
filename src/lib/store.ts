@@ -22,6 +22,7 @@ import type {
   FeedbackNote,
   Finding,
   Hazard,
+  AttendanceEntry,
   Interview,
   InterviewNote,
   Likelihood,
@@ -35,6 +36,8 @@ import type {
   Response,
   Role,
   SafetyFinding,
+  Signature,
+  SiteDay,
   Severity,
   Verification,
 } from "./types";
@@ -50,6 +53,11 @@ import { needsDesk, needsField } from "./verification";
 import { portalIdFor } from "./sites";
 import { nextPhotoRef } from "./photos";
 import { DEFAULT_KIND, nextStatementRef } from "./interviews";
+import {
+  localDate,
+  nextSignatureRef,
+  patchInvalidatesSignature,
+} from "./attendance";
 
 /* The register and the 2025 data are pure lookups and live in ./register, so a
    non-React caller (src/lib/exports.ts) can use them without importing this
@@ -310,6 +318,11 @@ interface State {
    *  round is exactly what the next visit needs, and a per-visit slice would
    *  make every team start the introductions again. */
   interviews: Interview[];
+  /** Site days — TK-003 form 2's register and the daily diary. Flat, and
+   *  scoped by entity on the way out: the question this answers is "who was on
+   *  site at this airport that day", and the day may well belong to a visit
+   *  nobody is looking at now. */
+  siteDays: SiteDay[];
   lastSavedAt: number | null;
   hydrated: boolean;
 
@@ -390,6 +403,35 @@ interface State {
     patch: Partial<Attachment>
   ) => void;
   removeInterviewAttachment: (id: string, attachmentId: string) => void;
+
+  /* ---- Site attendance and the daily diary. See src/lib/attendance.ts. ----
+     ONE RECORD PER SITE PER CALENDAR DAY. openSiteDay RETURNS THE EXISTING ONE
+     rather than making a second: two records for one day is two half-registers,
+     both of which look complete, and the one somebody exports is the wrong
+     one. */
+  openSiteDay: (date?: string) => string;
+  updateSiteDay: (id: string, p: Partial<SiteDay>) => void;
+  removeSiteDay: (id: string) => void;
+  /** Adds a person to the day and returns their entry id. Only a name. */
+  addAttendee: (id: string, name: string, seed?: Partial<AttendanceEntry>) => string;
+  /** Patches a person's row. Clears the signature if the patch touches anything
+   *  the signature stands behind — see SIGNED_FIELDS. */
+  updateAttendee: (id: string, entryId: string, p: Partial<AttendanceEntry>) => void;
+  removeAttendee: (id: string, entryId: string) => void;
+  /** Records a signature against a person's row. The reference is assigned
+   *  here, from the day, so it is never reused. */
+  signAttendee: (
+    id: string,
+    entryId: string,
+    s: Omit<Signature, "ref">
+  ) => void;
+  addDayAttachment: (id: string, a: Omit<Attachment, "id" | "createdAt">) => void;
+  updateDayAttachment: (
+    id: string,
+    attachmentId: string,
+    patch: Partial<Attachment>
+  ) => void;
+  removeDayAttachment: (id: string, attachmentId: string) => void;
 
   removeFindingsForIssue: (checkId: string, issueIndex: number) => void;
 
@@ -530,6 +572,7 @@ export const useStore = create<State>()(
         hazards: [],
         safetyFindings: [],
         interviews: [],
+        siteDays: [],
         lastSavedAt: null,
         hydrated: false,
 
@@ -1064,6 +1107,209 @@ export const useStore = create<State>()(
           });
         },
 
+        openSiteDay: (date) => {
+          const s0 = get();
+          const day = date ?? localDate(Date.now());
+          /* THE WHOLE POINT. A second record for a day that already has one is
+             two half-registers: four names on the one somebody exports, three
+             on the one still on the other tablet, and nothing on either saying
+             the other exists. So this is open-or-return, and the screen has no
+             way to ask for a duplicate. */
+          const existing = s0.siteDays.find(
+            (d) => d.entity === s0.entity && d.date === day
+          );
+          if (existing) return existing.id;
+
+          const id = `ATT-${uid().toUpperCase().slice(0, 5)}`;
+          const now = Date.now();
+          set((s) => ({
+            siteDays: [
+              ...s.siteDays,
+              {
+                id,
+                entity: s.entity,
+                originVisit: s.visit,
+                date: day,
+                openedAt: now,
+                openedBy: s0.auditor || "",
+                diary: "",
+                entries: [],
+                attachments: [],
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          }));
+          return id;
+        },
+
+        updateSiteDay: (id, p) =>
+          set((s) => ({
+            siteDays: s.siteDays.map((d) =>
+              /* id, entity and date are what the record IS, and `date` most of
+                 all: moving a day's date would either collide with a real day
+                 or silently re-file four people's attendance onto a day they
+                 were not there. */
+              d.id === id
+                ? {
+                    ...d,
+                    ...p,
+                    id: d.id,
+                    entity: d.entity,
+                    date: d.date,
+                    openedAt: d.openedAt,
+                    createdAt: d.createdAt,
+                    updatedAt: Date.now(),
+                  }
+                : d
+            ),
+          })),
+
+        removeSiteDay: (id) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          /* The signatures go with it. They are bytes in the media store that
+             nothing else references once the day is gone. */
+          const keys = (d?.entries ?? [])
+            .map((e) => e.signature?.blobKey)
+            .filter((k): k is string => !!k);
+          const shots = (d?.attachments ?? [])
+            .map((a) => a.blobKey)
+            .filter((k): k is string => !!k);
+          set((s) => ({ siteDays: s.siteDays.filter((x) => x.id !== id) }));
+          if (keys.length || shots.length) void delBlobs([...keys, ...shots]);
+        },
+
+        addAttendee: (id, name, seed) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          if (!d) return "";
+          const entryId = uid();
+          const now = Date.now();
+          get().updateSiteDay(id, {
+            entries: [
+              ...d.entries,
+              {
+                name,
+                organisation: "",
+                role: "",
+                /* Arrival is stamped on creation, because the form is completed
+                   AT the gate as somebody walks in. A field that has to be
+                   filled in by hand is a field that gets a round number typed
+                   into it at five o'clock. */
+                arrivedAt: now,
+                departedAt: null,
+                inductionConfirmed: false,
+                inductionRef: "",
+                inductionExpires: null,
+                signature: null,
+                ...seed,
+                id: entryId,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          });
+          return entryId;
+        },
+
+        updateAttendee: (id, entryId, p) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          if (!d) return;
+          const { id: _i, createdAt: _c, signature: _s, ...safe } = p;
+          void _i; void _c; void _s;
+          /* THE SIGNATURE DOES NOT SURVIVE A CHANGE TO WHAT IT SIGNED FOR.
+             The person put their mark on a statement — this is who I am, who I
+             work for, what I do, and my induction is confirmed with this
+             reference. Edit any of that and the mark is of something else. The
+             times are deliberately outside the list; see SIGNED_FIELDS. */
+          const invalidates = patchInvalidatesSignature(safe);
+          get().updateSiteDay(id, {
+            entries: d.entries.map((e) =>
+              e.id === entryId
+                ? {
+                    ...e,
+                    ...safe,
+                    ...(invalidates ? { signature: null } : {}),
+                    updatedAt: Date.now(),
+                  }
+                : e
+            ),
+          });
+        },
+
+        removeAttendee: (id, entryId) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          if (!d) return;
+          const gone = d.entries.find((e) => e.id === entryId);
+          get().updateSiteDay(id, {
+            entries: d.entries.filter((e) => e.id !== entryId),
+          });
+          if (gone?.signature?.blobKey) void delBlob(gone.signature.blobKey);
+        },
+
+        signAttendee: (id, entryId, sig) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          if (!d) return;
+          /* The reference is assigned HERE rather than by the pad, because only
+             the day knows which numbers it has already used. A person who signs,
+             is corrected and signs again gets a new one: the first mark was of a
+             different statement and the two must not be confusable. */
+          const ref = nextSignatureRef(id, d.entries);
+          const previous = d.entries.find((e) => e.id === entryId)?.signature;
+          get().updateSiteDay(id, {
+            entries: d.entries.map((e) =>
+              e.id === entryId
+                ? { ...e, signature: { ...sig, ref }, updatedAt: Date.now() }
+                : e
+            ),
+          });
+          /* A superseded mark's bytes go. The reference is not reused, so
+             nothing can come to point at the wrong image; keeping the image of
+             a statement nobody agreed to would be worse. */
+          if (previous?.blobKey && previous.blobKey !== sig.blobKey) {
+            void delBlob(previous.blobKey);
+          }
+        },
+
+        addDayAttachment: (id, a) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          if (!d) return;
+          get().updateSiteDay(id, {
+            attachments: [
+              ...d.attachments,
+              {
+                ...a,
+                id: uid(),
+                ...(a.kind === "photo"
+                  ? { ref: nextPhotoRef(id, d.attachments) }
+                  : {}),
+                createdAt: Date.now(),
+              },
+            ],
+          });
+        },
+
+        removeDayAttachment: (id, attachmentId) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          if (!d) return;
+          const gone = d.attachments.find((a) => a.id === attachmentId);
+          get().updateSiteDay(id, {
+            attachments: d.attachments.filter((a) => a.id !== attachmentId),
+          });
+          if (gone?.blobKey) void delBlob(gone.blobKey);
+        },
+
+        updateDayAttachment: (id, attachmentId, patch) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          if (!d) return;
+          const { id: _i, blobKey: _b, createdAt: _c, ...safe } = patch;
+          void _i; void _b; void _c;
+          get().updateSiteDay(id, {
+            attachments: d.attachments.map((x) =>
+              x.id === attachmentId ? { ...x, ...safe } : x
+            ),
+          });
+        },
+
         removeFindingsForIssue: (checkId, issueIndex) =>
           set((s) => ({
             findings: s.findings.filter(
@@ -1575,7 +1821,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 15,
+      version: 16,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -1583,6 +1829,7 @@ export const useStore = create<State>()(
           hazards?: Hazard[];
           safetyFindings?: SafetyFinding[];
           interviews?: Interview[];
+          siteDays?: SiteDay[];
           responses?: Record<string, Response>;
           verifications?: Record<string, Verification>;
           captures?: Capture[];
@@ -1853,6 +2100,12 @@ export const useStore = create<State>()(
              `interviews` key at all, and the register maps over it. */
           if (!Array.isArray(st.interviews)) st.interviews = [];
         }
+        if (from < 16) {
+          /* The site-day slice. Same reasoning as 14 and 15, same failure if it
+             is skipped: no key at all on a tablet that hydrated yesterday, and
+             the register maps over it. */
+          if (!Array.isArray(st.siteDays)) st.siteDays = [];
+        }
         if (from < 13) {
           /* updatedAt, back-filled — the field that makes two devices' work
              mergeable.
@@ -1915,6 +2168,7 @@ export const useStore = create<State>()(
         hazards: s.hazards,
         safetyFindings: s.safetyFindings,
         interviews: s.interviews,
+        siteDays: s.siteDays,
         lastSavedAt: s.lastSavedAt,
       }),
     }
@@ -2049,6 +2303,30 @@ export function useInterviews(): Interview[] {
   const entity = useStore((s) => s.entity);
   return useMemo(
     () => all.filter((iv) => iv.entity === entity).sort((a, b) => b.startedAt - a.startedAt),
+    [all, entity]
+  );
+}
+
+/** Site days at the entity in view, most recent date first.
+ *
+ *  Scoped by ENTITY ONLY, like the safety findings and the interviews. The
+ *  question this register answers is "who was on site at this airport, that
+ *  day" — asked months later, by somebody who does not know or care which audit
+ *  the day belonged to, and usually because a finding raised on that date is
+ *  being argued about.
+ *
+ *  Sorted by the DATE STRING, not by openedAt. `YYYY-MM-DD` sorts correctly as
+ *  text, and it is the day being ordered rather than the moment somebody
+ *  happened to open the record — a day opened late on the following morning
+ *  still belongs where its date puts it. */
+export function useSiteDays(): SiteDay[] {
+  const all = useStore((s) => s.siteDays);
+  const entity = useStore((s) => s.entity);
+  return useMemo(
+    () =>
+      all
+        .filter((d) => d.entity === entity)
+        .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
     [all, entity]
   );
 }

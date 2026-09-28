@@ -120,6 +120,7 @@ const NAV = [
 const OFF_NAV: Record<string, string> = {
   "/home": "Home",
   "/interviews": "Interview records",
+  "/attendance": "Site attendance and daily diary",
 };
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -139,6 +140,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
      reference each time and re-render the masthead for nothing. */
   const interviewCount = useStore(
     (s) => s.interviews.filter((iv) => iv.entity === s.entity).length
+  );
+  /* How many people are signed in and not signed out, anywhere at this site.
+     A COUNT for the same reason as above, and deliberately not "today": a
+     register somebody forgot to close yesterday is exactly what this line
+     should be nagging about. */
+  const onSiteNow = useStore((s) =>
+    s.siteDays
+      .filter((d) => d.entity === s.entity)
+      .reduce(
+        (n, d) =>
+          n + d.entries.filter((e) => e.arrivedAt !== null && e.departedAt === null).length,
+        0
+      )
   );
   const shared = useShared();
   /* Only the states a person can actually do something about. "Waiting for
@@ -631,6 +645,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       }
                       selected={pathname === "/interviews"}
                       onClick={() => { setMore(false); router.push("/interviews"); }}
+                    />
+                  )}
+                  {role !== "acsa" && (
+                    <MoreItem
+                      icon={<IconTeam width={14} height={14} />}
+                      label="Site attendance"
+                      hint={
+                        onSiteNow
+                          ? `${onSiteNow} on site now — and the daily diary`
+                          : "Who was on site, and the daily diary"
+                      }
+                      selected={pathname === "/attendance"}
+                      onClick={() => { setMore(false); router.push("/attendance"); }}
                     />
                   )}
                   <div className="my-[4px] h-px" style={{ background: "var(--menu-line)" }} />

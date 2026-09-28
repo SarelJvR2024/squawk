@@ -62,7 +62,7 @@ npm run build && npm start
 
 ## Tests
 
-Forty-five suites, no framework, all plain `node`. See `tests/README.md` — and
+Forty-six suites, no framework, all plain `node`. See `tests/README.md` — and
 check each suite's **exit status**, not the output: a `for` loop over them
 reports the status of the loop, not of the suites.
 
@@ -415,7 +415,7 @@ src/
     answers.json      9,836 researched options, loaded on demand
     priorFindings.json  the 23 March 2025 findings
     programme.json    entities, the 3-year cycle, zones
-tests/                forty-five suites — see tests/README.md
+tests/                forty-six suites — see tests/README.md
 ```
 
 ## Notes for whoever picks this up
@@ -1076,6 +1076,71 @@ to build cannot each take a slot. An interview is arranged rather than stumbled
 into, so it can afford two presses.
 
 Rules live in `src/lib/interviews.ts`, guarded by `tests/interviews.test.mjs`.
+
+## Site attendance and the daily diary
+
+`/attendance`, reached from the **More** menu. TK-003 form 2 — *Site Attendance
+& Induction Confirmation* — completed on arrival each day and signed by each
+person. It feeds SF-005 sheet 4, Induction & Access, and it is held as **J14**
+of the site safety file, because SF-005 has no sheet for it: the question it
+answers turned out to be one nobody had written a sheet for. **Who was on site
+the day that finding was raised?** That is what TPJV is most likely to be asked
+a year later, and the hardest thing to reconstruct from anything else.
+
+This is also the first record in the app that carries a **signature**, which the
+roadmap named as the only genuinely new capability the remaining forms need —
+five of the eight TK-003 forms are worth nothing without one, because *an
+attendance register without signatures is a list somebody typed*.
+
+**One day, one record.** The store opens-or-returns, and the screen has no
+control that could ask for a second register for the same date. Two registers
+for one day is the quietest failure available here: both look complete, neither
+says the other exists, and the one that gets exported is the one that is wrong.
+A day's date cannot be edited afterwards for the same reason.
+
+**Arrival is stamped, not typed.** Adding somebody records the moment they
+walked in, because that is when this form is actually completed. A blank time
+field gets a round number put in it at five o'clock.
+
+**A signature signs a statement.** The person marks *this is who I am, who I
+work for, what I do, and my airside induction is confirmed with this reference*.
+Change any of those afterwards and the mark is cleared — it was of something
+else, and a signature that survives an edit is a signature on a document
+somebody altered. The **times are deliberately outside** that list: departure is
+recorded hours later by whoever closes the day down, and clearing every
+signature each evening would leave the register unsigned exactly when a reader
+comes to it.
+
+**A typed name is not a signature.** The record holds both — the drawn mark, and
+the name as given, so the row is still attributable if the image is ever lost —
+but only stored bytes count as signed. If the capture fails, the pad says so and
+reports **nothing** to the caller, because a row that reads as signed with
+nothing behind it is worse than an unsigned one: nobody goes looking for it.
+Signatures live under their own key in the media store and carry a reference
+(`ATT-7K2P9_S01`) that is never reused.
+
+**One gap, stated plainly.** They are **not** backed up to the record store yet.
+`src/lib/sync.ts` walks check-point and inspection photographs only — it has
+never walked the ISF's or the interview register's photographs either, so this
+is one gap rather than three. The register says so on screen and names copying
+the register out as the thing that actually works, rather than pointing at a
+sync button that would not clear it.
+
+**Entitlement, not just presence.** Contract Data 20.1 gives site access
+*"Following Airside Induction and Permit Process completions"*, and airside
+permits are per person, per airport, expiry-dated. So the form records the
+induction reference and its expiry, and a lapse is judged **against the day**
+rather than against now — a permit that expired last month does not make
+September's attendance improper, and one that had already expired in September
+does.
+
+The diary is one free-text field on purpose. TK-003 form 8, the *Daily Site
+Closeout*, is the checklist; it is a different form, and its real purpose is
+catching a safety finding that was raised and not reported. Merging the two
+would turn an account of the day into a compliance tick and lose both.
+
+Rules live in `src/lib/attendance.ts`, the pad in
+`src/components/SignaturePad.tsx`, guarded by `tests/attendance.test.mjs`.
 
 ## Hazards
 

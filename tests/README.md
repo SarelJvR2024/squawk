@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Forty-five suites, no framework. Thirteen need a running server; thirty-two do not.
+Forty-six suites, no framework. Thirteen need a running server; thirty-three do not.
 **Check each suite's exit status, not its output**: a `for` loop over them
 reports the status of the loop.
 
@@ -70,6 +70,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `adhoc.test.mjs` | no | 43 |
 | `isf.test.mjs` | no | 49 |
 | `interviews.test.mjs` | no | 74 |
+| `attendance.test.mjs` | no | 90 |
 | `e2e.js` | yes | 24 |
 | `robustness.js` | yes | 53 |
 | `exports.js` | yes | 33 |
@@ -82,9 +83,9 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `team.js` | yes | 15 |
 | `preflight.js` | yes | 18 |
 | `shared.js` | starts its own | 61 |
-| `a11y.js` | yes | 61 |
+| `a11y.js` | yes | 66 |
 
-**1,989 assertions in total**, every count above verified by running the suite,
+**2,084 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -300,6 +301,55 @@ entries and the fourteen project-evidence forms still to come cannot each take
 a slot, so this one lives in the More menu — and `OFF_NAV` gives it a real
 heading, because a screen reader announcing "Squawk" on two different screens
 has said nothing about either.
+
+## `attendance.test.mjs`
+
+Guards site attendance and the daily diary — TK-003 form 2 — and the first
+record in this app that carries somebody's **signature**.
+
+```bash
+node tests/attendance.test.mjs
+```
+
+Twelve parts. Two things make it unlike the other project-evidence registers.
+
+**One day, one record.** `openSiteDay` opens or returns; there is no control on
+the screen that can ask for a second register for the same date. Two registers
+for one day is the quietest failure in this build — each looks complete,
+neither says the other exists, and the one that gets exported is the one that
+is wrong. The day's `date` is also unpatchable, because moving it either
+collides with a real day or silently re-files four people's attendance onto a
+day nobody was there.
+
+**The date is a local calendar day.** `YYYY-MM-DD`, built by hand. A single
+`toISOString()` converts to UTC first, which in South Africa files a 01:30
+arrival under the previous day — and an attendance register that disagrees with
+the escort's log about which day somebody was on site is worse than none. The
+assertion reads the function's body, not the file: the module names
+`toISOString` in a comment to explain why it does not use it.
+
+**A signature signs a statement, and the times are not part of it.** The person
+puts their mark on *this is who I am, who I work for, what I do, and my airside
+induction is confirmed with this reference*. `SIGNED_FIELDS` is that list;
+patching any of it clears the mark. Arrival and departure are deliberately
+outside it, and the suite asserts that in **both** directions — because
+clearing every signature when somebody is signed out at five o'clock would
+leave the register unsigned exactly when a reader comes to it.
+
+**A typed name is not a signature.** `isSigned` requires stored bytes, not a
+`signedName`. The pad reports nothing at all to its caller when storage fails,
+so no row can come to read as signed with nothing behind it, and the suite
+greps the catch block to prove it. Signatures are PNG — JPEG's blocking
+artefacts around thin high-contrast strokes are the wrong compression for
+somebody's name — and they are **not** `Attachment`s, so the code that deletes
+a photograph can never delete a signature.
+
+**Entitlement is judged against the day, not against now.** Contract Data 20.1
+gives site access "Following Airside Induction and Permit Process completions",
+and airside permits are per person, per airport, expiry-dated. A permit that
+expired last month does not make September's attendance improper; one that had
+already expired in September does. A permit expiring *on* the day is still
+valid that day.
 
 ## `adhoc.test.mjs`
 

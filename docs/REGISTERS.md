@@ -55,7 +55,7 @@ not by how hard it is to build.
 |---|---|---|---|
 | 1 | **Immediate Safety Finding** | **BUILT** | `/isf`, `src/lib/isf.ts`, `tests/isf.test.mjs` (49 assertions) |
 | 1 | **Interview record** | **BUILT** | `/interviews`, `src/lib/interviews.ts`, `tests/interviews.test.mjs` (74 assertions) |
-| 1 | Site attendance & daily diary | not started | not in SF-005 either; added as J14 of the safety file |
+| 1 | **Site attendance & daily diary** | **BUILT** | `/attendance`, `src/lib/attendance.ts`, `tests/attendance.test.mjs` (90 assertions) |
 | 1 | Document & evidence collection log | not started | 180 of 324 checks are confirmed by a document |
 | 2 | PPE check (daily) | not started | 113 PPE mentions in the register; C1.3 compliance item 7 |
 | 2 | Induction & access record | not started | S010 011M §4.15(b) |
@@ -67,14 +67,21 @@ not by how hard it is to build.
 | 3 | Opening & closing meeting attendance | not started | who from ACSA was in the room |
 | 3 | Permit-to-work verification log | not started | 16 checks reference permits |
 | 3 | Area access / scope limitation log | not started | turns "not inspected" into a recorded limitation |
-| — | **Signature capture** | not started | needed by five of the above; the only genuinely new capability |
+| — | **Signature capture** | **BUILT** | `src/components/SignaturePad.tsx` — pointer events, PNG, own media key, never silent on failure |
 | — | Export sheets for the ISF and the interview record | **open question** | whether either reaches ACSA in the workbook, or only as the notice and the read-back record |
 
 Out, and deliberately: RFI tracker, early-warning and risk register, actions
 log, meeting minutes. Desk work, and the scope rule below draws the line at a
 form somebody fills in and signs.
 
-**Two of sixteen built.** The interview record (28 September) turned up one fact
+**Four of sixteen built**, counting signature capture — which was the blocker on
+five of the rest and is now done. It was unblocked by reading the form properly:
+TK-003 form 2 is signed by *each person*, and each person is a TPJV team member
+signing on TPJV's own device. The genuinely open question is a narrower one —
+whether an **ACSA escort** signs on our tablet, which forms 1 and 8 need — and
+it is still Sarel's.
+
+**On the contract.** The interview record (28 September) turned up one fact
 worth recording here, because it changes how this whole list should be argued
 for: interviews are not only mandated by the scope, they are a **separately
 priced line item** — pricing schedule **1.2.6(b)**, *"Interviews with key
@@ -136,19 +143,32 @@ Worth recording, because the same mistake is easy to repeat:
 Form 1 is the one to build first. It is the only form whose value is destroyed
 by delay, and SWP-07 requires written notification the same day.
 
-### What this needs that Squawk does not have
+### What this needed that Squawk did not have — now built
 
 **A signature.** Forms 2, 3, 5, 6 and 8 are worth nothing unsigned — an
 attendance register without signatures is a list somebody typed.
 
+**Built 28 September 2026**, with form 2: `src/components/SignaturePad.tsx`.
+Pointer events, so one code path covers a finger, a stylus and a mouse, with
+`setPointerCapture` so a stroke stays attached when a finger slides off the pad.
+PNG on a transparent background. The four rules below are each asserted by
+`tests/attendance.test.mjs`.
+
 Signature capture has to be held to the same rules as a photograph, and for the
 same reason:
 
-- stored outside the persisted value, under its own key;
-- given a reference, so the workbook and the record agree on what to call it;
+- stored outside the persisted value, under its own key — **done**;
+- given a reference, so the workbook and the record agree on what to call it —
+  **done**, `ATT-7K2P9_S01`, never reused;
 - backed up to the record store, because a signature that exists on one tablet
-  is a signature that can be lost;
-- never silently dropped — a capture that could not be stored says so.
+  is a signature that can be lost — **NOT DONE**. The field and the warning
+  exist; the upload does not. `src/lib/sync.ts` walks check-point and
+  inspection photographs only, and has never walked the ISF's or the interview
+  register's photographs either, so this is one gap and not three. Until it is
+  wired the register says plainly that the only copy is on the device, and
+  names copying the register out as the thing that actually works;
+- never silently dropped — **done**. A capture that could not be stored reports
+  nothing at all to the caller, so no row can read as signed with no mark.
 
 Form 1 and Form 8 additionally need an **ACSA escort signature**, which is a
 second person signing on our device. That is a different trust question from a
