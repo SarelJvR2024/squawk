@@ -22,7 +22,27 @@
 
 const { chromium } = require("playwright");
 const B = process.env.BASE || "http://localhost:3000";
-const PAGES = ["/home", "/capture", "/field", "/findings", "/hazards", "/closure", "/dashboard", "/review", "/preflight"];
+/* EVERY SCREEN, DISCOVERED — not a list somebody remembers to add to.
+ *
+ *  This was a hand-written array of nine paths, and it stayed at nine while the
+ *  app grew to eleven. The safety register shipped on 28 September without ever
+ *  having been driven by this suite, and the interview register would have
+ *  shipped the same way the next day: two screens an auditor uses on a tablet,
+ *  neither one checked for a control nobody could name. Nothing failed, because
+ *  nothing ran.
+ *
+ *  Every screen in this app is a directory under src/app/(app) with no route
+ *  parameters, so the routes ARE the directory names and there is nothing to
+ *  keep in step. A screen added tomorrow is covered by this suite the moment it
+ *  exists, which is the only version of this that stays true. */
+const fs = require("fs");
+const path = require("path");
+const APP_DIR = path.join(__dirname, "..", "src", "app", "(app)");
+const PAGES = fs
+  .readdirSync(APP_DIR, { withFileTypes: true })
+  .filter((d) => d.isDirectory() && fs.existsSync(path.join(APP_DIR, d.name, "page.tsx")))
+  .map((d) => `/${d.name}`)
+  .sort();
 
 let pass = 0, fail = 0;
 const log = [];

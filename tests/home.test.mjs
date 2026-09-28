@@ -88,9 +88,15 @@ check(
   "a ninth nav destination costs a swipe on a bar that already overflows a portrait iPad"
 );
 
+/* The shell used to special-case /home inline. It stopped being a special case
+   when the interview register became the second screen reached from somewhere
+   other than the nav bar, so both now sit in one OFF_NAV map — which is what
+   this asserts. The rule is unchanged: a screen off the nav bar still names
+   the work rather than falling through to the app's own name. */
 check(
   "and the screen names itself in the one h1",
-  /pathname === "\/home"[\s\S]{0,80}"Home"/.test(shell),
+  /OFF_NAV\[pathname\] \?\?/.test(shell) &&
+    /const OFF_NAV[\s\S]{0,300}"\/home": "Home"/.test(shell),
   "/home has no NAV row to take a label from, so the heading would have read 'Squawk'"
 );
 

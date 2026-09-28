@@ -136,7 +136,7 @@ export default function IsfPage() {
   return (
     <div className="mx-auto w-full max-w-[760px] px-4 pb-24 pt-3">
       <header className="mb-3">
-        <h1 className="font-display text-[15px] font-semibold">Immediate safety findings</h1>
+        <h2 className="font-display text-[15px] font-semibold">Immediate safety findings</h2>
         <p className="mt-1 text-[11px]" style={{ color: "var(--ink-3)" }}>
           SWP-07. Stop, make safe only if it can be done without risk, tell the ACSA
           representative at once, then issue the written notice the same day.
@@ -151,6 +151,12 @@ export default function IsfPage() {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={2}
+            /* A placeholder is not a name: it disappears the moment somebody
+               types, and a screen reader never announced it in the first
+               place. Every control on this screen carries its own, because
+               Field's label is a <b> beside the input rather than a <label>
+               bound to it. */
+            aria-label="What did you see?"
             placeholder="Exposed busbar in the MV room, door standing open"
             className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
             style={{ background: "var(--bg)", borderColor: "var(--line)" }}
@@ -226,6 +232,7 @@ export default function IsfPage() {
                       <input
                         value={f.notifiedTo}
                         onChange={(e) => patch(f.id, { notifiedTo: e.target.value })}
+                        aria-label={`Who you told about ${f.id}`}
                         placeholder="Who did you tell?"
                         className="mb-2 w-full rounded-[9px] border px-3 py-2 text-[13px]"
                         style={{ background: "var(--bg)", borderColor: "var(--line)" }}
@@ -258,6 +265,7 @@ export default function IsfPage() {
                     <input
                       value={f.location}
                       onChange={(e) => patch(f.id, { location: e.target.value })}
+                      aria-label={`Where ${f.id} is`}
                       placeholder="MV switchroom, Pier B basement"
                       className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
                       style={{ background: "var(--bg)", borderColor: "var(--line)" }}
@@ -270,6 +278,7 @@ export default function IsfPage() {
                       onChange={(e) =>
                         patch(f.id, { discipline: e.target.value || null })
                       }
+                      aria-label={`Discipline for ${f.id}`}
                       className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
                       style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                     >
@@ -287,6 +296,7 @@ export default function IsfPage() {
                       value={f.riskToPersons}
                       onChange={(e) => patch(f.id, { riskToPersons: e.target.value })}
                       rows={2}
+                      aria-label={`Immediate risk to persons from ${f.id}`}
                       placeholder="Anyone entering the room could contact live parts"
                       className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
                       style={{ background: "var(--bg)", borderColor: "var(--line)" }}
@@ -298,6 +308,7 @@ export default function IsfPage() {
                       value={f.immediateAction}
                       onChange={(e) => patch(f.id, { immediateAction: e.target.value })}
                       rows={2}
+                      aria-label={`Immediate action taken on ${f.id}`}
                       placeholder="Withdrew, warned two staff nearby, escort locked the door"
                       className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
                       style={{ background: "var(--bg)", borderColor: "var(--line)" }}
@@ -349,6 +360,7 @@ export default function IsfPage() {
                     <input
                       value={f.writtenTo}
                       onChange={(e) => patch(f.id, { writtenTo: e.target.value })}
+                      aria-label={`Who the written notice for ${f.id} goes to`}
                       placeholder="Airport contact and ACSA Centre of Excellence"
                       className="mb-2 w-full rounded-[9px] border px-3 py-2 text-[13px]"
                       style={{ background: "var(--bg)", borderColor: "var(--line)" }}
@@ -374,6 +386,7 @@ export default function IsfPage() {
                       <input
                         value={f.closureNote}
                         onChange={(e) => patch(f.id, { closureNote: e.target.value })}
+                        aria-label={`Who confirmed ${f.id} is safe, and how`}
                         placeholder="Who confirmed it, and how"
                         className="mb-2 w-full rounded-[9px] border px-3 py-2 text-[13px]"
                         style={{ background: "var(--bg)", borderColor: "var(--line)" }}
