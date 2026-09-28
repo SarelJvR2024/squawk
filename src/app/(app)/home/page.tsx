@@ -26,7 +26,8 @@
  *  figures from useAuditProgress — the named selector, because a screen may not
  *  reach into byVisit itself. */
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo } from "react";
+import { useNow } from "@/lib/clock";
 import Link from "next/link";
 import {
   checksAt,
@@ -124,49 +125,8 @@ const FLOW = [
 
 const DAY = 86400000;
 
-/* ------------------------------------------------------------------ the clock
-
-   THE CLOCK IS AN EXTERNAL SYSTEM, and it is read as one.
-
-   This screen is server-rendered like every other one, and the store rehydrates
-   from IndexedDB afterwards — so the first client render has to match the
-   server's HTML exactly, or React tears the tree down and rebuilds it.
-   Date.now() during render cannot do that, and reading it in an effect and
-   calling setState is a cascading render the React lint rule correctly refuses.
-
-   useSyncExternalStore is the mechanism meant for exactly this: the server
-   snapshot is 0, which every reader below treats as "not known yet" and renders
-   nothing for, and the client snapshot is a real time. Everything the clock
-   touches is therefore ADDITIVE — it appears a frame after mount and nothing
-   already on the screen changes.
-
-   It ticks once a minute rather than being fixed at mount, because "2 min ago"
-   left open on a stand for an hour is a lie the reader has no way to detect. */
-const CLOCK_TICK = 60000;
-let clockNow = 0;
-let clockTimer: ReturnType<typeof setInterval> | null = null;
-const clockSubs = new Set<() => void>();
-
-function subscribeClock(onChange: () => void): () => void {
-  clockSubs.add(onChange);
-  if (!clockTimer) {
-    clockTimer = setInterval(() => {
-      clockNow = Date.now();
-      for (const cb of clockSubs) cb();
-    }, CLOCK_TICK);
-  }
-  return () => {
-    clockSubs.delete(onChange);
-    if (clockSubs.size === 0 && clockTimer) {
-      clearInterval(clockTimer);
-      clockTimer = null;
-    }
-  };
-}
-/** Cached, because a snapshot that returns a new value on every call is an
- *  infinite render loop rather than a fresh reading. */
-const clockSnapshot = () => (clockNow ||= Date.now());
-const clockOnServer = () => 0;
+/* The clock lives in src/lib/clock.ts — see the note there on why it is read
+   as an external system rather than called during render. */
 
 /** Local midnight for a "YYYY-MM-DD" from the register's calendar. */
 const dateOf = (iso: string) => new Date(`${iso}T00:00:00`).getTime();
@@ -215,7 +175,7 @@ export default function HomePage() {
   const openAudit = useStore((s) => s.openAudit);
 
   /** 0 until the device's clock is known — see subscribeClock above. */
-  const now = useSyncExternalStore(subscribeClock, clockSnapshot, clockOnServer);
+  const now = useNow();
 
   const visitLabel = visits.find((v) => v.id === visitId)?.label ?? visitId;
   const visitNote = visits.find((v) => v.id === visitId)?.note ?? "";

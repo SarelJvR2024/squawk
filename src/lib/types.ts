@@ -963,3 +963,101 @@ export interface AdHocItem {
   createdBy: string;
   updatedAt?: number;
 }
+
+/** How the ACSA site representative was told. SWP-07 says "verbally at once",
+ *  so in-person and phone are the ones that satisfy it; a message or an email
+ *  is a record of having tried, not a notification. Stored so the register can
+ *  show which, rather than flattening every notification into "notified". */
+export type NotifyMethod = "in-person" | "phone" | "radio" | "message" | "email";
+
+/** The stage an Immediate Safety Finding has reached.
+ *
+ *  DERIVED from the timestamps, never stored — see isfStage() in src/lib/isf.ts.
+ *  A stored status and the timestamps it summarises drift apart the first time
+ *  one is written without the other, and then the register says "notified" for
+ *  something with no notification time on it. */
+export type IsfStage = "raised" | "notified" | "issued" | "closed";
+
+/** An Immediate Safety Finding — TK-003 form 1, on the tablet.
+ *
+ *  This is NOT a Finding and must not become one. A finding is an audit
+ *  outcome: rated on B170 001M, carried between visits, closed when somebody
+ *  fixes it months later. An ISF is what happens when an auditor walks into a
+ *  substation and sees something that could kill somebody this afternoon.
+ *  SWP-07 sets its whole shape — stop, make safe only if it can be done without
+ *  risk, notify the ACSA site representative VERBALLY AT ONCE, complete the
+ *  form, issue written notification THE SAME DAY — and none of those steps has
+ *  an equivalent on a finding.
+ *
+ *  Two consequences run through the fields below.
+ *
+ *  First, it is raised in seconds, in a place the person raising it wants to
+ *  leave. So only `description` is required to save one. Everything else can be
+ *  filled in afterwards, from somewhere safer, and an ISF sitting half-complete
+ *  in the register is doing its job — it exists, and the register says what is
+ *  missing. A form that demanded every field before it would save is a form
+ *  that gets filled in later from memory, or not at all.
+ *
+ *  Second, the times are the compliance record. `raisedAt` to `notifiedAt` is
+ *  the gap SWP-07 calls "at once", and `raisedAt` to `writtenIssuedAt` is the
+ *  one it calls "the same day". Both are what a reviewer asks about, so both
+ *  are recorded as instants rather than inferred from when a row was edited. */
+export interface SafetyFinding {
+  /** ISF-xxxxx. Prefix is deliberate: it is the photograph prefix too, so an
+   *  image in the export zip reads ISF-7K2P9_P01 and nobody has to ask which
+   *  record it belongs to. */
+  id: string;
+  entity: string;
+  originVisit: string;
+
+  /** The moment the auditor stopped. Not when the form was finished. */
+  raisedAt: number;
+  raisedBy: string;
+
+  /** Free text, because the danger does not check the register first. */
+  description: string;
+  /** Where, in words somebody can walk to without asking. */
+  location: string;
+  discipline: string | null;
+  /** The register tags this is about, where there are any. Same reasoning as a
+   *  finding's: plenty of immediate risks are not about one tagged asset. */
+  assetIds?: string[];
+
+  /** SWP-07's "make safe" has two halves and they are different questions: what
+   *  could happen to a person, and what was actually done. Recording only the
+   *  second is how "made safe" ends up meaning nothing. */
+  riskToPersons: string;
+  immediateAction: string;
+
+  /** The verbal notification. Null until it happens — and an ISF with a
+   *  description and no notification is exactly the row the register should be
+   *  shouting about. */
+  notifiedTo: string;
+  notifiedMethod: NotifyMethod | null;
+  notifiedAt: number | null;
+
+  /** The written notice, same day, to the airport contact and the ACSA Centre
+   *  of Excellence. `writtenTo` is who it went to, so the record stands on its
+   *  own when the sent item is in somebody's mailbox. */
+  writtenTo: string;
+  writtenIssuedAt: number | null;
+
+  /** Photographs, held exactly as a walk item's are: the media store keeps the
+   *  bytes, this keeps the reference. */
+  attachments: Attachment[];
+
+  /** Set if the ISF is also written up as an audit finding. Most are — the
+   *  danger is dealt with on the day and the underlying non-compliance is still
+   *  reportable — but the two records answer different questions and are kept
+   *  apart on purpose. */
+  findingId: string | null;
+
+  /** Closed means the risk to persons is gone, not that the paperwork is done.
+   *  `closureNote` says who confirmed it and how. */
+  closedAt: number | null;
+  closedBy: string;
+  closureNote: string;
+
+  createdAt: number;
+  updatedAt: number;
+}

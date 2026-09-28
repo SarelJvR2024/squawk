@@ -268,7 +268,13 @@ check("hazards are persisted", /\n\s+hazards: s\.hazards,/.test(store));
 check("hazard ids are their own namespace", /HZ-\$\{uid\(\)/.test(store));
 check("a hazard can be removed, freeing its findings to regroup", /removeHazard:/.test(store));
 check("the persist key is untouched", /name: "acsa-assurance-v1"/.test(store));
-check("the version was bumped rather than the key renamed", /version: 13,/.test(store));
+/* The number moves whenever any persisted shape changes — it was 13 when the
+   hazard slice landed and 14 once safety findings did. What this guards is that
+   the key stayed put and the version went UP, not that it stopped at 13. */
+check(
+  "the version was bumped rather than the key renamed",
+  (Number(/version: (\d+),/.exec(store)?.[1] ?? 0)) >= 13
+);
 check(
   "and every bump has a migration",
   [9, 10, 11, 12].every((v) => new RegExp(`if \\(from < ${v}\\)`).test(store))

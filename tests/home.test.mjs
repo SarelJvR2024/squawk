@@ -29,6 +29,11 @@ const root = path.join(here, "..");
 const src = (...p) => fs.readFileSync(path.join(root, "src", ...p), "utf8");
 
 const home = src("app", "(app)", "home", "page.tsx");
+/* The clock moved out of this screen when the safety findings register needed
+   the same one. The guarantees below are unchanged; they are just read where
+   the clock now lives. Two copies of it would be two answers to "is this
+   overdue", and one of those answers would be about a safety notice. */
+const clock = src("lib", "clock.ts");
 const dashboard = src("app", "(app)", "dashboard", "page.tsx");
 const shell = src("components", "AppShell.tsx");
 const store = src("lib", "store.ts");
@@ -217,15 +222,21 @@ check(
 
 check(
   "the clock is read as an external system, with 0 as its server snapshot",
-  /useSyncExternalStore\(subscribeClock, clockSnapshot, clockOnServer\)/.test(home) &&
-    /const clockOnServer = \(\) => 0;/.test(home),
+  /useSyncExternalStore\(subscribeClock, clockSnapshot, clockOnServer\)/.test(clock) &&
+    /const clockOnServer = \(\) => 0;/.test(clock),
   "Date.now() during render makes the server's HTML and the first client render differ, and React rebuilds the tree"
 );
 
 check(
   "its snapshot is cached rather than freshly read on every call",
-  /clockNow \|\|= Date\.now\(\)/.test(home),
+  /clockNow \|\|= Date\.now\(\)/.test(clock),
   "a snapshot returning a new value each call is an infinite render loop, not a fresh reading"
+);
+
+check(
+  "and this screen reads that one clock rather than starting its own",
+  /useNow\(\)/.test(home) && !/const clockSubs = new Set/.test(home),
+  "a second timer is a second answer to how long ago something happened"
 );
 
 check(

@@ -12,6 +12,70 @@ them carries on its face.
 
 ---
 
+## 0 · What these records are, and what they are not
+
+Sarel, 28 September 2026:
+
+> This doesn't necessarily form part of the audit, but it forms part of the
+> admin and the project management of the project and the audit. So this is
+> evidence we will need — to confirm, or to have as evidence, that we follow
+> the right procedures and have got all our evidence in place for the project.
+
+That sentence is the reason this document exists separately from the register,
+and it is worth stating flatly: **none of what follows is the audit.**
+
+The audit asks what is wrong with ACSA's assets. Everything here asks whether
+TPJV did the job properly — attended, was inducted, wore the PPE, held the
+toolbox talk, reported the danger, asked the right person the right question and
+kept the paper. Nobody is paying for it. It is what TPJV produces when somebody
+asks whether the audit was properly conducted, and the people who might ask are
+ACSA's SHE reviewer scoring form OHS 037, a Department of Labour inspector after
+an incident, and — most likely of all — TPJV itself, a year later, trying to
+remember who was on site the day a finding was raised.
+
+Three rules come out of that, and the build honours all three. They are set out
+in full in the README under "Two kinds of record, and why they must not merge":
+
+1. **It never touches a completion figure.** "312 of 324" must not become
+   "313 of 324" because somebody signed an attendance sheet.
+2. **It outlives the visit.** Scoped to the site, not to the audit that raised
+   it — an open safety finding is the next team's problem too.
+3. **It is not rated.** Nothing here goes on B170 001M or ERM. Rating a safety
+   finding invites somebody to triage it, and SWP-07's whole point is that it
+   is not triaged.
+
+---
+
+## 0a · Roadmap, and where it has got to
+
+Tiers agreed 28 September 2026. Order is by what breaks if it stays on paper,
+not by how hard it is to build.
+
+| Tier | Item | Status | Evidence |
+|---|---|---|---|
+| 1 | **Immediate Safety Finding** | **BUILT** | `/isf`, `src/lib/isf.ts`, `tests/isf.test.mjs` (49 assertions) |
+| 1 | Interview record | not started | 30 check-points are confirmed by Practice; scope C3 mandates interviews |
+| 1 | Site attendance & daily diary | not started | not in SF-005 either; added as J14 of the safety file |
+| 1 | Document & evidence collection log | not started | 180 of 324 checks are confirmed by a document |
+| 2 | PPE check (daily) | not started | 113 PPE mentions in the register; C1.3 compliance item 7 |
+| 2 | Induction & access record | not started | S010 011M §4.15(b) |
+| 2 | Escort & access log | not started | specific to escorted-at-all-times working |
+| 2 | Toolbox talk record | not started | attendees are the point |
+| 2 | Incident / near-miss report | not started | C1.3 item 10 — reportable to the DoL Provincial Director |
+| 2 | Daily site closeout | not started | catches a finding raised and not reported |
+| 3 | Tenant supply & metering register | not started | 23 checks; kick-off risk 6.5.1 |
+| 3 | Opening & closing meeting attendance | not started | who from ACSA was in the room |
+| 3 | Permit-to-work verification log | not started | 16 checks reference permits |
+| 3 | Area access / scope limitation log | not started | turns "not inspected" into a recorded limitation |
+| — | **Signature capture** | not started | needed by five of the above; the only genuinely new capability |
+| — | Export sheet for safety findings | **open question** | whether the ISF reaches ACSA in the workbook or only as the notice |
+
+Out, and deliberately: RFI tracker, early-warning and risk register, actions
+log, meeting minutes. Desk work, and the scope rule below draws the line at a
+form somebody fills in and signs.
+
+---
+
 ## The scope rule
 
 Sarel, 17 September 2026:

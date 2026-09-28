@@ -34,6 +34,7 @@ import SharedSheet from "@/components/SharedSheet";
 import {
   IconClipboard,
   IconCamera,
+  IconClock,
   IconCloud,
   IconCloudUp,
   IconGrid,
@@ -64,6 +65,15 @@ import { Pill } from "@/components/ui/primitives";
 const NAV = [
   { href: "/capture", label: "Checks", icon: IconClipboard },
   { href: "/field", label: "Inspection", icon: IconPin },
+  /* SAFETY sits second, beside the two screens an auditor is on while walking.
+     It is the rarest destination in this bar and the only one where a swipe is
+     a real cost: SWP-07 says notify the ACSA representative VERBALLY AT ONCE,
+     and the app's own record of when that happened starts the moment somebody
+     reaches this screen. A ninth entry is a cost the comment on Pre-flight
+     already counts honestly — this is the one destination worth paying it for.
+     IconClock because the clocks ARE the record here; the label carries the
+     meaning the icon set has no glyph for. */
+  { href: "/isf", label: "Safety", icon: IconClock },
   /* ASSET ASSURANCE, not "Findings".
      The screen stopped being a findings register when it became the place the
      group agrees an asset system's band — which is the number ACSA publishes
