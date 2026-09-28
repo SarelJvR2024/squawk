@@ -362,8 +362,13 @@ check(
   "an interview that can be re-dated afterwards is not a record"
 );
 check("interviews are persisted", /partialize[\s\S]{0,400}interviews: s\.interviews/.test(store));
-check("the persisted shape was versioned when the slice was added",
-  /version: 15,/.test(store));
+check(
+  "the persisted shape was versioned when the slice was added",
+  Number(/version: (\d+),/.exec(store)?.[1] ?? 0) >= 15 &&
+    /name: "acsa-assurance-v1"/.test(store),
+  "the version goes UP as later slices land — 16 was the site-day register. " +
+    "What must never change is the key, and what must never go backwards is 15"
+);
 check(
   "the migration defaults the slice rather than leaving it undefined",
   /from < 15[\s\S]{0,400}Array\.isArray\(st\.interviews\)[\s\S]{0,80}st\.interviews = \[\]/.test(

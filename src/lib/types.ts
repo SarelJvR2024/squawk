@@ -1217,3 +1217,124 @@ export interface Interview {
   createdAt: number;
   updatedAt: number;
 }
+
+/* --------------------------------------- site attendance and the daily diary */
+
+/** Somebody's mark, drawn on the glass.
+ *
+ *  DELIBERATELY NOT AN Attachment. An attachment is evidence hung on a record —
+ *  a photograph of the thing being described. A signature is an attestation
+ *  *about* the record: it says the person agrees with what the row states about
+ *  them. Filing it as a photograph would put it in the export's Photographs
+ *  sheet beside pictures of switchgear, and would let the same code that
+ *  deletes a photograph delete somebody's signature.
+ *
+ *  Held to the same storage rules as a photograph, and for the same reasons
+ *  (docs/REGISTERS.md §1): the bytes live under their own key outside the
+ *  persisted value, it carries a reference so the workbook and the record agree
+ *  what to call it, it is backed up to the record store because a signature
+ *  that exists on one tablet is a signature that can be lost, and a capture
+ *  that could not be stored says so rather than leaving a row that looks
+ *  signed.
+ *
+ *  `signedName` is typed, not drawn, and it exists so the record still says WHO
+ *  signed if the image is ever lost. It is not itself a signature — a register
+ *  of typed names is a list somebody made up. */
+export interface Signature {
+  /** `ATT-7K2P9_S01`. The day's own id and a sequence number, never reused. */
+  ref: string;
+  /** Key into the media store, never the bytes. */
+  blobKey: string;
+  /** The name as typed, so the row is still attributable without the image. */
+  signedName: string;
+  signedAt: number;
+  width?: number;
+  height?: number;
+  bytes?: number;
+  /** Where the record copy lives, once uploaded. The local copy is never
+   *  deleted because this is set. */
+  cloudUrl?: string;
+  cloudAt?: number;
+  /** Why the last upload failed, if it did. Shown, never swallowed. */
+  cloudError?: string;
+}
+
+/** One person, on site, on one day — TK-003 form 2.
+ *
+ *  "Site Attendance & Induction Confirmation", completed on arrival each day and
+ *  signed by each person, per day. It feeds SF-005 sheet 4, Induction & Access.
+ *
+ *  The induction half is not decoration. Contract Data 20.1 gives access to
+ *  sites "Following Airside Induction and Permit Process completions", so a
+ *  person whose induction or airside permit has lapsed is a person who should
+ *  not be past the gate — and the permits are per person, per airport, and
+ *  expiry-dated. A register that records only that somebody was there, and not
+ *  that they were entitled to be, answers the easy half of the question. */
+export interface AttendanceEntry {
+  id: string;
+  name: string;
+  /** Employer — TPJV, a subconsultant, ACSA. Free text: it is what they say. */
+  organisation: string;
+  role: string;
+
+  /** On the day. Arrival is what the form is completed on; departure is filled
+   *  in later and is deliberately NOT part of what the signature covers. */
+  arrivedAt: number | null;
+  departedAt: number | null;
+
+  /** The induction confirmation. `inductionRef` is the airside induction or
+   *  AVSEC permit number, `inductionExpires` the date on it. */
+  inductionConfirmed: boolean;
+  inductionRef: string;
+  inductionExpires: number | null;
+
+  /** Null until they sign, and cleared again if anything they signed for
+   *  changes — see SIGNED_FIELDS in src/lib/attendance.ts. */
+  signature: Signature | null;
+
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** A site day — TK-003 form 2's register, and the daily diary that goes with it.
+ *
+ *  ONE RECORD PER SITE PER CALENDAR DAY, and the store enforces it. Two records
+ *  for one day is two half-attendance-registers, and the failure is silent: each
+ *  looks complete, and the one somebody exports is the one that is wrong.
+ *
+ *  SF-005 has no sheet for this. It was added as J14 of the O.R. Tambo safety
+ *  file because the question it answers — who was on site the day that finding
+ *  was raised — is the one TPJV is most likely to be asked a year later, and the
+ *  hardest to reconstruct.
+ *
+ *  The diary is deliberately one free-text field and not a checklist. TK-003
+ *  form 8, the Daily Site Closeout, is the checklist, it is a different form,
+ *  and its real purpose is catching a safety finding that was raised and not
+ *  reported. Merging the two would turn an account of the day into a
+ *  compliance tick, and lose both. */
+export interface SiteDay {
+  /** `ATT-xxxxx`. The prefix every signature reference on the day is built on. */
+  id: string;
+  entity: string;
+  originVisit: string;
+
+  /** The calendar date, `YYYY-MM-DD`, in the auditor's own timezone.
+   *
+   *  A string rather than an instant, on purpose: "the site day" is a day on a
+   *  calendar at an airport in South Africa, not a point in time, and storing an
+   *  instant invites a UTC comparison that puts an 02:00 arrival on the day
+   *  before. */
+  date: string;
+
+  openedAt: number;
+  openedBy: string;
+
+  /** What the day actually consisted of, in the words of whoever was there. */
+  diary: string;
+
+  entries: AttendanceEntry[];
+  attachments: Attachment[];
+
+  createdAt: number;
+  updatedAt: number;
+}
