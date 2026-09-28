@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -41,6 +41,8 @@ import {
   IconDownload,
   IconFlag,
   IconGauge,
+  IconLeft,
+  IconRight,
   IconHelp,
   IconLock,
   IconLoop,
@@ -202,6 +204,41 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const visits = useVisits(entityCode);
   const visitLabel =
     visits.find((v) => v.id === visitId)?.label ?? visitId;
+
+  /* WHETHER THE NAV HAS MORE TO SHOW, in each direction.
+   *
+   *  The bar has scrolled sideways since the very first version of this file
+   *  and has always hidden its own scrollbar — a visible track across the top
+   *  of the app reads as a defect. That was fine at six destinations; at nine
+   *  it means a bar that is clearly cut off (a label sliced in half at the
+   *  edge) with nothing telling the reader that a swipe reveals the rest. A
+   *  cut-off word looks broken; a faded edge looks like a shelf with more on
+   *  it. So the fade is real, driven by the actual scroll position, not a
+   *  fixed decoration — a fade on the left when there is nothing to the left
+   *  would be the same lie in the other direction. */
+  const navRef = useRef<HTMLElement>(null);
+  const [navScroll, setNavScroll] = useState({ left: false, right: false });
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const measure = () => {
+      setNavScroll({
+        left: el.scrollLeft > 2,
+        right: el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
+      });
+    };
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    /* The set of destinations changes with role (ACSA sees fewer disabled
+       ones styled the same width) and the window can be resized at a desk,
+       both of which change whether it overflows at all. */
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      ro.disconnect();
+    };
+  }, []);
 
   const [palette, setPalette] = useState(false);
   const aiOn = useAssistAvailable();
@@ -439,11 +476,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </span>
         </Link>
 
-        <nav
-          className="app-nav hide-scrollbar order-last flex w-full min-w-0 shrink-0 basis-full gap-[2px] overflow-x-auto rounded-[11px] p-[3px] sm:order-none sm:w-auto sm:flex-1 sm:basis-auto"
-          style={{ background: "var(--sunken)" }}
-        >
-          {NAV.map((n) => {
+        {/* THE WRAPPER carries the sizing and the fade; the nav itself only
+            scrolls. Splitting them is what lets the fade sit ON TOP of the
+            scrolling content at a fixed position instead of scrolling away
+            with it. */}
+        <div className="order-last relative w-full min-w-0 shrink-0 basis-full sm:order-none sm:w-auto sm:flex-1 sm:basis-auto">
+          <nav
+            ref={navRef}
+            className="app-nav hide-scrollbar flex w-full gap-[2px] overflow-x-auto rounded-[11px] p-[3px]"
+            style={{ background: "var(--sunken)" }}
+          >
+            {NAV.map((n) => {
             const active = pathname === n.href;
             /* ACSA is read-only across the audit, but Visual review is where
                their engineers answer a photograph — the one screen where their
@@ -525,12 +568,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <span className="sr-only">— the shared record needs you</span>
                 )}
                 {badge !== "" && badge !== 0 && (
+                  /* NOTHING DONE YET IS NOT NEWS. A "0/315" badge is exactly as
+                     loud as a "312/315" one, in the same accent colour, and at
+                     the start of an audit every applicable destination carries
+                     one — nine identical shouts saying the thing that is true
+                     of the whole app before anybody has tapped anything. Muted
+                     rather than hidden: a reset mid-audit still needs to be
+                     able to say "yes, really, zero" without the badge lying by
+                     omission the way IsfStage's zero-value cases refuse to. */
                   <span
                     className="rounded-full px-[5px] font-mono text-[9px]"
-                    style={{
-                      background: active ? "var(--acc)" : "var(--acc-soft)",
-                      color: active ? "var(--on-acc)" : "var(--acc)",
-                    }}
+                    style={
+                      /^0\//.test(String(badge))
+                        ? { background: "transparent", color: "var(--ink-4)" }
+                        : {
+                            background: active ? "var(--acc)" : "var(--acc-soft)",
+                            color: active ? "var(--on-acc)" : "var(--acc)",
+                          }
+                    }
                   >
                     {badge}
                   </span>
@@ -538,7 +593,36 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
-        </nav>
+          </nav>
+
+          {/* THE FADES. Each one is only in the DOM when there is genuinely
+              something in that direction — a fade with nothing behind it
+              would be the same lie the cut-off label already told. Built from
+              the panel colour rather than a plain gradient, because the strip
+              this sits over is --sunken, not --panel, and a fade to the wrong
+              shade is a visible seam. */}
+          {navScroll.left && (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-y-[3px] left-0 flex w-[26px] items-center justify-start rounded-l-[11px]"
+              style={{ background: "linear-gradient(90deg, var(--sunken) 40%, transparent)" }}
+            >
+              <IconLeft width={11} height={11} style={{ color: "var(--ink-3)" }} />
+            </span>
+          )}
+          {navScroll.right && (
+            /* THE FADE ALONE READ AS A SOFT EDGE, NOT AS "MORE HERE" — checked
+               by screenshotting it, not by assuming a gradient reads as an
+               affordance. The chevron is what actually says so. */
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-y-[3px] right-0 flex w-[26px] items-center justify-end rounded-r-[11px]"
+              style={{ background: "linear-gradient(270deg, var(--sunken) 40%, transparent)" }}
+            >
+              <IconRight width={11} height={11} style={{ color: "var(--ink-3)" }} />
+            </span>
+          )}
+        </div>
 
         <button
           onClick={() => setPalette(true)}
@@ -824,8 +908,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           )}
 
           <div className="flex items-center gap-[9px] border-l pl-[11px]" style={{ borderColor: "var(--line)" }}>
-            <div className="relative h-[30px] w-[30px]">
-              <svg viewBox="0 0 30 30" width={30} height={30} style={{ transform: "rotate(-90deg)" }}>
+            {/* THE RING AND THE COUNT SAY THE SAME THING AT md+, and used to
+                say it twice — "0%" inside the ring, "0/324" beside it, both
+                visible at once. Below md the ring is the ONLY progress
+                indicator so its own number stays; at md+ the count takes over
+                and the ring goes back to being what a ring is best at, a
+                shape read at a glance, with the number moved to where a
+                screen reader — or a mouse hovering — can still ask for it. */}
+            <div
+              className="relative h-[30px] w-[30px]"
+              role="img"
+              aria-label={`${pct}% of the register captured`}
+              title={`${pct}% captured`}
+            >
+              <svg viewBox="0 0 30 30" width={30} height={30} style={{ transform: "rotate(-90deg)" }} aria-hidden>
                 <circle cx="15" cy="15" r="12" fill="none" stroke="var(--line)" strokeWidth="3.5" />
                 <circle
                   cx="15" cy="15" r="12" fill="none" stroke="var(--acc)" strokeWidth="3.5" strokeLinecap="round"
@@ -833,7 +929,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   style={{ transition: "stroke-dasharray 500ms cubic-bezier(.2,.7,.3,1)" }}
                 />
               </svg>
-              <span className="absolute inset-0 flex items-center justify-center font-mono text-[8px] font-semibold">
+              <span className="absolute inset-0 flex items-center justify-center font-mono text-[8px] font-semibold md:hidden" aria-hidden>
                 {pct}%
               </span>
             </div>
