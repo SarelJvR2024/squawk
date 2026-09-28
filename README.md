@@ -62,7 +62,7 @@ npm run build && npm start
 
 ## Tests
 
-Forty-six suites, no framework, all plain `node`. See `tests/README.md` — and
+Forty-seven suites, no framework, all plain `node`. See `tests/README.md` — and
 check each suite's **exit status**, not the output: a `for` loop over them
 reports the status of the loop, not of the suites.
 
@@ -415,7 +415,7 @@ src/
     answers.json      9,836 researched options, loaded on demand
     priorFindings.json  the 23 March 2025 findings
     programme.json    entities, the 3-year cycle, zones
-tests/                forty-six suites — see tests/README.md
+tests/                forty-seven suites — see tests/README.md
 ```
 
 ## Notes for whoever picks this up
@@ -1141,6 +1141,49 @@ would turn an account of the day into a compliance tick and lose both.
 
 Rules live in `src/lib/attendance.ts`, the pad in
 `src/components/SignaturePad.tsx`, guarded by `tests/attendance.test.mjs`.
+
+## The document and evidence collection log
+
+`/evidence`, reached from the **More** menu. TK-003 form 7, completed as
+evidence is collected and signed by the collector. It feeds the findings
+register and TK-012.
+
+**It looks like audit capture and it is not**, and that mistake is exactly why
+this form was missed off the first, inferred list of what the tablet should
+replace. It tracks **ACSA's own documents**, handed over on site — a chain-of-
+custody record rather than an observation. What a document *proves* is decided
+on the check-point it bears on, by an auditor with it in front of them. What
+this answers is narrower, and nothing else in the app answers it: what did they
+give us, who handed it over, is it a copy or their only original, and have we
+given it back.
+
+180 of the 324 check-points are `confirmedBy: "Document"` — the number or the
+signature on a piece of paper *is* the compliance — so this is the register
+behind more than half the audit.
+
+**Requested is a state, and it is the useful one.** A log that records only what
+arrived cannot say what is outstanding, and what is outstanding is the entire
+reason an RFI exists. So the register is ordered by what is still owed rather
+than by when things were logged, and the composed log prints the outstanding
+items first: four documents nobody has sent, buried under thirty that arrived,
+is a request that goes unchased for a month.
+
+**Producing it contradicts the refusal.** ACSA saying a document cannot be
+produced is a real and reportable outcome — usually it *is* the finding — so it
+is recorded rather than left as an absence. Receiving the document later clears
+that declaration automatically, because otherwise the same row reads as both
+received and missing and the register has to pick one.
+
+**An original is an obligation with a clock on it.** ACSA's only copy in a TPJV
+bag has to go back, and the log is what says whether it did. A photograph is
+never an original held, however the box is ticked — nothing left ACSA's
+premises — so it can never sit on the return list forever.
+
+**And it answers the other record.** A check marked *compliant, evidence
+pending* is a debt somebody recorded at a desk. If nothing in this log names
+that check, nobody is chasing it. The screen says how many, and names them.
+
+Rules live in `src/lib/evidence.ts`, guarded by `tests/evidence.test.mjs`.
 
 ## Hazards
 

@@ -44,6 +44,7 @@ import {
   IconHelp,
   IconLock,
   IconLoop,
+  IconInbox,
   IconMic,
   IconMore,
   IconPin,
@@ -121,6 +122,7 @@ const OFF_NAV: Record<string, string> = {
   "/home": "Home",
   "/interviews": "Interview records",
   "/attendance": "Site attendance and daily diary",
+  "/evidence": "Document and evidence collection log",
 };
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -145,6 +147,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
      A COUNT for the same reason as above, and deliberately not "today": a
      register somebody forgot to close yesterday is exactly what this line
      should be nagging about. */
+  /* Documents asked for and neither received nor refused — the RFI list, and
+     the one number about this log worth carrying in the masthead. A COUNT, for
+     the same reason as the two above. */
+  const evidenceOutstanding = useStore(
+    (s) =>
+      s.evidenceItems.filter(
+        (e) => e.entity === s.entity && !e.receivedAt && !e.unavailableAt
+      ).length
+  );
   const onSiteNow = useStore((s) =>
     s.siteDays
       .filter((d) => d.entity === s.entity)
@@ -658,6 +669,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       }
                       selected={pathname === "/attendance"}
                       onClick={() => { setMore(false); router.push("/attendance"); }}
+                    />
+                  )}
+                  {role !== "acsa" && (
+                    <MoreItem
+                      icon={<IconInbox width={14} height={14} />}
+                      label="Evidence log"
+                      hint={
+                        evidenceOutstanding
+                          ? `${evidenceOutstanding} document${evidenceOutstanding === 1 ? "" : "s"} still outstanding`
+                          : "What ACSA handed over, and what is still owed"
+                      }
+                      selected={pathname === "/evidence"}
+                      onClick={() => { setMore(false); router.push("/evidence"); }}
                     />
                   )}
                   <div className="my-[4px] h-px" style={{ background: "var(--menu-line)" }} />

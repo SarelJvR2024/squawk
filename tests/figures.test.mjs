@@ -94,6 +94,17 @@ const WOULD_LEAVE_DESK = checks.filter(
 ).length;
 const NO_EVIDENCE = checks.filter((c) => evidenceOf(c).trim() === "").length;
 
+/* What settles compliance, counted three ways. The register review gave every
+   check a `confirmedBy`, and the three totals have since become load-bearing
+   prose: the interview register exists BECAUSE thirty checks turn on a way of
+   working, and the evidence log exists because a hundred and eighty turn on a
+   piece of paper. Both numbers are quoted in README, docs/REGISTERS.md and the
+   suites that guard those screens. Derived here so that a reclassification
+   makes the prose go stale loudly rather than quietly. */
+const BY_DOCUMENT = checks.filter((c) => c.confirmedBy === "Document").length;
+const BY_ASSET = checks.filter((c) => c.confirmedBy === "Asset").length;
+const BY_PRACTICE = checks.filter((c) => c.confirmedBy === "Practice").length;
+
 /* And the review's own two headline figures, read off the review file rather
    than typed into the prose beside it. OPEN-QUESTIONS.md quotes both, and they
    move every time a gap is written or resolved. */
@@ -105,7 +116,8 @@ const GAP_NOTES = Object.values(reviewRaw).reduce((n, r) => n + (r.gaps?.length 
 
 console.log(
   `      register: ${TOTAL} checks · desk ${DESK} · field ${FIELD} · both ${BOTH} · ${OPTIONS} options\n` +
-    `      portfolio: ${PORTFOLIO} across ${sitesRaw.sites.length} sites · ${VARIANTS} site variants · ${QUESTIONS} with a question\n`
+    `      portfolio: ${PORTFOLIO} across ${sitesRaw.sites.length} sites · ${VARIANTS} site variants · ${QUESTIONS} with a question\n` +
+    `      confirmed by: document ${BY_DOCUMENT} · asset ${BY_ASSET} · practice ${BY_PRACTICE}\n`
 );
 
 check(
@@ -125,6 +137,7 @@ check(
 const ALLOWED = new Set([
   TOTAL, DESK, FIELD, BOTH, OPTIONS, PORTFOLIO, VARIANTS, QUESTIONS,
   STUBS, NO_EVIDENCE, GAPPED, GAP_NOTES, WOULD_LEAVE_DESK,
+  BY_DOCUMENT, BY_ASSET, BY_PRACTICE,
 ]);
 const fmt = (n) => n.toLocaleString("en-US");
 

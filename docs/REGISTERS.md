@@ -56,7 +56,7 @@ not by how hard it is to build.
 | 1 | **Immediate Safety Finding** | **BUILT** | `/isf`, `src/lib/isf.ts`, `tests/isf.test.mjs` (49 assertions) |
 | 1 | **Interview record** | **BUILT** | `/interviews`, `src/lib/interviews.ts`, `tests/interviews.test.mjs` (74 assertions) |
 | 1 | **Site attendance & daily diary** | **BUILT** | `/attendance`, `src/lib/attendance.ts`, `tests/attendance.test.mjs` (90 assertions) |
-| 1 | Document & evidence collection log | not started | 180 of 324 checks are confirmed by a document |
+| 1 | **Document & evidence collection log** | **BUILT** | `/evidence`, `src/lib/evidence.ts`, `tests/evidence.test.mjs` (80 assertions) |
 | 2 | PPE check (daily) | not started | 113 PPE mentions in the register; C1.3 compliance item 7 |
 | 2 | Induction & access record | not started | S010 011M §4.15(b) |
 | 2 | Escort & access log | not started | specific to escorted-at-all-times working |
@@ -74,7 +74,7 @@ Out, and deliberately: RFI tracker, early-warning and risk register, actions
 log, meeting minutes. Desk work, and the scope rule below draws the line at a
 form somebody fills in and signs.
 
-**Four of sixteen built**, counting signature capture — which was the blocker on
+**Tier 1 is complete — five of sixteen built**, counting signature capture — which was the blocker on
 five of the rest and is now done. It was unblocked by reading the form properly:
 TK-003 form 2 is signed by *each person*, and each person is a TPJV team member
 signing on TPJV's own device. The genuinely open question is a narrower one —

@@ -465,7 +465,11 @@ check(
   /addAttendee[\s\S]{0,900}arrivedAt: now/.test(store)
 );
 check("site days are persisted", /partialize[\s\S]{0,500}siteDays: s\.siteDays/.test(store));
-check("the persisted shape was versioned", /version: 16,/.test(store));
+check(
+  "the persisted shape was versioned",
+  Number(/version: (\d+),/.exec(store)?.[1] ?? 0) >= 16,
+  "the version goes UP as later slices land — 17 was the evidence log"
+);
 check(
   "the migration defaults the slice rather than leaving it undefined",
   /from < 16[\s\S]{0,400}Array\.isArray\(st\.siteDays\)[\s\S]{0,80}st\.siteDays = \[\]/.test(store)
