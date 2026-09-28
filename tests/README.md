@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Forty-six suites, no framework. Thirteen need a running server; thirty-three do not.
+Forty-seven suites, no framework. Thirteen need a running server; thirty-four do not.
 **Check each suite's exit status, not its output**: a `for` loop over them
 reports the status of the loop.
 
@@ -71,6 +71,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `isf.test.mjs` | no | 49 |
 | `interviews.test.mjs` | no | 74 |
 | `attendance.test.mjs` | no | 90 |
+| `evidence.test.mjs` | no | 80 |
 | `e2e.js` | yes | 24 |
 | `robustness.js` | yes | 53 |
 | `exports.js` | yes | 33 |
@@ -83,9 +84,9 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `team.js` | yes | 15 |
 | `preflight.js` | yes | 18 |
 | `shared.js` | starts its own | 61 |
-| `a11y.js` | yes | 66 |
+| `a11y.js` | yes | 71 |
 
-**2,084 assertions in total**, every count above verified by running the suite,
+**2,169 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -350,6 +351,48 @@ and airside permits are per person, per airport, expiry-dated. A permit that
 expired last month does not make September's attendance improper; one that had
 already expired in September does. A permit expiring *on* the day is still
 valid that day.
+
+## `evidence.test.mjs`
+
+Guards the document and evidence collection log — TK-003 form 7, the register
+behind the 180 check-points that turn on a piece of paper.
+
+```bash
+node tests/evidence.test.mjs
+```
+
+Eleven parts. The form was **missed off the first, inferred list** of what the
+tablet should replace, and the reason is worth keeping in front of whoever
+changes it: it looks like audit capture and it is not. It tracks ACSA's own
+documents handed over on site, which is chain of custody, not observation.
+
+**Requested is a state, and it is the useful one.** A log of what *arrived*
+cannot say what is missing, and what is missing is the only question anybody
+asks this between site visits. Outstanding is computed, sorted first in the
+register, and printed first in the composed log — a log ordered by time buries
+four unsent documents under thirty that arrived.
+
+**Producing it contradicts the refusal.** Receiving a document clears any
+standing "cannot be produced" declaration. Without that the same row reads as
+both received and missing, and the register has to pick one — which is a
+decision no register should be making. The stage ordering guards it a second
+time, so a stale declaration can never hide a received document.
+
+**A photograph is never an original held.** Nothing left ACSA's premises,
+so it cannot be on loan however the box is ticked, and must not sit on the
+return list forever. Only paper and a digital file can be handed back, and the
+store un-ticks "original" when the medium cannot be one.
+
+**The bridge.** `Response.evidencePending` means ACSA said they comply and the
+proof is still to come — a debt recorded at a desk by whoever was there. If
+nothing in this log names that check, nobody is chasing it and nobody will
+notice until the report is being written. `pendingWithoutEntry` is the only
+place the two records meet, and the screen puts the count and the check numbers
+at the top.
+
+**Custody, never compliance.** A document *bears on* check-points. There is no
+path from this screen to a `Response`, a status or a finding, and the suite
+greps for each.
 
 ## `adhoc.test.mjs`
 

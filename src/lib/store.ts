@@ -23,6 +23,8 @@ import type {
   Finding,
   Hazard,
   AttendanceEntry,
+  EvidenceItem,
+  EvidenceMedium,
   Interview,
   InterviewNote,
   Likelihood,
@@ -58,6 +60,7 @@ import {
   nextSignatureRef,
   patchInvalidatesSignature,
 } from "./attendance";
+import { RETURNABLE, isHeldOriginal, isOutstanding } from "./evidence";
 
 /* The register and the 2025 data are pure lookups and live in ./register, so a
    non-React caller (src/lib/exports.ts) can use them without importing this
@@ -323,6 +326,11 @@ interface State {
    *  site at this airport that day", and the day may well belong to a visit
    *  nobody is looking at now. */
   siteDays: SiteDay[];
+  /** The document and evidence collection log. Flat, scoped by entity on the
+   *  way out: a document requested on the September visit and sent in November
+   *  is the same debt, and a per-visit slice would open a second request for
+   *  it. */
+  evidenceItems: EvidenceItem[];
   lastSavedAt: number | null;
   hydrated: boolean;
 
@@ -432,6 +440,25 @@ interface State {
     patch: Partial<Attachment>
   ) => void;
   removeDayAttachment: (id: string, attachmentId: string) => void;
+
+  /* ---- The document and evidence collection log. See src/lib/evidence.ts. ----
+     Only a title is required. Somebody is handing over a folder and walking
+     off, and a form that will not save without knowing the revision number is a
+     form filled in that evening from a photograph of the cover. */
+  addEvidenceItem: (title: string, seed?: Partial<EvidenceItem>) => string;
+  updateEvidenceItem: (id: string, p: Partial<EvidenceItem>) => void;
+  removeEvidenceItem: (id: string) => void;
+  /** Records receipt, and clears any standing "cannot be produced" declaration
+   *  — producing the document contradicts it. */
+  receiveEvidence: (id: string, from: string, medium: EvidenceMedium) => void;
+  signEvidence: (id: string, s: Omit<Signature, "ref">) => void;
+  addEvidenceAttachment: (id: string, a: Omit<Attachment, "id" | "createdAt">) => void;
+  updateEvidenceAttachment: (
+    id: string,
+    attachmentId: string,
+    patch: Partial<Attachment>
+  ) => void;
+  removeEvidenceAttachment: (id: string, attachmentId: string) => void;
 
   removeFindingsForIssue: (checkId: string, issueIndex: number) => void;
 
@@ -573,6 +600,7 @@ export const useStore = create<State>()(
         safetyFindings: [],
         interviews: [],
         siteDays: [],
+        evidenceItems: [],
         lastSavedAt: null,
         hydrated: false,
 
@@ -1310,6 +1338,166 @@ export const useStore = create<State>()(
           });
         },
 
+        addEvidenceItem: (title, seed) => {
+          const id = `DOC-${uid().toUpperCase().slice(0, 5)}`;
+          const now = Date.now();
+          const s0 = get();
+          set((s) => ({
+            evidenceItems: [
+              ...s.evidenceItems,
+              {
+                entity: s.entity,
+                originVisit: s.visit,
+                title,
+                documentNo: "",
+                revision: "",
+                documentDate: null,
+                /* Asked for, as of now. An entry created on this screen is
+                   almost always somebody writing down what they have just
+                   requested; a document that simply appeared gets its
+                   requestedAt cleared on the row. */
+                requestedAt: now,
+                requestedFrom: "",
+                receivedAt: null,
+                receivedFrom: "",
+                receivedBy: s0.auditor || "",
+                medium: null,
+                isOriginal: false,
+                returnedAt: null,
+                returnedTo: "",
+                unavailableAt: null,
+                unavailableReason: "",
+                checkIds: [],
+                attachments: [],
+                signature: null,
+                notes: "",
+                ...seed,
+                id,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          }));
+          return id;
+        },
+
+        updateEvidenceItem: (id, p) =>
+          set((s) => ({
+            evidenceItems: s.evidenceItems.map((e) =>
+              /* id, entity and createdAt are what the record IS. The signature
+                 is stripped too: it is set by signEvidence, which is where the
+                 reference comes from. */
+              e.id === id
+                ? (() => {
+                    const { signature: _s, ...safe } = p;
+                    void _s;
+                    return {
+                      ...e,
+                      ...safe,
+                      id: e.id,
+                      entity: e.entity,
+                      createdAt: e.createdAt,
+                      updatedAt: Date.now(),
+                    };
+                  })()
+                : e
+            ),
+          })),
+
+        removeEvidenceItem: (id) => {
+          const e = get().evidenceItems.find((x) => x.id === id);
+          const keys = [
+            ...(e?.attachments ?? []).map((a) => a.blobKey),
+            e?.signature?.blobKey,
+          ].filter((k): k is string => !!k);
+          set((s) => ({ evidenceItems: s.evidenceItems.filter((x) => x.id !== id) }));
+          if (keys.length) void delBlobs(keys);
+        },
+
+        receiveEvidence: (id, from, medium) => {
+          const e = get().evidenceItems.find((x) => x.id === id);
+          if (!e) return;
+          get().updateEvidenceItem(id, {
+            receivedAt: Date.now(),
+            receivedFrom: from,
+            medium,
+            /* PRODUCING IT CONTRADICTS HAVING SAID IT COULD NOT BE PRODUCED.
+               Leaving the declaration standing would let the same document read
+               as both received and unavailable, and the register would have to
+               pick one — which is a decision no register should be making. */
+            unavailableAt: null,
+            unavailableReason: "",
+            /* A photograph is not a document TPJV holds. Whatever the box says,
+               nothing left ACSA's premises, so it cannot be an original out on
+               loan and must not sit on the return list forever. */
+            ...(RETURNABLE.includes(medium) ? {} : { isOriginal: false }),
+          });
+        },
+
+        signEvidence: (id, sig) => {
+          const e = get().evidenceItems.find((x) => x.id === id);
+          if (!e) return;
+          const previous = e.signature;
+          /* Numbered per item rather than across the log: an evidence entry
+             carries one collector's mark, and `DOC-7K2P9_S01` reads better in a
+             file than a log-wide counter nobody can place. */
+          const n = Number(/_S(\d+)$/.exec(previous?.ref ?? "")?.[1] ?? 0) + 1;
+          set((s) => ({
+            evidenceItems: s.evidenceItems.map((x) =>
+              x.id === id
+                ? {
+                    ...x,
+                    signature: { ...sig, ref: `${id}_S${String(n).padStart(2, "0")}` },
+                    updatedAt: Date.now(),
+                  }
+                : x
+            ),
+          }));
+          if (previous?.blobKey && previous.blobKey !== sig.blobKey) {
+            void delBlob(previous.blobKey);
+          }
+        },
+
+        addEvidenceAttachment: (id, a) => {
+          const e = get().evidenceItems.find((x) => x.id === id);
+          if (!e) return;
+          get().updateEvidenceItem(id, {
+            attachments: [
+              ...e.attachments,
+              {
+                ...a,
+                id: uid(),
+                ...(a.kind === "photo"
+                  ? { ref: nextPhotoRef(id, e.attachments) }
+                  : {}),
+                createdAt: Date.now(),
+              },
+            ],
+          });
+        },
+
+        removeEvidenceAttachment: (id, attachmentId) => {
+          const e = get().evidenceItems.find((x) => x.id === id);
+          if (!e) return;
+          const gone = e.attachments.find((a) => a.id === attachmentId);
+          get().updateEvidenceItem(id, {
+            attachments: e.attachments.filter((a) => a.id !== attachmentId),
+          });
+          if (gone?.blobKey) void delBlob(gone.blobKey);
+        },
+
+        updateEvidenceAttachment: (id, attachmentId, patch) => {
+          const e = get().evidenceItems.find((x) => x.id === id);
+          if (!e) return;
+          const { id: _i, blobKey: _b, createdAt: _c, ...safe } = patch;
+          void _i; void _b; void _c;
+          get().updateEvidenceItem(id, {
+            attachments: e.attachments.map((x) =>
+              x.id === attachmentId ? { ...x, ...safe } : x
+            ),
+          });
+        },
+
         removeFindingsForIssue: (checkId, issueIndex) =>
           set((s) => ({
             findings: s.findings.filter(
@@ -1821,7 +2009,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 16,
+      version: 17,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -1830,6 +2018,7 @@ export const useStore = create<State>()(
           safetyFindings?: SafetyFinding[];
           interviews?: Interview[];
           siteDays?: SiteDay[];
+          evidenceItems?: EvidenceItem[];
           responses?: Record<string, Response>;
           verifications?: Record<string, Verification>;
           captures?: Capture[];
@@ -2106,6 +2295,10 @@ export const useStore = create<State>()(
              the register maps over it. */
           if (!Array.isArray(st.siteDays)) st.siteDays = [];
         }
+        if (from < 17) {
+          /* The evidence log. Same reasoning as 14, 15 and 16. */
+          if (!Array.isArray(st.evidenceItems)) st.evidenceItems = [];
+        }
         if (from < 13) {
           /* updatedAt, back-filled — the field that makes two devices' work
              mergeable.
@@ -2169,6 +2362,7 @@ export const useStore = create<State>()(
         safetyFindings: s.safetyFindings,
         interviews: s.interviews,
         siteDays: s.siteDays,
+        evidenceItems: s.evidenceItems,
         lastSavedAt: s.lastSavedAt,
       }),
     }
@@ -2329,6 +2523,30 @@ export function useSiteDays(): SiteDay[] {
         .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
     [all, entity]
   );
+}
+
+/** The evidence log at the entity in view, outstanding items first.
+ *
+ *  Scoped by ENTITY, like the other three project-evidence registers, and for a
+ *  reason of its own: a document requested during the September visit and sent
+ *  in November is the same debt. Scoped by visit, the November team would see
+ *  nothing owed and would ask for it again.
+ *
+ *  ORDERED BY WHAT IS STILL OWED, not by when it was logged. Outstanding items
+ *  first, then originals TPJV is still holding, then everything closed. The
+ *  only two sections anybody acts on are the first two, and a log ordered by
+ *  time buries four unsent documents under thirty that arrived. */
+export function useEvidenceItems(): EvidenceItem[] {
+  const all = useStore((s) => s.evidenceItems);
+  const entity = useStore((s) => s.entity);
+  return useMemo(() => {
+    const mine = all.filter((e) => e.entity === entity);
+    const rank = (e: EvidenceItem) =>
+      isOutstanding(e) ? 0 : isHeldOriginal(e) ? 1 : 2;
+    return [...mine].sort(
+      (a, b) => rank(a) - rank(b) || b.createdAt - a.createdAt
+    );
+  }, [all, entity]);
 }
 
 /** Hazards raised at the entity and visit in view. Scoped the same way

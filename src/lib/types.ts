@@ -1338,3 +1338,106 @@ export interface SiteDay {
   createdAt: number;
   updatedAt: number;
 }
+
+/* --------------------------------- the document and evidence collection log */
+
+/** How a document reached TPJV's hands.
+ *
+ *  It matters to custody, not to compliance. A certificate photographed on a
+ *  maintenance office desk is evidence TPJV holds a picture of; the paper is
+ *  still ACSA's and there is nothing to give back. A file handed over is a file
+ *  that has to go back, and the log is what says whether it did. */
+export type EvidenceMedium =
+  | "paper"
+  | "digital"
+  | "photographed"
+  | "portal"
+  | "verbal";
+
+/** Where an item has got to. DERIVED from the timestamps, never stored — see
+ *  evidenceStage() in src/lib/evidence.ts, and the same reasoning as every
+ *  other stage in this app. */
+export type EvidenceStage = "requested" | "received" | "returned" | "unavailable";
+
+/** One document asked for, handed over, or refused — TK-003 form 7.
+ *
+ *  "Document & Evidence Collection Log", completed as evidence is collected and
+ *  signed by the collector. It feeds the findings register and TK-012.
+ *
+ *  IT LOOKS LIKE AUDIT CAPTURE AND IT IS NOT. That mistake is why this form was
+ *  missed off the first, inferred list of what the tablet should replace: it
+ *  tracks ACSA's OWN documents, handed over on site, which is a chain-of-custody
+ *  record rather than an observation. What the auditor concluded from the
+ *  document belongs on the check screen. What this answers is narrower and
+ *  nobody else answers it: what did they give us, who gave it to us, is it a
+ *  copy or their only original, and have we given it back.
+ *
+ *  180 of the 324 check-points are `confirmedBy: "Document"` — the number or the
+ *  signature on a piece of paper IS the compliance — so this is the register
+ *  behind more than half the audit.
+ *
+ *  REQUESTED IS A STATE, AND IT IS THE USEFUL ONE. A log that records only what
+ *  arrived cannot say what is outstanding, and what is outstanding is the entire
+ *  reason an RFI exists. It is also the other half of the "compliant, evidence
+ *  pending" tag on a response: that tag says somebody owes us a document, and
+ *  this is where the owing is tracked and closed. */
+export interface EvidenceItem {
+  /** `DOC-xxxxx`. The prefix for this item's photographs and its signature. */
+  id: string;
+  entity: string;
+  originVisit: string;
+
+  /** What it is, in enough detail to ask for it again. `documentNo` and
+   *  `revision` are separate because a register entry naming the wrong revision
+   *  of the right document is the commonest way an evidence trail breaks. */
+  title: string;
+  documentNo: string;
+  revision: string;
+  /** The date ON the document, not the date it was handed over. */
+  documentDate: number | null;
+
+  /** Asked for. Null where somebody simply produced it unprompted, which
+   *  happens and is worth being able to record honestly. */
+  requestedAt: number | null;
+  requestedFrom: string;
+
+  /** Handed over. `receivedFrom` is the person, not the department: "the
+   *  maintenance office gave us the logbook" is not custody. */
+  receivedAt: number | null;
+  receivedFrom: string;
+  /** The TPJV collector, who is the person form 7 is signed by. */
+  receivedBy: string;
+  medium: EvidenceMedium | null;
+
+  /** ACSA'S ONLY COPY, OR OURS TO KEEP.
+   *
+   *  The one field that makes this a custody record rather than a list. An
+   *  original in TPJV's bag is an obligation with a clock on it, and the
+   *  register says which ones are still out. */
+  isOriginal: boolean;
+  returnedAt: number | null;
+  returnedTo: string;
+
+  /** ACSA said it cannot be produced.
+   *
+   *  A real and reportable outcome rather than an absence: a document that does
+   *  not exist is usually the finding, and a log that only records what arrived
+   *  loses it. Cleared automatically if the document later turns up — producing
+   *  it contradicts the declaration. */
+  unavailableAt: number | null;
+  unavailableReason: string;
+
+  /** The check-points this document bears on. It bears on them; the auditor
+   *  still decides what it proves, on the check screen. */
+  checkIds: string[];
+
+  /** Photographs of the document itself, where that is how it was captured. */
+  attachments: Attachment[];
+  /** The collector's mark. TK-003 form 7 is signed by the collector, who is a
+   *  TPJV person on a TPJV device. */
+  signature: Signature | null;
+
+  notes: string;
+  createdAt: number;
+  updatedAt: number;
+}
