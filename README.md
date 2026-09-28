@@ -1031,43 +1031,37 @@ schedule **1.2.6(b)**, *"Interviews with key personnel and stakeholders"*, at
 every one of the ten airports. An interview nobody wrote down is work TPJV did,
 invoiced for, and cannot show.
 
-It also does something no other screen can. Thirty of the 324 check-points are
-`confirmedBy: "Practice"` — compliance turns on whether the round actually
-happens and whether a bad reading actually produces an action, not on what the
-file says. Those are the ones that read clean on paper and fail in the corridor,
-and the only person who knows is the one who does the work. So the check-point
-picker offers those thirty first, by name, while still offering every other
-check-point: an interview frequently speaks to a document check too, and hiding
-those would force the sentence to be filed somewhere it does not belong.
+**Rebuilt 28 September 2026.** The first version carried statements linked to
+check-points, a quote-or-summary distinction on each one, a notice-given
+toggle and a citability verdict — modelled on what the record would need to be
+quoted in a report. Sarel, watching it live: *"this is too formal, we just need
+a record of who we interview on which day, what the location was, from and to.
+and space for their signature and an approval at the end to close of the
+record of the days interviews."* What was said is the auditor's own judgement
+on the check screen; this register proves the conversation happened.
 
-Four rules, and every one of them is about the reader rather than the auditor:
+It is now shaped exactly like site attendance, because it answers the same
+kind of question:
 
-**Testimony is not evidence.** A statement *bears on* the check-points it
-refers to. It does not answer them. There is no control on this screen that
-sets a check's status, and `tests/interviews.test.mjs` greps for every way one
-could be added. What somebody said is one input to a judgement the auditor
-makes with the document and the asset in front of them — and the thirty
-Practice checks are exactly where *"he said it gets done"* is the easiest thing
-in the world to file as compliance.
+**One day, one record.** `openInterviewDay` opens or returns — the screen has
+no control that could ask for a second register for the same date.
 
-**Attribution is both halves or it is nothing.** A name without a role does not
-tell a reader whether the speaker would know. A role without a name — *"the
-electrician said the generator is tested monthly"* — cannot be checked by
-anybody. The register marks such a record **NOT CITABLE** and says which half
-is missing, rather than letting it look finished.
+**One field starts an entry.** A name. Role and location can wait until there
+is somewhere safer to fill them in, and the register is deliberately still
+useful with them blank.
 
-**A summary is not a quote.** Every statement is marked verbatim or summary,
-and `summary` is the default. Both directions of error exist and they are not
-equal: a verbatim answer filed as a summary loses a little force, and a
-paraphrase filed as a quote puts words in a named person's mouth under TPJV's
-letterhead. The unmarked case has to be the cautious one.
+**A signature signs a statement, and the times are not part of it.** Name,
+role and location — patch any of those and the mark is cleared, in both
+directions: ending the interview hours later must not wipe a signature given
+at the time.
 
-**The confirmation dies with the text.** The app composes the record so the
-auditor can read it back in the ninety seconds while the person is still
-standing there — the only moment it can ever be confirmed. If any statement is
-then edited, added or removed, the confirmation is cleared, because what they
-agreed to was what they heard. A confirmation that survives an edit is a
-signature on a document somebody altered afterwards.
+**The day closes on one approval, not a tally.** The auditor (or whoever is
+closing the day out) approves the whole list at once, with an optional drawn
+signature of their own. It refuses while anybody is still mid-interview or
+nothing has been recorded — but signing every individual entry is **not**
+required to close: a person who declined to sign is still an honest record of
+the day, and refusing to let the day close over that would make the approval
+lie about what happened rather than attest to it.
 
 It is **not in the nav bar**, deliberately. The bar already costs a swipe at
 eight entries, the ninth was paid for once for the safety register whose clock
@@ -1138,6 +1132,19 @@ The diary is one free-text field on purpose. TK-003 form 8, the *Daily Site
 Closeout*, is the checklist; it is a different form, and its real purpose is
 catching a safety finding that was raised and not reported. Merging the two
 would turn an account of the day into a compliance tick and lose both.
+
+**Each row is also an action log, not only a sign-in sheet.** Added 28
+September 2026, on Sarel's word watching the register live: *"a record of
+everyone that was on site for the day, from which company, their role, start
+and end, location(s), and notes on what was done for the day … like an action
+log of the day"*, with room to say who assisted with what. `location` and
+`notes` are both free text and both optional, on the row rather than on the
+day: a person moving from a substation to a switchroom in one morning writes
+that in one field rather than filling in a second structured one, and *"assisted
+T. Nkosi with the DB3 fuse replacement"* says who helped without a link to
+maintain. Neither is part of what the signature covers — an activity note
+added, or corrected, after the person has signed and gone must not unsign
+them.
 
 Rules live in `src/lib/attendance.ts`, the pad in
 `src/components/SignaturePad.tsx`, guarded by `tests/attendance.test.mjs`.

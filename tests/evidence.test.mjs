@@ -396,7 +396,11 @@ check(
   )
 );
 check("the log is persisted", /partialize[\s\S]{0,600}evidenceItems: s\.evidenceItems/.test(store));
-check("the persisted shape was versioned", /version: 17,/.test(store));
+check(
+  "the persisted shape was versioned",
+  Number(/version: (\d+),/.exec(store)?.[1] ?? 0) >= 17,
+  "the version goes UP as later slices land — 18 was the interview rebuild"
+);
 check(
   "the migration defaults the slice",
   /from < 17[\s\S]{0,300}Array\.isArray\(st\.evidenceItems\)[\s\S]{0,80}st\.evidenceItems = \[\]/.test(

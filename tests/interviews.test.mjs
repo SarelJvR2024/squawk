@@ -2,48 +2,35 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-/* Interview records — the contract's on-site audit phase, on the tablet.
+/* Interview records — one register per site per day, rebuilt 28 September
+ *  2026 on Sarel's word watching the earlier version live: "this is too
+ *  formal, we just need a record of who we interview on which day, what the
+ *  location was, from and to. and space for their signature and an approval
+ *  at the end to close of the record of the days interviews."
  *
- *  This is the only record in the app whose subject is a named person rather
- *  than an asset, and that changes what "wrong" costs. A misread meter reading
- *  corrupts a trend. A misattributed sentence puts words in somebody's mouth
- *  under TPJV's letterhead, and the first time that person reads it, every
- *  other statement in the file becomes arguable.
+ *  Shaped exactly like site attendance, so this suite guards the same class
+ *  of rule, executed rather than read wherever a plausible refactor could
+ *  invert it:
  *
- *  So the suite guards six things, and five of them are EXECUTED rather than
- *  read, because each is a rule a reasonable-looking refactor could invert:
+ *    One day, one record    openInterviewDay opens or returns; the screen has
+ *                           no control that could ask for a second register
+ *                           for the same date.
  *
- *    Summary is the default   Both directions of error are possible and they
- *                             are not equal. A verbatim answer filed as a
- *                             summary loses a little force; a paraphrase filed
- *                             as a quote loses the audit. The unmarked case
- *                             has to be the cautious one.
+ *    A signature signs a    Name, role, location — patch any of those and the
+ *    statement              mark is cleared. The TIMES are deliberately
+ *                           outside that list, in both directions: ending an
+ *                           interview hours later must not wipe a signature
+ *                           given at the time.
  *
- *    Attribution is both      A name without a role does not tell a reader
- *                             whether the speaker would know. A role without a
- *                             name cannot be checked by anybody. Either alone
- *                             is a quotation from nobody.
+ *    The day closes on an   dayCanClose refuses while anybody is still
+ *    approval, not a tally  running or nothing is recorded — the approval is
+ *                           a statement that the list is complete, not a
+ *                           head-count. Signing every entry is NOT required
+ *                           to close: a person who declined to sign is still
+ *                           an honest record of the day.
  *
- *    Testimony is not         A statement BEARS ON a check-point. It does not
- *    evidence                 answer one. There is no path from this screen to
- *                             a Response and this suite holds it shut, because
- *                             the thirty Practice check-points are exactly the
- *                             ones where "he said it gets done" is the easiest
- *                             thing in the world to file as compliance.
- *
- *    The confirmation dies    What the interviewee agreed to was the text as
- *    with the text            it was read back. A confirmation that survives an
- *                             edit is a signature on a document somebody
- *                             altered afterwards.
- *
- *    Clock unknown            Until the device's clock is read, `now` is 0. A
- *                             running interview must report no duration rather
- *                             than fifty-six years. Same class of bug as the
- *                             ISF overdue badge, guarded here before it
- *                             happened rather than after.
- *
- *    References never reused  Source-read plus executed. A report citing S02
- *                             must still mean that sentence next year. */
+ *    References never       Deleting S01 does not free S01, for entries and
+ *    reused                 for the closing approval alike. */
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8");
@@ -63,379 +50,385 @@ const check = (name, cond, detail = "") => {
 };
 
 const {
-  DEFAULT_KIND,
-  KIND_LABEL,
-  PARTY_LABEL,
-  checkIdsCited,
-  citationBlockers,
+  SIGNED_FIELDS,
+  dayCanClose,
+  dayGaps,
+  dayText,
   durationMs,
-  interviewStage,
-  interviewText,
-  isAttributable,
-  isCitable,
-  missingFields,
-  nextStatementRef,
+  entryGaps,
+  interviewDayStage,
+  isSigned,
+  nextSignatureRef,
+  patchInvalidatesSignature,
+  stillRunning,
+  unbackedSignatures,
 } = await import(path.join(here, "..", "src", "lib", "interviews.ts"));
 
 const STARTED = new Date("2026-09-29T10:05:00").getTime();
-const note = (over = {}) => ({
-  id: "n1",
+const ENDED = STARTED + 20 * 60000;
+
+const sig = (over = {}) => ({
   ref: "INT-7K2P9_S01",
-  question: "",
-  answer: "",
-  kind: "summary",
-  checkIds: [],
+  blobKey: "sig-abc",
+  signedName: "T. Nkosi",
+  signedAt: ENDED,
+  width: 600,
+  height: 264,
+  bytes: 4000,
+  ...over,
+});
+
+/* Exactly what addInterviewEntry creates: a name and a stamped start. */
+const entry = (over = {}) => ({
+  id: "e1",
+  name: "T. Nkosi",
+  role: "",
+  location: "",
+  startedAt: STARTED,
+  endedAt: null,
+  signature: null,
   createdAt: STARTED,
   updatedAt: STARTED,
   ...over,
 });
 
-/* Exactly what addInterview creates: only the name is filled in. */
-const base = {
+const complete = (over = {}) =>
+  entry({
+    role: "Facilities Manager",
+    location: "Maintenance office, Pier B",
+    endedAt: ENDED,
+    signature: sig(),
+    ...over,
+  });
+
+const day = (over = {}) => ({
   id: "INT-7K2P9",
   entity: "FAOR",
   originVisit: "2026-09",
-  name: "T. Nkosi",
-  role: "",
-  organisation: "",
-  party: null,
-  contact: "",
-  location: "",
-  discipline: null,
-  startedAt: STARTED,
-  endedAt: null,
-  conductedBy: "Sarel Jansen van Rensburg",
-  noticeGiven: false,
-  confirmedAt: null,
-  notes: [],
-  attachments: [],
+  date: "2026-09-29",
+  openedAt: STARTED,
+  openedBy: "Sarel Jansen van Rensburg",
+  entries: [],
+  closedAt: null,
+  closedBy: "",
+  closeSignature: null,
   createdAt: STARTED,
   updatedAt: STARTED,
-};
+  ...over,
+});
+
 const ctx = {
   siteName: "O.R. Tambo International Airport (FAOR)",
   siteCode: "ORTIA",
   visitId: "2026-09",
-  portalId: (id) => id.replace("KSIA-", "ORTIA-"),
 };
 
-/* ------------------------------------------- 1. summary is the safe default */
-
-check("a new statement is a SUMMARY, not a quote", DEFAULT_KIND === "summary",
-  `got ${DEFAULT_KIND}`);
-check("the store creates statements with that default, not its own literal",
-  /addInterviewNote[\s\S]{0,700}kind: DEFAULT_KIND/.test(store),
-  "a second copy of the default is a second answer to what an unmarked statement is");
-check("both kinds are labelled for a reader, not left as field names",
-  KIND_LABEL.quote === "Verbatim" && KIND_LABEL.summary === "Summary");
-
-/* ----------------------------------------------- 2. attribution needs both */
-
-check("a name with no role is not attributable",
-  isAttributable({ ...base, role: "" }) === false);
-check("a role with no name is not attributable",
-  isAttributable({ ...base, name: "", role: "Facilities Manager" }) === false);
-check("a name and a role together are",
-  isAttributable({ ...base, role: "Facilities Manager" }) === true);
-check("whitespace is not a name",
-  isAttributable({ ...base, name: "   ", role: "Millwright" }) === false);
-
-/* ------------------------------------------------- 3. citable, and why not */
-
-const full = {
-  ...base,
-  role: "Facilities Manager",
-  party: "ACSA",
-  location: "Maintenance office, Pier B",
-  noticeGiven: true,
-  endedAt: STARTED + 1_500_000,
-  notes: [note({ answer: "The round is walked every morning before 06:00." })],
-};
-check("a complete interview is citable", isCitable(full) === true,
-  `blocked by ${JSON.stringify(citationBlockers(full))}`);
-check("an interview with nothing recorded is not citable",
-  isCitable({ ...full, notes: [] }) === false);
-check("an interview whose subject was never told is not citable",
-  isCitable({ ...full, noticeGiven: false }) === false);
-check("and the register is told WHY, not merely that",
-  citationBlockers({ ...full, noticeGiven: false }).includes(
-    "not told a record was being kept"
-  ));
-check("a citable interview has no blockers", citationBlockers(full).length === 0);
-check("blockers name the missing half of the attribution",
-  citationBlockers({ ...full, role: "" }).includes("no role recorded"));
-
-/* ------------------------------------------------ 4. testimony is not evidence */
+/* --------------------------------------------------- 1. one day, one record */
 
 check(
-  "a statement BEARS ON check-points — the field is not called answers",
-  /checkIds: string\[\]/.test(types) && /bears on them\. It does not answer them/i.test(types)
-);
-check(
-  "the screen says so where the links are made",
-  /BEARS ON — DOES NOT SETTLE/.test(page),
-  "the label is the only thing standing between a quote and a compliance answer"
-);
-check(
-  "the screen has NO path to a response, a status or a finding",
-  !/setResponse|patchResponse|saveResponse|setStatus|addFinding|useResponses/.test(page),
-  "an interview that can mark a check compliant is how 'he said it gets done' becomes a fact"
-);
-check(
-  "the type says it in the doc comment, where the next person will read it",
-  /TESTIMONY IS NOT EVIDENCE/.test(types)
-);
-check(
-  "the composed record says it to ACSA too",
-  interviewText(full, ctx).includes("does not settle")
-);
-
-/* -------------------------------- 5. the confirmation does not survive an edit */
-
-check(
-  "editing a statement clears the confirmation",
-  /updateInterviewNote[\s\S]{0,1400}confirmedAt: null/.test(store),
-  "a confirmation that outlives the words is a signature on an altered document"
-);
-check(
-  "adding one clears it too",
-  /addInterviewNote[\s\S]{0,1400}confirmedAt: null/.test(store)
-);
-check(
-  "removing one clears it too",
-  /removeInterviewNote[\s\S]{0,400}confirmedAt: null/.test(store)
-);
-check(
-  "a statement's id, ref and createdAt cannot be patched",
-  /updateInterviewNote[\s\S]{0,500}const \{ id: _i, ref: _r, createdAt: _c, \.\.\.safe \}/.test(
+  "opening a day returns the existing one rather than making a second",
+  /openInterviewDay[\s\S]{0,900}const existing = s0\.interviewDays\.find\([\s\S]{0,200}if \(existing\) return existing\.id/.test(
     store
   ),
-  "a reference that comes to mean a different sentence is worse than no reference"
+  "two registers for one day both look complete and only one gets exported"
 );
 check(
-  "the screen warns that it will happen, rather than doing it silently",
-  /EDITING ANY STATEMENT CLEARS THIS/.test(page)
+  "matched on entity AND date",
+  /openInterviewDay[\s\S]{0,900}d\.entity === s0\.entity && d\.date === day/.test(store)
+);
+check(
+  "a day's date cannot be patched afterwards",
+  /updateInterviewDay[\s\S]{0,700}id: d\.id[\s\S]{0,200}entity: d\.entity[\s\S]{0,200}date: d\.date/.test(
+    store
+  )
+);
+check(
+  "the screen has no control that could ask for a duplicate",
+  !/addInterviewDay|createInterviewDay/.test(page) && /openInterviewDay/.test(page)
 );
 
-/* ------------------------------------------------ 6. the clock, before it is read */
+/* -------------------------------- 2. what a signature signs for, and what not */
 
 check(
-  "a running interview reports no duration while the clock is unread",
-  durationMs(base, 0) === null,
-  `got ${durationMs(base, 0)}`
+  "the signed statement is name, role and location",
+  JSON.stringify([...SIGNED_FIELDS]) === JSON.stringify(["name", "role", "location"]),
+  `got ${JSON.stringify([...SIGNED_FIELDS])}`
+);
+check("changing the name invalidates it", patchInvalidatesSignature({ name: "X" }) === true);
+check("changing the role invalidates it", patchInvalidatesSignature({ role: "X" }) === true);
+check(
+  "changing the location invalidates it",
+  patchInvalidatesSignature({ location: "X" }) === true
 );
 check(
-  "a running interview measures from startedAt once it is",
-  durationMs(base, STARTED + 600_000) === 600_000
+  "ENDING THE INTERVIEW DOES NOT",
+  patchInvalidatesSignature({ endedAt: ENDED }) === false,
+  "the person may sign before or after the clock is stopped; neither wipes the other"
 );
 check(
-  "an ended interview has a duration even with the clock unread",
-  durationMs({ ...base, endedAt: STARTED + 900_000 }, 0) === 900_000
+  "nor does correcting the start time",
+  patchInvalidatesSignature({ startedAt: STARTED + 60000 }) === false
+);
+check("an empty patch invalidates nothing", patchInvalidatesSignature({}) === false);
+check(
+  "the store clears the signature when the patch says so",
+  /updateInterviewEntry[\s\S]{0,700}interviewPatchInvalidatesSignature\(safe\)[\s\S]{0,300}invalidates \? \{ signature: null \}/.test(
+    store
+  )
 );
 check(
-  "a clock that went backwards cannot produce a negative duration",
-  durationMs({ ...base, endedAt: STARTED - 5000 }, 0) === 0
+  "and the signature cannot be set by a stray patch",
+  /updateInterviewEntry[\s\S]{0,400}const \{ id: _i, createdAt: _c, signature: _s, \.\.\.safe \}/.test(
+    store
+  ),
+  "signing goes through signInterviewEntry, which is where the reference is assigned"
 );
 
-/* -------------------------------------------------------- 7. stages and gaps */
+/* -------------------------------------------- 3. a typed name is not a signature */
 
-check("a fresh interview is open", interviewStage(base) === "open");
-check("ending it is a stage", interviewStage({ ...base, endedAt: STARTED + 1 }) === "ended");
+check("a bare entry is not signed", isSigned(entry()) === false);
+check("a stored mark is signed", isSigned(complete()) === true);
 check(
-  "confirmation outranks ending",
-  interviewStage({ ...base, endedAt: STARTED + 1, confirmedAt: STARTED + 2 }) === "confirmed"
-);
-check(
-  "a confirmation with no end time still reads confirmed rather than open",
-  interviewStage({ ...base, confirmedAt: STARTED + 2 }) === "confirmed",
-  "the read-back happens while they are standing there; the end time is admin"
+  "a signature object with no bytes behind it is NOT signed",
+  isSigned(entry({ signature: sig({ blobKey: "" }) })) === false
 );
 
-const gaps = missingFields(base);
-for (const f of [
-  "role",
-  "who they answer to",
-  "where",
-  "what was said",
-  "end time",
-  "told a record was being kept",
-]) {
-  check(`a bare interview reports '${f}' missing`, gaps.includes(f));
+/* -------------------------------------------- 4. references, never reused */
+
+check("the first signature on a day is S01", nextSignatureRef("INT-7K2P9", []) === "INT-7K2P9_S01");
+check(
+  "numbering runs across the day",
+  nextSignatureRef("INT-7K2P9", [complete(), entry({ id: "e2" })]) === "INT-7K2P9_S02"
+);
+check(
+  "re-signing does not reuse the old reference",
+  nextSignatureRef("INT-7K2P9", [
+    complete({ signature: sig({ ref: "INT-7K2P9_S01" }) }),
+    entry({ id: "e2", signature: sig({ ref: "INT-7K2P9_S03" }) }),
+  ]) === "INT-7K2P9_S04"
+);
+check(
+  "the store assigns the reference, not the pad",
+  /signInterviewEntry[\s\S]{0,600}nextInterviewSignatureRef\(id, d\.entries\)/.test(store)
+);
+check(
+  "a superseded mark's bytes are released",
+  /signInterviewEntry[\s\S]{0,1200}previous\.blobKey !== sig\.blobKey[\s\S]{0,80}delBlob\(previous\.blobKey\)/.test(
+    store
+  )
+);
+
+/* ---------------------------------------- 5. the day closes on an approval */
+
+check("a day with nobody recorded cannot close", dayCanClose(day()) === false);
+check(
+  "a day with somebody still running cannot close",
+  dayCanClose(day({ entries: [entry()] })) === false,
+  "an interview mid-conversation is not a complete list yet"
+);
+check(
+  "a day where everybody has ended CAN close, signed or not",
+  dayCanClose(day({ entries: [complete(), entry({ id: "e2", endedAt: ENDED, signature: null })] })) ===
+    true,
+  "a person who declined to sign is still an honest record of the day"
+);
+check(
+  "the store refuses to close a day that cannot close",
+  /closeInterviewDay[\s\S]{0,400}if \(!d \|\| d\.entries\.length === 0 \|\| d\.entries\.some\(\(e\) => !e\.endedAt\)\) return/.test(
+    store
+  ),
+  "guarded in the store too, not only by the screen disabling the button"
+);
+check(
+  "the closing approval gets its own reference",
+  /closeInterviewDay[\s\S]{0,600}ref: `\$\{id\}_APPROVAL`/.test(store)
+);
+check(
+  "reopening releases the approval signature's bytes",
+  /reopenInterviewDay[\s\S]{0,300}delBlob\(d\.closeSignature\.blobKey\)/.test(store)
+);
+check(
+  "the screen disables the close button until the day can close",
+  /disabled=\{!canClose\}/.test(page)
+);
+check(
+  "closing is offered without a drawn signature too",
+  /Close without drawing a signature/.test(page),
+  "the approval is real the moment it is pressed; the mark is a stronger record, not a requirement"
+);
+
+/* --------------------------------------------------------- 6. what is owed */
+
+const gaps = entryGaps(entry());
+for (const f of ["location", "end time", "signature"]) {
+  check(`a bare entry reports '${f}' missing`, gaps.includes(f));
 }
-check("a name IS enough to start one — it is not reported missing",
-  !gaps.includes("name"));
-check("a complete interview reports nothing missing",
-  missingFields(full).length === 0, `got ${JSON.stringify(missingFields(full))}`);
-check(
-  "a contact number is a convenience, not a gap",
-  !missingFields({ ...full, contact: "" }).includes("contact")
-);
+check("a name IS enough to start one", !gaps.includes("name"));
+check("a role is NOT reported missing — it is optional", !entryGaps(entry({ role: "" })).includes("role"));
+check("a complete entry owes nothing", entryGaps(complete()).length === 0,
+  `got ${JSON.stringify(entryGaps(complete()))}`);
 
-/* --------------------------------------------- 8. references, never reused */
-
-check("the first statement is S01", nextStatementRef("INT-7K2P9", []) === "INT-7K2P9_S01");
+check("an empty day says nobody is recorded", dayGaps(day()).includes("nobody recorded"));
+const mixed = day({ entries: [complete(), entry({ id: "e2", endedAt: ENDED })] });
+check("a day with an unsigned entry counts it", dayGaps(mixed).some((g) => /unsigned/.test(g)));
 check(
-  "the next one follows",
-  nextStatementRef("INT-7K2P9", [note({ ref: "INT-7K2P9_S01" })]) === "INT-7K2P9_S02"
+  "a day with somebody still running counts it",
+  dayGaps(day({ entries: [entry()] })).some((g) => /still running/.test(g))
 );
 check(
-  "deleting S02 does not free S02",
-  nextStatementRef("INT-7K2P9", [
-    note({ ref: "INT-7K2P9_S01" }),
-    note({ ref: "INT-7K2P9_S03" }),
-  ]) === "INT-7K2P9_S04",
-  "a citation that silently comes to mean a different sentence is the failure"
+  "a day where everyone is done and signed owes nothing",
+  dayGaps(day({ entries: [complete()] })).length === 0
+);
+
+/* ------------------------------------------------------- 7. running, timed */
+
+check("a running interview reports no duration while the clock is unread",
+  durationMs(entry(), 0) === null);
+check("it measures from startedAt once the clock is read",
+  durationMs(entry(), STARTED + 600000) === 600000);
+check("an ended interview has a duration even with the clock unread",
+  durationMs(complete(), 0) === ENDED - STARTED);
+check("a clock that went backwards cannot produce a negative duration",
+  durationMs(entry({ endedAt: STARTED - 5000 }), 0) === 0);
+check(
+  "still running is started-and-not-ended",
+  stillRunning(mixed).length === 0,
+  "both entries in this fixture have ended"
 );
 check(
-  "photographs are prefixed by the interview's own id",
-  /addInterviewAttachment[\s\S]{0,600}nextPhotoRef\(id, iv\.attachments\)/.test(store)
+  "and it finds the one that has not",
+  stillRunning(day({ entries: [complete(), entry({ id: "e2" })] })).length === 1
 );
 
-/* ----------------------------------------------------- 9. the cited check-points */
+/* ------------------------------------------------------- 8. the closed stage */
 
-const multi = {
-  ...full,
-  notes: [
-    note({ id: "a", ref: "INT-7K2P9_S01", checkIds: ["KSIA-CIV-052", "KSIA-ELE-005"] }),
-    note({ id: "b", ref: "INT-7K2P9_S02", checkIds: ["KSIA-ELE-005", "KSIA-PSR-011"] }),
-  ],
-};
-check(
-  "every check-point cited across the interview, deduplicated",
-  JSON.stringify(checkIdsCited(multi)) ===
-    JSON.stringify(["KSIA-CIV-052", "KSIA-ELE-005", "KSIA-PSR-011"]),
-  `got ${JSON.stringify(checkIdsCited(multi))}`
-);
-check("an interview citing nothing cites nothing", checkIdsCited(base).length === 0);
+check("a fresh day is open", interviewDayStage(day()) === "open");
+check("a closed one reads closed", interviewDayStage(day({ closedAt: ENDED })) === "closed");
 
-/* -------------------------------------------------------- 10. the read-back text */
+/* -------------------------------------------------------- 9. the day as text */
 
-const bare = interviewText(base, ctx);
-check("the record says plainly that nobody was told", bare.includes("NOT RECORDED as having been told"));
-check("an unrecorded role is stated, not omitted",
-  bare.includes("Role") && bare.includes("— not recorded —"));
-check("a still-running interview says so rather than showing a blank",
-  bare.includes("still open"));
-check("it says it has not been confirmed", bare.includes("NOT YET CONFIRMED"));
-check("it carries the interview's id", bare.includes("INT-7K2P9"));
+const bare = dayText(day(), ctx);
+check("it says nobody has been recorded", bare.includes("— not recorded —"));
+check("it says the record is not yet closed", bare.includes("NOT YET CLOSED"));
+check("it carries the id and the date", bare.includes("INT-7K2P9") && bare.includes("2026-09-29"));
 check("it carries the site", bare.includes("O.R. Tambo International Airport"));
-check("it cites the scope, so the reader knows what it is",
-  bare.includes("Scope of Work, Part C3"));
 
-const text = interviewText(multi, ctx);
-check("every statement is marked verbatim or summary",
-  text.includes("[SUMMARY]"), "an unmarked paraphrase read back invites a yes about words nobody said");
+const full = dayText(
+  day({
+    entries: [complete(), entry({ id: "e2", name: "P. Mahlangu", endedAt: ENDED })],
+    closedAt: ENDED + 60000,
+    closedBy: "Sarel Jansen van Rensburg",
+    closeSignature: sig({ ref: "INT-7K2P9_APPROVAL" }),
+  }),
+  ctx
+);
+check("a signed entry names its reference", full.includes("INT-7K2P9_S01"));
+check("an unsigned entry says NOT SIGNED rather than a blank line", full.includes("NOT SIGNED"));
+check("the location is printed", full.includes("Maintenance office, Pier B"));
+check("closure names who approved it", full.includes("Sarel Jansen van Rensburg"));
+check("and the approval's own reference", full.includes("INT-7K2P9_APPROVAL"));
 check(
-  "a verbatim statement is marked as one",
-  interviewText(
-    { ...full, notes: [note({ kind: "quote", answer: "We walk it every morning." })] },
-    ctx
-  ).includes("[VERBATIM]")
+  "it cites the scope, so the reader knows what it is",
+  full.includes("Scope of Work, Part C3")
 );
 check(
-  "check-points are printed in this site's numbering, not the canonical one",
-  text.includes("ORTIA-CIV-052") && !text.includes("KSIA-CIV-052"),
-  "a reader holding the ORTIA workbook cannot find a KSIA row"
+  "testimony is nowhere in it — this is not that kind of record",
+  !/BEARS ON|VERBATIM|SUMMARY|citab/i.test(full)
 );
-check("a confirmed record says when", 
-  interviewText({ ...full, confirmedAt: STARTED + 1_600_000 }, ctx).includes(
-    "Read back and confirmed"
-  ));
-check("the party is named beside the organisation",
-  PARTY_LABEL.contractor === "Contractor" &&
-    interviewText({ ...full, organisation: "Bidvest", party: "contractor" }, ctx).includes(
-      "Bidvest (Contractor)"
-    ));
 
-/* ----------------------------------------------------- 11. the store's guarantees */
+/* ----------------------------------------- 10. signatures only on this device */
+
+check(
+  "an entry signature with no record copy is reported",
+  unbackedSignatures(day({ entries: [complete()] })).length === 1
+);
+check(
+  "and so is an unbacked approval signature",
+  unbackedSignatures(day({ closeSignature: sig() })).length === 1
+);
+check(
+  "one that has been backed up is not",
+  unbackedSignatures(day({ entries: [complete({ signature: sig({ cloudUrl: "https://x" }) })] }))
+    .length === 0
+);
+check(
+  "the screen does not imply a sync button that would clear it",
+  /THE RECORD COPY IS NOT WIRED YET/.test(page)
+);
+
+/* --------------------------------------------------- 11. the store's guarantees */
 
 check(
   "only a name is needed to start one",
-  /addInterview:\s*\(name:\s*string,\s*seed\?/.test(store),
-  "the signature must not grow required fields"
+  /addInterviewEntry:\s*\(id: string, name: string, seed\?/.test(store)
 );
 check(
-  "id, entity and startedAt cannot be patched after the fact",
-  /updateInterview[\s\S]{0,700}id: iv\.id[\s\S]{0,200}entity: iv\.entity[\s\S]{0,200}startedAt: iv\.startedAt/.test(
+  "the entry is stamped with a start as of now",
+  /addInterviewEntry[\s\S]{0,700}startedAt: now/.test(store)
+);
+check(
+  "id, entity and date cannot be patched on the day",
+  /updateInterviewDay[\s\S]{0,700}id: d\.id[\s\S]{0,200}entity: d\.entity[\s\S]{0,200}date: d\.date/.test(
     store
-  ),
-  "an interview that can be re-dated afterwards is not a record"
+  )
 );
-check("interviews are persisted", /partialize[\s\S]{0,400}interviews: s\.interviews/.test(store));
+check("interview days are persisted", /partialize[\s\S]{0,600}interviewDays: s\.interviewDays/.test(store));
 check(
-  "the persisted shape was versioned when the slice was added",
-  Number(/version: (\d+),/.exec(store)?.[1] ?? 0) >= 15 &&
-    /name: "acsa-assurance-v1"/.test(store),
-  "the version goes UP as later slices land — 16 was the site-day register. " +
-    "What must never change is the key, and what must never go backwards is 15"
+  "the persisted shape was versioned",
+  Number(/version: (\d+),/.exec(store)?.[1] ?? 0) >= 18 &&
+    /name: "acsa-assurance-v1"/.test(store)
 );
 check(
   "the migration defaults the slice rather than leaving it undefined",
-  /from < 15[\s\S]{0,400}Array\.isArray\(st\.interviews\)[\s\S]{0,80}st\.interviews = \[\]/.test(
+  /from < 18[\s\S]{0,500}Array\.isArray\(st\.interviewDays\)[\s\S]{0,80}st\.interviewDays = \[\]/.test(
     store
-  ),
-  "undefined.map is a white screen on a tablet that hydrated last week"
+  )
 );
-/* The FUNCTION BODY, not a character window after its name: the selector that
-   follows useInterviews in store.ts is useVisitHazards, which is scoped by
-   visit on purpose, and a loose window reads its `originVisit` as this one's. */
-const useInterviewsBody = /export function useInterviews[\s\S]*?\n}/.exec(store)?.[0] ?? "";
+check(
+  "removing a day releases every signature it carries",
+  /removeInterviewDay[\s\S]{0,700}delBlobs\(keys\)/.test(store)
+);
+
+const useInterviewDaysBody = /export function useInterviewDays[\s\S]*?\n}/.exec(store)?.[0] ?? "";
 check(
   "the register is scoped by entity, NOT by visit",
-  /iv\.entity === entity/.test(useInterviewsBody) &&
-    !/originVisit/.test(useInterviewsBody),
-  "who has already been asked is what the next team needs to know"
+  /d\.entity === entity/.test(useInterviewDaysBody) && !/originVisit/.test(useInterviewDaysBody)
 );
 check(
-  "removing a photograph removes its bytes",
-  /removeInterviewAttachment[\s\S]{0,500}delBlob\(gone\.blobKey\)/.test(store)
+  "days sort on the date string, not on when the record was opened",
+  /a\.date < b\.date/.test(useInterviewDaysBody)
 );
 
 /* ------------------------------------------------------------ 12. reachable */
 
 check(
-  "the interview register has a route",
+  "the register has a route",
   fs.existsSync(path.join(here, "..", "src", "app", "(app)", "interviews", "page.tsx"))
 );
-check('it is reachable from the shell', /router\.push\("\/interviews"\)/.test(shell));
-check(
-  "it is NOT a tenth entry in the nav bar",
-  !/href:\s*"\/interviews"/.test(shell),
-  "the bar already costs a swipe at eight; fourteen more forms cannot each take a slot"
-);
+check("it is reachable from the shell", /router\.push\("\/interviews"\)/.test(shell));
+check("it is not another entry in the nav bar", !/href:\s*"\/interviews"/.test(shell));
 check(
   "a screen off the nav bar still has a heading of its own",
-  /OFF_NAV/.test(shell) && /"\/interviews": "Interview records"/.test(shell),
-  "otherwise a screen reader announces the app's name where every other screen names the work"
+  /"\/interviews": "Interview records"/.test(shell)
 );
-/* The menu row itself, so the guard being read is the one wrapping THIS item
-   and not some other `role !== "acsa"` further up the file. */
-const interviewMenuItem =
-  /\{role !== "acsa" && \(\s*<MoreItem[\s\S]*?\/interviews"\);? \}\}/.exec(shell)?.[0] ?? "";
+const menuItems = [...shell.matchAll(/\{role !== "acsa" && \(\s*<MoreItem[\s\S]*?\/\>\s*\)\}/g)].map(
+  (m) => m[0]
+);
 check(
   "ACSA, who are read-only across the audit, are not offered it",
-  interviewMenuItem.includes("Interview records"),
-  "every other nav destination is disabled for them; this one must not be the exception"
+  menuItems.some((m) => m.includes("Interview records"))
 );
 check(
-  "telling them a record is kept comes before writing anything down",
-  page.indexOf("TELL THEM A RECORD IS BEING KEPT") < page.indexOf("WHAT WAS SAID"),
-  "it belongs at the start of the conversation, not the end of the form"
+  "the page renders an h2, leaving the shell's h1 alone",
+  /<h2 className="font-display text-\[15px\] font-semibold">Interview records<\/h2>/.test(page)
 );
 check(
   "the clock is read as an external system, not called during render",
   !/const now = Date\.now\(\)/.test(page) && /useNow\(\)/.test(page)
 );
 check(
-  "the thirty Practice check-points are offered first",
-  /confirmedBy === "Practice"/.test(page) &&
-    /Confirmed by practice/.test(page),
-  "they are the ones an interview is the only evidence for"
-);
-check(
-  "but every other check-point is still offered",
-  /Every other check-point/.test(page),
-  "an interview often speaks to a document check too, and hiding those files the sentence wrongly"
+  "the local-date helper is imported from attendance rather than duplicated",
+  /import \{ localDate \} from "@\/lib\/attendance"/.test(page)
 );
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");

@@ -25,8 +25,8 @@ import type {
   AttendanceEntry,
   EvidenceItem,
   EvidenceMedium,
-  Interview,
-  InterviewNote,
+  InterviewDay,
+  InterviewEntry,
   Likelihood,
   PriorFinding,
   PriorRating,
@@ -54,7 +54,7 @@ import {
 import { needsDesk, needsField } from "./verification";
 import { portalIdFor } from "./sites";
 import { nextPhotoRef } from "./photos";
-import { DEFAULT_KIND, nextStatementRef } from "./interviews";
+import { nextSignatureRef as nextInterviewSignatureRef, patchInvalidatesSignature as interviewPatchInvalidatesSignature } from "./interviews";
 import {
   localDate,
   nextSignatureRef,
@@ -316,11 +316,11 @@ interface State {
    *  raised at O.R. Tambo in September is still the thing a March visit has to
    *  ask about, and a per-visit slice would hide it. */
   safetyFindings: SafetyFinding[];
-  /** Interview records. Flat for the same reason, and scoped by ENTITY on the
-   *  way out: who at this airport has already been asked about the inspection
-   *  round is exactly what the next visit needs, and a per-visit slice would
-   *  make every team start the introductions again. */
-  interviews: Interview[];
+  /** Interview days — one register per site per calendar day, the same shape
+   *  as site attendance and for the same reason. Flat, scoped by ENTITY on the
+   *  way out: who has already been interviewed at this airport is what the
+   *  next visit needs, not what this one captured. */
+  interviewDays: InterviewDay[];
   /** Site days — TK-003 form 2's register and the daily diary. Flat, and
    *  scoped by entity on the way out: the question this answers is "who was on
    *  site at this airport that day", and the day may well belong to a visit
@@ -391,26 +391,23 @@ interface State {
   removeIsfAttachment: (id: string, attachmentId: string) => void;
 
   /* ---- Interview records. See src/lib/interviews.ts. ----
-     Only a name is required, for the ISF's reason turned around: the auditor is
-     standing in front of somebody who has two minutes, and the record that
-     matters is what they said, not the form around it. Everything else is
-     filled in while the words are still fresh — or afterwards, and the register
-     says which parts are still owed. */
-  addInterview: (name: string, seed?: Partial<Interview>) => string;
-  updateInterview: (id: string, p: Partial<Interview>) => void;
-  removeInterview: (id: string) => void;
-  /** Appends a statement and returns its id. Clears any confirmation — see
-   *  the note on the implementation. */
-  addInterviewNote: (id: string, seed?: Partial<InterviewNote>) => string;
-  updateInterviewNote: (id: string, noteId: string, p: Partial<InterviewNote>) => void;
-  removeInterviewNote: (id: string, noteId: string) => void;
-  addInterviewAttachment: (id: string, a: Omit<Attachment, "id" | "createdAt">) => void;
-  updateInterviewAttachment: (
-    id: string,
-    attachmentId: string,
-    patch: Partial<Attachment>
-  ) => void;
-  removeInterviewAttachment: (id: string, attachmentId: string) => void;
+     One register per site per calendar day, exactly like site attendance —
+     openInterviewDay opens or returns, never creates a second record for a
+     date that already has one. Only a name is required to add somebody: the
+     auditor is standing in front of them, not filling in a form at a desk. */
+  openInterviewDay: (date?: string) => string;
+  updateInterviewDay: (id: string, p: Partial<InterviewDay>) => void;
+  removeInterviewDay: (id: string) => void;
+  addInterviewEntry: (id: string, name: string, seed?: Partial<InterviewEntry>) => string;
+  /** Clears the entry's signature if the patch touches anything it stands
+     behind — see patchInvalidatesSignature in src/lib/interviews.ts. */
+  updateInterviewEntry: (id: string, entryId: string, p: Partial<InterviewEntry>) => void;
+  removeInterviewEntry: (id: string, entryId: string) => void;
+  signInterviewEntry: (id: string, entryId: string, s: Omit<Signature, "ref">) => void;
+  /** The closing approval. Refuses (silently, the screen gates the button too)
+     unless dayCanClose() would say yes. */
+  closeInterviewDay: (id: string, closedBy: string, s?: Omit<Signature, "ref">) => void;
+  reopenInterviewDay: (id: string) => void;
 
   /* ---- Site attendance and the daily diary. See src/lib/attendance.ts. ----
      ONE RECORD PER SITE PER CALENDAR DAY. openSiteDay RETURNS THE EXISTING ONE
@@ -598,7 +595,7 @@ export const useStore = create<State>()(
         findings: [],
         hazards: [],
         safetyFindings: [],
-        interviews: [],
+        interviewDays: [],
         siteDays: [],
         evidenceItems: [],
         lastSavedAt: null,
@@ -974,35 +971,32 @@ export const useStore = create<State>()(
           });
         },
 
-        addInterview: (name, seed) => {
+        openInterviewDay: (date) => {
+          const s0 = get();
+          const day = date ?? localDate(Date.now());
+          /* Open-or-return, exactly as openSiteDay is. Two registers for one
+             day is the same silent failure here as it is for attendance. */
+          const existing = s0.interviewDays.find(
+            (d) => d.entity === s0.entity && d.date === day
+          );
+          if (existing) return existing.id;
+
           const id = `INT-${uid().toUpperCase().slice(0, 5)}`;
           const now = Date.now();
-          const s0 = get();
           set((s) => ({
-            interviews: [
-              ...s.interviews,
+            interviewDays: [
+              ...s.interviewDays,
               {
+                id,
                 entity: s.entity,
                 originVisit: s.visit,
-                name,
-                role: "",
-                organisation: "",
-                party: null,
-                contact: "",
-                location: "",
-                discipline: null,
-                /* When the conversation began, not when the form was tidied up.
-                   It is the only time on this record that cannot be
-                   reconstructed afterwards. */
-                startedAt: now,
-                endedAt: null,
-                conductedBy: s0.auditor || "",
-                noticeGiven: false,
-                confirmedAt: null,
-                notes: [],
-                attachments: [],
-                ...seed,
-                id,
+                date: day,
+                openedAt: now,
+                openedBy: s0.auditor || "",
+                entries: [],
+                closedAt: null,
+                closedBy: "",
+                closeSignature: null,
                 createdAt: now,
                 updatedAt: now,
               },
@@ -1011,127 +1005,141 @@ export const useStore = create<State>()(
           return id;
         },
 
-        updateInterview: (id, p) =>
+        updateInterviewDay: (id, p) =>
           set((s) => ({
-            interviews: s.interviews.map((iv) =>
-              /* id, entity and startedAt are what the record IS. A caller
-                 passing them would be re-dating an interview after the fact,
-                 which is precisely what a reviewer has to be able to rule
-                 out. */
-              iv.id === id
+            interviewDays: s.interviewDays.map((d) =>
+              /* id, entity and date are what the record IS — moving the date
+                 would either collide with a real day or silently re-file
+                 interviews onto a day nobody was there for. */
+              d.id === id
                 ? {
-                    ...iv,
+                    ...d,
                     ...p,
-                    id: iv.id,
-                    entity: iv.entity,
-                    startedAt: iv.startedAt,
-                    createdAt: iv.createdAt,
+                    id: d.id,
+                    entity: d.entity,
+                    date: d.date,
+                    openedAt: d.openedAt,
+                    createdAt: d.createdAt,
                     updatedAt: Date.now(),
                   }
-                : iv
+                : d
             ),
           })),
 
-        removeInterview: (id) =>
-          set((s) => ({ interviews: s.interviews.filter((iv) => iv.id !== id) })),
+        removeInterviewDay: (id) => {
+          const d = get().interviewDays.find((x) => x.id === id);
+          const keys = [
+            ...(d?.entries ?? []).map((e) => e.signature?.blobKey),
+            d?.closeSignature?.blobKey,
+          ].filter((k): k is string => !!k);
+          set((s) => ({ interviewDays: s.interviewDays.filter((x) => x.id !== id) }));
+          if (keys.length) void delBlobs(keys);
+        },
 
-        addInterviewNote: (id, seed) => {
-          const iv = get().interviews.find((x) => x.id === id);
-          if (!iv) return "";
-          const noteId = uid();
+        addInterviewEntry: (id, name, seed) => {
+          const d = get().interviewDays.find((x) => x.id === id);
+          if (!d) return "";
+          const entryId = uid();
           const now = Date.now();
-          get().updateInterview(id, {
-            notes: [
-              ...iv.notes,
+          get().updateInterviewDay(id, {
+            entries: [
+              ...d.entries,
               {
-                question: "",
-                answer: "",
-                /* summary, always, until somebody says otherwise — see
-                   DEFAULT_KIND in src/lib/interviews.ts. */
-                kind: DEFAULT_KIND,
-                checkIds: [],
+                name,
+                role: "",
+                location: "",
+                /* When the conversation began, not when the form was tidied
+                   up — the only time on this row that cannot be reconstructed
+                   afterwards. */
+                startedAt: now,
+                endedAt: null,
+                signature: null,
                 ...seed,
-                id: noteId,
-                ref: nextStatementRef(id, iv.notes),
+                id: entryId,
                 createdAt: now,
                 updatedAt: now,
               },
             ],
-            /* A statement added after the read-back is a statement the person
-               did not confirm. */
-            confirmedAt: null,
           });
-          return noteId;
+          return entryId;
         },
 
-        updateInterviewNote: (id, noteId, p) => {
-          const iv = get().interviews.find((x) => x.id === id);
-          if (!iv) return;
-          /* id, ref and createdAt identify the statement; a report that cites
-             S02 has to keep meaning this sentence. */
-          const { id: _i, ref: _r, createdAt: _c, ...safe } = p;
-          void _i; void _r; void _c;
-          get().updateInterview(id, {
-            notes: iv.notes.map((n) =>
-              n.id === noteId ? { ...n, ...safe, updatedAt: Date.now() } : n
+        updateInterviewEntry: (id, entryId, p) => {
+          const d = get().interviewDays.find((x) => x.id === id);
+          if (!d) return;
+          const { id: _i, createdAt: _c, signature: _s, ...safe } = p;
+          void _i; void _c; void _s;
+          const invalidates = interviewPatchInvalidatesSignature(safe);
+          get().updateInterviewDay(id, {
+            entries: d.entries.map((e) =>
+              e.id === entryId
+                ? {
+                    ...e,
+                    ...safe,
+                    ...(invalidates ? { signature: null } : {}),
+                    updatedAt: Date.now(),
+                  }
+                : e
             ),
-            /* THE CONFIRMATION DOES NOT SURVIVE THE EDIT. What the interviewee
-               agreed to was the text as it stood when it was read back to them.
-               Keeping the confirmation across a change to the words is a
-               signature on a document somebody altered afterwards, and it is
-               the one thing that would make this record worse than no record. */
-            confirmedAt: null,
           });
         },
 
-        removeInterviewNote: (id, noteId) => {
-          const iv = get().interviews.find((x) => x.id === id);
-          if (!iv) return;
-          get().updateInterview(id, {
-            notes: iv.notes.filter((n) => n.id !== noteId),
-            confirmedAt: null,
+        removeInterviewEntry: (id, entryId) => {
+          const d = get().interviewDays.find((x) => x.id === id);
+          if (!d) return;
+          const gone = d.entries.find((e) => e.id === entryId);
+          get().updateInterviewDay(id, {
+            entries: d.entries.filter((e) => e.id !== entryId),
           });
+          if (gone?.signature?.blobKey) void delBlob(gone.signature.blobKey);
         },
 
-        addInterviewAttachment: (id, a) => {
-          const iv = get().interviews.find((x) => x.id === id);
-          if (!iv) return;
-          get().updateInterview(id, {
-            attachments: [
-              ...iv.attachments,
-              {
-                ...a,
-                id: uid(),
-                /* INT-7K2P9_P01 — the record's own id is the prefix, exactly as
-                   a check's and an ISF's are. */
-                ...(a.kind === "photo"
-                  ? { ref: nextPhotoRef(id, iv.attachments) }
-                  : {}),
-                createdAt: Date.now(),
-              },
-            ],
-          });
-        },
-
-        removeInterviewAttachment: (id, attachmentId) => {
-          const iv = get().interviews.find((x) => x.id === id);
-          if (!iv) return;
-          const gone = iv.attachments.find((a) => a.id === attachmentId);
-          get().updateInterview(id, {
-            attachments: iv.attachments.filter((a) => a.id !== attachmentId),
-          });
-          if (gone?.blobKey) void delBlob(gone.blobKey);
-        },
-
-        updateInterviewAttachment: (id, attachmentId, patch) => {
-          const iv = get().interviews.find((x) => x.id === id);
-          if (!iv) return;
-          const { id: _i, blobKey: _b, createdAt: _c, ...safe } = patch;
-          void _i; void _b; void _c;
-          get().updateInterview(id, {
-            attachments: iv.attachments.map((x) =>
-              x.id === attachmentId ? { ...x, ...safe } : x
+        signInterviewEntry: (id, entryId, sig) => {
+          const d = get().interviewDays.find((x) => x.id === id);
+          if (!d) return;
+          const ref = nextInterviewSignatureRef(id, d.entries);
+          const previous = d.entries.find((e) => e.id === entryId)?.signature;
+          set((s) => ({
+            interviewDays: s.interviewDays.map((x) =>
+              x.id === id
+                ? {
+                    ...x,
+                    entries: x.entries.map((e) =>
+                      e.id === entryId
+                        ? { ...e, signature: { ...sig, ref }, updatedAt: Date.now() }
+                        : e
+                    ),
+                    updatedAt: Date.now(),
+                  }
+                : x
             ),
+          }));
+          if (previous?.blobKey && previous.blobKey !== sig.blobKey) {
+            void delBlob(previous.blobKey);
+          }
+        },
+
+        closeInterviewDay: (id, closedBy, sig) => {
+          const d = get().interviewDays.find((x) => x.id === id);
+          /* Guarded here too, not only by the screen disabling the button — a
+             day cannot honestly be approved with somebody still mid-interview
+             or nobody recorded at all. See dayCanClose in
+             src/lib/interviews.ts. */
+          if (!d || d.entries.length === 0 || d.entries.some((e) => !e.endedAt)) return;
+          get().updateInterviewDay(id, {
+            closedAt: Date.now(),
+            closedBy,
+            closeSignature: sig ? { ...sig, ref: `${id}_APPROVAL` } : null,
+          });
+        },
+
+        reopenInterviewDay: (id) => {
+          const d = get().interviewDays.find((x) => x.id === id);
+          if (d?.closeSignature?.blobKey) void delBlob(d.closeSignature.blobKey);
+          get().updateInterviewDay(id, {
+            closedAt: null,
+            closedBy: "",
+            closeSignature: null,
           });
         },
 
@@ -1225,6 +1233,8 @@ export const useStore = create<State>()(
                    into it at five o'clock. */
                 arrivedAt: now,
                 departedAt: null,
+                location: "",
+                notes: "",
                 inductionConfirmed: false,
                 inductionRef: "",
                 inductionExpires: null,
@@ -2009,14 +2019,14 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 17,
+      version: 18,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
           findings?: Finding[];
           hazards?: Hazard[];
           safetyFindings?: SafetyFinding[];
-          interviews?: Interview[];
+          interviewDays?: InterviewDay[];
           siteDays?: SiteDay[];
           evidenceItems?: EvidenceItem[];
           responses?: Record<string, Response>;
@@ -2283,12 +2293,6 @@ export const useStore = create<State>()(
              half-captured audit becomes a white screen on the apron. */
           if (!Array.isArray(st.safetyFindings)) st.safetyFindings = [];
         }
-        if (from < 15) {
-          /* The interview slice. Same reasoning as 14 above, and the same
-             failure if it is skipped: a tablet that hydrated last week has no
-             `interviews` key at all, and the register maps over it. */
-          if (!Array.isArray(st.interviews)) st.interviews = [];
-        }
         if (from < 16) {
           /* The site-day slice. Same reasoning as 14 and 15, same failure if it
              is skipped: no key at all on a tablet that hydrated yesterday, and
@@ -2298,6 +2302,15 @@ export const useStore = create<State>()(
         if (from < 17) {
           /* The evidence log. Same reasoning as 14, 15 and 16. */
           if (!Array.isArray(st.evidenceItems)) st.evidenceItems = [];
+        }
+        if (from < 18) {
+          /* The interview register was rebuilt into a day-based shape on
+             28 September 2026 — see src/lib/interviews.ts. The persisted key
+             changed from `interviews` to `interviewDays`, so there is nothing
+             to carry forward: any tablet on an older version simply gets an
+             empty register, exactly as a tablet that predates the feature
+             entirely would. */
+          if (!Array.isArray(st.interviewDays)) st.interviewDays = [];
         }
         if (from < 13) {
           /* updatedAt, back-filled — the field that makes two devices' work
@@ -2360,7 +2373,7 @@ export const useStore = create<State>()(
         findings: s.findings,
         hazards: s.hazards,
         safetyFindings: s.safetyFindings,
-        interviews: s.interviews,
+        interviewDays: s.interviewDays,
         siteDays: s.siteDays,
         evidenceItems: s.evidenceItems,
         lastSavedAt: s.lastSavedAt,
@@ -2492,11 +2505,21 @@ export function useSafetyFindings(): SafetyFinding[] {
  *  rather than asking him again. And a statement does not expire: what the
  *  maintenance planner said about the inspection round last visit is still the
  *  thing to put to him this one, either to confirm or to contradict. */
-export function useInterviews(): Interview[] {
-  const all = useStore((s) => s.interviews);
+/** Interview days at the entity in view, most recent date first.
+ *
+ *  Scoped by ENTITY ONLY, exactly as site attendance is, and for the same
+ *  reason: who has already been interviewed at this airport is what the next
+ *  team needs to know, not which visit asked. Sorted by the DATE STRING —
+ *  `YYYY-MM-DD` sorts correctly as text — so a day opened late the following
+ *  morning still belongs where its date puts it. */
+export function useInterviewDays(): InterviewDay[] {
+  const all = useStore((s) => s.interviewDays);
   const entity = useStore((s) => s.entity);
   return useMemo(
-    () => all.filter((iv) => iv.entity === entity).sort((a, b) => b.startedAt - a.startedAt),
+    () =>
+      all
+        .filter((d) => d.entity === entity)
+        .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
     [all, entity]
   );
 }

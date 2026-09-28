@@ -286,6 +286,32 @@ export default function AttendancePage() {
                             style={inputStyle}
                           />
 
+                          {/* WHERE AND WHAT — the action-log half of the row.
+                              Neither is part of what the signature covers, so
+                              editing them afterwards, including by whoever
+                              closes the day out, never unsigns anybody. */}
+                          <input
+                            value={e.location}
+                            onChange={(ev) =>
+                              patchPerson(day.id, e.id, { location: ev.target.value })
+                            }
+                            aria-label={`Location(s) worked by person ${e.id}`}
+                            placeholder="Location(s) — MV switchroom, then AGL vault"
+                            className={`mb-2 ${inputCls}`}
+                            style={inputStyle}
+                          />
+                          <textarea
+                            value={e.notes}
+                            onChange={(ev) =>
+                              patchPerson(day.id, e.id, { notes: ev.target.value })
+                            }
+                            rows={2}
+                            aria-label={`What person ${e.id} did today`}
+                            placeholder="What was done — Inspected AGL vault; assisted T. Nkosi with DB3 fuse replacement"
+                            className={`mb-2 ${inputCls}`}
+                            style={inputStyle}
+                          />
+
                           {/* ENTITLEMENT. */}
                           <div className="mb-2 flex flex-wrap items-center gap-2">
                             <Btn

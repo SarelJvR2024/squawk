@@ -54,8 +54,8 @@ not by how hard it is to build.
 | Tier | Item | Status | Evidence |
 |---|---|---|---|
 | 1 | **Immediate Safety Finding** | **BUILT** | `/isf`, `src/lib/isf.ts`, `tests/isf.test.mjs` (49 assertions) |
-| 1 | **Interview record** | **BUILT** | `/interviews`, `src/lib/interviews.ts`, `tests/interviews.test.mjs` (74 assertions) |
-| 1 | **Site attendance & daily diary** | **BUILT** | `/attendance`, `src/lib/attendance.ts`, `tests/attendance.test.mjs` (90 assertions) |
+| 1 | **Interview record** | **BUILT** — rebuilt 28 Sep as a day register, on Sarel's word | `/interviews`, `src/lib/interviews.ts`, `tests/interviews.test.mjs` (79 assertions) |
+| 1 | **Site attendance & daily diary** | **BUILT** — location/notes per attendee added 28 Sep | `/attendance`, `src/lib/attendance.ts`, `tests/attendance.test.mjs` (96 assertions) |
 | 1 | **Document & evidence collection log** | **BUILT** | `/evidence`, `src/lib/evidence.ts`, `tests/evidence.test.mjs` (80 assertions) |
 | 2 | PPE check (daily) | not started | 113 PPE mentions in the register; C1.3 compliance item 7 |
 | 2 | Induction & access record | not started | S010 011M §4.15(b) |

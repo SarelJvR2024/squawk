@@ -69,8 +69,8 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `home.test.mjs` | no | 58 |
 | `adhoc.test.mjs` | no | 43 |
 | `isf.test.mjs` | no | 49 |
-| `interviews.test.mjs` | no | 74 |
-| `attendance.test.mjs` | no | 90 |
+| `interviews.test.mjs` | no | 79 |
+| `attendance.test.mjs` | no | 96 |
 | `evidence.test.mjs` | no | 80 |
 | `e2e.js` | yes | 24 |
 | `robustness.js` | yes | 53 |
@@ -86,7 +86,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 61 |
 | `a11y.js` | yes | 71 |
 
-**2,169 assertions in total**, every count above verified by running the suite,
+**2,180 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -248,60 +248,56 @@ what the next team walking into that airport needs to see.
 
 ## `interviews.test.mjs`
 
-Guards the interview record — the only record in the app whose subject is a
-named person rather than an asset.
+Guards the interview record — who TPJV spoke to, when and where.
 
 ```bash
 node tests/interviews.test.mjs
 ```
 
-ACSA asked for it by name and is paying for it as a line item: scope 4.2,
-"Interview key personnel and stakeholders (e.g. Airport Operations Departments,
-Contractors, etc.) to gather information and insights", and pricing schedule
-1.2.6(b), "Interviews with key personnel and stakeholders", at every one of the
-ten airports. Thirty of the 324 check-points are `confirmedBy: "Practice"` —
-compliance turns on whether the round actually happens, not on what the file
-says — and the person who does the work is the only evidence there is.
+**Rebuilt 28 September 2026.** The first version guarded statements linked to
+check-points, a verbatim-or-summary mark and a citability verdict — this
+suite's own earlier revision said "the only record in the app whose subject is
+a named person rather than an asset" and guarded that carefully. Sarel,
+watching the live screen: "this is too formal, we just need a record of who we
+interview on which day, what the location was, from and to. and space for
+their signature and an approval at the end to close of the record of the days
+interviews." The suite was rebuilt to guard THAT instead, shaped like
+`attendance.test.mjs` because the record now answers the same kind of
+question.
 
-Twelve parts. What makes this different from every other suite here is what
-being wrong costs: a misread figure corrupts a trend, a misattributed sentence
-puts words in somebody's mouth under TPJV's letterhead.
+Twelve parts, most executed against the real module:
 
-**Summary is the default.** Both directions of error exist and they are not
-equal. A verbatim answer filed as a summary loses a little force. A paraphrase
-filed as a quote loses the audit. So the unmarked case is the cautious one and
-`DEFAULT_KIND` is `summary` — asserted here and asserted again against the
-store, which must use the constant rather than its own literal.
+**One day, one record.** `openInterviewDay` opens or returns; the screen has
+no control that could ask for a second register for the same date — the same
+quiet failure attendance guards against, guarded the same way.
 
-**Attribution is both halves.** A name without a role does not tell a reader
-whether the speaker would know. A role without a name — "the electrician said"
-— cannot be checked by anybody. Either alone is a quotation from nobody, and
-the register says `NOT CITABLE` rather than letting the row look finished.
+**A signature signs a statement, and the times are not part of it.** Name,
+role, location — patch any of those and the mark is cleared, asserted in both
+directions: ending an interview hours later must not wipe a signature given at
+the time.
 
-**Testimony is not evidence.** A statement *bears on* a check-point; it does
-not answer one. There is no path from this screen to a `Response`, a status or
-a finding, and the suite greps for every one of them. The thirty Practice
-checks are precisely where "he said it gets done" is the easiest thing in the
-world to file as compliance.
+**The day closes on an approval, not a tally.** `dayCanClose` refuses while
+anybody is still running or nothing is recorded. It does **not** require every
+entry to be signed — a person who declined to sign is still an honest record
+of the day, and refusing to close over that would make the approval lie about
+what happened rather than attest to it.
 
-**The confirmation dies with the text.** What the interviewee agreed to was
-what was read back to them. Editing, adding or removing any statement clears
-`confirmedAt`. A confirmation that survives an edit is a signature on a
-document somebody altered afterwards.
+**References are never reused**, for entries and for the closing approval
+alike. Deleting `S01` does not free `S01`.
 
-**The clock before it is read.** Same class of bug as the ISF overdue badge,
-guarded before it happened rather than after: `now` is 0 until the device's
-clock is known, and a running interview must report no duration rather than
-fifty-six years.
+**The clock before it is read.** Same class of bug as the ISF overdue badge:
+`now` is 0 until the device's clock is known, and a running interview reports
+no duration rather than fifty-six years.
 
-**References are never reused.** Deleting `S02` does not free `S02`. A report
-citing a statement must still mean that sentence next year.
+**Testimony is nowhere in the composed record.** The suite greps the output of
+`dayText` for the vocabulary of the old model — `BEARS ON`, `VERBATIM`,
+`SUMMARY`, "citab" — and fails if any of it comes back. A record that proves a
+conversation happened must not quietly grow an opinion about what was said in
+it.
 
-**Off the nav bar, but not nameless.** The bar already costs a swipe at eight
-entries and the fourteen project-evidence forms still to come cannot each take
-a slot, so this one lives in the More menu — and `OFF_NAV` gives it a real
-heading, because a screen reader announcing "Squawk" on two different screens
-has said nothing about either.
+**Off the nav bar, but not nameless.** Same reasoning as before: the bar
+already costs a swipe at eight entries, and `OFF_NAV` gives the screen a real
+heading in the shell's `h1`.
 
 ## `attendance.test.mjs`
 
@@ -351,6 +347,14 @@ and airside permits are per person, per airport, expiry-dated. A permit that
 expired last month does not make September's attendance improper; one that had
 already expired in September does. A permit expiring *on* the day is still
 valid that day.
+
+**Each row doubles as an action log, added 28 September 2026** on Sarel's
+word watching the register live — "a record of everyone that was on site for
+the day … location(s) … notes on what was done … like an action log of the
+day." `location` and `notes` are asserted **not** to invalidate a signature in
+either direction, alongside the fields that already did not: an activity note
+filled in — or corrected — after the person has signed and gone must not
+unsign them.
 
 ## `evidence.test.mjs`
 

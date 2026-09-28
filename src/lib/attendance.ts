@@ -210,6 +210,8 @@ export function dayText(day: SiteDay, ctx: DayContext): string {
           e.departedAt ? hhmm(e.departedAt) : "— no departure recorded —"
         }`
       );
+      if (e.location.trim()) lines.push(`  Location      ${e.location.trim()}`);
+      if (e.notes.trim()) lines.push(`  Activity      ${e.notes.trim()}`);
       lines.push(
         `  Induction     ${
           e.inductionConfirmed ? "confirmed" : "NOT CONFIRMED"

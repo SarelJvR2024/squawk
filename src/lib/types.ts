@@ -1062,157 +1062,88 @@ export interface SafetyFinding {
   updatedAt: number;
 }
 
-/* ------------------------------------------------------- interview records */
+/* --------------------------------------------------------- interview records */
 
-/** Who the person being interviewed answers to.
+/** How far a day of interviews has got.
  *
- *  The contract names the kinds explicitly — "key personnel and stakeholders
- *  (e.g. Airport Operations Departments, Contractors, etc.)" — and they are not
- *  interchangeable in a report. An ACSA maintenance manager describing the
- *  inspection round is describing ACSA's own practice; a contractor describing
- *  the same round is describing what they were told to do. Attributing the
- *  second as the first is how an audit report ends up asserting something ACSA
- *  never said.
- *
- *  Null until somebody chooses. Never inferred from the employer's name: the
- *  guess would be right most of the time, and the times it is wrong are the
- *  ones that matter. */
-export type InterviewParty = "ACSA" | "tenant" | "contractor" | "other";
+ *  DERIVED from the timestamps, never stored — see interviewDayStage() in
+ *  src/lib/interviews.ts. */
+export type InterviewDayStage = "open" | "closed";
 
-/** What a recorded statement IS.
+/** One person interviewed, on one day — the record Sarel actually asked for
+ *  (28 September 2026): who, where, from and to, and their signature.
  *
- *    quote    the words the person used, written down as they said them
- *    summary  the auditor's account of what they meant
- *
- *  The distinction is the whole reason this field exists. A summary presented
- *  in a report as a quotation is the single way this record can damage TPJV
- *  rather than defend it — the person reads their own name beside words they
- *  did not say, and everything else in the file becomes arguable.
- *
- *  `summary` is the default everywhere, because it is the safe direction to be
- *  wrong in: a verbatim quote mislabelled as a summary loses a little force,
- *  and a paraphrase mislabelled as a quote loses the audit. */
-export type StatementKind = "quote" | "summary";
-
-/** How far an interview record has got.
- *
- *  DERIVED from the timestamps, never stored — see interviewStage() in
- *  src/lib/interviews.ts, and the same reasoning as IsfStage. */
-export type InterviewStage = "open" | "ended" | "confirmed";
-
-/** One thing that was asked, and what came back.
- *
- *  Held as a list rather than one block of prose because each statement carries
- *  its own check-point links and its own quote/summary flag. A single free-text
- *  field would force both to be true of the whole conversation, and an
- *  interview that touches six check-points with one verbatim answer among them
- *  is the normal case, not the exotic one. */
-export interface InterviewNote {
+ *  This used to carry a great deal more — quote-or-summary statements linked
+ *  to check-points, a notice-given toggle, a "citable" verdict. Sarel's own
+ *  words, looking at it live: "this is too formal, we just need a record of
+ *  who we interview on which day, what the location was, from and to." What
+ *  was said belongs to the auditor's own judgement on the check screen; this
+ *  is evidence the conversation happened, at this time, in this place, with
+ *  this person — the same job an attendance row does, for an interview rather
+ *  than a shift. */
+export interface InterviewEntry {
   id: string;
-  /** The auditor's reference for this statement — INT-7K2P9_S01.
-   *
-   *  Stable and never reused, for the same reason a photograph's reference is:
-   *  a finding that cites S02 must still mean the same sentence a year later.
-   *  It is what a report quotes, so it has to survive the statement above it
-   *  being deleted. */
-  ref: string;
-  /** What was asked. May be empty — people volunteer things, and pretending
-   *  every statement answered a question would be a fabricated question. */
-  question: string;
-  /** What they said. */
-  answer: string;
-  kind: StatementKind;
-  /** The check-points this statement bears on, by canonical id.
-   *
-   *  It bears on them. It does not answer them — see the note on Interview. */
-  checkIds: string[];
+  name: string;
+  /** Free text, and optional — the register does not withhold anything for
+   *  its absence. Worth having when it is offered; not worth a form field that
+   *  makes "just Peter" feel like it was filled in wrong. */
+  role: string;
+
+  location: string;
+  /** `startedAt` is immutable, for the same reason a signature's timestamp is:
+   *  a record whose own time can be rewritten afterwards is not a record.
+   *  `endedAt` is null while the interview is still running. */
+  startedAt: number;
+  endedAt: number | null;
+
+  /** Their mark. Held exactly as an attendance signature is — its own key in
+   *  the media store, a reference that is never reused, cleared if `name`,
+   *  `role` or `location` changes afterwards, because it is a mark on THAT
+   *  statement of who and where. */
+  signature: Signature | null;
+
   createdAt: number;
   updatedAt: number;
 }
 
-/** An interview with key personnel or stakeholders.
+/** A day of interviews, and the record of that day.
  *
- *  THE CONTRACT ASKS FOR THIS BY NAME. Scope 4.2, the on-site audit phase:
+ *  ONE RECORD PER SITE PER CALENDAR DAY, opened or returned exactly as a
+ *  SiteDay is — two registers for one day is the same silent failure there as
+ *  it is for attendance, and it is guarded the same way.
+ *
+ *  ACSA asked for this by name — scope 4.2, the on-site audit phase:
  *  "Interview key personnel and stakeholders (e.g. Airport Operations
  *  Departments, Contractors, etc.) to gather information and insights." It is
- *  also a separately priced activity — pricing schedule item 1.2.6(b),
- *  "Interviews with key personnel and stakeholders", at every one of the ten
- *  airports. An interview nobody recorded is an activity TPJV was paid for and
- *  cannot evidence.
+ *  also priced — pricing schedule 1.2.6(b), "Interviews with key personnel and
+ *  stakeholders", at every one of the ten airports. An interview nobody
+ *  recorded is an activity TPJV was paid for and cannot evidence.
  *
- *  AND THIRTY CHECK-POINTS NEED IT. `confirmedBy: "Practice"` means compliance
- *  turns on a way of working rather than a document or an asset — whether the
- *  round actually happens, whether a below-threshold reading actually produces
- *  the action. Thirty of the 324 are classified that way, and they are
- *  precisely the ones that fail while every document in the file reads clean.
- *  The person who does the work is the evidence.
- *
- *  WHICH IS WHY TESTIMONY IS NOT EVIDENCE, and this record must never set a
- *  check's status. What somebody said is a different kind of thing from what is
- *  true, and the gap between them is what an auditor is being paid to judge. A
- *  statement links to the check-points it bears on; the answer stays the
- *  auditor's, captured on the check screen, where it can be weighed against the
- *  document and the asset. There is deliberately no path from here to a
- *  Response, and tests/interviews.test.mjs holds that shut.
- *
- *  ATTRIBUTION OR IT IS NOT CITABLE. "The electrician said the generator is
- *  tested monthly" cannot go in a report — not because it is untrue, but
- *  because nobody can go back and ask him. A name and a role are what make a
- *  statement something a reader can weigh, so the register says plainly which
- *  records cannot be cited rather than letting them look complete. */
-export interface Interview {
-  /** INT-xxxxx. The prefix a statement reference and a photograph reference
-   *  are both built on. */
+ *  CLOSED BY AN APPROVAL, not by the last entry. `closedAt`/`closedBy` are the
+ *  "approval at the end to close off the record of the day's interviews" Sarel
+ *  asked for — one attestation that the day's list is complete and correct,
+ *  separate from any one person's own signature. `closeSignature` is optional:
+ *  the approval is real the moment it is pressed, and a drawn mark on top of
+ *  it is a stronger record where the auditor wants one, not a requirement. */
+export interface InterviewDay {
+  /** `INT-xxxxx`. The prefix every entry's signature reference is built on. */
   id: string;
   entity: string;
   originVisit: string;
 
-  /** Who was interviewed. Both matter and neither substitutes for the other —
-   *  see the note above. */
-  name: string;
-  role: string;
-  /** The employer or department, in their own words. Separate from `party`
-   *  because "Bidvest Facilities Management" is what they will tell you and
-   *  "contractor" is what it means. */
-  organisation: string;
-  party: InterviewParty | null;
-  /** How to go back with one more question, a week later, from a desk. Optional
-   *  and often blank; when it is there it is the difference between a loose end
-   *  and a phone call. */
-  contact: string;
+  /** The calendar date, `YYYY-MM-DD`, in the auditor's own timezone — see
+   *  localDate() in src/lib/attendance.ts, reused here rather than copied. */
+  date: string;
 
-  /** Where it happened, and what it was about. */
-  location: string;
-  discipline: string | null;
+  openedAt: number;
+  openedBy: string;
 
-  /** The clocks. `startedAt` is immutable for the same reason an ISF's
-   *  `raisedAt` is: a record whose own time can be rewritten afterwards is not
-   *  a record. `endedAt` is null while it is still running. */
-  startedAt: number;
-  endedAt: number | null;
-  conductedBy: string;
+  entries: InterviewEntry[];
 
-  /** Whether the person was told a record was being kept of what they said.
-   *
-   *  Recorded rather than assumed so that the record can state it either way.
-   *  An interview where this is false is still a perfectly good interview — it
-   *  is just not one whose subject should be surprised to find themselves
-   *  quoted, and the register says so. */
-  noticeGiven: boolean;
-
-  /** When the record was read back and the person agreed it was right.
-   *
-   *  Cleared automatically the moment any statement changes — see
-   *  updateInterviewNote in src/lib/store.ts. What they confirmed was the text
-   *  as it stood; a confirmation that survives an edit is a signature on a
-   *  document somebody altered afterwards. */
-  confirmedAt: number | null;
-
-  notes: InterviewNote[];
-  /** Photographs of what was being discussed, and the voice note of the
-   *  conversation itself where one was taken. Held exactly as everywhere else:
-   *  the media store keeps the bytes, this keeps the reference. */
-  attachments: Attachment[];
+  /** The closing approval. Null while the day is still open to more entries. */
+  closedAt: number | null;
+  closedBy: string;
+  closeSignature: Signature | null;
 
   createdAt: number;
   updatedAt: number;
@@ -1281,6 +1212,27 @@ export interface AttendanceEntry {
    *  in later and is deliberately NOT part of what the signature covers. */
   arrivedAt: number | null;
   departedAt: number | null;
+
+  /** Where they worked, and what they did — added 28 September 2026, on
+   *  Sarel's word watching the register live: "a record of everyone that was
+   *  on site for the day … location(s) … notes on what was done … like an
+   *  action log of the day."
+   *
+   *  Both free text and both optional. `location` is worded for more than one
+   *  place — a person moves through a substation and a switchroom in one
+   *  morning, and forcing that into a single field is still simpler than a
+   *  list nobody will maintain on a tablet. `notes` is the activity itself,
+   *  attributed to the person who did it: "Assisted T. Nkosi with the AGL
+   *  vault inspection" says who helped with what without a second structured
+   *  field to fill in.
+   *
+   *  NEITHER IS PART OF WHAT THE SIGNATURE COVERS — see SIGNED_FIELDS. A
+   *  person signs to attesting who they are, who they work for and that their
+   *  induction is confirmed; what they did that day is filled in and refined
+   *  as the day goes, including by somebody else closing it out, and must not
+   *  silently unsign them. */
+  location: string;
+  notes: string;
 
   /** The induction confirmation. `inductionRef` is the airside induction or
    *  AVSEC permit number, `inductionExpires` the date on it. */
