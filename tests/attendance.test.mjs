@@ -97,6 +97,8 @@ const person = (over = {}) => ({
   role: "",
   arrivedAt: ARRIVED,
   departedAt: null,
+  location: "",
+  notes: "",
   inductionConfirmed: false,
   inductionRef: "",
   inductionExpires: null,
@@ -111,6 +113,8 @@ const complete = (over = {}) =>
     organisation: "Thabile Pridin JV",
     role: "Lead auditor",
     departedAt: LEFT,
+    location: "MV switchroom, Pier B",
+    notes: "Inspected AGL vault; assisted P. Mahlangu with DB3 fuse replacement",
     inductionConfirmed: true,
     inductionRef: "AVSEC-2026-0417",
     inductionExpires: new Date("2027-03-31T12:00:00").getTime(),
@@ -221,6 +225,16 @@ check(
   "nor does recording the permit's expiry date",
   patchInvalidatesSignature({ inductionExpires: 1 }) === false,
   "the expiry is a fact about the permit, not part of what the person attested"
+);
+check(
+  "and recording where they worked does not invalidate it either",
+  patchInvalidatesSignature({ location: "AGL vault" }) === false,
+  "added 28 September 2026 — a location filled in as the day goes must not unsign the arrival"
+);
+check(
+  "nor does adding a note on what was done",
+  patchInvalidatesSignature({ notes: "Inspected the vault" }) === false,
+  "activity notes are descriptive, not part of the personal attestation"
 );
 check(
   "an empty patch invalidates nothing",
@@ -452,6 +466,24 @@ check(
   ).includes("LAPSED ON THIS DATE")
 );
 check("the diary is in it", full.includes("MV rooms, Pier B."));
+check(
+  "each entry's location is in the text",
+  full.includes("MV switchroom, Pier B")
+);
+check(
+  "and what they did — the action-log half",
+  full.includes("Inspected AGL vault; assisted P. Mahlangu with DB3 fuse replacement")
+);
+check(
+  "who assisted whom is a sentence, not a second structured field",
+  full.includes("assisted P. Mahlangu"),
+  "\"maybe indicating who assisted with what\" — free text carries it without a link to maintain"
+);
+check(
+  "an entry with nothing to say leaves the location and activity lines out, rather than printing them blank",
+  !dayText(day({ entries: [person({ id: "e2", endedAt: LEFT })] }), ctx).includes("Location"),
+  "these are optional; a blank 'Location — not recorded' on every silent row would be noise the diary already covers"
+);
 check("and what the day still owes", full.includes("STILL OWED"));
 
 /* ---------------------------------------------------- 11. the store's guarantees */

@@ -1,140 +1,110 @@
-/** Interview records — the rules that keep testimony honest, in one place.
+/** Interview records — the rules, in one place.
  *
  *  Kept out of the screen and the store because all three need the same
- *  answers: the register colours a row by whether it can be cited, the store
- *  clears a confirmation when a statement changes, and the text the auditor
- *  reads back is composed from the same fields. A second copy of "is this
- *  citable?" is how the register comes to say yes while the report says no. */
-
-import type {
-  Interview,
-  InterviewNote,
-  InterviewParty,
-  InterviewStage,
-  StatementKind,
-} from "@/lib/types";
-
-export const PARTY_LABEL: Record<InterviewParty, string> = {
-  ACSA: "ACSA",
-  tenant: "Tenant",
-  contractor: "Contractor",
-  other: "Other",
-};
-
-export const KIND_LABEL: Record<StatementKind, string> = {
-  quote: "Verbatim",
-  summary: "Summary",
-};
-
-/** The default for a new statement, and it is `summary` on purpose.
+ *  answers: the register colours a row by whether it is signed, the store
+ *  clears a signature when what it signed for changes, and the text read back
+ *  is composed from the same fields. A second copy of "is this entry signed
+ *  for what it now says?" is how a register comes to show a tick beside a row
+ *  nobody actually confirmed.
  *
- *  Both directions of error are possible and they are not equally bad. A
- *  verbatim answer filed as a summary loses a little force in the report. A
- *  paraphrase filed as a verbatim quote puts words in a named person's mouth,
- *  and the first time that person reads it, every other statement in the file
- *  becomes arguable. So the unmarked case is the cautious one and promoting a
- *  statement to a quote is a deliberate act. */
-export const DEFAULT_KIND: StatementKind = "summary";
+ *  REBUILT 28 September 2026, on Sarel's word, looking at the shipped screen
+ *  live: "this is too formal, we just need a record of who we interview on
+ *  which day, what the location was, from and to. and space for their
+ *  signature and an approval at the end to close of the record of the days
+ *  interviews." The earlier version carried statements linked to
+ *  check-points, a quote/summary distinction, a notice-given toggle and a
+ *  "citable" verdict — all removed. What was said belongs to the auditor's
+ *  own judgement on the check screen; this register is evidence the
+ *  conversation happened, at this time, in this place, with this person. */
 
-/** The reference a statement is known by — INT-7K2P9_S01.
- *
- *  Sequence numbers are never reused, exactly as photograph references are not:
- *  a finding citing S02 must mean the same sentence next year, and a reference
- *  that silently comes to mean a different statement is worse than a gap in the
- *  numbering. */
-export function nextStatementRef(interviewId: string, existing: InterviewNote[]): string {
+import type { InterviewDay, InterviewDayStage, InterviewEntry, Signature } from "@/lib/types";
+
+/** What an entry's signature stands behind. Change any of these afterwards and
+ *  the mark is cleared — it was a signature on a different statement of who
+ *  and where. Times are deliberately outside this list, for the same reason
+ *  attendance's are: correcting an end time hours later must not wipe a
+ *  signature given at the time. */
+export const SIGNED_FIELDS = ["name", "role", "location"] as const;
+
+export type SignedField = (typeof SIGNED_FIELDS)[number];
+
+export function patchInvalidatesSignature(p: Partial<InterviewEntry>): boolean {
+  return SIGNED_FIELDS.some(
+    (f) => Object.prototype.hasOwnProperty.call(p, f) && p[f] !== undefined
+  );
+}
+
+/** The next signature reference on a day — `INT-7K2P9_S02`. Numbered across the
+ *  whole day and never reused, exactly as an attendance day's are: a report
+ *  citing S01 must still mean that person's mark next year. */
+export function nextSignatureRef(dayId: string, entries: InterviewEntry[]): string {
   let highest = 0;
-  for (const n of existing) {
-    const m = /_S(\d+)$/.exec(n.ref ?? "");
+  for (const e of entries) {
+    const m = /_S(\d+)$/.exec(e.signature?.ref ?? "");
     if (m) highest = Math.max(highest, Number(m[1]));
   }
-  return `${interviewId}_S${String(highest + 1).padStart(2, "0")}`;
+  return `${dayId}_S${String(highest + 1).padStart(2, "0")}`;
 }
 
-/** Whether a statement can be attributed to somebody a reader could go back to.
- *
- *  Both halves are required and neither substitutes for the other. A name
- *  without a role ("Thabo said the pumps are tested weekly") does not tell a
- *  reader whether the speaker would know. A role without a name ("the
- *  electrician said…") cannot be checked by anybody at all. An audit report
- *  quoting either one is quoting nobody. */
-export function isAttributable(iv: Interview): boolean {
-  return iv.name.trim().length > 0 && iv.role.trim().length > 0;
+/** Signed means a mark was drawn and stored, not that a name was typed. */
+export function isSigned(e: InterviewEntry): boolean {
+  return !!e.signature?.blobKey;
 }
 
-/** The stage, derived. Never stored — see the note on InterviewStage.
- *
- *  `confirmed` outranks `ended` because confirmation can only happen after the
- *  conversation is over, and because it is the stage that changes what the
- *  record is worth: an interview the subject has agreed is accurate is evidence
- *  of what they said, and one they have not seen is the auditor's account of
- *  it. */
-export function interviewStage(iv: Interview): InterviewStage {
-  if (iv.confirmedAt) return "confirmed";
-  if (iv.endedAt) return "ended";
-  return "open";
+/** The stage, derived. Never stored. */
+export function interviewDayStage(d: InterviewDay): InterviewDayStage {
+  return d.closedAt ? "closed" : "open";
 }
 
-/** How long it ran, or has been running.
- *
- *  `now` of 0 means the device's clock has not been read yet — see
- *  src/lib/clock.ts — and it returns null rather than computing against the
- *  epoch, which would report a fifty-six year interview. */
-export function durationMs(iv: Interview, now: number): number | null {
-  const end = iv.endedAt ?? (now || 0);
+/** How long an interview ran, or has been running. `now` of 0 means the
+ *  device's clock has not been read yet — see src/lib/clock.ts — and it
+ *  returns null rather than computing against the epoch. */
+export function durationMs(e: InterviewEntry, now: number): number | null {
+  const end = e.endedAt ?? (now || 0);
   if (!end) return null;
-  return Math.max(0, end - iv.startedAt);
+  return Math.max(0, end - e.startedAt);
 }
 
-/** Every check-point any statement in this interview bears on, deduplicated
- *  and in the order they were first cited. What the register shows, and what an
- *  auditor working the thirty Practice check-points scans for. */
-export function checkIdsCited(iv: Interview): string[] {
-  const seen: string[] = [];
-  for (const n of iv.notes) {
-    for (const id of n.checkIds) if (!seen.includes(id)) seen.push(id);
-  }
-  return seen;
+/** Interviews still running: started, nobody has ended them. What the closing
+ *  approval is looking at — a day cannot honestly be closed with somebody
+ *  still mid-conversation on it. */
+export function stillRunning(d: InterviewDay): InterviewEntry[] {
+  return d.entries.filter((e) => !e.endedAt);
 }
 
-/** What is missing, as a list rather than a boolean, for the same reason an
- *  ISF's is: the register shows WHICH parts are absent. An interview is
- *  deliberately saveable with only a name, so incomplete is a normal state and
- *  the screen has to be able to say what is still owed.
- *
- *  `role` is in this list and `contact` is not. A role is what makes the
- *  statement weighable; a contact number is a convenience. */
-export function missingFields(iv: Interview): string[] {
+/** What an entry is still missing, as a list rather than a boolean. A row is
+ *  deliberately saveable with only a name — the interview is starting, not
+ *  finished — so incomplete is the normal state and the register says which
+ *  parts are still owed. */
+export function entryGaps(e: InterviewEntry): string[] {
   const gaps: string[] = [];
-  if (!iv.name.trim()) gaps.push("name");
-  if (!iv.role.trim()) gaps.push("role");
-  if (!iv.party) gaps.push("who they answer to");
-  if (!iv.location.trim()) gaps.push("where");
-  if (iv.notes.length === 0) gaps.push("what was said");
-  if (!iv.endedAt) gaps.push("end time");
-  if (!iv.noticeGiven) gaps.push("told a record was being kept");
+  if (!e.name.trim()) gaps.push("name");
+  if (!e.location.trim()) gaps.push("location");
+  if (!e.endedAt) gaps.push("end time");
+  if (!isSigned(e)) gaps.push("signature");
   return gaps;
 }
 
-/** Whether this record could be quoted in the audit report as it stands.
- *
- *  Three things, and all three are about the reader rather than the auditor:
- *  somebody to attribute it to, something they actually said, and the person
- *  having known that what they said was being written down. The last one is not
- *  a legal test — it is the difference between a record that survives being
- *  shown to its own subject and one that does not. */
-export function isCitable(iv: Interview): boolean {
-  return isAttributable(iv) && iv.notes.length > 0 && iv.noticeGiven;
+/** What the day is still owed, for the register's one line and for the close
+ *  button's own gate — see dayCanClose. */
+export function dayGaps(d: InterviewDay): string[] {
+  const gaps: string[] = [];
+  if (d.entries.length === 0) gaps.push("nobody recorded");
+  const unsigned = d.entries.filter((e) => !isSigned(e)).length;
+  if (unsigned) gaps.push(`${unsigned} unsigned`);
+  const running = stillRunning(d).length;
+  if (running) gaps.push(`${running} still running`);
+  return gaps;
 }
 
-/** Why it is not citable, in words for the register. Empty when it is. */
-export function citationBlockers(iv: Interview): string[] {
-  const out: string[] = [];
-  if (!iv.name.trim()) out.push("nobody named");
-  if (!iv.role.trim()) out.push("no role recorded");
-  if (iv.notes.length === 0) out.push("nothing recorded");
-  if (!iv.noticeGiven) out.push("not told a record was being kept");
-  return out;
+/** Whether the day can be closed. Requires at least one entry and nothing
+ *  still running — the approval is a statement that the list is complete, and
+ *  a day with somebody mid-interview is not complete yet. Signing every entry
+ *  is NOT required to close: a person who declined to sign is still an
+ *  honest record of the day, and refusing to let the auditor close over that
+ *  would make the approval lie about what happened rather than attest to it. */
+export function dayCanClose(d: InterviewDay): boolean {
+  return d.entries.length > 0 && stillRunning(d).length === 0;
 }
 
 function stamp(t: number): string {
@@ -156,89 +126,80 @@ function hhmm(t: number): string {
   });
 }
 
-export interface InterviewContext {
-  /** "O.R. Tambo International Airport (FAOR)" — what a reader recognises. */
+export interface DayContext {
   siteName: string;
-  /** The portal's abbreviation, for the reference line. */
   siteCode: string;
   visitId: string;
-  /** Turns a canonical check id into the one printed at this site, so a reader
-   *  holding the workbook can find the row. Passed in rather than imported so
-   *  this module stays free of the register. */
-  portalId?: (checkId: string) => string;
 }
 
-/** The record as plain text, to read back to the person or paste into the file.
+/** The day's record as plain text, to read back or paste into the file.
  *
- *  Composed here for the same reason the ISF notice is: the moment that decides
- *  whether this gets confirmed is the ninety seconds at the end of the
- *  conversation while the person is still standing there, and nobody retypes a
- *  page of notes in that window.
- *
- *  It states what is unknown rather than omitting it, and it marks every
- *  statement as verbatim or summary. Reading back a paraphrase without saying
- *  it is one invites a "yes, that's right" about words the person never used —
- *  which is worse than not reading it back at all, because now it carries a
- *  confirmation. */
-export function interviewText(iv: Interview, ctx: InterviewContext): string {
+ *  It states what is unknown rather than omitting it, and it says plainly
+ *  when the day is not yet closed — a record somebody could mistake for
+ *  finished is worse than one that says it is not. */
+export function dayText(d: InterviewDay, ctx: DayContext): string {
   const unknown = "— not recorded —";
   const L = (s: string) => (s.trim() ? s.trim() : unknown);
-  const pid = ctx.portalId ?? ((id: string) => id);
 
   const lines = [
-    `INTERVIEW RECORD — ${iv.id}`,
+    `INTERVIEW RECORD — ${d.id}`,
     `${ctx.siteName}`,
     "",
-    `Reference       ${ctx.siteCode}-${iv.id}`,
+    `Reference       ${ctx.siteCode}-${d.id}`,
     `Audit           ${ctx.visitId}`,
-    `Interviewee     ${L(iv.name)}`,
-    `Role            ${L(iv.role)}`,
-    `Organisation    ${L(iv.organisation)}${iv.party ? ` (${PARTY_LABEL[iv.party]})` : ""}`,
-    `Location        ${L(iv.location)}`,
-    `Discipline      ${iv.discipline ?? unknown}`,
-    `Started         ${stamp(iv.startedAt)}`,
-    `Ended           ${iv.endedAt ? hhmm(iv.endedAt) : "— still open —"}`,
-    `Conducted by    ${L(iv.conductedBy)}`,
+    `Date            ${d.date}`,
+    `Opened          ${stamp(d.openedAt)}`,
+    `Opened by       ${L(d.openedBy)}`,
     "",
-    iv.noticeGiven
-      ? "The interviewee was told that a record was being kept of what was said."
-      : "NOT RECORDED as having been told that a record was being kept of what was said.",
-    "",
-    "WHAT WAS SAID",
+    "INTERVIEWS",
   ];
 
-  if (iv.notes.length === 0) {
+  if (d.entries.length === 0) {
     lines.push(unknown);
   } else {
-    for (const n of iv.notes) {
+    for (const e of d.entries) {
       lines.push("");
-      lines.push(`${n.ref}  [${KIND_LABEL[n.kind].toUpperCase()}]`);
-      if (n.question.trim()) lines.push(`Q  ${n.question.trim()}`);
-      lines.push(`A  ${L(n.answer)}`);
-      if (n.checkIds.length) {
-        lines.push(`Bears on  ${n.checkIds.map(pid).join(", ")}`);
-      }
+      lines.push(`${e.id}  ${L(e.name)}${e.role.trim() ? ` — ${e.role.trim()}` : ""}`);
+      lines.push(`  Location      ${L(e.location)}`);
+      lines.push(
+        `  From / to     ${hhmm(e.startedAt)} to ${e.endedAt ? hhmm(e.endedAt) : "— still running —"}`
+      );
+      lines.push(
+        `  Signature     ${
+          e.signature ? `${e.signature.ref}, signed ${stamp(e.signature.signedAt)}` : "NOT SIGNED"
+        }`
+      );
     }
-  }
-
-  const photos = iv.attachments.filter((a) => a.kind === "photo" && a.ref);
-  if (photos.length) {
-    lines.push("", "PHOTOGRAPHS", photos.map((a) => a.ref).join(", "));
   }
 
   lines.push(
     "",
-    iv.confirmedAt
-      ? `Read back and confirmed correct by the interviewee at ${stamp(iv.confirmedAt)}.`
-      : "NOT YET CONFIRMED by the interviewee.",
+    d.closedAt
+      ? `Closed and approved ${stamp(d.closedAt)} by ${L(d.closedBy)}${
+          d.closeSignature ? ` (${d.closeSignature.ref})` : ""
+        }.`
+      : "NOT YET CLOSED — this record is not approved."
+  );
+
+  const gaps = dayGaps(d);
+  if (gaps.length) lines.push("", `STILL OWED: ${gaps.join(", ")}`);
+
+  lines.push(
     "",
     "Recorded under the Scope of Work, Part C3, on-site audit phase:",
     '"Interview key personnel and stakeholders … to gather information and insights."',
-    "A statement records what was said. It is not a finding and does not settle",
-    "compliance on any check-point it refers to.",
     "",
     "Thabile Pridin JV"
   );
 
   return lines.join("\n");
+}
+
+/** Signatures on this day the record store has no copy of. Same warning as
+ *  the attendance register's, and the same gap behind it — see task #84. */
+export function unbackedSignatures(d: InterviewDay): Signature[] {
+  const out: Signature[] = [];
+  for (const e of d.entries) if (e.signature && !e.signature.cloudUrl) out.push(e.signature);
+  if (d.closeSignature && !d.closeSignature.cloudUrl) out.push(d.closeSignature);
+  return out;
 }

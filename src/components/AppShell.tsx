@@ -141,7 +141,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
      every screen below it; subscribing it to an array would hand it a new
      reference each time and re-render the masthead for nothing. */
   const interviewCount = useStore(
-    (s) => s.interviews.filter((iv) => iv.entity === s.entity).length
+    (s) => s.interviewDays.filter((d) => d.entity === s.entity).length
   );
   /* How many people are signed in and not signed out, anywhere at this site.
      A COUNT for the same reason as above, and deliberately not "today": a
@@ -651,8 +651,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       label="Interview records"
                       hint={
                         interviewCount
-                          ? `${interviewCount} recorded at ${entityOf(entityCode).short}`
-                          : "Who you asked, and what they said"
+                          ? `${interviewCount} day${interviewCount === 1 ? "" : "s"} recorded at ${entityOf(entityCode).short}`
+                          : "Who was interviewed, when and where"
                       }
                       selected={pathname === "/interviews"}
                       onClick={() => { setMore(false); router.push("/interviews"); }}
