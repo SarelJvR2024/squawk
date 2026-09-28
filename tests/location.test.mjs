@@ -75,9 +75,18 @@ check(
   "one inspection can carry evidence from two places"
 );
 
+/* Scoped to Attachment, which is the interface this suite is about. The
+   unscoped version swept all of types.ts and broke the first time another
+   record declared a required location of its own — a SafetyFinding has one,
+   initialised empty, because "where is it" is the second question anybody asks
+   about something that could hurt them. */
+const attachmentBlock = types.slice(
+  types.indexOf("export interface Attachment"),
+  types.indexOf("export interface Response")
+);
 check(
-  "both are optional, so no persist version has to move",
-  /location\?: string;/.test(types) && !/location: string;/.test(types),
+  "both are optional on an attachment, so no persist version has to move",
+  /location\?: string;/.test(attachmentBlock) && !/\blocation: string;/.test(attachmentBlock),
   "absent-means-empty is the shape feedback? and adhoc? already use — there is nothing for a migration to convert"
 );
 

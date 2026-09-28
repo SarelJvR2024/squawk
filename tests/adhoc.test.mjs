@@ -88,8 +88,10 @@ check(
 check("VisitData carries adhoc", /adhoc\?: AdHocItem\[\];/.test(store));
 check(
   "it is OPTIONAL, so no persisted visit needs a migration",
-  /adhoc\?:/.test(store) && !/version: 14/.test(store),
-  "absent-means-empty is the one shape change that does not need a version bump"
+  /adhoc\?:/.test(store) && !/from < \d+[\s\S]{0,300}\.adhoc\b[\s\S]{0,120}= \[\]/.test(store),
+  "absent-means-empty is the one shape change that does not need a version bump. " +
+    "This used to assert the version had not reached 14, which pinned an unrelated " +
+    "global counter — the safety-findings slice moved it and this rule had not changed."
 );
 check(
   "resetVisit deletes walk photographs too",

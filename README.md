@@ -930,6 +930,95 @@ There used to be `pf` and `pfq` columns on the register row itself. They were
 King Shaka's numbers, so a Cape Town check announced a King Shaka finding, and
 seven never-audited sites announced one too. They are gone.
 
+## Two kinds of record, and why they must not merge
+
+Everything in this app used to answer one question: *what did we find about
+ACSA's assets?* That is the audit, it is what ACSA pays for, and it is what the
+workbook, the findings register and the dashboards are made of.
+
+From the safety findings screen onward the app also holds a second kind of
+record, and it answers a different question entirely: *did TPJV do this
+properly?*
+
+Sarel, 28 September 2026:
+
+> This doesn't necessarily form part of the audit, but it forms part of the
+> admin and the project management of the project and the audit. So this is
+> evidence we will need — to confirm, or to have as evidence, that we follow
+> the right procedures and have got all our evidence in place for the project.
+
+The two are told apart by **who is being examined**.
+
+| | Audit evidence | Project evidence |
+|---|---|---|
+| Question | What is wrong with ACSA's assets? | Did TPJV follow the procedure? |
+| Subject | ACSA | TPJV |
+| Audience | ACSA, as the deliverable | ACSA on request, a DoL inspector, TPJV's own file |
+| Examples | 324 check-points, findings, hazards, photographs | Immediate safety findings, attendance, PPE checks, induction, toolbox talks, interviews |
+| Source | the register | the contract, the OHS Act, SWP-07, TK-003 |
+| If it is missing | a gap in the report | a gap in TPJV's defence |
+
+Three consequences, and all three are load-bearing.
+
+**Project evidence never touches a completion figure.** `adhoc.test.mjs` already
+guards this for walk items, for the reason it gives: the moment "312 of 324" can
+become "313 of 324" because somebody recorded something, every number this
+product publishes is one nobody can reconcile. Safety findings, attendance and
+PPE checks are counted separately or not at all, and never against the register.
+
+**It outlives the visit.** A finding is scoped to the entity *and* the visit,
+because the next audit wants to know what the last one left open at that
+airport. `useSafetyFindings` is scoped to the **entity only**, deliberately: an
+immediate safety finding nobody closed is exactly what the team walking back in
+needs to see, whichever visit raised it.
+
+**It is not ours to rate.** Nothing here goes on B170 001M or on ERM. An ISF is
+not a hazard with a severity; it is a thing that could hurt somebody today, and
+its states are *raised*, *notified*, *issued* and *closed*. Giving it a risk band
+would invite somebody to triage it, and the whole point of SWP-07 is that it is
+not triaged.
+
+The one record that sits in both columns is the immediate safety finding. It is
+project evidence — it proves TPJV reported what it saw — and it is also reported
+to ACSA on the day, under the scope of work's requirement that "all safety
+related findings picked up during the audit must be reported immediately". That
+is why it produces a written notice addressed outward, and why it is the only
+project record with a document generator behind it.
+
+## Immediate safety findings
+
+`/isf`. TK-003 form 1, on the tablet, and the first of the paper forms to move.
+
+SWP-07 sets the whole shape: stop, make safe only if it can be done without
+risk, notify the ACSA site representative **verbally at once**, complete the
+form, issue written notification **the same day**, log it, track it to closure.
+
+Three things follow, and they are the design:
+
+**One field raises it.** The person raising this is standing in front of the
+thing and wants to leave. Type what you saw, tap Raise, deal with the danger.
+Location, risk, action and notification are all filled in afterwards, and an ISF
+sitting half-complete in the register is doing its job — it exists, and the
+register says what is missing. A form demanding all of it first is a form filled
+in that evening from memory, with times that are fiction.
+
+**The clocks are the record.** `raisedAt` to `notifiedAt` is what "at once"
+means. `raisedAt` to the written notice is what "the same day" means. Both are
+instants, not checkboxes, and both are on the row.
+
+**A message is not a notification.** "Notify verbally at once" is not discharged
+by a WhatsApp. The method is recorded either way — what happened is worth
+knowing — but only in person, by phone or by radio moves the finding out of
+`raised`, which is the state the register shouts about.
+
+The written notice is composed by the app rather than by the auditor, because
+the difference between it going out the same day and not is usually whether
+somebody had to write it from scratch after four sites. It states what is
+unknown instead of omitting it: a notice that silently drops the immediate
+action reads as though none was taken, and it goes out under TPJV's name.
+
+Rules live in `src/lib/isf.ts`, guarded by `tests/isf.test.mjs`.
+
 ## Hazards
 
 The findings register answers *what did we see?*. The hazard register at

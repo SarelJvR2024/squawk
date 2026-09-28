@@ -32,6 +32,7 @@ import type {
   ProgressNote,
   Response,
   Role,
+  SafetyFinding,
   Severity,
   Verification,
 } from "./types";
@@ -297,6 +298,10 @@ interface State {
    *  left open. */
   findings: Finding[];
   hazards: Hazard[];
+  /** Immediate Safety Findings. Flat for the same reason findings are: an ISF
+   *  raised at O.R. Tambo in September is still the thing a March visit has to
+   *  ask about, and a per-visit slice would hide it. */
+  safetyFindings: SafetyFinding[];
   lastSavedAt: number | null;
   hydrated: boolean;
 
@@ -340,6 +345,21 @@ interface State {
   addHazard: (h: Omit<Hazard, "id" | "createdAt" | "entity">) => string;
   updateHazard: (id: string, p: Partial<Hazard>) => void;
   removeHazard: (id: string) => void;
+
+  /* ---- Immediate Safety Findings. See src/lib/isf.ts for the SWP-07 rules. ----
+     Only the description is required. An ISF is raised standing in front of the
+     thing that could hurt somebody, and a form that refuses to save without
+     every field is a form that gets written up later from memory. */
+  addSafetyFinding: (description: string, seed?: Partial<SafetyFinding>) => string;
+  updateSafetyFinding: (id: string, p: Partial<SafetyFinding>) => void;
+  removeSafetyFinding: (id: string) => void;
+  addIsfAttachment: (id: string, a: Omit<Attachment, "id" | "createdAt">) => void;
+  updateIsfAttachment: (
+    id: string,
+    attachmentId: string,
+    patch: Partial<Attachment>
+  ) => void;
+  removeIsfAttachment: (id: string, attachmentId: string) => void;
   removeFindingsForIssue: (checkId: string, issueIndex: number) => void;
 
   verification: (pf: string) => Verification;
@@ -477,6 +497,7 @@ export const useStore = create<State>()(
         customVisits: [],
         findings: [],
         hazards: [],
+        safetyFindings: [],
         lastSavedAt: null,
         hydrated: false,
 
@@ -743,6 +764,112 @@ export const useStore = create<State>()(
 
         removeHazard: (id) =>
           set((s) => ({ hazards: s.hazards.filter((h) => h.id !== id) })),
+
+        addSafetyFinding: (description, seed) => {
+          const id = `ISF-${uid().toUpperCase().slice(0, 5)}`;
+          const now = Date.now();
+          const s0 = get();
+          set((s) => ({
+            safetyFindings: [
+              ...s.safetyFindings,
+              {
+                entity: s.entity,
+                originVisit: s.visit,
+                /* The moment the auditor stopped, not the moment the form was
+                   finished. SWP-07's "at once" is measured from here. */
+                raisedAt: now,
+                raisedBy: s0.auditor || "",
+                description,
+                location: "",
+                discipline: null,
+                riskToPersons: "",
+                immediateAction: "",
+                notifiedTo: "",
+                notifiedMethod: null,
+                notifiedAt: null,
+                writtenTo: "",
+                writtenIssuedAt: null,
+                attachments: [],
+                findingId: null,
+                closedAt: null,
+                closedBy: "",
+                closureNote: "",
+                ...seed,
+                id,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          }));
+          return id;
+        },
+
+        updateSafetyFinding: (id, p) =>
+          set((s) => ({
+            safetyFindings: s.safetyFindings.map((f) =>
+              /* id, entity and raisedAt are what the record IS. A caller
+                 passing them would be renaming a safety record after the fact,
+                 which is the one thing a reviewer must be able to rule out. */
+              f.id === id
+                ? {
+                    ...f,
+                    ...p,
+                    id: f.id,
+                    entity: f.entity,
+                    raisedAt: f.raisedAt,
+                    createdAt: f.createdAt,
+                    updatedAt: Date.now(),
+                  }
+                : f
+            ),
+          })),
+
+        removeSafetyFinding: (id) =>
+          set((s) => ({ safetyFindings: s.safetyFindings.filter((f) => f.id !== id) })),
+
+        addIsfAttachment: (id, a) => {
+          const f = get().safetyFindings.find((x) => x.id === id);
+          if (!f) return;
+          get().updateSafetyFinding(id, {
+            attachments: [
+              ...f.attachments,
+              {
+                ...a,
+                id: uid(),
+                /* ISF-7K2P9_P01. The record's own id is the prefix, so an image
+                   in the export zip names the safety finding it belongs to. */
+                ...(a.kind === "photo" ? { ref: nextPhotoRef(id, f.attachments) } : {}),
+                createdAt: Date.now(),
+              },
+            ],
+          });
+        },
+
+        removeIsfAttachment: (id, attachmentId) => {
+          const f = get().safetyFindings.find((x) => x.id === id);
+          if (!f) return;
+          const gone = f.attachments.find((a) => a.id === attachmentId);
+          get().updateSafetyFinding(id, {
+            attachments: f.attachments.filter((a) => a.id !== attachmentId),
+          });
+          /* The bytes go with it. Leaving them behind is how a tablet fills up
+             with photographs nothing references. */
+          if (gone?.blobKey) void delBlob(gone.blobKey);
+        },
+
+        updateIsfAttachment: (id, attachmentId, patch) => {
+          const f = get().safetyFindings.find((x) => x.id === id);
+          if (!f) return;
+          /* Same stripping as updateAttachment: these three identify the
+             photograph and point at its bytes. */
+          const { id: _i, blobKey: _b, createdAt: _c, ...safe } = patch;
+          void _i; void _b; void _c;
+          get().updateSafetyFinding(id, {
+            attachments: f.attachments.map((x) =>
+              x.id === attachmentId ? { ...x, ...safe } : x
+            ),
+          });
+        },
 
         removeFindingsForIssue: (checkId, issueIndex) =>
           set((s) => ({
@@ -1255,12 +1382,13 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 13,
+      version: 14,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
           findings?: Finding[];
           hazards?: Hazard[];
+          safetyFindings?: SafetyFinding[];
           responses?: Record<string, Response>;
           verifications?: Record<string, Verification>;
           captures?: Capture[];
@@ -1519,6 +1647,12 @@ export const useStore = create<State>()(
             st.findings = st.findings.map((f) => ({ ...f, progress: f.progress ?? [] }));
           }
         }
+        if (from < 14) {
+          /* The Immediate Safety Findings slice. Absent on every tablet that
+             hydrated before it existed, and `undefined.filter` is how a
+             half-captured audit becomes a white screen on the apron. */
+          if (!Array.isArray(st.safetyFindings)) st.safetyFindings = [];
+        }
         if (from < 13) {
           /* updatedAt, back-filled — the field that makes two devices' work
              mergeable.
@@ -1579,6 +1713,7 @@ export const useStore = create<State>()(
         customVisits: s.customVisits,
         findings: s.findings,
         hazards: s.hazards,
+        safetyFindings: s.safetyFindings,
         lastSavedAt: s.lastSavedAt,
       }),
     }
@@ -1680,6 +1815,22 @@ export function useEntityFindings(): Finding[] {
   const all = useStore((s) => s.findings);
   const entity = useStore((s) => s.entity);
   return useMemo(() => all.filter((f) => f.entity === entity), [all, entity]);
+}
+
+/** Immediate Safety Findings raised at the entity in view, newest first.
+ *
+ *  Scoped by ENTITY ONLY, deliberately — unlike findings and hazards, which are
+ *  also scoped by visit. An ISF that was raised on a previous visit and never
+ *  closed is precisely what the team walking back into that airport needs to
+ *  see, and filtering it out by visit would hide the one record whose whole
+ *  purpose is that somebody could get hurt. */
+export function useSafetyFindings(): SafetyFinding[] {
+  const all = useStore((s) => s.safetyFindings);
+  const entity = useStore((s) => s.entity);
+  return useMemo(
+    () => all.filter((f) => f.entity === entity).sort((a, b) => b.raisedAt - a.raisedAt),
+    [all, entity]
+  );
 }
 
 /** Hazards raised at the entity and visit in view. Scoped the same way

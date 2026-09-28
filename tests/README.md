@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Forty-three suites, no framework. Thirteen need a running server; thirty do not.
+Forty-four suites, no framework. Thirteen need a running server; thirty-one do not.
 **Check each suite's exit status, not its output**: a `for` loop over them
 reports the status of the loop.
 
@@ -66,8 +66,9 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `checkscreen.test.mjs` | no | 56 |
 | `merge.test.mjs` | no | 48 |
 | `figures.test.mjs` | no | 7 |
-| `home.test.mjs` | no | 57 |
+| `home.test.mjs` | no | 58 |
 | `adhoc.test.mjs` | no | 43 |
+| `isf.test.mjs` | no | 49 |
 | `e2e.js` | yes | 24 |
 | `robustness.js` | yes | 53 |
 | `exports.js` | yes | 33 |
@@ -82,7 +83,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 61 |
 | `a11y.js` | yes | 51 |
 
-**1,855 assertions in total**, every count above verified by running the suite,
+**1,905 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -192,6 +193,55 @@ must agree with `visitsOpen()`: it excludes skipped visits (nobody was there,
 so nothing was survived) and the visit being decided now (an item is not shown
 as having survived the meeting it is sitting in). Two figures counting one
 thing differently on one screen is how a screen stops being believed.
+
+## `isf.test.mjs`
+
+Guards the Immediate Safety Finding — TK-003 form 1 on the tablet, and the only
+record here where being wrong can mean somebody is hurt and nobody was told.
+
+```bash
+node tests/isf.test.mjs
+```
+
+SWP-07 sets the sequence: stop, make safe only if it can be done without risk,
+notify the ACSA site representative VERBALLY AT ONCE, complete the form, issue
+written notification THE SAME DAY. The scope of work says it from ACSA's side
+too — "all safety related findings picked up during the audit must be reported
+immediately". Every rule below comes from one of those sentences.
+
+Seven parts, four of them executed rather than read, because each is a rule a
+plausible refactor could quietly invert:
+
+**Verbal means verbal.** A WhatsApp does not discharge "notify verbally at
+once". The method is still recorded — what happened is worth knowing — but a
+finding notified only by message stays at `raised`, which is the state the
+register shouts about.
+
+**The clock before it is read.** `now` is 0 until the device's clock is known.
+An unissued notice must read `unknown`, not `late`. This was a real bug, caught
+before it shipped: the overdue badge appeared on the first frame and vanished on
+the second, which is worse than never appearing because somebody saw it and
+watched it go.
+
+**Closed wins.** An escort can make an area safe before anybody writes
+anything. A register that still called that `raised` would be chasing a risk
+that no longer exists.
+
+**The notice is honest.** It states what is unknown instead of omitting it —
+a notice that silently drops the immediate action reads as though none was
+taken, and it goes to the client under TPJV's name. It also says plainly that
+it does not replace the verbal notification.
+
+**One field to raise it.** Source-read. The person raising this is standing in
+front of the thing; a form demanding every field first is a form filled in that
+evening from memory, with times that are fiction.
+
+**The record cannot be back-dated.** `id`, `entity` and `raisedAt` are stripped
+from every patch. A safety record whose raise time can be edited is not a
+record.
+
+**Scoped by entity, not by visit.** An ISF the last visit left open is exactly
+what the next team walking into that airport needs to see.
 
 ## `adhoc.test.mjs`
 
