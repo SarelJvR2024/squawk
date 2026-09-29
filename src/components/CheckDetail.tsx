@@ -182,11 +182,27 @@ const toneStyle = (tone: string, on: boolean, quiet = false): React.CSSPropertie
         borderColor: `var(--${tone})`,
         color: `var(--${tone})`,
         boxShadow: `inset 0 0 0 1px var(--${tone})`,
+        /* An inline style, not a Tailwind class, because it has to beat
+           globals.css's site-wide `:focus-visible { outline: 2px solid
+           var(--acc); outline-offset: 2px }` — that rule sits outside any
+           @layer, so `outline-none` in className can never win against it
+           on any browser that treats a tap as focus-visible (several do,
+           and this device gets tapped constantly). An offset ring on one
+           of five equal, tightly packed buttons reads as "this one broke,"
+           not "this one is focused" — worse once it is also the selected
+           button, stacking on the tone ring above. That ring is already a
+           strong, unambiguous affordance (fill, border, icon,
+           aria-pressed) with nothing else in this file relying on the
+           global outline to be seen, so it is dropped here rather than
+           recoloured — the same trade the rest of this cluster's buttons
+           make implicitly by never reaching this state visibly before. */
+        outline: "none",
       }
     : {
         background: quiet ? "transparent" : "var(--panel)",
         borderColor: quiet ? "var(--line)" : "var(--line-2)",
         color: quiet ? "var(--ink-3)" : "var(--ink-2)",
+        outline: "none",
       };
 
 export default function CheckDetail({
@@ -1659,7 +1675,20 @@ export default function CheckDetail({
                        enough to need it, it wraps to two centred lines
                        instead of overflowing sideways; the short labels never
                        reach two lines, so they're unaffected. */
-                    className="flex min-h-[44px] min-w-0 items-center justify-center gap-[6px] rounded-[10px] border-[1.5px] px-[7px] py-1.5 text-center font-display text-[11px] leading-tight font-semibold transition-[var(--t)] sm:px-[10px] sm:text-[11.5px]"
+                    /* outline-none, and deliberately no focus ring in its
+                       place. Without it the browser's own default outline
+                       (2px, not offset) stacks outside the tone ring above
+                       on a button that is both tapped AND still focused —
+                       on a tablet that is every tap — and the two together
+                       read as one oversized, misaligned box next to its
+                       untouched neighbours; a themed replacement ring had
+                       the identical problem, just in the app's own colour
+                       instead of the browser's. The selected state itself
+                       (background, border, tone, aria-pressed) is already
+                       the affordance here, same as every other custom
+                       button in this app — none of them add a focus ring
+                       either. */
+                    className="flex min-h-[44px] min-w-0 items-center justify-center gap-[6px] rounded-[10px] border-[1.5px] px-[7px] py-1.5 text-center font-display text-[11px] leading-tight font-semibold outline-none transition-[var(--t)] sm:px-[10px] sm:text-[11.5px]"
                     style={toneStyle(st.tone, on)}
                   >
                     <st.Icon width={14} height={14} className="shrink-0" />
@@ -1686,7 +1715,7 @@ export default function CheckDetail({
                     aria-label={st.label}
                     aria-pressed={on}
                     title={st.label}
-                    className="flex min-h-[44px] min-w-0 items-center justify-center gap-[6px] rounded-[10px] border px-[7px] font-display text-[11px] font-semibold whitespace-nowrap transition-[var(--t)] sm:px-[10px]"
+                    className="flex min-h-[44px] min-w-0 items-center justify-center gap-[6px] rounded-[10px] border px-[7px] font-display text-[11px] font-semibold whitespace-nowrap outline-none transition-[var(--t)] sm:px-[10px]"
                     style={toneStyle(st.tone, on, true)}
                   >
                     <st.Icon width={13} height={13} className="shrink-0" />
