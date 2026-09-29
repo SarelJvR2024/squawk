@@ -179,7 +179,11 @@ check(
 
 check(
   "and each is still a 44px target",
-  (codeOnly.match(/min-h-\[44px\] items-center justify-center/g) || []).length === 2
+  /* min-w-0 sits between min-h-[44px] and items-center now — it is what
+     keeps the verdict/qualifier grids' columns equal width instead of one
+     long label (e.g. "Compliant, evidence pending") blowing its column
+     wider than the other two. The 44px floor itself is unchanged. */
+  (codeOnly.match(/min-h-\[44px\] min-w-0 items-center justify-center/g) || []).length === 2
 );
 
 check(

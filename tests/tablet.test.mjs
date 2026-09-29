@@ -221,8 +221,16 @@ check(
 );
 
 check(
-  "and the nav claims that whole row, going back to a flex child from sm",
-  /order-last flex w-full min-w-0 shrink-0 basis-full[\s\S]{0,90}sm:order-none sm:w-auto sm:flex-1 sm:basis-auto/.test(shell)
+  /* THE WRAPPER, not the scrolling element itself — split in two on
+     28 September 2026 so a fade could sit fixed at the nav's edge while the
+     nav underneath it scrolls, which needs a positioned ancestor the fade can
+     anchor to. The wrapper still claims the row exactly as it did when it was
+     one element; only the scrolling and the "flex" that does it moved one
+     level in, onto <nav> itself. */
+  "and the nav's wrapper claims that whole row, going back to a flex child from sm",
+  /order-last relative w-full min-w-0 shrink-0 basis-full[\s\S]{0,90}sm:order-none sm:w-auto sm:flex-1 sm:basis-auto/.test(
+    shell
+  ) && /app-nav hide-scrollbar flex w-full/.test(shell)
 );
 
 /* FOUR HEADER CONTROLS BECAME ONE MENU.
