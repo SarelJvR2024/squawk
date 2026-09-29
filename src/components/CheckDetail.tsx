@@ -1649,10 +1649,20 @@ export default function CheckDetail({
                     aria-label={st.label}
                     aria-pressed={on}
                     title={st.label}
-                    className="flex min-h-[44px] items-center justify-center gap-[6px] rounded-[10px] border-[1.5px] px-[7px] font-display text-[11px] font-semibold whitespace-nowrap transition-[var(--t)] sm:px-[10px] sm:text-[11.5px]"
+                    /* min-w-0 lets the grid keep all three columns the same
+                       width — without it a flex child's default min-width is
+                       its own content, so "Compliant, evidence pending"
+                       forced its column wider than the other two and the row
+                       read as three unevenly sized buttons. Dropping
+                       whitespace-nowrap in favour of leading-tight/text-center
+                       is what pays for that back: on the one label long
+                       enough to need it, it wraps to two centred lines
+                       instead of overflowing sideways; the short labels never
+                       reach two lines, so they're unaffected. */
+                    className="flex min-h-[44px] min-w-0 items-center justify-center gap-[6px] rounded-[10px] border-[1.5px] px-[7px] py-1.5 text-center font-display text-[11px] leading-tight font-semibold transition-[var(--t)] sm:px-[10px] sm:text-[11.5px]"
                     style={toneStyle(st.tone, on)}
                   >
-                    <st.Icon width={14} height={14} />
+                    <st.Icon width={14} height={14} className="shrink-0" />
                     {/* ACSA's own code on a phone, the words everywhere else.
                         C, NC, N/A and NV are not abbreviations invented here:
                         they are what the record stores and what the export
@@ -1676,10 +1686,10 @@ export default function CheckDetail({
                     aria-label={st.label}
                     aria-pressed={on}
                     title={st.label}
-                    className="flex min-h-[44px] items-center justify-center gap-[6px] rounded-[10px] border px-[7px] font-display text-[11px] font-semibold whitespace-nowrap transition-[var(--t)] sm:px-[10px]"
+                    className="flex min-h-[44px] min-w-0 items-center justify-center gap-[6px] rounded-[10px] border px-[7px] font-display text-[11px] font-semibold whitespace-nowrap transition-[var(--t)] sm:px-[10px]"
                     style={toneStyle(st.tone, on, true)}
                   >
-                    <st.Icon width={13} height={13} />
+                    <st.Icon width={13} height={13} className="shrink-0" />
                     <span className="sm:hidden">{st.short}</span>
                     <span className="hidden sm:inline">{st.label}</span>
                   </button>
