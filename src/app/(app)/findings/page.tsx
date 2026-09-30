@@ -50,7 +50,9 @@ import {
   useVisitFindings,
   fieldDone,
 } from "@/lib/store";
-import { useOutstanding, carriesWork } from "@/lib/carryforward";
+import { useOutstanding, carriesWork, useKnownHazardousEvents } from "@/lib/carryforward";
+import PossibleEvents from "@/components/PossibleEvents";
+import AssetPicker from "@/components/AssetPicker";
 import { portalIdFor } from "@/lib/sites";
 import { BAND_META, bandFor, cellCode } from "@/lib/risk";
 import { duplicateFindings } from "@/lib/merge";
@@ -151,6 +153,7 @@ export default function FindingsPage() {
   const adhocItems = useAdhoc();
   const systems = useSystems();
   const outstanding = useOutstanding();
+  const knownEvents = useKnownHazardousEvents();
   const patchSystem = useStore((s) => s.patchSystem);
   const systemAssessment = useStore((s) => s.systemAssessment);
 
@@ -845,6 +848,100 @@ export default function FindingsPage() {
                 onRemoveAction={(id) =>
                   useStore.getState().removeMitigation(active.discipline, active.system, id)
                 }
+              />
+
+              {/* Sarel: "also allow to add multiple hazardous events per asset
+                  system which must pull through to the hira view." Same
+                  component the closure screen uses for a carried finding's
+                  possible events — the asset-system panel is where the group
+                  is already looking at the system as a whole, so naming the
+                  events it could lead to belongs here too. Unlike the closure
+                  screen's, these are meant to be promoted — see the "From
+                  asset assurance" section on /hazards. */}
+              <PossibleEvents
+                events={a.events}
+                onAdd={(event) => {
+                  useStore.getState().addSystemEvent(active.discipline, active.system, event);
+                  say("Hazardous event recorded — pull it through on the HIRA screen");
+                }}
+                onPatch={(id, p) =>
+                  useStore.getState().patchSystemEvent(active.discipline, active.system, id, p)
+                }
+                onRemove={(id) =>
+                  useStore.getState().removeSystemEvent(active.discipline, active.system, id)
+                }
+                suggestions={knownEvents}
+                /* THE HIERARCHY — Sarel: "the risk event is linked to the
+                   failure of an asset system or a specific finding... a
+                   hierarchy or linked evidence of non-compliance and
+                   findings all contributing to the risk, giving the full
+                   picture. Multiple assets and findings can contribute to
+                   the same hazardous event." Findings offered are this
+                   system's own — the same list SystemEvidence shows below —
+                   so linking one is picking from evidence already on screen,
+                   not typing an id from memory. */
+                evidence={(e) => {
+                  const systemFindings =
+                    findingsBySystem.get(`${active.discipline}|${active.system}`) ?? [];
+                  return (
+                    <div className="mt-2">
+                      {systemFindings.length > 0 && (
+                        <div className="mb-1.5">
+                          <div className="label-xs mb-1" style={{ color: "var(--ink-4)" }}>
+                            Findings contributing to this event
+                          </div>
+                          <div className="flex flex-wrap gap-[5px]">
+                            {systemFindings.map((f) => {
+                              const linked = (e.findingIds ?? []).includes(f.id);
+                              return (
+                                <button
+                                  key={f.id}
+                                  type="button"
+                                  onClick={() => {
+                                    const cur = e.findingIds ?? [];
+                                    const next = linked
+                                      ? cur.filter((id) => id !== f.id)
+                                      : [...cur, f.id];
+                                    useStore
+                                      .getState()
+                                      .patchSystemEvent(active.discipline, active.system, e.id, {
+                                        findingIds: next,
+                                      });
+                                  }}
+                                  aria-pressed={linked}
+                                  title={f.title || f.description}
+                                  className="rounded-full border px-[8px] py-[3px] text-[10.5px] transition-[var(--t)]"
+                                  style={
+                                    linked
+                                      ? {
+                                          background: "var(--acc-soft)",
+                                          borderColor: "var(--acc-line)",
+                                          color: "var(--acc)",
+                                        }
+                                      : { borderColor: "var(--line-2)", color: "var(--ink-3)" }
+                                  }
+                                >
+                                  {f.id}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      <AssetPicker
+                        entityCode={entityCode}
+                        discipline={active.discipline}
+                        system={active.system}
+                        value={e.assetIds}
+                        onChange={(assetIds) =>
+                          useStore
+                            .getState()
+                            .patchSystemEvent(active.discipline, active.system, e.id, { assetIds })
+                        }
+                      />
+                    </div>
+                  );
+                }}
               />
 
               {/* ---------------------------------- the full view of the system */}

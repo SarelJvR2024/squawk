@@ -15,7 +15,7 @@
 import { useState } from "react";
 import { useShared } from "@/lib/shared";
 import { Btn } from "@/components/ui/primitives";
-import { IconCheck, IconClock, IconTeam, IconX } from "@/components/ui/icons";
+import { IconCheck, IconClock, IconEye, IconEyeOff, IconTeam, IconX } from "@/components/ui/icons";
 
 const WORDS: Record<string, { word: string; tone: string; says: string }> = {
   off: {
@@ -43,6 +43,7 @@ const WORDS: Record<string, { word: string; tone: string; says: string }> = {
 export default function SharedPanel() {
   const shared = useShared();
   const [pass, setPass] = useState("");
+  const [showPass, setShowPass] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -55,7 +56,10 @@ export default function SharedPanel() {
     const problem = await shared.unlock(pass);
     setBusy(false);
     if (problem) setErr(problem);
-    else setPass("");
+    else {
+      setPass("");
+      setShowPass(false);
+    }
   };
 
   return (
@@ -128,16 +132,33 @@ export default function SharedPanel() {
             void submit();
           }}
         >
-          <input
-            type="password"
-            value={pass}
-            onChange={(e) => setPass(e.target.value)}
-            placeholder="Team passphrase"
-            aria-label="Team passphrase"
-            autoComplete="off"
-            className="min-h-[44px] min-w-[200px] flex-1 rounded-[9px] border px-[11px] text-[12.5px] outline-none"
-            style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-          />
+          <div className="relative min-w-[200px] flex-1">
+            <input
+              type={showPass ? "text" : "password"}
+              value={pass}
+              onChange={(e) => setPass(e.target.value)}
+              placeholder="Team passphrase"
+              aria-label="Team passphrase"
+              autoComplete="off"
+              className="min-h-[44px] w-full rounded-[9px] border py-0 pl-[11px] pr-[38px] text-[12.5px] outline-none"
+              style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+            />
+            {/* Typed once, on a tablet, often by someone reading it off a
+                colleague's screen — a fat-fingered character in a masked field
+                is invisible until the wrong-passphrase error, which does not
+                say which character. Off by default; revealing it is a choice,
+                never the field's resting state. */}
+            <button
+              type="button"
+              onClick={() => setShowPass((v) => !v)}
+              aria-label={showPass ? "Hide the passphrase" : "Show the passphrase"}
+              aria-pressed={showPass}
+              className="absolute inset-y-0 right-0 flex w-[38px] items-center justify-center"
+              style={{ color: "var(--ink-3)" }}
+            >
+              {showPass ? <IconEyeOff width={15} height={15} /> : <IconEye width={15} height={15} />}
+            </button>
+          </div>
           <Btn type="submit" variant="primary" disabled={busy}>
             {busy ? "Checking…" : "Join the audit"}
           </Btn>

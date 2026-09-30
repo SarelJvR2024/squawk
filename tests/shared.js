@@ -579,7 +579,17 @@ const syncNow = async (page) => {
        /locked/i.test(lockedText) && /team passphrase/i.test(lockedText),
        lockedText.slice(0, 160).replace(/\n/g, " "));
 
-    await C.page.locator("input[aria-label='Team passphrase']").fill("wrong one");
+    const passField = C.page.locator("input[aria-label='Team passphrase']");
+    await passField.fill("wrong one");
+    ok("the passphrase is masked by default",
+       (await passField.getAttribute("type")) === "password");
+    await C.page.locator("button[aria-label='Show the passphrase']").first().click();
+    ok("revealing it shows exactly what was typed, not asterisks",
+       (await passField.getAttribute("type")) === "text" && (await passField.inputValue()) === "wrong one");
+    await C.page.locator("button[aria-label='Hide the passphrase']").first().click();
+    ok("and hiding it again masks it without losing what was typed",
+       (await passField.getAttribute("type")) === "password" && (await passField.inputValue()) === "wrong one");
+
     await C.page.locator("button", { hasText: /Join the audit/ }).first().click();
     await C.page.waitForTimeout(1500);
     ok("a typo is caught at the door, not by a sync that silently never works",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   checksAt,
   disciplinesAt,
@@ -8,7 +9,12 @@ import {
   usePortfolio,
   checksOf,
   priorFor,
+  useContacts,
+  useEvidenceItems,
+  useInterviewDays,
   useResponses,
+  useSafetyFindings,
+  useSiteDays,
   useStore,
   useVerifications,
   useEntity,
@@ -16,11 +22,12 @@ import {
   useVisitFindings,
   useVisitId,
 } from "@/lib/store";
+import { isOutstanding } from "@/lib/evidence";
 import { auditWindow, ENTITIES, PROGRAMME_VISITS } from "@/lib/programme";
 import { LIKELIHOODS, SEVERITIES, bandFor, movement } from "@/lib/risk";
 import { currentRatingOf } from "@/lib/carryforward";
 import { Panel, Pill, Track } from "@/components/ui/primitives";
-import { IconInfo, IconLoop } from "@/components/ui/icons";
+import { IconClock, IconInbox, IconInfo, IconLoop, IconMic, IconTeam } from "@/components/ui/icons";
 
 /* The entity list, the visit cycle and the (still empty) zone names live in
    src/data/programme.json — adding an airport or a visit is a data change, not
@@ -38,10 +45,25 @@ function pct(n: number, total: number) {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const responses = useResponses();
   const findings = useVisitFindings();
   const entityCode = useEntityCode();
   const entity = useEntity();
+  /* THE FORMS AND REGISTERS, on the one screen that is supposed to say where
+   *  the whole audit stands. Findings and hazards always had their own tiles
+   *  here; ISF, interviews, attendance, evidence and the people directory
+   *  never did, so the dashboard under-reported everything that was not the
+   *  324 check-points. All five are scoped by entity, same as their own
+   *  screens — see each hook's own note on why. */
+  const safetyFindings = useSafetyFindings();
+  const openIsf = safetyFindings.filter((f) => !f.writtenIssuedAt).length;
+  const interviewDays = useInterviewDays();
+  const siteDays = useSiteDays();
+  const evidenceItems = useEvidenceItems();
+  const evidenceOutstanding = evidenceItems.filter(isOutstanding).length;
+  const contacts = useContacts();
+  const contactsHere = contacts.filter((c) => c.site === entityCode).length;
   const visitId = useVisitId();
   const visitLabel =
     PROGRAMME_VISITS.find((v) => v.id === visitId)?.label ?? visitId;
@@ -472,6 +494,85 @@ export default function DashboardPage() {
                   >
                     {v.label} · {v.note}
                   </span>
+                ))}
+              </div>
+            </div>
+
+            {/* The five registers that live outside the 324 check-points —
+                Sarel: "make sure the dashboard is updated, all forms and
+                registers is done." Each tile is a shortcut to its own
+                screen, same reason the whole dashboard exists: a number
+                nobody can act on from here is a number that gets ignored. */}
+            <div className="mt-3.5 rounded-[15px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
+              <h3 className="mb-3 flex items-center gap-2 text-[12.5px] font-bold">
+                <IconInbox width={14} height={14} style={{ color: "var(--acc)" }} />
+                Forms and registers
+              </h3>
+              <div className="grid grid-cols-2 gap-[9px] md:grid-cols-5">
+                {[
+                  {
+                    label: "Open ISF",
+                    value: openIsf,
+                    tone: openIsf ? "bad" : "good",
+                    icon: <IconClock width={13} height={13} />,
+                    href: "/isf",
+                  },
+                  /* Interviews, attendance, evidence and people are hidden
+                     from ACSA here for the same reason they are hidden from
+                     ACSA's More menu — ACSA is read-only on the audit itself,
+                     not on the four project-evidence forms. Safety has no
+                     such gate in the menu either, so it stays visible above. */
+                  ...(role !== "acsa"
+                    ? [
+                        {
+                          label: "Interview days",
+                          value: interviewDays.length,
+                          tone: "acc",
+                          icon: <IconMic width={13} height={13} />,
+                          href: "/interviews",
+                        },
+                        {
+                          label: "Attendance days",
+                          value: siteDays.length,
+                          tone: "acc",
+                          icon: <IconTeam width={13} height={13} />,
+                          href: "/attendance",
+                        },
+                        {
+                          label: "Evidence outstanding",
+                          value: evidenceOutstanding,
+                          tone: evidenceOutstanding ? "warn" : "good",
+                          icon: <IconInbox width={13} height={13} />,
+                          href: "/evidence",
+                        },
+                        {
+                          label: "People on file",
+                          value: contactsHere,
+                          tone: "acc",
+                          icon: <IconTeam width={13} height={13} />,
+                          href: "/people",
+                        },
+                      ]
+                    : []),
+                ].map((t) => (
+                  <button
+                    key={t.label}
+                    onClick={() => router.push(t.href)}
+                    className="relative overflow-hidden rounded-[15px] border px-[15px] py-[13px] text-left transition-[var(--t)] hover:bg-[var(--sunken)]"
+                    style={{ background: "var(--panel)", borderColor: "var(--line)" }}
+                  >
+                    <span
+                      className="absolute inset-x-0 top-0 h-[2.5px]"
+                      style={{ background: `var(--${t.tone})` }}
+                    />
+                    <span className="flex items-center gap-1.5" style={{ color: `var(--${t.tone})` }}>
+                      {t.icon}
+                      <b className="font-mono text-[20px] leading-[1.15] font-semibold tnum">{t.value}</b>
+                    </span>
+                    <span className="mt-[2px] block text-[10px]" style={{ color: "var(--ink-3)" }}>
+                      {t.label}
+                    </span>
+                  </button>
                 ))}
               </div>
             </div>

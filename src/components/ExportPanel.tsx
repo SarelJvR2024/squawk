@@ -6,6 +6,10 @@ import {
   priorFindingsAt,
   useResponses,
   useEntityCode,
+  useEvidenceItems,
+  useInterviewDays,
+  useSafetyFindings,
+  useSiteDays,
   useSystems,
   useVerifications,
   useAdhoc,
@@ -20,12 +24,16 @@ import { buildPhotoZip, photoFilename, type PhotoFile } from "@/lib/photos";
 import { portalIdFor } from "@/lib/sites";
 import {
   aboutSheet,
+  attendanceSheet,
   closureSheet,
+  evidenceLogSheet,
   evidenceRequestSheet,
   exportFilename,
   findingsSheet,
   hazardsSheet,
   fullWorkbook,
+  interviewsSheet,
+  isfSheet,
   photographsSheet,
   registerSheet,
   summarySheet,
@@ -46,6 +54,10 @@ type Kind =
   | "hazards"
   | "closure"
   | "evidence"
+  | "isf"
+  | "interviews"
+  | "attendance"
+  | "evidencelog"
   | "summary"
   | "photographs";
 
@@ -54,7 +66,7 @@ const OPTIONS: { kind: Kind; title: string; blurb: string }[] = [
     kind: "full",
     title: "Everything",
     blurb:
-      "Ten sheets: a cover note explaining what a blank cell means, the summary, the register, the asset-system ratings, the findings, the hazards, the closure position, what the walk found, the evidence request and the photograph index.",
+      "Fourteen sheets: a cover note explaining what a blank cell means, the summary, the register, the asset-system ratings, the findings, the hazards, the closure position, what the walk found, the evidence request, safety (ISF), interviews, attendance, the evidence log and the photograph index.",
   },
   {
     kind: "register",
@@ -93,6 +105,29 @@ const OPTIONS: { kind: Kind; title: string; blurb: string }[] = [
       "One row per record asked for — the list that leaves the room at the end of a workshop for ACSA to action.",
   },
   {
+    kind: "isf",
+    title: "Safety (ISF)",
+    blurb:
+      "Every Immediate Safety Finding raised this visit — when it was raised, notified and written up, and when it closed.",
+  },
+  {
+    kind: "interviews",
+    title: "Interviews",
+    blurb: "Every person interviewed this visit, by day, with who signed and when.",
+  },
+  {
+    kind: "attendance",
+    title: "Attendance",
+    blurb:
+      "Every person on site this visit, by day — organisation, role, time on site, where they worked and what they did, with who signed and when.",
+  },
+  {
+    kind: "evidencelog",
+    title: "Evidence log",
+    blurb:
+      "Every document requested or handed over this visit — who from, who collected it, whether TPJV holds the original, and who signed for it.",
+  },
+  {
     kind: "summary",
     title: "Summary",
     blurb: "Progress and findings by discipline. One page, for the out-brief.",
@@ -118,6 +153,10 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
   const adhoc = useAdhoc();
   const verifications = useVerifications();
   const assessedSystems = useSystems();
+  const safetyFindings = useSafetyFindings();
+  const interviewDays = useInterviewDays();
+  const siteDays = useSiteDays();
+  const evidenceItems = useEvidenceItems();
   const entityCode = useEntityCode();
   const [budget, setBudget] = useState({ count: 0, bytes: 0 });
   const [persisted, setPersisted] = useState<boolean | null>(null);
@@ -255,6 +294,10 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
         prior: priorFindingsAt(entityCode),
         verifications,
         systems: assessedSystems,
+        safetyFindings,
+        interviewDays,
+        siteDays,
+        evidenceItems,
         library,
       };
       const one: Record<Exclude<Kind, "full">, () => Sheet> = {
@@ -264,6 +307,10 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
         hazards: () => hazardsSheet(x),
         closure: () => closureSheet(x),
         evidence: () => evidenceRequestSheet(x),
+        isf: () => isfSheet(x),
+        interviews: () => interviewsSheet(x),
+        attendance: () => attendanceSheet(x),
+        evidencelog: () => evidenceLogSheet(x),
         summary: () => summarySheet(x),
         photographs: () => photographsSheet(x),
       };

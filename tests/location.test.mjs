@@ -96,18 +96,28 @@ check(
   "the key never changes; the version does"
 );
 
-/* ---- 2 · the running location, and what writes it ------------------------ */
+/* ---- 2 · no running location, on purpose --------------------------------- */
+
+/* THEN: a running "where you are standing" carried the last place this audit
+   named into every inspection opened after it — one typed location, not
+   eleven, for a switch room with eleven check-points in it.
+
+   NOW: Sarel, twice. First "the field where you are standing gets pulled to
+   the next inspection you open" (fixed by moving the carry to commit instead
+   of every keystroke), then, once that still was not it, "it is still not
+   clearing... it should be an empty field." The running location is gone —
+   not deferred, removed. A freshly opened inspection's location is blank
+   unless THAT check already has its own saved one. */
 
 check(
-  "the screen carries a running location",
-  /const \[here, setHere\] = useState\(\(\) => lastLocationIn\(/.test(fieldCode),
-  "typed once per place, not once per check"
-);
-
-check(
-  "picked up from the record rather than from storage",
-  /function lastLocationIn\(responses: Record<string, Response \| undefined>\): string/.test(field),
-  "the record is the only thing that survives the device being handed over"
+  "there is no running location left to carry forward",
+  !/lastLocationIn/.test(fieldCode) &&
+    !/const \[here, setHere\]/.test(fieldCode) &&
+    !/setHere\(/.test(fieldCode) &&
+    !/here\.trim\(\)/.test(fieldCode) &&
+    !/\?\? here\b/.test(fieldCode) &&
+    !/\|\| here\b/.test(fieldCode),
+  "removed, not renamed — any of these coming back is the carry-forward coming back"
 );
 
 check(
@@ -117,31 +127,35 @@ check(
 );
 
 check(
-  "saving one does",
-  /const saveField = \(id: string\) => \{[\s\S]{0,400}?if \(!existing && here\.trim\(\)\) patch\(id, \{ location: here\.trim\(\) \}\);/.test(
-    fieldCode
-  ),
-  "commit is the moment the auditor says this inspection happened"
+  "the location input shows this check's own value, or nothing",
+  /value=\{r\?\.location \?\? ""\}/.test(fieldCode),
+  "not `?? here` — an empty fallback is the whole point of the fix"
+);
+
+check(
+  "typing patches this check's own record, same as every other field",
+  /onChange=\{\(e\) => patch\(c\.id, \{ location: e\.target\.value \}\)\}/.test(fieldCode),
+  ""
+);
+
+check(
+  "saving no longer invents a value for a blank box",
+  /const saveField = \(id: string\) => \{\s*\n\s*commit\(id, "field"\);\s*\n\s*\};/.test(fieldCode),
+  "what is on the record is exactly what was typed into THIS check, or nothing"
 );
 
 check(
   "and every field commit goes through it",
   !/commit\(c\.id, "field"\)/.test(fieldCode) && /saveField\(c\.id\)/.test(fieldCode),
-  "a route that saves a check and loses where it was is the one that will be used"
-);
-
-check(
-  "an existing location is never overwritten by the running one",
-  /const existing = responses\[id\]\?\.location\?\.trim\(\);/.test(fieldCode),
-  "the auditor typed it; the screen does not know better"
+  "a route that saves a check and bypasses the shared save path is the one that will be used"
 );
 
 /* ---- 3 · a photograph inherits the place, without a tap ------------------ */
 
 check(
-  "a photograph taken on a check inherits its location",
-  /location: r\?\.location\?\.trim\(\) \|\| here,/.test(fieldCode),
-  "the camera is always where the auditor is"
+  "a photograph taken on a check inherits its location, if it has one",
+  /location: r\?\.location\?\.trim\(\) \|\| "",/.test(fieldCode),
+  "no running location to fall back on any more — empty stays empty"
 );
 
 check(

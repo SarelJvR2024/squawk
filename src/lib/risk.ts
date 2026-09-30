@@ -137,8 +137,8 @@ export const BAND_META: Record<
     tone: "bad",
   },
   Amber: {
-    label: "Risk mitigation required",
-    strategy: "Reduction — may require a management decision",
+    label: "Tolerable", // 2025's word for this band — see BAND_AS_RATING below
+    strategy: "Risk mitigation required — Reduction, may require a management decision",
     tone: "warn",
   },
   Green: {

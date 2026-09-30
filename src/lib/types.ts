@@ -506,6 +506,14 @@ export interface Hazard {
   /** The findings this consolidates. A hazard with none is one somebody raised
    *  directly at the register or on the walk, which is allowed and common. */
   findingIds: string[];
+  /** Which SystemAssessment.events this hazard was raised FROM, by their id —
+   *  the asset-system equivalent of findingIds above. What findingIds's
+   *  presence-check does for the loose-findings count, this does for the
+   *  asset-assurance events list on the HIRA screen: once an event's id is in
+   *  some hazard's list, it has been pulled through and stops being offered
+   *  again. Optional and usually empty — most hazards still come from
+   *  consolidating findings, the walk, or ACSA directly. */
+  sourceSystemEventIds?: string[];
   /** PLURAL, and that is the whole point.
    *
    *  In the March 2025 KSIA register the same missing diesel cut-out fuse was
@@ -740,6 +748,19 @@ export interface PossibleEvent {
   /** Why it is that likely, in the auditor's own words. Optional, and worth
    *  more than the number on its own when the group argues the rating. */
   note: string;
+  /** THE EVIDENCE BEHIND THE EVENT — Sarel: "the risk event is linked to the
+   *  failure of an asset system or a specific finding... a hierarchy or
+   *  linked evidence of non-compliance and findings all contributing to the
+   *  risk, giving the full picture. Multiple assets and findings can
+   *  contribute to the same hazardous event." Only meaningful for a
+   *  SystemAssessment's events — a carried finding's own possible events
+   *  (closure screen) are already tied to the one finding they were raised
+   *  against, so both stay optional and unused there. Carried through
+   *  verbatim onto the Hazard when the event is promoted (see
+   *  promoteSystemEvent in hazards/page.tsx), the same way a consolidated
+   *  hazard's findingIds are. */
+  findingIds?: string[];
+  assetIds?: string[];
   createdAt: number;
   createdBy: string;
 }
@@ -828,6 +849,19 @@ export interface SystemAssessment {
   ratingRationale: string;
   rootCauses: RootCauseNote[];
   actions: MitigationAction[];
+  /** THE HAZARDOUS EVENTS THIS ASSET SYSTEM COULD LEAD TO, same shape and same
+   *  reasoning as a carried finding's PossibleEvent (see PossibleEvents.tsx):
+   *  one asset system regularly has several distinct futures, each with its
+   *  own likelihood, and recording only the worst over-rates the common case.
+   *
+   *  UNLIKE a carried finding's possible events, these are meant to be
+   *  promoted — Sarel: "allow to add multiple hazardous events per asset
+   *  system which must pull through to the hira view." The asset-system panel
+   *  is where the group is already looking at a system as a whole, so naming
+   *  its likely events here and turning each into a Hazard (see
+   *  Hazard.sourceSystemEventIds) is a shorter path than waiting for a
+   *  finding to exist to consolidate from. */
+  events: PossibleEvent[];
   /** The assessor's summary of the asset system as a whole. */
   note: string;
   assessedBy: string;
@@ -1429,6 +1463,35 @@ export interface EvidenceItem {
   signature: Signature | null;
 
   notes: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** A person on the programme — TPJV or ACSA, at one airport or at Corporate.
+ *
+ *  ENTERED ONCE, NOT RE-TYPED AT EVERY AUDIT. Sarel: a contact is "programme-
+ *  wide, flat across visits" — a person's role at KSIA does not change between
+ *  the March and September audit, so unlike a finding or an evidence item this
+ *  carries no `originVisit` at all. It carries `site` instead: the entity this
+ *  person is based at, read the same on every visit opened at that site, or
+ *  the head-office entity for somebody at Corporate — there is no separate
+ *  "Corporate" flag, because programme.json already has one entity of kind
+ *  "head-office" and a second spelling of the same fact is how the two drift.
+ *
+ *  A standalone reference list for now (Sarel, same conversation): it does not
+ *  feed the free-text contact fields already on ISF or elsewhere. Wiring the
+ *  directory in as an autocomplete source is a deliberately separate step. */
+export interface Contact {
+  id: string;
+  site: string;
+  name: string;
+  surname: string;
+  role: string;
+  /** One of ALL_DISCIPLINES, or empty — not every contact is discipline-
+   *  specific (an admin or corporate contact has none). */
+  discipline: string;
+  department: string;
+  location: string;
   createdAt: number;
   updatedAt: number;
 }

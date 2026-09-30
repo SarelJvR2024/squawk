@@ -18,7 +18,7 @@ import {
 } from "@/lib/store";
 import { locationAxis } from "@/lib/programme";
 import { portalIdFor } from "@/lib/sites";
-import type { AdHocItem, Check, Response } from "@/lib/types";
+import type { AdHocItem, Check } from "@/lib/types";
 import { Btn, Chip, Empty, Pill } from "@/components/ui/primitives";
 import AddItemSheet from "@/components/AddItemSheet";
 import GroupRow from "@/components/ui/GroupRow";
@@ -55,31 +55,20 @@ const NO_SYSTEM = "No asset system recorded";
 const NO_AREA = "No location recorded";
 const NO_DISCIPLINE = "No discipline recorded";
 
-/** THE LAST PLACE THIS AUDIT NAMED.
- *
- *  An auditor who opens Inspection, walks off to Findings and comes back is in
- *  the same room they were in a minute ago; making them type it again is the
- *  thing the location field exists to stop. Read off the record rather than out
- *  of storage, because the record is the only thing that survives the device
- *  being handed to the other auditor.
- *
- *  Read ONCE, as the initial value of the running location — not watched. It is
- *  where you are NOW, and a write by any other control must not drag it
- *  somewhere else under the auditor mid-walk. */
-function lastLocationIn(responses: Record<string, Response | undefined>): string {
-  let best = "";
-  let bestAt = -1;
-  for (const r of Object.values(responses)) {
-    const loc = r?.location?.trim();
-    if (!loc) continue;
-    const at = r?.updatedAt ?? 0;
-    if (at >= bestAt) {
-      bestAt = at;
-      best = loc;
-    }
-  }
-  return best;
-}
+/* THEN: a running "where you are standing" carried the last place this audit
+   named into every inspection opened after it, so a switch room with eleven
+   check-points in it cost one typed location and not eleven (lastLocationIn,
+   below, used to read that starting value off the record).
+
+   NOW (Sarel, twice): first "the field where you are standing gets pulled to
+   the next inspection you open" — fixed by moving the carry to commit instead
+   of every keystroke — then, once that still was not what he wanted, "it is
+   still not clearing... it should be an empty field." The running location is
+   gone, not just the premature write. A freshly opened inspection's location
+   is blank unless THAT check already has its own saved one. The suggestions
+   list underneath it (knownLocations, below) still offers recent places on
+   the datalist — one tap instead of retyping — it simply no longer fills
+   itself in. */
 
 export default function FieldPage() {
   const responses = useResponses();
@@ -140,13 +129,6 @@ export default function FieldPage() {
      40px control at any list length, and on a phone it opens as the platform's
      own picker. */
   const [filter, setFilter] = useState("");
-  /* WHERE THE AUDITOR IS STANDING, carried across checks.
-     Typed once per place, offered on every inspection opened after it, written
-     to the record on commit. See the Location field in the sheet — the whole
-     point is that a walk through one switch room costs one location, not
-     eleven. Session state: it is where you are NOW, and the records keep their
-     own copies. */
-  const [here, setHere] = useState(() => lastLocationIn(useStore.getState().visitData().responses));
   /* Which groups are open. "top" and "top|system" — one flat set for both
      levels, because a key can only mean one of them. Session state, per the
      brief: remembered while the screen is open, not persisted. */
@@ -231,16 +213,11 @@ export default function FieldPage() {
     setTimeout(() => setToast(null), 2400);
   };
 
-  /* SAVING A CHECK WRITES WHERE IT WAS DONE.
-     The location box shows the running location before it is on the record —
-     the auditor did not type it on THIS check, so writing it the moment the
-     sheet opened would put a place on a record they only looked at. It lands on
-     commit instead, which is the moment the auditor says this inspection
-     happened. Every path that commits the field half goes through here, so
-     there is no route that saves a check and loses where it was. */
+  /* SAVING A CHECK NO LONGER INVENTS WHERE IT WAS DONE. There is nothing left
+     to carry forward — see the note above where the running location used to
+     live. What is on the record is exactly what the auditor typed into THIS
+     check's own box, or nothing. */
   const saveField = (id: string) => {
-    const existing = responses[id]?.location?.trim();
-    if (!existing && here.trim()) patch(id, { location: here.trim() });
     commit(id, "field");
   };
 
@@ -1276,14 +1253,12 @@ export default function FieldPage() {
                     onCaptured={(m) => {
                       addAttachment(c.id, {
                         ...m,
-                        /* WHERE IT WAS TAKEN, WITHOUT A SINGLE EXTRA TAP.
-                           The camera is always where the auditor is, so the
-                           photograph inherits the inspection's location — or,
-                           before one has been typed on this check, the running
-                           one from the last place they named. Editable per
-                           photograph, because one inspection can carry evidence
-                           from two places. */
-                        location: r?.location?.trim() || here,
+                        /* WHERE IT WAS TAKEN, WITHOUT A SINGLE EXTRA TAP —
+                           when this check already has one typed. No running
+                           location to fall back on any more; a photograph on
+                           a check nobody has named a place for is simply
+                           editable per photograph, same as always. */
+                        location: r?.location?.trim() || "",
                         createdBy: auditor,
                       });
                       say(`Photo added to ${portalIdFor(entityCode, c.id)}`);
@@ -1470,32 +1445,26 @@ export default function FieldPage() {
                 words, with the site's areas offered as suggestions and none of
                 them forced.
 
-                THE RUNNING LOCATION is the part that makes it usable on a walk.
-                Type "north switch room" on the first check and every check
-                opened after it offers the same, so a switch room with eleven
-                check-points in it costs one location and not eleven. It is
-                offered, not written: what is on the record is what the auditor
-                left in the box when they saved. */}
+                EMPTY UNTIL TYPED, ON EVERY CHECK. It used to carry the last
+                place named on this walk forward as a starting value — Sarel,
+                after that leaked mid-typing and then still did not sit right
+                even fixed: "it is still not clearing... it should be an empty
+                field." So it is: a freshly opened inspection shows nothing
+                here whatever an earlier one was answered with. The datalist
+                below still suggests recent places as you type — one tap, not
+                a retype — it simply no longer fills itself in. */}
             <label className="mt-4 block">
               <span className="label-xs" style={{ color: "var(--ink-4)" }}>
                 Where you are standing
               </span>
               <input
-                value={r?.location ?? here}
-                onChange={(e) => {
-                  patch(c.id, { location: e.target.value });
-                  setHere(e.target.value);
-                }}
+                value={r?.location ?? ""}
+                onChange={(e) => patch(c.id, { location: e.target.value })}
                 list={LOCATION_LIST_ID}
                 placeholder="Stand 12, north switch room, Pier B roof…"
                 className="mt-1 min-h-[44px] w-full rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none"
                 style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
               />
-              {!r?.location && here && (
-                <span className="mt-1 block text-[10.5px]" style={{ color: "var(--ink-4)" }}>
-                  Carried from the last place you named — it goes on the record when you save.
-                </span>
-              )}
             </label>
 
             <label className="mt-4 block">
@@ -1556,11 +1525,10 @@ export default function FieldPage() {
            is: filtered to Electrical, they are almost certainly recording
            something electrical. A pre-fill is editable and a requirement is
            not, and that is the whole difference. */
-        /* Pre-filled from the filter and from where the auditor said they are.
-           A pre-fill is editable and a requirement is not, and that is the
-           whole difference. */
+        /* Pre-filled from the filter. A pre-fill is editable and a
+           requirement is not, and that is the whole difference. */
         presetDiscipline={groupBy === "discipline" ? activeFilter || null : null}
-        presetArea={here || (groupBy === "area" ? activeFilter : "")}
+        presetArea={groupBy === "area" ? activeFilter : ""}
         /* AND IT OPENS THE GROUP IT LANDED IN.
            The asset systems are shut by default, so recording something seen
            on the walk used to file it correctly and show the auditor nothing —

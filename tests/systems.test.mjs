@@ -438,6 +438,118 @@ check(
   ""
 );
 
+/* ---- 6b · multiple hazardous events, pulled through to the HIRA screen --- */
+
+const hazardsPage = read("src", "app", "(app)", "hazards", "page.tsx");
+const carryforward = read("src", "lib", "carryforward.ts");
+
+check(
+  "SystemAssessment carries its own possible events, same shape as a carried finding's",
+  /events: PossibleEvent\[\];/.test(types),
+  "one asset system regularly has several distinct futures, each with its own likelihood"
+);
+
+check(
+  "the store gives it add/patch/remove, same pattern as root causes and actions",
+  /addSystemEvent: \(/.test(store) &&
+    /patchSystemEvent: \(/.test(store) &&
+    /removeSystemEvent: \(/.test(store),
+  ""
+);
+
+check(
+  "a blank assessment starts with none, not undefined",
+  /rootCauses: \[\],\s*\n\s*actions: \[\],\s*\n\s*events: \[\],/.test(storeCode),
+  "undefined.filter is how a half-captured audit becomes a white screen"
+);
+
+check(
+  "the findings screen renders PossibleEvents for the active system",
+  /import PossibleEvents from "@\/components\/PossibleEvents";/.test(page) &&
+    /<PossibleEvents\s*\n\s*events=\{a\.events\}/.test(pageCode),
+  "same component the closure screen uses for a carried finding's possible events"
+);
+
+check(
+  "and offers this system's own findings and an asset picker to link as evidence",
+  /import AssetPicker from "@\/components\/AssetPicker";/.test(page) &&
+    /evidence=\{\(e\) => \{/.test(pageCode) &&
+    /findingsBySystem\.get\(`\$\{active\.discipline\}\|\$\{active\.system\}`\)/.test(pageCode) &&
+    /<AssetPicker/.test(pageCode),
+  "picking from evidence already on screen, not typing a finding id from memory"
+);
+
+check(
+  "PossibleEvents renders whatever evidence the caller supplies, but does not know what a finding or an asset is",
+  /evidence\?: \(event: PossibleEvent\) => ReactNode;/.test(codeOnly(read("src", "components", "PossibleEvents.tsx"))),
+  "the closure screen's own possible events have nothing to link — they are already tied to the one finding they were raised against"
+);
+
+check(
+  "Hazard remembers which events it was raised from",
+  /sourceSystemEventIds\?: string\[\];/.test(types),
+  "the asset-assurance equivalent of findingIds — what stops an event being offered twice"
+);
+
+check(
+  "the HIRA screen lists events not yet pulled through",
+  /const promotedEventIds = useMemo\(\s*\n\s*\(\) => new Set\(hazards\.flatMap\(\(h\) => h\.sourceSystemEventIds \?\? \[\]\)\),/.test(
+    codeOnly(hazardsPage)
+  ) && /From asset assurance/.test(hazardsPage),
+  "once an event's id is in some hazard's list it must stop being offered again"
+);
+
+check(
+  "and promoting one raises a hazard pre-filled from it, unrated",
+  /function promoteSystemEvent\(discipline: string, system: string, event: PossibleEvent\) \{[\s\S]{0,900}?sourceSystemEventIds: \[event\.id\],/.test(
+    codeOnly(hazardsPage)
+  ),
+  "severity and likelihood stay the group's to agree on the matrix, same as every other route to a hazard"
+);
+
+check(
+  "and the findings and assets the event was linked to carry across too",
+  /const linkedFindingIds = event\.findingIds \?\? \[\];/.test(codeOnly(hazardsPage)) &&
+    /findingIds: linkedFindingIds,/.test(codeOnly(hazardsPage)) &&
+    /\.\.\.\(event\.assetIds \?\? \[\]\),/.test(codeOnly(hazardsPage)),
+  "Sarel: \"a hierarchy or linked evidence of non-compliance and findings all contributing to the risk, giving the full picture\" — losing that chain on promotion would throw the picture away at exactly the moment it becomes a rated hazard"
+);
+
+check(
+  "the merge unions events by id, same as root causes and actions",
+  /const events = unionById\(m\.events \?\? \[\], t\.events \?\? \[\]\);/.test(merge),
+  ""
+);
+
+check(
+  "the asset-systems export sheet carries them",
+  /Possible hazardous events/.test(exports_) &&
+    /\(a\?\.events \?\? \[\]\)/.test(exports_),
+  ""
+);
+
+check(
+  "and duplicate suggestions also search the asset-system events, not just hazards and closure",
+  /for \(const sys of Object\.values\(d\.systems \?\? \{\}\)\) \{[\s\S]{0,120}?for \(const e of sys\.events \?\? \[\]\) add\(e\.event\);/.test(
+    carryforward
+  ),
+  "typing the same event a third way is exactly what the suggestion list exists to catch"
+);
+
+check(
+  "a fresh tablet backfills events on every already-assessed system",
+  /if \(from < 20\) \{[\s\S]{0,500}?if \(!Array\.isArray\(systems\[sk\]\.events\)\) systems\[sk\]\.events = \[\];/.test(
+    storeCode
+  ),
+  "a SystemAssessment from before this field reads .events as undefined, not an empty array, until the migration runs"
+);
+
+check(
+  "the persist version moved to carry it",
+  /version: 20,/.test(store),
+  ""
+);
+
 /* ---- 7 · two auditors, one out-brief ------------------------------------ */
 
 check(
@@ -450,10 +562,16 @@ check(
 
 check(
   "while the band itself is last-writer-wins",
-  /const newer = when\(t\) > when\(m\) \? t : m;\s*\n\s*assessedSystems\[key\] = \{ \.\.\.newer, rootCauses, actions \};/.test(
+  /const newer = when\(t\) > when\(m\) \? t : m;\s*\n\s*assessedSystems\[key\] = \{ \.\.\.newer, rootCauses, actions, events \};/.test(
     merge
   ),
   "a band is one decision the group made, so the later copy is the one to keep"
+);
+
+check(
+  "and the possible events union the same way as root causes and actions",
+  /const events = unionById\(m\.events \?\? \[\], t\.events \?\? \[\]\);/.test(merge),
+  "two auditors naming different futures for the same system at the same out-brief; last-writer-wins would drop one of their lists"
 );
 
 check(

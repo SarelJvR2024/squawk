@@ -136,6 +136,7 @@ const OFF_NAV: Record<string, string> = {
   "/interviews": "Interview records",
   "/attendance": "Site attendance and daily diary",
   "/evidence": "Document and evidence collection log",
+  "/people": "People directory",
   /* Safety, Review and Pre-flight moved out of NAV into the More menu
      (Sarel, 30 Sep) — without an entry here their own heading would fall
      back to "Squawk". */
@@ -175,6 +176,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         (e) => e.entity === s.entity && !e.receivedAt && !e.unavailableAt
       ).length
   );
+  /* Contacts at THIS site — not the whole directory, which spans every
+     airport and Corporate. The hint is "who is on file here", the same
+     question the screen itself answers first. */
+  const contactsHere = useStore((s) => s.contacts.filter((c) => c.site === s.entity).length);
   const onSiteNow = useStore((s) =>
     s.siteDays
       .filter((d) => d.entity === s.entity)
@@ -797,7 +802,28 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       maintenance office, not reacting to something — so it can
                       afford two presses, and the fourteen project-evidence
                       forms still to be built cannot each afford a nav slot.
-                      Beside All audits because both are "go somewhere". */}
+                      Beside All audits because both are "go somewhere".
+
+                      LABELLED as its own group (Sarel: "split into a separate
+                      menu for all the forms"), rather than moved to a nav
+                      slot or a second dropdown — the More menu is already the
+                      one place these four live, a label just says so, and a
+                      second button competes with the eighth/ninth-slot limit
+                      this very comment explains. Safety (ISF) stays where it
+                      is, above this group, for the urgency reason its own
+                      comment gives — being a form does not outrank the
+                      SWP-07 clock. */}
+                  {role !== "acsa" && (
+                    <>
+                      <div className="my-[4px] h-px" style={{ background: "var(--menu-line)" }} />
+                      <div
+                        className="mt-[2px] mb-[2px] px-[9px] font-mono text-[9px] tracking-[0.06em] uppercase"
+                        style={{ color: "var(--menu-ink-2)" }}
+                      >
+                        Forms
+                      </div>
+                    </>
+                  )}
                   {role !== "acsa" && (
                     <MoreItem
                       icon={<IconMic width={14} height={14} />}
@@ -835,6 +861,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       }
                       selected={pathname === "/evidence"}
                       onClick={() => { setMore(false); router.push("/evidence"); }}
+                    />
+                  )}
+                  {role !== "acsa" && (
+                    <MoreItem
+                      icon={<IconTeam width={14} height={14} />}
+                      label="People directory"
+                      hint={
+                        contactsHere
+                          ? `${contactsHere} contact${contactsHere === 1 ? "" : "s"} on file at ${entityOf(entityCode).short}`
+                          : "TPJV and ACSA contacts, per site and Corporate"
+                      }
+                      selected={pathname === "/people"}
+                      onClick={() => { setMore(false); router.push("/people"); }}
                     />
                   )}
                   <div className="my-[4px] h-px" style={{ background: "var(--menu-line)" }} />
