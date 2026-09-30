@@ -23,8 +23,10 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  areasAt,
   checksAt,
   disciplinesAt,
+  systemsAt,
   useEntityCode,
   useResponses,
   useStore,
@@ -90,6 +92,7 @@ export default function HazardsPage() {
   const [discipline, setDiscipline] = useState<string>("All");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [otherImpactDraft, setOtherImpactDraft] = useState("");
 
   const [proposals, setProposals] = useState<HazardProposal[] | null>(null);
   const [grouping, setGrouping] = useState(false);
@@ -159,6 +162,8 @@ export default function HazardsPage() {
       findingIds: [],
       disciplines: [],
       systems: [],
+      areas: [],
+      otherImpacts: [],
       severity: null,
       likelihood: null,
       ratingConfirmed: false,
@@ -175,9 +180,7 @@ export default function HazardsPage() {
       reassessedAt: null,
       reassessNote: "",
       rootCause: "",
-      action: "",
-      owner: "",
-      dueDate: "",
+      actions: [],
       actionStatus: "Open",
       createdBy: auditor,
       ...over,
@@ -720,6 +723,162 @@ export default function HazardsPage() {
                   />
                 </label>
 
+                {/* WHAT THIS EVENT WOULD REACH, not which discipline wrote it
+                    up. Sarel: "should be able to select any of the areas of
+                    the airport as part of the impact, and select any of the
+                    asset system as impacted systems, also allow to add other
+                    impacts." Areas and systems are the register's own
+                    vocabulary, 75+ systems at some entities — too many for a
+                    chip wall, so add-one-at-a-time-from-a-select, exactly the
+                    pattern "Findings behind this hazard" below already uses,
+                    rendered back as removable chips. Other impacts has no
+                    register list to pick from, so it is free text instead. */}
+                <div className="mb-3">
+                  <div className="label-xs mb-1">
+                    Areas impacted ({active.areas.length})
+                  </div>
+                  <div className="flex flex-wrap gap-[5px]">
+                    {active.areas.map((a) => (
+                      <span
+                        key={a}
+                        className="flex items-center gap-[5px] rounded-full border px-[9px] py-[3px] text-[10.5px]"
+                        style={{ borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+                      >
+                        {a}
+                        <button
+                          onClick={() =>
+                            updateHazard(active.id, { areas: active.areas.filter((x) => x !== a) })
+                          }
+                          aria-label={`Remove ${a} from areas impacted`}
+                          style={{ color: "var(--ink-4)" }}
+                        >
+                          <IconX width={10} height={10} />
+                        </button>
+                      </span>
+                    ))}
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        if (!e.target.value) return;
+                        updateHazard(active.id, { areas: [...active.areas, e.target.value] });
+                      }}
+                      className="rounded-full border px-[9px] py-[3px] text-[10.5px]"
+                      style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                    >
+                      <option value="">+ add an area…</option>
+                      {areasAt(entityCode)
+                        .filter((a) => !active.areas.includes(a))
+                        .map((a) => (
+                          <option key={a} value={a}>
+                            {a}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mb-3">
+                  <div className="label-xs mb-1">
+                    Asset systems impacted ({active.systems.length})
+                  </div>
+                  <div className="flex flex-wrap gap-[5px]">
+                    {active.systems.map((s) => (
+                      <span
+                        key={s}
+                        className="flex items-center gap-[5px] rounded-full border px-[9px] py-[3px] text-[10.5px]"
+                        style={{ borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+                      >
+                        {s}
+                        <button
+                          onClick={() =>
+                            updateHazard(active.id, { systems: active.systems.filter((x) => x !== s) })
+                          }
+                          aria-label={`Remove ${s} from asset systems impacted`}
+                          style={{ color: "var(--ink-4)" }}
+                        >
+                          <IconX width={10} height={10} />
+                        </button>
+                      </span>
+                    ))}
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        if (!e.target.value) return;
+                        updateHazard(active.id, { systems: [...active.systems, e.target.value] });
+                      }}
+                      className="rounded-full border px-[9px] py-[3px] text-[10.5px]"
+                      style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                    >
+                      <option value="">+ add an asset system…</option>
+                      {systemsAt(entityCode)
+                        .filter((s) => !active.systems.includes(s))
+                        .map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mb-3">
+                  <div className="label-xs mb-1">
+                    Other impacts ({active.otherImpacts.length})
+                  </div>
+                  <div className="flex flex-wrap gap-[5px]">
+                    {active.otherImpacts.map((imp, i) => (
+                      <span
+                        key={`${imp}-${i}`}
+                        className="flex items-center gap-[5px] rounded-full border px-[9px] py-[3px] text-[10.5px]"
+                        style={{ borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+                      >
+                        {imp}
+                        <button
+                          onClick={() =>
+                            updateHazard(active.id, {
+                              otherImpacts: active.otherImpacts.filter((_, x) => x !== i),
+                            })
+                          }
+                          aria-label={`Remove ${imp} from other impacts`}
+                          style={{ color: "var(--ink-4)" }}
+                        >
+                          <IconX width={10} height={10} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="mt-1.5 flex gap-[6px]">
+                    <input
+                      value={otherImpactDraft}
+                      onChange={(e) => setOtherImpactDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && otherImpactDraft.trim()) {
+                          updateHazard(active.id, {
+                            otherImpacts: [...active.otherImpacts, otherImpactDraft.trim()],
+                          });
+                          setOtherImpactDraft("");
+                        }
+                      }}
+                      placeholder="Reputational exposure, a contractual penalty…"
+                      aria-label="Add another impact"
+                      className="min-w-0 flex-1 rounded-[9px] border px-2.5 py-2 text-[11.5px] outline-none focus:border-[var(--acc)]"
+                      style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                    />
+                    <Btn
+                      variant="ghost"
+                      disabled={!otherImpactDraft.trim()}
+                      onClick={() => {
+                        updateHazard(active.id, {
+                          otherImpacts: [...active.otherImpacts, otherImpactDraft.trim()],
+                        });
+                        setOtherImpactDraft("");
+                      }}
+                    >
+                      Add
+                    </Btn>
+                  </div>
+                </div>
+
                 {/* Findings behind it, and the photographs they carry. The link
                     is what makes the rating auditable — a hazard nobody can
                     trace back to an observation is an opinion. */}
@@ -852,7 +1011,17 @@ export default function HazardsPage() {
                   entityCode={entityCode}
                   onChange={(patch) => updateHazard(active.id, patch)}
                   onToast={say}
-                  showErm
+                  /* ONE MATRIX ON THIS SCREEN. Sarel, looking at both B170
+                     001M and the ERM grid stacked on one hazard: "there
+                     should only be one HIRA matrix... remove it from this
+                     screen entirely." Not passing showErm is enough — the
+                     prop defaults to false, so RecordActions renders only
+                     B170 here. The ERM fields (ermConsequence,
+                     ermLikelihood, ermConfirmed, ermLikelihoodAssumed) stay
+                     on the Hazard record and in the exports: he scoped the
+                     ask to this screen, and a hazard already rated on ERM
+                     before this change must not lose that rating out of the
+                     export just because the picker that set it is gone. */
                   actionLabel="Treatment"
                   secondOpinion={
                     active.findingIds.length

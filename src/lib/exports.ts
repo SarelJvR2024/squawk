@@ -284,9 +284,15 @@ export function findingsSheet(x: ExportInput): Sheet {
       agreed ? "Agreed by the audit team" : "Suggested — not yet agreed",
       assetCell(f.assetIds),
       f.rootCause,
-      f.action,
-      f.owner,
-      iso(f.dueDate),
+      /* Several actions now, each with its own discipline, owner, date and
+         status — flattened the same way the asset-system assessment sheet
+         already flattens MitigationAction[], one line each, so a reader
+         used to that sheet reads this one the same way. */
+      f.actions
+        .map((m) => `${m.discipline ? `${m.discipline} — ` : ""}${m.action} · ${m.owner || "NO OWNER"} · ${m.dueDate || "NO TARGET DATE"} · ${m.status}`)
+        .join("\n"),
+      [...new Set(f.actions.map((m) => m.owner).filter(Boolean))].join("\n"),
+      [...new Set(f.actions.map((m) => iso(m.dueDate)).filter(Boolean))].join("\n"),
       f.actionStatus,
       /* ACSA's one Progress/Update cell, carrying the whole log — each entry
          dated and attributed, because a cell that has been typed over cannot
@@ -643,9 +649,11 @@ export function hazardsSheet(x: ExportInput): Sheet {
       h.ratingRationale,
       assetCell(h.assetIds),
       h.rootCause,
-      h.action,
-      h.owner,
-      iso(h.dueDate),
+      h.actions
+        .map((m) => `${m.discipline ? `${m.discipline} — ` : ""}${m.action} · ${m.owner || "NO OWNER"} · ${m.dueDate || "NO TARGET DATE"} · ${m.status}`)
+        .join("\n"),
+      [...new Set(h.actions.map((m) => m.owner).filter(Boolean))].join("\n"),
+      [...new Set(h.actions.map((m) => iso(m.dueDate)).filter(Boolean))].join("\n"),
       h.actionStatus,
       /* Their one Progress/Update cell, our whole log. */
       h.progress

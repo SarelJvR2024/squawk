@@ -69,15 +69,21 @@ import { Pill } from "@/components/ui/primitives";
 const NAV = [
   { href: "/capture", label: "Checks", icon: IconClipboard },
   { href: "/field", label: "Inspection", icon: IconPin },
-  /* SAFETY sits second, beside the two screens an auditor is on while walking.
-     It is the rarest destination in this bar and the only one where a swipe is
-     a real cost: SWP-07 says notify the ACSA representative VERBALLY AT ONCE,
-     and the app's own record of when that happened starts the moment somebody
-     reaches this screen. A ninth entry is a cost the comment on Pre-flight
-     already counts honestly — this is the one destination worth paying it for.
-     IconClock because the clocks ARE the record here; the label carries the
-     meaning the icon set has no glyph for. */
-  { href: "/isf", label: "Safety", icon: IconClock },
+  /* SAFETY MOVED TO THE MORE MENU (Sarel, 30 Sep): "move safety and review
+     menu items out of the main menu bar."
+     THEN: it sat here, second, on the reasoning that it was the rarest
+     destination in the bar and the only one where a swipe was a real cost —
+     SWP-07 says notify the ACSA representative VERBALLY AT ONCE, and the
+     app's own record of when that happened starts the moment somebody
+     reaches this screen, so the extra press behind "More" was argued to be
+     worth paying for exactly this one destination.
+     NOW: Sarel's direct word overrides that on both Safety and Review, so
+     both leave the bar by the same instruction. The screen itself is
+     unchanged — SWP-07's own urgency is the ISF screen's problem to solve,
+     not the nav's, and it still does (see src/lib/isf.ts). What survives is
+     the label and the route; see the MoreItem below and OFF_NAV, which
+     keeps the page's own heading saying "Safety" now that NAV no longer
+     does. */
   /* ASSET ASSURANCE, not "Findings".
      The screen stopped being a findings register when it became the place the
      group agrees an asset system's band — which is the number ACSA publishes
@@ -95,22 +101,27 @@ const NAV = [
      how the last round of confusion started. The route stays /hazards. */
   { href: "/hazards", label: "HIRA", icon: IconFlag },
   { href: "/closure", label: "Follow-up", icon: IconLoop },
-  /* REVIEW SITS AFTER FOLLOW-UP (Sarel, 2026-09-11), not third.
-     It used to follow Inspection, on the reasoning that it is where the
-     evidence those two screens capture gets looked at. But it is not a capture
-     screen and nobody opens it on an apron: it is where an engineer who was
-     NOT on site reads what came back — a different person, on a different day,
-     usually after the audit. Third place put it in the middle of the capture
-     run, ahead of the screens an auditor actually works through. After
-     Follow-up it sits with the other after-the-fact views. */
-  { href: "/review", label: "Review", icon: IconCamera },
+  /* REVIEW MOVED TO THE MORE MENU (Sarel, 30 Sep): "move safety and review
+     menu items out of the main menu bar."
+     THEN (Sarel, 2026-09-11): it was moved to sit after Follow-up, not
+     third — it is not a capture screen and nobody opens it on an apron, so
+     it belonged with the other after-the-fact views rather than in the
+     middle of the capture run.
+     NOW: it leaves the bar entirely, same instruction that moved Safety.
+     See the MoreItem below and OFF_NAV for where its heading now comes
+     from. */
   { href: "/dashboard", label: "Dashboard", icon: IconGrid },
-  /* Last, and in the nav rather than behind the shortcut sheet, because the
-     shortcut sheet is hidden below sm — and the phone is exactly the device
-     whose microphone, storage and offline cache somebody needs to check before
-     walking onto an apron. The bar scrolls; an eighth destination costs a swipe
-     and buys the one screen that answers "will this device work". */
-  { href: "/preflight", label: "Pre-flight", icon: IconGauge },
+  /* PRE-FLIGHT MOVED TO THE MORE MENU TOO (Sarel, 30 Sep, on the same
+     screenshot that asked for Safety and Review): "move review, safety,
+     preflight into the more menu."
+     THEN: it kept a nav slot specifically because the shortcut sheet was
+     hidden below sm and a phone is exactly the device whose microphone,
+     storage and offline cache somebody needs to check before walking onto
+     an apron — a cost paid deliberately for that one screen.
+     NOW: his direct word overrides it, same as Safety and Review. The
+     "shared record needs you" dot this item used to carry moved to the
+     More button itself, so the alert is not lost — see sharedNeedsYou
+     below and the Pre-flight MoreItem's hint. */
 ];
 
 /** Screens reached from somewhere other than the nav bar, and what the page's
@@ -125,6 +136,12 @@ const OFF_NAV: Record<string, string> = {
   "/interviews": "Interview records",
   "/attendance": "Site attendance and daily diary",
   "/evidence": "Document and evidence collection log",
+  /* Safety, Review and Pre-flight moved out of NAV into the More menu
+     (Sarel, 30 Sep) — without an entry here their own heading would fall
+     back to "Squawk". */
+  "/isf": "Safety",
+  "/review": "Review",
+  "/preflight": "Pre-flight",
 };
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -548,19 +565,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               >
                 <span className="relative flex shrink-0">
                   <Icon width={13} height={13} />
-                  {/* A dot on Pre-flight when the shared record needs a person:
-                      this device has not been let into the audit yet, or its
-                      last sync failed. It goes HERE rather than in the masthead
-                      because the masthead's controls are hidden below sm, and a
-                      phone is where an auditor most needs to know that their
-                      afternoon is not reaching the team. */}
-                  {n.href === "/preflight" && sharedNeedsYou && (
-                    <span
-                      aria-hidden
-                      className="absolute -top-[3px] -right-[3px] h-[6px] w-[6px] rounded-full"
-                      style={{ background: "var(--warn)" }}
-                    />
-                  )}
                 </span>
                 {/* On the bottom bar all seven destinations have to fit across
                     390px, and seven full labels do not — three fitted and the
@@ -569,13 +573,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     are their icon and their count, which is what a bottom bar
                     has always been. Full labels return at sm. */}
                 <span className={active ? "" : "hidden sm:inline"}>{n.label}</span>
-                {/* The dot above is aria-hidden — a decoration on the icon — so
-                    the thing it is telling you has to be here, in words, or a
-                    screen-reader user never learns their afternoon is not
-                    reaching the team. */}
-                {n.href === "/preflight" && sharedNeedsYou && (
-                  <span className="sr-only">— the shared record needs you</span>
-                )}
                 {badge !== "" && badge !== 0 && (
                   /* NOTHING DONE YET IS NOT NEWS. A "0/315" badge is exactly as
                      loud as a "312/315" one, in the same accent colour, and at
@@ -695,8 +692,26 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 color: more ? "var(--acc)" : "var(--ink-2)",
               }}
             >
-              <IconMore width={14} height={14} />
+              <span className="relative flex shrink-0">
+                <IconMore width={14} height={14} />
+                {/* Pre-flight's own dot, carried across now that it left the
+                    nav bar: the shared record needs a person, this device
+                    has not been let into the audit yet, or its last sync
+                    failed. Still aria-hidden with the words in an sr-only
+                    span below, same reasoning as when it lived on the nav
+                    item itself. */}
+                {sharedNeedsYou && (
+                  <span
+                    aria-hidden
+                    className="absolute -top-[3px] -right-[3px] h-[6px] w-[6px] rounded-full"
+                    style={{ background: "var(--warn)" }}
+                  />
+                )}
+              </span>
               More
+              {sharedNeedsYou && (
+                <span className="sr-only">— the shared record needs you</span>
+              )}
             </button>
 
             {more && (
@@ -733,6 +748,45 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     label="All audits"
                     hint={`Switch site or audit — ${entityOf(entityCode).short} ${visitLabel} now`}
                     onClick={() => { setMore(false); setAudits(true); }}
+                  />
+                  {/* SAFETY AND REVIEW, MOVED HERE from the nav bar (Sarel, 30
+                      Sep): "move safety and review menu items out of the main
+                      menu bar." Safety kept the nav slot it has through two
+                      presses of urgency before this — SWP-07's VERBALLY AT
+                      ONCE timer starts on reaching the screen, not on reaching
+                      the menu that opens it — but that is now his call to make,
+                      not this file's to re-argue. */}
+                  <MoreItem
+                    icon={<IconClock width={14} height={14} />}
+                    label="Safety"
+                    hint="Immediate Safety Findings — SWP-07"
+                    selected={pathname === "/isf"}
+                    onClick={() => { setMore(false); router.push("/isf"); }}
+                  />
+                  <MoreItem
+                    icon={<IconCamera width={14} height={14} />}
+                    label="Review"
+                    hint="Where an engineer reads back what came in"
+                    selected={pathname === "/review"}
+                    onClick={() => { setMore(false); router.push("/review"); }}
+                  />
+                  {/* PRE-FLIGHT, added to this group a moment later than Safety
+                      and Review — Sarel, on the same screenshot: "move review,
+                      safety, preflight into the more menu." Its own dot (the
+                      shared record needs a person, or the last sync failed)
+                      moved to the More button itself; the hint below still
+                      says so in words for anyone who opens the menu without
+                      having noticed the dot. */}
+                  <MoreItem
+                    icon={<IconGauge width={14} height={14} />}
+                    label="Pre-flight"
+                    hint={
+                      sharedNeedsYou
+                        ? "The shared record needs you — check this before the walk"
+                        : "Prove the device works before the apron"
+                    }
+                    selected={pathname === "/preflight"}
+                    onClick={() => { setMore(false); router.push("/preflight"); }}
                   />
                   {/* A DESTINATION IN A MENU OF ACTIONS, and it is here rather
                       than in the nav bar for one reason: the nav is full. The

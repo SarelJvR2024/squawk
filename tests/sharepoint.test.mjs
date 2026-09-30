@@ -200,12 +200,12 @@ const CHECK = (id, discipline = "Electrical", system = "AGL") => ({
 const HAZARD = (over = {}) => ({
   id: "h1", entity: "FALE", originVisit: "2026-09", event: "Uncontrolled diesel fire",
   description: "at the standby generator", why: "", findingIds: ["f1"],
-  disciplines: ["Electrical"], systems: ["Generators"],
+  disciplines: ["Electrical"], systems: ["Generators"], areas: [], otherImpacts: [],
   severity: null, likelihood: null, ratingConfirmed: false,
   ermConsequence: "4 - Critical", ermLikelihood: "3 - Likely", ermConfirmed: true,
   ermLikelihoodAssumed: false, origin: "consolidated", note: "", occurrence: "",
   ratingRationale: "", progress: [], immediate: false, reassessedAt: null, reassessNote: "",
-  rootCause: "", action: "", owner: "", dueDate: "", actionStatus: "Open",
+  rootCause: "", actions: [], actionStatus: "Open",
   createdAt: 1_757_000_000_000, createdBy: "Sarel", ...over,
 });
 

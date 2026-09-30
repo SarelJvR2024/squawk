@@ -472,6 +472,7 @@ export type ErmLikelihood =
 /** I = Unacceptable · II = Tolerable · III = Acceptable (cl. 9.2.2). */
 export type ErmPriority = "I" | "II" | "III";
 
+
 /** A hazard: the EVENT a set of findings exposes.
  *
  *  A finding says a document was missing or a coupler was worn. A hazard says
@@ -515,6 +516,25 @@ export interface Hazard {
    *  hazard's throws away exactly the fact that made it worth consolidating. */
   disciplines: string[];
   systems: string[];
+  /** WHICH PHYSICAL AREAS OF THE AIRPORT this event would reach, not which
+   *  discipline wrote it up. Sarel: "should be able to select any of the
+   *  areas of the airport as part of the impact." Plural for the same
+   *  reason disciplines and systems are — an uncontained fuel release at a
+   *  stand reaches the apron and could reach the terminal apron road, and a
+   *  hazard that can only name one area understates what it actually
+   *  threatens. Register areas (register.ts's areasAt), not free text —
+   *  consistent with disciplines and systems, which are the register's own
+   *  vocabulary rather than the auditor's phrasing of it. */
+  areas: string[];
+  /** IMPACTS THE REGISTER'S ASSET SYSTEMS DO NOT NAME. Sarel: "also allow
+   *  to add other impacts." Systems above is the register's fixed list; an
+   *  event can plausibly threaten something the register never enumerated
+   *  as a system at all — reputational exposure, a contractual penalty, a
+   *  third party's equipment on the apron — and forcing that into the
+   *  systems list would either invent a fake system or drop the impact.
+   *  Free text, deliberately: there is no register vocabulary for this to
+   *  be checked against. */
+  otherImpacts: string[];
   /** B170 001M, the instrument this repo actually carries. Gated by
    *  ratingConfirmed exactly as a finding is: the assistant may propose a
    *  rating, it may never agree one. */
@@ -586,9 +606,14 @@ export interface Hazard {
    *  built from several findings usually has one cause behind all of them, and
    *  that is the thing the remediation has to address. */
   rootCause: string;
-  action: string;
-  owner: string;
-  dueDate: string;
+  /** Plural — see MitigatingAction. */
+  actions: MitigationAction[];
+  /** THE CARRY-FORWARD GATE, not a summary of `actions` above. Driven by the
+   *  follow-up screen's verification flow (src/lib/carryforward.ts), same as
+   *  a Finding's own field of the same name — deliberately not derived from
+   *  whether every mitigating action is Closed, because a hazard can have all
+   *  its named actions done and still be waiting on verification, or be
+   *  verified closed with an action still nominally open on paper. */
   actionStatus: ActionStatus;
   createdAt: number;
   createdBy: string;
@@ -634,9 +659,8 @@ export interface Finding {
    *  still shown, as itself — see assetsById(). */
   assetIds?: string[];
   rootCause: string;
-  action: string;
-  owner: string;
-  dueDate: string;
+  /** Plural — see MitigatingAction. */
+  actions: MitigationAction[];
   /** Dated, attributed updates on the remediation.
    *
    *  The four fields ACSA's dashboards carry are filled at different moments:
@@ -760,12 +784,27 @@ export interface RootCauseNote {
  *  auditor to write the other two into a comment where nothing tracks them. */
 export interface MitigationAction {
   id: string;
+  /** Optional because SystemAssessment (below), the first thing to use this
+   *  type, is already scoped to one discipline and never needed a second per
+   *  entry. Finding and Hazard, which reuse this type for their own
+   *  `actions` (Sarel: "adding a discipline and person and date to each
+   *  mitigation action" — a consolidated hazard spans disciplines by nature,
+   *  so an action to fix it belongs to whichever discipline is actually
+   *  doing the work), always set it. */
+  discipline?: string;
   action: string;
   owner: string;
   /** ISO date, as everywhere else. Blank is a real state and it is flagged
    *  rather than defaulted: a target date nobody agreed is worse than none. */
   dueDate: string;
   status: ActionStatus;
+  /** Which visit this was logged at. Optional for the same reason as
+   *  `discipline` — SystemAssessment did not need it — but Finding and
+   *  Hazard always set it: Sarel wants to "add additional mitigating
+   *  actions and also review any previously identified" at each audit, and
+   *  that needs to say which audit added which, the same reason
+   *  ProgressNote carries a visit. */
+  originVisit?: string;
   createdAt: number;
   createdBy: string;
   updatedAt?: number;

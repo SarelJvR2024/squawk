@@ -78,6 +78,7 @@ export {
   disciplinesAt,
   checksOf,
   systemsOf,
+  systemsAt,
   areasAt,
 } from "./register";
 import { CHECKS, checksAt, priorFindingsAt, priorRatingsAt } from "./register";
@@ -1775,8 +1776,11 @@ export const useStore = create<State>()(
         exportBundle: () => {
           const s = get();
           const d = s.visitData();
-          const mine = (r: { entity: string; originVisit: string }) =>
-            r.entity === s.entity && r.originVisit === s.visit;
+          /* BY ENTITY ONLY — see the matching note on shared.ts's rowsToPush.
+             A finding carried forward from an earlier visit and touched again
+             here (a progress note, a verified closure) must travel too, or a
+             device importing this bundle never sees the update. */
+          const mine = (r: { entity: string }) => r.entity === s.entity;
           const findings = s.findings.filter(mine);
           const hazards = s.hazards.filter(mine);
           const photographsNotUploaded = Object.values(d.responses).reduce(
@@ -1812,10 +1816,17 @@ export const useStore = create<State>()(
           const no = refuse(b, { entity: s.entity, visit: s.visit });
           if (no) return no;
           /* Findings and hazards are flat across the whole programme, so the
-             merge is handed only this audit's and the rest are carried through
-             untouched — a merge of King Shaka must not reorder Cape Town. */
-          const mine = (r: { entity: string; originVisit: string }) =>
-            r.entity === s.entity && r.originVisit === s.visit;
+             merge is handed only this entity's and the rest are carried through
+             untouched — a merge of King Shaka must not reorder Cape Town.
+             BY ENTITY ONLY, NOT originVisit — see the note on rowsToPush in
+             shared.ts. A finding raised at an earlier visit and carried
+             forward is still this entity's, and excluding it here was worse
+             than the push-side bug: `theirs` could carry an update to it (its
+             own id, same entity, older originVisit), find no match in a
+             narrower `mine`, and get added a second time — the same finding
+             twice in the array, once stale from `elsewhere` and once fresh
+             from the merge. */
+          const mine = (r: { entity: string }) => r.entity === s.entity;
           const elsewhere = { findings: s.findings.filter((f) => !mine(f)), hazards: s.hazards.filter((h) => !mine(h)) };
           const result = mergeBundle(
             {

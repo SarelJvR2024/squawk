@@ -210,9 +210,19 @@ for (const step of flow) {
     fs.existsSync(path.join(root, "src", "app", "(app)", step.href.slice(1), "page.tsx")),
     "a landing page pointing at a 404 is worse than no map"
   );
+  /* THEN: every step's label was checked against NAV's own { href, label }
+     pair — the flow strip and the nav bar had to agree, because both were
+     read straight off NAV.
+     NOW (30 Sep): Sarel moved Safety and Review out of the nav bar into the
+     More menu — "move safety and review menu items out of the main menu
+     bar." A screen that left NAV no longer has an { href, label } pair to
+     agree with; OFF_NAV is what now says what its heading (and this label)
+     is. Checking either source is what "agrees with the app", not only
+     agreeing with whichever one still happens to hold it. */
   check(
-    `${step.href} is labelled "${step.label}", exactly as the navigation labels it`,
-    new RegExp(`\\{ href: "${step.href}", label: "${step.label}"`).test(shell),
+    `${step.href} is labelled "${step.label}", exactly as the app names the destination`,
+    new RegExp(`\\{ href: "${step.href}", label: "${step.label}"`).test(shell) ||
+      new RegExp(`"${step.href}": "${step.label}"`).test(shell),
     "an auditor told to go to Follow-up must find a destination called Follow-up"
   );
 }

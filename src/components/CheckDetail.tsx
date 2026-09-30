@@ -489,9 +489,7 @@ export default function CheckDetail({
                       likelihood: x.likelihood_hint,
                       ratingConfirmed: false,
                       rootCause: "",
-                      action: "",
-                      owner: "",
-                      dueDate: "",
+                      actions: [],
                       actionStatus: "Open",
                       originVisit: visitId,
                       priorRating: pf?.rating ?? null,
@@ -578,9 +576,9 @@ export default function CheckDetail({
                   Treatment ·{" "}
                   {[
                     !f.rootCause && "no root cause",
-                    !f.action && "no action",
-                    !f.owner && "no owner",
-                    !f.dueDate && "no date",
+                    f.actions.length === 0 && "no action",
+                    f.actions.some((a) => !a.owner) && "an action has no owner",
+                    f.actions.some((a) => !a.dueDate) && "an action has no date",
                   ].filter(Boolean).join(", ") || "complete"}
                   {f.progress?.length ? ` · ${f.progress.length} update${f.progress.length === 1 ? "" : "s"}` : ""}
                 </summary>

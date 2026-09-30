@@ -636,6 +636,7 @@ export default function ReviewPage() {
                   <div className="mb-3 flex flex-col gap-1.5">
                     {active.findings.map((f) => {
                       const band = bandFor(f.severity, f.likelihood);
+                      const owner = f.actions.find((a) => a.owner)?.owner;
                       return (
                         <Panel key={f.id} tone={band === "Red" ? "warn" : undefined}>
                           <div className="flex flex-wrap items-center gap-2">
@@ -647,9 +648,9 @@ export default function ReviewPage() {
                             ) : (
                               <Pill>SUGGESTED — NOT AGREED</Pill>
                             )}
-                            {f.owner && (
+                            {owner && (
                               <span className="text-[10.5px]" style={{ color: "var(--ink-3)" }}>
-                                {f.owner}
+                                {owner}
                               </span>
                             )}
                           </div>

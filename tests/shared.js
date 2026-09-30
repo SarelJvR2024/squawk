@@ -104,10 +104,19 @@ const sheetUp = (page) =>
    shortcuts sheet stood in the masthead at every width for the whole audit —
    four controls you reach for once a day, taking a third of the header from
    the two used constantly. Opening the menu first is the real interaction, so
-   it is what these suites do. */
+   it is what these suites do.
+
+   THE MATCH IS "More" AT THE START, NOT THE WHOLE TEXT. The button now
+   carries the shared-record dot that used to live on Pre-flight's own nav
+   item, and with it an sr-only "— the shared record needs you" suffix on the
+   same element whenever the record needs a person. `/^More$/` matched right
+   up until the first test that puts the record in that state — at which
+   point the button's own text is no longer exactly "More", and a click that
+   used to take a beat waits the full 30s for a button that was never going
+   to reappear. */
 const openExport = async (page) => {
   if (await sheetUp(page)) return;
-  await page.locator("button", { hasText: /^More$/ }).first().click();
+  await page.locator("button", { hasText: /^More\b/ }).first().click();
   await page.waitForTimeout(400);
   await page.locator('[role="menuitem"]', { hasText: "Export the workbook" }).first().click();
   await page.waitForTimeout(900);
@@ -116,12 +125,20 @@ const openExport = async (page) => {
  *
  *  Sarel, 2026-09-15: "move the passphrase to this level of the menu, it is
  *  too hidden." It had been two presses and a scroll to the bottom of the
- *  export sheet — a sheet whose title says nothing about joining anything. */
+ *  export sheet — a sheet whose title says nothing about joining anything.
+ *
+ *  ANCHORED AT THE START, not a bare substring. Pre-flight's own menu row
+ *  carries "The shared record needs you — check this before the walk" as its
+ *  hint whenever `sharedNeedsYou` is true — which a device that has not
+ *  joined always is — and Pre-flight sits ABOVE Shared record in the menu. A
+ *  loose `hasText: "Shared record"` then matches Pre-flight's row first and
+ *  `.first().click()` opens the wrong screen entirely, with nothing failing
+ *  until the passphrase field it expected next is never there. */
 const openShared = async (page) => {
   if (await sheetUp(page)) return;
-  await page.locator("button", { hasText: /^More$/ }).first().click();
+  await page.locator("button", { hasText: /^More\b/ }).first().click();
   await page.waitForTimeout(400);
-  await page.locator('[role="menuitem"]', { hasText: "Shared record" }).first().click();
+  await page.locator('[role="menuitem"]', { hasText: /^Shared record/ }).first().click();
   await page.waitForTimeout(900);
 };
 const closeSheet = async (page) => {
@@ -545,7 +562,7 @@ const syncNow = async (page) => {
        work leaving this device" and both used to fail silently. Checked on the
        open menu before anything is pressed, because the whole complaint was
        that the line was not there to see. */
-    await C.page.locator("button", { hasText: /^More$/ }).first().click();
+    await C.page.locator("button", { hasText: /^More\b/ }).first().click();
     await C.page.waitForTimeout(400);
     const menuText = await C.page.locator('[role="menu"][aria-label="More"]').first().innerText();
     ok("THE SHARED RECORD HAS ITS OWN LINE IN THE MENU, not a scroll inside another sheet",

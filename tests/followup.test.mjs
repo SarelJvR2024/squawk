@@ -359,5 +359,77 @@ check(
   "an unrated event says so rather than being blank — blank reads as 'no likelihood', which is not a state"
 );
 
+/* ---- 8 · typing one offers what already exists, and it flows to HIRA ---- *
+ *
+ * Sarel: "once you start typing it should bring up similar recorded events
+ * so that we dont duplicate but can select from existing events already
+ * captured or capture a nw one. once it is capture/added it should flow to
+ * the HIRA view."
+ */
+
+check(
+  "the suggestion list is scoped to this entity, across every visit it has had",
+  /export function useKnownHazardousEvents\(\): string\[\]/.test(carry) &&
+    /if \(h\.entity === entityCode\) add\(h\.event\);/.test(carry) &&
+    /PROGRAMME_VISITS\.filter\(\(v\) => v\.entity === entityCode\)/.test(carry),
+  "a King Shaka wording offered while typing at O.R. Tambo would suggest a merge across two registers that were never meant to share one"
+);
+
+check(
+  "and it draws from both Hazards and any PossibleEvent never yet promoted",
+  /for \(const h of hazards\) \{/.test(carry) &&
+    /for \(const e of rec\.possibleEvents \?\? \[\]\) add\(e\.event\);/.test(carry),
+  "an event typed before this existed is exactly the kind of duplicate this exists to catch"
+);
+
+check(
+  "the input only speaks once there is enough to narrow on",
+  /if \(q\.length < 2\) return \[\];/.test(events),
+  "one letter matches half the register and is noise, not help"
+);
+
+check(
+  "matching is substring, not prefix, on both sides of the word order",
+  /suggestions\.filter\(\(s\) => s\.toLowerCase\(\)\.includes\(q\)\)/.test(events),
+  "'oil fire' has to surface for someone who remembers 'fire' first"
+);
+
+check(
+  "picking a suggestion cannot be beaten by the blur that follows it",
+  /onMouseDown=\{\(e\) => \{\s*e\.preventDefault\(\);\s*add\(m\);/.test(events),
+  "a plain onClick fires after the input has already blurred and closed the list out from under it"
+);
+
+check(
+  "the closure screen passes the suggestion list through",
+  /suggestions=\{knownEvents\}/.test(closure) &&
+    /const knownEvents = useKnownHazardousEvents\(\);/.test(closure),
+  ""
+);
+
+check(
+  "adding a genuinely new event raises it on HIRA, unrated on both instruments",
+  /severity: null,\s*likelihood: null,\s*ratingConfirmed: false,\s*ermConsequence: null,\s*ermLikelihood: null,\s*ermConfirmed: false,\s*ermLikelihoodAssumed: false,/.test(
+    closure
+  ) && /origin: "consolidated",/.test(closure),
+  "this screen names the event; the HIRA group is who rates it — same rule PossibleEvent itself already holds"
+);
+
+check(
+  "and it is linked back to the finding that raised it",
+  /findingIds: \[findingRef\],/.test(closure) &&
+    /const findingRef = active\.findingId \?\? active\.key;/.test(closure),
+  ""
+);
+
+check(
+  "an event that already exists on this entity's HIRA is linked, not duplicated",
+  /const existing = hazards\.find\(\s*\(h\) => h\.entity === entityCode && h\.event\.trim\(\)\.toLowerCase\(\) === normalised\s*\);/.test(
+    closure
+  ) &&
+    /updateHazard\(existing\.id, \{/.test(closure),
+  "typing the same wording twice must grow one hazard's findingIds, not mint a second row for the same thing"
+);
+
 console.log(failures === 0 ? "\nFOLLOW-UP OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

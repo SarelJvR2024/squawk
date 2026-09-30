@@ -5,10 +5,19 @@ import type { TimelineCell, TimelineState } from "@/lib/carryforward";
 /** ONE CARRIED ITEM, ACROSS EVERY AUDIT, AS A SHAPE.
  *
  *  The argument for a strip rather than a sentence: **recurrence becomes a
- *  shape.** A row that reads raised → closed → open again is a repeat, and the
- *  eye catches it before the brain reads anything. A row of unbroken carried
- *  cells is an item nobody has answered in three visits. No amount of prose
- *  does either.
+ *  shape.** A row of unbroken solid-red cells is an item that keeps being
+ *  checked and keeps still being open — the eye catches that before the brain
+ *  reads anything. A row of unbroken carried cells is an item nobody has
+ *  answered in three visits. No amount of prose does either.
+ *
+ *  "REPEAT" NEVER MEANS "WAS CLOSED, THEN REOPENED." Open - repeat is what
+ *  this visit records when an item that was already open gets checked again
+ *  and is STILL not fixed — it never closed in between. Once something is
+ *  actually marked Closed it stops carrying (carriesWork/outstandingFor key
+ *  on actionStatus !== "Closed") and cannot come back as the same carried
+ *  item, so a cell can never legitimately read "closed, then found again."
+ *  The word has to say the thing that is true every time: the item remains
+ *  open.
  *
  *  COLOUR IS NOT THE CARRIER. `--bad` and `--warn` mean Unacceptable and
  *  Tolerable everywhere in this product — they are band colours, and a closed
@@ -31,7 +40,7 @@ const WORD: Record<TimelineState, string> = {
   carried: "still open, nothing recorded",
   partial: "partially closed",
   closed: "verified closed",
-  repeat: "closed before, found again",
+  repeat: "checked again — remains open",
   notVerified: "not verified",
   notAudited: "NOT AUDITED — nobody looked",
   scheduled: "not yet",

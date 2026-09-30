@@ -281,10 +281,14 @@ check(
 
 /* --------------------------------------------- Part 6: engineers can reach it */
 
+/* THEN: Review was its own entry in the nav bar.
+   NOW (30 Sep): Sarel — "move safety and review menu items out of the main
+   menu bar." It moved to the More menu; OFF_NAV keeps the page's own
+   heading saying "Review" now that NAV no longer does. */
 check(
-  "Review is in the navigation",
-  /\{ href: "\/review", label: "Review"/.test(shell),
-  ""
+  "Review is reachable from the More menu",
+  /label="Review"/.test(shell) && /"\/review": "Review"/.test(shell),
+  "moved out of the nav bar on Sarel's direct word, but still one press away"
 );
 
 check(
