@@ -1655,98 +1655,76 @@ export default function CheckDetail({
             )}
           </div>
 
-          {/* THE VERDICT, THEN THE THINGS THAT ARE NOT A VERDICT.
-              Two rows, at every width, and grids rather than a wrapping flex
-              row so they stay that way — as a single wrapping row these broke
-              two-and-two the moment the capture tools joined this bar, which
-              reads as a rendering fault rather than a choice.
-
-              Splitting them is not a layout trick to fit five across 390px
-              (though it does that too). It is the decision's actual shape: the
-              top row is what the audit concludes about the asset, the bottom
-              row is this check not applying here and ACSA not producing the
-              document while we were on site. Five identical boxes said those
-              were the same kind of answer. */}
-          <div className="flex min-w-[280px] flex-1 flex-col gap-[5px]">
-            <div className="grid grid-cols-3 gap-[5px]">
-              {STATUSES.filter((x) => x.group === "verdict").map((st) => {
-                const on = isOn(st, r.compliance, r.evidencePending);
-                return (
-                  <button
-                    key={st.label}
-                    onClick={() =>
-                      setCompliance(check.id, on ? null : st.key, !on && !!st.pending)
-                    }
-                    /* The full phrase, always, to a screen reader — the phone
-                       shows the code to fit the targets across 390px, and "C"
-                       read out loud is not an answer anybody should have to
-                       decode. */
-                    aria-label={st.label}
-                    aria-pressed={on}
-                    title={st.label}
-                    /* min-w-0 lets the grid keep all three columns the same
-                       width — without it a flex child's default min-width is
-                       its own content, so a long label forces its column
-                       wider than the other two and the row reads as three
-                       unevenly sized buttons. Sarel: even one label
-                       wrapping made these read as too big — smLabel (see
-                       the STATUSES entry) shortens the one row that ever
-                       needed to wrap, so at rest every button is a single
-                       compact line; min-w-0 and dropping whitespace-nowrap
-                       both stay as the fallback for anything narrower than
-                       this was tuned against, not the everyday case. */
-                    /* outline-none, and deliberately no focus ring in its
-                       place. Without it the browser's own default outline
-                       (2px, not offset) stacks outside the tone ring above
-                       on a button that is both tapped AND still focused —
-                       on a tablet that is every tap — and the two together
-                       read as one oversized, misaligned box next to its
-                       untouched neighbours; a themed replacement ring had
-                       the identical problem, just in the app's own colour
-                       instead of the browser's. The selected state itself
-                       (background, border, tone, aria-pressed) is already
-                       the affordance here, same as every other custom
-                       button in this app — none of them add a focus ring
-                       either. */
-                    className="flex min-h-[44px] min-w-0 items-center justify-center gap-[5px] rounded-[10px] border-[1.5px] px-[6px] py-1 text-center font-display text-[10.5px] leading-tight font-semibold outline-none transition-[var(--t)] sm:px-[8px] sm:text-[11px]"
-                    style={toneStyle(st.tone, on)}
-                  >
-                    <st.Icon width={13} height={13} className="shrink-0" />
-                    {/* ACSA's own code on a phone, the words everywhere else
-                        — smLabel where the full phrase is too long to fit
-                        one line, otherwise the same full phrase. C, NC, N/A
-                        and NV are not abbreviations invented here: they are
-                        what the record stores and what the export column
-                        says. */}
-                    <span className="sm:hidden">{st.short}</span>
-                    <span className="hidden sm:inline">{st.smLabel ?? st.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {/* Drawn quieter — transparent, a lighter border, muted text —
-                because reaching for one of these is saying there is nothing to
-                assess, and that should not compete with the answer above it. */}
-            <div className="grid grid-cols-2 gap-[5px]">
-              {STATUSES.filter((x) => x.group === "qualifier").map((st) => {
-                const on = isOn(st, r.compliance, r.evidencePending);
-                return (
-                  <button
-                    key={st.label}
-                    onClick={() => setCompliance(check.id, on ? null : st.key)}
-                    aria-label={st.label}
-                    aria-pressed={on}
-                    title={st.label}
-                    className="flex min-h-[44px] min-w-0 items-center justify-center gap-[5px] rounded-[10px] border px-[6px] font-display text-[10.5px] font-semibold whitespace-nowrap outline-none transition-[var(--t)] sm:px-[8px] sm:text-[11px]"
-                    style={toneStyle(st.tone, on, true)}
-                  >
-                    <st.Icon width={12} height={12} className="shrink-0" />
-                    <span className="sm:hidden">{st.short}</span>
-                    <span className="hidden sm:inline">{st.smLabel ?? st.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+          {/* ALL FIVE, ONE ROW — FROM lg, WHERE THERE IS ACTUALLY ROOM FOR IT.
+              Sarel, on the live app (a wide desktop window): "make these
+              buttons smaller. this should all fit in one row." They used
+              to be two grids — three verdicts, then N/A and Not available
+              underneath, deliberately, because the two rows are not the
+              same kind of answer (see the git history on this block for
+              that reasoning). Overridden here on his direct word, but not
+              at every width: tried as a flat 5-column grid everywhere
+              first and screenshotted it at 820px, the tablet this app is
+              actually built for — several labels wrapped to two lines
+              there, worse than the two-row version it replaced, because
+              five columns at 820px minus Photo/the nav buttons leaves
+              less room per label than three ever did. grid-cols-3 below
+              lg keeps that room; STATUSES' own order (three verdicts
+              then two qualifiers) happens to wrap a 3-column grid into
+              exactly the old two rows, so nothing extra was needed to
+              reproduce that grouping down there. From lg (1024px, where
+              the screenshot that prompted this was taken) it becomes the
+              one row Sarel asked for. N/A and Not available keep the
+              quieter styling (transparent, lighter border) toneStyle's
+              `quiet` flag already gave them at every width — only where
+              they sit changes, not what reaching for one of them means. */}
+          <div className="grid min-w-[280px] flex-1 grid-cols-3 gap-[4px] lg:grid-cols-5">
+            {STATUSES.map((st) => {
+              const on = isOn(st, r.compliance, r.evidencePending);
+              const quiet = st.group === "qualifier";
+              return (
+                <button
+                  key={st.label}
+                  onClick={() =>
+                    setCompliance(check.id, on ? null : st.key, !on && !!st.pending)
+                  }
+                  /* The full phrase, always, to a screen reader — the phone
+                     shows the code to fit the targets across 390px, and "C"
+                     read out loud is not an answer anybody should have to
+                     decode. */
+                  aria-label={st.label}
+                  aria-pressed={on}
+                  title={st.label}
+                  /* min-w-0 lets the grid keep all five columns the same
+                     width — without it a flex child's default min-width is
+                     its own content, so a long label forces its column
+                     wider than the others. smLabel (see the STATUSES entry)
+                     shortens the one label long enough to need it; min-w-0
+                     and dropping whitespace-nowrap both stay as the
+                     fallback for anything narrower than this was tuned
+                     against, not the everyday case. */
+                  /* outline-none, and deliberately no focus ring in its
+                     place — see the identical note this block carried
+                     before the merge: the browser's own default outline
+                     stacks outside the tone ring on a button that is both
+                     tapped AND still focused, which on a tablet is every
+                     tap, and reads as one oversized box. The selected
+                     state itself (background, border, tone, aria-pressed)
+                     is already the affordance. */
+                  className={`flex min-h-[44px] min-w-0 items-center justify-center gap-[4px] rounded-[9px] px-[4px] py-1 text-center font-display text-[10px] leading-tight font-semibold outline-none transition-[var(--t)] sm:px-[6px] sm:text-[10.5px] ${quiet ? "border" : "border-[1.5px]"}`}
+                  style={toneStyle(st.tone, on, quiet)}
+                >
+                  <st.Icon width={12} height={12} className="shrink-0" />
+                  {/* ACSA's own code on a phone, the words everywhere else
+                      — smLabel where the full phrase is too long to fit
+                      one line, otherwise the same full phrase. C, NC, N/A
+                      and NV are not abbreviations invented here: they are
+                      what the record stores and what the export column
+                      says. */}
+                  <span className="sm:hidden">{st.short}</span>
+                  <span className="hidden sm:inline">{st.smLabel ?? st.label}</span>
+                </button>
+              );
+            })}
           </div>
 
           <div className="flex gap-[7px]">

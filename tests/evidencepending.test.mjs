@@ -144,10 +144,17 @@ ok(
   "the number keys set the flag too rather than only the token",
   /setCompliance\(check\.id, on \? null : hit\.key, !on && !!hit\.pending\)/.test(detail)
 );
+/* THEN: the verdict and qualifier groups were two separate STATUSES.filter()
+   calls, each feeding its own row — still ONE list, just filtered twice.
+   NOW (30 Sep): Sarel — "make these buttons smaller. this should all fit
+   in one row." The two filters collapsed into a single STATUSES.map(), no
+   filtering at all above lg (1024px); see tests/checkscreen.test.mjs for
+   the full reasoning and the 820px fallback. The invariant this guards —
+   render and keyboard sourcing from the same array — holds even more
+   directly now that there is no second call to drift out of step. */
 ok(
-  "and the two verdict/qualifier rows are filtered from ONE list, so the keyboard and the screen cannot disagree",
-  /STATUSES\.filter\(\(x\) => x\.group === "verdict"\)/.test(detail) &&
-    /STATUSES\.filter\(\(x\) => x\.group === "qualifier"\)/.test(detail) &&
+  "and the row is rendered by mapping STATUSES directly, so the keyboard and the screen cannot disagree",
+  /STATUSES\.map\(\(st\) => \{/.test(detail) &&
     (detail.match(/^const STATUSES/gm) ?? []).length === 1
 );
 

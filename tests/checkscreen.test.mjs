@@ -130,7 +130,7 @@ const pinnedBar = codeOnly.slice(at('className="sticky bottom-0 z-[7]"'));
 
 check(
   "THE COMPLIANCE BUTTONS ARE IN THE PINNED BOTTOM BAR, WITH SAVE",
-  /STATUSES\.filter\(/.test(pinnedBar) && /setCompliance\(check\.id/.test(pinnedBar),
+  /STATUSES\.map\(/.test(pinnedBar) && /setCompliance\(check\.id/.test(pinnedBar),
   "they were the biggest thing on the screen and they were above the material the decision is made from"
 );
 
@@ -146,28 +146,46 @@ check(
   "moving them down is only safe because this bar does not scroll away"
 );
 
-/* THE VERDICT AND THE NON-ANSWERS ARE TWO ROWS, and that is the decision's
-   shape rather than a way to fit five boxes across 390px. The top row is what
-   the audit concludes about the asset — compliant, compliant with the proof
-   still to come, non-compliant. The bottom row is this check not applying here
-   and ACSA not producing the document while we were on site. Rendered as five
-   identical boxes those read as five equal choices.
+/* A DECISION RECORDED HERE, THEN OVERRIDDEN, AND BOTH HALVES KEPT — same
+   rule the "evidence to request" reversal below already follows: a test
+   that quietly forgets what it used to guard cannot explain itself.
 
-   Grids, not a wrapping flex row, for the same reason as before: a wrapping
-   row broke two-and-two the moment anything else joined the bar, which reads
-   as a rendering fault rather than a choice. A grid cannot split. */
+   THEN: the verdict and the non-answers were two rows, deliberately, not
+   a way to fit five boxes across 390px. The top row was what the audit
+   concludes about the asset; the bottom row was this check not applying
+   here and ACSA not producing the document while we were on site.
+   Rendered as five identical boxes those would read as five equal
+   choices, so they were split.
+
+   NOW (30 Sep): Sarel, looking at the live bar on a wide desktop window
+   — "make these buttons smaller. this should all fit in one row." One
+   grid of five overrides that shape on his direct word, but only from lg
+   (1024px): tried flat everywhere first and screenshotted it at 820px,
+   the tablet this app is actually built for, where five columns wrapped
+   several labels to two lines — worse than what it replaced. grid-cols-3
+   below lg keeps the room those labels need; STATUSES' own order (three
+   verdicts, then two qualifiers) happens to wrap a 3-column grid into
+   exactly the old two rows, so the grouping survives down there for
+   free. What survives at every width is the part of the old reasoning
+   that was never about row count in the first place: N/A and Not
+   available still read as a quieter, different kind of answer than a
+   verdict — `quiet` (from `st.group === "qualifier"`) still drops the
+   border weight and lets toneStyle mute them, same as the two-row
+   version did. Only where they sit changed, not what reaching for one
+   means. */
 check(
-  "THE VERDICT IS ITS OWN ROW, THE QUALIFIERS THEIRS",
-  /grid grid-cols-3 gap-\[5px\]/.test(codeOnly) && /grid grid-cols-2 gap-\[5px\]/.test(codeOnly),
-  "five identical boxes said a verdict and a not-applicable were the same kind of answer"
+  "ALL FIVE MERGE TO ONE ROW FROM lg, AND N/A / NOT AVAILABLE STAY VISUALLY QUIETER THROUGHOUT",
+  /grid min-w-\[280px\] flex-1 grid-cols-3 gap-\[4px\] lg:grid-cols-5/.test(codeOnly) &&
+    /const quiet = st\.group === "qualifier"/.test(codeOnly) &&
+    /quiet \? "border" : "border-\[1\.5px\]"/.test(codeOnly),
+  "one grid, not two, per Sarel's direct word — but a verdict and a not-applicable still don't look like the same kind of answer, and 820px (the tablet this is built for) still needs the room three columns gives each label"
 );
 
 check(
-  "both rows come from ONE list, so the keyboard and the screen cannot disagree",
+  "the row comes from ONE list, so the keyboard and the screen cannot disagree",
   (codeOnly.match(/^const STATUSES/gm) || []).length === 1 &&
-    /STATUSES\.filter\(\(x\) => x\.group === "verdict"\)/.test(codeOnly) &&
-    /STATUSES\.filter\(\(x\) => x\.group === "qualifier"\)/.test(codeOnly),
-  "two arrays would let key 3 mean one thing to the hand and another to the eye"
+    /\{STATUSES\.map\(\(st\) => \{/.test(codeOnly),
+  "a second array would let key 3 mean one thing to the hand and another to the eye"
 );
 
 check(
@@ -179,11 +197,11 @@ check(
 
 check(
   "and each is still a 44px target",
-  /* min-w-0 sits between min-h-[44px] and items-center now — it is what
-     keeps the verdict/qualifier grids' columns equal width instead of one
-     long label (e.g. "Compliant, evidence pending") blowing its column
-     wider than the other two. The 44px floor itself is unchanged. */
-  (codeOnly.match(/min-h-\[44px\] min-w-0 items-center justify-center/g) || []).length === 2
+  /* One button definition now, not two, since the merge into a single
+     five-column row — min-w-0 is what keeps all five columns equal width
+     instead of one long label (e.g. "Compliant · pending") blowing its
+     column wider than the rest. The 44px floor itself is unchanged. */
+  (codeOnly.match(/min-h-\[44px\] min-w-0 items-center justify-center/g) || []).length === 1
 );
 
 check(
@@ -335,8 +353,8 @@ check(
 check(
   "there is exactly ONE definition of the compliance buttons in the file",
   (codeOnly.match(/^const STATUSES/gm) || []).length === 1 &&
-    (codeOnly.match(/STATUSES\.filter\(/g) || []).length === 2,
-  "the two rows are two views of one list; two lists would be two things to keep in step"
+    (codeOnly.match(/STATUSES\.map\(/g) || []).length === 1,
+  "one array, mapped once — a second copy would be a second thing to keep in step"
 );
 
 /* --------------------------- NOTHING WAS DROPPED -------------------------- */
