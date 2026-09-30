@@ -115,8 +115,19 @@ check(
   "the capture button stores the prepared image, not the original file",
   /const prepared = await preparePhoto\(file\);/.test(capture) &&
     /await putBlob\(blobKey, prepared\.blob\);/.test(capture) &&
-    !/await putBlob\(blobKey, file\);/.test(capture),
-  ""
+    (() => {
+      /* Scoped to PhotoButton's own body, not the whole file — FileButton
+         (added 30 Sep 2026, tests/capture.test.mjs Part 6) legitimately
+         stores a general evidence file exactly as picked. There is no
+         "prepared" version of a PDF to downscale it into; preparePhoto is
+         image-specific and applying it to an arbitrary file would corrupt
+         it, not shrink it. */
+      const start = capture.indexOf("export function PhotoButton");
+      const end = capture.indexOf("export function FileButton");
+      const photoButtonOnly = capture.slice(start, end > start ? end : undefined);
+      return !/await putBlob\(blobKey, file\);/.test(photoButtonOnly);
+    })(),
+  "PhotoButton must never store the 4-12MB original — FileButton storing a raw file it was never asked to downscale is a different, correct thing"
 );
 
 check(

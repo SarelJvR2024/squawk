@@ -14,7 +14,7 @@ import {
 } from "@/lib/assist";
 import { bandFor, BAND_META } from "@/lib/risk";
 import { modeLabels, needsField } from "@/lib/verification";
-import { AttachmentStrip, PhotoButton, VoiceNoteButton } from "./Capture";
+import { AttachmentStrip, FileButton, PhotoButton, VoiceNoteButton } from "./Capture";
 import RootCauseAdvice from "./RootCauseAdvice";
 import HazardAdvice from "./HazardAdvice";
 import RecordActions from "./RecordActions";
@@ -81,6 +81,13 @@ const STATUSES: {
   /** The number key that sets it. Declared, never positional — see above. */
   hotkey: string;
   label: string;
+  /** What sm+ actually paints on the button. Defaults to `label`; only the
+   *  one row long enough to force the row onto two lines needs its own —
+   *  see the note where it's read. `label` itself stays the full phrase
+   *  everywhere else it's used (aria-label, title, the export/dashboard
+   *  code that reads this array), so nothing downstream needs to know a
+   *  shorter visible form exists. */
+  smLabel?: string;
   /** ACSA's own code, for a phone that cannot fit the word. */
   short: string;
   Icon: typeof IconCheck;
@@ -103,6 +110,13 @@ const STATUSES: {
     /* Sarel's words for it: ACSA's explanation is that they are compliant, and
        it has to be verified when they submit the evidence. */
     label: "Compliant, evidence pending",
+    /* Sarel: the buttons were too big, and this one — the only one of the
+       five long enough to wrap — is why. "Compliant · pending" is the same
+       information at a third of the length, close enough to the phone's
+       own "C · pending" that it reads as the same shorthand at every
+       width; the full phrase stays exactly one tap away as the title and
+       exactly what a screen reader gets, unchanged. */
+    smLabel: "Compliant · pending",
     short: "C · pending",
     Icon: IconClipboard,
     /* `acc` rather than `warn`. Not-available is already warn, and the two are
@@ -723,7 +737,19 @@ export default function CheckDetail({
         {/* ACSA'S OWN WORDS FIRST, verbatim and in quotation marks where the
             register quotes them, with the document and clause that carry them.
             This is the only text on this screen that can be put to ACSA as
-            their own. */}
+            their own.
+
+            max-w-[92ch] IS THE READABLE LINE LENGTH, NOT A LAYOUT ACCIDENT —
+            every text block in this panel caps at it so a long paragraph
+            does not stretch edge to edge and become hard to track line to
+            line. Sarel, on a wide desktop window: real empty space to the
+            right of it, wasted rather than planned. Both things are true —
+            92ch stays the cap up to xl (1280px), where the panel is at
+            tablet-ish width and the cap is doing its job; xl:max-w-[150ch]
+            widens it only once the window is wide enough that the gutter
+            was genuinely idle rather than protecting readability. Every
+            occurrence in this component carries the same pair, so the
+            panel reads as one typographic decision, not seven. */}
         {check.acsaRequirement && (
           <div className="mb-2.5">
             <div className="label-xs" style={{ color: "var(--ink-4)" }}>
@@ -733,14 +759,14 @@ export default function CheckDetail({
                   .map((d) => `${d.doc}${d.clause ? ` cl. ${d.clause}` : ""}`)
                   .join("; ")}`}
             </div>
-            <div className="mt-1 max-w-[92ch] text-[12.5px] leading-[1.55]">
+            <div className="mt-1 max-w-[92ch] xl:max-w-[150ch] text-[12.5px] leading-[1.55]">
               {check.acsaRequirement}
             </div>
           </div>
         )}
 
         <div className="label-xs">The standard to audit against · the register&rsquo;s own column</div>
-        <div className="mt-1 max-w-[92ch] text-[13.5px] leading-[1.5] font-semibold">
+        <div className="mt-1 max-w-[92ch] xl:max-w-[150ch] text-[13.5px] leading-[1.5] font-semibold">
           {check.target || "—"}
         </div>
 
@@ -827,7 +853,7 @@ export default function CheckDetail({
                   ? ", seen on the walk"
                   : ", nothing to see on site"}
             </div>
-            <div className="mt-1 max-w-[92ch] text-[12.5px] leading-[1.55]" style={{ color: "var(--ink-2)" }}>
+            <div className="mt-1 max-w-[92ch] xl:max-w-[150ch] text-[12.5px] leading-[1.55]" style={{ color: "var(--ink-2)" }}>
               {check.complianceTest}
             </div>
           </div>
@@ -889,7 +915,7 @@ export default function CheckDetail({
         </div>
         {explained ? (
           <div className="relative">
-            <div className="mt-1 max-w-[92ch] pr-6 text-[12.5px] leading-[1.55]" style={{ color: "var(--ink-2)" }}>
+            <div className="mt-1 max-w-[92ch] xl:max-w-[150ch] pr-6 text-[12.5px] leading-[1.55]" style={{ color: "var(--ink-2)" }}>
               {explained}
             </div>
             <button
@@ -1024,7 +1050,7 @@ export default function CheckDetail({
                 than borrowing an authority nobody gave it. */}
             {pf.derived && " · derived from the 2025 findings"}
           </div>
-          <div className="mt-1 max-w-[92ch] text-[12.5px] leading-[1.55]" style={{ color: "var(--warn)" }}>
+          <div className="mt-1 max-w-[92ch] xl:max-w-[150ch] text-[12.5px] leading-[1.55]" style={{ color: "var(--warn)" }}>
             {pf.note}
           </div>
         </>
@@ -1045,6 +1071,7 @@ export default function CheckDetail({
 
   const photos = r.attachments.filter((x) => x.kind === "photo").length;
   const voice = r.attachments.find((x) => x.kind === "voice");
+  const files = r.attachments.filter((x) => x.kind === "file").length;
 
   return (
     <div ref={scrollRef} className="app-scroll flex min-w-0 flex-1 flex-col overflow-y-auto">
@@ -1160,7 +1187,7 @@ export default function CheckDetail({
             one is capped at three lines with a control to open it. Short ones —
             the great majority — get no clamp and no extra control. */}
         <h2
-          className={`max-w-[92ch] font-bold ${
+          className={`max-w-[92ch] xl:max-w-[150ch] font-bold ${
             stuck && !titleOpen
               ? "line-clamp-1 text-[13px] leading-[1.35]"
               : `text-[15.5px] leading-[1.3]${
@@ -1200,11 +1227,13 @@ export default function CheckDetail({
           are what the auditor says out loud and what they are there to
           collect, so they never move and are never behind a tab.
 
-          The question is not clamped — half the register carries none at all
-          and the longest runs to three lines, which is cheap next to reading
-          only half of what you are about to ask. The evidence sentence is one
-          line, because the longest runs to 606 characters; the whole of it is
-          under ACSA wording, one press away, and the line says so. */}
+          Neither is clamped at rest — half a question or half an evidence
+          list is worse than a few extra lines, and the longest evidence
+          sentence runs to 606 characters, which used to be cut to one line
+          with an ellipsis. Sarel: make sure it expands so all the text is
+          visible, not cut off. Both still clamp to one line once the header
+          is "stuck" (scrolled), the same bargain the pinned title already
+          makes — full text is one scroll-to-top away, not gone. */}
       {(check.question || evidenceLine) && (
         <div
           className="border-b px-5 py-[8px]"
@@ -1228,7 +1257,7 @@ export default function CheckDetail({
                    same bargain the title makes and for the same reason: on a
                    phone every pinned line is a line of the check you cannot
                    see. It comes back by scrolling to the top. */
-                className={`min-w-0 max-w-[92ch] text-[13.5px] leading-[1.4] font-semibold${
+                className={`min-w-0 max-w-[92ch] xl:max-w-[150ch] text-[13.5px] leading-[1.4] font-semibold${
                   stuck ? " line-clamp-1" : ""
                 }`}
                 style={{ color: "var(--acc)" }}
@@ -1241,17 +1270,20 @@ export default function CheckDetail({
             <button
               onClick={() => setPanel("acsa")}
               title={evidenceLine}
-              className="mt-[3px] flex w-full items-baseline gap-2 text-left"
+              className="mt-[3px] flex w-full items-start gap-2 text-left"
             >
-              <span className="label-xs shrink-0">Evidence</span>
-              <span className="min-w-0 flex-1 truncate text-[12px]" style={{ color: "var(--ink-2)" }}>
+              <span className="label-xs shrink-0 pt-[1px]">Evidence</span>
+              <span
+                className={`min-w-0 flex-1 text-[12px] leading-[1.4]${stuck ? " truncate" : ""}`}
+                style={{ color: "var(--ink-2)" }}
+              >
                 {evidenceLine}
               </span>
               <span
-                className="shrink-0 font-mono text-[9px] tracking-[.04em] uppercase"
+                className="shrink-0 pt-[1px] font-mono text-[9px] tracking-[.04em] uppercase"
                 style={{ color: "var(--acc)" }}
               >
-                all of it
+                ACSA wording
               </span>
             </button>
           )}
@@ -1569,37 +1601,6 @@ export default function CheckDetail({
             paddingBottom: "calc(0.5rem + var(--sticky-safe))",
           }}
         >
-          <div
-            /* Hidden on a phone, where the same fact is a pill in the pinned
-               header and this row is 26px the check-list cannot spare. */
-            className="hidden items-center gap-[6px] font-mono text-[10px] sm:flex"
-            style={{ color: "var(--ink-3)" }}
-          >
-            {/* Both halves, named. "Captured" on a check that also needs the
-                asset seen would be a claim nobody has earned yet. */}
-            <span
-              /* Decorative: the words immediately after it say the same thing —
-                 "complete · Sarel", "desk done", "not captured yet". The colour
-                 is there to be read at a glance, not to be the only reading. */
-              aria-hidden
-              className="h-[6px] w-[6px] rounded-full"
-              style={{
-                background: r.captured
-                  ? "var(--good)"
-                  : r.deskDoneAt
-                    ? "var(--warn)"
-                    : "var(--line-3)",
-              }}
-            />
-            {r.captured
-              ? `complete · ${r.capturedBy.split(" ")[0]}`
-              : r.deskDoneAt
-                ? `desk done by ${r.deskDoneBy.split(" ")[0]} · awaiting site`
-                : "not captured yet"}
-            {needsField(check) && r.fieldDoneAt && ` · site seen by ${r.fieldDoneBy.split(" ")[0]}`}
-            {r.issuesPicked.length > 0 &&
-              ` · ${r.issuesPicked.length} finding${r.issuesPicked.length > 1 ? "s" : ""}`}
-          </div>
           {/* WRITING IT DOWN AND ANSWERING IT, IN ONE BAR.
 
               These four used to be their own row above the observation field,
@@ -1625,6 +1626,19 @@ export default function CheckDetail({
                 onSaved(`Photo attached to ${portalId}`);
               }}
             />
+            {/* Sarel: "add an option to add multiple evidence files all
+                general formats." Same 44px target and same row as Photo —
+                this is the other thing an auditor attaches as evidence,
+                just not a photograph: a PDF handed over on site, a
+                spreadsheet, a certificate. FileButton already accepts
+                multiple files per pick. */}
+            <FileButton
+              compact
+              onCaptured={(m) => {
+                addAttachment(check.id, { ...m, createdBy: auditor });
+                onSaved(`File attached to ${portalId}`);
+              }}
+            />
             {/* What is already attached. The label row above the observation
                 says the same thing and is desk-only, so on a phone these pills
                 are the only place it is said. */}
@@ -1634,6 +1648,11 @@ export default function CheckDetail({
               </Pill>
             )}
             {voice && <Pill tone="accent">voice note</Pill>}
+            {files > 0 && (
+              <Pill>
+                {files} file{files > 1 ? "s" : ""}
+              </Pill>
+            )}
           </div>
 
           {/* THE VERDICT, THEN THE THINGS THAT ARE NOT A VERDICT.
@@ -1667,14 +1686,15 @@ export default function CheckDetail({
                     title={st.label}
                     /* min-w-0 lets the grid keep all three columns the same
                        width — without it a flex child's default min-width is
-                       its own content, so "Compliant, evidence pending"
-                       forced its column wider than the other two and the row
-                       read as three unevenly sized buttons. Dropping
-                       whitespace-nowrap in favour of leading-tight/text-center
-                       is what pays for that back: on the one label long
-                       enough to need it, it wraps to two centred lines
-                       instead of overflowing sideways; the short labels never
-                       reach two lines, so they're unaffected. */
+                       its own content, so a long label forces its column
+                       wider than the other two and the row reads as three
+                       unevenly sized buttons. Sarel: even one label
+                       wrapping made these read as too big — smLabel (see
+                       the STATUSES entry) shortens the one row that ever
+                       needed to wrap, so at rest every button is a single
+                       compact line; min-w-0 and dropping whitespace-nowrap
+                       both stay as the fallback for anything narrower than
+                       this was tuned against, not the everyday case. */
                     /* outline-none, and deliberately no focus ring in its
                        place. Without it the browser's own default outline
                        (2px, not offset) stacks outside the tone ring above
@@ -1688,16 +1708,18 @@ export default function CheckDetail({
                        the affordance here, same as every other custom
                        button in this app — none of them add a focus ring
                        either. */
-                    className="flex min-h-[44px] min-w-0 items-center justify-center gap-[6px] rounded-[10px] border-[1.5px] px-[7px] py-1.5 text-center font-display text-[11px] leading-tight font-semibold outline-none transition-[var(--t)] sm:px-[10px] sm:text-[11.5px]"
+                    className="flex min-h-[44px] min-w-0 items-center justify-center gap-[5px] rounded-[10px] border-[1.5px] px-[6px] py-1 text-center font-display text-[10.5px] leading-tight font-semibold outline-none transition-[var(--t)] sm:px-[8px] sm:text-[11px]"
                     style={toneStyle(st.tone, on)}
                   >
-                    <st.Icon width={14} height={14} className="shrink-0" />
-                    {/* ACSA's own code on a phone, the words everywhere else.
-                        C, NC, N/A and NV are not abbreviations invented here:
-                        they are what the record stores and what the export
-                        column says. */}
+                    <st.Icon width={13} height={13} className="shrink-0" />
+                    {/* ACSA's own code on a phone, the words everywhere else
+                        — smLabel where the full phrase is too long to fit
+                        one line, otherwise the same full phrase. C, NC, N/A
+                        and NV are not abbreviations invented here: they are
+                        what the record stores and what the export column
+                        says. */}
                     <span className="sm:hidden">{st.short}</span>
-                    <span className="hidden sm:inline">{st.label}</span>
+                    <span className="hidden sm:inline">{st.smLabel ?? st.label}</span>
                   </button>
                 );
               })}
@@ -1715,12 +1737,12 @@ export default function CheckDetail({
                     aria-label={st.label}
                     aria-pressed={on}
                     title={st.label}
-                    className="flex min-h-[44px] min-w-0 items-center justify-center gap-[6px] rounded-[10px] border px-[7px] font-display text-[11px] font-semibold whitespace-nowrap outline-none transition-[var(--t)] sm:px-[10px]"
+                    className="flex min-h-[44px] min-w-0 items-center justify-center gap-[5px] rounded-[10px] border px-[6px] font-display text-[10.5px] font-semibold whitespace-nowrap outline-none transition-[var(--t)] sm:px-[8px] sm:text-[11px]"
                     style={toneStyle(st.tone, on, true)}
                   >
-                    <st.Icon width={13} height={13} className="shrink-0" />
+                    <st.Icon width={12} height={12} className="shrink-0" />
                     <span className="sm:hidden">{st.short}</span>
-                    <span className="hidden sm:inline">{st.label}</span>
+                    <span className="hidden sm:inline">{st.smLabel ?? st.label}</span>
                   </button>
                 );
               })}
@@ -1739,6 +1761,45 @@ export default function CheckDetail({
             <Btn icon onClick={onNext} aria-label="Next">
               <IconRight width={14} height={14} />
             </Btn>
+          </div>
+
+          {/* Sarel: this note was taking a lot of space, crowded in beside
+              Photo/the verdict grid/Save. It used to sit first in this row,
+              competing for width with four other controls that all need
+              room; `w-full` on a flex-wrap row forces it onto its own line
+              below them instead — same information, but it no longer
+              squeezes anything else, and the row above stays exactly as
+              wide as the controls actually need. Hidden on a phone, where
+              the same fact is already a pill in the pinned header and this
+              line is 26px the check-list cannot spare. */}
+          <div
+            className="hidden w-full items-center gap-[6px] font-mono text-[10px] sm:flex"
+            style={{ color: "var(--ink-3)" }}
+          >
+            {/* Both halves, named. "Captured" on a check that also needs the
+                asset seen would be a claim nobody has earned yet. */}
+            <span
+              /* Decorative: the words immediately after it say the same thing —
+                 "complete · Sarel", "desk done", "not captured yet". The colour
+                 is there to be read at a glance, not to be the only reading. */
+              aria-hidden
+              className="h-[6px] w-[6px] rounded-full"
+              style={{
+                background: r.captured
+                  ? "var(--good)"
+                  : r.deskDoneAt
+                    ? "var(--warn)"
+                    : "var(--line-3)",
+              }}
+            />
+            {r.captured
+              ? `complete · ${r.capturedBy.split(" ")[0]}`
+              : r.deskDoneAt
+                ? `desk done by ${r.deskDoneBy.split(" ")[0]} · awaiting site`
+                : "not captured yet"}
+            {needsField(check) && r.fieldDoneAt && ` · site seen by ${r.fieldDoneBy.split(" ")[0]}`}
+            {r.issuesPicked.length > 0 &&
+              ` · ${r.issuesPicked.length} finding${r.issuesPicked.length > 1 ? "s" : ""}`}
           </div>
         </div>
       </div>

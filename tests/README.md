@@ -39,7 +39,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | Suite | Needs a server | Assertions run |
 |---|---|---|
 | `risk-matrix.test.mjs` | no | 48 |
-| `capture.test.mjs` | no | 28 |
+| `capture.test.mjs` | no | 33 |
 | `scope.test.mjs` | no | 48 |
 | `carryforward.test.mjs` | no | 48 |
 | `review.test.mjs` | no | 34 |
@@ -86,7 +86,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 61 |
 | `a11y.js` | yes | 71 |
 
-**2,180 assertions in total**, every count above verified by running the suite,
+**2,185 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -116,12 +116,17 @@ node tests/risk-matrix.test.mjs
 
 ## `capture.test.mjs`
 
-Guards that voice and photo capture stay real. Before it existed, "Voice note"
-flipped a boolean and wrote `a?.IO[0]?.finding` — the first issue option from
-the Answer Library — into the auditor's observation as though it had been
-dictated on site, with a fixed `durationSec: 14`; "Photo" wrote a filename and
-no image; field mode used a generated colour swatch. None of it was visible on
-screen, and all of it would have reached an ACSA report as evidence.
+Guards that voice, photo and evidence-file capture stay real. Before it
+existed, "Voice note" flipped a boolean and wrote `a?.IO[0]?.finding` — the
+first issue option from the Answer Library — into the auditor's observation
+as though it had been dictated on site, with a fixed `durationSec: 14`;
+"Photo" wrote a filename and no image; field mode used a generated colour
+swatch. None of it was visible on screen, and all of it would have reached an
+ACSA report as evidence. Part 6 holds `FileButton`/`FileRow` (the general-
+format multi-file attachment, added 30 Sep 2026) to the same standard: no
+`accept="image/*"` narrowing it to photographs, a real `file.size`/`file.type`
+rather than a placeholder, and the attachment strip actually renders
+`kind: "file"` rather than silently dropping it.
 
 Like `risk-matrix.test.mjs` it reads the source rather than running it, because
 the fabrication was in what the code *said*. **Run it after any edit to

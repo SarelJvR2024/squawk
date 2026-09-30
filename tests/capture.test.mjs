@@ -213,6 +213,48 @@ check(
   ""
 );
 
+/* --------------------------- Part 6: evidence files, any format, never lost */
+
+/* Sarel: "add an option to add multiple evidence files all general formats."
+ *  The same discipline as Parts 1-5 applies to a third kind — nothing
+ *  fabricated, nothing silently dropped, the file picked is the file stored. */
+
+check(
+  "the file control accepts general formats, not just images",
+  /export function FileButton/.test(capture) &&
+    (() => {
+      const body = capture.slice(capture.indexOf("export function FileButton"));
+      const input = body.slice(0, body.indexOf("</>"));
+      return !/accept="image\/\*"/.test(input) && !/capture="environment"/.test(input);
+    })(),
+  "a picker restricted to images cannot take a PDF or a spreadsheet"
+);
+
+check(
+  "a file attachment carries the file's real size and type, not a placeholder",
+  /bytes: file\.size/.test(capture) && /mimeType: file\.type \|\| "application\/octet-stream"/.test(capture),
+  "a made-up size or type is the same fabrication Part 1 exists to catch"
+);
+
+check(
+  "both capture surfaces route file attachments through the shared control",
+  /FileButton/.test(checkDetail),
+  "a second implementation is how the first one drifted, same as Part 2"
+);
+
+check(
+  "the attachment type actually allows the file kind",
+  /kind: "photo" \| "voice" \| "file"/.test(types),
+  "widening CapturedMedia without widening Attachment leaves file attachments unrepresentable in the persisted record"
+);
+
+check(
+  "AttachmentStrip renders file attachments instead of silently dropping them",
+  /const files = attachments\.filter\(\(a\) => a\.kind === "file"\)/.test(capture) &&
+    /files\.map\(\(a\) => \(/.test(capture),
+  "a kind the strip never filters for is a kind that vanishes from the screen after it is stored"
+);
+
 /* ------------------------------------------------------------------ result */
 
 console.log(
