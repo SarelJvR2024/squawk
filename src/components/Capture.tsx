@@ -37,13 +37,13 @@ import {
 import { useDictationEnabled, useEntityCode } from "@/lib/store";
 import { useRecordStore } from "@/lib/sync";
 import type { Attachment } from "@/lib/types";
-import { IconCamera, IconMic, IconSpark, IconX } from "./ui/icons";
+import { IconCamera, IconDownload, IconMic, IconPaperclip, IconSpark, IconX } from "./ui/icons";
 import { Pill } from "./ui/primitives";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 export interface CapturedMedia {
-  kind: "photo" | "voice";
+  kind: "photo" | "voice" | "file";
   name: string;
   blobKey: string;
   mimeType: string;
@@ -57,6 +57,16 @@ export interface CapturedMedia {
   takenAt?: number;
   caption?: string;
 }
+
+/** Narrowed per button, so a caller building a `Capture` (field tray) or an
+ *  `Attachment` (a check) that is itself still `"photo" | "voice"`-only —
+ *  see `field/page.tsx` — gets that guarantee from the type, not just from
+ *  which component happens to be on screen. Each button only ever
+ *  constructs its own kind; this says so once instead of trusting every
+ *  call site to know it. */
+export type PhotoCapture = CapturedMedia & { kind: "photo" };
+export type VoiceCapture = CapturedMedia & { kind: "voice" };
+export type FileCapture = CapturedMedia & { kind: "file" };
 
 const TAP =
   "inline-flex h-[44px] items-center justify-center gap-[7px] rounded-[11px] border px-[13px] text-[12px] font-semibold transition-[var(--t)] active:translate-y-[1px] disabled:opacity-40 disabled:cursor-not-allowed";
@@ -104,7 +114,7 @@ export function VoiceNoteButton({
   inline = false,
   className = "",
 }: {
-  onCaptured: (m: CapturedMedia) => void;
+  onCaptured: (m: VoiceCapture) => void;
   compact?: boolean;
   /** Square and 34px, for sitting inside the observation box. Implies
    *  `compact` — there is no room for a label — and while recording it still
@@ -304,7 +314,7 @@ export function PhotoButton({
   primary = false,
   className = "",
 }: {
-  onCaptured: (m: CapturedMedia) => void;
+  onCaptured: (m: PhotoCapture) => void;
   compact?: boolean;
   label?: string;
   primary?: boolean;
@@ -404,6 +414,103 @@ export function PhotoButton({
            seconds: an auditor mid-walk is looking at a switch room, not at the
            tablet, and a photograph that was not stored is not a notification —
            it is a thing they have to go back and do again. */
+        <span
+          role="alert"
+          className="max-w-[34ch] text-[10.5px] leading-[1.4] font-semibold"
+          style={{ color: "var(--bad)" }}
+        >
+          {failed}
+        </span>
+      )}
+    </>
+  );
+}
+
+/* ---------- evidence file, any format ----------
+
+   Sarel: "add an option to add multiple evidence files all general
+   formats." Photo and voice each know their own shape — an image gets
+   downscaled and thumbnailed, audio gets a duration and a transcript —
+   and neither of those is true of a spreadsheet or a PDF. No `accept`
+   and no `capture`, deliberately: this is the plain file picker, not the
+   camera, and it takes anything the OS will hand over. Stored exactly as
+   selected, one putBlob per file, same as a photograph's original before
+   preparePhoto touches it — there is nothing to re-encode a document
+   into. */
+
+export function FileButton({
+  onCaptured,
+  compact = false,
+  className = "",
+}: {
+  onCaptured: (m: FileCapture) => void;
+  compact?: boolean;
+  className?: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        className="hidden"
+        multiple
+        onChange={async (e) => {
+          const files = Array.from(e.target.files ?? []);
+          /* Let the same file be picked twice in a row — without this the
+             input holds the previous value and fires nothing. */
+          e.target.value = "";
+          let stored = 0;
+          const lost: string[] = [];
+          for (const file of files) {
+            try {
+              const blobKey = `file-${uid()}`;
+              await putBlob(blobKey, file);
+              onCaptured({
+                kind: "file",
+                name: file.name || "evidence file",
+                blobKey,
+                mimeType: file.type || "application/octet-stream",
+                bytes: file.size,
+                takenAt: file.lastModified || undefined,
+              });
+              stored++;
+            } catch (err) {
+              /* PER FILE, and the loop goes on — see the identical reasoning
+                 on PhotoButton above. Picking six documents and having the
+                 third fail should not lose the other five. */
+              lost.push(file.name || "a file");
+              setFailed(whyItFailed(err));
+            }
+          }
+          if (lost.length && stored > 0) {
+            setFailed(
+              `${stored} stored, ${lost.length} NOT stored (${lost.join(", ")}). ` +
+                "Open Export, download this audit's photographs, then clear them and add these again."
+            );
+          } else if (!lost.length) {
+            setFailed(null);
+          }
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        aria-label="Attach evidence files"
+        title="Attach one or more files as evidence — any format: PDF, Word, Excel, photos taken elsewhere, anything."
+        className={`${TAP} ${className}`}
+        style={{
+          background: "var(--panel)",
+          borderColor: "var(--line-2)",
+          color: "var(--ink-2)",
+        }}
+      >
+        <IconPaperclip width={15} height={15} />
+        {compact ? null : "Files"}
+      </button>
+      {failed && (
         <span
           role="alert"
           className="max-w-[34ch] text-[10.5px] leading-[1.4] font-semibold"
@@ -1026,6 +1133,75 @@ function PhotoRow({
   );
 }
 
+/** One attached file: name, size, and a way to open it. No thumbnail and no
+ *  caption — unlike a photograph this is not evidence TPJV wrote up, it is
+ *  ACSA's own document handed over on site (or a spreadsheet, a certificate,
+ *  whatever an auditor picked), so the file's own name is the record of
+ *  what it is. */
+function FileRow({
+  a,
+  onRemove,
+}: {
+  a: Attachment;
+  onRemove?: () => void;
+}) {
+  const { url, missing } = useBlobUrl(a.blobKey);
+  const dead = a.unavailable || (missing && !a.dataUrl);
+
+  return (
+    <div
+      className="flex items-center gap-[9px] rounded-[9px] border px-[9px] py-[7px]"
+      style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+    >
+      <span
+        className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[7px]"
+        style={{ background: "var(--sunken)", color: "var(--ink-3)" }}
+      >
+        <IconPaperclip width={15} height={15} />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-[11.5px] font-semibold" style={{ color: "var(--ink-1)" }} title={a.name}>
+          {a.name}
+        </span>
+        <span className="flex flex-wrap items-center gap-[6px] font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+          {dead ? (
+            <span className="line-through">no longer stored on this device</span>
+          ) : (
+            <>
+              {a.bytes ? <span>{formatBytes(a.bytes)}</span> : null}
+              {a.mimeType && <span>{a.mimeType}</span>}
+              {a.takenAt && <span>added {new Date(a.takenAt).toLocaleString("en-ZA")}</span>}
+            </>
+          )}
+        </span>
+      </span>
+      {!dead && url && (
+        <a
+          href={url}
+          download={a.name}
+          aria-label={`Open ${a.name}`}
+          title="Open or save this file"
+          className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[7px] border"
+          style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+        >
+          <IconDownload width={13} height={13} />
+        </a>
+      )}
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Remove ${a.name}`}
+          className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[7px] border"
+          style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+        >
+          <IconX width={12} height={12} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function AttachmentStrip({
   attachments,
   onRemove,
@@ -1050,6 +1226,7 @@ export function AttachmentStrip({
   const aiOn = useAssistAvailable();
   const photos = attachments.filter((a) => a.kind === "photo");
   const voices = attachments.filter((a) => a.kind === "voice");
+  const files = attachments.filter((a) => a.kind === "file");
   if (attachments.length === 0) return null;
 
   return (
@@ -1078,6 +1255,9 @@ export function AttachmentStrip({
           writeUp={writeUp}
           onAccept={onAccept}
         />
+      ))}
+      {files.map((a) => (
+        <FileRow key={a.id} a={a} onRemove={onRemove ? () => onRemove(a.id) : undefined} />
       ))}
     </div>
   );

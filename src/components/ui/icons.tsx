@@ -214,3 +214,19 @@ export const IconPlus = (p: SVGProps<SVGSVGElement>) => (
     <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
   </svg>
 );
+
+/** A paperclip — attaching a file, not taking a photograph or a document
+ *  written by hand. Deliberately not the clipboard used for "evidence
+ *  pending": that one means a verdict awaiting proof, this one means a
+ *  file has been attached. */
+export const IconPaperclip = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...s(p)}>
+    <path
+      d="M17.5 8.5l-7.1 7.1a3 3 0 004.2 4.2l7.5-7.5a5 5 0 00-7.1-7.1L7.4 12.8a7 7 0 009.9 9.9"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);

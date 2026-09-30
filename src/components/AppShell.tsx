@@ -528,7 +528,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                    thing in the app was already 44 or more — 8 undersized
                    targets out of 130, and all 8 of them were these, the
                    controls used more than anything else. */
-                className="flex min-h-[44px] items-center gap-[6px] whitespace-nowrap rounded-[8px] px-3 py-[6px] font-display text-[11.5px] font-semibold no-underline transition-[var(--t)]"
+                /* px-[9px] not px-3 — Sarel, wide desktop: "the top menu bar is
+                   getting very full, review how this can be utilised and not
+                   have to scroll." Measured before touching it: at 1920px
+                   nine items with px-3 need 1173px and just fit; the same
+                   nine at 1440px need 756px of room and get it, 374px short.
+                   Horizontal padding alone cannot close that on its own —
+                   see the note on the fixed-width cluster to the right of
+                   this nav, and the one on NAV itself, for the rest of what
+                   this pass changed. */
+                className="flex min-h-[44px] items-center gap-[5px] whitespace-nowrap rounded-[8px] px-[9px] py-[6px] font-display text-[11.5px] font-semibold no-underline transition-[var(--t)]"
                 style={{
                   background: active ? "var(--panel)" : "transparent",
                   color: active ? "var(--acc)" : "var(--ink-2)",
@@ -577,7 +586,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                      able to say "yes, really, zero" without the badge lying by
                      omission the way IsfStage's zero-value cases refuse to. */
                   <span
-                    className="rounded-full px-[5px] font-mono text-[9px]"
+                    className="rounded-full px-[4px] font-mono text-[9px]"
                     style={
                       /^0\//.test(String(badge))
                         ? { background: "transparent", color: "var(--ink-4)" }
@@ -627,7 +636,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <button
           onClick={() => setPalette(true)}
           aria-label="Jump to check"
-          className="hidden min-h-[44px] shrink-0 items-center gap-[7px] rounded-[11px] border border-transparent px-[10px] py-[6px] text-[11.5px] transition-[var(--t)] sm:flex lg:min-w-[150px]"
+          /* lg:min-w-[130px], not 150 — one of several small cuts across the
+             fixed-width controls to the right of the nav, made together
+             with the nav's own tightening above. Each fixed control here is
+             shrink-0, so every pixel any of them saves is a pixel the nav
+             gets back; none alone closes the gap, together they measurably
+             narrow it. */
+          className="hidden min-h-[44px] shrink-0 items-center gap-[7px] rounded-[11px] border border-transparent px-[10px] py-[6px] text-[11.5px] transition-[var(--t)] sm:flex lg:min-w-[130px]"
           style={{ background: "var(--sunken)", color: "var(--ink-3)" }}
         >
           <IconSearch width={13} height={13} />
@@ -640,7 +655,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </kbd>
         </button>
 
-        <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {/* FIVE CONTROLS BECAME ONE BUTTON AND A PILL.
               Sync, Export, Reset and the shortcuts sheet stood in the masthead
               at every width, on every screen, for the whole audit. All four are
@@ -673,7 +688,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               onClick={() => { setMore((v) => !v); setRoleOpen(false); }}
               aria-expanded={more}
               aria-haspopup="menu"
-              className="flex min-h-[44px] items-center gap-[6px] rounded-[8px] border px-[10px] py-[7px] text-[11.5px] transition-[var(--t)]"
+              className="flex min-h-[44px] items-center gap-[5px] rounded-[8px] border px-[8px] py-[7px] text-[11.5px] transition-[var(--t)]"
               style={{
                 background: more ? "var(--acc-soft)" : "var(--panel)",
                 borderColor: more ? "var(--acc-line)" : "var(--line-2)",
@@ -828,7 +843,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               aria-expanded={roleOpen}
               aria-haspopup="menu"
               aria-label={`Viewing as ${role === "acsa" ? "ACSA" : "TPJV"} — change`}
-              className="flex min-h-[44px] items-center gap-[6px] rounded-[8px] border px-[10px] py-[7px] font-mono text-[10px] font-semibold transition-[var(--t)]"
+              className="flex min-h-[44px] items-center gap-[5px] rounded-[8px] border px-[8px] py-[7px] font-mono text-[10px] font-semibold transition-[var(--t)]"
               style={
                 role === "acsa"
                   ? { background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }
@@ -907,7 +922,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           )}
 
-          <div className="flex items-center gap-[9px] border-l pl-[11px]" style={{ borderColor: "var(--line)" }}>
+          <div className="flex items-center gap-[7px] border-l pl-[9px]" style={{ borderColor: "var(--line)" }}>
             {/* THE RING AND THE COUNT SAY THE SAME THING AT md+, and used to
                 say it twice — "0%" inside the ring, "0/324" beside it, both
                 visible at once. Below md the ring is the ONLY progress
@@ -945,7 +960,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 value={auditor}
                 onChange={(e) => setAuditor(e.target.value)}
                 aria-label="Auditor"
-                className="min-h-[44px] max-w-[132px] rounded-[8px] border px-[7px] text-[10.5px] outline-none"
+                className="min-h-[44px] max-w-[112px] rounded-[8px] border px-[7px] text-[10.5px] outline-none"
                 style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
               >
                 {AUDITORS.map((a) => (

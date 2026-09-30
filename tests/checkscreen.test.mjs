@@ -83,11 +83,11 @@ check(
 );
 
 check(
-  "the evidence line is one line, and says where the rest of it is",
-  /truncate[\s\S]{0,120}\{evidenceLine\}/.test(codeOnly) &&
+  "the evidence line is whole at rest, and one line only once the screen has been scrolled",
+  /stuck \? " truncate" : ""[\s\S]{0,120}\{evidenceLine\}/.test(codeOnly) &&
     /setPanel\("acsa"\)/.test(codeOnly) &&
-    /all of it/.test(codeOnly),
-  "the longest evidence sentence in the register runs to 606 characters"
+    /ACSA wording/.test(codeOnly),
+  "Sarel: make sure it expands so all the text is visible, not cut off — the longest evidence sentence in the register runs to 606 characters and used to be truncated at rest, same mistake the question line next to it never made"
 );
 
 check(
