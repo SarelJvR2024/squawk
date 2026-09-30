@@ -16,6 +16,7 @@ import {
   carriesWork,
   currentRatingOf,
   timelineFor,
+  useKnownHazardousEvents,
   useOutstanding,
   useStream,
   visitsOpen,
@@ -54,6 +55,11 @@ export default function ClosurePage() {
   const addPossibleEvent = useStore((s) => s.addPossibleEvent);
   const patchPossibleEvent = useStore((s) => s.patchPossibleEvent);
   const removePossibleEvent = useStore((s) => s.removePossibleEvent);
+  const hazards = useStore((s) => s.hazards);
+  const addHazard = useStore((s) => s.addHazard);
+  const updateHazard = useStore((s) => s.updateHazard);
+  const auditor = useStore((s) => s.auditor);
+  const knownEvents = useKnownHazardousEvents();
   const [progressText, setProgressText] = useState("");
   const updateFinding = useStore((s) => s.updateFinding);
   const entity = useEntity();
@@ -642,6 +648,27 @@ export default function ClosurePage() {
               </div>
               <h3 className="mb-1 text-[14.5px] leading-[1.35] font-bold">{active.finding}</h3>
 
+              {/* WHY, not just WHAT. Sarel, looking at "Tolerable" on its own:
+                  "we dont see the reason or explanation why, this need to be
+                  visible for the user on the same timeline." The finding text
+                  above is what was found; this is the basis the rating was
+                  actually built on, carried straight through from the origin
+                  record rather than re-derived, so it can never disagree with
+                  the report it came from. */}
+              {(active.severity || active.likelihood || active.riskPriority) && (
+                <div
+                  className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[9px] border px-[10px] py-[7px] text-[11.5px]"
+                  style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
+                >
+                  <span className="label-xs" style={{ color: "var(--ink-3)" }}>
+                    Why {active.rating.toLowerCase()}
+                  </span>
+                  {active.severity && <span>Severity {active.severity}</span>}
+                  {active.likelihood && <span>Likelihood {active.likelihood}</span>}
+                  {active.riskPriority && <span>Risk priority {active.riskPriority}</span>}
+                </div>
+              )}
+
               {/* lifecycle */}
               <div
                 className="no-scrollbar my-3 flex items-center overflow-x-auto rounded-[11px] border px-[13px] py-[11px]"
@@ -841,9 +868,73 @@ export default function ClosurePage() {
                   own likelihood. See the component — plural is the point. */}
               <PossibleEvents
                 events={v?.possibleEvents ?? []}
+                suggestions={knownEvents}
                 onAdd={(text) => {
                   addPossibleEvent(active.key, text);
-                  say("Event recorded — rate its likelihood");
+                  /* FLOWS TO HIRA ON ADD, not left sitting on this screen
+                     until somebody remembers to raise it. Sarel: "once it is
+                     captured/added it should flow to the HIRA view." An
+                     event already on this entity's register — matched on the
+                     same normalised text the suggestions above offer — links
+                     this finding into it rather than minting a second row for
+                     the same hazard; a genuinely new one gets its own, always
+                     unrated, because this screen names the event and the HIRA
+                     group is who rates it. */
+                  const normalised = text.trim().toLowerCase();
+                  const existing = hazards.find(
+                    (h) => h.entity === entityCode && h.event.trim().toLowerCase() === normalised
+                  );
+                  const findingRef = active.findingId ?? active.key;
+                  if (existing) {
+                    updateHazard(existing.id, {
+                      findingIds: existing.findingIds.includes(findingRef)
+                        ? existing.findingIds
+                        : [...existing.findingIds, findingRef],
+                      disciplines: existing.disciplines.includes(active.discipline)
+                        ? existing.disciplines
+                        : [...existing.disciplines, active.discipline],
+                      systems: existing.systems.includes(active.system)
+                        ? existing.systems
+                        : [...existing.systems, active.system],
+                    });
+                    say(`${text.trim()} — already on HIRA, linked to ${active.key}`);
+                  } else {
+                    addHazard({
+                      originVisit: visitId,
+                      event: text.trim(),
+                      description: "",
+                      why: "",
+                      findingIds: [findingRef],
+                      disciplines: [active.discipline],
+                      systems: [active.system],
+                      areas: [],
+                      otherImpacts: [],
+                      /* Unrated, on both instruments, always. This screen
+                         names the event; the HIRA group rates it. */
+                      severity: null,
+                      likelihood: null,
+                      ratingConfirmed: false,
+                      ermConsequence: null,
+                      ermLikelihood: null,
+                      ermConfirmed: false,
+                      ermLikelihoodAssumed: false,
+                      /* Raised against an existing finding, not fresh off a
+                         walk — the case `consolidated` exists for. */
+                      origin: "consolidated",
+                      note: `Raised from the follow-up conversation on ${active.key} — ${active.finding}`,
+                      occurrence: "",
+                      ratingRationale: "",
+                      progress: [],
+                      immediate: false,
+                      reassessedAt: null,
+                      reassessNote: "",
+                      rootCause: "",
+                      actions: [],
+                      actionStatus: "Open",
+                      createdBy: auditor,
+                    });
+                    say(`${text.trim()} — now on HIRA, rate its likelihood there`);
+                  }
                 }}
                 onPatch={(id, patch) => patchPossibleEvent(active.key, id, patch)}
                 onRemove={(id) => {

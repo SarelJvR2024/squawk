@@ -77,6 +77,15 @@ export function areasAt(entityCode: string): string[] {
   return Array.from(new Set(checksAt(entityCode).map((c) => c.area))).sort();
 }
 
+/** Every asset system at this entity, across every discipline — unlike
+ *  systemsOf, which takes one. A hazard spans disciplines by nature (see the
+ *  header of Hazard in types.ts), so picking which asset systems it impacts
+ *  cannot be scoped to a single discipline's list without ruling out the
+ *  other disciplines' systems before the auditor has even looked. */
+export function systemsAt(entityCode: string): string[] {
+  return Array.from(new Set(checksAt(entityCode).map((c) => c.system))).sort();
+}
+
 /** The whole register's disciplines, in register order — for the one place
  *  that legitimately needs them all: the portfolio view across ten sites. */
 export const ALL_DISCIPLINES = Array.from(new Set(CHECKS.map((c) => c.discipline)));

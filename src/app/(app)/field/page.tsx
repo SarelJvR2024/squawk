@@ -1146,6 +1146,8 @@ export default function FieldPage() {
                     findingIds: [],
                     disciplines: [adhocDisc],
                     systems: [adhocArea],
+                    areas: [],
+                    otherImpacts: [],
                     /* Unrated, on both instruments, always. The walk names the
                        event; the group rates it. */
                     severity: null,
@@ -1165,9 +1167,7 @@ export default function FieldPage() {
                     reassessedAt: null,
                     reassessNote: "",
                     rootCause: "",
-                    action: "",
-                    owner: "",
-                    dueDate: "",
+                    actions: [],
                     actionStatus: "Open",
                     createdBy: auditor,
                   });

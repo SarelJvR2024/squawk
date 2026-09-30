@@ -26,7 +26,7 @@
  *  and the default: what this captures is the auditor's list for that
  *  conversation, not the outcome of it. */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Likelihood, PossibleEvent } from "@/lib/types";
 import { LIKELIHOODS } from "@/lib/risk";
 import { Btn } from "@/components/ui/primitives";
@@ -37,18 +37,38 @@ export default function PossibleEvents({
   onAdd,
   onPatch,
   onRemove,
+  /** Every event already on record at this entity — Hazards and earlier
+   *  PossibleEvents both — so typing one that already exists offers the
+   *  existing wording instead of a near-duplicate. Optional and defaults to
+   *  none, so a caller that has not wired suggestions yet gets the plain
+   *  input rather than a crash. */
+  suggestions = [],
 }: {
   events: PossibleEvent[];
   onAdd: (event: string) => void;
   onPatch: (id: string, p: Partial<PossibleEvent>) => void;
   onRemove: (id: string) => void;
+  suggestions?: string[];
 }) {
   const [draft, setDraft] = useState("");
-  const add = () => {
-    if (!draft.trim()) return;
-    onAdd(draft.trim());
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const add = (text: string) => {
+    if (!text.trim()) return;
+    onAdd(text.trim());
     setDraft("");
+    setSuggestOpen(false);
   };
+
+  /* TWO CHARACTERS BEFORE IT SPEAKS. A single letter matches half the
+     register and is noise, not help — the list earns its place once there is
+     enough to actually narrow on. SUBSTRING, not prefix: "oil fire" should
+     surface typing either "oil" or "fire", because an auditor recalling an
+     event rarely recalls which word came first. */
+  const matches = useMemo(() => {
+    const q = draft.trim().toLowerCase();
+    if (q.length < 2) return [];
+    return suggestions.filter((s) => s.toLowerCase().includes(q)).slice(0, 6);
+  }, [draft, suggestions]);
 
   return (
     <div className="mt-4">
@@ -159,18 +179,66 @@ export default function PossibleEvents({
       ))}
 
       <div className="flex flex-wrap gap-2">
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") add();
-          }}
-          placeholder="Uncontained oil fire at AS1…"
-          aria-label="Add a possible hazardous event"
-          className="min-w-0 flex-1 rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
-          style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-        />
-        <Btn disabled={!draft.trim()} onClick={add}>
+        <div className="relative min-w-0 flex-1">
+          <input
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setSuggestOpen(true);
+            }}
+            onFocus={() => setSuggestOpen(true)}
+            /* Not onBlur — a click on a suggestion below blurs the input
+               before the click's own handler runs, which would close the
+               list out from under the click. A short delay lets the click
+               land first; the suggestion button also stops it at the source
+               with onMouseDown, this is the belt on top of that braces. */
+            onBlur={() => setTimeout(() => setSuggestOpen(false), 120)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") add(draft);
+              if (e.key === "Escape") setSuggestOpen(false);
+            }}
+            placeholder="Uncontained oil fire at AS1…"
+            aria-label="Add a possible hazardous event"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={suggestOpen && matches.length > 0}
+            aria-controls="possible-event-suggestions"
+            className="w-full rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+            style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+          />
+          {suggestOpen && matches.length > 0 && (
+            <div
+              id="possible-event-suggestions"
+              role="listbox"
+              aria-label="Matching recorded events"
+              className="absolute top-[calc(100%+4px)] left-0 z-10 max-h-[220px] w-full overflow-y-auto rounded-[11px] border py-1"
+              style={{ background: "var(--panel)", borderColor: "var(--line-2)", boxShadow: "var(--e2)" }}
+            >
+              <div
+                className="px-3 pt-1 pb-1.5 font-mono text-[9px] uppercase tracking-[0.06em]"
+                style={{ color: "var(--ink-4)" }}
+              >
+                already on record — select to reuse, or keep typing for a new one
+              </div>
+              {matches.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    add(m);
+                  }}
+                  className="block w-full px-3 py-[7px] text-left text-[12px] transition-[var(--t)] hover:bg-[var(--acc-soft)]"
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <Btn disabled={!draft.trim()} onClick={() => add(draft)}>
           <IconPlus width={14} height={14} />
           Add event
         </Btn>

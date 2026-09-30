@@ -48,7 +48,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `reset.test.mjs` | no | 18 |
 | `completion.test.mjs` | no | 19 |
 | `location.test.mjs` | no | 51 |
-| `followup.test.mjs` | no | 51 |
+| `followup.test.mjs` | no | 60 |
 | `systems.test.mjs` | no | 70 |
 | `register-review.test.mjs` | no | 24 |
 | `suite-table.test.mjs` | no | 5 |
@@ -59,12 +59,12 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `voice.test.mjs` | no | 37 |
 | `sites.test.mjs` | no | 42 |
 | `photos.test.mjs` | no | 113 |
-| `hazards.test.mjs` | no | 114 |
+| `hazards.test.mjs` | no | 119 |
 | `erm-matrix.test.mjs` | no | 80 |
 | `sharepoint.test.mjs` | no | 194 |
 | `assets.test.mjs` | no | 21 |
 | `checkscreen.test.mjs` | no | 56 |
-| `merge.test.mjs` | no | 48 |
+| `merge.test.mjs` | no | 50 |
 | `figures.test.mjs` | no | 7 |
 | `home.test.mjs` | no | 58 |
 | `adhoc.test.mjs` | no | 43 |
@@ -74,7 +74,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `evidence.test.mjs` | no | 80 |
 | `e2e.js` | yes | 24 |
 | `robustness.js` | yes | 53 |
-| `exports.js` | yes | 33 |
+| `exports.js` | yes | 32 |
 | `ai.js` | yes, two of them | 27 |
 | `persite.js` | yes | 45 |
 | `vision.js` | starts its own | 23 |
@@ -86,7 +86,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 61 |
 | `a11y.js` | yes | 71 |
 
-**2,185 assertions in total**, every count above verified by running the suite,
+**2,200 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —

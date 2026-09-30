@@ -40,7 +40,7 @@ const ok = (n, c, x = "") => {
    the two used constantly. Opening the menu first is the real interaction, so
    it is what these suites do. */
 const openExport = async (page) => {
-  await page.locator("button", { hasText: /^More$/ }).first().click();
+  await page.locator("button", { hasText: /^More\b/ }).first().click();
   await page.waitForTimeout(400);
   await page.locator('[role="menuitem"]', { hasText: "Export the workbook" }).first().click();
   await page.waitForTimeout(700);

@@ -81,6 +81,19 @@ export interface Outstanding {
   findingId?: string;
   owner?: string;
   dueDate?: string;
+  /** THE BASIS FOR THE RATING, not just its name.
+   *
+   *  A finding rated Tolerable had a severity and a likelihood behind it —
+   *  the row used to show only the word, and a discipline lead reading
+   *  "Tolerable" with nothing behind it cannot tell a marginal call from an
+   *  obvious one without going back to the original report. Seeded items
+   *  carry Rev A2's own severity/likelihood/riskPriority strings verbatim;
+   *  carried items carry B170 001M's, computed the same way findings.tsx
+   *  already does (bandFor). Different vocabularies, same job — see
+   *  src/lib/risk.ts's own note on why they are not merged into one scale. */
+  severity?: string | null;
+  likelihood?: string | null;
+  riskPriority?: string | null;
 }
 
 const visitLabel = (id: string) =>
@@ -104,6 +117,9 @@ function fromSeeded(p: PriorFinding): Outstanding {
     rating: p.tolerance,
     originVisit,
     originLabel: visitLabel(originVisit),
+    severity: p.severity,
+    likelihood: p.likelihood,
+    riskPriority: p.riskPriority,
   };
 }
 
@@ -122,8 +138,15 @@ function fromCarried(f: Finding): Outstanding {
     originVisit: f.originVisit,
     originLabel: visitLabel(f.originVisit),
     findingId: f.id,
-    owner: f.owner,
-    dueDate: f.dueDate,
+    /* A finding can carry several mitigating actions now, each with its own
+       owner and date (see MitigationAction) — this header line only has
+       room for one, so it shows the first that has one, the same
+       "good enough for a summary line" compromise src/app/(app)/review/page.tsx
+       makes for the same reason. */
+    owner: f.actions.find((a) => a.owner)?.owner,
+    dueDate: f.actions.find((a) => a.dueDate)?.dueDate,
+    severity: f.severity,
+    likelihood: f.likelihood,
   };
 }
 
@@ -668,4 +691,56 @@ export function useStream(
     () => streamFor(byVisit, entityCode, portalId, visits, raised),
     [byVisit, entityCode, portalId, visits, raised]
   );
+}
+
+/** EVERY HAZARDOUS EVENT ALREADY ON RECORD AT THIS ENTITY, for typing a new
+ *  one against — Sarel: "once you start typing it should bring up similar
+ *  recorded events so that we dont duplicate."
+ *
+ *  Two sources, because the HIRA register is not the only place an event's
+ *  wording has ever been typed: a Hazard's own `event` is the canonical,
+ *  already-consolidated wording; a PossibleEvent recorded against a finding
+ *  on an earlier visit may never have been promoted (this existed before
+ *  PossibleEvents flowed into Hazards automatically) and would otherwise be
+ *  invisible to the search that is meant to stop it being retyped. Combining
+ *  both is what makes "does this already exist" a question the suggestion
+ *  list can actually answer.
+ *
+ *  SCOPED TO THIS ENTITY, deliberately, same as `useStream` above — a hazard
+ *  register is per-site (Hazard carries its own `entity`), so a King Shaka
+ *  wording offered while typing at O.R. Tambo would suggest a merge across
+ *  two registers that were never meant to share one. Across EVERY visit this
+ *  entity has had, not only the one in view, because an event typed in March
+ *  2025 is exactly the kind of duplicate this exists to catch. */
+export function useKnownHazardousEvents(): string[] {
+  const byVisit = useStore((s) => s.byVisit);
+  const hazards = useStore((s) => s.hazards);
+  const entityCode = useEntityCode();
+  const visits = useMemo(
+    () => PROGRAMME_VISITS.filter((v) => v.entity === entityCode),
+    [entityCode]
+  );
+  return useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    const add = (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      const key = trimmed.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(trimmed);
+    };
+    for (const h of hazards) {
+      if (h.entity === entityCode) add(h.event);
+    }
+    for (const v of visits) {
+      const d = byVisit[scopeKey(entityCode, v.id)];
+      if (!d) continue;
+      for (const rec of Object.values(d.verifications)) {
+        for (const e of rec.possibleEvents ?? []) add(e.event);
+      }
+    }
+    return out.sort((a, b) => a.localeCompare(b));
+  }, [byVisit, hazards, entityCode, visits]);
 }

@@ -96,8 +96,16 @@ const when = (r: { updatedAt?: number } | undefined) => r?.updatedAt ?? 0;
 export function rowsToPush(since: number): SharedRow[] {
   const s = useStore.getState();
   const d = s.visitData();
-  const mine = (r: { entity: string; originVisit: string }) =>
-    r.entity === s.entity && r.originVisit === s.visit;
+  /* BY ENTITY ONLY — NOT originVisit. A finding raised in an earlier visit and
+     carried forward is worked on again here: a root cause added, a mitigation
+     action logged, closure verified. Those are real edits with a real
+     updatedAt, made through this exact visit's screens (FindingDetail,
+     SystemTreatment). Scoping the push to originVisit === s.visit silently
+     dropped every one of them — the record changed on this device and never
+     left it, which is what Sarel saw as "not syncing between devices". The
+     entity is still the right boundary: it is what keeps one airport's rows
+     out of another's pull. */
+  const mine = (r: { entity: string }) => r.entity === s.entity;
   const rows: SharedRow[] = [];
 
   const add = (kind: SharedRow["kind"], id: string, at: number, payload: unknown) => {

@@ -60,6 +60,7 @@ import type {
   ErmConsequence,
   ErmLikelihood,
   Hazard,
+  MitigationAction,
   PriorFinding,
   ProgressNote,
   Response,
@@ -673,6 +674,29 @@ export function flattenProgress(notes: ProgressNote[] | undefined): string {
     .join("\n");
 }
 
+/** A hazard (or finding) can carry several mitigating actions now, each with
+ *  its own discipline, owner and date — the portal's `treatment` field is
+ *  still one text cell, so this flattens the same way flattenProgress does. */
+export function flattenActions(actions: MitigationAction[] | undefined): string {
+  if (!actions?.length) return "";
+  return actions
+    .map(
+      (m) =>
+        `${m.discipline ? `${m.discipline} — ` : ""}${m.action} · ${m.owner || "NO OWNER"} · ${m.dueDate || "NO TARGET DATE"} · ${m.status}`
+    )
+    .join("\n");
+}
+
+/** The single owner or date the portal's own `owner`/`targetDate` fields
+ *  expect — the first action that set one, same "good enough for one field"
+ *  compromise the follow-up and review screens make for the same reason. */
+function firstOwner(actions: MitigationAction[] | undefined): string {
+  return actions?.find((a) => a.owner)?.owner ?? "";
+}
+function firstDueDate(actions: MitigationAction[] | undefined): string | null {
+  return actions?.find((a) => a.dueDate)?.dueDate || null;
+}
+
 /** The evidence folder for one VISIT to one site, RELATIVE TO THE LIBRARY it
  *  is being written into: `King Shaka International Airport FALE/2026-09`.
  *
@@ -1162,9 +1186,9 @@ export function buildPlan(
         tolerance: priority ? (erm.ERM_PRIORITY_META[priority].tolerance ?? null) : null,
         status: h.actionStatus || "Open",
         rootCause: h.rootCause ?? "",
-        treatment: h.action ?? "",
-        owner: h.owner ?? "",
-        targetDate: h.dueDate || null,
+        treatment: flattenActions(h.actions),
+        owner: firstOwner(h.actions),
+        targetDate: firstDueDate(h.actions),
         progress: flattenProgress(h.progress),
         assets: sendableAssets(h.assetIds).join(", ") || null,
         dateRaised: h.createdAt ? new Date(h.createdAt).toISOString() : null,

@@ -42,8 +42,14 @@ const ok = (n, c, x = "") => {
     await page.waitForTimeout(4500);
     const body = await page.locator("body").innerText();
 
-    ok("the pre-flight screen is reachable from the nav on a phone",
-       await page.locator("a[href='/preflight']").first().isVisible().catch(() => false));
+    /* THEN: a top-level nav link, `a[href='/preflight']`. NOW: "move review,
+       safety, preflight into the more menu" — Pre-flight is a MoreItem button
+       (router.push, not an <a href>) reached by opening "More" first. Same
+       question, asked the way the screen now answers it. */
+    await page.locator("button", { hasText: "More" }).first().click();
+    ok("the pre-flight screen is reachable from the More menu on a phone",
+       await page.locator('[role="menuitem"]', { hasText: "Pre-flight" }).first().isVisible().catch(() => false));
+    await page.keyboard.press("Escape");
     ok("it opens without asking for anything", asked.length === 0, asked.join(" | "));
     ok("no page errors", errs.length === 0, errs[0] ?? "");
 

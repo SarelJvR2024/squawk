@@ -476,6 +476,32 @@ check(
   "a bundle is one audit's work, not a copy of the programme"
 );
 
+/* "THE AUDIT IN VIEW" IS THE ENTITY, NOT THE VISIT.
+ *
+ *  `mine` used to also require originVisit === s.visit. A finding raised at
+ *  an earlier visit and carried forward is edited again on a later one —
+ *  FindingDetail calls updateFinding/addFindingProgress with no guard on
+ *  which visit raised it — so that extra check silently dropped every such
+ *  edit from exportBundle, importBundle and rowsToPush: it changed on the
+ *  device and never left it. That is what "the asset assurance information
+ *  is not syncing between devices" turned out to be. Three literal
+ *  occurrences: exportBundle and importBundle in store.ts, rowsToPush in
+ *  shared.ts — and none of them may go back to checking originVisit. */
+const mineDefs = [
+  ...store.matchAll(/const mine = \(r: \{[^}]*\}\) => [^;]+;/g),
+  ...sharedLib.matchAll(/const mine = \(r: \{[^}]*\}\) => [^;]+;/g),
+].map((m) => m[0]);
+check(
+  "exportBundle, importBundle and rowsToPush all found",
+  mineDefs.length === 3,
+  `found ${mineDefs.length}`
+);
+check(
+  "and every one scopes by entity only, never by originVisit",
+  mineDefs.every((d) => /r\.entity === s\.entity/.test(d) && !/originVisit/.test(d)),
+  mineDefs.join(" | ")
+);
+
 check(
   "THE MIGRATION BACK-FILLS rather than defaulting a half-captured tablet to zero",
   /if \(from < 13\)/.test(store) &&

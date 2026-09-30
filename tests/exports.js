@@ -16,7 +16,7 @@ const openTab = (page, label) =>
    the two used constantly. Opening the menu first is the real interaction, so
    it is what these suites do. */
 const openExport = async (page) => {
-  await page.locator("button", { hasText: /^More$/ }).first().click();
+  await page.locator("button", { hasText: /^More\b/ }).first().click();
   await page.waitForTimeout(400);
   await page.locator('[role="menuitem"]', { hasText: "Export the workbook" }).first().click();
   await page.waitForTimeout(700);
@@ -116,6 +116,11 @@ const ok = (n, c, x = "") => {
   await p.waitForTimeout(700);
   await p.locator("button[aria-label*=' by ']").nth(12).click();
   await p.waitForTimeout(400);
+  /* Mitigating actions are a list now — the textarea only exists once an
+     entry has been added, same as PossibleEvents and every other add-then-fill
+     list this repo already has. */
+  await p.locator("button", { hasText: /^\+ Add remediation action$/ }).first().click();
+  await p.waitForTimeout(300);
   await p
     .locator('textarea[placeholder^="What must happen"]')
     .first()
@@ -144,20 +149,21 @@ const ok = (n, c, x = "") => {
   await p.locator("button[aria-label*=' by ']").nth(6).click();
   await p.waitForTimeout(400);
   const hazardBody = await p.locator("body").innerText();
-  /* These two used to assert the opposite, and correctly: erm.ts was a
-     declared, deliberately empty instrument while ACSA had not supplied the
-     scale. J050 001FW cl. 9.2.2 arrived, so the screen offers the real matrix
-     now — consequence 5 to 1, priorities I/II/III — and the assertions follow
-     the world rather than the other way round. */
+  /* THEN (erm.ts's own header): a declared, deliberately empty instrument
+     while ACSA had not supplied the scale, so the screen said so in words.
+     THEN (J050 001FW cl. 9.2.2 arrived): the screen offered the real matrix,
+     consequence 5 to 1, priorities I/II/III, stacked under B170 001M.
+     NOW (30 Sep): Sarel, looking at both matrices on one hazard — "there
+     should only be one HIRA matrix... remove it from this screen entirely."
+     hazards/page.tsx stops passing showErm to RecordActions; the ERM fields
+     and the export still carry whatever was rated before this, he scoped it
+     to the screen. So the text and the 25 priority cells are gone from here
+     — the assertion worth having now is their absence. */
   ok(
-    "the hazard screen offers ACSA's ERM matrix, cited",
-    /J050 001FW/i.test(hazardBody) && /cl\. 9\.2\.2/i.test(hazardBody),
+    "the hazard screen offers only B170 001M — no second matrix stacked under it",
+    !/J050 001FW/i.test(hazardBody) &&
+      (await p.locator("button[aria-label*='priority']").count()) === 0,
     hazardBody.slice(0, 160).replace(/\n/g, " ")
-  );
-  ok(
-    "and it is not a second opinion on B170 001M",
-    (await p.locator("button[aria-label*='priority']").count()) === 25,
-    "25 cells of a separate instrument, not a re-skin of the other one"
   );
 
   // --- export ---
@@ -359,7 +365,7 @@ const ok = (n, c, x = "") => {
   /* Opened, and counted INSIDE the menu. Counting a hidden control would read
      zero whatever the role is, which is a green assertion that proves
      nothing. */
-  await p.locator("button", { hasText: /^More$/ }).first().click();
+  await p.locator("button", { hasText: /^More\b/ }).first().click();
   await p.waitForTimeout(400);
   const acsa = await p.locator('[role="menuitem"]', { hasText: "Export the workbook" }).count();
   ok("ACSA read-only role has no export control", acsa === 0, "count=" + acsa);

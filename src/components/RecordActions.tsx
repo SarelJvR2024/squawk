@@ -36,20 +36,24 @@ import {
   cellCode,
 } from "@/lib/risk";
 import * as erm from "@/lib/erm";
-import { ROOT_CAUSES, responsibleFor } from "@/lib/store";
+import { ALL_DISCIPLINES } from "@/lib/register";
+import { ROOT_CAUSES, responsibleFor, useStore, useVisitId } from "@/lib/store";
 import { useAssistAvailable } from "@/lib/assist";
 import { Chip } from "@/components/ui/primitives";
 import AssetPicker from "@/components/AssetPicker";
 import { Btn } from "@/components/ui/primitives";
-import { IconSpark } from "@/components/ui/icons";
+import { IconSpark, IconX } from "@/components/ui/icons";
 import type {
   ActionStatus,
+  MitigationAction,
   ProgressNote,
   ErmConsequence,
   ErmLikelihood,
   Likelihood,
   Severity,
 } from "@/lib/types";
+
+const uid = () => Math.random().toString(36).slice(2, 10);
 
 /** The shape both findings and hazards satisfy. Deliberately structural: this
  *  component does not import either type, so it cannot start depending on a
@@ -60,9 +64,10 @@ export interface RatedRecord {
   likelihood: Likelihood | null;
   ratingConfirmed: boolean;
   rootCause: string;
-  action: string;
-  owner: string;
-  dueDate: string;
+  /** Plural — see MitigationAction. Each entry carries its own discipline,
+   *  owner and date; `actionStatus` below is a separate thing, the
+   *  carry-forward gate, not a summary of this list. */
+  actions: MitigationAction[];
   actionStatus: ActionStatus;
   /** Which physical assets the record is about. Optional everywhere: plenty of
    *  findings are not about one — a missing register, an appointment nobody
@@ -133,6 +138,8 @@ export default function RecordActions({
   const [asking, setAsking] = useState(false);
   const [note, setNote] = useState("");
   const say = (m: string) => onToast?.(m);
+  const auditor = useStore((s) => s.auditor);
+  const visitId = useVisitId();
 
   const band = bandFor(record.severity, record.likelihood);
 
@@ -608,48 +615,185 @@ export default function RecordActions({
       </div>
       {advice && <div className="mb-4">{advice}</div>}
 
-      <div className="mb-2 font-display text-[11px] font-semibold">{actionLabel}</div>
-      <textarea
-        value={record.action}
-        onChange={(e) => onChange({ action: e.target.value })}
-        placeholder="What must happen…"
-        className="min-h-[70px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
-        style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-      />
+      {/* MULTIPLE MITIGATING ACTIONS, each with its own discipline, owner,
+          date and status.
+          Sarel: "should be able to add multiple mitigating actions, and
+          adding a discipline and person and date to each mitigation
+          action" — then, on how it relates to the one action a record used
+          to carry: "we must keep track of all mitigating actions, when it
+          was logged and the status so that at each audit we can add
+          additional mitigating actions and also review any previously
+          identified mitigation actions." Each entry below IS the
+          add-and-review unit that answers that: dated and attributed when
+          it is first logged, and every later visit reopens the same list
+          rather than starting a new one. `record.actionStatus` (further
+          down) is a different question — whether the whole record still
+          carries — and does not move when an individual action's status
+          does. */}
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+        <b className="font-display text-[11px] font-semibold">{actionLabel}s</b>
+        <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+          {record.actions.length === 0
+            ? "none logged"
+            : `${record.actions.length} · ${record.actions.filter((a) => a.status === "Closed").length} closed`}
+        </span>
+      </div>
 
-      <div className="mt-3 grid gap-3 sm:grid-cols-3">
-        <label className="block">
-          <span className="label-xs">Owner</span>
-          <select
-            value={record.owner}
-            onChange={(e) => onChange({ owner: e.target.value })}
-            className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[11.5px]"
-            style={{
-              background: "var(--panel)",
-              borderColor: record.owner ? "var(--line-2)" : "var(--warn-line)",
-            }}
-          >
-            <option value="">{record.owner ? "Select…" : "⚠ unassigned"}</option>
-            {responsibleFor(entityCode).map((r) => (
-              <option key={r}>{r}</option>
-            ))}
-          </select>
-        </label>
-        <label className="block">
-          <span className="label-xs">Target date</span>
-          <input
-            type="date"
-            value={record.dueDate}
-            onChange={(e) => onChange({ dueDate: e.target.value })}
-            className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[11.5px]"
-            style={{
-              background: "var(--panel)",
-              borderColor: record.dueDate ? "var(--line-2)" : "var(--warn-line)",
-            }}
+      {record.actions.map((a) => (
+        <div
+          key={a.id}
+          className="mb-2 rounded-[11px] border px-3 py-2.5"
+          style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+        >
+          <div className="mb-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+            <select
+              value={a.discipline ?? ""}
+              onChange={(e) =>
+                onChange({
+                  actions: record.actions.map((x) =>
+                    x.id === a.id ? { ...x, discipline: e.target.value, updatedAt: Date.now() } : x
+                  ),
+                })
+              }
+              aria-label={`Discipline doing ${a.action || "this action"}`}
+              className="rounded-[8px] border px-2.5 py-[7px] text-[11.5px] font-semibold"
+              style={{
+                background: "var(--sunken)",
+                borderColor: a.discipline ? "var(--line-2)" : "var(--warn-line)",
+              }}
+            >
+              <option value="">{a.discipline ? "Select…" : "⚠ discipline not set"}</option>
+              {ALL_DISCIPLINES.map((d) => (
+                <option key={d}>{d}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() =>
+                onChange({ actions: record.actions.filter((x) => x.id !== a.id) })
+              }
+              aria-label={`Remove ${a.action || "this mitigating action"}`}
+              className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[8px] border justify-self-end"
+              style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+            >
+              <IconX width={13} height={13} />
+            </button>
+          </div>
+
+          <textarea
+            value={a.action}
+            onChange={(e) =>
+              onChange({
+                actions: record.actions.map((x) =>
+                  x.id === a.id ? { ...x, action: e.target.value, updatedAt: Date.now() } : x
+                ),
+              })
+            }
+            placeholder="What must happen…"
+            aria-label="What must happen"
+            className="min-h-[60px] w-full resize-y rounded-[8px] border px-2.5 py-2 text-[12.5px] outline-none focus:border-[var(--acc)]"
+            style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
           />
-        </label>
+
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            <label className="block">
+              <span className="label-xs">Owner</span>
+              <select
+                value={a.owner}
+                onChange={(e) =>
+                  onChange({
+                    actions: record.actions.map((x) =>
+                      x.id === a.id ? { ...x, owner: e.target.value, updatedAt: Date.now() } : x
+                    ),
+                  })
+                }
+                className="mt-1 w-full rounded-[8px] border px-2.5 py-2 text-[11.5px]"
+                style={{
+                  background: "var(--sunken)",
+                  borderColor: a.owner ? "var(--line-2)" : "var(--warn-line)",
+                }}
+              >
+                <option value="">{a.owner ? "Select…" : "⚠ unassigned"}</option>
+                {responsibleFor(entityCode).map((r) => (
+                  <option key={r}>{r}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="label-xs">Target date</span>
+              <input
+                type="date"
+                value={a.dueDate}
+                onChange={(e) =>
+                  onChange({
+                    actions: record.actions.map((x) =>
+                      x.id === a.id ? { ...x, dueDate: e.target.value, updatedAt: Date.now() } : x
+                    ),
+                  })
+                }
+                className="mt-1 w-full rounded-[8px] border px-2.5 py-2 text-[11.5px]"
+                style={{
+                  background: "var(--sunken)",
+                  borderColor: a.dueDate ? "var(--line-2)" : "var(--warn-line)",
+                }}
+              />
+            </label>
+            <label className="block">
+              <span className="label-xs">Status</span>
+              <select
+                value={a.status}
+                onChange={(e) =>
+                  onChange({
+                    actions: record.actions.map((x) =>
+                      x.id === a.id
+                        ? { ...x, status: e.target.value as ActionStatus, updatedAt: Date.now() }
+                        : x
+                    ),
+                  })
+                }
+                className="mt-1 w-full rounded-[8px] border px-2.5 py-2 text-[11.5px]"
+                style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+              >
+                {(["Open", "In progress", "Closed"] as ActionStatus[]).map((s) => (
+                  <option key={s}>{s}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="mt-1.5 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+            logged {a.createdBy} · {new Date(a.createdAt).toLocaleDateString("en-ZA")}
+          </div>
+        </div>
+      ))}
+
+      <Btn
+        variant="ghost"
+        onClick={() =>
+          onChange({
+            actions: [
+              ...record.actions,
+              {
+                id: uid(),
+                discipline: record.discipline ?? "",
+                action: "",
+                owner: "",
+                dueDate: "",
+                status: "Open",
+                originVisit: visitId,
+                createdAt: Date.now(),
+                createdBy: auditor,
+              },
+            ],
+          })
+        }
+      >
+        + Add {actionLabel.toLowerCase()}
+      </Btn>
+
+      <div className="mt-4 max-w-[220px]">
         <label className="block">
-          <span className="label-xs">Action status</span>
+          <span className="label-xs">Overall status</span>
           <select
             value={record.actionStatus}
             onChange={(e) => onChange({ actionStatus: e.target.value as ActionStatus })}

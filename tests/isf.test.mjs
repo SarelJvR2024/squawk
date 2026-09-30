@@ -284,7 +284,14 @@ check(
 /* ---------------------------------------------------------- 7. reachable, one clock */
 
 check("the safety register has a route", fs.existsSync(path.join(here, "..", "src", "app", "(app)", "isf", "page.tsx")));
-check('the nav carries it', /href:\s*"\/isf"/.test(shell));
+/* THEN: Safety was its own entry in the nav bar, href: "/isf".
+   NOW (30 Sep): Sarel — "move safety and review menu items out of the main
+   menu bar." It moved to the More menu, reached by router.push rather than
+   an href in NAV; OFF_NAV keeps the page's own heading saying "Safety". */
+check(
+  'reachable, now from the More menu',
+  /router\.push\("\/isf"\)/.test(shell) && /"\/isf": "Safety"/.test(shell)
+);
 check(
   "the notify control comes before the rest of the form",
   page.indexOf("TELL THE ACSA REPRESENTATIVE") < page.indexOf("IMMEDIATE RISK TO PERSONS"),

@@ -86,7 +86,7 @@ const ok=(n,c,x='')=>{c?(pass++,log.push('PASS  '+n)):(fail++,log.push('FAIL  '+
   /* UPDATED 2026-09-10: Sync, Export, Reset and help were grouped under a
      labelled "More" menu, so the shortcuts control is a menu ITEM now and no
      longer a button in the header. Also red on main since that shipped. */
-  await p.locator('button',{hasText:/^More$/}).first().click(); await p.waitForTimeout(400);
+  await p.locator('button',{hasText:/^More\b/}).first().click(); await p.waitForTimeout(400);
   await p.locator('button',{hasText:/Keyboard shortcuts/}).first().click(); await p.waitForTimeout(600);
   const h=await p.locator('body').innerText();
   ok('help panel states the AI position', /AI assistance/.test(h) && /model is connected/i.test(h));

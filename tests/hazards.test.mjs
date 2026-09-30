@@ -210,9 +210,7 @@ const F = (id, over = {}) => ({
   ratingConfirmed: false,
   rootCause: "",
   suggestedEvent: "",
-  action: "",
-  owner: "",
-  dueDate: "",
+  actions: [],
   actionStatus: "Open",
   originVisit: "2026-09",
   priorRating: null,
@@ -347,7 +345,23 @@ check(
 check("the ERM block sits directly under the B170 001M one", 
   actions.indexOf("showErm &&") > actions.indexOf("Pick a cell to set severity") &&
   actions.indexOf("showErm &&") < actions.indexOf("What the scales mean"));
-check("hazards ask for the ERM block and findings do not", /showErm\b/.test(hazardsPage) && !/showErm/.test(findingsPage));
+/* THEN: hazards asked RecordActions for the ERM block and findings never did
+   — a hazard is rated on ERM, a finding is not.
+   NOW (30 Sep): Sarel, looking at both matrices stacked on one hazard —
+   "there should only be one HIRA matrix... remove it from this screen
+   entirely." RecordActions still carries the ERM block (showErm defaults to
+   false and the section is intact for anywhere that ever needs it again,
+   and the ERM fields stay in the data and the exports — he scoped the ask
+   to this screen); the hazards page just stops asking for it, same as
+   findings always has. */
+check(
+  "neither hazards nor findings ask RecordActions for the ERM block anymore",
+  /* The bare attribute, on its own line, is what actually passes true to
+     RecordActions — not a bare substring match, which would also trip on
+     the word "showErm" inside this very reversal's own explanatory
+     comment above. */
+  !/^\s*showErm\s*$/m.test(hazardsPage) && !/^\s*showErm\s*$/m.test(findingsPage)
+);
 check("RootCauseAdvice is used from the hazard register too", /<RootCauseAdvice/.test(hazardsPage));
 /* 2026-09-10: the per-finding pane moved out of findings/page.tsx into
    FindingDetail.tsx when the Findings screen became an asset-system assessment.
@@ -516,6 +530,46 @@ check("Hazards is in the navigation", /href: "\/hazards"/.test(shell));
 check(
   "its badge counts what is outstanding, not what is done",
   /ungrouped/.test(shell)
+);
+
+/* -------------------------------------------------- Part 12: what it reaches */
+
+/* Sarel: "should be able to select any of the areas of the airport as part
+   of the impact, and select any of the asset system as impacted systems,
+   also allow to add other impacts." */
+
+check(
+  "a hazard carries which areas and which register systems it would reach",
+  /areas: string\[\];/.test(types) && /otherImpacts: string\[\];/.test(types),
+  "plural, same as disciplines and systems already are"
+);
+
+check(
+  "the hazard screen offers every register area, not just the one it started with",
+  /areasAt\(entityCode\)/.test(hazardsPage) && /\+ add an area…/.test(hazardsPage),
+  ""
+);
+
+check(
+  "and every register asset system, across every discipline — not just one",
+  /export function systemsAt\(entityCode: string\): string\[\]/.test(
+    src("lib", "register.ts")
+  ) && /systemsAt\(entityCode\)/.test(hazardsPage) && /\+ add an asset system…/.test(hazardsPage),
+  "a hazard spans disciplines by nature, so the picker cannot be scoped to one discipline's list"
+);
+
+check(
+  "and a free-text list for impacts the register has no vocabulary for",
+  /Reputational exposure, a contractual penalty…/.test(hazardsPage) &&
+    /otherImpacts: \[\.\.\.active\.otherImpacts, otherImpactDraft\.trim\(\)\]/.test(hazardsPage),
+  "systems is a fixed register list; not everything a hazard threatens is on it"
+);
+
+check(
+  "a new hazard starts with none of the three, not undefined",
+  (hazardsPage.match(/areas: \[\],/g) ?? []).length >= 1 &&
+    (hazardsPage.match(/otherImpacts: \[\],/g) ?? []).length >= 1,
+  "absent-means-undefined would crash the very first .map over it"
 );
 
 console.log(`\n${failures === 0 ? "HAZARDS OK" : `${failures} FAILURES`}`);
