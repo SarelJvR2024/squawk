@@ -26,7 +26,7 @@
  *  figures from useAuditProgress — the named selector, because a screen may not
  *  reach into byVisit itself. */
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNow } from "@/lib/clock";
 import Link from "next/link";
 import {
@@ -62,8 +62,10 @@ import {
   IconClipboard,
   IconFlag,
   IconGrid,
+  IconLeft,
   IconLoop,
   IconPin,
+  IconRight,
 } from "@/components/ui/icons";
 
 /* ---------------------------------------------------------------- the flow
@@ -176,6 +178,33 @@ export default function HomePage() {
 
   /** 0 until the device's clock is known — see subscribeClock above. */
   const now = useNow();
+
+  /* Same affordance as the masthead nav (AppShell.tsx), and for the same
+     reason: a row that scrolls sideways with nothing saying so reads as
+     "that's all of them" rather than "more if you swipe". Ten 168px site
+     cards is nowhere near as easy to miss as the masthead was, but it is
+     the same shape of problem, so it gets the same fix rather than a
+     different one invented for this one row. */
+  const calRef = useRef<HTMLDivElement>(null);
+  const [calScroll, setCalScroll] = useState({ left: false, right: false });
+  useEffect(() => {
+    const el = calRef.current;
+    if (!el) return;
+    const measure = () => {
+      setCalScroll({
+        left: el.scrollLeft > 2,
+        right: el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
+      });
+    };
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      ro.disconnect();
+    };
+  }, []);
 
   const visitLabel = visits.find((v) => v.id === visitId)?.label ?? visitId;
   const visitNote = visits.find((v) => v.id === visitId)?.note ?? "";
@@ -555,7 +584,15 @@ export default function HomePage() {
               not, and clipping the section around it did not. Do not remove
               this class because the layout looks fine without it — the fault is
               a viewport that pans, not a card that spills. */}
-          <div className="hide-scrollbar relative -mx-1 overflow-x-auto px-1 pb-1">
+          {/* The fade+chevron pair are siblings of the scroller, not children
+              of it — the same split AppShell.tsx's nav uses, and for the
+              same reason: an absolutely positioned child of the scroller
+              itself would scroll away with the cards instead of staying put
+              at the edge. This outer div is purely that positioning
+              context; the `relative` the comment above is protecting stays
+              on the scroller itself, unchanged. */}
+          <div className="relative">
+            <div ref={calRef} className="hide-scrollbar relative -mx-1 overflow-x-auto px-1 pb-1">
             <div className="flex gap-2">
               {calendar.map((e) => {
                 const started = startedEntities.has(e.code);
@@ -593,6 +630,29 @@ export default function HomePage() {
                 );
               })}
             </div>
+            </div>
+            {/* var(--panel) behind the fade, matching this row's own card —
+                cardStyle above, not --sunken (what the masthead's fade sits
+                on, a different surface behind a different scroller). Read
+                off this card's own background rather than copied blind. */}
+            {calScroll.left && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-y-1 left-0 flex w-[28px] items-center justify-start rounded-l-[11px]"
+                style={{ background: "linear-gradient(90deg, var(--panel) 40%, transparent)" }}
+              >
+                <IconLeft width={12} height={12} style={{ color: "var(--ink-3)" }} />
+              </span>
+            )}
+            {calScroll.right && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-y-1 right-0 flex w-[28px] items-center justify-end rounded-r-[11px]"
+                style={{ background: "linear-gradient(270deg, var(--panel) 40%, transparent)" }}
+              >
+                <IconRight width={12} height={12} style={{ color: "var(--ink-3)" }} />
+              </span>
+            )}
           </div>
           <p className="mt-2.5 text-[11px]" style={{ color: "var(--ink-3)" }}>
             Started means an audit at that site holds captured work — not a flag anybody has to
