@@ -38,10 +38,18 @@ export default function ContactPicker({
   entityCode,
   placeholder,
   onAdd,
+  disabled,
 }: {
   entityCode: string;
   placeholder?: string;
   onAdd: (p: PickedPerson) => void;
+  /** Blocks the control outright rather than letting the caller silently
+   *  drop the add — a day that is closed, or a clock that has not loaded
+   *  yet, is exactly the case a plain early-return in the handler used to
+   *  swallow: the input cleared as though the person had been added, and
+   *  nobody was. A disabled input cannot be typed into or submitted at all,
+   *  so there is nothing for the handler to drop. */
+  disabled?: boolean;
 }) {
   const contacts = useContacts();
   const [q, setQ] = useState("");
@@ -76,7 +84,14 @@ export default function ContactPicker({
   function addTyped() {
     const name = q.trim();
     if (!name) return;
-    onAdd({ name });
+    /* Explicit empty strings, not an absent key. The seed this becomes gets
+       spread over a blank entry in the store (`{ organisation: "", ...seed
+       }`), and a spread copies an explicitly-undefined key same as any
+       other — it does not fall back to the default the way `??` would. A
+       caller that then reads `p.organisation` straight off this object
+       without its own `?? ""` would otherwise hand the store `undefined`
+       for a field typed as `string`. */
+    onAdd({ name, organisation: "", role: "" });
     setQ("");
     setOpen(false);
   }
@@ -100,13 +115,14 @@ export default function ContactPicker({
           if (matches.length > 0) pick(matches[0]);
           else addTyped();
         }}
+        disabled={disabled}
         aria-label="Add a person — search the directory or type a new name"
         placeholder={placeholder ?? "Search the people directory, or type a new name"}
-        className="min-h-[44px] w-full rounded-[9px] border px-3 text-[13px] outline-none"
+        className="min-h-[44px] w-full rounded-[9px] border px-3 text-[13px] outline-none disabled:opacity-50"
         style={{ background: "var(--bg)", borderColor: "var(--line)" }}
       />
 
-      {open && q.trim() ? (
+      {open && !disabled && q.trim() ? (
         <div
           className="absolute z-10 mt-1 max-h-[260px] w-full overflow-y-auto rounded-[9px] border shadow-lg"
           style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}

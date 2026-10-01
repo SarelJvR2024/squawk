@@ -167,6 +167,10 @@ export default function AttendancePage() {
             entityCode={entityCode}
             placeholder="Search the directory, or type a new name"
             onAdd={signIn}
+            /* Before the device clock has loaded, signIn() has no day to
+               open or add to and would silently drop the pick — disabling
+               the control is what actually blocks it. */
+            disabled={!now}
           />
         </Field>
         {!now ? (
