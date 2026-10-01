@@ -19,6 +19,7 @@ import { useEntityCode, useSiteAccessLogs, useStore } from "@/lib/store";
 import type { SiteAccessLog, SiteAccessSide } from "@/lib/types";
 import { isSigned, logGaps, logText, unbackedSignatures } from "@/lib/siteAccess";
 import { siteCodeFor, siteFor } from "@/lib/sites";
+import { useFormsHubDeepLink } from "@/lib/deepLink";
 import ContactPicker from "@/components/ContactPicker";
 import { SignaturePad } from "@/components/SignaturePad";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
@@ -48,6 +49,7 @@ export default function SiteAccessPage() {
   const [signing, setSigning] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [draftArea, setDraftArea] = useState("");
+  useFormsHubDeepLink(setOpenId);
   const [draftPurpose, setDraftPurpose] = useState("");
   const [draftEscort, setDraftEscort] = useState("");
 
@@ -141,7 +143,7 @@ export default function SiteAccessPage() {
         const gaps = logGaps(l);
         const unbacked = unbackedSignatures(l);
         return (
-          <div key={l.id} className="mb-3">
+          <div key={l.id} data-record-id={l.id} className="mb-3">
             <Panel>
               <button
                 type="button"

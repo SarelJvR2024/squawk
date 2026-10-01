@@ -22,6 +22,11 @@ const dashboard = src("app", "(app)", "dashboard", "page.tsx");
 const picker = src("components", "ContactPicker.tsx");
 const attendancePage = src("app", "(app)", "attendance", "page.tsx");
 const interviewsPage = src("app", "(app)", "interviews", "page.tsx");
+const ppePage = src("app", "(app)", "ppe", "page.tsx");
+const siteAccessPage = src("app", "(app)", "site-access", "page.tsx");
+const evidencePage = src("app", "(app)", "evidence", "page.tsx");
+const isfPage = src("app", "(app)", "isf", "page.tsx");
+const deepLink = src("lib", "deepLink.ts");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -169,6 +174,70 @@ check(
   "ppe defaults a typed person's organisation and role rather than passing them through raw",
   /organisation: p\.organisation \?\? "", role: p\.role \?\? ""/.test(src("app", "(app)", "ppe", "page.tsx")),
   'belt-and-suspenders alongside the ContactPicker fix above — this call site is what actually shipped the bug'
+);
+
+/* ---------------------------- 7. click a row from the hub, land on the record --- */
+
+/* Sarel: "display all completed forms in a timeline and allow to click and
+   view and edit them." The hub already listed every record in a timeline;
+   the gap was that a click only opened the general screen for that kind,
+   leaving the specific day or occasion to be found again. */
+
+check(
+  "every row's href carries the record's own id, not just the screen",
+  /href: `\/isf\?open=\$\{f\.id\}`/.test(index) &&
+    /href: `\/interviews\?open=\$\{d\.id\}`/.test(index) &&
+    /href: `\/attendance\?open=\$\{d\.id\}`/.test(index) &&
+    /href: `\/ppe\?open=\$\{c\.id\}`/.test(index) &&
+    /href: `\/site-access\?open=\$\{l\.id\}`/.test(index) &&
+    /href: `\/evidence\?open=\$\{e\.id\}`/.test(index)
+);
+check(
+  "the diary row links by the shared SiteDay's real id, not the row's own suffixed id",
+  /href: `\/diary\?open=\$\{d\.id\}`/.test(index),
+  "the diary screen's openId compares against day.id — the -diary suffix from the row's own id would never match anything"
+);
+
+check(
+  "the deep-link hook exists, reads ?open= once and strips it so it does not reopen on refresh",
+  /export function useFormsHubDeepLink/.test(deepLink) &&
+    /params\.get\("open"\)/.test(deepLink) &&
+    /url\.searchParams\.delete\("open"\)/.test(deepLink)
+);
+check(
+  "it is plain window.location, not the useSearchParams hook — a screen using it stays statically generated",
+  !/useSearchParams\(/.test(deepLink)
+);
+check(
+  "every register screen wires its own openId setter into the hook",
+  [isfPage, interviewsPage, attendancePage, diary, ppePage, siteAccessPage, evidencePage].every((p) =>
+    /useFormsHubDeepLink\(setOpenId\)/.test(p)
+  )
+);
+check(
+  "every register screen's row carries data-record-id so the hook can find and scroll to it",
+  [isfPage, interviewsPage, attendancePage, ppePage, siteAccessPage, evidencePage].every((p) =>
+    /data-record-id=\{[a-zA-Z]+\.id\}/.test(p)
+  )
+);
+check(
+  "the diary's pinned today panel and its list rows both carry data-record-id",
+  /data-record-id=\{todaysDay\?\.id\}/.test(diary) && /data-record-id=\{day\.id\}/.test(diary)
+);
+
+/* --------------------------------- 8. a Completed / Needs attention filter --- */
+
+check(
+  "the hub offers a status filter alongside the kind filter",
+  /type StatusFilter = "all" \| "completed" \| "needsAttention"/.test(hub)
+);
+check(
+  "completed means nothing is still owed on the record, the same gapCount every row already carries",
+  /status === "completed" \? r\.gapCount === 0 : r\.gapCount > 0/.test(hub)
+);
+check(
+  "the default is All — the status filter narrows, it does not hide anything by default",
+  /const \[status, setStatus\] = useState<StatusFilter>\("all"\)/.test(hub)
 );
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");

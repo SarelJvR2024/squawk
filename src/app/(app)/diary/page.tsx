@@ -41,6 +41,7 @@ import {
 } from "@/lib/diary";
 import { siteCodeFor, siteFor } from "@/lib/sites";
 import { useNow } from "@/lib/clock";
+import { useFormsHubDeepLink } from "@/lib/deepLink";
 import { AttachmentStrip, PhotoButton } from "@/components/Capture";
 import { SignaturePad } from "@/components/SignaturePad";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
@@ -333,6 +334,7 @@ export default function DiaryPage() {
   const [signing, setSigning] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
+  useFormsHubDeepLink(setOpenId);
 
   const now = useNow();
   const today = now ? localDate(now) : "";
@@ -349,29 +351,31 @@ export default function DiaryPage() {
         </p>
       </header>
 
-      <Panel tone="accent" className="mb-4">
-        {todaysDay ? (
-          <DiaryDayBody
-            day={todaysDay}
-            pinned
-            signing={signing}
-            setSigning={setSigning}
-            copied={copied}
-            setCopied={setCopied}
-            savedId={savedId}
-            setSavedId={setSavedId}
-          />
-        ) : (
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-[12.5px]" style={{ color: "var(--ink-3)" }}>
-              No entry opened for today yet.
-            </p>
-            <Btn variant="primary" disabled={!now} onClick={() => now && openDay(localDate(now))}>
-              Open today
-            </Btn>
-          </div>
-        )}
-      </Panel>
+      <div data-record-id={todaysDay?.id} className="mb-4">
+        <Panel tone="accent">
+          {todaysDay ? (
+            <DiaryDayBody
+              day={todaysDay}
+              pinned
+              signing={signing}
+              setSigning={setSigning}
+              copied={copied}
+              setCopied={setCopied}
+              savedId={savedId}
+              setSavedId={setSavedId}
+            />
+          ) : (
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[12.5px]" style={{ color: "var(--ink-3)" }}>
+                No entry opened for today yet.
+              </p>
+              <Btn variant="primary" disabled={!now} onClick={() => now && openDay(localDate(now))}>
+                Open today
+              </Btn>
+            </div>
+          )}
+        </Panel>
+      </div>
 
       {days.length === 0 ? (
         <Empty>
@@ -386,7 +390,7 @@ export default function DiaryPage() {
           const isOpen = openId === day.id;
           const gaps = diaryGaps(day);
           return (
-            <div key={day.id} className="mb-3">
+            <div key={day.id} data-record-id={day.id} className="mb-3">
               <Panel>
                 <button
                   type="button"

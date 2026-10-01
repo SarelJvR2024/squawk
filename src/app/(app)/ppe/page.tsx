@@ -26,6 +26,7 @@ import { useEntityCode, usePpeChecks, useStore } from "@/lib/store";
 import type { PpeCheck, PpeItemKey, PpeStatus } from "@/lib/types";
 import { PPE_ITEMS, PPE_ITEM_LABEL, checkGaps, checkText, isSigned, missingItems, unbackedSignatures } from "@/lib/ppe";
 import { siteCodeFor, siteFor } from "@/lib/sites";
+import { useFormsHubDeepLink } from "@/lib/deepLink";
 import ContactPicker from "@/components/ContactPicker";
 import { SignaturePad } from "@/components/SignaturePad";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
@@ -77,6 +78,7 @@ export default function PpePage() {
   const [signing, setSigning] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
+  useFormsHubDeepLink(setOpenId);
   const [draftLocation, setDraftLocation] = useState("");
   const [draftPurpose, setDraftPurpose] = useState("");
   const [draftNoiseZone, setDraftNoiseZone] = useState(false);
@@ -188,7 +190,7 @@ export default function PpePage() {
         const gaps = checkGaps(c);
         const unbacked = unbackedSignatures(c);
         return (
-          <div key={c.id} className="mb-3">
+          <div key={c.id} data-record-id={c.id} className="mb-3">
             <Panel>
               <button
                 type="button"

@@ -46,6 +46,7 @@ import {
 } from "@/lib/isf";
 import { siteFor, siteCodeFor } from "@/lib/sites";
 import { useNow } from "@/lib/clock";
+import { useFormsHubDeepLink } from "@/lib/deepLink";
 import { AttachmentStrip, PhotoButton, VoiceNoteButton } from "@/components/Capture";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconX } from "@/components/ui/icons";
@@ -101,6 +102,7 @@ export default function IsfPage() {
      additive, one that flickers out would be a notice somebody stopped
      chasing. */
   const now = useNow();
+  useFormsHubDeepLink(setOpenId);
 
   function raise() {
     const text = draft.trim();
@@ -191,7 +193,7 @@ export default function IsfPage() {
         const gaps = missingFields(f);
         const isOpen = openId === f.id;
         return (
-          <div key={f.id} className="mb-3">
+          <div key={f.id} data-record-id={f.id} className="mb-3">
             <Panel tone={STAGE[stage].tone}>
               <button
                 type="button"

@@ -54,6 +54,7 @@ import {
 } from "@/lib/attendance";
 import { siteCodeFor, siteFor } from "@/lib/sites";
 import { useNow } from "@/lib/clock";
+import { useFormsHubDeepLink } from "@/lib/deepLink";
 import { AttachmentStrip, PhotoButton } from "@/components/Capture";
 import { SignaturePad } from "@/components/SignaturePad";
 import ContactPicker from "@/components/ContactPicker";
@@ -105,6 +106,7 @@ export default function AttendancePage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [signing, setSigning] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  useFormsHubDeepLink(setOpenId);
 
   const site = siteFor(entityCode);
   const now = useNow();
@@ -196,7 +198,7 @@ export default function AttendancePage() {
         const unbacked = unbackedSignatures(day);
         const open = stillOnSite(day);
         return (
-          <div key={day.id} className="mb-3">
+          <div key={day.id} data-record-id={day.id} className="mb-3">
             <Panel tone={day.date === today ? "accent" : undefined}>
               <button
                 type="button"
