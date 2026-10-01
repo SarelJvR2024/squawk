@@ -223,7 +223,7 @@ export default function PpePage() {
                   <Field label="ADD A PERSON" hint={`${c.people.length} checked`}>
                     <ContactPicker
                       entityCode={entityCode}
-                      onAdd={(p) => addPerson(c.id, p.name, { contactId: p.contactId, organisation: p.organisation, role: p.role })}
+                      onAdd={(p) => addPerson(c.id, p.name, { contactId: p.contactId, organisation: p.organisation ?? "", role: p.role ?? "" })}
                     />
                   </Field>
 

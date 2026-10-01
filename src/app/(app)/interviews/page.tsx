@@ -145,6 +145,12 @@ export default function InterviewsPage() {
             entityCode={entityCode}
             placeholder="Search the directory, or type a new name"
             onAdd={talkTo}
+            /* A day that is closed, or a clock not yet read, used to let
+               talkTo() silently drop the add after the picker had already
+               cleared its own input — disabling the control here is what
+               actually blocks it, rather than a handler nobody can see
+               refusing quietly. */
+            disabled={todaysDay?.closedAt != null || !now}
           />
         </Field>
         {todaysDay?.closedAt ? (

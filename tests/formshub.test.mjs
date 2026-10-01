@@ -142,6 +142,34 @@ check(
   /<ContactPicker/.test(attendancePage) && /<ContactPicker/.test(interviewsPage),
   "PPE and Site access are checked in their own suites"
 );
+check(
+  "a typed name gets explicit empty organisation and role, not an absent key",
+  /onAdd\(\{ name, organisation: "", role: "" \}\);/.test(picker),
+  'a caller spreading this as a seed over {organisation: "", ...seed} gets undefined back if the key is merely absent — a spread copies an explicit undefined same as any other value, see the PPE bug this guards'
+);
+check(
+  "the control can be disabled outright, not just refused inside the handler",
+  /disabled\?: boolean/.test(picker) &&
+    /disabled=\{disabled\}/.test(picker) &&
+    /open && !disabled && q\.trim\(\)/.test(picker),
+  "a handler that silently early-returns after the picker already cleared its own input is how an auditor is told a person was added when they were not"
+);
+
+/* --------------------------------------------- 6. the silent-drop fix */
+
+check(
+  "interviews disables the pinned picker on a closed day or before the clock loads",
+  /disabled=\{todaysDay\?\.closedAt != null \|\| !now\}/.test(interviewsPage)
+);
+check(
+  "attendance disables the pinned picker before the clock loads",
+  /disabled=\{!now\}/.test(attendancePage)
+);
+check(
+  "ppe defaults a typed person's organisation and role rather than passing them through raw",
+  /organisation: p\.organisation \?\? "", role: p\.role \?\? ""/.test(src("app", "(app)", "ppe", "page.tsx")),
+  'belt-and-suspenders alongside the ContactPicker fix above — this call site is what actually shipped the bug'
+);
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");
 process.exit(failures ? 1 : 0);
