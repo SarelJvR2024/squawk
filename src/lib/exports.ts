@@ -11,13 +11,16 @@ import type {
   PossibleEvent,
   Response,
   MitigationAction,
+  PpeCheck,
   RootCauseNote,
   SafetyFinding,
   Signature,
+  SiteAccessLog,
   SiteDay,
   SystemAssessment,
   Verification,
 } from "./types";
+import { PPE_ITEMS, PPE_ITEM_LABEL } from "./ppe";
 import { BAND_AS_RATING, BAND_META, bandFor, cellCode, movement } from "./risk";
 import { entity as entityOf, PROGRAMME_VISITS } from "./programme";
 import { portalIdFor } from "./sites";
@@ -120,6 +123,11 @@ export interface ExportInput {
   interviewDays?: InterviewDay[];
   siteDays?: SiteDay[];
   evidenceItems?: EvidenceItem[];
+  /** The two forms added 1 October 2026 — PPE checks and the site access log
+   *  — reported the same way as the four above: optional, filtered to this
+   *  visit, empty sheet rather than a crash for an older caller. */
+  ppeChecks?: PpeCheck[];
+  siteAccessLogs?: SiteAccessLog[];
 }
 
 /* ------------------------------------------------------------------ register */
@@ -1105,6 +1113,77 @@ export function evidenceLogSheet(x: ExportInput): Sheet {
   };
 }
 
+/** ONE ROW PER PERSON PPE-CHECKED, across every occasion this visit opened. */
+export function ppeSheet(x: ExportInput): Sheet {
+  const checks = (x.ppeChecks ?? []).filter((c) => c.originVisit === x.visit);
+  const rows: CellValue[][] = [];
+  for (const c of checks) {
+    for (const e of c.people) {
+      rows.push([
+        c.id,
+        c.date,
+        c.location,
+        c.purpose,
+        e.name,
+        e.organisation,
+        e.role,
+        ...PPE_ITEMS.map((k) => e.items[k]),
+        e.notes,
+        sigCell(e.signature),
+      ]);
+    }
+    if (c.people.length === 0) {
+      rows.push([c.id, c.date, c.location, c.purpose, "", "", "", "", "", "", "", ""]);
+    }
+  }
+  return {
+    name: "PPE checks",
+    columns: [
+      { header: "Check", width: 14 },
+      { header: "Date", width: 12 },
+      { header: "Location", width: 24 },
+      { header: "Purpose", width: 24 },
+      { header: "Name", width: 24 },
+      { header: "Organisation", width: 20 },
+      { header: "Role", width: 18 },
+      ...PPE_ITEMS.map((k) => ({ header: PPE_ITEM_LABEL[k], width: 20 })),
+      { header: "Notes", width: 30, wrap: true },
+      { header: "Signed", width: 30 },
+    ],
+    rows,
+  };
+}
+
+/** ONE ROW PER VISITOR, across every area logged this visit — Sarel: "where
+ *  we went, purpose, who escorted us, who went from ACSA and TPJV." */
+export function siteAccessSheet(x: ExportInput): Sheet {
+  const logs = (x.siteAccessLogs ?? []).filter((l) => l.originVisit === x.visit);
+  const rows: CellValue[][] = [];
+  for (const l of logs) {
+    for (const v of l.people) {
+      rows.push([l.id, l.date, l.area, l.purpose, l.escortedBy, v.name, v.side, v.organisation, sigCell(v.signature)]);
+    }
+    if (l.people.length === 0) {
+      rows.push([l.id, l.date, l.area, l.purpose, l.escortedBy, "", "", "", ""]);
+    }
+  }
+  return {
+    name: "Site access",
+    columns: [
+      { header: "Log", width: 14 },
+      { header: "Date", width: 12 },
+      { header: "Area", width: 26 },
+      { header: "Purpose", width: 26 },
+      { header: "Escorted by", width: 20 },
+      { header: "Name", width: 24 },
+      { header: "Side", width: 10 },
+      { header: "Organisation", width: 20 },
+      { header: "Signed", width: 30 },
+    ],
+    rows,
+  };
+}
+
 /* --------------------------------------------------------- asset systems */
 
 /** ONE ROW PER ASSET SYSTEM — the rating ACSA actually publishes.
@@ -1392,6 +1471,8 @@ export function fullWorkbook(x: ExportInput): Sheet[] {
     isfSheet(x),
     interviewsSheet(x),
     attendanceSheet(x),
+    ppeSheet(x),
+    siteAccessSheet(x),
     evidenceLogSheet(x),
     photographsSheet(x),
   ];

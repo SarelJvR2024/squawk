@@ -1156,6 +1156,9 @@ export type InterviewDayStage = "open" | "closed";
  *  than a shift. */
 export interface InterviewEntry {
   id: string;
+  /** Set when this row was added by picking a known person from the People
+   *  directory — see the same field on AttendanceEntry and ContactPicker. */
+  contactId?: string;
   name: string;
   /** Free text, and optional — the register does not withhold anything for
    *  its absence. Worth having when it is offered; not worth a form field that
@@ -1207,6 +1210,15 @@ export interface InterviewDay {
   /** The calendar date, `YYYY-MM-DD`, in the auditor's own timezone — see
    *  localDate() in src/lib/attendance.ts, reused here rather than copied. */
   date: string;
+
+  /** Where the day's interviews were held, and why — both optional, both
+   *  header-level rather than repeated per person, since they are usually
+   *  true of the whole day's round of conversations, not any one of them.
+   *  Added 1 October 2026 when the per-person-only forms were reworked
+   *  around a consistent header; absent on any day opened before that, which
+   *  reads correctly as "not recorded" rather than as an error. */
+  location: string;
+  purpose: string;
 
   openedAt: number;
   openedBy: string;
@@ -1276,6 +1288,11 @@ export interface Signature {
  *  that they were entitled to be, answers the easy half of the question. */
 export interface AttendanceEntry {
   id: string;
+  /** Set when this row was added by picking a known person from the People
+   *  directory rather than typing a name from scratch — see ContactPicker.
+   *  Nothing here reads it back out of the directory after creation; it is
+   *  only a record of where the row came from. */
+  contactId?: string;
   name: string;
   /** Employer — TPJV, a subconsultant, ACSA. Free text: it is what they say. */
   organisation: string;
@@ -1351,6 +1368,12 @@ export interface SiteDay {
    *  before. */
   date: string;
 
+  /** Where the day was spent, and why TPJV was on site — both optional,
+   *  header-level rather than repeated on every attendee's row. Added
+   *  1 October 2026 alongside the same two fields on InterviewDay. */
+  location: string;
+  purpose: string;
+
   openedAt: number;
   openedBy: string;
 
@@ -1359,6 +1382,136 @@ export interface SiteDay {
 
   entries: AttendanceEntry[];
   attachments: Attachment[];
+
+  createdAt: number;
+  updatedAt: number;
+}
+
+/* ------------------------------------------------------------- PPE checks */
+
+/** One item's state on one person. `missing` and `compliant` are both a
+ *  verdict reached by looking; `notApplicable` is its own state rather than
+ *  an absence, because hearing protection genuinely does not apply outside a
+ *  declared noise zone and a blank tick there must not read the same as a
+ *  missing one. */
+export type PpeStatus = "compliant" | "missing" | "notApplicable";
+
+/** The three items Sarel asked this register to check — hi-vis, safety
+ *  footwear, and hearing protection where the day's PPE check says a noise
+ *  zone was visited (see PpeCheck.noiseZone). A fixed, named set rather than
+ *  a free-text list: ACSA's own site rules name these, and a checklist whose
+ *  items can be retyped differently each day is not a checklist.
+ *
+ *  The TYPE lives here, same as everything else this file declares; the
+ *  actual PPE_ITEMS array and PPE_ITEM_LABEL text live in src/lib/ppe.ts
+ *  instead of here, because this file is a pure leaf — nothing in it imports
+ *  from anywhere else in src/lib, which is what lets a test load it (or a
+ *  module that imports it) without the path-alias loader every other lib
+ *  file needs. A runtime array is a value a test might reasonably import on
+ *  its own; it belongs with the rest of ppe.ts's logic, not here. */
+export type PpeItemKey = "hiVisJacket" | "safetyShoes" | "hearingProtection";
+
+/** One person's PPE check, on one occasion. */
+export interface PpeEntry {
+  id: string;
+  contactId?: string;
+  name: string;
+  organisation: string;
+  role: string;
+
+  items: Record<PpeItemKey, PpeStatus>;
+  notes: string;
+
+  /** Cleared if `name`, `organisation`, `role` or any item changes
+   *  afterwards — the same rule as every other signature in this app; see
+   *  signedFieldsChanged() in src/lib/ppe.ts. */
+  signature: Signature | null;
+
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** A PPE check, covering however many people were checked at one time and
+ *  place — a gate check as a crew arrives, a spot check mid-morning. Unlike
+ *  attendance and interviews this is NOT one record per calendar day: the
+ *  same day can have a morning gate check and an afternoon spot check in a
+ *  different area, and forcing them into one register would make the second
+ *  check overwrite the first one's header. */
+export interface PpeCheck {
+  /** `PPE-xxxxx`. The prefix every entry's signature reference is built on. */
+  id: string;
+  entity: string;
+  originVisit: string;
+
+  date: string;
+  location: string;
+  purpose: string;
+  /** Whether this occasion was in a declared noise zone — decides whether a
+   *  blank hearing-protection tick defaults to "not applicable" or to
+   *  "missing" when a person is added. Still editable per person afterwards;
+   *  this only sets what a new row starts as. */
+  noiseZone: boolean;
+
+  openedAt: number;
+  openedBy: string;
+
+  people: PpeEntry[];
+
+  createdAt: number;
+  updatedAt: number;
+}
+
+/* ------------------------------------------------------------- site access */
+
+/** Which side a visitor to one area was on — the question Sarel's own answer
+ *  to "what does this form need" came back to: "who went from ACSA and
+ *  TPJV". Free text would let the same organisation drift into five
+ *  spellings across a log; a fixed choice keeps "who was from which side" a
+ *  question the register can actually be filtered by. */
+export type SiteAccessSide = "ACSA" | "TPJV" | "Other";
+
+/** One person who entered the area this log is about. */
+export interface SiteAccessVisitor {
+  id: string;
+  contactId?: string;
+  name: string;
+  side: SiteAccessSide;
+  /** Free text — a subconsultant or a specific department, where naming it
+   *  matters more than which side of the table they sit on. */
+  organisation: string;
+
+  signature: Signature | null;
+
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** One area visited, on one occasion — TPJV's own addition to the site-form
+ *  set, for exactly what Sarel named: where the team went, why, who escorted
+ *  them in, and who from each side was actually there. Not folded into
+ *  attendance, which answers "who was on site that day" at the level of the
+ *  whole airport; this answers "who was standing in THIS switchroom, and
+ *  under whose escort" — the finer-grained question a finding raised in that
+ *  specific area is checked against. */
+export interface SiteAccessLog {
+  /** `ACC-xxxxx`. The prefix every visitor's signature reference is built on. */
+  id: string;
+  entity: string;
+  originVisit: string;
+
+  date: string;
+  /** The area or zone itself — "MV switchroom, Pier B", "airside apron,
+   *  Stand 14". This is what `location` means on every other form here, but
+   *  it is the whole point of this one rather than incidental to it, so it
+   *  gets the more specific name. */
+  area: string;
+  purpose: string;
+  escortedBy: string;
+
+  openedAt: number;
+  openedBy: string;
+
+  people: SiteAccessVisitor[];
 
   createdAt: number;
   updatedAt: number;

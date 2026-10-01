@@ -543,7 +543,7 @@ check(
 );
 check(
   "a screen off the nav bar still has a heading of its own",
-  /"\/attendance": "Site attendance and daily diary"/.test(shell)
+  /"\/attendance": "Site attendance"/.test(shell)
 );
 const menuItems = [...shell.matchAll(/\{role !== "acsa" && \(\s*<MoreItem[\s\S]*?\/\>\s*\)\}/g)].map(
   (m) => m[0]
