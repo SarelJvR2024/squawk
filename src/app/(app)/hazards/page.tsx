@@ -371,8 +371,15 @@ export default function HazardsPage() {
    *  from findings, but a hazard spotted on the walk, or one ACSA raises in the
    *  closing session, is not a finding first and never becomes one. The type
    *  has always allowed a hazard with no findings behind it; the screen did
-   *  not. */
-  if (!hazards.length && !findings.length) {
+   *  not.
+   *
+   *  A THIRD WAY IN, same reasoning: an auditor who has recorded a hazardous
+   *  event on the asset-system panel but has not yet raised a finding or a
+   *  hazard must not land on a dead-end screen with no mention of the thing
+   *  they just typed. Checked here too, or "No hazards yet" would be lying —
+   *  there is exactly one thing this screen exists to say, and it is sitting
+   *  unlisted below this early return. */
+  if (!hazards.length && !findings.length && !systemEventCandidates.length) {
     return (
       /* The empty state is an early return, so it does not get the scroller's
          padding — and its "Go to capture" button is the only thing on the

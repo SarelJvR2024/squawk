@@ -500,6 +500,14 @@ check(
 );
 
 check(
+  "and a recorded event stops the empty-register dead end from firing",
+  /if \(!hazards\.length && !findings\.length && !systemEventCandidates\.length\) \{/.test(
+    codeOnly(hazardsPage)
+  ),
+  "an auditor who has recorded an event but raised no finding and no hazard yet must still see it, not a screen that only offers \"Go to capture\"/\"Go to the walk\" with no mention of what they just typed"
+);
+
+check(
   "and promoting one raises a hazard pre-filled from it, unrated",
   /function promoteSystemEvent\(discipline: string, system: string, event: PossibleEvent\) \{[\s\S]{0,900}?sourceSystemEventIds: \[event\.id\],/.test(
     codeOnly(hazardsPage)
