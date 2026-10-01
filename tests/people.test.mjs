@@ -24,6 +24,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (...p) => fs.readFileSync(path.join(here, "..", ...p), "utf8");
 const types = read("src", "lib", "types.ts");
 const store = read("src", "lib", "store.ts");
+const picker = read("src", "components", "ContactPicker.tsx");
+
+const { SITE_ALL, siteLabel, contactAtSite, contactOrganisation, contactSearchFields } =
+  await import(path.join(here, "..", "src", "lib", "people.ts"));
 const page = read("src", "app", "(app)", "people", "page.tsx");
 const shell = read("src", "components", "AppShell.tsx");
 
@@ -57,14 +61,15 @@ check(
 );
 
 check(
-  "the six agreed fields are all there",
+  "the six agreed fields are all there, plus company",
   /name: string;/.test(contactBlock) &&
     /surname: string;/.test(contactBlock) &&
     /role: string;/.test(contactBlock) &&
     /discipline: string;/.test(contactBlock) &&
+    /company: string;/.test(contactBlock) &&
     /department: string;/.test(contactBlock) &&
     /location: string;/.test(contactBlock),
-  "name, surname, role, discipline, department, location"
+  "name, surname, role, discipline, company, department, location — Sarel: \"add the company field\""
 );
 
 check(
@@ -113,6 +118,12 @@ check(
   "the same migration shape every flat slice in this file already uses"
 );
 
+check(
+  "and a contact entered before the company field existed defaults it rather than reading undefined",
+  /if \(from < 23\) \{[\s\S]{0,600}?company: c\.company \?\? ""/.test(store),
+  "the version this suite ships against — bump this check's number alongside store.ts's own"
+);
+
 /* ---- 3 · the screen ----------------------------------------------------- */
 
 const pageCode = codeOnly(page);
@@ -130,15 +141,21 @@ check(
 );
 
 check(
-  "grouped by site, Corporate sorted last",
-  /ea\.kind === "head-office" \? 1 : -1/.test(pageCode),
+  "grouped by site, with ALL-airports and Corporate sorted after ordinary sites",
+  /rank: 1/.test(pageCode) && /rank: 2/.test(pageCode) && /rank: 0/.test(pageCode),
   "opened at an airport, the person almost always wants THAT site's people first"
 );
 
 check(
+  "SITE_ALL is special-cased before entityOf() is ever called on it",
+  /if \(site === SITE_ALL\) return \{ label: "ALL AIRPORTS"/.test(pageCode),
+  "programme.json knows nothing about the sentinel — entityOf() would silently fall back to its first entity"
+);
+
+check(
   "the directory can be searched",
-  /\[c\.name, c\.surname, c\.role, c\.discipline, c\.department, c\.location\]/.test(pageCode),
-  "every field that could be what somebody remembers about a person"
+  /contactSearchFields\(c\)\.some/.test(pageCode),
+  "every field that could be what somebody remembers about a person — see src/lib/people.ts"
 );
 
 check(
@@ -157,6 +174,77 @@ check(
   "a contact can be removed",
   /removeContact\(c\.id\)/.test(pageCode),
   ""
+);
+
+/* ---- 3b · src/lib/people.ts — SITE_ALL and the company field ------------ */
+
+check('SITE_ALL is "ALL", a scope kept apart from the Corporate entity', SITE_ALL === "ALL");
+
+check(
+  "a contact tagged for every site is at any site",
+  contactAtSite({ site: SITE_ALL }, "FAOR") === true &&
+    contactAtSite({ site: SITE_ALL }, "FACT") === true
+);
+check(
+  "one tagged for a specific site is only at that site",
+  contactAtSite({ site: "FAOR" }, "FAOR") === true &&
+    contactAtSite({ site: "FAOR" }, "FACT") === false
+);
+
+check(
+  "organisation comes from company, not department",
+  contactOrganisation({ company: "TPJV", department: "Engineering" }) === "TPJV"
+);
+check(
+  "and falls back to department for a contact entered before company existed",
+  contactOrganisation({ company: "", department: "Engineering" }) === "Engineering",
+  "a migrated contact should not read as having no employer when it has a department on file"
+);
+check(
+  "a contact with neither reads as an empty organisation, not undefined",
+  contactOrganisation({ company: "", department: "" }) === ""
+);
+
+check(
+  "search covers company as well as department",
+  contactSearchFields({
+    name: "T",
+    surname: "N",
+    role: "R",
+    discipline: "D",
+    company: "C",
+    department: "DEP",
+    location: "L",
+  }).includes("C")
+);
+
+check('siteLabel reads "All airports" for the sentinel, the site code otherwise', siteLabel(SITE_ALL) === "All airports" && siteLabel("FAOR") === "FAOR");
+
+check(
+  "the screen offers SITE_ALL as a real option, not just the filter's own blank one",
+  /<option value=\{SITE_ALL\}>All airports<\/option>/.test(pageCode)
+);
+check(
+  "the add and edit grids both carry a company input",
+  (pageCode.match(/aria-label="Company"/g) ?? []).length === 2
+);
+check(
+  "a specific site's filter still surfaces an ALL-tagged contact",
+  /c\.site !== siteFilter && c\.site !== SITE_ALL/.test(pageCode),
+  "they are relevant at every airport, including whichever one is being filtered to"
+);
+check(
+  "but the filter's own All-airports choice means exactly that tag",
+  /if \(siteFilter === SITE_ALL\) \{\s*\n\s*if \(c\.site !== SITE_ALL\) return false;/.test(pageCode)
+);
+
+check(
+  "ContactPicker carries a contact's organisation from the same helper, not department directly",
+  /organisation: contactOrganisation\(c\)/.test(picker) && !/organisation: c\.department\.trim\(\)/.test(picker)
+);
+check(
+  "and sorts an ALL-tagged contact alongside the current site's own people",
+  /c\.site === entityCode \|\| c\.site === SITE_ALL/.test(picker)
 );
 
 /* ---- 4 · reachable from the app, gated like its siblings ---------------- */

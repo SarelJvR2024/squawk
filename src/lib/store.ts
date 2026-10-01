@@ -24,6 +24,8 @@ import type {
   Finding,
   Hazard,
   AttendanceEntry,
+  DiaryCategory,
+  DiaryEntry,
   EvidenceItem,
   EvidenceMedium,
   InterviewDay,
@@ -65,6 +67,7 @@ import {
   nextSignatureRef,
   patchInvalidatesSignature,
 } from "./attendance";
+import { isfSignedFieldsChanged } from "./isf";
 import { RETURNABLE, isHeldOriginal, isOutstanding } from "./evidence";
 import {
   blankItems as blankPpeItems,
@@ -409,6 +412,7 @@ interface State {
   addSafetyFinding: (description: string, seed?: Partial<SafetyFinding>) => string;
   updateSafetyFinding: (id: string, p: Partial<SafetyFinding>) => void;
   removeSafetyFinding: (id: string) => void;
+  signIsf: (id: string, s: Omit<Signature, "ref">) => void;
   addIsfAttachment: (id: string, a: Omit<Attachment, "id" | "createdAt">) => void;
   updateIsfAttachment: (
     id: string,
@@ -464,6 +468,14 @@ interface State {
     patch: Partial<Attachment>
   ) => void;
   removeDayAttachment: (id: string, attachmentId: string) => void;
+
+  /** The day's diary — see src/lib/diary.ts. Adding, patching or removing
+   *  an entry clears diarySignature: the attestation was of the diary as it
+   *  stood, and it no longer stands. */
+  addDiaryEntry: (id: string, category: DiaryCategory, seed?: Partial<DiaryEntry>) => string;
+  updateDiaryEntry: (id: string, entryId: string, p: Partial<DiaryEntry>) => void;
+  removeDiaryEntry: (id: string, entryId: string) => void;
+  signDiary: (id: string, s: Omit<Signature, "ref">) => void;
 
   /* ---- The document and evidence collection log. See src/lib/evidence.ts. ----
      Only a title is required. Somebody is handing over a folder and walking
@@ -965,16 +977,31 @@ export const useStore = create<State>()(
                    finished. SWP-07's "at once" is measured from here. */
                 raisedAt: now,
                 raisedBy: s0.auditor || "",
+                recordedBy: s0.auditor || "",
                 description,
                 location: "",
+                locationDescription: "",
                 discipline: null,
+                assetSystem: null,
                 riskToPersons: "",
                 immediateAction: "",
+                actualImpact: "",
+                potentialImpact: "",
+                urgency: null,
+                severity: null,
+                likelihood: null,
+                ratingConfirmed: false,
+                rootCause: "",
+                actions: [],
+                actionStatus: "Open",
                 notifiedTo: "",
                 notifiedMethod: null,
                 notifiedAt: null,
                 writtenTo: "",
                 writtenIssuedAt: null,
+                acsaManagerName: "",
+                authorisedBy: "",
+                authorisedSignature: null,
                 attachments: [],
                 findingId: null,
                 closedAt: null,
@@ -993,18 +1020,30 @@ export const useStore = create<State>()(
         updateSafetyFinding: (id, p) =>
           set((s) => ({
             safetyFindings: s.safetyFindings.map((f) =>
-              /* id, entity and raisedAt are what the record IS. A caller
-                 passing them would be renaming a safety record after the fact,
-                 which is the one thing a reviewer must be able to rule out. */
+              /* id and entity are what the record IS. A caller passing them
+                 would be renaming a safety record after the fact, which is
+                 the one thing a reviewer must be able to rule out.
+                 raisedAt is deliberately NOT in this list — Sarel's field
+                 list asked for an editable date and time, same reasoning as
+                 the PPE check: an ISF phoned in and backfilled from a paper
+                 note at the end of the day needs its own real raise time,
+                 not whatever the tablet said when someone got round to
+                 typing it up. createdAt still cannot move, so the merge
+                 cursor and the real capture order stay intact either way. */
               f.id === id
                 ? {
                     ...f,
                     ...p,
                     id: f.id,
                     entity: f.entity,
-                    raisedAt: f.raisedAt,
                     createdAt: f.createdAt,
                     updatedAt: Date.now(),
+                    /* The authorised signature attests to the substance of the
+                       finding — see ISF_SIGNED_FIELDS. A patch that touches
+                       none of those fields (notifiedTo, writtenTo, closure —
+                       all of which move after signing as a matter of course)
+                       leaves the mark standing. */
+                    ...(isfSignedFieldsChanged(p) ? { authorisedSignature: null } : {}),
                   }
                 : f
             ),
@@ -1012,6 +1051,14 @@ export const useStore = create<State>()(
 
         removeSafetyFinding: (id) =>
           set((s) => ({ safetyFindings: s.safetyFindings.filter((f) => f.id !== id) })),
+
+        signIsf: (id, sig) => {
+          const f = get().safetyFindings.find((x) => x.id === id);
+          if (!f) return;
+          const previous = f.authorisedSignature;
+          get().updateSafetyFinding(id, { authorisedSignature: { ...sig, ref: `${id}_ISF` } });
+          if (previous?.blobKey && previous.blobKey !== sig.blobKey) void delBlob(previous.blobKey);
+        },
 
         addIsfAttachment: (id, a) => {
           const f = get().safetyFindings.find((x) => x.id === id);
@@ -1258,7 +1305,10 @@ export const useStore = create<State>()(
                 purpose: "",
                 openedAt: now,
                 openedBy: s0.auditor || "",
-                diary: "",
+                dayStart: null,
+                dayEnd: null,
+                diaryEntries: [],
+                diarySignature: null,
                 entries: [],
                 attachments: [],
                 createdAt: now,
@@ -1436,6 +1486,53 @@ export const useStore = create<State>()(
               x.id === attachmentId ? { ...x, ...safe } : x
             ),
           });
+        },
+
+        addDiaryEntry: (id, category, seed) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          if (!d) return "";
+          const entryId = uid();
+          const now = Date.now();
+          get().updateSiteDay(id, {
+            diaryEntries: [
+              ...d.diaryEntries,
+              { category, at: now, text: "", ...seed, id: entryId, createdAt: now, updatedAt: now },
+            ],
+            /* The signature was of the diary as it stood; adding a line
+               changes what it stood for. */
+            diarySignature: null,
+          });
+          return entryId;
+        },
+
+        updateDiaryEntry: (id, entryId, p) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          if (!d) return;
+          const { id: _i, createdAt: _c, ...safe } = p;
+          void _i; void _c;
+          get().updateSiteDay(id, {
+            diaryEntries: d.diaryEntries.map((e) =>
+              e.id === entryId ? { ...e, ...safe, updatedAt: Date.now() } : e
+            ),
+            diarySignature: null,
+          });
+        },
+
+        removeDiaryEntry: (id, entryId) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          if (!d) return;
+          get().updateSiteDay(id, {
+            diaryEntries: d.diaryEntries.filter((e) => e.id !== entryId),
+            diarySignature: null,
+          });
+        },
+
+        signDiary: (id, sig) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          if (!d) return;
+          const previous = d.diarySignature;
+          get().updateSiteDay(id, { diarySignature: { ...sig, ref: `${id}_DIARY` } });
+          if (previous?.blobKey && previous.blobKey !== sig.blobKey) void delBlob(previous.blobKey);
         },
 
         addEvidenceItem: (title, seed) => {
@@ -2379,7 +2476,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 21,
+      version: 24,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -2765,6 +2862,85 @@ export const useStore = create<State>()(
               ...d,
               location: d.location ?? "",
               purpose: d.purpose ?? "",
+            }));
+          }
+        }
+        if (from < 22) {
+          /* The diary was rebuilt from one free-text field into dated,
+             categorised entries. A day opened before this has
+             `diaryEntries` absent, not empty — the screen maps over it and
+             would white-screen the same way 14/16/17/19/21's slices would
+             have. The old text is not discarded: a day that had something
+             written in it gets exactly one entry carrying it forward,
+             category "general" since nothing recorded which kind of thing
+             it was, timed at whenever the day was opened since that is the
+             closest true thing on the record. A day with nothing written
+             gets an empty log, same as a tablet that never had the field. */
+          if (Array.isArray(st.siteDays)) {
+            st.siteDays = st.siteDays.map((d) => {
+              const legacy = d as unknown as { diary?: string };
+              const text = legacy.diary?.trim() ?? "";
+              return {
+                ...d,
+                dayStart: d.dayStart ?? null,
+                dayEnd: d.dayEnd ?? null,
+                diarySignature: d.diarySignature ?? null,
+                diaryEntries: Array.isArray(d.diaryEntries)
+                  ? d.diaryEntries
+                  : text
+                    ? [
+                        {
+                          id: `${d.id}-legacy`,
+                          category: "general" as const,
+                          at: d.openedAt,
+                          text,
+                          createdAt: d.openedAt,
+                          updatedAt: d.openedAt,
+                        },
+                      ]
+                    : [],
+              };
+            });
+          }
+        }
+        if (from < 23) {
+          /* The directory grew a company field — the employer, kept apart
+             from department (the org unit within it) once ContactPicker
+             started reading it for what every register already calls
+             "organisation". A contact entered before this has no company on
+             file, same as every other absent-means-empty string field in
+             this store, not an undefined that reads() would crash on. */
+          if (Array.isArray(st.contacts)) {
+            st.contacts = st.contacts.map((c) => ({ ...c, company: c.company ?? "" }));
+          }
+        }
+        if (from < 24) {
+          /* The Immediate Safety Finding form grew a risk assessment
+             (severity, likelihood, root cause, mitigating actions, an asset
+             system), a fuller impact/location capture, and the authorised
+             sign-off — Sarel's field list, 1 October 2026. An ISF raised
+             before this has none of it on file, same absent-means-empty
+             backfill every other field here gets, not an undefined that the
+             new RecordActions block or isfSignedFieldsChanged() would choke
+             on. */
+          if (Array.isArray(st.safetyFindings)) {
+            st.safetyFindings = st.safetyFindings.map((f) => ({
+              ...f,
+              recordedBy: f.recordedBy ?? f.raisedBy ?? "",
+              locationDescription: f.locationDescription ?? "",
+              assetSystem: f.assetSystem ?? null,
+              actualImpact: f.actualImpact ?? "",
+              potentialImpact: f.potentialImpact ?? "",
+              urgency: f.urgency ?? null,
+              severity: f.severity ?? null,
+              likelihood: f.likelihood ?? null,
+              ratingConfirmed: f.ratingConfirmed ?? false,
+              rootCause: f.rootCause ?? "",
+              actions: Array.isArray(f.actions) ? f.actions : [],
+              actionStatus: f.actionStatus ?? "Open",
+              acsaManagerName: f.acsaManagerName ?? "",
+              authorisedBy: f.authorisedBy ?? "",
+              authorisedSignature: f.authorisedSignature ?? null,
             }));
           }
         }

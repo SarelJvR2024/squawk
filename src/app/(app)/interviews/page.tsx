@@ -42,6 +42,7 @@ import {
 import { localDate } from "@/lib/attendance";
 import { siteCodeFor, siteFor } from "@/lib/sites";
 import { useNow } from "@/lib/clock";
+import { useFormsHubDeepLink } from "@/lib/deepLink";
 import { SignaturePad } from "@/components/SignaturePad";
 import ContactPicker from "@/components/ContactPicker";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
@@ -92,6 +93,7 @@ export default function InterviewsPage() {
   const [closing, setClosing] = useState<string | null>(null);
   const [closerName, setCloserName] = useState(auditor);
   const [copied, setCopied] = useState<string | null>(null);
+  useFormsHubDeepLink(setOpenId);
 
   const site = siteFor(entityCode);
   const now = useNow();
@@ -181,7 +183,7 @@ export default function InterviewsPage() {
         const unbacked = unbackedSignatures(day);
         const canClose = dayCanClose(day);
         return (
-          <div key={day.id} className="mb-3">
+          <div key={day.id} data-record-id={day.id} className="mb-3">
             <Panel tone={STAGE[stage].tone}>
               <button
                 type="button"

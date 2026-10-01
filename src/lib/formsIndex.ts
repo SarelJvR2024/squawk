@@ -15,6 +15,7 @@ import { missingFields } from "@/lib/isf";
 import { dayGaps as interviewDayGaps } from "@/lib/interviews";
 import { dayGaps as attendanceDayGaps, localDate } from "@/lib/attendance";
 import { checkGaps as ppeCheckGaps } from "@/lib/ppe";
+import { diaryGaps } from "@/lib/diary";
 import { logGaps as siteAccessGaps } from "@/lib/siteAccess";
 import { itemGaps as evidenceItemGaps } from "@/lib/evidence";
 
@@ -73,7 +74,7 @@ export function useFormsIndex(): FormsIndexRow[] {
         at: f.raisedAt,
         title: f.description.trim() || "Immediate Safety Finding",
         subtitle: f.location.trim() || "No location recorded",
-        href: "/isf",
+        href: `/isf?open=${f.id}`,
         open: f.closedAt === null,
         gapCount: missingFields(f).length,
       });
@@ -90,7 +91,7 @@ export function useFormsIndex(): FormsIndexRow[] {
           d.entries.length === 0
             ? "Nobody recorded"
             : d.entries.map((e) => e.name || "—").join(", "),
-        href: "/interviews",
+        href: `/interviews?open=${d.id}`,
         open: d.closedAt === null,
         gapCount: interviewDayGaps(d).length,
       });
@@ -107,7 +108,7 @@ export function useFormsIndex(): FormsIndexRow[] {
           d.entries.length === 0
             ? "Nobody recorded"
             : d.entries.map((e) => e.name || "—").join(", "),
-        href: "/attendance",
+        href: `/attendance?open=${d.id}`,
         open: true,
         gapCount: attendanceDayGaps(d).length,
       });
@@ -119,10 +120,13 @@ export function useFormsIndex(): FormsIndexRow[] {
         date: d.date,
         at: d.openedAt,
         title: "Daily diary",
-        subtitle: d.diary.trim() || "Nothing recorded",
-        href: "/diary",
+        subtitle:
+          d.diaryEntries.length === 0
+            ? "Nothing recorded"
+            : `${d.diaryEntries.length} ${d.diaryEntries.length === 1 ? "entry" : "entries"}`,
+        href: `/diary?open=${d.id}`,
         open: true,
-        gapCount: d.diary.trim() ? 0 : 1,
+        gapCount: diaryGaps(d).length,
       });
     }
 
@@ -137,7 +141,7 @@ export function useFormsIndex(): FormsIndexRow[] {
           c.people.length === 0
             ? "Nobody recorded"
             : c.people.map((e) => e.name || "—").join(", "),
-        href: "/ppe",
+        href: `/ppe?open=${c.id}`,
         open: true,
         gapCount: ppeCheckGaps(c).length,
       });
@@ -154,7 +158,7 @@ export function useFormsIndex(): FormsIndexRow[] {
           l.people.length === 0
             ? "Nobody recorded"
             : l.people.map((v) => v.name || "—").join(", "),
-        href: "/site-access",
+        href: `/site-access?open=${l.id}`,
         open: true,
         gapCount: siteAccessGaps(l).length,
       });
@@ -173,7 +177,7 @@ export function useFormsIndex(): FormsIndexRow[] {
           : e.unavailableAt
             ? "Cannot be produced"
             : "Outstanding",
-        href: "/evidence",
+        href: `/evidence?open=${e.id}`,
         open: !e.receivedAt && !e.unavailableAt,
         gapCount: evidenceItemGaps(e).length,
       });

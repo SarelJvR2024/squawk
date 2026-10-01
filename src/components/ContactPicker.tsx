@@ -22,6 +22,7 @@
 
 import { useMemo, useState } from "react";
 import { useContacts } from "@/lib/store";
+import { SITE_ALL, contactOrganisation } from "@/lib/people";
 import type { Contact } from "@/lib/types";
 
 export interface PickedPerson {
@@ -59,22 +60,22 @@ export default function ContactPicker({
     const s = q.trim().toLowerCase();
     if (!s) return [];
     const hit = contacts.filter((c) =>
-      [`${c.name} ${c.surname}`, c.role, c.department, c.discipline].some((v) =>
+      [`${c.name} ${c.surname}`, c.role, c.company, c.department, c.discipline].some((v) =>
         v.toLowerCase().includes(s)
       )
     );
-    /* This site's own people first — a KSIA auditor typing "T" is almost
-       always looking for someone at KSIA, not a namesake at Bram Fischer. */
-    return hit
-      .sort((a, b) => (a.site === entityCode ? 0 : 1) - (b.site === entityCode ? 0 : 1))
-      .slice(0, 8);
+    /* This site's own people first, and a contact tagged for every airport
+       right alongside them — a KSIA auditor typing "T" is almost always
+       looking for someone relevant at KSIA, not a namesake at Bram Fischer. */
+    const here = (c: Contact) => c.site === entityCode || c.site === SITE_ALL;
+    return hit.sort((a, b) => (here(a) ? 0 : 1) - (here(b) ? 0 : 1)).slice(0, 8);
   }, [contacts, q, entityCode]);
 
   function pick(c: Contact) {
     onAdd({
       contactId: c.id,
       name: `${c.name} ${c.surname}`.trim(),
-      organisation: c.department.trim(),
+      organisation: contactOrganisation(c),
       role: c.role.trim(),
     });
     setQ("");
@@ -139,7 +140,8 @@ export default function ContactPicker({
                   {c.name} {c.surname}
                 </b>
                 <span className="block truncate text-[10.5px]" style={{ color: "var(--ink-3)" }}>
-                  {[c.role, c.department].filter((v) => v.trim()).join(" · ") || "no role on file"}
+                  {[c.role, c.company || c.department].filter((v) => v.trim()).join(" · ") ||
+                    "no role on file"}
                 </span>
               </span>
             </button>

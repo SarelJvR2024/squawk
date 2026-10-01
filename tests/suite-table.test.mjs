@@ -41,7 +41,13 @@ const check = (name, cond, detail = "") => {
 /* The three that import the app's real modules need the alias loader. Kept as
    one list rather than a try/catch, so a new suite that needs it fails loudly
    here instead of being silently counted as zero. */
-const NEEDS_ALIAS = new Set(["sharepoint.test.mjs", "merge.test.mjs", "figures.test.mjs"]);
+const NEEDS_ALIAS = new Set([
+  "sharepoint.test.mjs",
+  "merge.test.mjs",
+  "figures.test.mjs",
+  "attendance.test.mjs",
+  "isf.test.mjs",
+]);
 const SELF = "suite-table.test.mjs";
 
 /* Every source suite needs a ROW, this file included — a suite that exempts

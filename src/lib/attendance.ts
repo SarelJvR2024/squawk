@@ -8,6 +8,7 @@
  *  a row somebody never agreed to. */
 
 import type { AttendanceEntry, Signature, SiteDay } from "@/lib/types";
+import { diaryGaps, diaryLines } from "@/lib/diary";
 
 /** The calendar date in the viewer's own timezone, `YYYY-MM-DD`.
  *
@@ -141,7 +142,7 @@ export function dayGaps(day: SiteDay): string[] {
   if (unsigned) gaps.push(`${unsigned} unsigned`);
   const open = stillOnSite(day).length;
   if (open) gaps.push(`${open} not signed out`);
-  if (!day.diary.trim()) gaps.push("no diary entry");
+  gaps.push(...diaryGaps(day));
   return gaps;
 }
 
@@ -231,7 +232,7 @@ export function dayText(day: SiteDay, ctx: DayContext): string {
     }
   }
 
-  lines.push("", "DAILY DIARY", L(day.diary));
+  lines.push(...diaryLines(day));
 
   const photos = day.attachments.filter((a) => a.kind === "photo" && a.ref);
   if (photos.length) {

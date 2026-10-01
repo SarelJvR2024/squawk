@@ -565,7 +565,7 @@ export default function DashboardPage() {
                         },
                         {
                           label: "Daily diary",
-                          value: siteDays.filter((d) => d.diary.trim()).length,
+                          value: siteDays.filter((d) => d.diaryEntries.length > 0).length,
                           tone: "acc",
                           icon: <IconClipboard width={13} height={13} />,
                           href: "/diary",

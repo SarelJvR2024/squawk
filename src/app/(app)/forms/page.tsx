@@ -44,16 +44,24 @@ function dayLabel(date: string, today: string): string {
   return date;
 }
 
+type StatusFilter = "all" | "completed" | "needsAttention";
+
 export default function FormsHubPage() {
   const router = useRouter();
   const role = useStore((s) => s.role);
   const rows = useFormsIndex();
   const [filter, setFilter] = useState<FormKind | "all">("all");
+  const [status, setStatus] = useState<StatusFilter>("all");
 
   const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, local
   const filtered = useMemo(
-    () => (filter === "all" ? rows : rows.filter((r) => r.kind === filter)),
-    [rows, filter]
+    () =>
+      rows
+        .filter((r) => filter === "all" || r.kind === filter)
+        .filter((r) =>
+          status === "all" ? true : status === "completed" ? r.gapCount === 0 : r.gapCount > 0
+        ),
+    [rows, filter, status]
   );
   const groups = useMemo(() => groupByDate(filtered), [filtered]);
 
@@ -96,6 +104,26 @@ export default function FormsHubPage() {
               {FORM_KIND_LABEL[k]}
             </Btn>
           ))}
+        </div>
+      )}
+
+      {role !== "acsa" && (
+        <div className="mb-3 flex flex-wrap gap-[6px]">
+          <Btn variant={status === "all" ? "primary" : "default"} onClick={() => setStatus("all")}>
+            All
+          </Btn>
+          <Btn
+            variant={status === "completed" ? "primary" : "default"}
+            onClick={() => setStatus("completed")}
+          >
+            Completed
+          </Btn>
+          <Btn
+            variant={status === "needsAttention" ? "primary" : "default"}
+            onClick={() => setStatus("needsAttention")}
+          >
+            Needs attention
+          </Btn>
         </div>
       )}
 

@@ -53,6 +53,7 @@ import {
 } from "@/lib/evidence";
 import { portalIdFor, siteCodeFor, siteFor } from "@/lib/sites";
 import { useNow } from "@/lib/clock";
+import { useFormsHubDeepLink } from "@/lib/deepLink";
 import { AttachmentStrip, PhotoButton } from "@/components/Capture";
 import { SignaturePad } from "@/components/SignaturePad";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
@@ -105,6 +106,7 @@ export default function EvidencePage() {
   const [signing, setSigning] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [handedBy, setHandedBy] = useState<Record<string, string>>({});
+  useFormsHubDeepLink(setOpenId);
 
   const site = siteFor(entityCode);
   const now = useNow();
@@ -248,7 +250,7 @@ export default function EvidencePage() {
         const gaps = itemGaps(e);
         const heldFor = isHeldOriginal(e) ? heldMs(e, now) : null;
         return (
-          <div key={e.id} className="mb-3">
+          <div key={e.id} data-record-id={e.id} className="mb-3">
             <Panel tone={STAGE[stage].tone}>
               <button
                 type="button"
