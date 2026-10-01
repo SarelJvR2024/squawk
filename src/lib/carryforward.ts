@@ -697,14 +697,16 @@ export function useStream(
  *  one against — Sarel: "once you start typing it should bring up similar
  *  recorded events so that we dont duplicate."
  *
- *  Two sources, because the HIRA register is not the only place an event's
+ *  THREE sources, because the HIRA register is not the only place an event's
  *  wording has ever been typed: a Hazard's own `event` is the canonical,
  *  already-consolidated wording; a PossibleEvent recorded against a finding
  *  on an earlier visit may never have been promoted (this existed before
  *  PossibleEvents flowed into Hazards automatically) and would otherwise be
- *  invisible to the search that is meant to stop it being retyped. Combining
- *  both is what makes "does this already exist" a question the suggestion
- *  list can actually answer.
+ *  invisible to the search that is meant to stop it being retyped; and, since
+ *  the asset-system panel got its own possible events, one typed there and
+ *  never yet pulled through to a hazard is exactly the same case. Combining
+ *  all three is what makes "does this already exist" a question the
+ *  suggestion list can actually answer.
  *
  *  SCOPED TO THIS ENTITY, deliberately, same as `useStream` above — a hazard
  *  register is per-site (Hazard carries its own `entity`), so a King Shaka
@@ -739,6 +741,9 @@ export function useKnownHazardousEvents(): string[] {
       if (!d) continue;
       for (const rec of Object.values(d.verifications)) {
         for (const e of rec.possibleEvents ?? []) add(e.event);
+      }
+      for (const sys of Object.values(d.systems ?? {})) {
+        for (const e of sys.events ?? []) add(e.event);
       }
     }
     return out.sort((a, b) => a.localeCompare(b));

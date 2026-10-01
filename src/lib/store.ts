@@ -19,6 +19,7 @@ import type {
   Capture,
   Check,
   Compliance,
+  Contact,
   FeedbackNote,
   Finding,
   Hazard,
@@ -332,6 +333,11 @@ interface State {
    *  is the same debt, and a per-visit slice would open a second request for
    *  it. */
   evidenceItems: EvidenceItem[];
+  /** The people directory. Flat, and unlike everything above it not even
+   *  scoped by visit at the record level — see the note on Contact in
+   *  types.ts. A person's role at an airport does not change between audit
+   *  cycles, so there is no "which visit" to carry. */
+  contacts: Contact[];
   lastSavedAt: number | null;
   hydrated: boolean;
 
@@ -458,6 +464,13 @@ interface State {
   ) => void;
   removeEvidenceAttachment: (id: string, attachmentId: string) => void;
 
+  /* ---- The people directory. Only a name is required — see the note on
+     Contact in types.ts for why this is the one register with no visit or
+     originVisit at all. ---- */
+  addContact: (seed: Omit<Contact, "id" | "createdAt" | "updatedAt">) => string;
+  updateContact: (id: string, p: Partial<Contact>) => void;
+  removeContact: (id: string) => void;
+
   removeFindingsForIssue: (checkId: string, issueIndex: number) => void;
 
   verification: (pf: string) => Verification;
@@ -501,6 +514,23 @@ interface State {
     p: Partial<MitigationAction>
   ) => void;
   removeMitigation: (discipline: string, system: string, id: string) => void;
+  /** The hazardous events this asset system could lead to — same PossibleEvent
+   *  shape as addPossibleEvent above, scoped to the system instead of a
+   *  carried finding. Returns the new id, or "" if the event was blank. */
+  addSystemEvent: (
+    discipline: string,
+    system: string,
+    event: string,
+    likelihood?: Likelihood | null,
+    note?: string
+  ) => string;
+  patchSystemEvent: (
+    discipline: string,
+    system: string,
+    id: string,
+    p: Partial<PossibleEvent>
+  ) => void;
+  removeSystemEvent: (discipline: string, system: string, id: string) => void;
 
   addAttachment: (checkId: string, a: Omit<Attachment, "id" | "createdAt">) => void;
   /** Write a transcript, its provenance or a revision back onto a note that is
@@ -599,6 +629,7 @@ export const useStore = create<State>()(
         interviewDays: [],
         siteDays: [],
         evidenceItems: [],
+        contacts: [],
         lastSavedAt: null,
         hydrated: false,
 
@@ -1509,6 +1540,25 @@ export const useStore = create<State>()(
           });
         },
 
+        addContact: (seed) => {
+          const id = `PPL-${uid().toUpperCase().slice(0, 5)}`;
+          const now = Date.now();
+          set((s) => ({
+            contacts: [...s.contacts, { ...seed, id, createdAt: now, updatedAt: now }],
+          }));
+          return id;
+        },
+
+        updateContact: (id, p) =>
+          set((s) => ({
+            contacts: s.contacts.map((c) =>
+              c.id === id ? { ...c, ...p, id: c.id, createdAt: c.createdAt, updatedAt: Date.now() } : c
+            ),
+          })),
+
+        removeContact: (id) =>
+          set((s) => ({ contacts: s.contacts.filter((c) => c.id !== id) })),
+
         removeFindingsForIssue: (checkId, issueIndex) =>
           set((s) => ({
             findings: s.findings.filter(
@@ -1640,6 +1690,7 @@ export const useStore = create<State>()(
               ratingRationale: "",
               rootCauses: [],
               actions: [],
+              events: [],
               note: "",
               assessedBy: "",
               assessedAt: null,
@@ -1734,6 +1785,36 @@ export const useStore = create<State>()(
           const cur = get().systemAssessment(discipline, system);
           get().patchSystem(discipline, system, {
             actions: cur.actions.filter((a) => a.id !== id),
+          });
+        },
+
+        addSystemEvent: (discipline, system, event, likelihood, note) => {
+          const text = event.trim();
+          if (!text) return "";
+          const cur = get().systemAssessment(discipline, system);
+          const item: PossibleEvent = {
+            id: `EV-${uid().toUpperCase().slice(0, 5)}`,
+            event: text,
+            likelihood: likelihood ?? null,
+            note: note?.trim() ?? "",
+            createdAt: Date.now(),
+            createdBy: get().auditor,
+          };
+          get().patchSystem(discipline, system, { events: [...cur.events, item] });
+          return item.id;
+        },
+
+        patchSystemEvent: (discipline, system, id, p) => {
+          const cur = get().systemAssessment(discipline, system);
+          get().patchSystem(discipline, system, {
+            events: cur.events.map((e) => (e.id === id ? { ...e, ...p } : e)),
+          });
+        },
+
+        removeSystemEvent: (discipline, system, id) => {
+          const cur = get().systemAssessment(discipline, system);
+          get().patchSystem(discipline, system, {
+            events: cur.events.filter((e) => e.id !== id),
           });
         },
 
@@ -2030,7 +2111,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 18,
+      version: 20,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -2040,6 +2121,7 @@ export const useStore = create<State>()(
           interviewDays?: InterviewDay[];
           siteDays?: SiteDay[];
           evidenceItems?: EvidenceItem[];
+          contacts?: Contact[];
           responses?: Record<string, Response>;
           verifications?: Record<string, Verification>;
           captures?: Capture[];
@@ -2323,6 +2405,27 @@ export const useStore = create<State>()(
              entirely would. */
           if (!Array.isArray(st.interviewDays)) st.interviewDays = [];
         }
+        if (from < 19) {
+          /* The people directory. Same reasoning as 14, 16 and 17: absent on
+             every tablet that hydrated before it existed, and nothing here
+             maps over it without a key to map over. */
+          if (!Array.isArray(st.contacts)) st.contacts = [];
+        }
+        if (from < 20) {
+          /* Hazardous events per asset system. Every SystemAssessment already
+             on a tablet predates this field, and `.events` reads undefined
+             rather than an array until this backfills it — the same failure
+             mode as 14/16/17/19, one level deeper inside byVisit. */
+          if (st.byVisit) {
+            for (const key of Object.keys(st.byVisit)) {
+              const systems = st.byVisit[key]?.systems;
+              if (!systems) continue;
+              for (const sk of Object.keys(systems)) {
+                if (!Array.isArray(systems[sk].events)) systems[sk].events = [];
+              }
+            }
+          }
+        }
         if (from < 13) {
           /* updatedAt, back-filled — the field that makes two devices' work
              mergeable.
@@ -2387,6 +2490,7 @@ export const useStore = create<State>()(
         interviewDays: s.interviewDays,
         siteDays: s.siteDays,
         evidenceItems: s.evidenceItems,
+        contacts: s.contacts,
         lastSavedAt: s.lastSavedAt,
       }),
     }
@@ -2581,6 +2685,15 @@ export function useEvidenceItems(): EvidenceItem[] {
       (a, b) => rank(a) - rank(b) || b.createdAt - a.createdAt
     );
   }, [all, entity]);
+}
+
+/** The whole people directory, newest first. Not scoped by entity or visit —
+ *  see the note on Contact in types.ts — the /people screen does its own
+ *  filtering by site, same as every other register screen filters in the
+ *  component rather than in the hook. */
+export function useContacts(): Contact[] {
+  const all = useStore((s) => s.contacts);
+  return useMemo(() => [...all].sort((a, b) => b.createdAt - a.createdAt), [all]);
 }
 
 /** Hazards raised at the entity and visit in view. Scoped the same way

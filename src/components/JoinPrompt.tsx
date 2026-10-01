@@ -38,7 +38,7 @@ import { useState } from "react";
 import { useShared } from "@/lib/shared";
 import { useStore } from "@/lib/store";
 import { Btn } from "@/components/ui/primitives";
-import { IconCheck, IconX } from "@/components/ui/icons";
+import { IconCheck, IconEye, IconEyeOff, IconX } from "@/components/ui/icons";
 
 const DISMISS_KEY = "squawk-join-dismissed";
 
@@ -47,6 +47,7 @@ export default function JoinPrompt() {
   const hydrated = useStore((s) => s.hydrated);
   const lastSavedAt = useStore((s) => s.lastSavedAt);
   const [pass, setPass] = useState("");
+  const [showPass, setShowPass] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   /* Lazy, and in a try/catch: this renders inside AppShell, which is
@@ -120,20 +121,41 @@ export default function JoinPrompt() {
           void submit();
         }}
       >
-        <input
-          type="password"
-          value={pass}
-          onChange={(e) => setPass(e.target.value)}
-          placeholder="Team passphrase"
-          /* Named differently from the box in the export sheet on purpose. Both
-             can be on screen at once — the prompt does not close when somebody
-             opens Export — and two password fields announcing themselves as
-             "Team passphrase" is a coin toss for anyone navigating by label. */
-          aria-label="Team passphrase to join the audit"
-          autoComplete="off"
-          className="min-h-[44px] min-w-[180px] flex-1 rounded-[9px] border px-[11px] text-[12.5px] outline-none focus:border-[var(--acc)]"
-          style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-        />
+        <div className="relative min-w-[180px] flex-1">
+          <input
+            type={showPass ? "text" : "password"}
+            value={pass}
+            onChange={(e) => setPass(e.target.value)}
+            placeholder="Team passphrase"
+            /* Named differently from the box in the export sheet on purpose. Both
+               can be on screen at once — the prompt does not close when somebody
+               opens Export — and two password fields announcing themselves as
+               "Team passphrase" is a coin toss for anyone navigating by label. */
+            aria-label="Team passphrase to join the audit"
+            autoComplete="off"
+            className="min-h-[44px] w-full rounded-[9px] border py-0 pl-[11px] pr-[38px] text-[12.5px] outline-none focus:border-[var(--acc)]"
+            style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+          />
+          {/* See the matching note in SharedPanel.tsx — masked by default,
+              revealing it is a choice. Named "...to join the audit" for the
+              same reason the input above is: this banner and the Shared
+              record sheet can both be open at once, and two reveal buttons
+              both called "Show the passphrase" is the exact ambiguity the
+              note on the input already warns about — a click on this one
+              found the OTHER component's button first, sitting behind the
+              sheet's backdrop, and waited 30s for a click that could never
+              land. */}
+          <button
+            type="button"
+            onClick={() => setShowPass((v) => !v)}
+            aria-label={showPass ? "Hide the passphrase to join the audit" : "Show the passphrase to join the audit"}
+            aria-pressed={showPass}
+            className="absolute inset-y-0 right-0 flex w-[38px] items-center justify-center"
+            style={{ color: "var(--ink-3)" }}
+          >
+            {showPass ? <IconEyeOff width={15} height={15} /> : <IconEye width={15} height={15} />}
+          </button>
+        </div>
         <Btn type="submit" variant="primary" disabled={busy || !pass.trim()}>
           {busy ? "Checking…" : <><IconCheck width={13} height={13} />Join</>}
         </Btn>

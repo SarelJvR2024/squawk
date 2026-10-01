@@ -11,12 +11,13 @@ import {
   systemsOf,
   useEntityCode,
   useResponses,
+  useStore,
   deskDone,
 } from "@/lib/store";
 import { portalIdFor } from "@/lib/sites";
 import { needsDesk, needsQuestion } from "@/lib/verification";
 import CheckDetail from "@/components/CheckDetail";
-import { Dot, Empty, Pill } from "@/components/ui/primitives";
+import { Btn, Dot, Empty, Pill } from "@/components/ui/primitives";
 import { IconInbox } from "@/components/ui/icons";
 import type { Check } from "@/lib/types";
 
@@ -156,6 +157,27 @@ function CaptureInner() {
   };
   const dotHollow = (c: Check) => deskAnswered(responses[c.id]);
   const unsaved = visible.filter((c) => deskAnswered(responses[c.id])).length;
+  /* SAVE ALL — every check this same count already found: answered (a
+     compliance, an observation, evidence, an issue, a photograph) and not
+     yet committed. One commit per check, the exact call the Save button on
+     the detail pane itself makes — this is that button, pressed for
+     everyone still owed it, not a bulk write that skips the record-keeping a
+     single save gets (deskDoneBy, deskDoneAt, and capturedAt once the check
+     is whole). Scoped to what is ON SCREEN: the tab and filter the auditor
+     is looking at, same as the count beside it — "save all" saving a
+     discipline nobody is looking at would commit answers the auditor has
+     not actually finished reviewing. */
+  const commit = useStore((s) => s.commit);
+  const saveAll = () => {
+    let n = 0;
+    for (const c of visible) {
+      if (deskAnswered(responses[c.id])) {
+        commit(c.id, "desk");
+        n++;
+      }
+    }
+    setToast(`${n} check${n === 1 ? "" : "s"} saved`);
+  };
 
   /* The tree: the site's systems, in register order, carrying whichever of
      their checks the filter left standing. A system the filter empties is not
@@ -258,6 +280,15 @@ function CaptureInner() {
               {visible.length}
             </span>
           </div>
+          {unsaved > 0 && (
+            <Btn
+              variant="primary"
+              onClick={saveAll}
+              className="mt-[7px] w-full justify-center"
+            >
+              Save all {unsaved}
+            </Btn>
+          )}
         </div>
 
         {groups.length === 0 ? (

@@ -3,12 +3,18 @@ import type {
   AnswerLibrary,
   Attachment,
   Check,
+  EvidenceItem,
   Finding,
   Hazard,
+  InterviewDay,
   PriorFinding,
+  PossibleEvent,
   Response,
   MitigationAction,
   RootCauseNote,
+  SafetyFinding,
+  Signature,
+  SiteDay,
   SystemAssessment,
   Verification,
 } from "./types";
@@ -102,6 +108,18 @@ export interface ExportInput {
   systems?: Record<string, SystemAssessment>;
   /** Loaded lazily; when absent the evidence and issue labels fall back to indices. */
   library: Record<string, AnswerLibrary> | null;
+  /** The four project-evidence forms — Sarel: "we should be able to review and
+   *  generate system generated reports with signatures and timestamps." Each
+   *  is entity-scoped on screen (see its own hook's note on why) but reported
+   *  here filtered to THIS visit, same as every other sheet in this workbook —
+   *  an export of one audit should say what that audit's forms captured, not
+   *  the site's whole history. Optional for the same reason hazards/adhoc are:
+   *  an older caller still produces a workbook, with these sheets empty rather
+   *  than a crash. */
+  safetyFindings?: SafetyFinding[];
+  interviewDays?: InterviewDay[];
+  siteDays?: SiteDay[];
+  evidenceItems?: EvidenceItem[];
 }
 
 /* ------------------------------------------------------------------ register */
@@ -891,6 +909,202 @@ export function evidenceRequestSheet(x: ExportInput): Sheet {
   };
 }
 
+/* ------------------------------------------------- the project-evidence forms
+ *
+ *  Sarel: "the forms and registers is for evidence to record our project
+ *  compliance and work done and attendance etc which we should be able to
+ *  review and generate system generated reports with signatures and
+ *  timestamps." Each sheet below is one of the four tablet forms these
+ *  audits replaced a hardcopy for — ISF, interviews, attendance, the
+ *  evidence log — filtered to this visit, same scope as every other sheet
+ *  in this workbook. A signature prints as who signed and when, never the
+ *  image itself: the workbook is the reviewable record, the image lives in
+ *  the media store and the photograph sheets already index it. */
+
+const sigCell = (s: Signature | null): string => (s ? `${s.signedName} · ${when(s.signedAt)}` : "");
+
+/** ONE ROW PER IMMEDIATE SAFETY FINDING — the compliance clock SWP-07 sets,
+ *  in the words a reviewer asks for: raised, notified, written up, closed. */
+export function isfSheet(x: ExportInput): Sheet {
+  const rows = (x.safetyFindings ?? [])
+    .filter((f) => f.originVisit === x.visit)
+    .map((f) => [
+      f.id,
+      when(f.raisedAt),
+      f.raisedBy,
+      f.location,
+      f.discipline ?? "",
+      f.description,
+      f.riskToPersons,
+      f.immediateAction,
+      f.notifiedTo,
+      f.notifiedMethod ?? "",
+      when(f.notifiedAt),
+      f.writtenTo,
+      when(f.writtenIssuedAt),
+      f.findingId ?? "",
+      f.closedAt ? "Closed" : "Open",
+      when(f.closedAt),
+      f.closureNote,
+      f.attachments.length,
+    ]);
+  return {
+    name: "Safety (ISF)",
+    columns: [
+      { header: "ISF", width: 12 },
+      { header: "Raised", width: 16 },
+      { header: "Raised by", width: 20 },
+      { header: "Location", width: 26 },
+      { header: "Discipline", width: 18 },
+      { header: "Description", width: 50, wrap: true },
+      { header: "Risk to persons", width: 40, wrap: true },
+      { header: "Immediate action", width: 40, wrap: true },
+      { header: "Notified to", width: 20 },
+      { header: "Notified by", width: 14 },
+      { header: "Notified at", width: 16 },
+      { header: "Written notice to", width: 20 },
+      { header: "Written notice issued", width: 16 },
+      { header: "Linked finding", width: 14 },
+      { header: "Status", width: 10 },
+      { header: "Closed", width: 16 },
+      { header: "Closure note", width: 40, wrap: true },
+      { header: "Photographs", width: 12 },
+    ],
+    rows,
+  };
+}
+
+/** ONE ROW PER PERSON INTERVIEWED, across every day this visit opened —
+ *  TK-003 form 2, and the signature is the mark against that statement. */
+export function interviewsSheet(x: ExportInput): Sheet {
+  const days = (x.interviewDays ?? []).filter((d) => d.originVisit === x.visit);
+  const rows: CellValue[][] = [];
+  for (const d of days) {
+    for (const e of d.entries) {
+      rows.push([
+        d.id,
+        d.date,
+        e.name,
+        e.role,
+        e.location,
+        when(e.startedAt),
+        when(e.endedAt),
+        sigCell(e.signature),
+      ]);
+    }
+    if (d.entries.length === 0) {
+      rows.push([d.id, d.date, "", "", "", null, null, ""]);
+    }
+  }
+  return {
+    name: "Interviews",
+    columns: [
+      { header: "Day", width: 14 },
+      { header: "Date", width: 12 },
+      { header: "Name", width: 24 },
+      { header: "Role", width: 22 },
+      { header: "Location", width: 24 },
+      { header: "Started", width: 16 },
+      { header: "Ended", width: 16 },
+      { header: "Signed", width: 30 },
+    ],
+    rows,
+  };
+}
+
+/** ONE ROW PER PERSON ON SITE, across every day this visit opened —
+ *  TK-003 form 3's attendance register and daily diary. */
+export function attendanceSheet(x: ExportInput): Sheet {
+  const days = (x.siteDays ?? []).filter((d) => d.originVisit === x.visit);
+  const rows: CellValue[][] = [];
+  for (const d of days) {
+    for (const e of d.entries) {
+      rows.push([
+        d.id,
+        d.date,
+        e.name,
+        e.organisation,
+        e.role,
+        when(e.arrivedAt),
+        when(e.departedAt),
+        e.location,
+        e.notes,
+        sigCell(e.signature),
+      ]);
+    }
+    if (d.entries.length === 0) {
+      rows.push([d.id, d.date, "", "", "", null, null, "", "", ""]);
+    }
+  }
+  return {
+    name: "Attendance",
+    columns: [
+      { header: "Day", width: 14 },
+      { header: "Date", width: 12 },
+      { header: "Name", width: 24 },
+      { header: "Organisation", width: 22 },
+      { header: "Role", width: 18 },
+      { header: "Arrived", width: 16 },
+      { header: "Departed", width: 16 },
+      { header: "Location(s)", width: 28, wrap: true },
+      { header: "Activity notes", width: 40, wrap: true },
+      { header: "Signed", width: 30 },
+    ],
+    rows,
+  };
+}
+
+/** ONE ROW PER DOCUMENT ASKED FOR OR HANDED OVER — TK-003 form 7, the
+ *  custody record: requested, received, returned or declared unavailable. */
+export function evidenceLogSheet(x: ExportInput): Sheet {
+  const rows = (x.evidenceItems ?? [])
+    .filter((e) => e.originVisit === x.visit)
+    .map((e) => [
+      e.id,
+      e.title,
+      e.documentNo,
+      e.revision,
+      when(e.documentDate),
+      when(e.requestedAt),
+      e.requestedFrom,
+      when(e.receivedAt),
+      e.receivedFrom,
+      e.receivedBy,
+      e.medium ?? "",
+      e.isOriginal ? "TPJV holds the original" : "Copy",
+      when(e.returnedAt),
+      e.returnedTo,
+      e.unavailableAt ? "Declared unavailable" : "",
+      e.unavailableReason,
+      sigCell(e.signature),
+      e.notes,
+    ]);
+  return {
+    name: "Evidence log",
+    columns: [
+      { header: "Item", width: 12 },
+      { header: "Title", width: 40, wrap: true },
+      { header: "Document no.", width: 18 },
+      { header: "Revision", width: 12 },
+      { header: "Document date", width: 14 },
+      { header: "Requested", width: 14 },
+      { header: "Requested from", width: 20 },
+      { header: "Received", width: 14 },
+      { header: "Received from", width: 20 },
+      { header: "Received by", width: 20 },
+      { header: "Medium", width: 12 },
+      { header: "Original or copy", width: 20 },
+      { header: "Returned", width: 14 },
+      { header: "Returned to", width: 18 },
+      { header: "Unavailable", width: 16 },
+      { header: "Reason", width: 30, wrap: true },
+      { header: "Signed", width: 30 },
+      { header: "Notes", width: 30, wrap: true },
+    ],
+    rows,
+  };
+}
+
 /* --------------------------------------------------------- asset systems */
 
 /** ONE ROW PER ASSET SYSTEM — the rating ACSA actually publishes.
@@ -942,6 +1156,11 @@ export function systemsSheet(x: ExportInput): Sheet {
             `${m.action} · ${m.owner || "NO OWNER"} · ${m.dueDate || "NO TARGET DATE"} · ${m.status}`
         )
         .join("\n"),
+      (a?.events ?? [])
+        .map((e: PossibleEvent) =>
+          [e.event, e.likelihood, e.note].filter(Boolean).join(" · ")
+        )
+        .join("\n"),
       /* The evidence the band was agreed on, as counts. Not the band's
          derivation — nothing here computes it — but what a reader needs to
          argue with it. */
@@ -974,6 +1193,7 @@ export function systemsSheet(x: ExportInput): Sheet {
       { header: "Why that cell", width: 56, wrap: true },
       { header: "Root causes", width: 56, wrap: true },
       { header: "Mitigation actions", width: 70, wrap: true },
+      { header: "Possible hazardous events", width: 56, wrap: true },
       { header: "Check-points", width: 13 },
       { header: "Compliant", width: 11 },
       { header: "Non-compliant", width: 14 },
@@ -1169,6 +1389,10 @@ export function fullWorkbook(x: ExportInput): Sheet[] {
     closureSheet(x),
     walkSheet(x),
     evidenceRequestSheet(x),
+    isfSheet(x),
+    interviewsSheet(x),
+    attendanceSheet(x),
+    evidenceLogSheet(x),
     photographsSheet(x),
   ];
 }

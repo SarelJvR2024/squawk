@@ -144,9 +144,9 @@ check(
 /* ------------------------------ the linking ------------------------------- */
 
 check(
-  "a finding, a hazard and a safety finding can all carry asset links",
-  (types.match(/assetIds\?: string\[\];/g) || []).length === 3,
-  "an immediate safety finding is about a physical thing as often as a finding is"
+  "a finding, a hazard, a safety finding and a possible event can all carry asset links",
+  (types.match(/assetIds\?: string\[\];/g) || []).length === 4,
+  "an immediate safety finding is about a physical thing as often as a finding is; a possible event's own assets are what it was raised from, before it is even a hazard"
 );
 
 check(

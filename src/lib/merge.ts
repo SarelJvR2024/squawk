@@ -326,8 +326,9 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
     }
     const rootCauses = unionById(m.rootCauses ?? [], t.rootCauses ?? []);
     const actions = unionById(m.actions ?? [], t.actions ?? []);
+    const events = unionById(m.events ?? [], t.events ?? []);
     const newer = when(t) > when(m) ? t : m;
-    assessedSystems[key] = { ...newer, rootCauses, actions };
+    assessedSystems[key] = { ...newer, rootCauses, actions, events };
   }
 
   /* --------------------------------------------------- captures, notes --- */

@@ -180,8 +180,12 @@ for (const b of BANNED) {
 /* ---------------------------------------- Part 3: bands and strategies (4.5) */
 
 check("band Unacceptable is named", risk.includes('label: "Unacceptable"'));
-check("band Risk mitigation required is named", risk.includes('label: "Risk mitigation required"'));
+check("band Tolerable is named — the 2025 report's word, not the procedure's", risk.includes('label: "Tolerable"'));
 check("band Acceptable is named", risk.includes('label: "Acceptable"'));
+check(
+  "the procedure's own 'Risk mitigation required' wording survives on the strategy",
+  risk.includes('Risk mitigation required')
+);
 check("Red maps to Avoidance", /Red:[\s\S]{0,200}Avoidance/.test(risk));
 check("Amber maps to Reduction", /Amber:[\s\S]{0,200}Reduction/.test(risk));
 check("Green maps to Segregation of exposure", /Green:[\s\S]{0,220}Segregation of exposure/i.test(risk));

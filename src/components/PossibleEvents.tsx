@@ -26,7 +26,7 @@
  *  and the default: what this captures is the auditor's list for that
  *  conversation, not the outcome of it. */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { Likelihood, PossibleEvent } from "@/lib/types";
 import { LIKELIHOODS } from "@/lib/risk";
 import { Btn } from "@/components/ui/primitives";
@@ -43,12 +43,21 @@ export default function PossibleEvents({
    *  none, so a caller that has not wired suggestions yet gets the plain
    *  input rather than a crash. */
   suggestions = [],
+  /** Sarel: "the risk event is linked to the failure of an asset system or a
+   *  specific finding... multiple assets and findings can contribute to the
+   *  same hazardous event." A render prop rather than finding/asset props
+   *  here, deliberately: this component is also used by the closure screen
+   *  for a carried finding's own possible events, which are already tied to
+   *  the one finding they were raised against and have nothing to link.
+   *  Only the findings-screen caller passes this. */
+  evidence,
 }: {
   events: PossibleEvent[];
   onAdd: (event: string) => void;
   onPatch: (id: string, p: Partial<PossibleEvent>) => void;
   onRemove: (id: string) => void;
   suggestions?: string[];
+  evidence?: (event: PossibleEvent) => ReactNode;
 }) {
   const [draft, setDraft] = useState("");
   const [suggestOpen, setSuggestOpen] = useState(false);
@@ -171,6 +180,8 @@ export default function PossibleEvents({
             className="mt-2 w-full rounded-[8px] border px-2.5 py-[7px] text-[11.5px] outline-none focus:border-[var(--acc)]"
             style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
           />
+
+          {evidence?.(e)}
 
           <div className="mt-1.5 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
             {e.createdBy} · {new Date(e.createdAt).toLocaleDateString("en-ZA")}

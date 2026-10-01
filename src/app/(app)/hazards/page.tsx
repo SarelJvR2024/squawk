@@ -30,6 +30,7 @@ import {
   useEntityCode,
   useResponses,
   useStore,
+  useSystems,
   useVisitFindings,
   useVisitHazards,
 } from "@/lib/store";
@@ -53,7 +54,7 @@ import RecordActions from "@/components/RecordActions";
 import StickyActions from "@/components/StickyActions";
 import RootCauseAdvice from "@/components/RootCauseAdvice";
 import { IconCheck, IconInbox, IconLeft, IconSpark, IconX } from "@/components/ui/icons";
-import type { Attachment, Hazard } from "@/lib/types";
+import type { Attachment, Hazard, PossibleEvent } from "@/lib/types";
 
 /** Vision sends at most eight images per request and the route refuses a ninth
  *  rather than dropping it silently. Consolidation would happily send forty, so
@@ -136,6 +137,60 @@ export default function HazardsPage() {
     [findings, consolidated]
   );
 
+  /* THE ASSET-ASSURANCE EVENTS NOT YET PULLED THROUGH. Sarel: "allow to add
+   *  multiple hazardous events per asset system which must pull through to
+   *  the hira view." An event named on the findings screen's asset-system
+   *  panel (SystemAssessment.events) is a candidate hazard exactly the way a
+   *  loose finding is, and the same presence-check pattern applies: once its
+   *  id is in some hazard's sourceSystemEventIds it has been pulled through
+   *  and drops off this list. */
+  const systems = useSystems();
+  const promotedEventIds = useMemo(
+    () => new Set(hazards.flatMap((h) => h.sourceSystemEventIds ?? [])),
+    [hazards]
+  );
+  const systemEventCandidates = useMemo(
+    () =>
+      Object.values(systems).flatMap((a) =>
+        a.events
+          .filter((e) => !promotedEventIds.has(e.id))
+          .map((e) => ({ discipline: a.discipline, system: a.system, event: e }))
+      ),
+    [systems, promotedEventIds]
+  );
+
+  function promoteSystemEvent(discipline: string, system: string, event: PossibleEvent) {
+    /* THE EVIDENCE CHAIN, CARRIED ACROSS — Sarel: "a hierarchy or linked
+       evidence of non-compliance and findings all contributing to the risk,
+       giving the full picture." event.findingIds is what the auditor already
+       tagged on the asset-system panel as contributing to this event; those
+       findings' own assetIds are unioned in too, the same way accept() does
+       it for a consolidated hazard, so an asset tagged only on the finding
+       is not lost just because the event itself never named it directly. */
+    const linkedFindingIds = event.findingIds ?? [];
+    const linkedFindings = findings.filter((f) => linkedFindingIds.includes(f.id));
+    const id = addHazard(
+      blank({
+        event: event.event,
+        likelihood: event.likelihood,
+        note: event.note,
+        findingIds: linkedFindingIds,
+        assetIds: [
+          ...new Set([
+            ...(event.assetIds ?? []),
+            ...linkedFindings.flatMap((f) => f.assetIds ?? []),
+          ]),
+        ],
+        disciplines: [...new Set([discipline, ...linkedFindings.map((f) => f.discipline)])],
+        systems: [system],
+        origin: "field",
+        sourceSystemEventIds: [event.id],
+      })
+    );
+    setActiveId(id);
+    say(`${id} raised · rate it on the matrix`);
+  }
+
   const list = useMemo(() => {
     let l = hazards;
     if (discipline !== "All") l = l.filter((h) => h.disciplines.includes(discipline));
@@ -160,6 +215,7 @@ export default function HazardsPage() {
       description: "",
       why: "",
       findingIds: [],
+      assetIds: [],
       disciplines: [],
       systems: [],
       areas: [],
@@ -252,6 +308,10 @@ export default function HazardsPage() {
         description: p.description,
         why: p.why,
         findingIds: ids,
+        /* Sarel: "multiple assets and findings can contribute to the same
+           hazardous event" — the union of what its findings already tag,
+           same reasoning as disciplines and systems just above. */
+        assetIds: [...new Set(behind.flatMap((f) => f.assetIds ?? []))],
         disciplines: [...new Set(behind.map((f) => f.discipline).filter(Boolean))],
         systems: [...new Set(behind.map((f) => f.system).filter(Boolean))],
         origin: "consolidated",
@@ -311,8 +371,15 @@ export default function HazardsPage() {
    *  from findings, but a hazard spotted on the walk, or one ACSA raises in the
    *  closing session, is not a finding first and never becomes one. The type
    *  has always allowed a hazard with no findings behind it; the screen did
-   *  not. */
-  if (!hazards.length && !findings.length) {
+   *  not.
+   *
+   *  A THIRD WAY IN, same reasoning: an auditor who has recorded a hazardous
+   *  event on the asset-system panel but has not yet raised a finding or a
+   *  hazard must not land on a dead-end screen with no mention of the thing
+   *  they just typed. Checked here too, or "No hazards yet" would be lying —
+   *  there is exactly one thing this screen exists to say, and it is sitting
+   *  unlisted below this early return. */
+  if (!hazards.length && !findings.length && !systemEventCandidates.length) {
     return (
       /* The empty state is an early return, so it does not get the scroller's
          padding — and its "Go to capture" button is the only thing on the
@@ -615,6 +682,59 @@ export default function HazardsPage() {
             </div>
           )}
         </div>
+
+        {/* -------------------------------------------- from asset assurance */}
+        {systemEventCandidates.length > 0 && (
+          <div
+            className="mb-3.5 rounded-[15px] border px-[15px] py-[13px]"
+            style={{ background: "var(--panel)", borderColor: "var(--line)" }}
+          >
+            <div className="flex flex-wrap items-center gap-2.5">
+              <b className="font-display text-[12.5px] font-semibold">From asset assurance</b>
+              <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>
+                {systemEventCandidates.length} possible event
+                {systemEventCandidates.length === 1 ? "" : "s"} named on the asset-system panel,
+                not yet a hazard.
+              </span>
+            </div>
+            {systemEventCandidates.map(({ discipline, system, event }) => (
+              <div
+                key={event.id}
+                className="mt-2.5 flex flex-wrap items-center gap-2.5 rounded-[11px] border px-[11px] py-[10px]"
+                style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+              >
+                <div className="min-w-0 flex-1">
+                  <b className="text-[12.5px]">{event.event}</b>
+                  <div className="mt-[2px] font-mono text-[9px] tracking-[.04em] uppercase" style={{ color: "var(--ink-4)" }}>
+                    {discipline} · {system}
+                    {event.likelihood ? ` · likelihood ${event.likelihood}` : ""}
+                  </div>
+                  {event.note && (
+                    <div className="mt-1 text-[11px] leading-[1.4]" style={{ color: "var(--ink-3)" }}>
+                      {event.note}
+                    </div>
+                  )}
+                  {((event.findingIds?.length ?? 0) > 0 || (event.assetIds?.length ?? 0) > 0) && (
+                    <div className="mt-1 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                      {event.findingIds?.length
+                        ? `${event.findingIds.length} finding${event.findingIds.length === 1 ? "" : "s"}`
+                        : ""}
+                      {event.findingIds?.length && event.assetIds?.length ? " · " : ""}
+                      {event.assetIds?.length
+                        ? `${event.assetIds.length} asset${event.assetIds.length === 1 ? "" : "s"}`
+                        : ""}
+                      {" "}linked as evidence
+                    </div>
+                  )}
+                </div>
+                <Btn variant="primary" onClick={() => promoteSystemEvent(discipline, system, event)}>
+                  <IconCheck width={13} height={13} />
+                  Create hazard
+                </Btn>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* ------------------------------------------------ register */}
         {hazards.length === 0 ? (

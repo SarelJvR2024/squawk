@@ -230,3 +230,33 @@ export const IconPaperclip = (p: SVGProps<SVGSVGElement>) => (
     />
   </svg>
 );
+
+/** Reveal the team passphrase while typing it. Paired with IconEyeOff below —
+ *  masked is the default state, this is what the toggle offers to switch TO. */
+export const IconEye = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...s(p)}>
+    <path
+      d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.7" />
+  </svg>
+);
+/** The masked state, offering to switch back. Same eye, struck through — not a
+ *  different pictogram — so the toggle reads as one control with two positions. */
+export const IconEyeOff = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...s(p)}>
+    <path
+      d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.7" />
+    <path d="M4 4l16 16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+  </svg>
+);

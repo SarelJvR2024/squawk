@@ -5,15 +5,15 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Forty-seven suites, no framework. Thirteen need a running server; thirty-four do not.
+Fifty suites, no framework. Thirteen need a running server; thirty-seven do not.
 **Check each suite's exit status, not its output**: a `for` loop over them
 reports the status of the loop.
 
 **To run everything: `bash tests/run-all.sh`.** It builds, starts the two
-deployments the browser suites need between them, runs all forty-three, and
+deployments the browser suites need between them, runs all forty-nine, and
 prints the measured assertion count for each. Each suite's own section below
 still gives the single command for running it alone, which is what you want
-while working on one; the runner exists because assembling all forty-three by
+while working on one; the runner exists because assembling all forty-nine by
 hand from those sections is how three of the browser rows in the table below
 drifted from what the suites actually assert without anybody noticing. **The
 numbers in that table are measured, never remembered** — paste them from a run.
@@ -38,7 +38,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 
 | Suite | Needs a server | Assertions run |
 |---|---|---|
-| `risk-matrix.test.mjs` | no | 48 |
+| `risk-matrix.test.mjs` | no | 49 |
 | `capture.test.mjs` | no | 33 |
 | `scope.test.mjs` | no | 48 |
 | `carryforward.test.mjs` | no | 48 |
@@ -49,12 +49,15 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `completion.test.mjs` | no | 19 |
 | `location.test.mjs` | no | 51 |
 | `followup.test.mjs` | no | 60 |
-| `systems.test.mjs` | no | 70 |
+| `systems.test.mjs` | no | 87 |
 | `register-review.test.mjs` | no | 24 |
+| `reports.test.mjs` | no | 16 |
 | `suite-table.test.mjs` | no | 5 |
 | `reviewfields.test.mjs` | no | 20 |
 | `evidencepending.test.mjs` | no | 30 |
 | `photoview.test.mjs` | no | 25 |
+| `people.test.mjs` | no | 20 |
+| `saveall.test.mjs` | no | 5 |
 | `audits.test.mjs` | no | 18 |
 | `voice.test.mjs` | no | 37 |
 | `sites.test.mjs` | no | 42 |
@@ -83,10 +86,10 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `offline.js` | yes | 19 |
 | `team.js` | yes | 15 |
 | `preflight.js` | yes | 18 |
-| `shared.js` | starts its own | 61 |
+| `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**2,200 assertions in total**, every count above verified by running the suite,
+**2,262 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
