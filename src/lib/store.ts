@@ -67,6 +67,7 @@ import {
   nextSignatureRef,
   patchInvalidatesSignature,
 } from "./attendance";
+import { isfSignedFieldsChanged } from "./isf";
 import { RETURNABLE, isHeldOriginal, isOutstanding } from "./evidence";
 import {
   blankItems as blankPpeItems,
@@ -411,6 +412,7 @@ interface State {
   addSafetyFinding: (description: string, seed?: Partial<SafetyFinding>) => string;
   updateSafetyFinding: (id: string, p: Partial<SafetyFinding>) => void;
   removeSafetyFinding: (id: string) => void;
+  signIsf: (id: string, s: Omit<Signature, "ref">) => void;
   addIsfAttachment: (id: string, a: Omit<Attachment, "id" | "createdAt">) => void;
   updateIsfAttachment: (
     id: string,
@@ -975,16 +977,31 @@ export const useStore = create<State>()(
                    finished. SWP-07's "at once" is measured from here. */
                 raisedAt: now,
                 raisedBy: s0.auditor || "",
+                recordedBy: s0.auditor || "",
                 description,
                 location: "",
+                locationDescription: "",
                 discipline: null,
+                assetSystem: null,
                 riskToPersons: "",
                 immediateAction: "",
+                actualImpact: "",
+                potentialImpact: "",
+                urgency: null,
+                severity: null,
+                likelihood: null,
+                ratingConfirmed: false,
+                rootCause: "",
+                actions: [],
+                actionStatus: "Open",
                 notifiedTo: "",
                 notifiedMethod: null,
                 notifiedAt: null,
                 writtenTo: "",
                 writtenIssuedAt: null,
+                acsaManagerName: "",
+                authorisedBy: "",
+                authorisedSignature: null,
                 attachments: [],
                 findingId: null,
                 closedAt: null,
@@ -1003,18 +1020,30 @@ export const useStore = create<State>()(
         updateSafetyFinding: (id, p) =>
           set((s) => ({
             safetyFindings: s.safetyFindings.map((f) =>
-              /* id, entity and raisedAt are what the record IS. A caller
-                 passing them would be renaming a safety record after the fact,
-                 which is the one thing a reviewer must be able to rule out. */
+              /* id and entity are what the record IS. A caller passing them
+                 would be renaming a safety record after the fact, which is
+                 the one thing a reviewer must be able to rule out.
+                 raisedAt is deliberately NOT in this list — Sarel's field
+                 list asked for an editable date and time, same reasoning as
+                 the PPE check: an ISF phoned in and backfilled from a paper
+                 note at the end of the day needs its own real raise time,
+                 not whatever the tablet said when someone got round to
+                 typing it up. createdAt still cannot move, so the merge
+                 cursor and the real capture order stay intact either way. */
               f.id === id
                 ? {
                     ...f,
                     ...p,
                     id: f.id,
                     entity: f.entity,
-                    raisedAt: f.raisedAt,
                     createdAt: f.createdAt,
                     updatedAt: Date.now(),
+                    /* The authorised signature attests to the substance of the
+                       finding — see ISF_SIGNED_FIELDS. A patch that touches
+                       none of those fields (notifiedTo, writtenTo, closure —
+                       all of which move after signing as a matter of course)
+                       leaves the mark standing. */
+                    ...(isfSignedFieldsChanged(p) ? { authorisedSignature: null } : {}),
                   }
                 : f
             ),
@@ -1022,6 +1051,14 @@ export const useStore = create<State>()(
 
         removeSafetyFinding: (id) =>
           set((s) => ({ safetyFindings: s.safetyFindings.filter((f) => f.id !== id) })),
+
+        signIsf: (id, sig) => {
+          const f = get().safetyFindings.find((x) => x.id === id);
+          if (!f) return;
+          const previous = f.authorisedSignature;
+          get().updateSafetyFinding(id, { authorisedSignature: { ...sig, ref: `${id}_ISF` } });
+          if (previous?.blobKey && previous.blobKey !== sig.blobKey) void delBlob(previous.blobKey);
+        },
 
         addIsfAttachment: (id, a) => {
           const f = get().safetyFindings.find((x) => x.id === id);
@@ -2439,7 +2476,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 22,
+      version: 24,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -2864,6 +2901,47 @@ export const useStore = create<State>()(
                     : [],
               };
             });
+          }
+        }
+        if (from < 23) {
+          /* The directory grew a company field — the employer, kept apart
+             from department (the org unit within it) once ContactPicker
+             started reading it for what every register already calls
+             "organisation". A contact entered before this has no company on
+             file, same as every other absent-means-empty string field in
+             this store, not an undefined that reads() would crash on. */
+          if (Array.isArray(st.contacts)) {
+            st.contacts = st.contacts.map((c) => ({ ...c, company: c.company ?? "" }));
+          }
+        }
+        if (from < 24) {
+          /* The Immediate Safety Finding form grew a risk assessment
+             (severity, likelihood, root cause, mitigating actions, an asset
+             system), a fuller impact/location capture, and the authorised
+             sign-off — Sarel's field list, 1 October 2026. An ISF raised
+             before this has none of it on file, same absent-means-empty
+             backfill every other field here gets, not an undefined that the
+             new RecordActions block or isfSignedFieldsChanged() would choke
+             on. */
+          if (Array.isArray(st.safetyFindings)) {
+            st.safetyFindings = st.safetyFindings.map((f) => ({
+              ...f,
+              recordedBy: f.recordedBy ?? f.raisedBy ?? "",
+              locationDescription: f.locationDescription ?? "",
+              assetSystem: f.assetSystem ?? null,
+              actualImpact: f.actualImpact ?? "",
+              potentialImpact: f.potentialImpact ?? "",
+              urgency: f.urgency ?? null,
+              severity: f.severity ?? null,
+              likelihood: f.likelihood ?? null,
+              ratingConfirmed: f.ratingConfirmed ?? false,
+              rootCause: f.rootCause ?? "",
+              actions: Array.isArray(f.actions) ? f.actions : [],
+              actionStatus: f.actionStatus ?? "Open",
+              acsaManagerName: f.acsaManagerName ?? "",
+              authorisedBy: f.authorisedBy ?? "",
+              authorisedSignature: f.authorisedSignature ?? null,
+            }));
           }
         }
         return st;

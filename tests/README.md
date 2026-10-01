@@ -29,8 +29,8 @@ starts failing on half-written chunks and the failures look exactly like real
 ones; the runner builds before it starts anything for that reason.
 
 All run with plain `node` except `sharepoint.test.mjs`, `merge.test.mjs`,
-`figures.test.mjs` and `attendance.test.mjs`, which need the alias loader so
-they can import the app's real modules:
+`figures.test.mjs`, `attendance.test.mjs` and `isf.test.mjs`, which need the
+alias loader so they can import the app's real modules:
 
 ```
 node --import ./tests/alias.mjs tests/sharepoint.test.mjs
@@ -59,7 +59,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `reviewfields.test.mjs` | no | 20 |
 | `evidencepending.test.mjs` | no | 30 |
 | `photoview.test.mjs` | no | 25 |
-| `people.test.mjs` | no | 20 |
+| `people.test.mjs` | no | 36 |
 | `saveall.test.mjs` | no | 5 |
 | `audits.test.mjs` | no | 18 |
 | `voice.test.mjs` | no | 37 |
@@ -74,7 +74,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `figures.test.mjs` | no | 7 |
 | `home.test.mjs` | no | 58 |
 | `adhoc.test.mjs` | no | 43 |
-| `isf.test.mjs` | no | 49 |
+| `isf.test.mjs` | no | 86 |
 | `interviews.test.mjs` | no | 79 |
 | `attendance.test.mjs` | no | 97 |
 | `diary.test.mjs` | no | 56 |
@@ -93,7 +93,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**2,460 assertions in total**, every count above verified by running the suite,
+**2,513 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -251,12 +251,32 @@ it does not replace the verbal notification.
 front of the thing; a form demanding every field first is a form filled in that
 evening from memory, with times that are fiction.
 
-**The record cannot be back-dated.** `id`, `entity` and `raisedAt` are stripped
-from every patch. A safety record whose raise time can be edited is not a
-record.
+**The record cannot be renamed.** `id` and `entity` are stripped from every
+patch. `raisedAt` is deliberately NOT — Sarel's 1 October field list asked for
+an editable date and time, same reasoning as the PPE check's: a finding
+phoned in and typed up later needs its own real raise time, not whatever the
+tablet said when someone got round to the form.
 
 **Scoped by entity, not by visit.** An ISF the last visit left open is exactly
 what the next team walking into that airport needs to see.
+
+**The risk assessment reuses one instrument, not a second one.** Severity,
+likelihood, root cause and mitigating actions go through the same
+`RecordActions` component and B170 001M vocabulary Findings and Hazards use —
+`RatingPicker`'s grid, `ROOT_CAUSES` chips, the same `MitigationAction` shape.
+The type's own doc comment was rewritten rather than quietly contradicted:
+this still is not a Finding — nothing here feeds year-on-year comparison, and
+`ratingConfirmed`/`actionStatus` belong to this record alone — but it now
+also captures the same risk-assessment vocabulary for its own purposes.
+
+**The authorised signature attests to the substance, not the paperwork
+around it.** `ISF_SIGNED_FIELDS` is the finding itself — description,
+location, discipline, asset system, impact, root cause, severity,
+likelihood. Changing any of it clears the mark, the same rule every other
+signature in this app follows. Marking the written notice issued, naming who
+was notified, or closing the finding do NOT — those move after signing as a
+matter of course, and a signature that cleared every time somebody ticked a
+procedural box afterwards would read as permanently unsigned.
 
 ## `interviews.test.mjs`
 

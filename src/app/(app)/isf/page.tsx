@@ -42,15 +42,21 @@ import {
   missingFields,
   noticeText,
   notifyGapMs,
+  unbackedIsfSignature,
   writtenStatus,
 } from "@/lib/isf";
+import { systemsAt } from "@/lib/register";
 import { siteFor, siteCodeFor } from "@/lib/sites";
 import { useNow } from "@/lib/clock";
 import { useFormsHubDeepLink } from "@/lib/deepLink";
 import { AttachmentStrip, PhotoButton, VoiceNoteButton } from "@/components/Capture";
-import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
+import RecordActions from "@/components/RecordActions";
+import RootCauseAdvice from "@/components/RootCauseAdvice";
+import { SignaturePad } from "@/components/SignaturePad";
+import { Btn, Chip, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconX } from "@/components/ui/icons";
-import type { IsfStage, NotifyMethod, SafetyFinding } from "@/lib/types";
+import type { IsfStage, NotifyMethod, SafetyFinding, Urgency } from "@/lib/types";
+import { URGENCIES } from "@/lib/types";
 
 const METHODS: NotifyMethod[] = ["in-person", "phone", "radio", "message", "email"];
 
@@ -80,6 +86,18 @@ function clock(t: number): string {
   });
 }
 
+function dateInputValue(t: number): string {
+  const d = new Date(t);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function timeInputValue(t: number): string {
+  const d = new Date(t);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function IsfPage() {
   const findings = useSafetyFindings();
   const entityCode = useEntityCode();
@@ -87,6 +105,7 @@ export default function IsfPage() {
   const auditor = useStore((s) => s.auditor);
   const add = useStore((s) => s.addSafetyFinding);
   const patch = useStore((s) => s.updateSafetyFinding);
+  const signFinding = useStore((s) => s.signIsf);
   const addPhoto = useStore((s) => s.addIsfAttachment);
   const removePhoto = useStore((s) => s.removeIsfAttachment);
   const updatePhoto = useStore((s) => s.updateIsfAttachment);
@@ -94,8 +113,26 @@ export default function IsfPage() {
   const [draft, setDraft] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [signing, setSigning] = useState<string | null>(null);
   const disciplines = useMemo(() => disciplinesAt(entityCode), [entityCode]);
+  const assetSystems = useMemo(() => systemsAt(entityCode), [entityCode]);
   const site = siteFor(entityCode);
+
+  function setRaisedDate(f: SafetyFinding, v: string) {
+    if (!v) return;
+    const t = new Date(f.raisedAt);
+    const merged = new Date(
+      `${v}T${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}:00`
+    );
+    patch(f.id, { raisedAt: merged.getTime() });
+  }
+  function setRaisedTime(f: SafetyFinding, v: string) {
+    const [hh, mm] = v.split(":").map(Number);
+    if (Number.isNaN(hh) || Number.isNaN(mm)) return;
+    const merged = new Date(f.raisedAt);
+    merged.setHours(hh, mm, 0, 0);
+    patch(f.id, { raisedAt: merged.getTime() });
+  }
   /* 0 until the device's clock is known — see src/lib/clock.ts. Everything it
      drives here is a warning ABOUT lateness, so rendering none of it on the
      first frame is the right failure: an overdue badge that flickers in is
@@ -263,6 +300,62 @@ export default function IsfPage() {
                     </Field>
                   )}
 
+                  <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Field label="DATE">
+                      <input
+                        type="date"
+                        value={dateInputValue(f.raisedAt)}
+                        onChange={(e) => setRaisedDate(f, e.target.value)}
+                        aria-label={`Date ${f.id} was raised`}
+                        className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                        style={{ background: "var(--bg)", borderColor: "var(--line)" }}
+                      />
+                    </Field>
+                    <Field label="TIME">
+                      <input
+                        type="time"
+                        value={timeInputValue(f.raisedAt)}
+                        onChange={(e) => setRaisedTime(f, e.target.value)}
+                        aria-label={`Time ${f.id} was raised`}
+                        className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                        style={{ background: "var(--bg)", borderColor: "var(--line)" }}
+                      />
+                    </Field>
+                  </div>
+
+                  <Field label="WHAT HAPPENED">
+                    <textarea
+                      value={f.description}
+                      onChange={(e) => patch(f.id, { description: e.target.value })}
+                      rows={2}
+                      aria-label={`What happened — ${f.id}`}
+                      placeholder="Exposed busbar in the MV room, door standing open"
+                      className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                      style={{ background: "var(--bg)", borderColor: "var(--line)" }}
+                    />
+                  </Field>
+
+                  <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Field label="IDENTIFIED BY" hint="who saw it happen">
+                      <input
+                        value={f.raisedBy}
+                        onChange={(e) => patch(f.id, { raisedBy: e.target.value })}
+                        aria-label={`Who identified ${f.id}`}
+                        className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                        style={{ background: "var(--bg)", borderColor: "var(--line)" }}
+                      />
+                    </Field>
+                    <Field label="RECORDED BY" hint="who is filling this in">
+                      <input
+                        value={f.recordedBy}
+                        onChange={(e) => patch(f.id, { recordedBy: e.target.value })}
+                        aria-label={`Who recorded ${f.id}`}
+                        className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                        style={{ background: "var(--bg)", borderColor: "var(--line)" }}
+                      />
+                    </Field>
+                  </div>
+
                   <Field label="WHERE" hint="somewhere a person can walk to">
                     <input
                       value={f.location}
@@ -274,24 +367,79 @@ export default function IsfPage() {
                     />
                   </Field>
 
-                  <Field label="DISCIPLINE">
-                    <select
-                      value={f.discipline ?? ""}
-                      onChange={(e) =>
-                        patch(f.id, { discipline: e.target.value || null })
-                      }
-                      aria-label={`Discipline for ${f.id}`}
+                  <Field label="LOCATION DESCRIPTION" hint="optional — detail enough to find the exact spot later">
+                    <textarea
+                      value={f.locationDescription}
+                      onChange={(e) => patch(f.id, { locationDescription: e.target.value })}
+                      rows={2}
+                      aria-label={`Location description for ${f.id}`}
+                      placeholder="Between stand 14 and 15, access panel on the apron side"
                       className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
                       style={{ background: "var(--bg)", borderColor: "var(--line)" }}
-                    >
-                      <option value="">Not attributed</option>
-                      {disciplines.map((d) => (
-                        <option key={d} value={d}>
-                          {d}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </Field>
+
+                  <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Field label="DISCIPLINE">
+                      <select
+                        value={f.discipline ?? ""}
+                        onChange={(e) =>
+                          patch(f.id, { discipline: e.target.value || null })
+                        }
+                        aria-label={`Discipline for ${f.id}`}
+                        className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                        style={{ background: "var(--bg)", borderColor: "var(--line)" }}
+                      >
+                        <option value="">Not attributed</option>
+                        {disciplines.map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="ASSET SYSTEM">
+                      <select
+                        value={f.assetSystem ?? ""}
+                        onChange={(e) => patch(f.id, { assetSystem: e.target.value || null })}
+                        aria-label={`Asset system for ${f.id}`}
+                        className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                        style={{ background: "var(--bg)", borderColor: "var(--line)" }}
+                      >
+                        <option value="">Not attributed</option>
+                        {assetSystems.map((sys) => (
+                          <option key={sys} value={sys}>
+                            {sys}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  </div>
+
+                  <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Field label="WHAT WAS THE IMPACT">
+                      <textarea
+                        value={f.actualImpact}
+                        onChange={(e) => patch(f.id, { actualImpact: e.target.value })}
+                        rows={2}
+                        aria-label={`Actual impact of ${f.id}`}
+                        placeholder="What actually resulted — damage, delay, a near miss"
+                        className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                        style={{ background: "var(--bg)", borderColor: "var(--line)" }}
+                      />
+                    </Field>
+                    <Field label="WHAT IS A POSSIBLE IMPACT">
+                      <textarea
+                        value={f.potentialImpact}
+                        onChange={(e) => patch(f.id, { potentialImpact: e.target.value })}
+                        rows={2}
+                        aria-label={`Potential impact of ${f.id}`}
+                        placeholder="The reasonable worst case if this happens again"
+                        className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                        style={{ background: "var(--bg)", borderColor: "var(--line)" }}
+                      />
+                    </Field>
+                  </div>
 
                   <Field label="IMMEDIATE RISK TO PERSONS">
                     <textarea
@@ -315,6 +463,45 @@ export default function IsfPage() {
                       className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
                       style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                     />
+                  </Field>
+
+                  <Field label="RISK ASSESSMENT">
+                    <RecordActions
+                      record={{
+                        ...f,
+                        discipline: f.discipline ?? undefined,
+                        system: f.assetSystem ?? undefined,
+                      }}
+                      entityCode={entityCode}
+                      onChange={(p) => patch(f.id, p)}
+                      advice={
+                        <RootCauseAdvice
+                          finding={{
+                            description: f.description,
+                            discipline: f.discipline ?? "",
+                            system: f.assetSystem ?? "",
+                            rootCause: f.rootCause,
+                          }}
+                          attachments={f.attachments}
+                          onPick={(rc) => patch(f.id, { rootCause: rc })}
+                        />
+                      }
+                      actionLabel="Mitigating action"
+                    />
+                  </Field>
+
+                  <Field label="URGENCY" hint="how soon the underlying issue needs fixing">
+                    <div className="flex flex-wrap gap-[6px]">
+                      {URGENCIES.map((u) => (
+                        <Chip
+                          key={u}
+                          selected={f.urgency === u}
+                          onClick={() => patch(f.id, { urgency: u as Urgency })}
+                        >
+                          {u}
+                        </Chip>
+                      ))}
+                    </div>
                   </Field>
 
                   <Field label="PHOTOGRAPHS">
@@ -344,6 +531,17 @@ export default function IsfPage() {
                         />
                       </div>
                     ) : null}
+                  </Field>
+
+                  <Field label="AREA / DEPT MANAGER FROM ACSA" hint="who on ACSA's side owns this area">
+                    <input
+                      value={f.acsaManagerName}
+                      onChange={(e) => patch(f.id, { acsaManagerName: e.target.value })}
+                      aria-label={`ACSA area or department manager for ${f.id}`}
+                      placeholder="Name of the ACSA area or department manager"
+                      className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                      style={{ background: "var(--bg)", borderColor: "var(--line)" }}
+                    />
                   </Field>
 
                   {/* THE SAME-DAY NOTICE. */}
@@ -379,6 +577,49 @@ export default function IsfPage() {
                         </Btn>
                       ) : null}
                     </div>
+                  </Field>
+
+                  <Field label="AUTHORISED BY" hint="TPJV's authorised person, attesting this record is accurate">
+                    <input
+                      value={f.authorisedBy}
+                      onChange={(e) => patch(f.id, { authorisedBy: e.target.value })}
+                      aria-label={`Authorised person for ${f.id}`}
+                      placeholder="Name of the TPJV authorised person"
+                      className="mb-2 w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                      style={{ background: "var(--bg)", borderColor: "var(--line)" }}
+                    />
+                    {signing === f.id ? (
+                      <>
+                        <p className="mb-2 text-[11.5px] leading-[1.5]" style={{ color: "var(--ink-2)" }}>
+                          By signing, {f.authorisedBy.trim() || "this person"} confirms the
+                          finding above, as it stands, is an accurate record.
+                        </p>
+                        <SignaturePad
+                          name={f.authorisedBy || auditor}
+                          onCancel={() => setSigning(null)}
+                          onSigned={(s) => {
+                            signFinding(f.id, s);
+                            setSigning(null);
+                          }}
+                        />
+                      </>
+                    ) : f.authorisedSignature ? (
+                      <div className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                        {f.authorisedSignature.ref} · SIGNED {clock(f.authorisedSignature.signedAt)} AS{" "}
+                        {f.authorisedSignature.signedName.toUpperCase() || "—"}
+                        <Btn className="ml-2" onClick={() => setSigning(f.id)}>
+                          Sign again
+                        </Btn>
+                      </div>
+                    ) : (
+                      <Btn onClick={() => setSigning(f.id)}>Sign</Btn>
+                    )}
+                    {unbackedIsfSignature(f).length ? (
+                      <p className="mt-2 font-mono text-[9px]" style={{ color: "var(--warn)" }}>
+                        THIS SIGNATURE IS ON THIS DEVICE ONLY. COPY THE NOTICE OUT BEFORE THE
+                        TABLET LEAVES SITE.
+                      </p>
+                    ) : null}
                   </Field>
 
                   {/* CLOSURE means the risk to persons is gone, not that the

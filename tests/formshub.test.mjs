@@ -135,7 +135,7 @@ check("the component exists", fs.existsSync(path.join(here, "..", "src", "compon
 check("it reads the people directory", /useContacts\(\)/.test(picker));
 check(
   "picking a known contact carries their id, organisation and role through",
-  /contactId: c\.id/.test(picker) && /organisation: c\.department\.trim\(\)/.test(picker) && /role: c\.role\.trim\(\)/.test(picker)
+  /contactId: c\.id/.test(picker) && /organisation: contactOrganisation\(c\)/.test(picker) && /role: c\.role\.trim\(\)/.test(picker)
 );
 check(
   "a name the directory does not have is still offered as its own row",

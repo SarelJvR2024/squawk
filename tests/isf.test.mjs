@@ -61,12 +61,15 @@ const check = (name, cond, detail = "") => {
 };
 
 const {
+  ISF_SIGNED_FIELDS,
+  isfSignedFieldsChanged,
   isfStage,
   isVerbal,
   missingFields,
   noticeText,
   notifyGapMs,
   sameDay,
+  unbackedIsfSignature,
   writtenStatus,
 } = await import(path.join(here, "..", "src", "lib", "isf.ts"));
 
@@ -79,16 +82,31 @@ const base = {
   originVisit: "2026-09",
   raisedAt: RAISED_AT,
   raisedBy: "Sarel Jansen van Rensburg",
+  recordedBy: "Sarel Jansen van Rensburg",
   description: "Exposed busbar in the MV room, door standing open",
   location: "",
+  locationDescription: "",
   discipline: null,
+  assetSystem: null,
   riskToPersons: "",
   immediateAction: "",
+  actualImpact: "",
+  potentialImpact: "",
+  urgency: null,
+  severity: null,
+  likelihood: null,
+  ratingConfirmed: false,
+  rootCause: "",
+  actions: [],
+  actionStatus: "Open",
   notifiedTo: "",
   notifiedMethod: null,
   notifiedAt: null,
   writtenTo: "",
   writtenIssuedAt: null,
+  acsaManagerName: "",
+  authorisedBy: "",
+  authorisedSignature: null,
   attachments: [],
   findingId: null,
   closedAt: null,
@@ -97,6 +115,16 @@ const base = {
   createdAt: RAISED_AT,
   updatedAt: RAISED_AT,
 };
+const sig = (over = {}) => ({
+  ref: "ISF-7K2P9_ISF",
+  blobKey: "sig-abc",
+  signedName: "T. Nkosi",
+  signedAt: RAISED_AT + 300000,
+  width: 600,
+  height: 264,
+  bytes: 4000,
+  ...over,
+});
 const ctx = { siteName: "O.R. Tambo International Airport (FAOR)", siteCode: "ORTIA", visitId: "2026-09" };
 
 /* ---------------------------------------------------------- 1. verbal only */
@@ -178,6 +206,9 @@ for (const f of [
   "verbal notification",
   "written notice",
   "photograph",
+  "risk rating",
+  "root cause",
+  "authorised signature",
 ]) {
   check(`a bare finding reports '${f}' missing`, gaps.includes(f));
 }
@@ -189,9 +220,54 @@ const full = {
   immediateAction: "Withdrew, warned two staff, escort locked the door",
   writtenIssuedAt: RAISED_AT + 200000,
   attachments: [{ id: "a1", kind: "photo", name: "p.jpg", ref: "ISF-7K2P9_P01", createdAt: 1 }],
+  severity: "B - Hazardous",
+  likelihood: "4 - Occasional",
+  ratingConfirmed: true,
+  rootCause: "Maintenance backlog",
+  authorisedSignature: sig(),
 };
 check("a complete finding reports nothing missing", missingFields(full).length === 0,
   `got ${JSON.stringify(missingFields(full))}`);
+
+/* --------------------------------------------- 4b. the risk assessment and sign-off */
+
+check(
+  "ISF_SIGNED_FIELDS covers the substance, not the procedural fields",
+  ISF_SIGNED_FIELDS.includes("description") &&
+    ISF_SIGNED_FIELDS.includes("severity") &&
+    ISF_SIGNED_FIELDS.includes("rootCause") &&
+    !ISF_SIGNED_FIELDS.includes("notifiedTo") &&
+    !ISF_SIGNED_FIELDS.includes("writtenTo") &&
+    !ISF_SIGNED_FIELDS.includes("closedAt"),
+  "notifiedTo/writtenTo/closure move after signing as a matter of course"
+);
+check(
+  "changing the description invalidates the authorised signature",
+  isfSignedFieldsChanged({ description: "Something else" }) === true
+);
+check(
+  "changing the severity invalidates it",
+  isfSignedFieldsChanged({ severity: "A - Catastrophic" }) === true
+);
+check("an empty patch invalidates nothing", isfSignedFieldsChanged({}) === false);
+check(
+  "marking the written notice issued does not invalidate it",
+  isfSignedFieldsChanged({ writtenIssuedAt: RAISED_AT }) === false
+);
+check(
+  "closing the finding does not invalidate it",
+  isfSignedFieldsChanged({ closedAt: RAISED_AT, closedBy: "X" }) === false
+);
+
+check(
+  "an unbacked authorised signature is reported",
+  unbackedIsfSignature({ ...base, authorisedSignature: sig() }).length === 1
+);
+check(
+  "one backed up to the record store is not",
+  unbackedIsfSignature({ ...base, authorisedSignature: sig({ cloudUrl: "https://x" }) }).length === 0
+);
+check("no signature at all is not reported as unbacked", unbackedIsfSignature(base).length === 0);
 
 /* --------------------------------------------------------- 5. the written notice */
 
@@ -228,6 +304,45 @@ check(
   "a notified finding's notice drops the not-yet-notified warning",
   !fullNotice.includes("NOT YET NOTIFIED")
 );
+check(
+  "the notice carries the risk assessment — severity, likelihood, the agreed rating",
+  fullNotice.includes("B - Hazardous") &&
+    fullNotice.includes("4 - Occasional") &&
+    fullNotice.includes("Maintenance backlog")
+);
+check(
+  "an unconfirmed rating reads as not yet agreed, not a computed band",
+  noticeText({ ...full, ratingConfirmed: false }, ctx).includes("not yet agreed"),
+  "ratingConfirmed is set by tapping the matrix cell and by nothing else — see RecordActions"
+);
+check(
+  "mitigating actions print as a numbered list when there are any",
+  noticeText(
+    {
+      ...full,
+      actions: [
+        { id: "a1", action: "Replace the busbar cover", owner: "J. Dlamini", dueDate: "2026-10-15", status: "Open", discipline: "Electrical" },
+      ],
+    },
+    ctx
+  ).includes("Replace the busbar cover")
+);
+check(
+  "a finding with no mitigating actions logged does not print an empty section",
+  !fullNotice.includes("MITIGATING ACTIONS")
+);
+check(
+  "the notice names the ACSA area or dept manager",
+  noticeText({ ...full, acsaManagerName: "P. Mokoena" }, ctx).includes("P. Mokoena")
+);
+check(
+  "an unsigned notice says so rather than omitting the authorised-by line",
+  bareNotice.includes("AUTHORISED BY") && bareNotice.includes("NOT YET SIGNED")
+);
+check(
+  "a signed notice carries the signature reference, not just a name",
+  fullNotice.includes("ISF-7K2P9_ISF") && fullNotice.includes(sig().signedName)
+);
 
 /* ------------------------------------------------------- 6. the store's guarantees */
 
@@ -237,11 +352,16 @@ check(
   "the signature must not grow required fields"
 );
 check(
-  "id, entity and raisedAt cannot be patched after the fact",
-  /updateSafetyFinding[\s\S]{0,700}id:\s*f\.id[\s\S]{0,200}entity:\s*f\.entity[\s\S]{0,200}raisedAt:\s*f\.raisedAt/.test(
+  "id and entity cannot be patched after the fact",
+  /updateSafetyFinding: \(id, p\) =>[\s\S]{0,1100}id:\s*f\.id[\s\S]{0,200}entity:\s*f\.entity[\s\S]{0,200}createdAt:\s*f\.createdAt/.test(
     store
   ),
-  "a safety record that can be back-dated is not a record"
+  "a safety record that can be renamed to a different id or site is not a record"
+);
+check(
+  "but raisedAt IS correctable — Sarel's field list asked for an editable date and time",
+  !/updateSafetyFinding: \(id, p\) =>[\s\S]{0,400}raisedAt: f\.raisedAt/.test(store),
+  "same reasoning as the PPE check: a finding backfilled from a paper note needs its own real raise time"
 );
 check(
   "safety findings are persisted",
@@ -278,7 +398,66 @@ check(
 check(
   "an ISF is its own record and not a Finding",
   /export interface SafetyFinding/.test(types) &&
-    /This is NOT a Finding/.test(types)
+    /STILL NOT A FINDING/.test(types),
+  'Sarel\'s 1 October field list added a B170 001M risk assessment, so the doc comment was rewritten to say the boundary still holds, not removed'
+);
+
+/* ---------------------------------------- 6b. the risk assessment in the store */
+
+check(
+  "the persisted shape was versioned to carry the risk assessment and sign-off",
+  Number(/version: (\d+),/.exec(store)?.[1] ?? 0) >= 24
+);
+check(
+  "a finding entered before the risk assessment existed backfills rather than reading undefined",
+  /from < 24[\s\S]{0,1600}rootCause: f\.rootCause \?\? ""[\s\S]{0,300}actions: Array\.isArray\(f\.actions\) \? f\.actions : \[\]/.test(
+    store
+  )
+);
+check(
+  "a patch that changes the signed substance clears the authorised signature",
+  /updateSafetyFinding: \(id, p\) =>[\s\S]{0,1600}isfSignedFieldsChanged\(p\)[\s\S]{0,80}authorisedSignature: null/.test(
+    store
+  )
+);
+check(
+  "signIsf mints a fixed, per-record reference and assigns it, not the screen",
+  /signIsf: \(id, sig\) => \{[\s\S]{0,400}ref: `\$\{id\}_ISF`/.test(store)
+);
+check(
+  "re-signing releases the previous mark's blob",
+  /signIsf[\s\S]{0,500}previous\.blobKey !== sig\.blobKey\) void delBlob\(previous\.blobKey\)/.test(store)
+);
+
+/* --------------------------------------- 6c. Sarel's 1 October field list, on screen */
+
+check(
+  "the date and time are editable, not just stamped and read-only",
+  /type="date"[\s\S]{0,120}value=\{dateInputValue\(f\.raisedAt\)\}/.test(page) &&
+    /type="time"[\s\S]{0,120}value=\{timeInputValue\(f\.raisedAt\)\}/.test(page)
+);
+check("what happened is editable after raising, not only set at raise time", /WHAT HAPPENED/.test(page) && /patch\(f\.id, \{ description: e\.target\.value \}\)/.test(page));
+check("identified by and recorded by are both captured", /IDENTIFIED BY/.test(page) && /RECORDED BY/.test(page));
+check("a location description is captured alongside the short location", /LOCATION DESCRIPTION/.test(page));
+check("the asset system is picked from the same taxonomy Hazards uses", /ASSET SYSTEM/.test(page) && /systemsAt\(entityCode\)/.test(page));
+check("both impact questions are captured, as two distinct fields", /WHAT WAS THE IMPACT/.test(page) && /WHAT IS A POSSIBLE IMPACT/.test(page));
+check(
+  "the risk assessment reuses RecordActions — the same instrument as Findings and Hazards",
+  /<RecordActions/.test(page) && /import RecordActions from "@\/components\/RecordActions"/.test(page)
+);
+check(
+  "root-cause advice is wired in, not a second copy of the assistant prompt",
+  /<RootCauseAdvice/.test(page) && /import RootCauseAdvice from "@\/components\/RootCauseAdvice"/.test(page)
+);
+check("urgency is captured from a fixed vocabulary", /URGENCIES\.map/.test(page));
+check("the ACSA area or dept manager is captured", /AREA \/ DEPT MANAGER FROM ACSA/.test(page));
+check(
+  "the authorised person signs off, same Signature pattern as every other form",
+  /AUTHORISED BY/.test(page) && /<SignaturePad/.test(page) && /signFinding\(f\.id, s\)/.test(page)
+);
+check(
+  "an unbacked authorised signature warns before the tablet leaves site",
+  /unbackedIsfSignature\(f\)\.length/.test(page)
 );
 
 /* ---------------------------------------------------------- 7. reachable, one clock */

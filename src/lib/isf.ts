@@ -6,7 +6,35 @@
  *  "has this been notified yet?" is how one of them comes to disagree with the
  *  others about a record that matters more than any other in the file. */
 
-import type { NotifyMethod, IsfStage, SafetyFinding } from "@/lib/types";
+import { bandFor, BAND_META } from "@/lib/risk";
+import type { NotifyMethod, IsfStage, SafetyFinding, Signature } from "@/lib/types";
+
+/** What the authorised signature signs for — same rule as every other
+ *  signature in this app: change what it attests to and the mark is cleared.
+ *  The substance of the finding and its risk assessment, not the procedural
+ *  fields (who was notified, the written notice, closure) which move after
+ *  signing as a matter of course and would otherwise unsign the record every
+ *  time somebody ticked a box days later. */
+export const ISF_SIGNED_FIELDS = [
+  "description",
+  "location",
+  "locationDescription",
+  "discipline",
+  "assetSystem",
+  "riskToPersons",
+  "immediateAction",
+  "actualImpact",
+  "potentialImpact",
+  "rootCause",
+  "severity",
+  "likelihood",
+] as const;
+
+export function isfSignedFieldsChanged(p: Partial<SafetyFinding>): boolean {
+  return ISF_SIGNED_FIELDS.some(
+    (f) => Object.prototype.hasOwnProperty.call(p, f) && p[f] !== undefined
+  );
+}
 
 /** What SWP-07 accepts as having notified somebody.
  *
@@ -102,7 +130,17 @@ export function missingFields(f: SafetyFinding): string[] {
   else if (!f.notifiedTo.trim()) gaps.push("who was notified");
   if (!f.writtenIssuedAt) gaps.push("written notice");
   if (!f.attachments.some((a) => a.kind === "photo")) gaps.push("photograph");
+  if (f.severity === null || f.likelihood === null) gaps.push("risk rating");
+  if (!f.rootCause.trim()) gaps.push("root cause");
+  if (!f.authorisedSignature) gaps.push("authorised signature");
   return gaps;
+}
+
+/** An authorised signature the record store has not taken a copy of yet —
+ *  same reasoning and same shape as unbackedSignatures() in
+ *  src/lib/attendance.ts. */
+export function unbackedIsfSignature(f: SafetyFinding): Signature[] {
+  return f.authorisedSignature && !f.authorisedSignature.cloudUrl ? [f.authorisedSignature] : [];
 }
 
 function stamp(t: number): string {
@@ -146,17 +184,49 @@ export function noticeText(f: SafetyFinding, ctx: NoticeContext): string {
     `Audit           ${ctx.visitId}`,
     `Raised          ${stamp(f.raisedAt)}`,
     `Raised by       ${L(f.raisedBy)}`,
+    `Recorded by     ${L(f.recordedBy)}`,
     `Discipline      ${f.discipline ?? unknown}`,
+    `Asset system    ${f.assetSystem ?? unknown}`,
     `Location        ${L(f.location)}`,
+    f.locationDescription.trim() ? `                ${f.locationDescription.trim()}` : "",
     "",
     "FINDING",
     L(f.description),
+    "",
+    "IMPACT",
+    `What happened   ${L(f.actualImpact)}`,
+    `Possible impact ${L(f.potentialImpact)}`,
     "",
     "IMMEDIATE RISK TO PERSONS",
     L(f.riskToPersons),
     "",
     "IMMEDIATE ACTION TAKEN",
     L(f.immediateAction),
+    "",
+    "RISK ASSESSMENT",
+    `Severity        ${f.severity ?? unknown}`,
+    `Likelihood      ${f.likelihood ?? unknown}`,
+    `Rating          ${
+      f.ratingConfirmed && bandFor(f.severity, f.likelihood)
+        ? BAND_META[bandFor(f.severity, f.likelihood)!].label
+        : "not yet agreed"
+    }`,
+    `Root cause      ${L(f.rootCause)}`,
+    `Urgency         ${f.urgency ?? unknown}`,
+    ...(f.actions.length
+      ? [
+          "",
+          "MITIGATING ACTIONS",
+          ...f.actions.map(
+            (a, i) =>
+              `${i + 1}. ${a.action.trim() || unknown} — ${a.discipline || unknown}, ${
+                a.owner.trim() || unknown
+              }, due ${a.dueDate || unknown} (${a.status})`
+          ),
+        ]
+      : []),
+    "",
+    `ACSA area/dept manager   ${L(f.acsaManagerName)}`,
     "",
     "VERBAL NOTIFICATION",
     f.notifiedAt
@@ -170,6 +240,16 @@ export function noticeText(f: SafetyFinding, ctx: NoticeContext): string {
   if (photos.length) {
     lines.push("", "PHOTOGRAPHS", photos.map((a) => a.ref).join(", "));
   }
+
+  lines.push(
+    "",
+    "AUTHORISED BY",
+    f.authorisedSignature
+      ? `${f.authorisedSignature.ref}, signed ${stamp(f.authorisedSignature.signedAt)} as "${
+          f.authorisedSignature.signedName
+        }"`
+      : `${L(f.authorisedBy)} — NOT YET SIGNED`
+  );
 
   lines.push(
     "",

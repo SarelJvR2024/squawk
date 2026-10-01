@@ -25,6 +25,7 @@ import { useMemo, useState } from "react";
 import { useContacts, useEntityCode, useStore } from "@/lib/store";
 import { ALL_DISCIPLINES } from "@/lib/register";
 import { ENTITIES, entity as entityOf } from "@/lib/programme";
+import { SITE_ALL, contactSearchFields } from "@/lib/people";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
 import { IconPlus, IconX } from "@/components/ui/icons";
 import type { Contact } from "@/lib/types";
@@ -35,6 +36,7 @@ const blankDraft = (site: string) => ({
   surname: "",
   role: "",
   discipline: "",
+  company: "",
   department: "",
   location: "",
 });
@@ -47,6 +49,9 @@ function SiteSelect({
 }: {
   value: string;
   onChange: (v: string) => void;
+  /** The FILTER's own "don't filter" option — distinct from `SITE_ALL`
+   *  below, which is a contact's actual, persisted site. Only the filter use
+   *  of this control ever passes it. */
   includeAll?: boolean;
   ariaLabel: string;
 }) {
@@ -59,6 +64,11 @@ function SiteSelect({
       style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
     >
       {includeAll && <option value="">All sites</option>}
+      {/* Sarel: "allow to select airports all as an option" — a contact who
+          is relevant everywhere, not based at one airport or at Corporate.
+          One option, shared by the add form, the edit form and the filter,
+          because this is the same <select> in all three places. */}
+      <option value={SITE_ALL}>All airports</option>
       {ENTITIES.map((e) => (
         <option key={e.code} value={e.code}>
           {e.kind === "head-office" ? `${e.short} — Corporate` : `${e.short} — ${e.name}`}
@@ -116,6 +126,7 @@ export default function PeoplePage() {
       name: draft.name.trim(),
       surname: draft.surname.trim(),
       role: draft.role.trim(),
+      company: draft.company.trim(),
       department: draft.department.trim(),
       location: draft.location.trim(),
     });
@@ -125,12 +136,32 @@ export default function PeoplePage() {
   const visible = useMemo(() => {
     const s = q.trim().toLowerCase();
     return contacts.filter((c) => {
-      if (siteFilter && c.site !== siteFilter) return false;
+      /* A specific airport's filter still surfaces an ALL-tagged contact —
+         they are relevant there too — but the filter's own "All airports"
+         choice means exactly that tag, not "don't filter". */
+      if (siteFilter) {
+        if (siteFilter === SITE_ALL) {
+          if (c.site !== SITE_ALL) return false;
+        } else if (c.site !== siteFilter && c.site !== SITE_ALL) {
+          return false;
+        }
+      }
       if (!s) return true;
-      return [c.name, c.surname, c.role, c.discipline, c.department, c.location]
-        .some((v) => v.toLowerCase().includes(s));
+      return contactSearchFields(c).some((v) => v.toLowerCase().includes(s));
     });
   }, [contacts, siteFilter, q]);
+
+  /* The group label and sort rank for one of the three tiers a contact's
+     site can fall into — handled before entityOf() rather than inside it,
+     because SITE_ALL is a scope programme.json knows nothing about and
+     entityOf() would otherwise silently fall back to its first entity. */
+  function siteGroup(site: string): { label: string; rank: number; short: string } {
+    if (site === SITE_ALL) return { label: "ALL AIRPORTS", rank: 1, short: "" };
+    const e = entityOf(site);
+    return e.kind === "head-office"
+      ? { label: "CORPORATE", rank: 2, short: e.short }
+      : { label: e.short, rank: 0, short: e.short };
+  }
 
   const groups = useMemo(() => {
     const by = new Map<string, Contact[]>();
@@ -141,15 +172,13 @@ export default function PeoplePage() {
     }
     for (const g of by.values()) g.sort((a, b) => a.surname.localeCompare(b.surname));
     return [...by.entries()].sort(([a], [b]) => {
-      /* Corporate last — a directory opened at an airport is almost always
-         somebody looking for a person AT that airport; head-office contacts
-         are the ones worth scrolling past, not the ones worth leading with. */
-      const ea = entityOf(a);
-      const eb = entityOf(b);
-      if ((ea.kind === "head-office") !== (eb.kind === "head-office")) {
-        return ea.kind === "head-office" ? 1 : -1;
-      }
-      return ea.short.localeCompare(eb.short);
+      /* Ordinary sites first, then the contacts relevant everywhere, then
+         Corporate last — a directory opened at an airport is almost always
+         somebody looking for a person AT that airport; the broader-scope
+         groups are worth scrolling past, not worth leading with. */
+      const ga = siteGroup(a);
+      const gb = siteGroup(b);
+      return ga.rank !== gb.rank ? ga.rank - gb.rank : ga.short.localeCompare(gb.short);
     });
   }, [visible]);
 
@@ -195,6 +224,14 @@ export default function PeoplePage() {
               value={draft.discipline}
               onChange={(v) => setDraft((d) => ({ ...d, discipline: v }))}
               ariaLabel="Discipline for the new contact"
+            />
+            <input
+              value={draft.company}
+              onChange={(e) => setDraft((d) => ({ ...d, company: e.target.value }))}
+              placeholder="Company — e.g. TPJV, ACSA"
+              aria-label="Company"
+              className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+              style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             />
             <input
               value={draft.department}
@@ -257,12 +294,12 @@ export default function PeoplePage() {
         </Empty>
       ) : (
         groups.map(([site, people]) => {
-          const e = entityOf(site);
+          const g = siteGroup(site);
           return (
             <div key={site} className="mb-4">
               <div className="mb-[6px] flex items-center gap-[7px]">
                 <b className="font-display text-[11px] font-semibold" style={{ color: "var(--ink-3)" }}>
-                  {e.kind === "head-office" ? "CORPORATE" : e.short}
+                  {g.label}
                 </b>
                 <Pill>{people.length}</Pill>
               </div>
@@ -279,9 +316,9 @@ export default function PeoplePage() {
                         <b className="font-display text-[13px] font-semibold">
                           {c.name} {c.surname}
                         </b>
-                        {(c.role || c.discipline) && (
+                        {(c.role || c.company || c.discipline) && (
                           <p className="mt-[2px] text-[11px]" style={{ color: "var(--ink-3)" }}>
-                            {[c.role, c.discipline].filter(Boolean).join(" · ")}
+                            {[c.role, c.company, c.discipline].filter(Boolean).join(" · ")}
                           </p>
                         )}
                       </div>
@@ -319,6 +356,14 @@ export default function PeoplePage() {
                             value={c.discipline}
                             onChange={(v) => updateContact(c.id, { discipline: v })}
                             ariaLabel="Discipline"
+                          />
+                          <input
+                            value={c.company}
+                            onChange={(e) => updateContact(c.id, { company: e.target.value })}
+                            placeholder="Company"
+                            aria-label="Company"
+                            className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+                            style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
                           />
                           <input
                             value={c.department}

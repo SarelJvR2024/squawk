@@ -46,6 +46,7 @@ const NEEDS_ALIAS = new Set([
   "merge.test.mjs",
   "figures.test.mjs",
   "attendance.test.mjs",
+  "isf.test.mjs",
 ]);
 const SELF = "suite-table.test.mjs";
 

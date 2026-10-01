@@ -99,7 +99,7 @@ for (const fn of ["interviewsSheet", "attendanceSheet", "ppeSheet", "siteAccessS
 
 check(
   "ISF prints when() for every timestamp a reviewer asks SWP-07 about",
-  /isfSheet[\s\S]{0,600}?when\(f\.raisedAt\)[\s\S]{0,400}?when\(f\.notifiedAt\)[\s\S]{0,200}?when\(f\.writtenIssuedAt\)/.test(
+  /isfSheet[\s\S]{0,600}?when\(f\.raisedAt\)[\s\S]{0,800}?when\(f\.notifiedAt\)[\s\S]{0,200}?when\(f\.writtenIssuedAt\)/.test(
     exportsCode
   ),
   "raisedAt to notifiedAt is the gap SWP-07 calls \"at once\"; raisedAt to writtenIssuedAt is \"the same day\""

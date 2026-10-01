@@ -1051,12 +1051,38 @@ export type NotifyMethod = "in-person" | "phone" | "radio" | "message" | "email"
  *  something with no notification time on it. */
 export type IsfStage = "raised" | "notified" | "issued" | "closed";
 
+/** How soon the underlying issue needs the corrective action done — not how
+ *  urgently SWP-07's immediate response happened, which is already the
+ *  `raisedAt`→`notifiedAt`→`writtenIssuedAt` clocks. An ISF that was
+ *  notified in two minutes can still need a slow structural fix; this is the
+ *  second clock, not a restatement of the first. No existing vocabulary in
+ *  this app answers this question (checked: `priority`/`ErmPriority` are the
+ *  ERM instrument's output, a different thing), so this is new. */
+export type Urgency = "Immediate" | "Within 24 hours" | "Within a week" | "Routine";
+
+export const URGENCIES: readonly Urgency[] = [
+  "Immediate",
+  "Within 24 hours",
+  "Within a week",
+  "Routine",
+];
+
 /** An Immediate Safety Finding — TK-003 form 1, on the tablet.
  *
- *  This is NOT a Finding and must not become one. A finding is an audit
- *  outcome: rated on B170 001M, carried between visits, closed when somebody
- *  fixes it months later. An ISF is what happens when an auditor walks into a
- *  substation and sees something that could kill somebody this afternoon.
+ *  STILL NOT A FINDING — it does not carry between visits, it is not in the
+ *  Findings register, and SWP-07's own clocks (raised → notified verbally →
+ *  written notice → closed) stay the one authoritative lifecycle for
+ *  "is the danger gone". That boundary this type's comment drew before is
+ *  unchanged.
+ *
+ *  WHAT CHANGED (Sarel, 1 October 2026): the form now also captures a risk
+ *  assessment — severity, likelihood, root cause, mitigating actions, an
+ *  asset system — in the same vocabulary as B170 001M, reusing
+ *  `RecordActions` rather than inventing a second rating UI. That is
+ *  additional diagnostic context for the finding, not a merger into the
+ *  Findings register: nothing here feeds year-on-year comparison, and
+ *  `ratingConfirmed`/`actionStatus` are this record's own, not shared with
+ *  any Finding or Hazard. See OPEN-QUESTIONS.md if this read is wrong.
  *  SWP-07 sets its whole shape — stop, make safe only if it can be done without
  *  risk, notify the ACSA site representative VERBALLY AT ONCE, complete the
  *  form, issue written notification THE SAME DAY — and none of those steps has
@@ -1074,7 +1100,11 @@ export type IsfStage = "raised" | "notified" | "issued" | "closed";
  *  Second, the times are the compliance record. `raisedAt` to `notifiedAt` is
  *  the gap SWP-07 calls "at once", and `raisedAt` to `writtenIssuedAt` is the
  *  one it calls "the same day". Both are what a reviewer asks about, so both
- *  are recorded as instants rather than inferred from when a row was edited. */
+ *  are recorded as instants rather than inferred from when a row was edited.
+ *  `raisedAt` itself IS correctable, though — Sarel's field list asked for an
+ *  editable date and time, same reasoning as the PPE check's: an ISF phoned
+ *  in from the apron and typed up later needs its own real raise time, not
+ *  whatever the tablet happened to say when someone got round to the form. */
 export interface SafetyFinding {
   /** ISF-xxxxx. Prefix is deliberate: it is the photograph prefix too, so an
    *  image in the export zip reads ISF-7K2P9_P01 and nobody has to ask which
@@ -1085,13 +1115,30 @@ export interface SafetyFinding {
 
   /** The moment the auditor stopped. Not when the form was finished. */
   raisedAt: number;
+  /** Who saw it happen. */
   raisedBy: string;
+  /** Who is filling in this record. Usually the same person as `raisedBy`,
+   *  deliberately a separate field for the time it is not — an ISF phoned in
+   *  from the apron and typed up by somebody else back at the desk is still
+   *  one event seen by one person, attributed to both correctly. */
+  recordedBy: string;
 
-  /** Free text, because the danger does not check the register first. */
+  /** Free text, because the danger does not check the register first. What
+   *  happened. */
   description: string;
   /** Where, in words somebody can walk to without asking. */
   location: string;
+  /** Further detail beyond the short `location` above — which bay, which
+   *  side of it, what else was nearby. Optional in the sense that `location`
+   *  alone already satisfies the register; this is for when a reader two
+   *  years from now needs to find the exact spot. */
+  locationDescription: string;
   discipline: string | null;
+  /** The named asset system this is about — Baggage handling system, Fire
+   *  system, and so on, same list `systemsAt()` gives Hazards. Distinct from
+   *  `assetIds` below: this is the CATEGORY, assetIds are specific tagged
+   *  items within it. */
+  assetSystem: string | null;
   /** The register tags this is about, where there are any. Same reasoning as a
    *  finding's: plenty of immediate risks are not about one tagged asset. */
   assetIds?: string[];
@@ -1101,6 +1148,35 @@ export interface SafetyFinding {
    *  second is how "made safe" ends up meaning nothing. */
   riskToPersons: string;
   immediateAction: string;
+  /** What actually happened as a result — property damage, a delay, a near
+   *  miss with no injury. Distinct from `riskToPersons`, which is specifically
+   *  about people; an ISF can have a real impact with nobody at risk. */
+  actualImpact: string;
+  /** The reasonable worst case if this had gone differently, or recurs. What
+   *  the severity rating below is being judged against. */
+  potentialImpact: string;
+  /** How soon the underlying issue needs fixing — see Urgency. Independent of
+   *  how fast the verbal notification happened. */
+  urgency: Urgency | null;
+
+  /** THE RISK ASSESSMENT, same instrument as Findings and Hazards — severity
+   *  and likelihood on B170 001M, a root cause, one or more mitigating
+   *  actions, all through the shared RecordActions component. See the note at
+   *  the top of this interface: this does NOT make an ISF a Finding. Nothing
+   *  here is agreed between audits or compared year-on-year; it is this
+   *  record's own assessment of its own event. */
+  severity: Severity | null;
+  likelihood: Likelihood | null;
+  /** Set by tapping the matrix cell, by nothing else — see RecordActions'
+   *  own rule on this. */
+  ratingConfirmed: boolean;
+  rootCause: string;
+  actions: MitigationAction[];
+  /** Whether the mitigating work above is still open — independent of
+   *  `closedAt` below, which is specifically "is the immediate danger gone".
+   *  A finding can need weeks of corrective work after the danger itself was
+   *  made safe in the first five minutes. */
+  actionStatus: ActionStatus;
 
   /** The verbal notification. Null until it happens — and an ISF with a
    *  description and no notification is exactly the row the register should be
@@ -1114,6 +1190,21 @@ export interface SafetyFinding {
    *  own when the sent item is in somebody's mailbox. */
   writtenTo: string;
   writtenIssuedAt: number | null;
+
+  /** ACSA's Area or Dept Manager for where this happened — named, so the
+   *  record says who on ACSA's side owns the area, not just that somebody
+   *  was told (that is `notifiedTo`, which can be anybody on site). Plain
+   *  text, same as `notifiedTo`/`writtenTo` above — not every manager named
+   *  here is in the people directory yet, and this screen does not want a
+   *  second interaction pattern for one field where those two already work. */
+  acsaManagerName: string;
+
+  /** THE SIGN-OFF. TPJV's authorised person, attesting the record above is
+   *  accurate — same Signature shape and the same invalidation rule every
+   *  other signed record in this app uses: change what it attests to and the
+   *  mark is cleared. See signIsf() in src/lib/store.ts. */
+  authorisedBy: string;
+  authorisedSignature: Signature | null;
 
   /** Photographs, held exactly as a walk item's are: the media store keeps the
    *  bytes, this keeps the reference. */
@@ -1681,6 +1772,13 @@ export interface EvidenceItem {
  *  "Corporate" flag, because programme.json already has one entity of kind
  *  "head-office" and a second spelling of the same fact is how the two drift.
  *
+ *  `site` can also be `SITE_ALL` ("ALL", see src/lib/people.ts) — Sarel:
+ *  "allow to select airports all as an option". That is a SCOPE, not a
+ *  PLACE, and deliberately not folded into the existing Corporate/head-office
+ *  entity: a regional TPJV engineer who covers every site is not based at
+ *  head office, and a second meaning for "head-office" is exactly the kind of
+ *  drift the Corporate field above already avoided once.
+ *
  *  A standalone reference list for now (Sarel, same conversation): it does not
  *  feed the free-text contact fields already on ISF or elsewhere. Wiring the
  *  directory in as an autocomplete source is a deliberately separate step. */
@@ -1693,6 +1791,11 @@ export interface Contact {
   /** One of ALL_DISCIPLINES, or empty — not every contact is discipline-
    *  specific (an admin or corporate contact has none). */
   discipline: string;
+  /** The employer — TPJV, ACSA, a named contractor. Distinct from
+   *  `department`, which is an org unit within that employer ("Engineering",
+   *  "Operations"); the two answer different questions and a contact can
+   *  have one without the other. */
+  company: string;
   department: string;
   location: string;
   createdAt: number;
