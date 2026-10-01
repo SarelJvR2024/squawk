@@ -12,6 +12,8 @@ import {
   useContacts,
   useEvidenceItems,
   useInterviewDays,
+  usePpeChecks,
+  useSiteAccessLogs,
   useResponses,
   useSafetyFindings,
   useSiteDays,
@@ -27,7 +29,17 @@ import { auditWindow, ENTITIES, PROGRAMME_VISITS } from "@/lib/programme";
 import { LIKELIHOODS, SEVERITIES, bandFor, movement } from "@/lib/risk";
 import { currentRatingOf } from "@/lib/carryforward";
 import { Panel, Pill, Track } from "@/components/ui/primitives";
-import { IconClock, IconInbox, IconInfo, IconLoop, IconMic, IconTeam } from "@/components/ui/icons";
+import {
+  IconCheck,
+  IconClipboard,
+  IconClock,
+  IconInbox,
+  IconInfo,
+  IconLoop,
+  IconMic,
+  IconPin,
+  IconTeam,
+} from "@/components/ui/icons";
 
 /* The entity list, the visit cycle and the (still empty) zone names live in
    src/data/programme.json — adding an airport or a visit is a data change, not
@@ -61,6 +73,8 @@ export default function DashboardPage() {
   const interviewDays = useInterviewDays();
   const siteDays = useSiteDays();
   const evidenceItems = useEvidenceItems();
+  const ppeChecks = usePpeChecks();
+  const siteAccessLogs = useSiteAccessLogs();
   const evidenceOutstanding = evidenceItems.filter(isOutstanding).length;
   const contacts = useContacts();
   const contactsHere = contacts.filter((c) => c.site === entityCode).length;
@@ -504,11 +518,22 @@ export default function DashboardPage() {
                 screen, same reason the whole dashboard exists: a number
                 nobody can act on from here is a number that gets ignored. */}
             <div className="mt-3.5 rounded-[15px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
-              <h3 className="mb-3 flex items-center gap-2 text-[12.5px] font-bold">
-                <IconInbox width={14} height={14} style={{ color: "var(--acc)" }} />
-                Forms and registers
+              <h3 className="mb-3 flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2 text-[12.5px] font-bold">
+                  <IconInbox width={14} height={14} style={{ color: "var(--acc)" }} />
+                  Forms and registers
+                </span>
+                {role !== "acsa" && (
+                  <button
+                    onClick={() => router.push("/forms")}
+                    className="text-[11px] font-semibold underline"
+                    style={{ color: "var(--acc)" }}
+                  >
+                    All forms, one list →
+                  </button>
+                )}
               </h3>
-              <div className="grid grid-cols-2 gap-[9px] md:grid-cols-5">
+              <div className="grid grid-cols-2 gap-[9px] md:grid-cols-4">
                 {[
                   {
                     label: "Open ISF",
@@ -520,8 +545,8 @@ export default function DashboardPage() {
                   /* Interviews, attendance, evidence and people are hidden
                      from ACSA here for the same reason they are hidden from
                      ACSA's More menu — ACSA is read-only on the audit itself,
-                     not on the four project-evidence forms. Safety has no
-                     such gate in the menu either, so it stays visible above. */
+                     not on the project-evidence forms. Safety has no such
+                     gate in the menu either, so it stays visible above. */
                   ...(role !== "acsa"
                     ? [
                         {
@@ -537,6 +562,27 @@ export default function DashboardPage() {
                           tone: "acc",
                           icon: <IconTeam width={13} height={13} />,
                           href: "/attendance",
+                        },
+                        {
+                          label: "Daily diary",
+                          value: siteDays.filter((d) => d.diary.trim()).length,
+                          tone: "acc",
+                          icon: <IconClipboard width={13} height={13} />,
+                          href: "/diary",
+                        },
+                        {
+                          label: "PPE checks",
+                          value: ppeChecks.length,
+                          tone: "acc",
+                          icon: <IconCheck width={13} height={13} />,
+                          href: "/ppe",
+                        },
+                        {
+                          label: "Site access logs",
+                          value: siteAccessLogs.length,
+                          tone: "acc",
+                          icon: <IconPin width={13} height={13} />,
+                          href: "/site-access",
                         },
                         {
                           label: "Evidence outstanding",

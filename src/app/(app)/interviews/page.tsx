@@ -43,6 +43,7 @@ import { localDate } from "@/lib/attendance";
 import { siteCodeFor, siteFor } from "@/lib/sites";
 import { useNow } from "@/lib/clock";
 import { SignaturePad } from "@/components/SignaturePad";
+import ContactPicker from "@/components/ContactPicker";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconX } from "@/components/ui/icons";
 import type { InterviewDay, InterviewDayStage } from "@/lib/types";
@@ -84,7 +85,8 @@ export default function InterviewsPage() {
   const closeDay = useStore((s) => s.closeInterviewDay);
   const reopenDay = useStore((s) => s.reopenInterviewDay);
 
-  const [draft, setDraft] = useState("");
+  const patchDay = useStore((s) => s.updateInterviewDay);
+
   const [openId, setOpenId] = useState<string | null>(null);
   const [signing, setSigning] = useState<string | null>(null);
   const [closing, setClosing] = useState<string | null>(null);
@@ -99,22 +101,12 @@ export default function InterviewsPage() {
     [days, today]
   );
 
-  function startToday() {
-    if (!now) return;
-    const id = openDay(localDate(now));
+  function talkTo(p: { contactId?: string; name: string; role?: string }) {
+    if (todaysDay?.closedAt != null) return;
+    const id = todaysDay ? todaysDay.id : now ? openDay(localDate(now)) : null;
+    if (!id) return;
     setOpenId(id);
-    const name = draft.trim();
-    if (name) {
-      addEntry(id, name);
-      setDraft("");
-    }
-  }
-
-  function addToDay(day: InterviewDay) {
-    const name = draft.trim();
-    if (!name) return;
-    addEntry(day.id, name);
-    setDraft("");
+    addEntry(id, p.name, { contactId: p.contactId, role: p.role ?? "" });
   }
 
   async function copyDay(day: InterviewDay) {
@@ -142,38 +134,26 @@ export default function InterviewsPage() {
         </p>
       </header>
 
-      {/* START ONE. Pinned, one field. */}
+      {/* START ONE. Pinned, picking from the people directory or typing a new
+          name. */}
       <Panel tone={todaysDay ? "accent" : undefined} className="mb-4">
         <Field
           label="WHO ARE YOU TALKING TO?"
-          hint={todaysDay ? `TODAY — ${todaysDay.entries.length} so far` : "opens today's register"}
+          hint={todaysDay ? `TODAY — ${todaysDay.entries.length} so far, ${stillRunning(todaysDay).length} still running` : "opens today's register"}
         >
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            aria-label="Name of the person being interviewed"
-            placeholder="T. Nkosi"
-            className={inputCls}
-            style={inputStyle}
+          <ContactPicker
+            entityCode={entityCode}
+            placeholder="Search the directory, or type a new name"
+            onAdd={talkTo}
           />
         </Field>
-        <div className="flex items-center justify-between gap-3">
-          <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-            {todaysDay
-              ? `${stillRunning(todaysDay).length} STILL RUNNING`
-              : "THE CLOCK STARTS WHEN YOU DO"}
-          </span>
-          <Btn
-            variant="primary"
-            onClick={() => (todaysDay ? addToDay(todaysDay) : startToday())}
-            disabled={!now || (!!todaysDay && !draft.trim()) || todaysDay?.closedAt != null}
-          >
-            {todaysDay ? "Start" : "Open today"}
-          </Btn>
-        </div>
         {todaysDay?.closedAt ? (
           <p className="mt-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
             TODAY&rsquo;S RECORD IS CLOSED — REOPEN IT BELOW TO ADD ANOTHER INTERVIEW
+          </p>
+        ) : !now ? (
+          <p className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+            WAITING FOR THE DEVICE CLOCK…
           </p>
         ) : null}
       </Panel>
@@ -222,10 +202,42 @@ export default function InterviewsPage() {
 
               {isOpen ? (
                 <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--line)" }}>
+                  <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Field label="LOCATION" hint="optional — where the day's interviews were held">
+                      <input
+                        value={day.location}
+                        onChange={(e) => patchDay(day.id, { location: e.target.value })}
+                        aria-label={`Location for interviews on ${day.date}`}
+                        className={inputCls}
+                        style={inputStyle}
+                        disabled={!!day.closedAt}
+                      />
+                    </Field>
+                    <Field label="PURPOSE" hint="optional">
+                      <input
+                        value={day.purpose}
+                        onChange={(e) => patchDay(day.id, { purpose: e.target.value })}
+                        aria-label={`Purpose of interviews on ${day.date}`}
+                        className={inputCls}
+                        style={inputStyle}
+                        disabled={!!day.closedAt}
+                      />
+                    </Field>
+                  </div>
+
                   <Field
                     label="WHO WAS INTERVIEWED"
                     hint={`${day.entries.length} ${day.entries.length === 1 ? "person" : "people"}`}
                   >
+                    {!day.closedAt ? (
+                      <div className="mb-3">
+                        <ContactPicker
+                          entityCode={entityCode}
+                          placeholder="Search the directory, or type a new name"
+                          onAdd={(p) => addEntry(day.id, p.name, { contactId: p.contactId, role: p.role ?? "" })}
+                        />
+                      </div>
+                    ) : null}
                     {day.entries.map((e) => {
                       const ran = durationMs(e, now);
                       const missing = entryGaps(e);

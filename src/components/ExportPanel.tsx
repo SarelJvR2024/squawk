@@ -8,7 +8,9 @@ import {
   useEntityCode,
   useEvidenceItems,
   useInterviewDays,
+  usePpeChecks,
   useSafetyFindings,
+  useSiteAccessLogs,
   useSiteDays,
   useSystems,
   useVerifications,
@@ -35,7 +37,9 @@ import {
   interviewsSheet,
   isfSheet,
   photographsSheet,
+  ppeSheet,
   registerSheet,
+  siteAccessSheet,
   summarySheet,
   systemsSheet,
   type ExportInput,
@@ -57,6 +61,8 @@ type Kind =
   | "isf"
   | "interviews"
   | "attendance"
+  | "ppe"
+  | "siteaccess"
   | "evidencelog"
   | "summary"
   | "photographs";
@@ -66,7 +72,7 @@ const OPTIONS: { kind: Kind; title: string; blurb: string }[] = [
     kind: "full",
     title: "Everything",
     blurb:
-      "Fourteen sheets: a cover note explaining what a blank cell means, the summary, the register, the asset-system ratings, the findings, the hazards, the closure position, what the walk found, the evidence request, safety (ISF), interviews, attendance, the evidence log and the photograph index.",
+      "Sixteen sheets: a cover note explaining what a blank cell means, the summary, the register, the asset-system ratings, the findings, the hazards, the closure position, what the walk found, the evidence request, safety (ISF), interviews, attendance, PPE checks, site access, the evidence log and the photograph index.",
   },
   {
     kind: "register",
@@ -122,6 +128,18 @@ const OPTIONS: { kind: Kind; title: string; blurb: string }[] = [
       "Every person on site this visit, by day — organisation, role, time on site, where they worked and what they did, with who signed and when.",
   },
   {
+    kind: "ppe",
+    title: "PPE checks",
+    blurb:
+      "Every person PPE-checked this visit — hi-vis, safety footwear and hearing protection where the area called for it — with who signed and when.",
+  },
+  {
+    kind: "siteaccess",
+    title: "Site access",
+    blurb:
+      "Every area visited this visit — where, why, who escorted the team in, and who went from ACSA and from TPJV.",
+  },
+  {
     kind: "evidencelog",
     title: "Evidence log",
     blurb:
@@ -156,6 +174,8 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
   const safetyFindings = useSafetyFindings();
   const interviewDays = useInterviewDays();
   const siteDays = useSiteDays();
+  const ppeChecks = usePpeChecks();
+  const siteAccessLogs = useSiteAccessLogs();
   const evidenceItems = useEvidenceItems();
   const entityCode = useEntityCode();
   const [budget, setBudget] = useState({ count: 0, bytes: 0 });
@@ -297,6 +317,8 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
         safetyFindings,
         interviewDays,
         siteDays,
+        ppeChecks,
+        siteAccessLogs,
         evidenceItems,
         library,
       };
@@ -310,6 +332,8 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
         isf: () => isfSheet(x),
         interviews: () => interviewsSheet(x),
         attendance: () => attendanceSheet(x),
+        ppe: () => ppeSheet(x),
+        siteaccess: () => siteAccessSheet(x),
         evidencelog: () => evidenceLogSheet(x),
         summary: () => summarySheet(x),
         photographs: () => photographsSheet(x),

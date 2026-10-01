@@ -34,6 +34,7 @@ import SharedSheet from "@/components/SharedSheet";
 import {
   IconClipboard,
   IconCamera,
+  IconCheck,
   IconClock,
   IconCloud,
   IconCloudUp,
@@ -133,8 +134,12 @@ const NAV = [
  *  two different screens has told the listener nothing about either. */
 const OFF_NAV: Record<string, string> = {
   "/home": "Home",
+  "/forms": "All forms",
   "/interviews": "Interview records",
-  "/attendance": "Site attendance and daily diary",
+  "/attendance": "Site attendance",
+  "/diary": "Daily diary",
+  "/ppe": "PPE checks",
+  "/site-access": "Site access",
   "/evidence": "Document and evidence collection log",
   "/people": "People directory",
   /* Safety, Review and Pre-flight moved out of NAV into the More menu
@@ -180,6 +185,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
      airport and Corporate. The hint is "who is on file here", the same
      question the screen itself answers first. */
   const contactsHere = useStore((s) => s.contacts.filter((c) => c.site === s.entity).length);
+  const ppeCheckCount = useStore(
+    (s) => s.ppeChecks.filter((c) => c.entity === s.entity).length
+  );
+  const siteAccessCount = useStore(
+    (s) => s.siteAccessLogs.filter((l) => l.entity === s.entity).length
+  );
   const onSiteNow = useStore((s) =>
     s.siteDays
       .filter((d) => d.entity === s.entity)
@@ -824,6 +835,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       </div>
                     </>
                   )}
+                  {/* ALL FORMS, in one place, ahead of the individual registers
+                      below — Sarel: "have all forms easy to access, maybe in a
+                      calendar or some card type display." Nobody opening this
+                      menu needs to already know which of the six forms holds
+                      the record they are after. */}
+                  {role !== "acsa" && (
+                    <MoreItem
+                      icon={<IconGrid width={14} height={14} />}
+                      label="All forms"
+                      hint="Every form and register, one card list"
+                      selected={pathname === "/forms"}
+                      onClick={() => { setMore(false); router.push("/forms"); }}
+                    />
+                  )}
                   {role !== "acsa" && (
                     <MoreItem
                       icon={<IconMic width={14} height={14} />}
@@ -841,13 +866,44 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <MoreItem
                       icon={<IconTeam width={14} height={14} />}
                       label="Site attendance"
-                      hint={
-                        onSiteNow
-                          ? `${onSiteNow} on site now — and the daily diary`
-                          : "Who was on site, and the daily diary"
-                      }
+                      hint={onSiteNow ? `${onSiteNow} on site now` : "Who was on site, and when"}
                       selected={pathname === "/attendance"}
                       onClick={() => { setMore(false); router.push("/attendance"); }}
+                    />
+                  )}
+                  {role !== "acsa" && (
+                    <MoreItem
+                      icon={<IconClipboard width={14} height={14} />}
+                      label="Daily diary"
+                      hint="What the day actually consisted of"
+                      selected={pathname === "/diary"}
+                      onClick={() => { setMore(false); router.push("/diary"); }}
+                    />
+                  )}
+                  {role !== "acsa" && (
+                    <MoreItem
+                      icon={<IconCheck width={14} height={14} />}
+                      label="PPE checks"
+                      hint={
+                        ppeCheckCount
+                          ? `${ppeCheckCount} check${ppeCheckCount === 1 ? "" : "s"} recorded at ${entityOf(entityCode).short}`
+                          : "Hi-vis, safety footwear, hearing protection"
+                      }
+                      selected={pathname === "/ppe"}
+                      onClick={() => { setMore(false); router.push("/ppe"); }}
+                    />
+                  )}
+                  {role !== "acsa" && (
+                    <MoreItem
+                      icon={<IconPin width={14} height={14} />}
+                      label="Site access"
+                      hint={
+                        siteAccessCount
+                          ? `${siteAccessCount} area${siteAccessCount === 1 ? "" : "s"} logged at ${entityOf(entityCode).short}`
+                          : "Where the team went, and who escorted them"
+                      }
+                      selected={pathname === "/site-access"}
+                      onClick={() => { setMore(false); router.push("/site-access"); }}
                     />
                   )}
                   {role !== "acsa" && (

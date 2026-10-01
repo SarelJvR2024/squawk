@@ -554,8 +554,8 @@ check(
 
 check(
   "the persist version moved to carry it",
-  /version: 20,/.test(store),
-  ""
+  Number(/version: (\d+),/.exec(store)?.[1] ?? 0) >= 20,
+  "the version goes up again with every later slice — 21 was PPE checks and the site access log"
 );
 
 /* ---- 7 · two auditors, one out-brief ------------------------------------ */

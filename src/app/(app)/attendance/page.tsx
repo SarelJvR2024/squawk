@@ -1,6 +1,6 @@
 "use client";
 
-/** SITE ATTENDANCE AND THE DAILY DIARY — TK-003 form 2, on the tablet.
+/** SITE ATTENDANCE — TK-003 form 2, on the tablet.
  *
  *  "Site Attendance & Induction Confirmation", completed on arrival each day,
  *  signed by each person, per day. It feeds SF-005 sheet 4, Induction & Access,
@@ -10,7 +10,11 @@
  *  question TPJV is most likely to be asked a year from now and the hardest to
  *  reconstruct from anything else.
  *
- *  Four things shape the screen.
+ *  The day's diary moved to its own screen, /diary — same record
+ *  (SiteDay.diary), different screen, so updating it is not nine fields'
+ *  worth of scrolling away.
+ *
+ *  Five things shape the screen.
  *
  *  ONE DAY, ONE RECORD. The store opens or returns; there is no control here
  *  that can make a second register for the same date. Two half-registers is the
@@ -53,9 +57,18 @@ import { siteCodeFor, siteFor } from "@/lib/sites";
 import { useNow } from "@/lib/clock";
 import { AttachmentStrip, PhotoButton } from "@/components/Capture";
 import { SignaturePad } from "@/components/SignaturePad";
+import ContactPicker from "@/components/ContactPicker";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconX } from "@/components/ui/icons";
 import type { SiteDay } from "@/lib/types";
+
+function sectionLabel(text: string) {
+  return (
+    <p className="mb-1.5 mt-3 font-mono text-[9px] font-semibold tracking-wide first:mt-0" style={{ color: "var(--ink-4)" }}>
+      {text}
+    </p>
+  );
+}
 
 function hhmm(t: number): string {
   return new Date(t).toLocaleTimeString("en-ZA", {
@@ -90,7 +103,6 @@ export default function AttendancePage() {
   const removePhoto = useStore((s) => s.removeDayAttachment);
   const updatePhoto = useStore((s) => s.updateDayAttachment);
 
-  const [draft, setDraft] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [signing, setSigning] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
@@ -106,24 +118,15 @@ export default function AttendancePage() {
     [days, today]
   );
 
-  function startToday() {
-    if (!now) return;
-    const id = openDay(localDate(now));
+  function signIn(p: { contactId?: string; name: string; organisation?: string; role?: string }) {
+    const id = todaysDay ? todaysDay.id : now ? openDay(localDate(now)) : null;
+    if (!id) return;
     setOpenId(id);
-    /* If a name was typed before the day existed, the person who typed it meant
-       to sign that person in, not merely to open a register. */
-    const name = draft.trim();
-    if (name) {
-      addPerson(id, name);
-      setDraft("");
-    }
-  }
-
-  function addToDay(day: SiteDay) {
-    const name = draft.trim();
-    if (!name) return;
-    addPerson(day.id, name);
-    setDraft("");
+    addPerson(id, p.name, {
+      contactId: p.contactId,
+      organisation: p.organisation ?? "",
+      role: p.role ?? "",
+    });
   }
 
   async function copyDay(day: SiteDay) {
@@ -144,43 +147,33 @@ export default function AttendancePage() {
   return (
     <div className="mx-auto w-full max-w-[760px] px-4 pb-24 pt-3">
       <header className="mb-3">
-        <h2 className="font-display text-[15px] font-semibold">Site attendance and daily diary</h2>
+        <h2 className="font-display text-[15px] font-semibold">Site attendance</h2>
         <p className="mt-1 text-[11px]" style={{ color: "var(--ink-3)" }}>
           TK-003 form 2. Completed on arrival, each day, signed by each person. It feeds
-          SF-005 sheet 4 and is held as J14 of the safety file.
+          SF-005 sheet 4 and is held as J14 of the safety file. The day&rsquo;s diary is on its
+          own screen — see Daily diary in the Forms menu.
         </p>
       </header>
 
-      {/* SIGN SOMEBODY IN. Pinned, one field, because the form is completed at
-          the gate while the person is standing there. */}
+      {/* SIGN SOMEBODY IN. Pinned, picking from the people directory or typing
+          a new name, because the form is completed at the gate while the
+          person is standing there. */}
       <Panel tone={todaysDay ? "accent" : undefined} className="mb-4">
         <Field
           label="WHO IS ARRIVING?"
-          hint={todaysDay ? `TODAY — ${todaysDay.entries.length} so far` : "opens today's register"}
+          hint={todaysDay ? `TODAY — ${todaysDay.entries.length} so far, ${stillOnSite(todaysDay).length} still on site` : "opens today's register"}
         >
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            aria-label="Name of the person arriving on site"
-            placeholder="S. Jansen van Rensburg"
-            className={inputCls}
-            style={inputStyle}
+          <ContactPicker
+            entityCode={entityCode}
+            placeholder="Search the directory, or type a new name"
+            onAdd={signIn}
           />
         </Field>
-        <div className="flex items-center justify-between gap-3">
-          <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-            {todaysDay
-              ? `${stillOnSite(todaysDay).length} STILL ON SITE`
-              : "ARRIVAL TIME IS RECORDED AS YOU ADD THEM"}
-          </span>
-          <Btn
-            variant="primary"
-            onClick={() => (todaysDay ? addToDay(todaysDay) : startToday())}
-            disabled={!now || (!!todaysDay && !draft.trim())}
-          >
-            {todaysDay ? "Sign in" : "Open today"}
-          </Btn>
-        </div>
+        {!now ? (
+          <p className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+            WAITING FOR THE DEVICE CLOCK…
+          </p>
+        ) : null}
       </Panel>
 
       {days.length === 0 ? (
@@ -228,10 +221,42 @@ export default function AttendancePage() {
 
               {isOpen ? (
                 <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--line)" }}>
+                  <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Field label="LOCATION" hint="optional">
+                      <input
+                        value={day.location}
+                        onChange={(e) => patchDay(day.id, { location: e.target.value })}
+                        aria-label={`Where ${day.date} was spent`}
+                        className={inputCls}
+                        style={inputStyle}
+                      />
+                    </Field>
+                    <Field label="PURPOSE" hint="optional">
+                      <input
+                        value={day.purpose}
+                        onChange={(e) => patchDay(day.id, { purpose: e.target.value })}
+                        aria-label={`Purpose of visit on ${day.date}`}
+                        className={inputCls}
+                        style={inputStyle}
+                      />
+                    </Field>
+                  </div>
+
                   <Field
                     label="WHO WAS ON SITE"
                     hint={`${day.entries.length} ${day.entries.length === 1 ? "person" : "people"}`}
                   >
+                    <ContactPicker
+                      entityCode={entityCode}
+                      placeholder="Search the directory, or type a new name"
+                      onAdd={(p) =>
+                        addPerson(day.id, p.name, {
+                          contactId: p.contactId,
+                          organisation: p.organisation ?? "",
+                          role: p.role ?? "",
+                        })
+                      }
+                    />
                     {day.entries.map((e) => {
                       const lapsed = inductionLapsed(e, day.date);
                       const on = onSiteMs(e);
@@ -239,7 +264,7 @@ export default function AttendancePage() {
                       return (
                         <div
                           key={e.id}
-                          className="mb-3 rounded-[9px] border p-2.5"
+                          className="mb-3 mt-3 rounded-[9px] border p-2.5"
                           style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
                         >
                           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -259,6 +284,7 @@ export default function AttendancePage() {
                             </Btn>
                           </div>
 
+                          {sectionLabel("WHO")}
                           <input
                             value={e.name}
                             onChange={(ev) => patchPerson(day.id, e.id, { name: ev.target.value })}
@@ -290,6 +316,7 @@ export default function AttendancePage() {
                               Neither is part of what the signature covers, so
                               editing them afterwards, including by whoever
                               closes the day out, never unsigns anybody. */}
+                          {sectionLabel("WHERE & WHAT")}
                           <input
                             value={e.location}
                             onChange={(ev) =>
@@ -313,6 +340,7 @@ export default function AttendancePage() {
                           />
 
                           {/* ENTITLEMENT. */}
+                          {sectionLabel("ENTITLEMENT")}
                           <div className="mb-2 flex flex-wrap items-center gap-2">
                             <Btn
                               variant={e.inductionConfirmed ? "primary" : "default"}
@@ -363,6 +391,7 @@ export default function AttendancePage() {
                           </label>
 
                           {/* THE TIMES. Outside what the signature covers. */}
+                          {sectionLabel("TIME ON SITE")}
                           <div
                             className="mb-2 font-mono text-[9px]"
                             style={{ color: timesDisagree(e) ? "var(--warn)" : "var(--ink-4)" }}
@@ -391,6 +420,7 @@ export default function AttendancePage() {
                           )}
 
                           {/* THE SIGNATURE. */}
+                          {sectionLabel("SIGNATURE")}
                           {signing === e.id ? (
                             <SignaturePad
                               name={e.name}
@@ -430,18 +460,6 @@ export default function AttendancePage() {
                         Nobody signed in yet. Use the box at the top of the screen.
                       </p>
                     ) : null}
-                  </Field>
-
-                  <Field label="DAILY DIARY" hint="what the day actually consisted of">
-                    <textarea
-                      value={day.diary}
-                      onChange={(e) => patchDay(day.id, { diary: e.target.value })}
-                      rows={3}
-                      aria-label={`Daily diary for ${day.date}`}
-                      placeholder="Escorted from 07:10. MV rooms Pier B and C, AGL vault. Rain from 14:00, apron work stopped."
-                      className={inputCls}
-                      style={inputStyle}
-                    />
                   </Field>
 
                   <Field label="PHOTOGRAPHS">

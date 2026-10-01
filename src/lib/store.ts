@@ -33,6 +33,8 @@ import type {
   PriorRating,
   MitigationAction,
   PossibleEvent,
+  PpeCheck,
+  PpeEntry,
   RootCauseNote,
   SystemAssessment,
   ProgressNote,
@@ -40,6 +42,8 @@ import type {
   Role,
   SafetyFinding,
   Signature,
+  SiteAccessLog,
+  SiteAccessVisitor,
   SiteDay,
   Severity,
   Verification,
@@ -62,6 +66,15 @@ import {
   patchInvalidatesSignature,
 } from "./attendance";
 import { RETURNABLE, isHeldOriginal, isOutstanding } from "./evidence";
+import {
+  blankItems as blankPpeItems,
+  nextSignatureRef as nextPpeSignatureRef,
+  signedFieldsChanged as ppeSignedFieldsChanged,
+} from "./ppe";
+import {
+  nextSignatureRef as nextSiteAccessSignatureRef,
+  signedFieldsChanged as siteAccessSignedFieldsChanged,
+} from "./siteAccess";
 
 /* The register and the 2025 data are pure lookups and live in ./register, so a
    non-React caller (src/lib/exports.ts) can use them without importing this
@@ -333,6 +346,13 @@ interface State {
    *  is the same debt, and a per-visit slice would open a second request for
    *  it. */
   evidenceItems: EvidenceItem[];
+  /** PPE checks. Flat, scoped by entity on the way out, same reasoning as
+   *  siteDays — but NOT one per calendar day: a morning gate check and an
+   *  afternoon spot check in a different area are two separate occasions. */
+  ppeChecks: PpeCheck[];
+  /** Site access logs, one per area visited. Flat, scoped by entity, same
+   *  shape as ppeChecks — "one per occasion", not "one per day". */
+  siteAccessLogs: SiteAccessLog[];
   /** The people directory. Flat, and unlike everything above it not even
    *  scoped by visit at the record level — see the note on Contact in
    *  types.ts. A person's role at an airport does not change between audit
@@ -463,6 +483,38 @@ interface State {
     patch: Partial<Attachment>
   ) => void;
   removeEvidenceAttachment: (id: string, attachmentId: string) => void;
+
+  /* ---- PPE checks. See src/lib/ppe.ts. ----
+     Every occasion is its own record — not one per day — because a PPE check
+     is tied to a gate or a moment, not to the whole site day. */
+  openPpeCheck: (seed?: Partial<PpeCheck>) => string;
+  updatePpeCheck: (id: string, p: Partial<PpeCheck>) => void;
+  removePpeCheck: (id: string) => void;
+  addPpePerson: (id: string, name: string, seed?: Partial<PpeEntry>) => string;
+  updatePpePerson: (id: string, personId: string, p: Partial<PpeEntry>) => void;
+  removePpePerson: (id: string, personId: string) => void;
+  signPpePerson: (id: string, personId: string, s: Omit<Signature, "ref">) => void;
+
+  /* ---- Site access logs, one per area visited. See src/lib/siteAccess.ts. ---- */
+  openSiteAccessLog: (seed?: Partial<SiteAccessLog>) => string;
+  updateSiteAccessLog: (id: string, p: Partial<SiteAccessLog>) => void;
+  removeSiteAccessLog: (id: string) => void;
+  addSiteAccessVisitor: (
+    id: string,
+    name: string,
+    seed?: Partial<SiteAccessVisitor>
+  ) => string;
+  updateSiteAccessVisitor: (
+    id: string,
+    visitorId: string,
+    p: Partial<SiteAccessVisitor>
+  ) => void;
+  removeSiteAccessVisitor: (id: string, visitorId: string) => void;
+  signSiteAccessVisitor: (
+    id: string,
+    visitorId: string,
+    s: Omit<Signature, "ref">
+  ) => void;
 
   /* ---- The people directory. Only a name is required — see the note on
      Contact in types.ts for why this is the one register with no visit or
@@ -629,6 +681,8 @@ export const useStore = create<State>()(
         interviewDays: [],
         siteDays: [],
         evidenceItems: [],
+        ppeChecks: [],
+        siteAccessLogs: [],
         contacts: [],
         lastSavedAt: null,
         hydrated: false,
@@ -1023,6 +1077,8 @@ export const useStore = create<State>()(
                 entity: s.entity,
                 originVisit: s.visit,
                 date: day,
+                location: "",
+                purpose: "",
                 openedAt: now,
                 openedBy: s0.auditor || "",
                 entries: [],
@@ -1198,6 +1254,8 @@ export const useStore = create<State>()(
                 entity: s.entity,
                 originVisit: s.visit,
                 date: day,
+                location: "",
+                purpose: "",
                 openedAt: now,
                 openedBy: s0.auditor || "",
                 diary: "",
@@ -1538,6 +1596,216 @@ export const useStore = create<State>()(
               x.id === attachmentId ? { ...x, ...safe } : x
             ),
           });
+        },
+
+        openPpeCheck: (seed) => {
+          const id = `PPE-${uid().toUpperCase().slice(0, 5)}`;
+          const now = Date.now();
+          const s0 = get();
+          set((s) => ({
+            ppeChecks: [
+              ...s.ppeChecks,
+              {
+                entity: s.entity,
+                originVisit: s.visit,
+                date: localDate(now),
+                location: "",
+                purpose: "",
+                noiseZone: false,
+                openedAt: now,
+                openedBy: s0.auditor || "",
+                people: [],
+                ...seed,
+                id,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          }));
+          return id;
+        },
+
+        updatePpeCheck: (id, p) =>
+          set((s) => ({
+            ppeChecks: s.ppeChecks.map((c) =>
+              c.id === id
+                ? { ...c, ...p, id: c.id, entity: c.entity, createdAt: c.createdAt, updatedAt: Date.now() }
+                : c
+            ),
+          })),
+
+        removePpeCheck: (id) => {
+          const c = get().ppeChecks.find((x) => x.id === id);
+          const keys = (c?.people ?? [])
+            .map((e) => e.signature?.blobKey)
+            .filter((k): k is string => !!k);
+          set((s) => ({ ppeChecks: s.ppeChecks.filter((x) => x.id !== id) }));
+          if (keys.length) void delBlobs(keys);
+        },
+
+        addPpePerson: (id, name, seed) => {
+          const c = get().ppeChecks.find((x) => x.id === id);
+          if (!c) return "";
+          const personId = uid();
+          const now = Date.now();
+          get().updatePpeCheck(id, {
+            people: [
+              ...c.people,
+              {
+                name,
+                organisation: "",
+                role: "",
+                items: blankPpeItems(c.noiseZone),
+                notes: "",
+                signature: null,
+                ...seed,
+                id: personId,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          });
+          return personId;
+        },
+
+        updatePpePerson: (id, personId, p) => {
+          const c = get().ppeChecks.find((x) => x.id === id);
+          if (!c) return;
+          const { id: _i, createdAt: _c, signature: _s, ...safe } = p;
+          void _i; void _c; void _s;
+          const invalidates = ppeSignedFieldsChanged(safe);
+          get().updatePpeCheck(id, {
+            people: c.people.map((e) =>
+              e.id === personId
+                ? { ...e, ...safe, ...(invalidates ? { signature: null } : {}), updatedAt: Date.now() }
+                : e
+            ),
+          });
+        },
+
+        removePpePerson: (id, personId) => {
+          const c = get().ppeChecks.find((x) => x.id === id);
+          if (!c) return;
+          const gone = c.people.find((e) => e.id === personId);
+          get().updatePpeCheck(id, { people: c.people.filter((e) => e.id !== personId) });
+          if (gone?.signature?.blobKey) void delBlob(gone.signature.blobKey);
+        },
+
+        signPpePerson: (id, personId, sig) => {
+          const c = get().ppeChecks.find((x) => x.id === id);
+          if (!c) return;
+          const ref = nextPpeSignatureRef(id, c.people);
+          const previous = c.people.find((e) => e.id === personId)?.signature;
+          get().updatePpeCheck(id, {
+            people: c.people.map((e) =>
+              e.id === personId ? { ...e, signature: { ...sig, ref }, updatedAt: Date.now() } : e
+            ),
+          });
+          if (previous?.blobKey && previous.blobKey !== sig.blobKey) void delBlob(previous.blobKey);
+        },
+
+        openSiteAccessLog: (seed) => {
+          const id = `ACC-${uid().toUpperCase().slice(0, 5)}`;
+          const now = Date.now();
+          const s0 = get();
+          set((s) => ({
+            siteAccessLogs: [
+              ...s.siteAccessLogs,
+              {
+                entity: s.entity,
+                originVisit: s.visit,
+                date: localDate(now),
+                area: "",
+                purpose: "",
+                escortedBy: "",
+                openedAt: now,
+                openedBy: s0.auditor || "",
+                people: [],
+                ...seed,
+                id,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          }));
+          return id;
+        },
+
+        updateSiteAccessLog: (id, p) =>
+          set((s) => ({
+            siteAccessLogs: s.siteAccessLogs.map((l) =>
+              l.id === id
+                ? { ...l, ...p, id: l.id, entity: l.entity, createdAt: l.createdAt, updatedAt: Date.now() }
+                : l
+            ),
+          })),
+
+        removeSiteAccessLog: (id) => {
+          const l = get().siteAccessLogs.find((x) => x.id === id);
+          const keys = (l?.people ?? [])
+            .map((v) => v.signature?.blobKey)
+            .filter((k): k is string => !!k);
+          set((s) => ({ siteAccessLogs: s.siteAccessLogs.filter((x) => x.id !== id) }));
+          if (keys.length) void delBlobs(keys);
+        },
+
+        addSiteAccessVisitor: (id, name, seed) => {
+          const l = get().siteAccessLogs.find((x) => x.id === id);
+          if (!l) return "";
+          const visitorId = uid();
+          const now = Date.now();
+          get().updateSiteAccessLog(id, {
+            people: [
+              ...l.people,
+              {
+                name,
+                side: "TPJV",
+                organisation: "",
+                signature: null,
+                ...seed,
+                id: visitorId,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          });
+          return visitorId;
+        },
+
+        updateSiteAccessVisitor: (id, visitorId, p) => {
+          const l = get().siteAccessLogs.find((x) => x.id === id);
+          if (!l) return;
+          const { id: _i, createdAt: _c, signature: _s, ...safe } = p;
+          void _i; void _c; void _s;
+          const invalidates = siteAccessSignedFieldsChanged(safe);
+          get().updateSiteAccessLog(id, {
+            people: l.people.map((v) =>
+              v.id === visitorId
+                ? { ...v, ...safe, ...(invalidates ? { signature: null } : {}), updatedAt: Date.now() }
+                : v
+            ),
+          });
+        },
+
+        removeSiteAccessVisitor: (id, visitorId) => {
+          const l = get().siteAccessLogs.find((x) => x.id === id);
+          if (!l) return;
+          const gone = l.people.find((v) => v.id === visitorId);
+          get().updateSiteAccessLog(id, { people: l.people.filter((v) => v.id !== visitorId) });
+          if (gone?.signature?.blobKey) void delBlob(gone.signature.blobKey);
+        },
+
+        signSiteAccessVisitor: (id, visitorId, sig) => {
+          const l = get().siteAccessLogs.find((x) => x.id === id);
+          if (!l) return;
+          const ref = nextSiteAccessSignatureRef(id, l.people);
+          const previous = l.people.find((v) => v.id === visitorId)?.signature;
+          get().updateSiteAccessLog(id, {
+            people: l.people.map((v) =>
+              v.id === visitorId ? { ...v, signature: { ...sig, ref }, updatedAt: Date.now() } : v
+            ),
+          });
+          if (previous?.blobKey && previous.blobKey !== sig.blobKey) void delBlob(previous.blobKey);
         },
 
         addContact: (seed) => {
@@ -2111,7 +2379,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 20,
+      version: 21,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -2121,6 +2389,8 @@ export const useStore = create<State>()(
           interviewDays?: InterviewDay[];
           siteDays?: SiteDay[];
           evidenceItems?: EvidenceItem[];
+          ppeChecks?: PpeCheck[];
+          siteAccessLogs?: SiteAccessLog[];
           contacts?: Contact[];
           responses?: Record<string, Response>;
           verifications?: Record<string, Verification>;
@@ -2474,6 +2744,30 @@ export const useStore = create<State>()(
             }));
           }
         }
+        if (from < 21) {
+          /* The PPE and site-access slices, absent on every tablet that
+             hydrated before they existed — same failure mode as 14/16/17/19
+             if skipped. And the header fields on the two existing day
+             registers: a day opened before this reads `location`/`purpose`
+             as undefined rather than empty string, which the screens now
+             assume is a string to render into a text field. */
+          if (!Array.isArray(st.ppeChecks)) st.ppeChecks = [];
+          if (!Array.isArray(st.siteAccessLogs)) st.siteAccessLogs = [];
+          if (Array.isArray(st.siteDays)) {
+            st.siteDays = st.siteDays.map((d) => ({
+              ...d,
+              location: d.location ?? "",
+              purpose: d.purpose ?? "",
+            }));
+          }
+          if (Array.isArray(st.interviewDays)) {
+            st.interviewDays = st.interviewDays.map((d) => ({
+              ...d,
+              location: d.location ?? "",
+              purpose: d.purpose ?? "",
+            }));
+          }
+        }
         return st;
       },
       partialize: (s: State) => ({
@@ -2490,6 +2784,8 @@ export const useStore = create<State>()(
         interviewDays: s.interviewDays,
         siteDays: s.siteDays,
         evidenceItems: s.evidenceItems,
+        ppeChecks: s.ppeChecks,
+        siteAccessLogs: s.siteAccessLogs,
         contacts: s.contacts,
         lastSavedAt: s.lastSavedAt,
       }),
@@ -2685,6 +2981,26 @@ export function useEvidenceItems(): EvidenceItem[] {
       (a, b) => rank(a) - rank(b) || b.createdAt - a.createdAt
     );
   }, [all, entity]);
+}
+
+/** PPE checks at the entity in view, most recently opened first. */
+export function usePpeChecks(): PpeCheck[] {
+  const all = useStore((s) => s.ppeChecks);
+  const entity = useStore((s) => s.entity);
+  return useMemo(
+    () => all.filter((c) => c.entity === entity).sort((a, b) => b.openedAt - a.openedAt),
+    [all, entity]
+  );
+}
+
+/** Site access logs at the entity in view, most recently opened first. */
+export function useSiteAccessLogs(): SiteAccessLog[] {
+  const all = useStore((s) => s.siteAccessLogs);
+  const entity = useStore((s) => s.entity);
+  return useMemo(
+    () => all.filter((l) => l.entity === entity).sort((a, b) => b.openedAt - a.openedAt),
+    [all, entity]
+  );
 }
 
 /** The whole people directory, newest first. Not scoped by entity or visit —
