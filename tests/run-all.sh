@@ -39,11 +39,11 @@ row() { rows="${rows}$(printf '%-22s %6s\n' "$1" "$2")
 "; }
 
 # ---------------------------------------------------------------- source ----
-# Three read files through the "@/..." alias and need the loader to resolve it.
+# Four read files through the "@/..." alias and need the loader to resolve it.
 echo "== source suites"
 for f in tests/*.test.mjs; do
   case "$f" in
-    *sharepoint*|*merge*|*figures*) args="--import ./tests/alias.mjs" ;;
+    *sharepoint*|*merge*|*figures*|*attendance*) args="--import ./tests/alias.mjs" ;;
     *) args="" ;;
   esac
   out=$(node $args "$f" 2>&1)

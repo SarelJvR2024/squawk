@@ -5,22 +5,22 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Fifty-three suites, no framework. Thirteen need a running server; forty do not.
-**Check each suite's exit status, not its output**: a `for` loop over them
-reports the status of the loop.
+Fifty-four suites, no framework. Thirteen need a running server; forty-one do not.
+**Check each suite's exit status, not its output**: a `for` loop over
+them reports the status of the loop.
 
 **To run everything: `bash tests/run-all.sh`.** It builds, starts the two
-deployments the browser suites need between them, runs all fifty-three, and
+deployments the browser suites need between them, runs all fifty-four, and
 prints the measured assertion count for each. Each suite's own section below
 still gives the single command for running it alone, which is what you want
-while working on one; the runner exists because assembling all fifty-three by
+while working on one; the runner exists because assembling all fifty-four by
 hand from those sections is how three of the browser rows in the table below
 drifted from what the suites actually assert without anybody noticing. **The
 numbers in that table are measured, never remembered** — paste them from a run.
 
 ```bash
-bash tests/run-all.sh              # everything: build, servers, 53 suites
-bash tests/run-all.sh --source     # the 40 that need no server; seconds
+bash tests/run-all.sh              # everything: build, servers, 54 suites
+bash tests/run-all.sh --source     # the 41 that need no server; seconds
 bash tests/run-all.sh --no-build   # browser suites against the existing .next
 ```
 
@@ -28,9 +28,9 @@ Never rebuild `.next` while a browser suite is running against it. The suite
 starts failing on half-written chunks and the failures look exactly like real
 ones; the runner builds before it starts anything for that reason.
 
-All run with plain `node` except `sharepoint.test.mjs`, `merge.test.mjs` and
-`figures.test.mjs`, which need the alias loader so they can import the app's
-real modules:
+All run with plain `node` except `sharepoint.test.mjs`, `merge.test.mjs`,
+`figures.test.mjs` and `attendance.test.mjs`, which need the alias loader so
+they can import the app's real modules:
 
 ```
 node --import ./tests/alias.mjs tests/sharepoint.test.mjs
@@ -76,7 +76,8 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `adhoc.test.mjs` | no | 43 |
 | `isf.test.mjs` | no | 49 |
 | `interviews.test.mjs` | no | 79 |
-| `attendance.test.mjs` | no | 96 |
+| `attendance.test.mjs` | no | 97 |
+| `diary.test.mjs` | no | 56 |
 | `evidence.test.mjs` | no | 80 |
 | `e2e.js` | yes | 24 |
 | `robustness.js` | yes | 53 |
@@ -92,7 +93,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**2,393 assertions in total**, every count above verified by running the suite,
+**2,450 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -366,6 +367,43 @@ day." `location` and `notes` are asserted **not** to invalidate a signature in
 either direction, alongside the fields that already did not: an activity note
 filled in — or corrected — after the person has signed and gone must not
 unsign them.
+
+## `diary.test.mjs`
+
+Guards the daily diary, split onto its own screen 1 October 2026 and rebuilt
+the same day from a single free-text field into dated, categorised entries —
+Sarel: "for each entry capture the category ie weather people equipment
+general progress risks isues etc. For each entry i should be allowed to
+capfure a time. Add save and delete and signature."
+
+```bash
+node tests/diary.test.mjs
+```
+
+**Still the same record, not a second one.** The diary is still a field of
+`SiteDay` — one register per site per calendar day, the record attendance.ts
+owns — so the suite asserts the screen opens or returns through
+`openSiteDay`, the same store action attendance uses, rather than inventing
+its own.
+
+**One signature for the whole day, not per entry.** It attests to the log as
+it stands; adding, editing or removing *any* entry clears it, asserted for
+all three store actions. There is deliberately no control that deletes the
+`SiteDay` itself — that would take the attendance register for the day with
+it — and the suite asserts that control's absence rather than just its own
+feature working.
+
+**A category is not free text.** `DIARY_CATEGORIES` is the fixed list —
+weather, people, equipment, progress, risks, issues, general — and every
+entry carries its own editable time, defaulted to now and correctable
+afterwards, same reasoning as capture time versus event time elsewhere in
+this app.
+
+**Old data is migrated forward, not discarded.** The v22 migration backfills
+`dayStart`/`dayEnd`/`diarySignature` on a day opened before the rebuild, and
+converts any old free text into one entry — category "general", since
+nothing recorded which kind of thing it was — rather than silently dropping
+what somebody had written.
 
 ## `evidence.test.mjs`
 

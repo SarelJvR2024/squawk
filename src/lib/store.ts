@@ -24,6 +24,8 @@ import type {
   Finding,
   Hazard,
   AttendanceEntry,
+  DiaryCategory,
+  DiaryEntry,
   EvidenceItem,
   EvidenceMedium,
   InterviewDay,
@@ -464,6 +466,14 @@ interface State {
     patch: Partial<Attachment>
   ) => void;
   removeDayAttachment: (id: string, attachmentId: string) => void;
+
+  /** The day's diary — see src/lib/diary.ts. Adding, patching or removing
+   *  an entry clears diarySignature: the attestation was of the diary as it
+   *  stood, and it no longer stands. */
+  addDiaryEntry: (id: string, category: DiaryCategory, seed?: Partial<DiaryEntry>) => string;
+  updateDiaryEntry: (id: string, entryId: string, p: Partial<DiaryEntry>) => void;
+  removeDiaryEntry: (id: string, entryId: string) => void;
+  signDiary: (id: string, s: Omit<Signature, "ref">) => void;
 
   /* ---- The document and evidence collection log. See src/lib/evidence.ts. ----
      Only a title is required. Somebody is handing over a folder and walking
@@ -1258,7 +1268,10 @@ export const useStore = create<State>()(
                 purpose: "",
                 openedAt: now,
                 openedBy: s0.auditor || "",
-                diary: "",
+                dayStart: null,
+                dayEnd: null,
+                diaryEntries: [],
+                diarySignature: null,
                 entries: [],
                 attachments: [],
                 createdAt: now,
@@ -1436,6 +1449,53 @@ export const useStore = create<State>()(
               x.id === attachmentId ? { ...x, ...safe } : x
             ),
           });
+        },
+
+        addDiaryEntry: (id, category, seed) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          if (!d) return "";
+          const entryId = uid();
+          const now = Date.now();
+          get().updateSiteDay(id, {
+            diaryEntries: [
+              ...d.diaryEntries,
+              { category, at: now, text: "", ...seed, id: entryId, createdAt: now, updatedAt: now },
+            ],
+            /* The signature was of the diary as it stood; adding a line
+               changes what it stood for. */
+            diarySignature: null,
+          });
+          return entryId;
+        },
+
+        updateDiaryEntry: (id, entryId, p) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          if (!d) return;
+          const { id: _i, createdAt: _c, ...safe } = p;
+          void _i; void _c;
+          get().updateSiteDay(id, {
+            diaryEntries: d.diaryEntries.map((e) =>
+              e.id === entryId ? { ...e, ...safe, updatedAt: Date.now() } : e
+            ),
+            diarySignature: null,
+          });
+        },
+
+        removeDiaryEntry: (id, entryId) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          if (!d) return;
+          get().updateSiteDay(id, {
+            diaryEntries: d.diaryEntries.filter((e) => e.id !== entryId),
+            diarySignature: null,
+          });
+        },
+
+        signDiary: (id, sig) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          if (!d) return;
+          const previous = d.diarySignature;
+          get().updateSiteDay(id, { diarySignature: { ...sig, ref: `${id}_DIARY` } });
+          if (previous?.blobKey && previous.blobKey !== sig.blobKey) void delBlob(previous.blobKey);
         },
 
         addEvidenceItem: (title, seed) => {
@@ -2379,7 +2439,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 21,
+      version: 22,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -2766,6 +2826,44 @@ export const useStore = create<State>()(
               location: d.location ?? "",
               purpose: d.purpose ?? "",
             }));
+          }
+        }
+        if (from < 22) {
+          /* The diary was rebuilt from one free-text field into dated,
+             categorised entries. A day opened before this has
+             `diaryEntries` absent, not empty — the screen maps over it and
+             would white-screen the same way 14/16/17/19/21's slices would
+             have. The old text is not discarded: a day that had something
+             written in it gets exactly one entry carrying it forward,
+             category "general" since nothing recorded which kind of thing
+             it was, timed at whenever the day was opened since that is the
+             closest true thing on the record. A day with nothing written
+             gets an empty log, same as a tablet that never had the field. */
+          if (Array.isArray(st.siteDays)) {
+            st.siteDays = st.siteDays.map((d) => {
+              const legacy = d as unknown as { diary?: string };
+              const text = legacy.diary?.trim() ?? "";
+              return {
+                ...d,
+                dayStart: d.dayStart ?? null,
+                dayEnd: d.dayEnd ?? null,
+                diarySignature: d.diarySignature ?? null,
+                diaryEntries: Array.isArray(d.diaryEntries)
+                  ? d.diaryEntries
+                  : text
+                    ? [
+                        {
+                          id: `${d.id}-legacy`,
+                          category: "general" as const,
+                          at: d.openedAt,
+                          text,
+                          createdAt: d.openedAt,
+                          updatedAt: d.openedAt,
+                        },
+                      ]
+                    : [],
+              };
+            });
           }
         }
         return st;

@@ -10,9 +10,8 @@
  *  question TPJV is most likely to be asked a year from now and the hardest to
  *  reconstruct from anything else.
  *
- *  The day's diary moved to its own screen, /diary — same record
- *  (SiteDay.diary), different screen, so updating it is not nine fields'
- *  worth of scrolling away.
+ *  The day's diary moved to its own screen, /diary — same record, different
+ *  screen, so updating it is not nine fields' worth of scrolling away.
  *
  *  Five things shape the screen.
  *

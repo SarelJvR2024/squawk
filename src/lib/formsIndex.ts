@@ -15,6 +15,7 @@ import { missingFields } from "@/lib/isf";
 import { dayGaps as interviewDayGaps } from "@/lib/interviews";
 import { dayGaps as attendanceDayGaps, localDate } from "@/lib/attendance";
 import { checkGaps as ppeCheckGaps } from "@/lib/ppe";
+import { diaryGaps } from "@/lib/diary";
 import { logGaps as siteAccessGaps } from "@/lib/siteAccess";
 import { itemGaps as evidenceItemGaps } from "@/lib/evidence";
 
@@ -119,10 +120,13 @@ export function useFormsIndex(): FormsIndexRow[] {
         date: d.date,
         at: d.openedAt,
         title: "Daily diary",
-        subtitle: d.diary.trim() || "Nothing recorded",
+        subtitle:
+          d.diaryEntries.length === 0
+            ? "Nothing recorded"
+            : `${d.diaryEntries.length} ${d.diaryEntries.length === 1 ? "entry" : "entries"}`,
         href: "/diary",
         open: true,
-        gapCount: d.diary.trim() ? 0 : 1,
+        gapCount: diaryGaps(d).length,
       });
     }
 

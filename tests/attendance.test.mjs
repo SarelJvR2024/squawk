@@ -127,11 +127,26 @@ const day = (over = {}) => ({
   entity: "FAOR",
   originVisit: "2026-09",
   date: "2026-09-29",
+  location: "",
+  purpose: "",
   openedAt: ARRIVED,
   openedBy: "Sarel Jansen van Rensburg",
-  diary: "",
+  dayStart: null,
+  dayEnd: null,
+  diaryEntries: [],
+  diarySignature: null,
   entries: [],
   attachments: [],
+  createdAt: ARRIVED,
+  updatedAt: ARRIVED,
+  ...over,
+});
+
+const diaryEntry = (over = {}) => ({
+  id: "d1",
+  category: "general",
+  at: ARRIVED,
+  text: "Escorted from 07:10.",
   createdAt: ARRIVED,
   updatedAt: ARRIVED,
   ...over,
@@ -398,13 +413,20 @@ check(
   dayGaps(mixed).some((g) => /not signed out/.test(g))
 );
 check(
-  "a day with no diary entry says so",
-  dayGaps(mixed).includes("no diary entry")
+  "a day with no diary entries says so",
+  dayGaps(mixed).includes("no diary entries")
+);
+check(
+  "a day with unsigned diary entries says the diary is not signed",
+  dayGaps(day({ diaryEntries: [diaryEntry()] })).includes("diary not signed"),
+  "entries alone are not an attestation that the log is accurate"
 );
 check(
   "a finished day owes nothing",
-  dayGaps(day({ entries: [complete()], diary: "Escorted from 07:10." })).length === 0,
-  `got ${JSON.stringify(dayGaps(day({ entries: [complete()], diary: "x" })))}`
+  dayGaps(
+    day({ entries: [complete()], diaryEntries: [diaryEntry()], diarySignature: sig({ ref: "ATT-7K2P9_DIARY" }) })
+  ).length === 0,
+  `got ${JSON.stringify(dayGaps(day({ entries: [complete()], diaryEntries: [diaryEntry()] })))}`
 );
 
 /* ----------------------------------------- 9. signatures only on this device */
@@ -439,7 +461,10 @@ check("it carries the site", bare.includes("O.R. Tambo International Airport"));
 check("it carries the date", bare.includes("2026-09-29"));
 
 const full = dayText(
-  day({ entries: [complete(), person({ id: "e2", name: "P. Mahlangu" })], diary: "MV rooms, Pier B." }),
+  day({
+    entries: [complete(), person({ id: "e2", name: "P. Mahlangu" })],
+    diaryEntries: [diaryEntry({ text: "MV rooms, Pier B." })],
+  }),
   ctx
 );
 check("a signed row names its signature reference", full.includes("ATT-7K2P9_S01"));

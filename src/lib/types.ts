@@ -1338,6 +1338,37 @@ export interface AttendanceEntry {
   updatedAt: number;
 }
 
+/** What one diary entry is about. A fixed, named set rather than free text
+ *  for the same reason PpeItemKey is: Sarel asked for these specifically
+ *  ("weather people equipment general progress risks issues"), and a log
+ *  whose categories can be spelled differently each day cannot be scanned
+ *  or filtered by category. */
+export type DiaryCategory =
+  | "weather"
+  | "people"
+  | "equipment"
+  | "progress"
+  | "risks"
+  | "issues"
+  | "general";
+
+/** One dated, categorised line in the day's diary — Sarel: "for each entry
+ *  capture the category ie weather people equipment general progress risks
+ *  isues etc. For each entry i should be allowed to capfure a time."
+ *
+ *  `at` is the entry's OWN time, separate from `createdAt` — an auditor
+ *  logging at 16:00 that it rained at 10:00 should be able to say so, the
+ *  same reasoning as an observation's capture time versus event time
+ *  elsewhere in this app. */
+export interface DiaryEntry {
+  id: string;
+  category: DiaryCategory;
+  at: number;
+  text: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 /** A site day — TK-003 form 2's register, and the daily diary that goes with it.
  *
  *  ONE RECORD PER SITE PER CALENDAR DAY, and the store enforces it. Two records
@@ -1349,11 +1380,15 @@ export interface AttendanceEntry {
  *  was raised — is the one TPJV is most likely to be asked a year later, and the
  *  hardest to reconstruct.
  *
- *  The diary is deliberately one free-text field and not a checklist. TK-003
- *  form 8, the Daily Site Closeout, is the checklist, it is a different form,
- *  and its real purpose is catching a safety finding that was raised and not
- *  reported. Merging the two would turn an account of the day into a
- *  compliance tick, and lose both. */
+ *  THE DIARY IS A LOG OF DATED, CATEGORISED LINES, NOT A CHECKLIST. Rebuilt
+ *  1 October 2026 from a single free-text field into `diaryEntries`, on
+ *  Sarel's own word for what each line needs: a category and a time. TK-003
+ *  form 8, the Daily Site Closeout, is still the real checklist — a
+ *  different form, whose job is catching a safety finding that was raised
+ *  and not reported — and a category tag is not a pass/fail tick: this
+ *  still reads as an account of the day, now one a reader can scan by kind
+ *  (weather, people, equipment, progress, risks, issues, general) instead
+ *  of as one paragraph. */
 export interface SiteDay {
   /** `ATT-xxxxx`. The prefix every signature reference on the day is built on. */
   id: string;
@@ -1365,7 +1400,10 @@ export interface SiteDay {
    *  A string rather than an instant, on purpose: "the site day" is a day on a
    *  calendar at an airport in South Africa, not a point in time, and storing an
    *  instant invites a UTC comparison that puts an 02:00 arrival on the day
-   *  before. */
+   *  before. Deliberately NOT editable once opened — see updateSiteDay in
+   *  store.ts — because this record is shared with Attendance and moving the
+   *  date would either collide with a real day or re-file somebody's
+   *  attendance onto a day they were not there. */
   date: string;
 
   /** Where the day was spent, and why TPJV was on site — both optional,
@@ -1377,8 +1415,20 @@ export interface SiteDay {
   openedAt: number;
   openedBy: string;
 
-  /** What the day actually consisted of, in the words of whoever was there. */
-  diary: string;
+  /** The day's own working window — when the crew started and finished, as
+   *  distinct from any one entry's own time, or from an individual
+   *  attendee's arrival/departure. Both optional: null until set. */
+  dayStart: number | null;
+  dayEnd: number | null;
+
+  diaryEntries: DiaryEntry[];
+  /** One attestation for the whole day's diary — "this is an accurate
+   *  record of the day" — separate from any individual entry and from the
+   *  attendance register's own per-person signatures. Cleared if an entry
+   *  is added, changed or removed after signing, same reasoning as every
+   *  other signature in this app: see diarySignedFieldsChanged() in
+   *  src/lib/diary.ts. */
+  diarySignature: Signature | null;
 
   entries: AttendanceEntry[];
   attachments: Attachment[];
