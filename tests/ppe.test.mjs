@@ -257,5 +257,39 @@ check(
     /name: "PPE checks",/.test(exportsSrc)
 );
 
+/* ---- 12. Sarel's follow-up: editable date/time, an agreement, a Save action ---- */
+
+check(
+  "the date and time are editable, not just stamped and read-only",
+  /type="date"[\s\S]{0,80}value=\{c\.date\}[\s\S]{0,80}onChange=\{\(e\) => setCheckDate\(c, e\.target\.value\)\}/.test(page) &&
+    /type="time"[\s\S]{0,80}value=\{timeInputValue\(c\.openedAt\)\}[\s\S]{0,80}onChange=\{\(e\) => setCheckTime\(c, e\.target\.value\)\}/.test(page)
+);
+check(
+  "editing the date keeps the time of day, editing the time keeps the date",
+  /function setCheckDate[\s\S]{0,300}merged\.getTime\(\) \}\)/.test(page) &&
+    /function setCheckTime[\s\S]{0,300}openedAt: merged\.getTime\(\) \}\)/.test(page),
+  "a check backfilled from a paper note needs its own real date and time, not whatever the tablet said when someone got round to it"
+);
+check(
+  "a signature carries an explicit PPE and safety agreement, not a bare mark",
+  /By signing,.*confirms the PPE ticked\s*\n?\s*above is what they are wearing, agrees to wear the PPE required on\s*\n?\s*this site, and confirms they are aware of the site/.test(
+    page
+  ),
+  'Sarel: "get them to sign that they agree to wear their ppe and are aware of all ppe and safety requirements" — a bare signature under a set of ticks only says they were checked, not that they agreed to anything'
+);
+check(
+  "the declaration is shown only while actually signing, addressed to the person by name",
+  /signing === e\.id \? \(\s*\n\s*<>/.test(page) && /\{e\.name\.trim\(\) \|\| "this person"\}/.test(page)
+);
+check(
+  "there is a visible Save action, not just silent autosave",
+  /Save & close/.test(page),
+  'Sarel: "There is no save button" — every field already autosaves, but nothing on screen said so or gave a deliberate "done" moment'
+);
+check(
+  "saving gives a visible confirmation, not just a closed panel",
+  /savedId === c\.id \? <Pill tone="accent">✓ SAVED<\/Pill>/.test(page)
+);
+
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");
 process.exit(failures ? 1 : 0);

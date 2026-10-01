@@ -29,13 +29,20 @@ import { siteCodeFor, siteFor } from "@/lib/sites";
 import ContactPicker from "@/components/ContactPicker";
 import { SignaturePad } from "@/components/SignaturePad";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
-import { IconX } from "@/components/ui/icons";
+import { IconCheck, IconX } from "@/components/ui/icons";
 
 const inputCls = "min-h-[44px] w-full rounded-[9px] border px-3 py-2 text-[13px]";
 const inputStyle = { background: "var(--bg)", borderColor: "var(--line)" } as const;
 
 function hhmm(t: number): string {
   return new Date(t).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+/** HH:MM for a <input type="time">, in the device's own timezone. */
+function timeInputValue(t: number): string {
+  const d = new Date(t);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 const STATUS_TONE: Record<PpeStatus, "accent" | "warn" | undefined> = {
@@ -69,6 +76,7 @@ export default function PpePage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [signing, setSigning] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
   const [draftLocation, setDraftLocation] = useState("");
   const [draftPurpose, setDraftPurpose] = useState("");
   const [draftNoiseZone, setDraftNoiseZone] = useState(false);
@@ -81,6 +89,28 @@ export default function PpePage() {
     setDraftLocation("");
     setDraftPurpose("");
     setDraftNoiseZone(false);
+  }
+
+  /* Stamped automatically on "Start a check", and still correctable — a
+     check logged a few minutes after the fact, or backfilled from a paper
+     note at the end of the day, needs its own real date and time, not just
+     whatever the tablet said at the moment someone got round to opening
+     the app. Editing either keeps the other: changing the date keeps the
+     time of day, changing the time keeps the date. */
+  function setCheckDate(c: PpeCheck, v: string) {
+    if (!v) return;
+    const t = new Date(c.openedAt);
+    const merged = new Date(
+      `${v}T${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}:00`
+    );
+    patchCheck(c.id, { date: v, openedAt: merged.getTime() });
+  }
+  function setCheckTime(c: PpeCheck, v: string) {
+    const [hh, mm] = v.split(":").map(Number);
+    if (Number.isNaN(hh) || Number.isNaN(mm)) return;
+    const merged = new Date(`${c.date}T00:00:00`);
+    merged.setHours(hh, mm, 0, 0);
+    patchCheck(c.id, { openedAt: merged.getTime() });
   }
 
   async function copyCheck(c: PpeCheck) {
@@ -171,6 +201,7 @@ export default function PpePage() {
                       {c.date} · {hhmm(c.openedAt)}
                     </span>
                     {c.noiseZone ? <Pill tone="warn">NOISE ZONE</Pill> : null}
+                    {savedId === c.id ? <Pill tone="accent">✓ SAVED</Pill> : null}
                   </div>
                   <p className="mt-1 text-[13px]">
                     {c.location.trim() || "No location recorded"}
@@ -191,6 +222,28 @@ export default function PpePage() {
 
               {isOpen ? (
                 <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--line)" }}>
+                  <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Field label="DATE">
+                      <input
+                        type="date"
+                        value={c.date}
+                        onChange={(e) => setCheckDate(c, e.target.value)}
+                        aria-label={`Date for PPE check ${c.id}`}
+                        className={inputCls}
+                        style={inputStyle}
+                      />
+                    </Field>
+                    <Field label="TIME">
+                      <input
+                        type="time"
+                        value={timeInputValue(c.openedAt)}
+                        onChange={(e) => setCheckTime(c, e.target.value)}
+                        aria-label={`Time for PPE check ${c.id}`}
+                        className={inputCls}
+                        style={inputStyle}
+                      />
+                    </Field>
+                  </div>
                   <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <Field label="LOCATION">
                       <input
@@ -324,14 +377,31 @@ export default function PpePage() {
                         />
 
                         {signing === e.id ? (
-                          <SignaturePad
-                            name={e.name}
-                            onCancel={() => setSigning(null)}
-                            onSigned={(s) => {
-                              sign(c.id, e.id, s);
-                              setSigning(null);
-                            }}
-                          />
+                          <>
+                            {/* THE DECLARATION A PPE SIGNATURE ACTUALLY MEANS.
+                                Sarel: "get them to sign that they agree to
+                                wear their PPE and are aware of all PPE and
+                                safety requirements." A bare signature under a
+                                set of ticks reads as "I was checked"; this is
+                                what makes it read as "I agree". */}
+                            <p
+                              className="mb-2 text-[11.5px] leading-[1.5]"
+                              style={{ color: "var(--ink-2)" }}
+                            >
+                              By signing, {e.name.trim() || "this person"} confirms the PPE ticked
+                              above is what they are wearing, agrees to wear the PPE required on
+                              this site, and confirms they are aware of the site&rsquo;s PPE and
+                              safety requirements.
+                            </p>
+                            <SignaturePad
+                              name={e.name}
+                              onCancel={() => setSigning(null)}
+                              onSigned={(s) => {
+                                sign(c.id, e.id, s);
+                                setSigning(null);
+                              }}
+                            />
+                          </>
                         ) : e.signature ? (
                           <div className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
                             {e.signature.ref} · SIGNED {hhmm(e.signature.signedAt)} AS{" "}
@@ -355,10 +425,28 @@ export default function PpePage() {
                   ) : null}
 
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t pt-3" style={{ borderColor: "var(--line)" }}>
-                    <Btn onClick={() => void copyCheck(c)}>{copied === c.id ? "Copied" : "Copy this check"}</Btn>
-                    <Btn onClick={() => { removeCheck(c.id); setOpenId(null); }}>
-                      <IconX /> Delete this check
+                    <Btn
+                      variant="primary"
+                      onClick={() => {
+                        /* Every field on this screen is already written to
+                           the store the moment it changes — there is nothing
+                           this button needs to do to make the data safe.
+                           What it gives is what was missing: a deliberate
+                           "I'm done with this one" moment, instead of
+                           trusting that closing the card was enough. */
+                        setOpenId(null);
+                        setSavedId(c.id);
+                        window.setTimeout(() => setSavedId(null), 2500);
+                      }}
+                    >
+                      <IconCheck /> Save & close
                     </Btn>
+                    <div className="flex gap-2">
+                      <Btn onClick={() => void copyCheck(c)}>{copied === c.id ? "Copied" : "Copy this check"}</Btn>
+                      <Btn onClick={() => { removeCheck(c.id); setOpenId(null); }}>
+                        <IconX /> Delete this check
+                      </Btn>
+                    </div>
                   </div>
                   {unbacked.length ? (
                     <p className="mt-2 font-mono text-[9px]" style={{ color: "var(--warn)" }}>
