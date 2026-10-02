@@ -149,8 +149,15 @@ check(
 );
 check(
   "a typed name gets explicit empty organisation and role, not an absent key",
-  /onAdd\(\{ name, organisation: "", role: "" \}\);/.test(picker),
+  /onAdd\(\{ contactId, name, organisation: "", role: "" \}\);/.test(picker),
   'a caller spreading this as a seed over {organisation: "", ...seed} gets undefined back if the key is merely absent — a spread copies an explicit undefined same as any other value, see the PPE bug this guards'
+);
+check(
+  "a typed name joins the people directory on the spot, not just this one record",
+  /const \[first, \.\.\.restWords\] = name\.split\(\/\\s\+\/\);[\s\S]{0,40}const contactId = addContact\(\{[\s\S]{0,40}site: entityCode,[\s\S]{0,40}name: first \?\? name,[\s\S]{0,40}surname: restWords\.join\(" "\),/.test(
+    picker
+  ),
+  'Sarel: "any person we capture in any form should be added to our people register so they can be selected and added to any other instance of any other form" — the second time anyone types a close match anywhere, it is a pick, not a retype'
 );
 check(
   "the control can be disabled outright, not just refused inside the handler",
