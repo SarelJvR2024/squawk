@@ -39,6 +39,7 @@ const store = src("lib", "store.ts");
 const types = src("lib", "types.ts");
 const page = src("app", "(app)", "interviews", "page.tsx");
 const shell = src("components", "AppShell.tsx");
+const hub = src("app", "(app)", "forms", "page.tsx");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -405,18 +406,15 @@ check(
   "the register has a route",
   fs.existsSync(path.join(here, "..", "src", "app", "(app)", "interviews", "page.tsx"))
 );
-check("it is reachable from the shell", /router\.push\("\/interviews"\)/.test(shell));
+check("it is reachable from the Forms hub", /href: "\/interviews"/.test(hub));
 check("it is not another entry in the nav bar", !/href:\s*"\/interviews"/.test(shell));
 check(
   "a screen off the nav bar still has a heading of its own",
   /"\/interviews": "Interview records"/.test(shell)
 );
-const menuItems = [...shell.matchAll(/\{role !== "acsa" && \(\s*<MoreItem[\s\S]*?\/\>\s*\)\}/g)].map(
-  (m) => m[0]
-);
 check(
-  "ACSA, who are read-only across the audit, are not offered it",
-  menuItems.some((m) => m.includes("Interview records"))
+  "it is not reachable directly from the shell's own menu any more",
+  !/label="Interview records"/.test(shell)
 );
 check(
   "the page renders an h2, leaving the shell's h1 alone",

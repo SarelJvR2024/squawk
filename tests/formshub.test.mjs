@@ -79,10 +79,11 @@ check("it is reachable from the shell", /router\.push\("\/forms"\)/.test(shell))
 check("it is not another entry in the nav bar", !/href:\s*"\/forms"/.test(shell));
 check("a screen off the nav bar still has a heading of its own", /"\/forms": "All forms"/.test(shell));
 check(
-  "it is the first item in the Forms group, ahead of each individual register",
-  shell.indexOf('label="All forms"') < shell.indexOf('label="Interview records"') &&
-    shell.indexOf('label="All forms"') < shell.indexOf('label="Site attendance"'),
-  "nobody opening the menu should need to already know which form holds the record they want"
+  "it is the one entry point the menu offers for every form (Sarel, 2 Oct: remove the individual forms from the menu)",
+  /label="All forms"/.test(shell) &&
+    !/label="Interview records"/.test(shell) &&
+    !/label="Site attendance"/.test(shell),
+  "the menu used to list each register again below this tile; now the hub is the only way in"
 );
 check(
   "the hub offers a tile for every form, not only a list of past records",
@@ -100,7 +101,8 @@ check("an empty programme says so plainly", /No forms recorded yet\./.test(hub))
 /* -------------------------------------------------------------- 3. diary */
 
 check("the diary has a route", fs.existsSync(path.join(here, "..", "src", "app", "(app)", "diary", "page.tsx")));
-check("it is reachable from the shell", /router\.push\("\/diary"\)/.test(shell));
+check("it is reachable from the Forms hub", /href: "\/diary"/.test(hub));
+check("it is not reachable directly from the shell's own menu any more", !/label="Daily diary"/.test(shell));
 check("it is not another entry in the nav bar", !/href:\s*"\/diary"/.test(shell));
 check("a screen off the nav bar still has a heading of its own", /"\/diary": "Daily diary"/.test(shell));
 check(

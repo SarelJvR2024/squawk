@@ -49,6 +49,7 @@ const types = src("lib", "types.ts");
 const page = src("app", "(app)", "attendance", "page.tsx");
 const pad = src("components", "SignaturePad.tsx");
 const shell = src("components", "AppShell.tsx");
+const hub = src("app", "(app)", "forms", "page.tsx");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -672,22 +673,18 @@ check(
   "the register has a route",
   fs.existsSync(path.join(here, "..", "src", "app", "(app)", "attendance", "page.tsx"))
 );
-check('it is reachable from the shell', /router\.push\("\/attendance"\)/.test(shell));
+check("it is reachable from the Forms hub", /href: "\/attendance"/.test(hub));
 check(
   "it is not a tenth entry in the nav bar",
   !/href:\s*"\/attendance"/.test(shell)
 );
 check(
-  "a screen off the nav bar still has a heading of its own",
-  /"\/attendance": "Site attendance"/.test(shell)
-);
-const menuItems = [...shell.matchAll(/\{role !== "acsa" && \(\s*<MoreItem[\s\S]*?\/\>\s*\)\}/g)].map(
-  (m) => m[0]
+  "it is not reachable directly from the shell's own menu any more",
+  !/label="Site attendance"/.test(shell)
 );
 check(
-  "ACSA, who are read-only across the audit, are not offered it",
-  menuItems.some((m) => m.includes("Site attendance")),
-  "every other destination is disabled for them; this one must not be the exception"
+  "a screen off the nav bar still has a heading of its own",
+  /"\/attendance": "Site attendance"/.test(shell)
 );
 check(
   "the page renders an h2, leaving the shell's h1 alone",
@@ -711,15 +708,15 @@ check(
   "the closeout has its own route",
   fs.existsSync(path.join(here, "..", "src", "app", "(app)", "closeout", "page.tsx"))
 );
-check("it is reachable from the shell", /router\.push\("\/closeout"\)/.test(shell));
+check("it is reachable from the Forms hub", /href: "\/closeout"/.test(hub));
 check("it is not a tenth entry in the nav bar", !/href:\s*"\/closeout"/.test(shell));
+check(
+  "it is not reachable directly from the shell's own menu any more",
+  !/label="Daily closeout"/.test(shell)
+);
 check(
   "a screen off the nav bar still has a heading of its own",
   /"\/closeout": "Daily site closeout"/.test(shell)
-);
-check(
-  "ACSA, who are read-only across the audit, are not offered it",
-  menuItems.some((m) => m.includes("Daily closeout") || m.includes("Daily site closeout"))
 );
 check(
   "the page renders an h2, leaving the shell's h1 alone",

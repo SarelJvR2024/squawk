@@ -5,6 +5,26 @@
 
 export type Compliance = "C" | "NC" | "N/A" | "NV";
 
+/** Whether the evidence a check needs has actually been produced — a
+ *  question separate from the compliance verdict itself (a check can be
+ *  marked Compliant on ACSA's say-so while the proof is still outstanding,
+ *  see `Response.evidencePending`). Replaced the "compliant, evidence
+ *  pending" and "not available" compliance buttons, 2 October 2026 (Sarel:
+ *  "remove that option... introduce an evidence functionality"), because
+ *  neither actually answered this question — one said the verdict was C
+ *  with a caveat, the other overloaded "NV" to mean both "we'll look at
+ *  this later" (on the field screen) and "nothing was available" (on the
+ *  desk screen).
+ *
+ *  `null` means nobody has said anything about evidence yet — not the same
+ *  as `noneAvailable`, which is an auditor's deliberate statement that
+ *  there is none to collect. */
+export type EvidenceStatus =
+  | "noneAvailable"
+  | "specificNotAvailable"
+  | "toBeProvided"
+  | "providedForReview";
+
 /* Verbatim from B170 001M cl. 4.3.1 and 4.3.2. See the note in risk.ts — these
    words are ACSA's, not ours, and paraphrasing them changes what a rating means. */
 export type Severity =
@@ -385,6 +405,16 @@ export interface Response {
    *  Optional, so a record written before this existed reads as false and no
    *  store migration is needed. */
   evidencePending?: boolean;
+  /** Whether the evidence this check needs has been produced — see
+   *  EvidenceStatus. `null` is "nobody has said" rather than "none exists";
+   *  the register has to be able to tell those apart. */
+  evidenceStatus: EvidenceStatus | null;
+  /** What it means depends on evidenceStatus: the description of what is
+   *  missing for `specificNotAvailable`, or what and when for
+   *  `toBeProvided`. Unused by the other two states and left blank rather
+   *  than cleared retroactively if the status changes — a note typed once
+   *  is not worth losing to a tap that changed something else. */
+  evidenceStatusNote: string;
   observation: string;
   evidencePicked: number[];
   issuesPicked: number[];

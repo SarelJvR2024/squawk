@@ -247,6 +247,8 @@ function emptyResponse(checkId: string): Response {
     walkaboutPicked: null,
     attachments: [],
     evidencePending: false,
+    evidenceStatus: null,
+    evidenceStatusNote: "",
     captured: false,
     capturedBy: "",
     capturedAt: null,
@@ -2818,7 +2820,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 26,
+      version: 27,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -3330,6 +3332,26 @@ export const useStore = create<State>()(
               if (day.closeoutAcsaName === undefined) day.closeoutAcsaName = "";
               if (day.closeoutAcsaSignature === undefined) day.closeoutAcsaSignature = null;
               if (day.closeoutClosedAt === undefined) day.closeoutClosedAt = null;
+            }
+          }
+        }
+        if (from < 27) {
+          /* Evidence status, replacing the "compliant, evidence pending" and
+             "not available" compliance options (Sarel, 2 October 2026:
+             "remove that option... introduce an evidence functionality").
+             Every response already on a tablet predates the two new fields,
+             and the Evidence status panel reads r.evidenceStatus with no
+             fallback — absent is a different answer from null, so this
+             backfills the real default rather than leaving the key missing. */
+          if (st.byVisit) {
+            for (const key of Object.keys(st.byVisit)) {
+              const responses = st.byVisit[key]?.responses;
+              if (!responses) continue;
+              for (const checkId of Object.keys(responses)) {
+                const r = responses[checkId] as Partial<Response>;
+                if (r.evidenceStatus === undefined) r.evidenceStatus = null;
+                if (r.evidenceStatusNote === undefined) r.evidenceStatusNote = "";
+              }
             }
           }
         }

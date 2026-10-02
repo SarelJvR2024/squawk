@@ -43,6 +43,7 @@ const store = src("lib", "store.ts");
 const types = src("lib", "types.ts");
 const page = src("app", "(app)", "evidence", "page.tsx");
 const shell = src("components", "AppShell.tsx");
+const hub = src("app", "(app)", "forms", "page.tsx");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -430,18 +431,15 @@ check(
   "the log has a route",
   fs.existsSync(path.join(here, "..", "src", "app", "(app)", "evidence", "page.tsx"))
 );
-check('it is reachable from the shell', /router\.push\("\/evidence"\)/.test(shell));
+check("it is reachable from the Forms hub", /href: "\/evidence"/.test(hub));
 check("it is not another entry in the nav bar", !/href:\s*"\/evidence"/.test(shell));
+check(
+  "it is not reachable directly from the shell's own menu any more",
+  !/label="Evidence log"/.test(shell)
+);
 check(
   "a screen off the nav bar still has a heading of its own",
   /"\/evidence": "Document and evidence collection log"/.test(shell)
-);
-const menuItems = [...shell.matchAll(/\{role !== "acsa" && \(\s*<MoreItem[\s\S]*?\/\>\s*\)\}/g)].map(
-  (m) => m[0]
-);
-check(
-  "ACSA, who are read-only across the audit, are not offered it",
-  menuItems.some((m) => m.includes("Evidence log"))
 );
 check(
   "the page renders an h2, leaving the shell's h1 alone",

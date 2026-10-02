@@ -14,6 +14,7 @@ const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8"
 const store = src("lib", "store.ts");
 const page = src("app", "(app)", "toolbox-talk", "page.tsx");
 const shell = src("components", "AppShell.tsx");
+const hub = src("app", "(app)", "forms", "page.tsx");
 const exportsSrc = src("lib", "exports.ts");
 
 let failures = 0;
@@ -167,14 +168,10 @@ check(
 /* ------------------------------------------------------------- 8. reachable */
 
 check("the register has a route", fs.existsSync(path.join(here, "..", "src", "app", "(app)", "toolbox-talk", "page.tsx")));
-check("it is reachable from the shell", /router\.push\("\/toolbox-talk"\)/.test(shell));
+check("it is reachable from the Forms hub", /href: "\/toolbox-talk"/.test(hub));
 check("it is not another entry in the nav bar", !/href:\s*"\/toolbox-talk"/.test(shell));
 check("a screen off the nav bar still has a heading of its own", /"\/toolbox-talk": "Toolbox talk"/.test(shell));
-const menuItems = [...shell.matchAll(/\{role !== "acsa" && \(\s*<MoreItem[\s\S]*?\/\>\s*\)\}/g)].map((m) => m[0]);
-check(
-  "ACSA, who are read-only across the audit, are not offered it",
-  menuItems.some((m) => m.includes("Toolbox talk"))
-);
+check("it is not reachable directly from the shell's own menu any more", !/label="Toolbox talk"/.test(shell));
 check(
   "the page renders an h2, leaving the shell's h1 alone",
   /<h2 className="font-display text-\[15px\] font-semibold">Toolbox talk<\/h2>/.test(page)
