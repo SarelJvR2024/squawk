@@ -7,12 +7,14 @@ import {
   useResponses,
   useEntityCode,
   useEvidenceItems,
+  useIncidentReports,
   useInterviewDays,
   usePpeChecks,
   useSafetyFindings,
   useSiteAccessLogs,
   useSiteDays,
   useSystems,
+  useToolboxTalks,
   useVerifications,
   useAdhoc,
   useVisitFindings,
@@ -34,6 +36,7 @@ import {
   findingsSheet,
   hazardsSheet,
   fullWorkbook,
+  incidentSheet,
   interviewsSheet,
   isfSheet,
   photographsSheet,
@@ -42,6 +45,7 @@ import {
   siteAccessSheet,
   summarySheet,
   systemsSheet,
+  toolboxTalkSheet,
   type ExportInput,
 } from "@/lib/exports";
 import { downloadBytes, downloadText, downloadWorkbook, toCsv, type Sheet } from "@/lib/xlsx";
@@ -63,6 +67,8 @@ type Kind =
   | "attendance"
   | "ppe"
   | "siteaccess"
+  | "toolboxtalk"
+  | "incident"
   | "evidencelog"
   | "summary"
   | "photographs";
@@ -72,7 +78,7 @@ const OPTIONS: { kind: Kind; title: string; blurb: string }[] = [
     kind: "full",
     title: "Everything",
     blurb:
-      "Sixteen sheets: a cover note explaining what a blank cell means, the summary, the register, the asset-system ratings, the findings, the hazards, the closure position, what the walk found, the evidence request, safety (ISF), interviews, attendance, PPE checks, site access, the evidence log and the photograph index.",
+      "Eighteen sheets: a cover note explaining what a blank cell means, the summary, the register, the asset-system ratings, the findings, the hazards, the closure position, what the walk found, the evidence request, safety (ISF), interviews, attendance, PPE checks, site access, toolbox talks, incidents, the evidence log and the photograph index.",
   },
   {
     kind: "register",
@@ -140,6 +146,17 @@ const OPTIONS: { kind: Kind; title: string; blurb: string }[] = [
       "Every area visited this visit — where, why, who escorted the team in, and who went from ACSA and from TPJV.",
   },
   {
+    kind: "toolboxtalk",
+    title: "Toolbox talks",
+    blurb: "Every toolbox talk this visit — topic, facilitator, location and who attended and signed.",
+  },
+  {
+    kind: "incident",
+    title: "Incidents",
+    blurb:
+      "Every incident or near miss reported this visit, built against Annexure 1 of the OHS Act — who was affected, who investigated, and who signed it off.",
+  },
+  {
     kind: "evidencelog",
     title: "Evidence log",
     blurb:
@@ -176,6 +193,8 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
   const siteDays = useSiteDays();
   const ppeChecks = usePpeChecks();
   const siteAccessLogs = useSiteAccessLogs();
+  const toolboxTalks = useToolboxTalks();
+  const incidentReports = useIncidentReports();
   const evidenceItems = useEvidenceItems();
   const entityCode = useEntityCode();
   const [budget, setBudget] = useState({ count: 0, bytes: 0 });
@@ -319,6 +338,8 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
         siteDays,
         ppeChecks,
         siteAccessLogs,
+        toolboxTalks,
+        incidentReports,
         evidenceItems,
         library,
       };
@@ -334,6 +355,8 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
         attendance: () => attendanceSheet(x),
         ppe: () => ppeSheet(x),
         siteaccess: () => siteAccessSheet(x),
+        toolboxtalk: () => toolboxTalkSheet(x),
+        incident: () => incidentSheet(x),
         evidencelog: () => evidenceLogSheet(x),
         summary: () => summarySheet(x),
         photographs: () => photographsSheet(x),

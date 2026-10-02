@@ -582,7 +582,7 @@ check(
  *  hydration instead of from the create path. */
 check(
   "store version bumped so the backfill actually runs on an old tablet",
-  /version: 25,/.test(store),
+  Number(/version: (\d+),/.exec(store)?.[1] ?? 0) >= 25,
   "a migration nobody's persisted version asks for never executes"
 );
 

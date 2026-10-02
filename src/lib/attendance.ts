@@ -239,9 +239,38 @@ export function dayText(day: SiteDay, ctx: DayContext): string {
     lines.push("", "PHOTOGRAPHS", photos.map((a) => a.ref).join(", "));
   }
 
+  lines.push(
+    "",
+    "DAILY SITE CLOSEOUT — TK-003 form 8",
+    `Findings today?     ${
+      day.closeoutFindingsToday === null ? unknown : day.closeoutFindingsToday ? "yes" : "no"
+    }`,
+    `All logged, sheet 9? ${
+      day.closeoutAllLoggedSheet9 === null ? unknown : day.closeoutAllLoggedSheet9 ? "yes" : "no"
+    }`,
+    ...(day.closeoutNotes.trim() ? [`Notes                ${day.closeoutNotes.trim()}`] : []),
+    `Team lead            ${
+      day.closeoutLeadSignature
+        ? `${day.closeoutLeadSignature.ref}, signed ${stamp(day.closeoutLeadSignature.signedAt)} as "${
+            day.closeoutLeadSignature.signedName
+          }"`
+        : `${L(day.closeoutLeadName)} — NOT YET SIGNED`
+    }`,
+    `ACSA escort          ${
+      day.closeoutAcsaSignature
+        ? `${day.closeoutAcsaSignature.ref}, signed ${stamp(day.closeoutAcsaSignature.signedAt)} as "${
+            day.closeoutAcsaSignature.signedName
+          }"`
+        : day.closeoutAcsaName.trim()
+          ? `${L(day.closeoutAcsaName)} — NOT YET SIGNED`
+          : unknown
+    }`
+  );
+
   const gaps = dayGaps(day);
-  if (gaps.length) {
-    lines.push("", `STILL OWED: ${gaps.join(", ")}`);
+  const closeout = closeoutGaps(day);
+  if (gaps.length || closeout.length) {
+    lines.push("", `STILL OWED: ${[...gaps, ...closeout].join(", ")}`);
   }
 
   lines.push(
@@ -265,4 +294,40 @@ export function unbackedSignatures(day: SiteDay): Signature[] {
   return day.entries
     .map((e) => e.signature)
     .filter((s): s is Signature => !!s && !s.cloudUrl);
+}
+
+/* ------------------------------------------- daily site closeout, TK-003 form 8 */
+
+/** What the two closeout signatures attest to — the Y/N reconciliation and
+ *  its explanation, not which name is typed under them. Same reasoning as
+ *  every other signed-fields list in this app. */
+export function closeoutSignedFieldsChanged(p: Partial<SiteDay>): boolean {
+  return (
+    p.closeoutFindingsToday !== undefined ||
+    p.closeoutAllLoggedSheet9 !== undefined ||
+    p.closeoutNotes !== undefined
+  );
+}
+
+/** What TK-003 form 8 is actually owed before a day can be called closed out —
+ *  the two Y/N questions, and an explanation the moment "findings today" is
+ *  yes but "all logged" is not. Not a general end-of-day checklist; see the
+ *  note on SiteDay.closeoutFindingsToday in types.ts for why. */
+export function closeoutGaps(day: SiteDay): string[] {
+  const gaps: string[] = [];
+  if (day.closeoutFindingsToday === null) gaps.push("findings today not answered");
+  if (day.closeoutFindingsToday && day.closeoutAllLoggedSheet9 === null) {
+    gaps.push("all logged in sheet 9 not answered");
+  }
+  if (day.closeoutFindingsToday && day.closeoutAllLoggedSheet9 === false && !day.closeoutNotes.trim()) {
+    gaps.push("not-yet-logged findings need a note");
+  }
+  if (!day.closeoutLeadSignature) gaps.push("team lead signature");
+  return gaps;
+}
+
+export function unbackedCloseoutSignatures(day: SiteDay): Signature[] {
+  return [day.closeoutLeadSignature, day.closeoutAcsaSignature].filter(
+    (s): s is Signature => !!s && !s.cloudUrl
+  );
 }

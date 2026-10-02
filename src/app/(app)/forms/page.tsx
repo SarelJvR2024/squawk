@@ -16,7 +16,7 @@ import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { FORM_KIND_LABEL, groupByDate, useFormsIndex, type FormKind } from "@/lib/formsIndex";
 import { Btn, Empty, Pill } from "@/components/ui/primitives";
-import { IconCheck, IconClipboard, IconInbox, IconMic, IconPin, IconTeam } from "@/components/ui/icons";
+import { IconCheck, IconClipboard, IconFlag, IconInbox, IconLock, IconMic, IconPin, IconTeam } from "@/components/ui/icons";
 
 const TILES: Array<{ kind: FormKind | "evidence2"; label: string; hint: string; href: string; icon: ReactNode }> = [
   { kind: "isf", label: "Safety", hint: "Raise an Immediate Safety Finding", href: "/isf", icon: <IconClipboard width={16} height={16} /> },
@@ -25,6 +25,9 @@ const TILES: Array<{ kind: FormKind | "evidence2"; label: string; hint: string; 
   { kind: "diary", label: "Daily diary", hint: "What the day consisted of", href: "/diary", icon: <IconClipboard width={16} height={16} /> },
   { kind: "ppe", label: "PPE check", hint: "Hi-vis, footwear, hearing", href: "/ppe", icon: <IconCheck width={16} height={16} /> },
   { kind: "siteAccess", label: "Site access", hint: "Where the team went", href: "/site-access", icon: <IconPin width={16} height={16} /> },
+  { kind: "toolboxTalk", label: "Toolbox talk", hint: "What was covered, who signed", href: "/toolbox-talk", icon: <IconMic width={16} height={16} /> },
+  { kind: "incident", label: "Incident", hint: "Annexure 1 — report one", href: "/incident", icon: <IconFlag width={16} height={16} /> },
+  { kind: "closeout", label: "Closeout", hint: "Reconcile the day", href: "/closeout", icon: <IconLock width={16} height={16} /> },
   { kind: "evidence2", label: "Evidence", hint: "Log what ACSA handed over", href: "/evidence", icon: <IconInbox width={16} height={16} /> },
 ];
 
@@ -35,6 +38,9 @@ const KIND_TONE: Record<FormKind, "accent" | "warn" | undefined> = {
   diary: undefined,
   ppe: "accent",
   siteAccess: "accent",
+  toolboxTalk: "accent",
+  incident: "warn",
+  closeout: undefined,
   evidence: "warn",
 };
 

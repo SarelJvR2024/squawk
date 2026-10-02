@@ -1226,6 +1226,119 @@ export interface SafetyFinding {
   updatedAt: number;
 }
 
+/* -------------------------------------------- incident and near-miss reports */
+
+/** Which part of the body was affected — the exact fixed vocabulary Annexure
+ *  1 of the OHS Act (Act 85 of 1993) uses, Regulation 9's General
+ *  Administrative Regulations form for recording and investigating
+ *  incidents. Null for a near miss nobody was hurt in. */
+export type IncidentBodyPart =
+  | "Head"
+  | "Neck"
+  | "Eye"
+  | "Trunk"
+  | "Finger"
+  | "Hand"
+  | "Arm"
+  | "Foot"
+  | "Leg"
+  | "Internal"
+  | "Multiple";
+
+/** The effect on the person — same Annexure 1 vocabulary. */
+export type IncidentEffect = "Sprain or strain" | "Contusion or wound" | "Fracture" | "Burn" | "Amputation";
+
+/** An incident or a near-miss — TK-003 form 5, completed on any incident,
+ *  signed by the completer and a competent person. Feeds SF-005 sheet 8.
+ *
+ *  BUILT AGAINST THE ACTUAL STATUTORY FORM, not a generic template:
+ *  Annexure 1 of the OHS Act, 1993 (Act No 85 of 1993), Regulation 9 of the
+ *  General Administrative Regulations, "Recording and Investigation of
+ *  Incidents" — a South African employer does not design its own incident
+ *  form, it completes this one. Section A below is its recording half;
+ *  Section B its investigation half; Sections C/D its action and HS
+ *  Committee remarks. `completedBy`/`competentPersonName` are Annexure 1's
+ *  own two signers, not TPJV's invention.
+ *
+ *  THE DEPARTMENT OF LABOUR FIELDS ARE NOT ON TK-003 ITSELF. Contract
+ *  clause C1.3 compliance item 10 requires incidents reported to the
+ *  Provincial Director: Department of Labour as well as to ACSA — see
+ *  docs/REGISTERS.md §3a — and the hardcopy form predates that contract
+ *  requirement. Both notifications are tracked here because a form that
+ *  only answers "did ACSA know" leaves the DoL obligation with nowhere to
+ *  be recorded as done. */
+export interface IncidentReport {
+  /** `INC-xxxxx`. */
+  id: string;
+  entity: string;
+  originVisit: string;
+
+  /** A near miss and a recordable incident are the same form — Annexure 1's
+   *  own "incident" already covers a near miss, which is why TK-003 names
+   *  form 5 "Incident / Near-Miss" rather than splitting it into two. This
+   *  is TPJV's one addition to the shape, not Annexure 1's: it decides
+   *  whether `bodyPartAffected`/`effect` below are expected to be set. */
+  isNearMiss: boolean;
+
+  /* --------------------------------------------------- Section A: recording */
+  date: string;
+  time: string;
+  location: string;
+  /** The affected person — optional, because a near miss can have nobody
+   *  involved by name (a dropped tool nobody was under). ContactPicker-
+   *  backed like every other named person in this app, so typing someone
+   *  not yet on file joins the directory the same way attendance and PPE
+   *  already do. */
+  affectedPersonContactId?: string;
+  affectedPersonName: string;
+  affectedPersonIdNumber: string;
+
+  bodyPartAffected: IncidentBodyPart | null;
+  effect: IncidentEffect | null;
+  /** Annexure 1: "machine/process/type of work performed/exposure" — what
+   *  was actually being done when it happened. */
+  exposure: string;
+
+  /** Annexure 1's own two notification questions. */
+  reportedToCompensationCommissioner: boolean;
+  /** The contract's addition — see the note on the interface above. */
+  reportedToDoL: boolean;
+  doLReference: string;
+  doLNotifiedAt: number | null;
+
+  /* ----------------------------------------------- Section B: investigation */
+  investigatorContactId?: string;
+  investigatorName: string;
+  investigatorDesignation: string;
+  investigationDate: string;
+  description: string;
+  suspectedCause: string;
+  recommendedSteps: string;
+
+  /* --------------------------------------------------- Sections C/D: action */
+  /** Plural, same component as everywhere else in this app that tracks
+   *  corrective work — see MitigationAction. */
+  actions: MitigationAction[];
+  actionStatus: ActionStatus;
+  /** Annexure 1 Section D — the Health and Safety Committee's own remarks,
+   *  added after the fact rather than at the point of recording. */
+  hsCommitteeRemarks: string;
+
+  /** The completer's sign-off. */
+  completedBy: string;
+  completedSignature: Signature | null;
+  /** "A competent person" — Annexure 1's own phrase, not necessarily the
+   *  investigator named above (the investigation can be delegated; this is
+   *  who actually attests the record). */
+  competentPersonName: string;
+  competentPersonSignature: Signature | null;
+
+  attachments: Attachment[];
+
+  createdAt: number;
+  updatedAt: number;
+}
+
 /* --------------------------------------------------------- interview records */
 
 /** How far a day of interviews has got.
@@ -1524,6 +1637,33 @@ export interface SiteDay {
   entries: AttendanceEntry[];
   attachments: Attachment[];
 
+  /** TK-003 form 8, the Daily Site Closeout — NOT a general end-of-day
+   *  checklist. Its one real question is its own, not Annexure 1's: "any
+   *  safety findings today (Y/N) — all logged in SF-005 sheet 9 (Y/N)". It
+   *  exists to catch a finding raised on the day and not reported, which is
+   *  why it is a reconciliation against the ISF register rather than a
+   *  housekeeping checklist (locking doors, storing tools) the way a
+   *  generic "daily closeout" template would be. Signed by the team lead
+   *  and, where the ACSA escort present signs on TPJV's own device, by them
+   *  too — the same "second party signs on our tablet" question Form 1
+   *  already answers in practice (see SafetyFinding.authorisedSignature),
+   *  decided the same way here for consistency.
+   *
+   *  null means "not yet closed out" for the two Y/N questions, same
+   *  reasoning as every other tri-state in this app — a default of false
+   *  would read as "no findings today" before anyone actually checked. */
+  closeoutFindingsToday: boolean | null;
+  closeoutAllLoggedSheet9: boolean | null;
+  /** Free text, worth having the moment either Y/N above needs explaining —
+   *  a "yes, findings today" with nothing logged yet, or a limitation on
+   *  what could actually be checked. */
+  closeoutNotes: string;
+  closeoutLeadName: string;
+  closeoutLeadSignature: Signature | null;
+  closeoutAcsaName: string;
+  closeoutAcsaSignature: Signature | null;
+  closeoutClosedAt: number | null;
+
   createdAt: number;
   updatedAt: number;
 }
@@ -1597,6 +1737,56 @@ export interface PpeCheck {
   openedBy: string;
 
   people: PpeEntry[];
+
+  createdAt: number;
+  updatedAt: number;
+}
+
+/* ------------------------------------------------------------- toolbox talks */
+
+/** One person who attended — TK-003 form 6 is signed by every attendee, no
+ *  exceptions, so this carries the same shape attendance and PPE entries do. */
+export interface ToolboxAttendee {
+  id: string;
+  contactId?: string;
+  name: string;
+  organisation: string;
+  role: string;
+
+  signature: Signature | null;
+
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** A toolbox talk — TK-003 form 6, completed before each mobilisation, every
+ *  attendee signs. Feeds SF-005 sheet 10.
+ *
+ *  ONE RECORD PER TALK, not per day — a crew can be briefed on fall
+ *  protection before one task and on permit-to-work before another the same
+ *  morning, and folding both into one record is how the second topic gets
+ *  lost inside the first's attendee list. Same reasoning as PPE and site
+ *  access: "Start a talk" always opens a new one. */
+export interface ToolboxTalk {
+  /** `TBX-xxxxx`. The prefix every attendee's signature reference is built on. */
+  id: string;
+  entity: string;
+  originVisit: string;
+
+  date: string;
+  /** What was actually discussed — the whole point of the record. */
+  topic: string;
+  /** Who gave the talk. Free text, same reasoning as every other named-but-
+   *  not-necessarily-on-file field in this app (ISF's acsaManagerName,
+   *  authorisedBy): not every facilitator is in the directory yet, and this
+   *  is a single name, not a list ContactPicker's multi-add pattern fits. */
+  facilitator: string;
+  location: string;
+
+  openedAt: number;
+  openedBy: string;
+
+  attendees: ToolboxAttendee[];
 
   createdAt: number;
   updatedAt: number;

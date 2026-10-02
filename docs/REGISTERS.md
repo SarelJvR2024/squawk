@@ -55,14 +55,14 @@ not by how hard it is to build.
 |---|---|---|---|
 | 1 | **Immediate Safety Finding** | **BUILT** | `/isf`, `src/lib/isf.ts`, `tests/isf.test.mjs` (49 assertions) |
 | 1 | **Interview record** | **BUILT** — rebuilt 28 Sep as a day register, on Sarel's word | `/interviews`, `src/lib/interviews.ts`, `tests/interviews.test.mjs` (79 assertions) |
-| 1 | **Site attendance & daily diary** | **BUILT** — location/notes per attendee added 28 Sep | `/attendance`, `src/lib/attendance.ts`, `tests/attendance.test.mjs` (96 assertions) |
+| 1 | **Site attendance & daily diary** | **BUILT** — location/notes per attendee added 28 Sep; daily closeout (form 8) added 2 Oct as fields on the same record | `/attendance`, `/diary`, `/closeout`, `src/lib/attendance.ts`, `tests/attendance.test.mjs` (120 assertions) |
 | 1 | **Document & evidence collection log** | **BUILT** | `/evidence`, `src/lib/evidence.ts`, `tests/evidence.test.mjs` (80 assertions) |
-| 2 | PPE check (daily) | not started | 113 PPE mentions in the register; C1.3 compliance item 7 |
+| 2 | PPE check (daily) | **BUILT** — 1 Oct | `/ppe`, `src/lib/ppe.ts`, `tests/ppe.test.mjs` (53 assertions) |
 | 2 | Induction & access record | not started | S010 011M §4.15(b) |
-| 2 | Escort & access log | not started | specific to escorted-at-all-times working |
-| 2 | Toolbox talk record | not started | attendees are the point |
-| 2 | Incident / near-miss report | not started | C1.3 item 10 — reportable to the DoL Provincial Director |
-| 2 | Daily site closeout | not started | catches a finding raised and not reported |
+| 2 | Escort & access log | **BUILT** — 1 Oct, as the site access log | `/site-access`, `src/lib/siteAccess.ts`, `tests/siteaccess.test.mjs` (38 assertions) |
+| 2 | Toolbox talk record | **BUILT** — 2 Oct | `/toolbox-talk`, `src/lib/toolbox.ts`, `tests/toolbox.test.mjs` (35 assertions) |
+| 2 | Incident / near-miss report | **BUILT** — 2 Oct, against Annexure 1 of the OHS Act | `/incident`, `src/lib/incident.ts`, `tests/incident.test.mjs` (41 assertions) |
+| 2 | Daily site closeout | **BUILT** — 2 Oct, as fields on the SiteDay record Attendance and the Diary already share | `/closeout`; see Form 8's row above |
 | 3 | Tenant supply & metering register | not started | 23 checks; kick-off risk 6.5.1 |
 | 3 | Opening & closing meeting attendance | not started | who from ACSA was in the room |
 | 3 | Permit-to-work verification log | not started | 16 checks reference permits |

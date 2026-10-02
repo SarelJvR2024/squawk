@@ -140,6 +140,9 @@ const OFF_NAV: Record<string, string> = {
   "/diary": "Daily diary",
   "/ppe": "PPE checks",
   "/site-access": "Site access",
+  "/toolbox-talk": "Toolbox talk",
+  "/incident": "Incident / near-miss report",
+  "/closeout": "Daily site closeout",
   "/evidence": "Document and evidence collection log",
   "/people": "People directory",
   /* Safety, Review and Pre-flight moved out of NAV into the More menu
@@ -190,6 +193,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   );
   const siteAccessCount = useStore(
     (s) => s.siteAccessLogs.filter((l) => l.entity === s.entity).length
+  );
+  const toolboxTalkCount = useStore(
+    (s) => s.toolboxTalks.filter((t) => t.entity === s.entity).length
+  );
+  const incidentReportCount = useStore(
+    (s) => s.incidentReports.filter((r) => r.entity === s.entity).length
+  );
+  /* Days at this site whose closeout is still owed something — the team
+     lead signature at minimum. Mirrors onSiteNow below: a count a person
+     can act on, not a running total of every day ever opened. */
+  const closeoutOutstanding = useStore(
+    (s) =>
+      s.siteDays.filter((d) => d.entity === s.entity && !d.closeoutLeadSignature).length
   );
   const onSiteNow = useStore((s) =>
     s.siteDays
@@ -904,6 +920,45 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       }
                       selected={pathname === "/site-access"}
                       onClick={() => { setMore(false); router.push("/site-access"); }}
+                    />
+                  )}
+                  {role !== "acsa" && (
+                    <MoreItem
+                      icon={<IconMic width={14} height={14} />}
+                      label="Toolbox talk"
+                      hint={
+                        toolboxTalkCount
+                          ? `${toolboxTalkCount} talk${toolboxTalkCount === 1 ? "" : "s"} recorded at ${entityOf(entityCode).short}`
+                          : "What was covered, who gave it, who signed for it"
+                      }
+                      selected={pathname === "/toolbox-talk"}
+                      onClick={() => { setMore(false); router.push("/toolbox-talk"); }}
+                    />
+                  )}
+                  {role !== "acsa" && (
+                    <MoreItem
+                      icon={<IconFlag width={14} height={14} />}
+                      label="Incident / near miss"
+                      hint={
+                        incidentReportCount
+                          ? `${incidentReportCount} report${incidentReportCount === 1 ? "" : "s"} at ${entityOf(entityCode).short}`
+                          : "Annexure 1 — what happened, and what is being done"
+                      }
+                      selected={pathname === "/incident"}
+                      onClick={() => { setMore(false); router.push("/incident"); }}
+                    />
+                  )}
+                  {role !== "acsa" && (
+                    <MoreItem
+                      icon={<IconLock width={14} height={14} />}
+                      label="Daily closeout"
+                      hint={
+                        closeoutOutstanding
+                          ? `${closeoutOutstanding} day${closeoutOutstanding === 1 ? "" : "s"} not yet closed out`
+                          : "Findings today, sheet 9, and the team lead's sign-off"
+                      }
+                      selected={pathname === "/closeout"}
+                      onClick={() => { setMore(false); router.push("/closeout"); }}
                     />
                   )}
                   {role !== "acsa" && (

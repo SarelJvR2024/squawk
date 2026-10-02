@@ -13,11 +13,13 @@ import { useMemo } from "react";
 import { useStore, useEntityCode } from "@/lib/store";
 import { missingFields } from "@/lib/isf";
 import { dayGaps as interviewDayGaps } from "@/lib/interviews";
-import { dayGaps as attendanceDayGaps, localDate } from "@/lib/attendance";
+import { closeoutGaps, dayGaps as attendanceDayGaps, localDate } from "@/lib/attendance";
 import { checkGaps as ppeCheckGaps } from "@/lib/ppe";
 import { diaryGaps } from "@/lib/diary";
 import { logGaps as siteAccessGaps } from "@/lib/siteAccess";
 import { itemGaps as evidenceItemGaps } from "@/lib/evidence";
+import { talkGaps as toolboxTalkGaps } from "@/lib/toolbox";
+import { missingFields as incidentMissingFields } from "@/lib/incident";
 
 export type FormKind =
   | "isf"
@@ -26,6 +28,9 @@ export type FormKind =
   | "diary"
   | "ppe"
   | "siteAccess"
+  | "toolboxTalk"
+  | "incident"
+  | "closeout"
   | "evidence";
 
 export interface FormsIndexRow {
@@ -50,6 +55,9 @@ export const FORM_KIND_LABEL: Record<FormKind, string> = {
   diary: "Diary",
   ppe: "PPE check",
   siteAccess: "Site access",
+  toolboxTalk: "Toolbox talk",
+  incident: "Incident",
+  closeout: "Closeout",
   evidence: "Evidence",
 };
 
@@ -61,6 +69,8 @@ export function useFormsIndex(): FormsIndexRow[] {
   const siteDays = useStore((s) => s.siteDays);
   const ppeChecks = useStore((s) => s.ppeChecks);
   const siteAccessLogs = useStore((s) => s.siteAccessLogs);
+  const toolboxTalks = useStore((s) => s.toolboxTalks);
+  const incidentReports = useStore((s) => s.incidentReports);
   const evidenceItems = useStore((s) => s.evidenceItems);
 
   return useMemo(() => {
@@ -128,6 +138,24 @@ export function useFormsIndex(): FormsIndexRow[] {
         open: true,
         gapCount: diaryGaps(d).length,
       });
+      /* Same record again — the closeout reconciliation, found the same way
+         the diary is. See src/app/(app)/closeout. */
+      rows.push({
+        kind: "closeout",
+        id: `${d.id}-closeout`,
+        date: d.date,
+        at: d.openedAt,
+        title: "Daily site closeout",
+        subtitle:
+          d.closeoutFindingsToday === null
+            ? "Not yet answered"
+            : d.closeoutFindingsToday
+              ? "Findings today"
+              : "No findings today",
+        href: `/closeout?open=${d.id}`,
+        open: true,
+        gapCount: closeoutGaps(d).length,
+      });
     }
 
     for (const c of ppeChecks.filter((x) => x.entity === entityCode)) {
@@ -164,6 +192,37 @@ export function useFormsIndex(): FormsIndexRow[] {
       });
     }
 
+    for (const t of toolboxTalks.filter((x) => x.entity === entityCode)) {
+      rows.push({
+        kind: "toolboxTalk",
+        id: t.id,
+        date: t.date,
+        at: t.openedAt,
+        title: t.topic.trim() ? `Toolbox talk — ${t.topic.trim()}` : "Toolbox talk",
+        subtitle:
+          t.attendees.length === 0
+            ? "Nobody recorded"
+            : t.attendees.map((a) => a.name || "—").join(", "),
+        href: `/toolbox-talk?open=${t.id}`,
+        open: true,
+        gapCount: toolboxTalkGaps(t).length,
+      });
+    }
+
+    for (const r of incidentReports.filter((x) => x.entity === entityCode)) {
+      rows.push({
+        kind: "incident",
+        id: r.id,
+        date: r.date,
+        at: r.createdAt,
+        title: r.isNearMiss ? "Near miss" : r.affectedPersonName.trim() ? `Incident — ${r.affectedPersonName.trim()}` : "Incident",
+        subtitle: r.location.trim() || "No location recorded",
+        href: `/incident?open=${r.id}`,
+        open: true,
+        gapCount: incidentMissingFields(r).length,
+      });
+    }
+
     for (const e of evidenceItems.filter((x) => x.entity === entityCode)) {
       const at = e.requestedAt ?? e.createdAt;
       rows.push({
@@ -184,7 +243,17 @@ export function useFormsIndex(): FormsIndexRow[] {
     }
 
     return rows.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.at - a.at));
-  }, [entityCode, safetyFindings, interviewDays, siteDays, ppeChecks, siteAccessLogs, evidenceItems]);
+  }, [
+    entityCode,
+    safetyFindings,
+    interviewDays,
+    siteDays,
+    ppeChecks,
+    siteAccessLogs,
+    toolboxTalks,
+    incidentReports,
+    evidenceItems,
+  ]);
 }
 
 /** Rows grouped by date, dates newest first — what the hub screen renders. */
