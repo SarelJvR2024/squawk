@@ -27,7 +27,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { mergeBundle, refuse, summarise, duplicateFindings, BUNDLE_KIND } from "@/lib/merge";
+import {
+  mergeBundle,
+  refuse,
+  summarise,
+  duplicateFindings,
+  normalizeHazard,
+  normalizeFinding,
+  BUNDLE_KIND,
+} from "@/lib/merge";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -340,6 +348,80 @@ check("the right audit is not refused", refuse(bundle(), HERE) === null);
   check("a hazard edited on both devices takes the newer wording", out.hazards[0].event === "New wording");
 }
 
+/* ---------------- a bundle this old is as stale as the cloud row ---------- */
+
+/* A file export, or a row pulled from the Supabase shared record, is never
+ *  run through store.ts's `from < 25` migration — it carries exactly the
+ *  shape it had when it was written, every time it arrives. A hazard raised
+ *  before 30 September 2026 has areas/otherImpacts/actions all undefined, and
+ *  RecordActions reads record.actions.length on every record it renders: an
+ *  un-normalized incoming hazard blanks the whole HIRA screen the moment this
+ *  device merges it in, even though this device's OWN store already migrated
+ *  cleanly. */
+{
+  const staleHazard = {
+    id: "HZ-OLD",
+    entity: "KSIA",
+    originVisit: "2026-09",
+    updatedAt: T,
+    event: "Missing diesel cut-out fuse",
+    action: "Fit the missing fuse",
+    owner: "M. Nkosi",
+    dueDate: "2026-10-15",
+    actionStatus: "Open",
+    createdAt: T,
+    createdBy: "Someone",
+  };
+  const out = mergeBundle(mine(), bundle({ hazards: [staleHazard] }));
+  const h = out.hazards[0];
+  check(
+    "a hazard raised before areas/otherImpacts existed arrives normalized, not undefined",
+    Array.isArray(h.areas) && h.areas.length === 0 && Array.isArray(h.otherImpacts) && h.otherImpacts.length === 0,
+    JSON.stringify(h)
+  );
+  check(
+    "its old single action/owner/dueDate becomes its one carried-forward mitigating action",
+    Array.isArray(h.actions) &&
+      h.actions.length === 1 &&
+      h.actions[0].action === "Fit the missing fuse" &&
+      h.actions[0].owner === "M. Nkosi" &&
+      h.actions[0].status === "Open",
+    JSON.stringify(h.actions)
+  );
+}
+
+{
+  const staleFinding = {
+    id: "F-OLD",
+    entity: "KSIA",
+    originVisit: "2026-09",
+    updatedAt: T,
+    title: "No single line diagram displayed",
+    action: "Print and mount the diagram",
+    owner: "Site electrician",
+    dueDate: "2026-10-01",
+    actionStatus: "Open",
+    createdAt: T,
+    createdBy: "Someone",
+  };
+  const out = mergeBundle(mine(), bundle({ findings: [staleFinding] }));
+  const f = out.findings[0];
+  check(
+    "a finding raised before actions went plural arrives normalized the same way",
+    Array.isArray(f.actions) && f.actions.length === 1 && f.actions[0].action === "Print and mount the diagram",
+    JSON.stringify(f.actions)
+  );
+}
+
+{
+  check(
+    "normalizeHazard/normalizeFinding backfill empty, not undefined, when there is no legacy action either",
+    normalizeHazard({ id: "HZ-BARE", createdAt: T, createdBy: "X", actionStatus: "Open" }).actions.length === 0 &&
+      normalizeHazard({ id: "HZ-BARE", createdAt: T, createdBy: "X", actionStatus: "Open" }).areas.length === 0 &&
+      normalizeFinding({ id: "F-BARE", createdAt: T, createdBy: "X", actionStatus: "Open" }).actions.length === 0
+  );
+}
+
 /* ------------------------------ idempotency ------------------------------- */
 
 {
@@ -513,6 +595,14 @@ check(
   "the persist key STILL has not moved",
   /name: "acsa-assurance-v1"/.test(store),
   "it is what a tablet's captured audit is stored under"
+);
+
+check(
+  "the hazard/finding backfill is ONE function, not a copy drifting from the merge path's",
+  /from < 25[\s\S]{0,1400}st\.hazards\.map\(normalizeHazard\)[\s\S]{0,200}st\.findings\.map\(normalizeFinding\)/.test(
+    store
+  ) && /normalizeFinding,[\s\S]{0,40}normalizeHazard,[\s\S]{0,40}refuse,/.test(store),
+  "a second copy of this backfill is exactly how one gets corrected and the other does not"
 );
 
 /* ------------------------------------------------------------------ result */

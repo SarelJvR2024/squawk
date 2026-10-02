@@ -35,9 +35,11 @@
  */
 
 import type {
+  ActionStatus,
   Attachment,
   Finding,
   Hazard,
+  MitigationAction,
   PossibleEvent,
   ProgressNote,
   Response,
@@ -45,6 +47,59 @@ import type {
   Verification,
 } from "./types";
 import type { VisitData } from "./store";
+
+/** A hazard or finding raised before 30 September 2026's reshape (see
+ *  store.ts's `from < 25` migration) has areas/otherImpacts/actions all
+ *  undefined rather than empty. A bundle — a file export, or a row pulled
+ *  from the Supabase shared record — is never run through that migration:
+ *  it is exactly as old as whichever device or cloud row it came from, EVERY
+ *  time it arrives. Backfilling only at hydration leaves this device's own
+ *  store correct right up until its next sync, which reintroduces the same
+ *  stale shape from the cloud and blanks the HIRA screen again. So the same
+ *  backfill runs here too, on everything incoming, not only once at
+ *  hydration. */
+function legacyAction(r: {
+  action?: string;
+  owner?: string;
+  dueDate?: string;
+  actionStatus: ActionStatus;
+  createdAt: number;
+  createdBy: string;
+}): MitigationAction[] {
+  return r.action
+    ? [
+        {
+          id: Math.random().toString(36).slice(2, 10).toUpperCase().slice(0, 5),
+          action: r.action,
+          owner: r.owner ?? "",
+          dueDate: r.dueDate ?? "",
+          status: r.actionStatus,
+          createdAt: r.createdAt,
+          createdBy: r.createdBy,
+        },
+      ]
+    : [];
+}
+
+export function normalizeHazard(h: Hazard): Hazard {
+  const old = h as Hazard & { action?: string; owner?: string; dueDate?: string };
+  const { action, owner, dueDate, ...rest } = old;
+  return {
+    ...rest,
+    areas: rest.areas ?? [],
+    otherImpacts: rest.otherImpacts ?? [],
+    actions: Array.isArray(rest.actions) ? rest.actions : legacyAction(old),
+  } as Hazard;
+}
+
+export function normalizeFinding(f: Finding): Finding {
+  const old = f as Finding & { action?: string; owner?: string; dueDate?: string };
+  const { action, owner, dueDate, ...rest } = old;
+  return {
+    ...rest,
+    actions: Array.isArray(rest.actions) ? rest.actions : legacyAction(old),
+  } as Finding;
+}
 
 export const BUNDLE_KIND = "squawk-capture-bundle";
 export const BUNDLE_VERSION = 1;
@@ -360,8 +415,20 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
   }
 
   /* ------------------------------------------------ findings, hazards --- */
-  const findings = mergeRecords(mine.findings, theirs.findings, report.findings, "finding", report);
-  const hazards = mergeRecords(mine.hazards, theirs.hazards, report.hazards, "hazard", report);
+  const findings = mergeRecords(
+    mine.findings,
+    theirs.findings.map(normalizeFinding),
+    report.findings,
+    "finding",
+    report
+  );
+  const hazards = mergeRecords(
+    mine.hazards,
+    theirs.hazards.map(normalizeHazard),
+    report.hazards,
+    "hazard",
+    report
+  );
 
   /* Only the pairs THIS merge brought together. A duplicate already sitting in
      the audit — one somebody has looked at and decided to keep, because it is
