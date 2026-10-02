@@ -163,7 +163,8 @@ export default function EvidencePage() {
   const unbacked = unbackedSignatures(items);
 
   return (
-    <div className="mx-auto w-full max-w-[760px] px-4 pb-24 pt-3">
+    <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <div className="mx-auto w-full max-w-[760px] px-4 pb-24 pt-3">
       <header className="mb-3">
         <h2 className="font-display text-[15px] font-semibold">
           Document and evidence collection log
@@ -594,6 +595,7 @@ export default function EvidencePage() {
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
