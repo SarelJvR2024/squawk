@@ -572,5 +572,40 @@ check(
   "absent-means-undefined would crash the very first .map over it"
 );
 
+/* A hazard raised BEFORE 30 September 2026 (f757e77) is not a new hazard — it
+ *  predates areas/otherImpacts/actions entirely, and that commit shipped
+ *  without a migration backfilling any of the three. RecordActions reads
+ *  record.actions.length on every record it renders, so the first
+ *  pre-existing hazard or finding the HIRA or Asset Assurance screen tries to
+ *  show turns undefined.length into a blank screen — exactly the failure
+ *  mode the check just above this one warns about, just reached from
+ *  hydration instead of from the create path. */
+check(
+  "store version bumped so the backfill actually runs on an old tablet",
+  /version: 25,/.test(store),
+  "a migration nobody's persisted version asks for never executes"
+);
+
+check(
+  "a hazard raised before areas/otherImpacts existed backfills to empty, not undefined",
+  /from < 25[\s\S]{0,2000}areas: rest\.areas \?\? \[\][\s\S]{0,200}otherImpacts: rest\.otherImpacts \?\? \[\]/.test(
+    store
+  )
+);
+
+check(
+  "a hazard's or finding's old single action/owner/dueDate becomes its one carried-forward action, not lost",
+  /from < 25[\s\S]{0,3000}carryAction[\s\S]{0,600}action: r\.action[\s\S]{0,200}owner: r\.owner \?\? ""[\s\S]{0,100}dueDate: r\.dueDate \?\? ""[\s\S]{0,100}status: r\.actionStatus/.test(
+    store
+  ) &&
+    /st\.hazards = st\.hazards\.map\(\(h\) => \{[\s\S]{0,400}actions: Array\.isArray\(rest\.actions\) \? rest\.actions : carryAction\(old\)/.test(
+      store
+    ) &&
+    /st\.findings = st\.findings\.map\(\(f\) => \{[\s\S]{0,400}actions: Array\.isArray\(rest\.actions\) \? rest\.actions : carryAction\(old\)/.test(
+      store
+    ),
+  "a non-empty legacy action is a real mitigating action someone logged — discarding it on upgrade is a silent data loss, not a harmless default"
+);
+
 console.log(`\n${failures === 0 ? "HAZARDS OK" : `${failures} FAILURES`}`);
 process.exit(failures ? 1 : 0);
