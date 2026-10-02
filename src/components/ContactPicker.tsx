@@ -15,13 +15,25 @@
  *  blocked; it is offered as its own row, exactly as "just a name" always
  *  worked here. Picking a known contact is the fast path, not the only path.
  *
+ *  A TYPED NAME JOINS THE DIRECTORY, ON THE SPOT. Sarel: "any person we
+ *  capture in any form should be added to our people register so they can be
+ *  selected and added to any other instance of any other form." Until this,
+ *  a name typed here lived only inside that one record — the next form, or
+ *  even the same form tomorrow, asked the auditor to type it all over again,
+ *  and the directory never grew from the one place people are actually met.
+ *  Typing now calls addContact() itself rather than just handing the name to
+ *  the caller, so the SECOND time anyone types a close match anywhere it is
+ *  a pick, not a retype. Role/company/discipline start blank — only a name
+ *  was offered — and are filled in later from the People screen, the same as
+ *  any contact added there with gaps.
+ *
  *  ONE PICK, ONE ROW. This does not batch several people into one state
  *  before handing them to the caller — each pick fires `onAdd` immediately,
  *  the same instant a typed name used to. The screen using it still owns
  *  "create a row when a person is added"; this only owns finding the person. */
 
 import { useMemo, useState } from "react";
-import { useContacts } from "@/lib/store";
+import { useContacts, useStore } from "@/lib/store";
 import { SITE_ALL, contactOrganisation } from "@/lib/people";
 import type { Contact } from "@/lib/types";
 
@@ -53,6 +65,7 @@ export default function ContactPicker({
   disabled?: boolean;
 }) {
   const contacts = useContacts();
+  const addContact = useStore((s) => s.addContact);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
 
@@ -85,6 +98,25 @@ export default function ContactPicker({
   function addTyped() {
     const name = q.trim();
     if (!name) return;
+    /* First word is the given name, the rest is the surname — the same split
+       a one-word name already handles correctly, since `rest` is just "" and
+       Contact.surname reads as "", not undefined. A name typed with no space
+       at all ("Prince") is rare enough on a signed register that asking for
+       it to be split correctly is wrong more often than leaving it as a
+       given name with no surname on file — both are visible and fixable from
+       the People screen, which is where a blank field everywhere else in
+       this directory already gets filled in. */
+    const [first, ...restWords] = name.split(/\s+/);
+    const contactId = addContact({
+      site: entityCode,
+      name: first ?? name,
+      surname: restWords.join(" "),
+      role: "",
+      discipline: "",
+      company: "",
+      department: "",
+      location: "",
+    });
     /* Explicit empty strings, not an absent key. The seed this becomes gets
        spread over a blank entry in the store (`{ organisation: "", ...seed
        }`), and a spread copies an explicitly-undefined key same as any
@@ -92,7 +124,7 @@ export default function ContactPicker({
        caller that then reads `p.organisation` straight off this object
        without its own `?? ""` would otherwise hand the store `undefined`
        for a field typed as `string`. */
-    onAdd({ name, organisation: "", role: "" });
+    onAdd({ contactId, name, organisation: "", role: "" });
     setQ("");
     setOpen(false);
   }
