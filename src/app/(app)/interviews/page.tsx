@@ -127,7 +127,8 @@ export default function InterviewsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[760px] px-4 pb-24 pt-3">
+    <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <div className="mx-auto w-full max-w-[760px] px-4 pb-24 pt-3">
       <header className="mb-3">
         <h2 className="font-display text-[15px] font-semibold">Interview records</h2>
         <p className="mt-1 text-[11px]" style={{ color: "var(--ink-3)" }}>
@@ -449,6 +450,7 @@ export default function InterviewsPage() {
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

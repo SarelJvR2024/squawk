@@ -371,6 +371,39 @@ check(
   "a row you can see and cannot press"
 );
 
+/* EVERY SCREEN NEEDS ITS OWN SCROLLER, NOT JUST THE ONES SOMEBODY REMEMBERED.
+ *
+ *  html/body are `overflow: hidden` on purpose (see the note at the top of
+ *  globals.css) — the document never scrolls, so a screen with no `.app-scroll`
+ *  of its own has NO WAY to scroll at all. Nine screens shipped exactly that
+ *  way: isf, ppe, site-access, attendance, interviews, diary, evidence,
+ *  people and forms all read fine with nothing in them, because a page that
+ *  fits the viewport does not need to scroll — and then a real check with a
+ *  few people on it, or a long evidence log, pushed its own Save/Close button
+ *  past the bottom of the screen with no way to reach it. Sarel: "i cant
+ *  scroll down, i dont see save and close buttons." Source-read because this
+ *  is a structural property of the page, not a rendered pixel — but checked
+ *  against every page the app actually has, not a hand-picked list, so a
+ *  tenth screen added later without `.app-scroll` fails this too.
+ *
+ *  /capture is the one deliberate exception: it is a two-pane layout, and the
+ *  scroller lives on CheckDetail's own root (checked separately, just above),
+ *  not on capture/page.tsx. */
+const appDir = path.join(here, "..", "src", "app", "(app)");
+const screenDirs = fs
+  .readdirSync(appDir, { withFileTypes: true })
+  .filter((d) => d.isDirectory() && fs.existsSync(path.join(appDir, d.name, "page.tsx")))
+  .map((d) => d.name)
+  .filter((name) => name !== "capture");
+const missingScroller = screenDirs.filter(
+  (name) => !/app-scroll/.test(src("app", "(app)", name, "page.tsx"))
+);
+check(
+  "every screen (bar capture's two-pane exception) has its own .app-scroll",
+  missingScroller.length === 0,
+  `checked ${screenDirs.length} screens, missing on: ${missingScroller.join(", ")}`
+);
+
 check(
   "the active destination keeps its label, the others give up theirs",
   /className=\{active \? "" : "hidden sm:inline"\}>\{n\.label\}/.test(shell),
