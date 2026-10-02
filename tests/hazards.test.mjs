@@ -586,25 +586,20 @@ check(
   "a migration nobody's persisted version asks for never executes"
 );
 
+/* The actual backfill — areas/otherImpacts to [], a non-empty legacy
+ *  action/owner/dueDate carried forward rather than dropped — is ONE
+ *  function (normalizeHazard/normalizeFinding in merge.ts), not copied here,
+ *  because a bundle (a file import, or a row pulled from the Supabase shared
+ *  record) needs the identical backfill and is never run through this
+ *  migrate() at all. merge.test.mjs proves that function's behaviour for
+ *  real, including the legacy-action carry-forward; this just checks the
+ *  migration actually calls it instead of a second, driftable copy. */
 check(
-  "a hazard raised before areas/otherImpacts existed backfills to empty, not undefined",
-  /from < 25[\s\S]{0,2000}areas: rest\.areas \?\? \[\][\s\S]{0,200}otherImpacts: rest\.otherImpacts \?\? \[\]/.test(
+  "the migration calls the SAME normalizeHazard/normalizeFinding the merge path runs on every incoming bundle",
+  /from < 25[\s\S]{0,1400}st\.hazards\.map\(normalizeHazard\)[\s\S]{0,200}st\.findings\.map\(normalizeFinding\)/.test(
     store
-  )
-);
-
-check(
-  "a hazard's or finding's old single action/owner/dueDate becomes its one carried-forward action, not lost",
-  /from < 25[\s\S]{0,3000}carryAction[\s\S]{0,600}action: r\.action[\s\S]{0,200}owner: r\.owner \?\? ""[\s\S]{0,100}dueDate: r\.dueDate \?\? ""[\s\S]{0,100}status: r\.actionStatus/.test(
-    store
-  ) &&
-    /st\.hazards = st\.hazards\.map\(\(h\) => \{[\s\S]{0,400}actions: Array\.isArray\(rest\.actions\) \? rest\.actions : carryAction\(old\)/.test(
-      store
-    ) &&
-    /st\.findings = st\.findings\.map\(\(f\) => \{[\s\S]{0,400}actions: Array\.isArray\(rest\.actions\) \? rest\.actions : carryAction\(old\)/.test(
-      store
-    ),
-  "a non-empty legacy action is a real mitigating action someone logged — discarding it on upgrade is a silent data loss, not a harmless default"
+  ) && /normalizeFinding,[\s\S]{0,40}normalizeHazard,[\s\S]{0,40}refuse,/.test(store),
+  "a second copy of this backfill is exactly how one gets corrected and the other does not — see merge.test.mjs"
 );
 
 console.log(`\n${failures === 0 ? "HAZARDS OK" : `${failures} FAILURES`}`);

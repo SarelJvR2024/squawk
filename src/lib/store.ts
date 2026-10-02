@@ -6,6 +6,8 @@ import {
   BUNDLE_KIND,
   BUNDLE_VERSION,
   mergeBundle,
+  normalizeFinding,
+  normalizeHazard,
   refuse,
   type Bundle,
   type MergeReport,
@@ -14,7 +16,6 @@ import { useMemo } from "react";
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
 import { clearAllMedia, delBlob, delBlobs } from "./media";
 import type {
-  ActionStatus,
   AdHocItem,
   Attachment,
   Capture,
@@ -2954,54 +2955,17 @@ export const useStore = create<State>()(
              all undefined, not empty, and RecordActions reads
              record.actions.length on every record it renders: that is how a
              hazard from last week turns the whole HIRA (and Asset Assurance)
-             screen blank the moment it loads. A non-empty legacy
-             action/owner/dueDate is not dropped — it becomes the record's
-             one carried-forward action, same as `from < 13` carries the
-             closest true timestamp already on a record rather than losing it
-             to zero. */
-          const carryAction = (r: {
-            action?: string;
-            owner?: string;
-            dueDate?: string;
-            actionStatus: ActionStatus;
-            createdAt: number;
-            createdBy: string;
-          }): MitigationAction[] =>
-            r.action
-              ? [
-                  {
-                    id: uid().toUpperCase().slice(0, 5),
-                    action: r.action,
-                    owner: r.owner ?? "",
-                    dueDate: r.dueDate ?? "",
-                    status: r.actionStatus,
-                    createdAt: r.createdAt,
-                    createdBy: r.createdBy,
-                  },
-                ]
-              : [];
-          if (Array.isArray(st.hazards)) {
-            st.hazards = st.hazards.map((h) => {
-              const old = h as Hazard & { action?: string; owner?: string; dueDate?: string };
-              const { action, owner, dueDate, ...rest } = old;
-              return {
-                ...rest,
-                areas: rest.areas ?? [],
-                otherImpacts: rest.otherImpacts ?? [],
-                actions: Array.isArray(rest.actions) ? rest.actions : carryAction(old),
-              } as Hazard;
-            });
-          }
-          if (Array.isArray(st.findings)) {
-            st.findings = st.findings.map((f) => {
-              const old = f as Finding & { action?: string; owner?: string; dueDate?: string };
-              const { action, owner, dueDate, ...rest } = old;
-              return {
-                ...rest,
-                actions: Array.isArray(rest.actions) ? rest.actions : carryAction(old),
-              } as Finding;
-            });
-          }
+             screen blank the moment it loads.
+             normalizeHazard/normalizeFinding (merge.ts) do the actual
+             backfill — the SAME function mergeBundle runs on every incoming
+             bundle, because a file import or a row pulled from the Supabase
+             shared record is exactly as old as whichever device or cloud row
+             it came from and is never touched by this migrate(). Backfilling
+             only here would leave a freshly-hydrated device correct right up
+             until its next sync, which pulls the stale shape straight back
+             in. */
+          if (Array.isArray(st.hazards)) st.hazards = st.hazards.map(normalizeHazard);
+          if (Array.isArray(st.findings)) st.findings = st.findings.map(normalizeFinding);
         }
         return st;
       },
