@@ -14,6 +14,7 @@ import { useMemo } from "react";
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
 import { clearAllMedia, delBlob, delBlobs } from "./media";
 import type {
+  ActionStatus,
   AdHocItem,
   Attachment,
   Capture,
@@ -2476,7 +2477,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 24,
+      version: 25,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -2942,6 +2943,64 @@ export const useStore = create<State>()(
               authorisedBy: f.authorisedBy ?? "",
               authorisedSignature: f.authorisedSignature ?? null,
             }));
+          }
+        }
+        if (from < 25) {
+          /* 30 September 2026's HIRA commit (f757e77) replaced Hazard's and
+             Finding's single action/owner/dueDate with a list of mitigating
+             actions, and gave Hazard its areas/otherImpacts fields — and
+             shipped with no migration backfilling either. Every hazard or
+             finding raised before that commit has actions/areas/otherImpacts
+             all undefined, not empty, and RecordActions reads
+             record.actions.length on every record it renders: that is how a
+             hazard from last week turns the whole HIRA (and Asset Assurance)
+             screen blank the moment it loads. A non-empty legacy
+             action/owner/dueDate is not dropped — it becomes the record's
+             one carried-forward action, same as `from < 13` carries the
+             closest true timestamp already on a record rather than losing it
+             to zero. */
+          const carryAction = (r: {
+            action?: string;
+            owner?: string;
+            dueDate?: string;
+            actionStatus: ActionStatus;
+            createdAt: number;
+            createdBy: string;
+          }): MitigationAction[] =>
+            r.action
+              ? [
+                  {
+                    id: uid().toUpperCase().slice(0, 5),
+                    action: r.action,
+                    owner: r.owner ?? "",
+                    dueDate: r.dueDate ?? "",
+                    status: r.actionStatus,
+                    createdAt: r.createdAt,
+                    createdBy: r.createdBy,
+                  },
+                ]
+              : [];
+          if (Array.isArray(st.hazards)) {
+            st.hazards = st.hazards.map((h) => {
+              const old = h as Hazard & { action?: string; owner?: string; dueDate?: string };
+              const { action, owner, dueDate, ...rest } = old;
+              return {
+                ...rest,
+                areas: rest.areas ?? [],
+                otherImpacts: rest.otherImpacts ?? [],
+                actions: Array.isArray(rest.actions) ? rest.actions : carryAction(old),
+              } as Hazard;
+            });
+          }
+          if (Array.isArray(st.findings)) {
+            st.findings = st.findings.map((f) => {
+              const old = f as Finding & { action?: string; owner?: string; dueDate?: string };
+              const { action, owner, dueDate, ...rest } = old;
+              return {
+                ...rest,
+                actions: Array.isArray(rest.actions) ? rest.actions : carryAction(old),
+              } as Finding;
+            });
           }
         }
         return st;
