@@ -653,26 +653,6 @@ export default function CheckDetail({
         ),
       });
 
-    if (a.OS.length > 0)
-      panels.push({
-        key: "snippets",
-        label: "Snippets",
-        group: "do",
-        body: (
-          <>
-            <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-              tap to add to the note
-            </div>
-            <div className="chip-row flex flex-wrap gap-[5px]">
-              {a.OS.map((sn, i) => (
-                <Chip key={i} onClick={() => appendObservation(check.id, sn)}>
-                  + {sn}
-                </Chip>
-              ))}
-            </div>
-          </>
-        ),
-      });
   } else if (check.optionCount > 0) {
     /* The library is fetched on first use, not bundled. The tab is declared
        now, holding a skeleton, so the strip does not gain a tab and jump the

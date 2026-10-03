@@ -104,10 +104,14 @@ reason this section exists.
       leaves that system and comes back.
 - [ ] The `Checks` badge counts **up** as you save. 315 is the denominator and
       does not move.
-- [ ] Keyboard `1`–`4` set Compliant / Non-compliant / N/A / Not available.
-      Pressing the same one twice clears it.
-- [ ] Evidence, Likely answers, Issues, Walkabout and Snippets each open, and the
+- [ ] Keyboard `1`–`3` set Compliant / Non-compliant / N/A. Pressing the same
+      one twice clears it.
+- [ ] Evidence, Likely answers, Issues and Walkabout each open, and the
       counts on the tabs match what you tapped.
+- [ ] Evidence status: each of the four states selects on its own, the note
+      field appears only for "specific evidence not available" and "evidence
+      to be provided", and the upload row appears only for "evidence
+      provided for review".
 - [ ] The question to ask and the evidence line stay on screen while you work
       through the tabs.
 - [ ] A check with no ACSA threshold says so, in the warn colour, rather than
