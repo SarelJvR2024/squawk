@@ -17,6 +17,7 @@ const store = src("lib", "store.ts");
 const types = src("lib", "types.ts");
 const page = src("app", "(app)", "site-access", "page.tsx");
 const shell = src("components", "AppShell.tsx");
+const hub = src("app", "(app)", "forms", "page.tsx");
 const exportsSrc = src("lib", "exports.ts");
 
 let failures = 0;
@@ -176,14 +177,10 @@ check(
 /* ------------------------------------------------------------- 9. reachable */
 
 check("the register has a route", fs.existsSync(path.join(here, "..", "src", "app", "(app)", "site-access", "page.tsx")));
-check("it is reachable from the shell", /router\.push\("\/site-access"\)/.test(shell));
+check("it is reachable from the Forms hub", /href: "\/site-access"/.test(hub));
 check("it is not another entry in the nav bar", !/href:\s*"\/site-access"/.test(shell));
 check("a screen off the nav bar still has a heading of its own", /"\/site-access": "Site access"/.test(shell));
-const menuItems = [...shell.matchAll(/\{role !== "acsa" && \(\s*<MoreItem[\s\S]*?\/\>\s*\)\}/g)].map((m) => m[0]);
-check(
-  "ACSA, who are read-only across the audit, are not offered it",
-  menuItems.some((m) => m.includes("Site access"))
-);
+check("it is not reachable directly from the shell's own menu any more", !/label="Site access"/.test(shell));
 check(
   "the page renders an h2, leaving the shell's h1 alone",
   /<h2 className="font-display text-\[15px\] font-semibold">Site access log<\/h2>/.test(page)

@@ -30,6 +30,7 @@ import type {
   DiaryEntry,
   EvidenceItem,
   EvidenceMedium,
+  IncidentReport,
   InterviewDay,
   InterviewEntry,
   Likelihood,
@@ -40,6 +41,8 @@ import type {
   PpeCheck,
   PpeEntry,
   RootCauseNote,
+  ToolboxAttendee,
+  ToolboxTalk,
   SystemAssessment,
   ProgressNote,
   Response,
@@ -68,6 +71,7 @@ import {
   localDate,
   nextSignatureRef,
   patchInvalidatesSignature,
+  closeoutSignedFieldsChanged,
 } from "./attendance";
 import { isfSignedFieldsChanged } from "./isf";
 import { RETURNABLE, isHeldOriginal, isOutstanding } from "./evidence";
@@ -80,6 +84,11 @@ import {
   nextSignatureRef as nextSiteAccessSignatureRef,
   signedFieldsChanged as siteAccessSignedFieldsChanged,
 } from "./siteAccess";
+import {
+  nextSignatureRef as nextToolboxSignatureRef,
+  signedFieldsChanged as toolboxSignedFieldsChanged,
+} from "./toolbox";
+import { incidentSignedFieldsChanged } from "./incident";
 
 /* The register and the 2025 data are pure lookups and live in ./register, so a
    non-React caller (src/lib/exports.ts) can use them without importing this
@@ -238,6 +247,8 @@ function emptyResponse(checkId: string): Response {
     walkaboutPicked: null,
     attachments: [],
     evidencePending: false,
+    evidenceStatus: null,
+    evidenceStatusNote: "",
     captured: false,
     capturedBy: "",
     capturedAt: null,
@@ -358,6 +369,13 @@ interface State {
   /** Site access logs, one per area visited. Flat, scoped by entity, same
    *  shape as ppeChecks — "one per occasion", not "one per day". */
   siteAccessLogs: SiteAccessLog[];
+  /** Toolbox talks, one per talk given — TK-003 form 6. Same "one per
+   *  occasion" shape as ppeChecks and siteAccessLogs, for the same reason:
+   *  two different briefings the same morning are two different records. */
+  toolboxTalks: ToolboxTalk[];
+  /** Incident / near-miss reports — TK-003 form 5, built against Annexure 1
+   *  of the OHS Act. Flat, scoped by entity, one per incident. */
+  incidentReports: IncidentReport[];
   /** The people directory. Flat, and unlike everything above it not even
    *  scoped by visit at the record level — see the note on Contact in
    *  types.ts. A person's role at an airport does not change between audit
@@ -530,6 +548,48 @@ interface State {
     s: Omit<Signature, "ref">
   ) => void;
 
+  /* ---- Toolbox talks, one per talk. See src/lib/toolbox.ts. ---- */
+  openToolboxTalk: (seed?: Partial<ToolboxTalk>) => string;
+  updateToolboxTalk: (id: string, p: Partial<ToolboxTalk>) => void;
+  removeToolboxTalk: (id: string) => void;
+  addToolboxAttendee: (
+    id: string,
+    name: string,
+    seed?: Partial<ToolboxAttendee>
+  ) => string;
+  updateToolboxAttendee: (
+    id: string,
+    attendeeId: string,
+    p: Partial<ToolboxAttendee>
+  ) => void;
+  removeToolboxAttendee: (id: string, attendeeId: string) => void;
+  signToolboxAttendee: (
+    id: string,
+    attendeeId: string,
+    s: Omit<Signature, "ref">
+  ) => void;
+
+  /* ---- Incident / near-miss reports, built against OHS Act Annexure 1.
+     See src/lib/incident.ts. ---- */
+  addIncidentReport: (seed?: Partial<IncidentReport>) => string;
+  updateIncidentReport: (id: string, p: Partial<IncidentReport>) => void;
+  removeIncidentReport: (id: string) => void;
+  signIncidentCompleted: (id: string, s: Omit<Signature, "ref">) => void;
+  signIncidentCompetentPerson: (id: string, s: Omit<Signature, "ref">) => void;
+  addIncidentAttachment: (id: string, a: Omit<Attachment, "id" | "createdAt">) => void;
+  updateIncidentAttachment: (
+    id: string,
+    attachmentId: string,
+    patch: Partial<Attachment>
+  ) => void;
+  removeIncidentAttachment: (id: string, attachmentId: string) => void;
+
+  /* ---- Daily site closeout, TK-003 form 8 — fields live on SiteDay itself
+     (see the note there); these two just need the same fixed-ref,
+     invalidate-on-change signature handling every other signed record gets. ---- */
+  signCloseoutLead: (id: string, s: Omit<Signature, "ref">) => void;
+  signCloseoutAcsa: (id: string, s: Omit<Signature, "ref">) => void;
+
   /* ---- The people directory. Only a name is required — see the note on
      Contact in types.ts for why this is the one register with no visit or
      originVisit at all. ---- */
@@ -697,6 +757,8 @@ export const useStore = create<State>()(
         evidenceItems: [],
         ppeChecks: [],
         siteAccessLogs: [],
+        toolboxTalks: [],
+        incidentReports: [],
         contacts: [],
         lastSavedAt: null,
         hydrated: false,
@@ -1313,6 +1375,14 @@ export const useStore = create<State>()(
                 diarySignature: null,
                 entries: [],
                 attachments: [],
+                closeoutFindingsToday: null,
+                closeoutAllLoggedSheet9: null,
+                closeoutNotes: "",
+                closeoutLeadName: "",
+                closeoutLeadSignature: null,
+                closeoutAcsaName: "",
+                closeoutAcsaSignature: null,
+                closeoutClosedAt: null,
                 createdAt: now,
                 updatedAt: now,
               },
@@ -1337,6 +1407,12 @@ export const useStore = create<State>()(
                     date: d.date,
                     openedAt: d.openedAt,
                     createdAt: d.createdAt,
+                    /* The two closeout signatures stand behind the Y/N
+                       reconciliation and its note; change any of those and
+                       the mark is no longer of that statement. */
+                    ...(closeoutSignedFieldsChanged(p)
+                      ? { closeoutLeadSignature: null, closeoutAcsaSignature: null }
+                      : {}),
                     updatedAt: Date.now(),
                   }
                 : d
@@ -1905,6 +1981,272 @@ export const useStore = create<State>()(
             ),
           });
           if (previous?.blobKey && previous.blobKey !== sig.blobKey) void delBlob(previous.blobKey);
+        },
+
+        openToolboxTalk: (seed) => {
+          const id = `TBX-${uid().toUpperCase().slice(0, 5)}`;
+          const now = Date.now();
+          const s0 = get();
+          set((s) => ({
+            toolboxTalks: [
+              ...s.toolboxTalks,
+              {
+                entity: s.entity,
+                originVisit: s.visit,
+                date: localDate(now),
+                topic: "",
+                facilitator: "",
+                location: "",
+                openedAt: now,
+                openedBy: s0.auditor || "",
+                attendees: [],
+                ...seed,
+                id,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          }));
+          return id;
+        },
+
+        updateToolboxTalk: (id, p) =>
+          set((s) => ({
+            toolboxTalks: s.toolboxTalks.map((t) =>
+              t.id === id
+                ? { ...t, ...p, id: t.id, entity: t.entity, createdAt: t.createdAt, updatedAt: Date.now() }
+                : t
+            ),
+          })),
+
+        removeToolboxTalk: (id) => {
+          const t = get().toolboxTalks.find((x) => x.id === id);
+          const keys = (t?.attendees ?? [])
+            .map((a) => a.signature?.blobKey)
+            .filter((k): k is string => !!k);
+          set((s) => ({ toolboxTalks: s.toolboxTalks.filter((x) => x.id !== id) }));
+          if (keys.length) void delBlobs(keys);
+        },
+
+        addToolboxAttendee: (id, name, seed) => {
+          const t = get().toolboxTalks.find((x) => x.id === id);
+          if (!t) return "";
+          const attendeeId = uid();
+          const now = Date.now();
+          get().updateToolboxTalk(id, {
+            attendees: [
+              ...t.attendees,
+              {
+                name,
+                organisation: "",
+                role: "",
+                signature: null,
+                ...seed,
+                id: attendeeId,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          });
+          return attendeeId;
+        },
+
+        updateToolboxAttendee: (id, attendeeId, p) => {
+          const t = get().toolboxTalks.find((x) => x.id === id);
+          if (!t) return;
+          const { id: _i, createdAt: _c, signature: _s, ...safe } = p;
+          void _i; void _c; void _s;
+          const invalidates = toolboxSignedFieldsChanged(safe);
+          get().updateToolboxTalk(id, {
+            attendees: t.attendees.map((a) =>
+              a.id === attendeeId
+                ? { ...a, ...safe, ...(invalidates ? { signature: null } : {}), updatedAt: Date.now() }
+                : a
+            ),
+          });
+        },
+
+        removeToolboxAttendee: (id, attendeeId) => {
+          const t = get().toolboxTalks.find((x) => x.id === id);
+          if (!t) return;
+          const gone = t.attendees.find((a) => a.id === attendeeId);
+          get().updateToolboxTalk(id, { attendees: t.attendees.filter((a) => a.id !== attendeeId) });
+          if (gone?.signature?.blobKey) void delBlob(gone.signature.blobKey);
+        },
+
+        signToolboxAttendee: (id, attendeeId, sig) => {
+          const t = get().toolboxTalks.find((x) => x.id === id);
+          if (!t) return;
+          const ref = nextToolboxSignatureRef(id, t.attendees);
+          const previous = t.attendees.find((a) => a.id === attendeeId)?.signature;
+          get().updateToolboxTalk(id, {
+            attendees: t.attendees.map((a) =>
+              a.id === attendeeId ? { ...a, signature: { ...sig, ref }, updatedAt: Date.now() } : a
+            ),
+          });
+          if (previous?.blobKey && previous.blobKey !== sig.blobKey) void delBlob(previous.blobKey);
+        },
+
+        addIncidentReport: (seed) => {
+          const id = `INC-${uid().toUpperCase().slice(0, 5)}`;
+          const now = Date.now();
+          const s0 = get();
+          set((s) => ({
+            incidentReports: [
+              ...s.incidentReports,
+              {
+                entity: s.entity,
+                originVisit: s.visit,
+                isNearMiss: false,
+                date: localDate(now),
+                time: "",
+                location: "",
+                affectedPersonName: "",
+                affectedPersonIdNumber: "",
+                bodyPartAffected: null,
+                effect: null,
+                exposure: "",
+                reportedToCompensationCommissioner: false,
+                reportedToDoL: false,
+                doLReference: "",
+                doLNotifiedAt: null,
+                investigatorName: "",
+                investigatorDesignation: "",
+                investigationDate: "",
+                description: "",
+                suspectedCause: "",
+                recommendedSteps: "",
+                actions: [],
+                actionStatus: "Open",
+                hsCommitteeRemarks: "",
+                completedBy: s0.auditor || "",
+                completedSignature: null,
+                competentPersonName: "",
+                competentPersonSignature: null,
+                attachments: [],
+                ...seed,
+                id,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          }));
+          return id;
+        },
+
+        updateIncidentReport: (id, p) => {
+          const { id: _i, createdAt: _c, completedSignature: _cs, competentPersonSignature: _ps, ...safe } = p;
+          void _i; void _c; void _cs; void _ps;
+          const invalidates = incidentSignedFieldsChanged(safe);
+          set((s) => ({
+            incidentReports: s.incidentReports.map((r) =>
+              r.id === id
+                ? {
+                    ...r,
+                    ...safe,
+                    ...(invalidates
+                      ? { completedSignature: null, competentPersonSignature: null }
+                      : {}),
+                    id: r.id,
+                    entity: r.entity,
+                    createdAt: r.createdAt,
+                    updatedAt: Date.now(),
+                  }
+                : r
+            ),
+          }));
+        },
+
+        removeIncidentReport: (id) => {
+          const r = get().incidentReports.find((x) => x.id === id);
+          const keys = [r?.completedSignature?.blobKey, r?.competentPersonSignature?.blobKey].filter(
+            (k): k is string => !!k
+          );
+          set((s) => ({ incidentReports: s.incidentReports.filter((x) => x.id !== id) }));
+          if (keys.length) void delBlobs(keys);
+        },
+
+        signIncidentCompleted: (id, sig) => {
+          const r = get().incidentReports.find((x) => x.id === id);
+          if (!r) return;
+          const previous = r.completedSignature;
+          set((s) => ({
+            incidentReports: s.incidentReports.map((x) =>
+              x.id === id
+                ? { ...x, completedSignature: { ...sig, ref: `${id}_COMPLETED` }, updatedAt: Date.now() }
+                : x
+            ),
+          }));
+          if (previous?.blobKey && previous.blobKey !== sig.blobKey) void delBlob(previous.blobKey);
+        },
+
+        signIncidentCompetentPerson: (id, sig) => {
+          const r = get().incidentReports.find((x) => x.id === id);
+          if (!r) return;
+          const previous = r.competentPersonSignature;
+          set((s) => ({
+            incidentReports: s.incidentReports.map((x) =>
+              x.id === id
+                ? { ...x, competentPersonSignature: { ...sig, ref: `${id}_COMPETENT` }, updatedAt: Date.now() }
+                : x
+            ),
+          }));
+          if (previous?.blobKey && previous.blobKey !== sig.blobKey) void delBlob(previous.blobKey);
+        },
+
+        signCloseoutLead: (id, sig) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          if (!d) return;
+          const previous = d.closeoutLeadSignature;
+          get().updateSiteDay(id, {
+            closeoutLeadSignature: { ...sig, ref: `${id}_CLOSEOUT_LEAD` },
+            closeoutClosedAt: Date.now(),
+          });
+          if (previous?.blobKey && previous.blobKey !== sig.blobKey) void delBlob(previous.blobKey);
+        },
+
+        signCloseoutAcsa: (id, sig) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          if (!d) return;
+          const previous = d.closeoutAcsaSignature;
+          get().updateSiteDay(id, { closeoutAcsaSignature: { ...sig, ref: `${id}_CLOSEOUT_ACSA` } });
+          if (previous?.blobKey && previous.blobKey !== sig.blobKey) void delBlob(previous.blobKey);
+        },
+
+        addIncidentAttachment: (id, a) => {
+          const r = get().incidentReports.find((x) => x.id === id);
+          if (!r) return;
+          get().updateIncidentReport(id, {
+            attachments: [
+              ...r.attachments,
+              {
+                ...a,
+                id: uid(),
+                ...(a.kind === "photo" ? { ref: nextPhotoRef(id, r.attachments) } : {}),
+                createdAt: Date.now(),
+              },
+            ],
+          });
+        },
+
+        updateIncidentAttachment: (id, attachmentId, patch) => {
+          const r = get().incidentReports.find((x) => x.id === id);
+          if (!r) return;
+          const { id: _i, blobKey: _b, createdAt: _c, ...safe } = patch;
+          void _i; void _b; void _c;
+          get().updateIncidentReport(id, {
+            attachments: r.attachments.map((x) => (x.id === attachmentId ? { ...x, ...safe } : x)),
+          });
+        },
+
+        removeIncidentAttachment: (id, attachmentId) => {
+          const r = get().incidentReports.find((x) => x.id === id);
+          if (!r) return;
+          const gone = r.attachments.find((a) => a.id === attachmentId);
+          get().updateIncidentReport(id, {
+            attachments: r.attachments.filter((a) => a.id !== attachmentId),
+          });
+          if (gone?.blobKey) void delBlob(gone.blobKey);
         },
 
         addContact: (seed) => {
@@ -2478,7 +2820,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 25,
+      version: 27,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -2490,6 +2832,8 @@ export const useStore = create<State>()(
           evidenceItems?: EvidenceItem[];
           ppeChecks?: PpeCheck[];
           siteAccessLogs?: SiteAccessLog[];
+          toolboxTalks?: ToolboxTalk[];
+          incidentReports?: IncidentReport[];
           contacts?: Contact[];
           responses?: Record<string, Response>;
           verifications?: Record<string, Verification>;
@@ -2967,6 +3311,50 @@ export const useStore = create<State>()(
           if (Array.isArray(st.hazards)) st.hazards = st.hazards.map(normalizeHazard);
           if (Array.isArray(st.findings)) st.findings = st.findings.map(normalizeFinding);
         }
+        if (from < 26) {
+          /* TK-003 forms 5, 6 and 8 — toolbox talks and incident/near-miss
+             reports as new top-level slices, and daily closeout as fields
+             added onto the existing SiteDay record. Same failure mode as
+             every other "absent" migration above: a siteDay without the
+             closeout fields reads them as undefined, and closeoutGaps()
+             (src/lib/attendance.ts) calls .trim() on closeoutNotes
+             unconditionally. */
+          if (!Array.isArray(st.toolboxTalks)) st.toolboxTalks = [];
+          if (!Array.isArray(st.incidentReports)) st.incidentReports = [];
+          if (Array.isArray(st.siteDays)) {
+            for (const d of st.siteDays) {
+              const day = d as Partial<SiteDay>;
+              if (day.closeoutFindingsToday === undefined) day.closeoutFindingsToday = null;
+              if (day.closeoutAllLoggedSheet9 === undefined) day.closeoutAllLoggedSheet9 = null;
+              if (day.closeoutNotes === undefined) day.closeoutNotes = "";
+              if (day.closeoutLeadName === undefined) day.closeoutLeadName = "";
+              if (day.closeoutLeadSignature === undefined) day.closeoutLeadSignature = null;
+              if (day.closeoutAcsaName === undefined) day.closeoutAcsaName = "";
+              if (day.closeoutAcsaSignature === undefined) day.closeoutAcsaSignature = null;
+              if (day.closeoutClosedAt === undefined) day.closeoutClosedAt = null;
+            }
+          }
+        }
+        if (from < 27) {
+          /* Evidence status, replacing the "compliant, evidence pending" and
+             "not available" compliance options (Sarel, 2 October 2026:
+             "remove that option... introduce an evidence functionality").
+             Every response already on a tablet predates the two new fields,
+             and the Evidence status panel reads r.evidenceStatus with no
+             fallback — absent is a different answer from null, so this
+             backfills the real default rather than leaving the key missing. */
+          if (st.byVisit) {
+            for (const key of Object.keys(st.byVisit)) {
+              const responses = st.byVisit[key]?.responses;
+              if (!responses) continue;
+              for (const checkId of Object.keys(responses)) {
+                const r = responses[checkId] as Partial<Response>;
+                if (r.evidenceStatus === undefined) r.evidenceStatus = null;
+                if (r.evidenceStatusNote === undefined) r.evidenceStatusNote = "";
+              }
+            }
+          }
+        }
         return st;
       },
       partialize: (s: State) => ({
@@ -2985,6 +3373,8 @@ export const useStore = create<State>()(
         evidenceItems: s.evidenceItems,
         ppeChecks: s.ppeChecks,
         siteAccessLogs: s.siteAccessLogs,
+        toolboxTalks: s.toolboxTalks,
+        incidentReports: s.incidentReports,
         contacts: s.contacts,
         lastSavedAt: s.lastSavedAt,
       }),
@@ -3198,6 +3588,26 @@ export function useSiteAccessLogs(): SiteAccessLog[] {
   const entity = useStore((s) => s.entity);
   return useMemo(
     () => all.filter((l) => l.entity === entity).sort((a, b) => b.openedAt - a.openedAt),
+    [all, entity]
+  );
+}
+
+/** Toolbox talks at the entity in view, most recently opened first. */
+export function useToolboxTalks(): ToolboxTalk[] {
+  const all = useStore((s) => s.toolboxTalks);
+  const entity = useStore((s) => s.entity);
+  return useMemo(
+    () => all.filter((t) => t.entity === entity).sort((a, b) => b.openedAt - a.openedAt),
+    [all, entity]
+  );
+}
+
+/** Incident / near-miss reports at the entity in view, newest first. */
+export function useIncidentReports(): IncidentReport[] {
+  const all = useStore((s) => s.incidentReports);
+  const entity = useStore((s) => s.entity);
+  return useMemo(
+    () => all.filter((r) => r.entity === entity).sort((a, b) => b.createdAt - a.createdAt),
     [all, entity]
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Check, Compliance } from "@/lib/types";
+import type { Check, Compliance, EvidenceStatus } from "@/lib/types";
 import { priorFor, useEntityCode, useResponses, useStore, useVisitFindings, useVisitId } from "@/lib/store";
 import { portalIdFor } from "@/lib/sites";
 import { useAnswers } from "@/lib/answers";
@@ -53,41 +53,37 @@ const MODE_ICON: Record<string, typeof IconHelp> = {
 
 /** THE ANSWER, AND WHAT IS NOT AN ANSWER.
  *
- *  Five options, and they were never five peers. Two of them are the audit's
- *  verdict on the asset; one is that verdict with the proof still outstanding;
- *  two are housekeeping — this check does not apply here, or ACSA could not
- *  produce the document while we were on site. Rendered as five identical
- *  boxes in a row, an auditor reads five equal choices and the shape of the
- *  decision is lost. So `group` splits them, and the qualifiers are drawn
- *  quieter than the verdicts.
+ *  Three options, and they were never three peers. Two are the audit's
+ *  verdict on the asset; one is housekeeping — this check does not apply
+ *  here. Rendered as three identical boxes in a row, an auditor reads three
+ *  equal choices and the shape of the decision is lost. So `group` splits
+ *  them, and the qualifier is drawn quieter than the verdicts.
  *
- *  ONE FLAT LIST ALL THE SAME, because both rows are filtered out of it. Two
- *  arrays would let the keyboard and the screen disagree about what a key
- *  means, which is the kind of drift nobody notices until an answer lands on
- *  the wrong check.
+ *  REDUCED FROM FIVE, 2 October 2026 (Sarel: "remove that [compliant,
+ *  evidence pending] option. Also remove the not available options"). Both
+ *  removed rows were really answering a different question than this
+ *  control asks — whether the EVIDENCE for an answer exists — wearing it as
+ *  a compliance verdict because there was nowhere else to put it. That
+ *  question now has its own place: the Evidence status panel below, with
+ *  four states instead of two and room for what is actually missing or
+ *  still to come. Existing records captured against the old "C, evidence
+ *  pending" or "NV" answers are UNCHANGED — this only removes the buttons
+ *  that write new ones; see Response.evidencePending and isOn() below for
+ *  how a response carrying either still renders correctly.
  *
- *  THE HOTKEY IS DECLARED, NOT THE POSITION IN THIS ARRAY. The first cut
- *  indexed the array, which put "compliant, evidence pending" on 2 and pushed
- *  Non-compliant to 3 — silently rewriting a shortcut an auditor has already
- *  learned, and the fastest way to file a wrong answer on a check. 1-4 keep
- *  exactly what they have always meant; the new option is additive on 5.
+ *  ONE FLAT LIST ALL THE SAME, because the qualifier is filtered out of it
+ *  for layout, not kept in a second array. Two arrays would let the
+ *  keyboard and the screen disagree about what a key means, which is the
+ *  kind of drift nobody notices until an answer lands on the wrong check.
  *
- *  `pending` is not a fifth `Compliance` token — see Response.evidencePending
- *  in types.ts for why it is a flag on "C" instead. */
+ *  THE HOTKEY IS DECLARED, NOT THE POSITION IN THIS ARRAY — 1-3 keep
+ *  exactly what they have always meant, so removing 4 and 5 could not
+ *  silently reassign a shortcut an auditor already knows. */
 const STATUSES: {
   key: Compliance;
-  /** True only for the "compliant, evidence pending" row. */
-  pending?: boolean;
   /** The number key that sets it. Declared, never positional — see above. */
   hotkey: string;
   label: string;
-  /** What sm+ actually paints on the button. Defaults to `label`; only the
-   *  one row long enough to force the row onto two lines needs its own —
-   *  see the note where it's read. `label` itself stays the full phrase
-   *  everywhere else it's used (aria-label, title, the export/dashboard
-   *  code that reads this array), so nothing downstream needs to know a
-   *  shorter visible form exists. */
-  smLabel?: string;
   /** ACSA's own code, for a phone that cannot fit the word. */
   short: string;
   Icon: typeof IconCheck;
@@ -101,28 +97,6 @@ const STATUSES: {
     short: "C",
     Icon: IconCheck,
     tone: "good",
-    group: "verdict",
-  },
-  {
-    key: "C",
-    pending: true,
-    hotkey: "5",
-    /* Sarel's words for it: ACSA's explanation is that they are compliant, and
-       it has to be verified when they submit the evidence. */
-    label: "Compliant, evidence pending",
-    /* Sarel: the buttons were too big, and this one — the only one of the
-       five long enough to wrap — is why. "Compliant · pending" is the same
-       information at a third of the length, close enough to the phone's
-       own "C · pending" that it reads as the same shorthand at every
-       width; the full phrase stays exactly one tap away as the title and
-       exactly what a screen reader gets, unchanged. */
-    smLabel: "Compliant · pending",
-    short: "C · pending",
-    Icon: IconClipboard,
-    /* `acc` rather than `warn`. Not-available is already warn, and the two are
-       the pair most worth telling apart: one is compliant-with-proof-to-come,
-       the other is nothing produced at all. */
-    tone: "acc",
     group: "verdict",
   },
   {
@@ -143,25 +117,62 @@ const STATUSES: {
     tone: "neu",
     group: "qualifier",
   },
-  {
-    key: "NV",
-    hotkey: "4",
-    label: "Not available",
-    short: "NV",
-    Icon: IconClock,
-    tone: "warn",
-    group: "qualifier",
-  },
 ];
 
-/** Which row is showing as chosen. The pending flag is part of the identity:
- *  "C" alone and "C" with evidence outstanding are two different answers and
- *  exactly one of them may look selected. */
-const isOn = (
-  s: (typeof STATUSES)[number],
-  compliance: Compliance | null,
-  evidencePending: boolean | undefined
-) => compliance === s.key && !!s.pending === !!evidencePending;
+/** Which row is showing as chosen. A response carrying the old "C, evidence
+ *  pending" answer (see Response.evidencePending) is still just "C" here —
+ *  there is no longer a second Compliant row for it to disagree with, and
+ *  the compliance verdict IS Compliant regardless of what the now-separate
+ *  Evidence status panel says about the proof. */
+const isOn = (s: (typeof STATUSES)[number], compliance: Compliance | null) =>
+  compliance === s.key;
+
+/** EVIDENCE STATUS — a question separate from the verdict above: has the
+ *  proof for this check actually been produced? Added 2 October 2026 in
+ *  place of the "compliant, evidence pending" and "not available"
+ *  compliance buttons (see the note on STATUSES), with room for what is
+ *  actually missing or still to come rather than one overloaded flag. */
+const EVIDENCE_STATUSES: {
+  key: EvidenceStatus;
+  label: string;
+  hint: string;
+  Icon: typeof IconCheck;
+  tone: string;
+  /** Present only for the two states that ask for a free-text note, and
+   *  what the note is of — the label the textarea itself carries. */
+  note?: string;
+}[] = [
+  {
+    key: "noneAvailable",
+    label: "No evidence available",
+    hint: "nothing exists to collect for this check",
+    Icon: IconDash,
+    tone: "neu",
+  },
+  {
+    key: "specificNotAvailable",
+    label: "Specific evidence not available",
+    hint: "something was asked for and could not be produced",
+    Icon: IconX,
+    tone: "warn",
+    note: "What is missing",
+  },
+  {
+    key: "toBeProvided",
+    label: "Evidence to be provided",
+    hint: "ACSA will produce it after the visit",
+    Icon: IconClock,
+    tone: "acc",
+    note: "What, and by when",
+  },
+  {
+    key: "providedForReview",
+    label: "Evidence provided for review",
+    hint: "attach what was handed over",
+    Icon: IconCheck,
+    tone: "good",
+  },
+];
 
 /** Every reference extract reads the same way: the document's words, set as
  *  the document set them. Whitespace is preserved because ACSA's procedures
@@ -236,6 +247,8 @@ export default function CheckDetail({
     observation: "",
     evidencePicked: [],
     evidencePending: false,
+    evidenceStatus: null,
+    evidenceStatusNote: "",
     issuesPicked: [],
     walkaboutPicked: null,
     attachments: [],
@@ -338,24 +351,19 @@ export default function CheckDetail({
         (document.activeElement as HTMLElement)?.tagName ?? ""
       );
       if (typing) return;
-      /* Found by its declared hotkey, not by position — 1-4 are what they
-         have always been and 5 is the new one. The flag is part of what the
-         key sets: 5 is "C" plus the tag, and 1 is "C" without it. */
+      /* Found by its declared hotkey, not by position — 1-3 are what they
+         have always been. */
       const hit = STATUSES.find((x) => x.hotkey === e.key);
       if (hit) {
-        const on = isOn(hit, r.compliance, r.evidencePending);
-        setCompliance(check.id, on ? null : hit.key, !on && !!hit.pending);
+        const on = isOn(hit, r.compliance);
+        setCompliance(check.id, on ? null : hit.key);
       }
       if (e.key === "ArrowRight") onNext();
       if (e.key === "ArrowLeft") onPrev();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    /* r.evidencePending belongs here: the handler decides whether a key
-       toggles OFF from what is already selected, and "C" with the tag and "C"
-       without it are two different selections. A stale flag here makes key 1
-       or 2 clear the answer when it should switch between them. */
-  }, [check.id, r.compliance, r.evidencePending, setCompliance, onNext, onPrev]);
+  }, [check.id, r.compliance, setCompliance, onNext, onPrev]);
 
   const save = (advance: boolean) => {
     commit(check.id, "desk");
@@ -713,6 +721,120 @@ export default function CheckDetail({
       ),
     });
   }
+
+  /* EVIDENCE STATUS — whether the proof for this check has actually been
+     produced, a question separate from the compliance verdict and from
+     "Evidence to request" above (which is what was asked for, not whether
+     it came back). Unconditional, unlike the three branches above: it does
+     not depend on the answer library existing, because the question is the
+     same with or without researched options. See EVIDENCE_STATUSES and the
+     note on Response.evidenceStatus in types.ts. */
+  panels.push({
+    key: "evidenceStatus",
+    label: "Evidence status",
+    ...(r.evidenceStatus
+      ? { badge: EVIDENCE_STATUSES.find((s) => s.key === r.evidenceStatus)?.label.split(" ")[0] }
+      : {}),
+    group: "do",
+    body: (
+      <>
+        <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+          has the proof for this check actually been produced?
+        </div>
+        <div className="grid grid-cols-2 gap-[6px]">
+          {EVIDENCE_STATUSES.map((es) => {
+            const on = r.evidenceStatus === es.key;
+            return (
+              <button
+                key={es.key}
+                type="button"
+                onClick={() => patch(check.id, { evidenceStatus: on ? null : es.key })}
+                aria-pressed={on}
+                title={es.hint}
+                className="flex min-h-[44px] items-center gap-[7px] rounded-[9px] border px-[10px] py-[7px] text-left text-[11px] font-semibold leading-tight transition-[var(--t)]"
+                style={toneStyle(es.tone, on)}
+              >
+                <es.Icon width={14} height={14} className="shrink-0" />
+                {es.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* THE NOTE, ONLY WHERE IT MEANS SOMETHING. "No evidence available"
+            and "provided for review" are self-explanatory; the other two
+            are not useful without saying what is missing, or what and
+            when — so the field appears only for those two, labelled for
+            the question it is actually answering. */}
+        {(() => {
+          const active = EVIDENCE_STATUSES.find((es) => es.key === r.evidenceStatus);
+          return active?.note ? (
+            <div className="mt-2.5">
+              <div className="label-xs mb-1">{active.note}</div>
+              <textarea
+                value={r.evidenceStatusNote}
+                onChange={(e) => patch(check.id, { evidenceStatusNote: e.target.value })}
+                rows={2}
+                aria-label={active.note}
+                placeholder={
+                  active.key === "specificNotAvailable"
+                    ? "Which document or record ACSA could not produce"
+                    : "What it is, and when it is expected"
+                }
+                className="w-full rounded-[9px] border px-3 py-2 text-[12.5px]"
+                style={{ background: "var(--bg)", borderColor: "var(--line-2)" }}
+              />
+            </div>
+          ) : null;
+        })()}
+
+        {/* UPLOAD, RIGHT WHERE THE STATE THAT NEEDS IT IS — "evidence
+            provided for review" is nothing without the evidence attached.
+            Photo and File write into the same attachments array the
+            observation panel's own strip shows; this is not a second,
+            evidence-only attachment list, just the upload control offered
+            again where an auditor reaching for this specific state expects
+            to find it. */}
+        {r.evidenceStatus === "providedForReview" && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-[6px]">
+            <PhotoButton
+              compact
+              onCaptured={(m) => {
+                addAttachment(check.id, { ...m, createdBy: auditor });
+                onSaved(`Photo attached to ${portalId}`);
+              }}
+            />
+            <FileButton
+              compact
+              onCaptured={(m) => {
+                addAttachment(check.id, { ...m, createdBy: auditor });
+                onSaved(`File attached to ${portalId}`);
+              }}
+            />
+            <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+              {r.attachments.length === 0
+                ? "nothing attached yet"
+                : `${r.attachments.length} attached`}
+            </span>
+          </div>
+        )}
+
+        {/* A SPACER, not a design choice — this panel is the first in the
+           "do" group routinely tall enough to expose a `position: sticky`
+           quirk in the pinned answer bar below: on a short check (little
+           ACSA-requirement text, no prior content pushing total page
+           height comfortably past the viewport), the sticky bar's "stuck"
+           render position sits ABOVE its own natural flow position rather
+           than after it, and paints over whatever this panel put in that
+           gap — confirmed by disabling `position: sticky` on it and
+           diffing the two layouts. Reserving this much height keeps total
+           content past the threshold where that pull-up happens, without
+           touching the pinned bar itself, which every other tab also
+           depends on. */}
+        <div aria-hidden className="h-[220px]" />
+      </>
+    ),
+  });
 
   /* -------------------------------------------------- what the auditor reads
      The standard, the site's override of it, and ACSA's own words for it, in
@@ -1653,38 +1775,24 @@ export default function CheckDetail({
             )}
           </div>
 
-          {/* ALL FIVE, ONE ROW — FROM lg, WHERE THERE IS ACTUALLY ROOM FOR IT.
-              Sarel, on the live app (a wide desktop window): "make these
-              buttons smaller. this should all fit in one row." They used
-              to be two grids — three verdicts, then N/A and Not available
-              underneath, deliberately, because the two rows are not the
-              same kind of answer (see the git history on this block for
-              that reasoning). Overridden here on his direct word, but not
-              at every width: tried as a flat 5-column grid everywhere
-              first and screenshotted it at 820px, the tablet this app is
-              actually built for — several labels wrapped to two lines
-              there, worse than the two-row version it replaced, because
-              five columns at 820px minus Photo/the nav buttons leaves
-              less room per label than three ever did. grid-cols-3 below
-              lg keeps that room; STATUSES' own order (three verdicts
-              then two qualifiers) happens to wrap a 3-column grid into
-              exactly the old two rows, so nothing extra was needed to
-              reproduce that grouping down there. From lg (1024px, where
-              the screenshot that prompted this was taken) it becomes the
-              one row Sarel asked for. N/A and Not available keep the
-              quieter styling (transparent, lighter border) toneStyle's
-              `quiet` flag already gave them at every width — only where
-              they sit changes, not what reaching for one of them means. */}
-          <div className="grid min-w-[280px] flex-1 grid-cols-3 gap-[4px] lg:grid-cols-5">
+          {/* THREE, ONE ROW AT EVERY WIDTH. Down from five (2 October 2026 —
+              see the note on STATUSES) to the two verdicts and the one
+              qualifier that actually settle a check; "evidence pending" and
+              "not available" moved to the Evidence status panel, which asks
+              a different question from this one. Three columns fit a
+              single row from a phone up, so there is no longer a narrower
+              layout to fall back to. N/A keeps the quieter styling
+              (transparent, lighter border) toneStyle's `quiet` flag gives
+              it — the one qualifier among two verdicts still reads as a
+              different kind of answer. */}
+          <div className="grid min-w-[280px] flex-1 grid-cols-3 gap-[4px]">
             {STATUSES.map((st) => {
-              const on = isOn(st, r.compliance, r.evidencePending);
+              const on = isOn(st, r.compliance);
               const quiet = st.group === "qualifier";
               return (
                 <button
                   key={st.label}
-                  onClick={() =>
-                    setCompliance(check.id, on ? null : st.key, !on && !!st.pending)
-                  }
+                  onClick={() => setCompliance(check.id, on ? null : st.key)}
                   /* The full phrase, always, to a screen reader — the phone
                      shows the code to fit the targets across 390px, and "C"
                      read out loud is not an answer anybody should have to
@@ -1712,14 +1820,12 @@ export default function CheckDetail({
                   style={toneStyle(st.tone, on, quiet)}
                 >
                   <st.Icon width={12} height={12} className="shrink-0" />
-                  {/* ACSA's own code on a phone, the words everywhere else
-                      — smLabel where the full phrase is too long to fit
-                      one line, otherwise the same full phrase. C, NC, N/A
-                      and NV are not abbreviations invented here: they are
-                      what the record stores and what the export column
-                      says. */}
+                  {/* ACSA's own code on a phone, the word everywhere else.
+                      C, NC and N/A are not abbreviations invented here:
+                      they are what the record stores and what the export
+                      column says. */}
                   <span className="sm:hidden">{st.short}</span>
-                  <span className="hidden sm:inline">{st.smLabel ?? st.label}</span>
+                  <span className="hidden sm:inline">{st.label}</span>
                 </button>
               );
             })}

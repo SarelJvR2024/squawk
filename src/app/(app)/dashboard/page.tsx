@@ -11,9 +11,11 @@ import {
   priorFor,
   useContacts,
   useEvidenceItems,
+  useIncidentReports,
   useInterviewDays,
   usePpeChecks,
   useSiteAccessLogs,
+  useToolboxTalks,
   useResponses,
   useSafetyFindings,
   useSiteDays,
@@ -33,8 +35,10 @@ import {
   IconCheck,
   IconClipboard,
   IconClock,
+  IconFlag,
   IconInbox,
   IconInfo,
+  IconLock,
   IconLoop,
   IconMic,
   IconPin,
@@ -75,6 +79,8 @@ export default function DashboardPage() {
   const evidenceItems = useEvidenceItems();
   const ppeChecks = usePpeChecks();
   const siteAccessLogs = useSiteAccessLogs();
+  const toolboxTalks = useToolboxTalks();
+  const incidentReports = useIncidentReports();
   const evidenceOutstanding = evidenceItems.filter(isOutstanding).length;
   const contacts = useContacts();
   const contactsHere = contacts.filter((c) => c.site === entityCode).length;
@@ -583,6 +589,27 @@ export default function DashboardPage() {
                           tone: "acc",
                           icon: <IconPin width={13} height={13} />,
                           href: "/site-access",
+                        },
+                        {
+                          label: "Toolbox talks",
+                          value: toolboxTalks.length,
+                          tone: "acc",
+                          icon: <IconMic width={13} height={13} />,
+                          href: "/toolbox-talk",
+                        },
+                        {
+                          label: "Incidents / near misses",
+                          value: incidentReports.length,
+                          tone: incidentReports.length ? "warn" : "good",
+                          icon: <IconFlag width={13} height={13} />,
+                          href: "/incident",
+                        },
+                        {
+                          label: "Days not closed out",
+                          value: siteDays.filter((d) => !d.closeoutLeadSignature).length,
+                          tone: siteDays.filter((d) => !d.closeoutLeadSignature).length ? "warn" : "good",
+                          icon: <IconLock width={13} height={13} />,
+                          href: "/closeout",
                         },
                         {
                           label: "Evidence outstanding",

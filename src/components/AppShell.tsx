@@ -34,7 +34,6 @@ import SharedSheet from "@/components/SharedSheet";
 import {
   IconClipboard,
   IconCamera,
-  IconCheck,
   IconClock,
   IconCloud,
   IconCloudUp,
@@ -47,8 +46,6 @@ import {
   IconHelp,
   IconLock,
   IconLoop,
-  IconInbox,
-  IconMic,
   IconMore,
   IconPin,
   IconSearch,
@@ -140,6 +137,9 @@ const OFF_NAV: Record<string, string> = {
   "/diary": "Daily diary",
   "/ppe": "PPE checks",
   "/site-access": "Site access",
+  "/toolbox-talk": "Toolbox talk",
+  "/incident": "Incident / near-miss report",
+  "/closeout": "Daily site closeout",
   "/evidence": "Document and evidence collection log",
   "/people": "People directory",
   /* Safety, Review and Pre-flight moved out of NAV into the More menu
@@ -162,44 +162,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const findings = useVisitFindings();
   const hazards = useVisitHazards();
   const entityCode = useEntityCode();
-  /* The COUNT, not the list. This component re-renders on every keystroke in
-     every screen below it; subscribing it to an array would hand it a new
-     reference each time and re-render the masthead for nothing. */
-  const interviewCount = useStore(
-    (s) => s.interviewDays.filter((d) => d.entity === s.entity).length
-  );
-  /* How many people are signed in and not signed out, anywhere at this site.
-     A COUNT for the same reason as above, and deliberately not "today": a
-     register somebody forgot to close yesterday is exactly what this line
-     should be nagging about. */
-  /* Documents asked for and neither received nor refused — the RFI list, and
-     the one number about this log worth carrying in the masthead. A COUNT, for
-     the same reason as the two above. */
-  const evidenceOutstanding = useStore(
-    (s) =>
-      s.evidenceItems.filter(
-        (e) => e.entity === s.entity && !e.receivedAt && !e.unavailableAt
-      ).length
-  );
   /* Contacts at THIS site — not the whole directory, which spans every
      airport and Corporate. The hint is "who is on file here", the same
-     question the screen itself answers first. */
+     question the screen itself answers first. People directory is the one
+     register not reachable from the Forms hub, so it keeps its own menu
+     entry and its own count. */
   const contactsHere = useStore((s) => s.contacts.filter((c) => c.site === s.entity).length);
-  const ppeCheckCount = useStore(
-    (s) => s.ppeChecks.filter((c) => c.entity === s.entity).length
-  );
-  const siteAccessCount = useStore(
-    (s) => s.siteAccessLogs.filter((l) => l.entity === s.entity).length
-  );
-  const onSiteNow = useStore((s) =>
-    s.siteDays
-      .filter((d) => d.entity === s.entity)
-      .reduce(
-        (n, d) =>
-          n + d.entries.filter((e) => e.arrivedAt !== null && e.departedAt === null).length,
-        0
-      )
-  );
   const shared = useShared();
   /* Only the states a person can actually do something about. "Waiting for
      signal" is not one of them — an auditor in a basement does not need a dot
@@ -805,41 +773,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     onClick={() => { setMore(false); router.push("/preflight"); }}
                   />
                   {/* A DESTINATION IN A MENU OF ACTIONS, and it is here rather
-                      than in the nav bar for one reason: the nav is full. The
-                      eighth entry already cost a swipe and the ninth was paid
-                      for deliberately, once, for the safety register whose
-                      clock starts when somebody reaches it. An interview is
-                      arranged, not stumbled into — the auditor is walking to a
-                      maintenance office, not reacting to something — so it can
-                      afford two presses, and the fourteen project-evidence
-                      forms still to be built cannot each afford a nav slot.
+                      than in the nav bar for one reason: the nav is full.
                       Beside All audits because both are "go somewhere".
 
-                      LABELLED as its own group (Sarel: "split into a separate
-                      menu for all the forms"), rather than moved to a nav
-                      slot or a second dropdown — the More menu is already the
-                      one place these four live, a label just says so, and a
-                      second button competes with the eighth/ninth-slot limit
-                      this very comment explains. Safety (ISF) stays where it
-                      is, above this group, for the urgency reason its own
-                      comment gives — being a form does not outrank the
-                      SWP-07 clock. */}
-                  {role !== "acsa" && (
-                    <>
-                      <div className="my-[4px] h-px" style={{ background: "var(--menu-line)" }} />
-                      <div
-                        className="mt-[2px] mb-[2px] px-[9px] font-mono text-[9px] tracking-[0.06em] uppercase"
-                        style={{ color: "var(--menu-ink-2)" }}
-                      >
-                        Forms
-                      </div>
-                    </>
-                  )}
-                  {/* ALL FORMS, in one place, ahead of the individual registers
-                      below — Sarel: "have all forms easy to access, maybe in a
-                      calendar or some card type display." Nobody opening this
-                      menu needs to already know which of the six forms holds
-                      the record they are after. */}
+                      THE ONE ENTRY POINT for every TK-003 form and register
+                      (Sarel, 2 October 2026: "remove the individual forms
+                      from the menu, they can all be accessed from the all
+                      forms screen") — nine separate MoreItems used to sit
+                      here, one per form, each pulling its own store
+                      selector just to print a count in its hint. The Forms
+                      hub already lists and filters all of them; a second,
+                      longer way to reach the same ten screens was the thing
+                      actually costing menu space, not buying anything a
+                      shorter menu couldn't. Safety (ISF) stays above this,
+                      for the SWP-07 urgency reason its own comment gives —
+                      being a form does not outrank that clock. People
+                      directory keeps its own entry below, because it is the
+                      one register the Forms hub does not list. */}
                   {role !== "acsa" && (
                     <MoreItem
                       icon={<IconGrid width={14} height={14} />}
@@ -847,76 +797,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       hint="Every form and register, one card list"
                       selected={pathname === "/forms"}
                       onClick={() => { setMore(false); router.push("/forms"); }}
-                    />
-                  )}
-                  {role !== "acsa" && (
-                    <MoreItem
-                      icon={<IconMic width={14} height={14} />}
-                      label="Interview records"
-                      hint={
-                        interviewCount
-                          ? `${interviewCount} day${interviewCount === 1 ? "" : "s"} recorded at ${entityOf(entityCode).short}`
-                          : "Who was interviewed, when and where"
-                      }
-                      selected={pathname === "/interviews"}
-                      onClick={() => { setMore(false); router.push("/interviews"); }}
-                    />
-                  )}
-                  {role !== "acsa" && (
-                    <MoreItem
-                      icon={<IconTeam width={14} height={14} />}
-                      label="Site attendance"
-                      hint={onSiteNow ? `${onSiteNow} on site now` : "Who was on site, and when"}
-                      selected={pathname === "/attendance"}
-                      onClick={() => { setMore(false); router.push("/attendance"); }}
-                    />
-                  )}
-                  {role !== "acsa" && (
-                    <MoreItem
-                      icon={<IconClipboard width={14} height={14} />}
-                      label="Daily diary"
-                      hint="What the day actually consisted of"
-                      selected={pathname === "/diary"}
-                      onClick={() => { setMore(false); router.push("/diary"); }}
-                    />
-                  )}
-                  {role !== "acsa" && (
-                    <MoreItem
-                      icon={<IconCheck width={14} height={14} />}
-                      label="PPE checks"
-                      hint={
-                        ppeCheckCount
-                          ? `${ppeCheckCount} check${ppeCheckCount === 1 ? "" : "s"} recorded at ${entityOf(entityCode).short}`
-                          : "Hi-vis, safety footwear, hearing protection"
-                      }
-                      selected={pathname === "/ppe"}
-                      onClick={() => { setMore(false); router.push("/ppe"); }}
-                    />
-                  )}
-                  {role !== "acsa" && (
-                    <MoreItem
-                      icon={<IconPin width={14} height={14} />}
-                      label="Site access"
-                      hint={
-                        siteAccessCount
-                          ? `${siteAccessCount} area${siteAccessCount === 1 ? "" : "s"} logged at ${entityOf(entityCode).short}`
-                          : "Where the team went, and who escorted them"
-                      }
-                      selected={pathname === "/site-access"}
-                      onClick={() => { setMore(false); router.push("/site-access"); }}
-                    />
-                  )}
-                  {role !== "acsa" && (
-                    <MoreItem
-                      icon={<IconInbox width={14} height={14} />}
-                      label="Evidence log"
-                      hint={
-                        evidenceOutstanding
-                          ? `${evidenceOutstanding} document${evidenceOutstanding === 1 ? "" : "s"} still outstanding`
-                          : "What ACSA handed over, and what is still owed"
-                      }
-                      selected={pathname === "/evidence"}
-                      onClick={() => { setMore(false); router.push("/evidence"); }}
                     />
                   )}
                   {role !== "acsa" && (

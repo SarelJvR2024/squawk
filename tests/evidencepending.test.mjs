@@ -28,7 +28,18 @@ import { fileURLToPath } from "node:url";
  *
  * THREE: it never reaches the export, so the RFI cannot be generated from the
  * workbook at all — which was the entire point of recording it.
- */
+ *
+ * REVERSED, IN PART, 2 October 2026. Sarel: "On the checks page we have an
+ * option for compliant pending evidence, i want to remove that option." The
+ * button is gone from the check screen — STATUSES below carries three rows,
+ * not five, and there is no longer any UI path to tag a NEW check "evidence
+ * pending" at all (replaced by the separate, more expressive Evidence status
+ * panel — see tests/evidencestatus.test.mjs). What this suite keeps guarding
+ * is everything the removal must NOT touch: every audit already captured with
+ * the old tag still has a real `evidencePending` field, still counts as "C",
+ * still generates its row on the Evidence request sheet, and still reaches
+ * ACSA's portal with the same words — an in-flight audit does not lose its
+ * RFI trail because the button that used to set the flag was retired. */
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (p) => fs.readFileSync(path.join(here, "..", p), "utf8");
@@ -110,29 +121,33 @@ ok(
   strayWriters.join(",")
 );
 
-/* ---- the screen ------------------------------------------------------- */
+/* ---- the screen, 2 October 2026: the button is gone -------------------- */
 
 ok(
-  "the check screen offers it as its own button",
-  /label: "Compliant, evidence pending"/.test(detail)
+  "the check screen no longer offers it as its own button",
+  !/label: "Compliant, evidence pending"/.test(detail)
 );
 ok(
-  "selection is decided by compliance AND the flag together, so C and C-pending cannot both look chosen",
-  /compliance === s\.key && !!s\.pending === !!evidencePending/.test(detail)
+  "and selection is decided by compliance alone now — there is no second flag left to agree with it",
+  /compliance === s\.key;/.test(detail) && !/!!s\.pending/.test(detail)
 );
 /* THE SHORTCUTS AN AUDITOR HAS ALREADY LEARNED DO NOT MOVE.
    The first cut indexed STATUSES by position, which put the new option on 2
    and pushed Non-compliant to 3 — tests/shared.js drives compliance by
    keyboard and annotates press("2") as Non-compliant, which is how it was
    caught. A shortcut that quietly changes meaning is the fastest way to file
-   a wrong answer against a check. */
+   a wrong answer against a check. Removing hotkeys 4 and 5 outright (rather
+   than reassigning them) is what keeps that promise now: 1, 2 and 3 mean
+   exactly what they always meant, and there is nothing left on 4 or 5 for a
+   stale muscle-memory press to hit by accident. */
 ok(
-  "NON-COMPLIANT IS STILL KEY 2, and the new option is additive on 5",
+  "NON-COMPLIANT IS STILL KEY 2, and 4/5 are retired rather than reassigned",
   /hotkey: "1",[\s\S]{0,200}label: "Compliant",/.test(detail) &&
     /hotkey: "2",[\s\S]{0,80}label: "Non-compliant"/.test(detail) &&
     /hotkey: "3",[\s\S]{0,80}label: "N\/A"/.test(detail) &&
-    /hotkey: "4",[\s\S]{0,80}label: "Not available"/.test(detail) &&
-    /hotkey: "5",[\s\S]{0,400}label: "Compliant, evidence pending"/.test(detail)
+    !/hotkey: "4"/.test(detail) &&
+    !/hotkey: "5"/.test(detail) &&
+    !/label: "Not available"/.test(detail)
 );
 ok(
   "and the handler finds the key by its declared hotkey, never by array position",
@@ -141,17 +156,19 @@ ok(
 );
 
 ok(
-  "the number keys set the flag too rather than only the token",
-  /setCompliance\(check\.id, on \? null : hit\.key, !on && !!hit\.pending\)/.test(detail)
+  "the number keys set only the compliance token now — there is no flag left to carry",
+  /setCompliance\(check\.id, on \? null : hit\.key\);/.test(detail) &&
+    !/hit\.pending/.test(detail)
 );
 /* THEN: the verdict and qualifier groups were two separate STATUSES.filter()
    calls, each feeding its own row — still ONE list, just filtered twice.
-   NOW (30 Sep): Sarel — "make these buttons smaller. this should all fit
+   THEN (30 Sep): Sarel — "make these buttons smaller. this should all fit
    in one row." The two filters collapsed into a single STATUSES.map(), no
-   filtering at all above lg (1024px); see tests/checkscreen.test.mjs for
-   the full reasoning and the 820px fallback. The invariant this guards —
-   render and keyboard sourcing from the same array — holds even more
-   directly now that there is no second call to drift out of step. */
+   filtering at all above lg (1024px).
+   NOW (2 Oct): the lg-only grid is gone too — see tests/checkscreen.test.mjs
+   for the full reasoning. The invariant this guards — render and keyboard
+   sourcing from the same array — holds even more directly now that there is
+   only one shape, not two, to drift out of step. */
 ok(
   "and the row is rendered by mapping STATUSES directly, so the keyboard and the screen cannot disagree",
   /STATUSES\.map\(\(st\) => \{/.test(detail) &&

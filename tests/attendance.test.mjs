@@ -49,6 +49,7 @@ const types = src("lib", "types.ts");
 const page = src("app", "(app)", "attendance", "page.tsx");
 const pad = src("components", "SignaturePad.tsx");
 const shell = src("components", "AppShell.tsx");
+const hub = src("app", "(app)", "forms", "page.tsx");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -61,6 +62,8 @@ const check = (name, cond, detail = "") => {
 
 const {
   SIGNED_FIELDS,
+  closeoutGaps,
+  closeoutSignedFieldsChanged,
   dayGaps,
   dayText,
   entryGaps,
@@ -72,6 +75,7 @@ const {
   patchInvalidatesSignature,
   stillOnSite,
   timesDisagree,
+  unbackedCloseoutSignatures,
   unbackedSignatures,
 } = await import(path.join(here, "..", "src", "lib", "attendance.ts"));
 
@@ -137,6 +141,14 @@ const day = (over = {}) => ({
   diarySignature: null,
   entries: [],
   attachments: [],
+  closeoutFindingsToday: null,
+  closeoutAllLoggedSheet9: null,
+  closeoutNotes: "",
+  closeoutLeadName: "",
+  closeoutLeadSignature: null,
+  closeoutAcsaName: "",
+  closeoutAcsaSignature: null,
+  closeoutClosedAt: null,
   createdAt: ARRIVED,
   updatedAt: ARRIVED,
   ...over,
@@ -555,28 +567,124 @@ check(
   /removeSiteDay[\s\S]{0,900}delBlobs\(\[\.\.\.keys, \.\.\.shots\]\)/.test(store)
 );
 
+/* ------------------------------------- 12b. daily closeout, TK-003 form 8 */
+
+check(
+  "an unanswered day owes the findings-today question",
+  closeoutGaps(day()).includes("findings today not answered")
+);
+check(
+  "findings today, but the sheet-9 question unanswered, is still owed",
+  closeoutGaps(day({ closeoutFindingsToday: true })).includes("all logged in sheet 9 not answered")
+);
+check(
+  "a 'no, not all logged' answer with no note is owed an explanation",
+  closeoutGaps(
+    day({ closeoutFindingsToday: true, closeoutAllLoggedSheet9: false })
+  ).includes("not-yet-logged findings need a note")
+);
+check(
+  "the same answer WITH a note owes no explanation",
+  !closeoutGaps(
+    day({
+      closeoutFindingsToday: true,
+      closeoutAllLoggedSheet9: false,
+      closeoutNotes: "Logged tomorrow morning",
+    })
+  ).includes("not-yet-logged findings need a note")
+);
+check(
+  "no findings today needs no sheet-9 answer at all",
+  closeoutGaps(day({ closeoutFindingsToday: false })).length === 1,
+  "only the team lead signature is still owed"
+);
+check(
+  "every answer given still owes the team lead's signature",
+  closeoutGaps(day({ closeoutFindingsToday: false, closeoutLeadSignature: null })).includes(
+    "team lead signature"
+  )
+);
+check(
+  "a signed-off day with no findings owes nothing",
+  closeoutGaps(day({ closeoutFindingsToday: false, closeoutLeadSignature: sig({ ref: "ATT-7K2P9_CLOSEOUT_LEAD" }) }))
+    .length === 0
+);
+
+check(
+  "the Y/N answers and the note are what the two signatures stand behind",
+  closeoutSignedFieldsChanged({ closeoutFindingsToday: true }) === true &&
+    closeoutSignedFieldsChanged({ closeoutAllLoggedSheet9: false }) === true &&
+    closeoutSignedFieldsChanged({ closeoutNotes: "x" }) === true &&
+    closeoutSignedFieldsChanged({ closeoutLeadName: "x" }) === false &&
+    closeoutSignedFieldsChanged({}) === false,
+  "the lead's own name is who is attesting, not part of what they attest to"
+);
+check(
+  "the generic day-patch clears both closeout signatures when a signed field changes",
+  /updateSiteDay: \(id, p\) =>[\s\S]{0,900}closeoutSignedFieldsChanged\(p\)[\s\S]{0,200}closeoutLeadSignature: null, closeoutAcsaSignature: null \}/.test(
+    store
+  )
+);
+
+check(
+  "a closeout signature with no record copy is reported",
+  unbackedCloseoutSignatures(day({ closeoutLeadSignature: sig() })).length === 1
+);
+check(
+  "one that has been backed up is not",
+  unbackedCloseoutSignatures(
+    day({ closeoutLeadSignature: sig({ cloudUrl: "https://x/y.png" }) })
+  ).length === 0
+);
+check(
+  "the ACSA escort's signature is checked the same way, and is optional",
+  unbackedCloseoutSignatures(day({ closeoutAcsaSignature: sig() })).length === 1 &&
+    closeoutGaps(day({ closeoutFindingsToday: false, closeoutLeadSignature: sig() })).length === 0
+);
+
+check(
+  "the two closeout signatures carry a fixed suffix, not a numbered one — one per day, never reused",
+  /signCloseoutLead[\s\S]{0,300}ref: `\$\{id\}_CLOSEOUT_LEAD`/.test(store) &&
+    /signCloseoutAcsa[\s\S]{0,300}ref: `\$\{id\}_CLOSEOUT_ACSA`/.test(store)
+);
+check(
+  "signing off as lead stamps when the day was closed",
+  /signCloseoutLead[\s\S]{0,300}closeoutClosedAt: Date\.now\(\)/.test(store)
+);
+check(
+  "the closeout reconciliation is in the day's exported text",
+  dayText(
+    day({
+      closeoutFindingsToday: true,
+      closeoutAllLoggedSheet9: true,
+      closeoutLeadSignature: sig({ ref: "ATT-7K2P9_CLOSEOUT_LEAD" }),
+    }),
+    ctx
+  ).includes("DAILY SITE CLOSEOUT — TK-003 form 8")
+);
+check(
+  "an outstanding closeout is named in STILL OWED alongside the rest of the day",
+  dayText(day(), ctx).includes("team lead signature")
+);
+
 /* ------------------------------------------------------------ 12. reachable */
 
 check(
   "the register has a route",
   fs.existsSync(path.join(here, "..", "src", "app", "(app)", "attendance", "page.tsx"))
 );
-check('it is reachable from the shell', /router\.push\("\/attendance"\)/.test(shell));
+check("it is reachable from the Forms hub", /href: "\/attendance"/.test(hub));
 check(
   "it is not a tenth entry in the nav bar",
   !/href:\s*"\/attendance"/.test(shell)
 );
 check(
-  "a screen off the nav bar still has a heading of its own",
-  /"\/attendance": "Site attendance"/.test(shell)
-);
-const menuItems = [...shell.matchAll(/\{role !== "acsa" && \(\s*<MoreItem[\s\S]*?\/\>\s*\)\}/g)].map(
-  (m) => m[0]
+  "it is not reachable directly from the shell's own menu any more",
+  !/label="Site attendance"/.test(shell)
 );
 check(
-  "ACSA, who are read-only across the audit, are not offered it",
-  menuItems.some((m) => m.includes("Site attendance")),
-  "every other destination is disabled for them; this one must not be the exception"
+  "a screen off the nav bar still has a heading of its own",
+  /"\/attendance": "Site attendance"/.test(shell)
 );
 check(
   "the page renders an h2, leaving the shell's h1 alone",
@@ -591,6 +699,33 @@ check(
   "a date input is parsed at local midday, not UTC midnight",
   /T12:00:00/.test(page),
   "midnight UTC lands on the previous day everywhere east of Greenwich"
+);
+
+/* ----------------------------------------------- 13. closeout, its own screen */
+
+const closeoutPage = src("app", "(app)", "closeout", "page.tsx");
+check(
+  "the closeout has its own route",
+  fs.existsSync(path.join(here, "..", "src", "app", "(app)", "closeout", "page.tsx"))
+);
+check("it is reachable from the Forms hub", /href: "\/closeout"/.test(hub));
+check("it is not a tenth entry in the nav bar", !/href:\s*"\/closeout"/.test(shell));
+check(
+  "it is not reachable directly from the shell's own menu any more",
+  !/label="Daily closeout"/.test(shell)
+);
+check(
+  "a screen off the nav bar still has a heading of its own",
+  /"\/closeout": "Daily site closeout"/.test(shell)
+);
+check(
+  "the page renders an h2, leaving the shell's h1 alone",
+  /<h2 className="font-display text-\[15px\] font-semibold">Daily site closeout<\/h2>/.test(closeoutPage)
+);
+check(
+  "it is still the SAME record as attendance and the diary, opened the same way",
+  /useSiteDays\(\)/.test(closeoutPage) && /openSiteDay/.test(closeoutPage),
+  "a separate screen must not mean a separate container for the day"
 );
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");

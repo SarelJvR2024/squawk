@@ -6,6 +6,7 @@ import type {
   EvidenceItem,
   Finding,
   Hazard,
+  IncidentReport,
   InterviewDay,
   PriorFinding,
   PossibleEvent,
@@ -18,6 +19,7 @@ import type {
   SiteAccessLog,
   SiteDay,
   SystemAssessment,
+  ToolboxTalk,
   Verification,
 } from "./types";
 import { PPE_ITEMS, PPE_ITEM_LABEL } from "./ppe";
@@ -128,6 +130,14 @@ export interface ExportInput {
    *  visit, empty sheet rather than a crash for an older caller. */
   ppeChecks?: PpeCheck[];
   siteAccessLogs?: SiteAccessLog[];
+  /** TK-003 forms 5 and 6, added 2 October 2026 — reported the same way as
+   *  PPE/site access: optional, filtered to this visit, empty sheet rather
+   *  than a crash for an older caller. Daily closeout (form 8) has no sheet
+   *  of its own, for the same reason the diary does not — both are fields
+   *  on SiteDay itself, and "copy this closeout"/"copy this diary" on their
+   *  own screens already get the text off the tablet. */
+  toolboxTalks?: ToolboxTalk[];
+  incidentReports?: IncidentReport[];
 }
 
 /* ------------------------------------------------------------------ register */
@@ -1214,6 +1224,83 @@ export function siteAccessSheet(x: ExportInput): Sheet {
   };
 }
 
+/** ONE ROW PER ATTENDEE, across every toolbox talk this visit — TK-003 form 6. */
+export function toolboxTalkSheet(x: ExportInput): Sheet {
+  const talks = (x.toolboxTalks ?? []).filter((t) => t.originVisit === x.visit);
+  const rows: CellValue[][] = [];
+  for (const t of talks) {
+    for (const a of t.attendees) {
+      rows.push([t.id, t.date, t.topic, t.facilitator, t.location, a.name, a.organisation, a.role, sigCell(a.signature)]);
+    }
+    if (t.attendees.length === 0) {
+      rows.push([t.id, t.date, t.topic, t.facilitator, t.location, "", "", "", ""]);
+    }
+  }
+  return {
+    name: "Toolbox talks",
+    columns: [
+      { header: "Talk", width: 14 },
+      { header: "Date", width: 12 },
+      { header: "Topic", width: 26 },
+      { header: "Facilitator", width: 20 },
+      { header: "Location", width: 22 },
+      { header: "Name", width: 24 },
+      { header: "Organisation", width: 20 },
+      { header: "Role", width: 18 },
+      { header: "Signed", width: 30 },
+    ],
+    rows,
+  };
+}
+
+/** ONE ROW PER REPORT — TK-003 form 5, built against Annexure 1 of the OHS
+ *  Act. Mitigating actions are flattened to a count rather than their own
+ *  rows, the same choice findingsSheet/hazardsSheet make for their own
+ *  actions lists — this sheet is the statutory record, not the action
+ *  tracker. */
+export function incidentSheet(x: ExportInput): Sheet {
+  const reports = (x.incidentReports ?? []).filter((r) => r.originVisit === x.visit);
+  return {
+    name: "Incidents",
+    columns: [
+      { header: "Report", width: 14 },
+      { header: "Type", width: 12 },
+      { header: "Date", width: 12 },
+      { header: "Time", width: 10 },
+      { header: "Location", width: 24 },
+      { header: "Affected person", width: 24 },
+      { header: "Part of body", width: 16 },
+      { header: "Effect", width: 18 },
+      { header: "Exposure", width: 32, wrap: true },
+      { header: "Comp. Commissioner notified", width: 18 },
+      { header: "DoL notified", width: 18 },
+      { header: "Investigator", width: 22 },
+      { header: "Description", width: 36, wrap: true },
+      { header: "Actions logged", width: 14 },
+      { header: "Completed by", width: 30 },
+      { header: "Competent person", width: 30 },
+    ],
+    rows: reports.map((r) => [
+      r.id,
+      r.isNearMiss ? "Near miss" : "Incident",
+      r.date,
+      r.time,
+      r.location,
+      r.affectedPersonName,
+      r.bodyPartAffected ?? "",
+      r.effect ?? "",
+      r.exposure,
+      r.reportedToCompensationCommissioner ? "Yes" : "No",
+      r.reportedToDoL ? `Yes${r.doLReference.trim() ? ` (${r.doLReference.trim()})` : ""}` : "No",
+      [r.investigatorName, r.investigatorDesignation].filter(Boolean).join(", "),
+      r.description,
+      r.actions.length,
+      sigCell(r.completedSignature) || r.completedBy,
+      sigCell(r.competentPersonSignature) || r.competentPersonName,
+    ]),
+  };
+}
+
 /* --------------------------------------------------------- asset systems */
 
 /** ONE ROW PER ASSET SYSTEM — the rating ACSA actually publishes.
@@ -1503,6 +1590,8 @@ export function fullWorkbook(x: ExportInput): Sheet[] {
     attendanceSheet(x),
     ppeSheet(x),
     siteAccessSheet(x),
+    toolboxTalkSheet(x),
+    incidentSheet(x),
     evidenceLogSheet(x),
     photographsSheet(x),
   ];

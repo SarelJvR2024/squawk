@@ -109,7 +109,7 @@ check(
 
 check(
   "all six are in fullWorkbook, so \"Export the workbook\" carries them without a second button",
-  /isfSheet\(x\),\s*\n\s*interviewsSheet\(x\),\s*\n\s*attendanceSheet\(x\),\s*\n\s*ppeSheet\(x\),\s*\n\s*siteAccessSheet\(x\),\s*\n\s*evidenceLogSheet\(x\),/.test(
+  /isfSheet\(x\),\s*\n\s*interviewsSheet\(x\),\s*\n\s*attendanceSheet\(x\),\s*\n\s*ppeSheet\(x\),\s*\n\s*siteAccessSheet\(x\),[\s\S]{0,200}evidenceLogSheet\(x\),/.test(
     exportsCode
   ),
   ""

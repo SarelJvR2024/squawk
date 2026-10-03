@@ -16,6 +16,7 @@ const store = src("lib", "store.ts");
 const types = src("lib", "types.ts");
 const page = src("app", "(app)", "diary", "page.tsx");
 const shell = src("components", "AppShell.tsx");
+const hub = src("app", "(app)", "forms", "page.tsx");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -205,7 +206,7 @@ check(
 /* ------------------------------------------------------------- 8. reachable */
 
 check("the screen has a route", fs.existsSync(path.join(here, "..", "src", "app", "(app)", "diary", "page.tsx")));
-check("it is reachable from the shell", /router\.push\("\/diary"\)/.test(shell) || /href:\s*"\/diary"/.test(shell));
+check("it is reachable from the Forms hub", /href: "\/diary"/.test(hub));
 check(
   "the page renders an h2, leaving the shell's h1 alone",
   /<h2 className="font-display text-\[15px\] font-semibold">Daily diary<\/h2>/.test(page)

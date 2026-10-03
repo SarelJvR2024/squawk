@@ -146,9 +146,10 @@ check(
   "moving them down is only safe because this bar does not scroll away"
 );
 
-/* A DECISION RECORDED HERE, THEN OVERRIDDEN, AND BOTH HALVES KEPT — same
-   rule the "evidence to request" reversal below already follows: a test
-   that quietly forgets what it used to guard cannot explain itself.
+/* A DECISION RECORDED HERE, THEN OVERRIDDEN TWICE, AND ALL THREE HALVES
+   KEPT — same rule the "evidence to request" reversal below already
+   follows: a test that quietly forgets what it used to guard cannot
+   explain itself.
 
    THEN: the verdict and the non-answers were two rows, deliberately, not
    a way to fit five boxes across 390px. The top row was what the audit
@@ -157,28 +158,29 @@ check(
    Rendered as five identical boxes those would read as five equal
    choices, so they were split.
 
-   NOW (30 Sep): Sarel, looking at the live bar on a wide desktop window
+   THEN (30 Sep): Sarel, looking at the live bar on a wide desktop window
    — "make these buttons smaller. this should all fit in one row." One
-   grid of five overrides that shape on his direct word, but only from lg
-   (1024px): tried flat everywhere first and screenshotted it at 820px,
-   the tablet this app is actually built for, where five columns wrapped
-   several labels to two lines — worse than what it replaced. grid-cols-3
-   below lg keeps the room those labels need; STATUSES' own order (three
-   verdicts, then two qualifiers) happens to wrap a 3-column grid into
-   exactly the old two rows, so the grouping survives down there for
-   free. What survives at every width is the part of the old reasoning
-   that was never about row count in the first place: N/A and Not
-   available still read as a quieter, different kind of answer than a
-   verdict — `quiet` (from `st.group === "qualifier"`) still drops the
-   border weight and lets toneStyle mute them, same as the two-row
-   version did. Only where they sit changed, not what reaching for one
-   means. */
+   grid of five, from lg (1024px) only: five columns wrapped labels to
+   two lines at 820px, the tablet this app is actually built for.
+
+   NOW (2 Oct): Sarel — "On the checks page we have an option for
+   compliant pending evidence, i want to remove that option. Also remove
+   the not available options." Both of STATUSES' two qualifier rows are
+   gone — "Compliant, evidence pending" and "Not available" moved off the
+   verdict entirely, into their own Evidence status panel, which asks a
+   different question from this one (see EVIDENCE_STATUSES). Three
+   buttons fit a single row at every width, so the lg-only five-column
+   grid and its narrower fallback both went with them. STATUSES is left
+   with two verdicts and one qualifier (N/A); `quiet` (from
+   `st.group === "qualifier"`) still drops the border weight and lets
+   toneStyle mute it, same as every earlier shape did. */
 check(
-  "ALL FIVE MERGE TO ONE ROW FROM lg, AND N/A / NOT AVAILABLE STAY VISUALLY QUIETER THROUGHOUT",
-  /grid min-w-\[280px\] flex-1 grid-cols-3 gap-\[4px\] lg:grid-cols-5/.test(codeOnly) &&
+  "THREE IN ONE ROW AT EVERY WIDTH, AND N/A STAYS VISUALLY QUIETER",
+  /grid min-w-\[280px\] flex-1 grid-cols-3 gap-\[4px\]">/.test(codeOnly) &&
+    !/grid-cols-3 gap-\[4px\] lg:grid-cols-5/.test(codeOnly) &&
     /const quiet = st\.group === "qualifier"/.test(codeOnly) &&
     /quiet \? "border" : "border-\[1\.5px\]"/.test(codeOnly),
-  "one grid, not two, per Sarel's direct word — but a verdict and a not-applicable still don't look like the same kind of answer, and 820px (the tablet this is built for) still needs the room three columns gives each label"
+  "two verdicts and one qualifier fit one row at every width now that the two tracking options moved to their own panel — but N/A still shouldn't look like the same kind of answer as a verdict"
 );
 
 check(
@@ -350,10 +352,16 @@ check(
   "a tab pushed off the right edge is a panel nobody knows is there — but five rows of PINNED strip is most of a 664px phone"
 );
 
+/* (?<!EVIDENCE_) EXCLUDES EVIDENCE_STATUSES.map( — added 2 October 2026
+   alongside STATUSES for the separate Evidence status panel. Its name
+   ends in the same four letters, so a plain /STATUSES\.map\(/ search
+   also matches inside "EVIDENCE_STATUSES.map(" and this check would
+   fail for the wrong reason: two arrays that answer two different
+   questions, not two copies of one. */
 check(
   "there is exactly ONE definition of the compliance buttons in the file",
   (codeOnly.match(/^const STATUSES/gm) || []).length === 1 &&
-    (codeOnly.match(/STATUSES\.map\(/g) || []).length === 1,
+    (codeOnly.match(/(?<!EVIDENCE_)STATUSES\.map\(/g) || []).length === 1,
   "one array, mapped once — a second copy would be a second thing to keep in step"
 );
 
