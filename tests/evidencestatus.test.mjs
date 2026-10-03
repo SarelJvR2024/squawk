@@ -63,7 +63,7 @@ check(
 
 check(
   "the store version moved past every build that predates this field",
-  /version: 27,/.test(store)
+  Number(/version: (\d+),/.exec(store)?.[1] ?? 0) >= 27
 );
 check(
   "emptyResponse declares both fields, so a fresh response is explicit",

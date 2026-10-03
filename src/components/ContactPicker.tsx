@@ -45,6 +45,11 @@ export interface PickedPerson {
   name: string;
   organisation?: string;
   role?: string;
+  /** Carried through from the directory when the contact has them on file —
+   *  absent rather than "" for a typed name, so a caller that wants to tell
+   *  "known, but blank" apart from "not looked up at all" still can. */
+  phone?: string;
+  email?: string;
 }
 
 export default function ContactPicker({
@@ -90,6 +95,8 @@ export default function ContactPicker({
       name: `${c.name} ${c.surname}`.trim(),
       organisation: contactOrganisation(c),
       role: c.role.trim(),
+      phone: c.phone.trim(),
+      email: c.email.trim(),
     });
     setQ("");
     setOpen(false);
@@ -116,6 +123,8 @@ export default function ContactPicker({
       company: "",
       department: "",
       location: "",
+      phone: "",
+      email: "",
     });
     /* Explicit empty strings, not an absent key. The seed this becomes gets
        spread over a blank entry in the store (`{ organisation: "", ...seed

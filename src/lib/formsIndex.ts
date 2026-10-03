@@ -13,7 +13,8 @@ import { useMemo } from "react";
 import { useStore, useEntityCode } from "@/lib/store";
 import { missingFields } from "@/lib/isf";
 import { dayGaps as interviewDayGaps } from "@/lib/interviews";
-import { closeoutGaps, dayGaps as attendanceDayGaps, localDate } from "@/lib/attendance";
+import { closeoutGaps, localDate } from "@/lib/attendance";
+import { registerGaps } from "@/lib/attendanceRegister";
 import { checkGaps as ppeCheckGaps } from "@/lib/ppe";
 import { diaryGaps } from "@/lib/diary";
 import { logGaps as siteAccessGaps } from "@/lib/siteAccess";
@@ -71,6 +72,7 @@ export function useFormsIndex(): FormsIndexRow[] {
   const siteAccessLogs = useStore((s) => s.siteAccessLogs);
   const toolboxTalks = useStore((s) => s.toolboxTalks);
   const incidentReports = useStore((s) => s.incidentReports);
+  const attendanceRegisters = useStore((s) => s.attendanceRegisters);
   const evidenceItems = useStore((s) => s.evidenceItems);
 
   return useMemo(() => {
@@ -107,23 +109,25 @@ export function useFormsIndex(): FormsIndexRow[] {
       });
     }
 
-    for (const d of siteDays.filter((x) => x.entity === entityCode)) {
+    for (const r of attendanceRegisters.filter((x) => x.entity === entityCode)) {
       rows.push({
         kind: "attendance",
-        id: d.id,
-        date: d.date,
-        at: d.openedAt,
-        title: "Site attendance",
+        id: r.id,
+        date: r.date,
+        at: r.openedAt,
+        title: r.purpose.trim() || "Attendance register",
         subtitle:
-          d.entries.length === 0
+          r.rows.length === 0
             ? "Nobody recorded"
-            : d.entries.map((e) => e.name || "—").join(", "),
-        href: `/attendance?open=${d.id}`,
+            : r.rows.map((row) => row.name || "—").join(", "),
+        href: `/attendance?open=${r.id}`,
         open: true,
-        gapCount: attendanceDayGaps(d).length,
+        gapCount: registerGaps(r).length,
       });
-      /* Same record, a second row — the diary is its own form to find, even
-         though it shares SiteDay with attendance. See src/app/(app)/diary. */
+    }
+
+    for (const d of siteDays.filter((x) => x.entity === entityCode)) {
+      /* The diary is its own form to find — see src/app/(app)/diary. */
       rows.push({
         kind: "diary",
         id: `${d.id}-diary`,
@@ -252,6 +256,7 @@ export function useFormsIndex(): FormsIndexRow[] {
     siteAccessLogs,
     toolboxTalks,
     incidentReports,
+    attendanceRegisters,
     evidenceItems,
   ]);
 }

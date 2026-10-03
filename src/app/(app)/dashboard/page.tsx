@@ -9,6 +9,7 @@ import {
   usePortfolio,
   checksOf,
   priorFor,
+  useAttendanceRegisters,
   useContacts,
   useEvidenceItems,
   useIncidentReports,
@@ -81,6 +82,7 @@ export default function DashboardPage() {
   const siteAccessLogs = useSiteAccessLogs();
   const toolboxTalks = useToolboxTalks();
   const incidentReports = useIncidentReports();
+  const attendanceRegisters = useAttendanceRegisters();
   const evidenceOutstanding = evidenceItems.filter(isOutstanding).length;
   const contacts = useContacts();
   const contactsHere = contacts.filter((c) => c.site === entityCode).length;
@@ -563,8 +565,8 @@ export default function DashboardPage() {
                           href: "/interviews",
                         },
                         {
-                          label: "Attendance days",
-                          value: siteDays.length,
+                          label: "Attendance registers",
+                          value: attendanceRegisters.length,
                           tone: "acc",
                           icon: <IconTeam width={13} height={13} />,
                           href: "/attendance",

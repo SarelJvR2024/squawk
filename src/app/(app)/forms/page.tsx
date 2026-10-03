@@ -21,7 +21,7 @@ import { IconCheck, IconClipboard, IconFlag, IconInbox, IconLock, IconMic, IconP
 const TILES: Array<{ kind: FormKind | "evidence2"; label: string; hint: string; href: string; icon: ReactNode }> = [
   { kind: "isf", label: "Safety", hint: "Raise an Immediate Safety Finding", href: "/isf", icon: <IconClipboard width={15} height={15} /> },
   { kind: "interview", label: "Interview", hint: "Who you're talking to", href: "/interviews", icon: <IconMic width={15} height={15} /> },
-  { kind: "attendance", label: "Attendance", hint: "Who's arriving on site", href: "/attendance", icon: <IconTeam width={15} height={15} /> },
+  { kind: "attendance", label: "Attendance", hint: "Create a signed register for a meeting", href: "/attendance", icon: <IconTeam width={15} height={15} /> },
   { kind: "diary", label: "Daily diary", hint: "What the day consisted of", href: "/diary", icon: <IconClipboard width={15} height={15} /> },
   { kind: "ppe", label: "PPE check", hint: "Hi-vis, footwear, hearing", href: "/ppe", icon: <IconCheck width={15} height={15} /> },
   { kind: "siteAccess", label: "Site access", hint: "Where the team went", href: "/site-access", icon: <IconPin width={15} height={15} /> },

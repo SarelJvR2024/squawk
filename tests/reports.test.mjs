@@ -109,10 +109,10 @@ check(
 
 check(
   "all six are in fullWorkbook, so \"Export the workbook\" carries them without a second button",
-  /isfSheet\(x\),\s*\n\s*interviewsSheet\(x\),\s*\n\s*attendanceSheet\(x\),\s*\n\s*ppeSheet\(x\),\s*\n\s*siteAccessSheet\(x\),[\s\S]{0,200}evidenceLogSheet\(x\),/.test(
+  /isfSheet\(x\),\s*\n\s*interviewsSheet\(x\),\s*\n\s*attendanceSheet\(x\),[\s\S]{0,100}ppeSheet\(x\),\s*\n\s*siteAccessSheet\(x\),[\s\S]{0,200}evidenceLogSheet\(x\),/.test(
     exportsCode
   ),
-  ""
+  "attendanceRegisterSheet(x), now sits between attendanceSheet and ppeSheet — the six this suite names are unmoved, just no longer flush against each other"
 );
 
 check(

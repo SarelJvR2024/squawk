@@ -133,7 +133,7 @@ const OFF_NAV: Record<string, string> = {
   "/home": "Home",
   "/forms": "All forms",
   "/interviews": "Interview records",
-  "/attendance": "Site attendance",
+  "/attendance": "Attendance register",
   "/diary": "Daily diary",
   "/ppe": "PPE checks",
   "/site-access": "Site access",
