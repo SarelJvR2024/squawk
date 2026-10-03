@@ -38,14 +38,41 @@ import { siteCodeFor, siteFor } from "@/lib/sites";
 import { useFormsHubDeepLink } from "@/lib/deepLink";
 import ContactPicker from "@/components/ContactPicker";
 import { SignaturePad } from "@/components/SignaturePad";
-import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
+import { Btn, Empty, Panel, Pill } from "@/components/ui/primitives";
 import { IconX } from "@/components/ui/icons";
 
-const inputCls = "min-h-[44px] w-full rounded-[9px] border px-3 py-2 text-[13px]";
+const inputCls = "min-h-[38px] w-full rounded-[8px] border px-2.5 py-1.5 text-[12.5px]";
 const inputStyle = { background: "var(--bg)", borderColor: "var(--line)" } as const;
 
 function hhmm(t: number): string {
   return new Date(t).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+/* A FIELD WITHOUT Field's OVERHEAD. Sarel: "Forms need to fit without
+   scrolling, use space efficiently." The shared <Field> primitive
+   (components/ui/primitives.tsx) gives every field its own label row plus
+   16px of bottom margin — right for a screen with four or five fields
+   total, but this register's date/time/purpose/location block alone used
+   four of them stacked, which is most of what pushed an open register
+   with a single row 600-900px past a 664px tablet screen. This is the
+   same label-over-input shape at a fraction of the chrome: a 9px mono
+   label with 2px of its own margin, no separate hint row, no bottom
+   margin of its own — the grid it sits in supplies the gap instead. Kept
+   local to this screen rather than changed in the shared primitive, which
+   every other form in the app still wants its normal spacing from. */
+function mini(label: string, input: React.ReactNode, hint?: string) {
+  return (
+    <label className="block">
+      <span
+        className="mb-[3px] flex items-baseline justify-between font-mono text-[9px] font-semibold tracking-wide"
+        style={{ color: "var(--ink-4)" }}
+      >
+        {label}
+        {hint ? <span className="font-normal normal-case tracking-normal">{hint}</span> : null}
+      </span>
+      {input}
+    </label>
+  );
 }
 
 /* The local calendar date, not toISOString() — the same reason
@@ -113,9 +140,9 @@ export default function AttendancePage() {
   return (
     <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
       <div className="mx-auto w-full max-w-[760px] px-4 pb-24 pt-3">
-      <header className="mb-3">
+      <header className="mb-2.5">
         <h2 className="font-display text-[15px] font-semibold">Attendance register</h2>
-        <p className="mt-1 text-[11px]" style={{ color: "var(--ink-3)" }}>
+        <p className="mt-0.5 text-[11px]" style={{ color: "var(--ink-3)" }}>
           A signed sign-in sheet for a meeting, muster or briefing. Create one for now, or
           ahead of time for a date still to come — it can sit blank until it is needed.
         </p>
@@ -124,10 +151,15 @@ export default function AttendancePage() {
       {/* CREATE A NEW REGISTER. Always pressable — nothing here is required,
           because a blank register created ahead of time is the whole point
           of this screen. Date defaults to today and time is blank; both are
-          editable here and again after creation. */}
-      <Panel tone="accent" className="mb-4">
-        <div className="mb-2 grid grid-cols-2 gap-[8px]">
-          <Field label="DATE">
+          editable here and again after creation.
+
+          ONE ROW OF FOUR, NOT FOUR STACKED FIELDS. Sarel: "Forms need to
+          fit without scrolling, use space efficiently." mini() replaces
+          <Field> here — see its own comment above. */}
+      <Panel tone="accent" className="mb-3 py-[9px]">
+        <div className="grid grid-cols-2 gap-[6px] sm:grid-cols-4">
+          {mini(
+            "DATE",
             <input
               type="date"
               value={draftDate}
@@ -136,8 +168,9 @@ export default function AttendancePage() {
               className={inputCls}
               style={inputStyle}
             />
-          </Field>
-          <Field label="TIME" hint="optional">
+          )}
+          {mini(
+            "TIME",
             <input
               type="time"
               value={draftTime}
@@ -145,31 +178,36 @@ export default function AttendancePage() {
               aria-label="Time for the new register"
               className={inputCls}
               style={inputStyle}
-            />
-          </Field>
+            />,
+            "optional"
+          )}
+          {mini(
+            "PURPOSE",
+            <input
+              value={draftPurpose}
+              onChange={(e) => setDraftPurpose(e.target.value)}
+              aria-label="Purpose of the meeting"
+              placeholder="Morning muster…"
+              className={inputCls}
+              style={inputStyle}
+            />,
+            "optional"
+          )}
+          {mini(
+            "LOCATION",
+            <input
+              value={draftLocation}
+              onChange={(e) => setDraftLocation(e.target.value)}
+              aria-label="Location for the new register"
+              placeholder="Site office…"
+              className={inputCls}
+              style={inputStyle}
+            />,
+            "optional"
+          )}
         </div>
-        <Field label="PURPOSE" hint="optional">
-          <input
-            value={draftPurpose}
-            onChange={(e) => setDraftPurpose(e.target.value)}
-            aria-label="Purpose of the meeting"
-            placeholder="Toolbox attendance, morning muster, site induction…"
-            className={inputCls}
-            style={inputStyle}
-          />
-        </Field>
-        <Field label="LOCATION" hint="optional">
-          <input
-            value={draftLocation}
-            onChange={(e) => setDraftLocation(e.target.value)}
-            aria-label="Location for the new register"
-            placeholder="Site office, apron stand 14…"
-            className={inputCls}
-            style={inputStyle}
-          />
-        </Field>
-        <div className="flex justify-end">
-          <Btn variant="primary" onClick={createRegister} className="mt-[6px]">
+        <div className="mt-[8px] flex justify-end">
+          <Btn variant="primary" onClick={createRegister}>
             Create register
           </Btn>
         </div>
@@ -187,7 +225,7 @@ export default function AttendancePage() {
         const gaps = registerGaps(r);
         const unbacked = unbackedSignatures(r);
         return (
-          <div key={r.id} data-record-id={r.id} className="mb-3">
+          <div key={r.id} data-record-id={r.id} className="mb-2">
             <Panel>
               <button
                 type="button"
@@ -216,9 +254,10 @@ export default function AttendancePage() {
               </button>
 
               {isOpen ? (
-                <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--line)" }}>
-                  <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <Field label="DATE">
+                <div className="mt-2.5 border-t pt-2.5" style={{ borderColor: "var(--line)" }}>
+                  <div className="mb-2.5 grid grid-cols-2 gap-[6px] sm:grid-cols-4">
+                    {mini(
+                      "DATE",
                       <input
                         type="date"
                         value={r.date}
@@ -227,8 +266,9 @@ export default function AttendancePage() {
                         className={inputCls}
                         style={inputStyle}
                       />
-                    </Field>
-                    <Field label="TIME" hint="optional">
+                    )}
+                    {mini(
+                      "TIME",
                       <input
                         type="time"
                         value={r.time}
@@ -237,8 +277,9 @@ export default function AttendancePage() {
                         className={inputCls}
                         style={inputStyle}
                       />
-                    </Field>
-                    <Field label="PURPOSE" hint="optional">
+                    )}
+                    {mini(
+                      "PURPOSE",
                       <input
                         value={r.purpose}
                         onChange={(e) => patchRegister(r.id, { purpose: e.target.value })}
@@ -246,8 +287,9 @@ export default function AttendancePage() {
                         className={inputCls}
                         style={inputStyle}
                       />
-                    </Field>
-                    <Field label="LOCATION" hint="optional">
+                    )}
+                    {mini(
+                      "LOCATION",
                       <input
                         value={r.location}
                         onChange={(e) => patchRegister(r.id, { location: e.target.value })}
@@ -255,10 +297,11 @@ export default function AttendancePage() {
                         className={inputCls}
                         style={inputStyle}
                       />
-                    </Field>
+                    )}
                   </div>
 
-                  <Field label="WHO WAS THERE" hint={`${r.rows.length} recorded`}>
+                  {mini(
+                    `WHO WAS THERE`,
                     <ContactPicker
                       entityCode={entityCode}
                       placeholder="Search the directory, or type a new name"
@@ -271,16 +314,17 @@ export default function AttendancePage() {
                           email: p.email ?? "",
                         })
                       }
-                    />
-                  </Field>
+                    />,
+                    `${r.rows.length} recorded`
+                  )}
 
                   {r.rows.map((row) => (
                     <div
                       key={row.id}
-                      className="mb-3 mt-3 rounded-[9px] border p-2.5"
+                      className="mb-2 mt-2 rounded-[9px] border p-2"
                       style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
                     >
-                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <div className="mb-[6px] flex flex-wrap items-center justify-between gap-2">
                         {isSigned(row) ? (
                           <Pill tone="accent">SIGNED {row.signature?.ref}</Pill>
                         ) : (
@@ -296,17 +340,25 @@ export default function AttendancePage() {
                         onChange={(ev) => patchRow(r.id, row.id, { name: ev.target.value })}
                         aria-label={`Name of attendee ${row.id}`}
                         placeholder="Full name"
-                        className={`mb-2 ${inputCls}`}
+                        className={`mb-[6px] ${inputCls}`}
                         style={inputStyle}
                       />
 
-                      <div className="mb-2 flex flex-wrap gap-[6px]">
+                      {/* ROLE/ORGANISATION, THEN PHONE/EMAIL — a 2x2 grid, not
+                          two full-width rows each. Sarel: "Forms need to fit
+                          without scrolling, use space efficiently." Phone and
+                          email are patched onto the directory contact too,
+                          when there is one — Sarel: "if they're not already
+                          on the system with the email and phone number they
+                          can be added in there" — so the next form that picks
+                          this person already has it. */}
+                      <div className="grid grid-cols-2 gap-[6px]">
                         <input
                           value={row.role}
                           onChange={(ev) => patchRow(r.id, row.id, { role: ev.target.value })}
                           aria-label={`Role of attendee ${row.id}`}
                           placeholder="Role (optional)"
-                          className="min-h-[44px] flex-1 min-w-[140px] rounded-[9px] border px-3 text-[13px]"
+                          className={inputCls}
                           style={inputStyle}
                         />
                         <input
@@ -314,18 +366,9 @@ export default function AttendancePage() {
                           onChange={(ev) => patchRow(r.id, row.id, { organisation: ev.target.value })}
                           aria-label={`Organisation of attendee ${row.id}`}
                           placeholder="Organisation (optional)"
-                          className="min-h-[44px] flex-1 min-w-[160px] rounded-[9px] border px-3 text-[13px]"
+                          className={inputCls}
                           style={inputStyle}
                         />
-                      </div>
-
-                      {/* CONTACT DETAILS. Right on the row, not a trip to the
-                          People screen — Sarel: "if they're not already on
-                          the system with the email and phone number they
-                          can be added in there." Patched onto the directory
-                          contact too, when there is one, so the next form
-                          that picks this person already has it. */}
-                      <div className="mb-2 flex flex-wrap gap-[6px]">
                         <input
                           value={row.phone}
                           onChange={(ev) => {
@@ -335,7 +378,7 @@ export default function AttendancePage() {
                           type="tel"
                           aria-label={`Phone number of attendee ${row.id}`}
                           placeholder="Phone (optional)"
-                          className="min-h-[44px] flex-1 min-w-[140px] rounded-[9px] border px-3 text-[13px]"
+                          className={inputCls}
                           style={inputStyle}
                         />
                         <input
@@ -347,10 +390,11 @@ export default function AttendancePage() {
                           type="email"
                           aria-label={`Email address of attendee ${row.id}`}
                           placeholder="Email (optional)"
-                          className="min-h-[44px] flex-1 min-w-[160px] rounded-[9px] border px-3 text-[13px]"
+                          className={inputCls}
                           style={inputStyle}
                         />
                       </div>
+                      <div className="mt-[6px]" />
 
                       {signing === row.id ? (
                         <SignaturePad
@@ -383,7 +427,7 @@ export default function AttendancePage() {
                   ) : null}
 
                   <div
-                    className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t pt-3"
+                    className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t pt-2"
                     style={{ borderColor: "var(--line)" }}
                   >
                     <Btn onClick={() => void copyRegister(r.id)}>
@@ -399,7 +443,7 @@ export default function AttendancePage() {
                     </Btn>
                   </div>
                   {unbacked.length ? (
-                    <p className="mt-2 font-mono text-[9px]" style={{ color: "var(--warn)" }}>
+                    <p className="mt-1.5 font-mono text-[9px]" style={{ color: "var(--warn)" }}>
                       {unbacked.length} SIGNATURE{unbacked.length > 1 ? "S" : ""} ON THIS DEVICE ONLY. THE
                       RECORD COPY IS NOT WIRED YET — COPY THE REGISTER OUT BEFORE THE TABLET LEAVES SITE.
                     </p>
