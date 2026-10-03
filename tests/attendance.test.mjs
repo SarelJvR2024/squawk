@@ -4,6 +4,20 @@ import { fileURLToPath } from "node:url";
 
 /* Site attendance and the daily diary — TK-003 form 2 on the tablet.
  *
+ *  REVISED 3 October 2026. Sarel replaced the daily arrival/departure log
+ *  with a creatable, multi-per-day attendance register (see
+ *  src/lib/attendanceRegister.ts and tests/attendanceregister.test.mjs) —
+ *  the live /attendance screen no longer reads SiteDay.entries at all.
+ *  This suite keeps guarding what did NOT move: src/lib/attendance.ts's
+ *  pure functions and the siteDays store slice are untouched, because the
+ *  daily diary and the daily closeout still live on SiteDay exactly as
+ *  before (src/app/(app)/diary, src/app/(app)/closeout), and because
+ *  dayText() still has to render any day's attendance entries correctly
+ *  for every day captured before the change. Nothing here tests the old
+ *  /attendance screen's UI any more — the final, "reachable" section below
+ *  asserts what still has to be true of the route now that a different
+ *  screen owns it.
+ *
  *  Two things make this different from the other project-evidence registers.
  *
  *  It is the first record that carries a SIGNATURE, which is the one capability
@@ -47,6 +61,7 @@ const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8"
 const store = src("lib", "store.ts");
 const types = src("lib", "types.ts");
 const page = src("app", "(app)", "attendance", "page.tsx");
+const diaryPage = src("app", "(app)", "diary", "page.tsx");
 const pad = src("components", "SignaturePad.tsx");
 const shell = src("components", "AppShell.tsx");
 const hub = src("app", "(app)", "forms", "page.tsx");
@@ -215,9 +230,12 @@ check(
   ),
   "moving a date either collides with a real day or re-files attendance onto a day nobody was there"
 );
+/* Attendance moved off SiteDay on 3 October 2026 (see
+   tests/attendanceregister.test.mjs) — the diary is now the screen that
+   opens a day, and the no-duplicate-control guard moves with it. */
 check(
-  "the screen has no control that could ask for a duplicate",
-  !/addSiteDay|createSiteDay/.test(page) && /openSiteDay|openDay/.test(page)
+  "the diary screen, which opens the day, has no control that could ask for a duplicate",
+  !/addSiteDay|createSiteDay/.test(diaryPage) && /openSiteDay|openDay/.test(diaryPage)
 );
 
 /* --------------------------------- 3. what a signature signs for, and what not */
@@ -454,12 +472,10 @@ check(
     day({ entries: [complete({ signature: sig({ cloudUrl: "https://x/y.png" }) })] })
   ).length === 0
 );
-check(
-  "and the screen tells the auditor before the tablet leaves site",
-  /THE RECORD COPY IS NOT WIRED YET/.test(page) &&
-    /COPY THE REGISTER OUT BEFORE/.test(page),
-  "the upload queue does not walk signatures, so the warning must not imply a button that would clear it"
-);
+/* The live screen's own unbacked-signature warning moved with attendance —
+   see tests/attendanceregister.test.mjs. unbackedSignatures() itself, the
+   pure function this guards, is unchanged and still correct for any day
+   captured before the move. */
 
 /* -------------------------------------------------------- 10. the day's text */
 
@@ -684,22 +700,17 @@ check(
 );
 check(
   "a screen off the nav bar still has a heading of its own",
-  /"\/attendance": "Site attendance"/.test(shell)
+  /"\/attendance": "Attendance register"/.test(shell)
 );
 check(
   "the page renders an h2, leaving the shell's h1 alone",
-  /<h2 className="font-display text-\[15px\] font-semibold">Site attendance/.test(page),
+  /<h2 className="font-display text-\[15px\] font-semibold">Attendance register/.test(page),
   "two h1s is the defect the a11y suite caught on the first two forms"
 );
-check(
-  "the clock is read as an external system, not called during render",
-  !/const now = Date\.now\(\)/.test(page) && /useNow\(\)/.test(page)
-);
-check(
-  "a date input is parsed at local midday, not UTC midnight",
-  /T12:00:00/.test(page),
-  "midnight UTC lands on the previous day everywhere east of Greenwich"
-);
+/* The live screen no longer reads a device clock at all — register dates
+   are a plain string field, set once per new-register draft, with no
+   timestamp to parse and so no UTC-midnight trap to guard against. See
+   tests/attendanceregister.test.mjs for what replaced these two checks. */
 
 /* ----------------------------------------------- 13. closeout, its own screen */
 

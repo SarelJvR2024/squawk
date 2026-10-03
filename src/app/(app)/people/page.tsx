@@ -39,6 +39,8 @@ const blankDraft = (site: string) => ({
   company: "",
   department: "",
   location: "",
+  phone: "",
+  email: "",
 });
 
 function SiteSelect({
@@ -129,6 +131,8 @@ export default function PeoplePage() {
       company: draft.company.trim(),
       department: draft.department.trim(),
       location: draft.location.trim(),
+      phone: draft.phone.trim(),
+      email: draft.email.trim(),
     });
     setDraft(blankDraft(draft.site));
   };
@@ -247,6 +251,24 @@ export default function PeoplePage() {
               onChange={(e) => setDraft((d) => ({ ...d, location: e.target.value }))}
               placeholder="Location"
               aria-label="Location"
+              className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+              style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+            />
+            <input
+              value={draft.phone}
+              onChange={(e) => setDraft((d) => ({ ...d, phone: e.target.value }))}
+              type="tel"
+              placeholder="Phone"
+              aria-label="Phone"
+              className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+              style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+            />
+            <input
+              value={draft.email}
+              onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))}
+              type="email"
+              placeholder="Email"
+              aria-label="Email"
               className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             />
@@ -379,6 +401,24 @@ export default function PeoplePage() {
                             onChange={(e) => updateContact(c.id, { location: e.target.value })}
                             placeholder="Location"
                             aria-label="Location"
+                            className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+                            style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+                          />
+                          <input
+                            value={c.phone}
+                            onChange={(e) => updateContact(c.id, { phone: e.target.value })}
+                            type="tel"
+                            placeholder="Phone"
+                            aria-label="Phone"
+                            className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+                            style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+                          />
+                          <input
+                            value={c.email}
+                            onChange={(e) => updateContact(c.id, { email: e.target.value })}
+                            type="email"
+                            placeholder="Email"
+                            aria-label="Email"
                             className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
                             style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
                           />

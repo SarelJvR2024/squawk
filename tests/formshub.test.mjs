@@ -175,10 +175,11 @@ check(
   "interviews disables the pinned picker on a closed day or before the clock loads",
   /disabled=\{todaysDay\?\.closedAt != null \|\| !now\}/.test(interviewsPage)
 );
-check(
-  "attendance disables the pinned picker before the clock loads",
-  /disabled=\{!now\}/.test(attendancePage)
-);
+/* REVERSED 3 October 2026, with the daily arrival/departure log that this
+   guarded. The new attendance register (see tests/attendanceregister.test.mjs)
+   reads no device clock at all — a register's date is a plain string field,
+   typed or left at the create-form's default, so there is no "waiting for
+   the clock" state for a picker to be disabled against any more. */
 check(
   "ppe defaults a typed person's organisation and role rather than passing them through raw",
   /organisation: p\.organisation \?\? "", role: p\.role \?\? ""/.test(src("app", "(app)", "ppe", "page.tsx")),
@@ -196,7 +197,7 @@ check(
   "every row's href carries the record's own id, not just the screen",
   /href: `\/isf\?open=\$\{f\.id\}`/.test(index) &&
     /href: `\/interviews\?open=\$\{d\.id\}`/.test(index) &&
-    /href: `\/attendance\?open=\$\{d\.id\}`/.test(index) &&
+    /href: `\/attendance\?open=\$\{r\.id\}`/.test(index) &&
     /href: `\/ppe\?open=\$\{c\.id\}`/.test(index) &&
     /href: `\/site-access\?open=\$\{l\.id\}`/.test(index) &&
     /href: `\/evidence\?open=\$\{e\.id\}`/.test(index)

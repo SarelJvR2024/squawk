@@ -5,6 +5,7 @@ import {
   checksAt,
   priorFindingsAt,
   useResponses,
+  useAttendanceRegisters,
   useEntityCode,
   useEvidenceItems,
   useIncidentReports,
@@ -29,6 +30,7 @@ import { portalIdFor } from "@/lib/sites";
 import {
   aboutSheet,
   attendanceSheet,
+  attendanceRegisterSheet,
   closureSheet,
   evidenceLogSheet,
   evidenceRequestSheet,
@@ -65,6 +67,7 @@ type Kind =
   | "isf"
   | "interviews"
   | "attendance"
+  | "attendanceregister"
   | "ppe"
   | "siteaccess"
   | "toolboxtalk"
@@ -78,7 +81,7 @@ const OPTIONS: { kind: Kind; title: string; blurb: string }[] = [
     kind: "full",
     title: "Everything",
     blurb:
-      "Eighteen sheets: a cover note explaining what a blank cell means, the summary, the register, the asset-system ratings, the findings, the hazards, the closure position, what the walk found, the evidence request, safety (ISF), interviews, attendance, PPE checks, site access, toolbox talks, incidents, the evidence log and the photograph index.",
+      "Nineteen sheets: a cover note explaining what a blank cell means, the summary, the register, the asset-system ratings, the findings, the hazards, the closure position, what the walk found, the evidence request, safety (ISF), interviews, attendance (legacy), the attendance register, PPE checks, site access, toolbox talks, incidents, the evidence log and the photograph index.",
   },
   {
     kind: "register",
@@ -129,9 +132,15 @@ const OPTIONS: { kind: Kind; title: string; blurb: string }[] = [
   },
   {
     kind: "attendance",
-    title: "Attendance",
+    title: "Attendance (legacy)",
     blurb:
-      "Every person on site this visit, by day — organisation, role, time on site, where they worked and what they did, with who signed and when.",
+      "Every person on site this visit, by day — organisation, role, time on site, where they worked and what they did, with who signed and when. Kept for any day captured before 3 October 2026; the live register below replaced it.",
+  },
+  {
+    kind: "attendanceregister",
+    title: "Attendance register",
+    blurb:
+      "Every attendance register created this visit — date, time, location and purpose of the meeting, and who attended with their contact details and signature.",
   },
   {
     kind: "ppe",
@@ -195,6 +204,7 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
   const siteAccessLogs = useSiteAccessLogs();
   const toolboxTalks = useToolboxTalks();
   const incidentReports = useIncidentReports();
+  const attendanceRegisters = useAttendanceRegisters();
   const evidenceItems = useEvidenceItems();
   const entityCode = useEntityCode();
   const [budget, setBudget] = useState({ count: 0, bytes: 0 });
@@ -340,6 +350,7 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
         siteAccessLogs,
         toolboxTalks,
         incidentReports,
+        attendanceRegisters,
         evidenceItems,
         library,
       };
@@ -353,6 +364,7 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
         isf: () => isfSheet(x),
         interviews: () => interviewsSheet(x),
         attendance: () => attendanceSheet(x),
+        attendanceregister: () => attendanceRegisterSheet(x),
         ppe: () => ppeSheet(x),
         siteaccess: () => siteAccessSheet(x),
         toolboxtalk: () => toolboxTalkSheet(x),

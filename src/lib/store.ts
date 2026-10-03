@@ -18,6 +18,8 @@ import { clearAllMedia, delBlob, delBlobs } from "./media";
 import type {
   AdHocItem,
   Attachment,
+  AttendanceRegister,
+  AttendanceRow,
   Capture,
   Check,
   Compliance,
@@ -89,6 +91,10 @@ import {
   signedFieldsChanged as toolboxSignedFieldsChanged,
 } from "./toolbox";
 import { incidentSignedFieldsChanged } from "./incident";
+import {
+  nextSignatureRef as nextAttendanceRegisterSignatureRef,
+  signedFieldsChanged as attendanceRegisterSignedFieldsChanged,
+} from "./attendanceRegister";
 
 /* The register and the 2025 data are pure lookups and live in ./register, so a
    non-React caller (src/lib/exports.ts) can use them without importing this
@@ -376,6 +382,14 @@ interface State {
   /** Incident / near-miss reports — TK-003 form 5, built against Annexure 1
    *  of the OHS Act. Flat, scoped by entity, one per incident. */
   incidentReports: IncidentReport[];
+  /** Attendance registers, one per register created — a signed sign-in
+   *  sheet for a meeting, muster or briefing. Same "one per occasion" shape
+   *  as toolboxTalks, and for the same reason: a morning muster and an
+   *  afternoon one are two registers, not two rows in one. Replaces
+   *  SiteDay.entries as of 3 October 2026 — see AttendanceRegister in
+   *  types.ts. SiteDay itself is untouched and still carries the diary and
+   *  the daily closeout. */
+  attendanceRegisters: AttendanceRegister[];
   /** The people directory. Flat, and unlike everything above it not even
    *  scoped by visit at the record level — see the note on Contact in
    *  types.ts. A person's role at an airport does not change between audit
@@ -569,6 +583,31 @@ interface State {
     s: Omit<Signature, "ref">
   ) => void;
 
+  /* ---- Attendance registers, one per register created. See
+     src/lib/attendanceRegister.ts. openAttendanceRegister ALWAYS creates a
+     new one, like openToolboxTalk — unlike openSiteDay, there is no
+     open-or-return, because several registers the same day are exactly
+     what this is for. ---- */
+  openAttendanceRegister: (seed?: Partial<AttendanceRegister>) => string;
+  updateAttendanceRegister: (id: string, p: Partial<AttendanceRegister>) => void;
+  removeAttendanceRegister: (id: string) => void;
+  addAttendanceRow: (
+    id: string,
+    name: string,
+    seed?: Partial<AttendanceRow>
+  ) => string;
+  updateAttendanceRow: (
+    id: string,
+    rowId: string,
+    p: Partial<AttendanceRow>
+  ) => void;
+  removeAttendanceRow: (id: string, rowId: string) => void;
+  signAttendanceRow: (
+    id: string,
+    rowId: string,
+    s: Omit<Signature, "ref">
+  ) => void;
+
   /* ---- Incident / near-miss reports, built against OHS Act Annexure 1.
      See src/lib/incident.ts. ---- */
   addIncidentReport: (seed?: Partial<IncidentReport>) => string;
@@ -759,6 +798,7 @@ export const useStore = create<State>()(
         siteAccessLogs: [],
         toolboxTalks: [],
         incidentReports: [],
+        attendanceRegisters: [],
         contacts: [],
         lastSavedAt: null,
         hydrated: false,
@@ -2087,6 +2127,116 @@ export const useStore = create<State>()(
           if (previous?.blobKey && previous.blobKey !== sig.blobKey) void delBlob(previous.blobKey);
         },
 
+        /* ---- Attendance registers. See src/lib/attendanceRegister.ts. ---- */
+
+        openAttendanceRegister: (seed) => {
+          const id = `ATR-${uid().toUpperCase().slice(0, 5)}`;
+          const now = Date.now();
+          const s0 = get();
+          set((s) => ({
+            attendanceRegisters: [
+              ...s.attendanceRegisters,
+              {
+                entity: s.entity,
+                originVisit: s.visit,
+                date: localDate(now),
+                time: "",
+                location: "",
+                purpose: "",
+                openedAt: now,
+                openedBy: s0.auditor || "",
+                rows: [],
+                ...seed,
+                id,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          }));
+          return id;
+        },
+
+        updateAttendanceRegister: (id, p) =>
+          set((s) => ({
+            attendanceRegisters: s.attendanceRegisters.map((r) =>
+              r.id === id
+                ? { ...r, ...p, id: r.id, entity: r.entity, createdAt: r.createdAt, updatedAt: Date.now() }
+                : r
+            ),
+          })),
+
+        removeAttendanceRegister: (id) => {
+          const r = get().attendanceRegisters.find((x) => x.id === id);
+          const keys = (r?.rows ?? [])
+            .map((row) => row.signature?.blobKey)
+            .filter((k): k is string => !!k);
+          set((s) => ({
+            attendanceRegisters: s.attendanceRegisters.filter((x) => x.id !== id),
+          }));
+          if (keys.length) void delBlobs(keys);
+        },
+
+        addAttendanceRow: (id, name, seed) => {
+          const r = get().attendanceRegisters.find((x) => x.id === id);
+          if (!r) return "";
+          const rowId = uid();
+          const now = Date.now();
+          get().updateAttendanceRegister(id, {
+            rows: [
+              ...r.rows,
+              {
+                name,
+                organisation: "",
+                role: "",
+                phone: "",
+                email: "",
+                signature: null,
+                ...seed,
+                id: rowId,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          });
+          return rowId;
+        },
+
+        updateAttendanceRow: (id, rowId, p) => {
+          const r = get().attendanceRegisters.find((x) => x.id === id);
+          if (!r) return;
+          const { id: _i, createdAt: _c, signature: _s, ...safe } = p;
+          void _i; void _c; void _s;
+          const invalidates = attendanceRegisterSignedFieldsChanged(safe);
+          get().updateAttendanceRegister(id, {
+            rows: r.rows.map((row) =>
+              row.id === rowId
+                ? { ...row, ...safe, ...(invalidates ? { signature: null } : {}), updatedAt: Date.now() }
+                : row
+            ),
+          });
+        },
+
+        removeAttendanceRow: (id, rowId) => {
+          const r = get().attendanceRegisters.find((x) => x.id === id);
+          if (!r) return;
+          const gone = r.rows.find((row) => row.id === rowId);
+          get().updateAttendanceRegister(id, { rows: r.rows.filter((row) => row.id !== rowId) });
+          if (gone?.signature?.blobKey) void delBlob(gone.signature.blobKey);
+        },
+
+        signAttendanceRow: (id, rowId, sig) => {
+          const r = get().attendanceRegisters.find((x) => x.id === id);
+          if (!r) return;
+          const ref = nextAttendanceRegisterSignatureRef(id, r.rows);
+          const previous = r.rows.find((row) => row.id === rowId)?.signature;
+          get().updateAttendanceRegister(id, {
+            rows: r.rows.map((row) =>
+              row.id === rowId ? { ...row, signature: { ...sig, ref }, updatedAt: Date.now() } : row
+            ),
+          });
+          if (previous?.blobKey && previous.blobKey !== sig.blobKey) void delBlob(previous.blobKey);
+        },
+
         addIncidentReport: (seed) => {
           const id = `INC-${uid().toUpperCase().slice(0, 5)}`;
           const now = Date.now();
@@ -2820,7 +2970,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 27,
+      version: 28,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -2834,6 +2984,7 @@ export const useStore = create<State>()(
           siteAccessLogs?: SiteAccessLog[];
           toolboxTalks?: ToolboxTalk[];
           incidentReports?: IncidentReport[];
+          attendanceRegisters?: AttendanceRegister[];
           contacts?: Contact[];
           responses?: Record<string, Response>;
           verifications?: Record<string, Verification>;
@@ -3355,6 +3506,24 @@ export const useStore = create<State>()(
             }
           }
         }
+        if (from < 28) {
+          /* The attendance register, replacing SiteDay.entries as the live
+             sign-in sheet (Sarel, 3 October 2026: "there must be an option
+             to create a new attendance register... we can even create
+             attendance registers ahead of time"). A new top-level
+             collection, same pattern as toolboxTalks at `from < 26` — an
+             old persisted state simply does not have the key yet.
+             Contact also gains phone/email for the same feature; every
+             contact already on file predates them. */
+          if (!Array.isArray(st.attendanceRegisters)) st.attendanceRegisters = [];
+          if (Array.isArray(st.contacts)) {
+            for (const c of st.contacts) {
+              const contact = c as Partial<Contact>;
+              if (contact.phone === undefined) contact.phone = "";
+              if (contact.email === undefined) contact.email = "";
+            }
+          }
+        }
         return st;
       },
       partialize: (s: State) => ({
@@ -3375,6 +3544,7 @@ export const useStore = create<State>()(
         siteAccessLogs: s.siteAccessLogs,
         toolboxTalks: s.toolboxTalks,
         incidentReports: s.incidentReports,
+        attendanceRegisters: s.attendanceRegisters,
         contacts: s.contacts,
         lastSavedAt: s.lastSavedAt,
       }),
@@ -3598,6 +3768,18 @@ export function useToolboxTalks(): ToolboxTalk[] {
   const entity = useStore((s) => s.entity);
   return useMemo(
     () => all.filter((t) => t.entity === entity).sort((a, b) => b.openedAt - a.openedAt),
+    [all, entity]
+  );
+}
+
+/** Attendance registers at the entity in view, most recently opened first —
+ *  same shape as useToolboxTalks, one register per occasion rather than
+ *  one per day. */
+export function useAttendanceRegisters(): AttendanceRegister[] {
+  const all = useStore((s) => s.attendanceRegisters);
+  const entity = useStore((s) => s.entity);
+  return useMemo(
+    () => all.filter((r) => r.entity === entity).sort((a, b) => b.openedAt - a.openedAt),
     [all, entity]
   );
 }

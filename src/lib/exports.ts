@@ -2,6 +2,7 @@ import type {
   AdHocItem,
   AnswerLibrary,
   Attachment,
+  AttendanceRegister,
   Check,
   EvidenceItem,
   Finding,
@@ -138,6 +139,11 @@ export interface ExportInput {
    *  own screens already get the text off the tablet. */
   toolboxTalks?: ToolboxTalk[];
   incidentReports?: IncidentReport[];
+  /** Attendance registers, added 3 October 2026 — replaces SiteDay.entries
+   *  as the live sign-in sheet. The old `attendanceSheet` below (reading
+   *  SiteDay.entries) is untouched, for any day captured before the
+   *  change; this is reported the same optional, filtered-to-visit way. */
+  attendanceRegisters?: AttendanceRegister[];
 }
 
 /* ------------------------------------------------------------------ register */
@@ -1253,6 +1259,44 @@ export function toolboxTalkSheet(x: ExportInput): Sheet {
   };
 }
 
+/** ONE ROW PER ATTENDEE, across every attendance register this visit —
+ *  replaces SiteDay.entries (see attendanceSheet above, kept for any day
+ *  captured before 3 October 2026) as the live sign-in sheet. Same shape
+ *  as toolboxTalkSheet, with phone/email in place of arrival/departure. */
+export function attendanceRegisterSheet(x: ExportInput): Sheet {
+  const registers = (x.attendanceRegisters ?? []).filter((r) => r.originVisit === x.visit);
+  const rows: CellValue[][] = [];
+  for (const r of registers) {
+    for (const row of r.rows) {
+      rows.push([
+        r.id, r.date, r.time, r.purpose, r.location,
+        row.name, row.organisation, row.role, row.phone, row.email,
+        sigCell(row.signature),
+      ]);
+    }
+    if (r.rows.length === 0) {
+      rows.push([r.id, r.date, r.time, r.purpose, r.location, "", "", "", "", "", ""]);
+    }
+  }
+  return {
+    name: "Attendance register",
+    columns: [
+      { header: "Register", width: 14 },
+      { header: "Date", width: 12 },
+      { header: "Time", width: 10 },
+      { header: "Purpose", width: 26 },
+      { header: "Location", width: 22 },
+      { header: "Name", width: 24 },
+      { header: "Organisation", width: 20 },
+      { header: "Role", width: 18 },
+      { header: "Phone", width: 16 },
+      { header: "Email", width: 24 },
+      { header: "Signed", width: 30 },
+    ],
+    rows,
+  };
+}
+
 /** ONE ROW PER REPORT — TK-003 form 5, built against Annexure 1 of the OHS
  *  Act. Mitigating actions are flattened to a count rather than their own
  *  rows, the same choice findingsSheet/hazardsSheet make for their own
@@ -1588,6 +1632,7 @@ export function fullWorkbook(x: ExportInput): Sheet[] {
     isfSheet(x),
     interviewsSheet(x),
     attendanceSheet(x),
+    attendanceRegisterSheet(x),
     ppeSheet(x),
     siteAccessSheet(x),
     toolboxTalkSheet(x),

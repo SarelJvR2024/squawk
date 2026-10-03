@@ -45,7 +45,7 @@ const codeOnly = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, 
 
 const contactBlock = types.slice(
   types.indexOf("export interface Contact"),
-  types.indexOf("export interface Contact") + 700
+  types.indexOf("export interface Contact") + 900
 );
 
 check(

@@ -1822,6 +1822,71 @@ export interface ToolboxTalk {
   updatedAt: number;
 }
 
+/* ------------------------------------------------------- attendance register */
+
+/** One row in a signed attendance register — a name, who they were there
+ *  for, how to reach them, and their mark.
+ *
+ *  DELIBERATELY NOT AttendanceEntry (see SiteDay below): no induction,
+ *  arrival/departure, or location/activity tracking. Sarel, 3 October 2026,
+ *  replacing the old daily register with this one — a plain sign-in sheet
+ *  for a meeting: "name, signature, phone/email... no induction/entitlement
+ *  or arrival-departure tracking." */
+export interface AttendanceRow {
+  id: string;
+  contactId?: string;
+  name: string;
+  organisation: string;
+  role: string;
+  /** Contact details for whoever is not yet in the people directory —
+   *  captured right here, on the row, the moment they sign in rather than
+   *  deferred to the People screen. Blank is not an error; not every
+   *  register needs them. */
+  phone: string;
+  email: string;
+
+  signature: Signature | null;
+
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** An attendance register — a signed sign-in sheet for one meeting, muster
+ *  or briefing. ONE RECORD PER REGISTER YOU CREATE, not per day, same
+ *  reasoning as ToolboxTalk: a morning muster and an afternoon toolbox
+ *  attendance are two different registers, and folding both into one
+ *  per-day record is how the second one gets lost inside the first's row
+ *  list.
+ *
+ *  CREATABLE AHEAD OF TIME. `date` and `time` are what the register is FOR
+ *  — set at creation, editable afterwards, and never defaulted to "now" by
+ *  anything other than the creation screen's own starting point — so a
+ *  blank register for next Tuesday's muster can be created today and have
+ *  nobody sign it until Tuesday. `openedAt` is the separate, unedited
+ *  record of when the device actually created it. */
+export interface AttendanceRegister {
+  /** `ATR-xxxxx` — distinct from the legacy `ATT-xxxxx` SiteDay id, so the
+   *  two are never confusable in an export or a signature reference. */
+  id: string;
+  entity: string;
+  originVisit: string;
+
+  date: string;
+  /** `HH:MM`, 24-hour, free text validated by the input itself — when the
+   *  meeting is or was. */
+  time: string;
+  location: string;
+  purpose: string;
+
+  openedAt: number;
+  openedBy: string;
+
+  rows: AttendanceRow[];
+
+  createdAt: number;
+  updatedAt: number;
+}
+
 /* ------------------------------------------------------------- site access */
 
 /** Which side a visitor to one area was on — the question Sarel's own answer
@@ -2018,6 +2083,11 @@ export interface Contact {
   company: string;
   department: string;
   location: string;
+  /** Added 3 October 2026 for the new attendance register, which needs a
+   *  way to reach somebody who signed in — blank for every contact on file
+   *  before then, and for anyone added since who nobody has asked yet. */
+  phone: string;
+  email: string;
   createdAt: number;
   updatedAt: number;
 }
