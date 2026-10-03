@@ -39,7 +39,7 @@ import { useFormsHubDeepLink } from "@/lib/deepLink";
 import ContactPicker from "@/components/ContactPicker";
 import { SignaturePad } from "@/components/SignaturePad";
 import { Btn, Empty, Panel, Pill } from "@/components/ui/primitives";
-import { IconX } from "@/components/ui/icons";
+import { IconLeft, IconX } from "@/components/ui/icons";
 
 const inputCls = "min-h-[38px] w-full rounded-[8px] border px-2.5 py-1.5 text-[12.5px]";
 const inputStyle = { background: "var(--bg)", borderColor: "var(--line)" } as const;
@@ -105,6 +105,7 @@ export default function AttendancePage() {
   useFormsHubDeepLink(setOpenId);
 
   const site = siteFor(entityCode);
+  const openRegister = registers.find((x) => x.id === openId) ?? null;
 
   function createRegister() {
     const id = open({
@@ -135,6 +136,231 @@ export default function AttendancePage() {
     } catch {
       window.prompt("Copy this register", text);
     }
+  }
+
+  /* ONE REGISTER AT A TIME, FULL FOCUS. Sarel: "when editing a specific
+     form like the attendance register, don't show the top section to
+     create a new register — it should represent only that specific
+     register and will be passed around to get everyone to sign it." An
+     open register is handed from person to person on the tablet; the
+     create panel and every other register on the list are noise on a
+     screen somebody else is about to sign. Closing it (the back link)
+     returns to the full list, where creating and choosing a register
+     still happen exactly as before. */
+  if (openRegister) {
+    const r = openRegister;
+    const unbacked = unbackedSignatures(r);
+    return (
+      <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <div className="mx-auto w-full max-w-[760px] px-4 pb-24 pt-3">
+          <button
+            type="button"
+            onClick={() => setOpenId(null)}
+            className="mb-2.5 flex items-center gap-1 text-[12px] font-semibold"
+            style={{ color: "var(--acc)" }}
+          >
+            <IconLeft width={12} height={12} />
+            All registers
+          </button>
+
+          <Panel>
+            <div data-record-id={r.id} className="grid grid-cols-2 gap-[6px] sm:grid-cols-4">
+              {mini(
+                "DATE",
+                <input
+                  type="date"
+                  value={r.date}
+                  onChange={(e) => patchRegister(r.id, { date: e.target.value })}
+                  aria-label={`Date for register ${r.id}`}
+                  className={inputCls}
+                  style={inputStyle}
+                />
+              )}
+              {mini(
+                "TIME",
+                <input
+                  type="time"
+                  value={r.time}
+                  onChange={(e) => patchRegister(r.id, { time: e.target.value })}
+                  aria-label={`Time for register ${r.id}`}
+                  className={inputCls}
+                  style={inputStyle}
+                />
+              )}
+              {mini(
+                "PURPOSE",
+                <input
+                  value={r.purpose}
+                  onChange={(e) => patchRegister(r.id, { purpose: e.target.value })}
+                  aria-label={`Purpose for register ${r.id}`}
+                  className={inputCls}
+                  style={inputStyle}
+                />
+              )}
+              {mini(
+                "LOCATION",
+                <input
+                  value={r.location}
+                  onChange={(e) => patchRegister(r.id, { location: e.target.value })}
+                  aria-label={`Location for register ${r.id}`}
+                  className={inputCls}
+                  style={inputStyle}
+                />
+              )}
+            </div>
+
+            {mini(
+              `WHO WAS THERE`,
+              <ContactPicker
+                entityCode={entityCode}
+                placeholder="Search the directory, or type a new name"
+                onAdd={(p) =>
+                  addRow(r.id, p.name, {
+                    contactId: p.contactId,
+                    organisation: p.organisation ?? "",
+                    role: p.role ?? "",
+                    phone: p.phone ?? "",
+                    email: p.email ?? "",
+                  })
+                }
+              />,
+              `${r.rows.length} recorded`
+            )}
+
+            {r.rows.map((row) => (
+              <div
+                key={row.id}
+                className="mb-2 mt-2 rounded-[9px] border p-2"
+                style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
+              >
+                <div className="mb-[6px] flex flex-wrap items-center justify-between gap-2">
+                  {isSigned(row) ? (
+                    <Pill tone="accent">SIGNED {row.signature?.ref}</Pill>
+                  ) : (
+                    <Pill tone="warn">NOT SIGNED</Pill>
+                  )}
+                  <Btn onClick={() => removeRow(r.id, row.id)}>
+                    <IconX /> Remove
+                  </Btn>
+                </div>
+
+                <input
+                  value={row.name}
+                  onChange={(ev) => patchRow(r.id, row.id, { name: ev.target.value })}
+                  aria-label={`Name of attendee ${row.id}`}
+                  placeholder="Full name"
+                  className={`mb-[6px] ${inputCls}`}
+                  style={inputStyle}
+                />
+
+                {/* ROLE/ORGANISATION, THEN PHONE/EMAIL — a 2x2 grid, not
+                    two full-width rows each. Sarel: "Forms need to fit
+                    without scrolling, use space efficiently." Phone and
+                    email are patched onto the directory contact too,
+                    when there is one — Sarel: "if they're not already
+                    on the system with the email and phone number they
+                    can be added in there" — so the next form that picks
+                    this person already has it. */}
+                <div className="grid grid-cols-2 gap-[6px]">
+                  <input
+                    value={row.role}
+                    onChange={(ev) => patchRow(r.id, row.id, { role: ev.target.value })}
+                    aria-label={`Role of attendee ${row.id}`}
+                    placeholder="Role (optional)"
+                    className={inputCls}
+                    style={inputStyle}
+                  />
+                  <input
+                    value={row.organisation}
+                    onChange={(ev) => patchRow(r.id, row.id, { organisation: ev.target.value })}
+                    aria-label={`Organisation of attendee ${row.id}`}
+                    placeholder="Organisation (optional)"
+                    className={inputCls}
+                    style={inputStyle}
+                  />
+                  <input
+                    value={row.phone}
+                    onChange={(ev) => {
+                      patchRow(r.id, row.id, { phone: ev.target.value });
+                      if (row.contactId) updateContact(row.contactId, { phone: ev.target.value });
+                    }}
+                    type="tel"
+                    aria-label={`Phone number of attendee ${row.id}`}
+                    placeholder="Phone (optional)"
+                    className={inputCls}
+                    style={inputStyle}
+                  />
+                  <input
+                    value={row.email}
+                    onChange={(ev) => {
+                      patchRow(r.id, row.id, { email: ev.target.value });
+                      if (row.contactId) updateContact(row.contactId, { email: ev.target.value });
+                    }}
+                    type="email"
+                    aria-label={`Email address of attendee ${row.id}`}
+                    placeholder="Email (optional)"
+                    className={inputCls}
+                    style={inputStyle}
+                  />
+                </div>
+                <div className="mt-[6px]" />
+
+                {signing === row.id ? (
+                  <SignaturePad
+                    name={row.name}
+                    onCancel={() => setSigning(null)}
+                    onSigned={(s) => {
+                      sign(r.id, row.id, s);
+                      setSigning(null);
+                    }}
+                  />
+                ) : row.signature ? (
+                  <div className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                    {row.signature.ref} · SIGNED {hhmm(row.signature.signedAt)} AS{" "}
+                    {row.signature.signedName.toUpperCase() || "—"}
+                    <Btn className="ml-2" onClick={() => setSigning(row.id)}>
+                      Sign again
+                    </Btn>
+                  </div>
+                ) : (
+                  <Btn variant="primary" onClick={() => setSigning(row.id)}>
+                    Sign
+                  </Btn>
+                )}
+              </div>
+            ))}
+            {r.rows.length === 0 ? (
+              <p className="text-[12px]" style={{ color: "var(--ink-3)" }}>
+                Nobody recorded yet. Use the box above.
+              </p>
+            ) : null}
+
+            <div
+              className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t pt-2"
+              style={{ borderColor: "var(--line)" }}
+            >
+              <Btn onClick={() => void copyRegister(r.id)}>
+                {copied === r.id ? "Copied" : "Copy this register"}
+              </Btn>
+              <Btn
+                onClick={() => {
+                  removeRegister(r.id);
+                  setOpenId(null);
+                }}
+              >
+                <IconX /> Delete this register
+              </Btn>
+            </div>
+            {unbacked.length ? (
+              <p className="mt-1.5 font-mono text-[9px]" style={{ color: "var(--warn)" }}>
+                {unbacked.length} SIGNATURE{unbacked.length > 1 ? "S" : ""} ON THIS DEVICE ONLY. THE
+                RECORD COPY IS NOT WIRED YET — COPY THE REGISTER OUT BEFORE THE TABLET LEAVES SITE.
+              </p>
+            ) : null}
+          </Panel>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -221,15 +447,13 @@ export default function AttendancePage() {
       ) : null}
 
       {registers.map((r) => {
-        const isOpen = openId === r.id;
         const gaps = registerGaps(r);
-        const unbacked = unbackedSignatures(r);
         return (
           <div key={r.id} data-record-id={r.id} className="mb-2">
             <Panel>
               <button
                 type="button"
-                onClick={() => setOpenId(isOpen ? null : r.id)}
+                onClick={() => setOpenId(r.id)}
                 className="flex w-full items-start justify-between gap-3 text-left"
               >
                 <div className="min-w-0">
@@ -252,204 +476,6 @@ export default function AttendancePage() {
                   </div>
                 </div>
               </button>
-
-              {isOpen ? (
-                <div className="mt-2.5 border-t pt-2.5" style={{ borderColor: "var(--line)" }}>
-                  <div className="mb-2.5 grid grid-cols-2 gap-[6px] sm:grid-cols-4">
-                    {mini(
-                      "DATE",
-                      <input
-                        type="date"
-                        value={r.date}
-                        onChange={(e) => patchRegister(r.id, { date: e.target.value })}
-                        aria-label={`Date for register ${r.id}`}
-                        className={inputCls}
-                        style={inputStyle}
-                      />
-                    )}
-                    {mini(
-                      "TIME",
-                      <input
-                        type="time"
-                        value={r.time}
-                        onChange={(e) => patchRegister(r.id, { time: e.target.value })}
-                        aria-label={`Time for register ${r.id}`}
-                        className={inputCls}
-                        style={inputStyle}
-                      />
-                    )}
-                    {mini(
-                      "PURPOSE",
-                      <input
-                        value={r.purpose}
-                        onChange={(e) => patchRegister(r.id, { purpose: e.target.value })}
-                        aria-label={`Purpose for register ${r.id}`}
-                        className={inputCls}
-                        style={inputStyle}
-                      />
-                    )}
-                    {mini(
-                      "LOCATION",
-                      <input
-                        value={r.location}
-                        onChange={(e) => patchRegister(r.id, { location: e.target.value })}
-                        aria-label={`Location for register ${r.id}`}
-                        className={inputCls}
-                        style={inputStyle}
-                      />
-                    )}
-                  </div>
-
-                  {mini(
-                    `WHO WAS THERE`,
-                    <ContactPicker
-                      entityCode={entityCode}
-                      placeholder="Search the directory, or type a new name"
-                      onAdd={(p) =>
-                        addRow(r.id, p.name, {
-                          contactId: p.contactId,
-                          organisation: p.organisation ?? "",
-                          role: p.role ?? "",
-                          phone: p.phone ?? "",
-                          email: p.email ?? "",
-                        })
-                      }
-                    />,
-                    `${r.rows.length} recorded`
-                  )}
-
-                  {r.rows.map((row) => (
-                    <div
-                      key={row.id}
-                      className="mb-2 mt-2 rounded-[9px] border p-2"
-                      style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
-                    >
-                      <div className="mb-[6px] flex flex-wrap items-center justify-between gap-2">
-                        {isSigned(row) ? (
-                          <Pill tone="accent">SIGNED {row.signature?.ref}</Pill>
-                        ) : (
-                          <Pill tone="warn">NOT SIGNED</Pill>
-                        )}
-                        <Btn onClick={() => removeRow(r.id, row.id)}>
-                          <IconX /> Remove
-                        </Btn>
-                      </div>
-
-                      <input
-                        value={row.name}
-                        onChange={(ev) => patchRow(r.id, row.id, { name: ev.target.value })}
-                        aria-label={`Name of attendee ${row.id}`}
-                        placeholder="Full name"
-                        className={`mb-[6px] ${inputCls}`}
-                        style={inputStyle}
-                      />
-
-                      {/* ROLE/ORGANISATION, THEN PHONE/EMAIL — a 2x2 grid, not
-                          two full-width rows each. Sarel: "Forms need to fit
-                          without scrolling, use space efficiently." Phone and
-                          email are patched onto the directory contact too,
-                          when there is one — Sarel: "if they're not already
-                          on the system with the email and phone number they
-                          can be added in there" — so the next form that picks
-                          this person already has it. */}
-                      <div className="grid grid-cols-2 gap-[6px]">
-                        <input
-                          value={row.role}
-                          onChange={(ev) => patchRow(r.id, row.id, { role: ev.target.value })}
-                          aria-label={`Role of attendee ${row.id}`}
-                          placeholder="Role (optional)"
-                          className={inputCls}
-                          style={inputStyle}
-                        />
-                        <input
-                          value={row.organisation}
-                          onChange={(ev) => patchRow(r.id, row.id, { organisation: ev.target.value })}
-                          aria-label={`Organisation of attendee ${row.id}`}
-                          placeholder="Organisation (optional)"
-                          className={inputCls}
-                          style={inputStyle}
-                        />
-                        <input
-                          value={row.phone}
-                          onChange={(ev) => {
-                            patchRow(r.id, row.id, { phone: ev.target.value });
-                            if (row.contactId) updateContact(row.contactId, { phone: ev.target.value });
-                          }}
-                          type="tel"
-                          aria-label={`Phone number of attendee ${row.id}`}
-                          placeholder="Phone (optional)"
-                          className={inputCls}
-                          style={inputStyle}
-                        />
-                        <input
-                          value={row.email}
-                          onChange={(ev) => {
-                            patchRow(r.id, row.id, { email: ev.target.value });
-                            if (row.contactId) updateContact(row.contactId, { email: ev.target.value });
-                          }}
-                          type="email"
-                          aria-label={`Email address of attendee ${row.id}`}
-                          placeholder="Email (optional)"
-                          className={inputCls}
-                          style={inputStyle}
-                        />
-                      </div>
-                      <div className="mt-[6px]" />
-
-                      {signing === row.id ? (
-                        <SignaturePad
-                          name={row.name}
-                          onCancel={() => setSigning(null)}
-                          onSigned={(s) => {
-                            sign(r.id, row.id, s);
-                            setSigning(null);
-                          }}
-                        />
-                      ) : row.signature ? (
-                        <div className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                          {row.signature.ref} · SIGNED {hhmm(row.signature.signedAt)} AS{" "}
-                          {row.signature.signedName.toUpperCase() || "—"}
-                          <Btn className="ml-2" onClick={() => setSigning(row.id)}>
-                            Sign again
-                          </Btn>
-                        </div>
-                      ) : (
-                        <Btn variant="primary" onClick={() => setSigning(row.id)}>
-                          Sign
-                        </Btn>
-                      )}
-                    </div>
-                  ))}
-                  {r.rows.length === 0 ? (
-                    <p className="text-[12px]" style={{ color: "var(--ink-3)" }}>
-                      Nobody recorded yet. Use the box above.
-                    </p>
-                  ) : null}
-
-                  <div
-                    className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t pt-2"
-                    style={{ borderColor: "var(--line)" }}
-                  >
-                    <Btn onClick={() => void copyRegister(r.id)}>
-                      {copied === r.id ? "Copied" : "Copy this register"}
-                    </Btn>
-                    <Btn
-                      onClick={() => {
-                        removeRegister(r.id);
-                        setOpenId(null);
-                      }}
-                    >
-                      <IconX /> Delete this register
-                    </Btn>
-                  </div>
-                  {unbacked.length ? (
-                    <p className="mt-1.5 font-mono text-[9px]" style={{ color: "var(--warn)" }}>
-                      {unbacked.length} SIGNATURE{unbacked.length > 1 ? "S" : ""} ON THIS DEVICE ONLY. THE
-                      RECORD COPY IS NOT WIRED YET — COPY THE REGISTER OUT BEFORE THE TABLET LEAVES SITE.
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
             </Panel>
           </div>
         );
