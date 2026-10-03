@@ -2,10 +2,11 @@ const B0 = process.env.BASE_NO_KEY || 'http://localhost:3000';
 const B1 = process.env.BASE_WITH_KEY || B0;
 const { chromium } = require('playwright');
 
-/** The answer library is TABBED — Evidence, Likely answers, Issues, Walkabout,
- *  Snippets — so a panel has to be opened before its chips are in the DOM. The
- *  five used to be stacked, which ran well past a tablet's height; the counts
- *  on the tabs are what keep a tapped panel legible while it is closed. */
+/** The answer library is TABBED — Evidence, Likely answers, Issues,
+ *  Walkabout — so a panel has to be opened before its chips are in the DOM.
+ *  The four used to be stacked, which ran well past a tablet's height; the
+ *  counts on the tabs are what keep a tapped panel legible while it is
+ *  closed. */
 const openTab = (page, label) =>
   page.locator('button[role="tab"]', { hasText: label }).first().click();
 const panelChip = (page, key) => page.locator(`[data-panel="${key}"] button`).first();
