@@ -110,6 +110,7 @@ export default function AttendancePage() {
      (see the ContactPicker onAdd below), since that is exactly when the
      detail is needed. */
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [draftDate, setDraftDate] = useState(todayLocal);
   const [draftTime, setDraftTime] = useState("");
   const [draftLocation, setDraftLocation] = useState("");
@@ -167,7 +168,10 @@ export default function AttendancePage() {
         <div className="mx-auto w-full max-w-[760px] px-4 pb-24 pt-3">
           <button
             type="button"
-            onClick={() => setOpenId(null)}
+            onClick={() => {
+              setOpenId(null);
+              setConfirmingDelete(false);
+            }}
             className="mb-2.5 flex items-center gap-1 text-[12px] font-semibold"
             style={{ color: "var(--acc)" }}
           >
@@ -242,7 +246,17 @@ export default function AttendancePage() {
 
             {r.rows.map((row) => {
               const rowOpen = expandedRowId === row.id;
-              const rowSummary = [row.role, row.organisation].filter((v) => v.trim()).join(" · ");
+              /* THE FOLDED LINE CARRIES THE WHOLE PERSON, NOT JUST THEIR
+                 NAME. Sarel: "in row only the persons name is shown, it
+                 should show his name, surname, role, company, email, cell
+                 nr." There is no separate surname field on a row — `name`
+                 is the full name a person was added under (ContactPicker
+                 already joins given name + surname before handing it over)
+                 — so this is every field the row actually has: name, then
+                 role/organisation/phone/email on a second, muted line. */
+              const rowSummary = [row.role, row.organisation, row.phone, row.email]
+                .filter((v) => v.trim())
+                .join(" · ");
               return (
                 <div
                   key={row.id}
@@ -252,7 +266,7 @@ export default function AttendancePage() {
                   <button
                     type="button"
                     onClick={() => setExpandedRowId(rowOpen ? null : row.id)}
-                    className="flex w-full min-h-[32px] items-center justify-between gap-2 text-left"
+                    className="flex w-full min-h-[32px] flex-col items-start gap-[2px] text-left"
                   >
                     <span className="flex min-w-0 items-center gap-[6px]">
                       {isSigned(row) ? <Pill tone="accent">SIGNED</Pill> : <Pill tone="warn">NOT SIGNED</Pill>}
@@ -261,7 +275,7 @@ export default function AttendancePage() {
                       </span>
                     </span>
                     {!rowOpen && rowSummary ? (
-                      <span className="truncate text-[11px]" style={{ color: "var(--ink-3)" }}>
+                      <span className="w-full truncate text-[11px]" style={{ color: "var(--ink-3)" }}>
                         {rowSummary}
                       </span>
                     ) : null}
@@ -346,8 +360,16 @@ export default function AttendancePage() {
                           name={row.name}
                           onCancel={() => setSigning(null)}
                           onSigned={(s) => {
+                            /* Sarel: "after signing and clicking signed it
+                               should close the panel automatically and only
+                               show the person in one row again." Signing is
+                               the natural "done with this person" moment —
+                               fold their row back to the summary line the
+                               same way Save & close folds the whole
+                               register away. */
                             sign(r.id, row.id, s);
                             setSigning(null);
+                            setExpandedRowId(null);
                           }}
                         />
                       ) : row.signature ? (
@@ -388,24 +410,45 @@ export default function AttendancePage() {
                      one" action, instead of only the small back link at the
                      top of the screen. */
                   setOpenId(null);
+                  setConfirmingDelete(false);
                   setSavedId(r.id);
                   window.setTimeout(() => setSavedId(null), 2500);
                 }}
               >
                 <IconCheck /> Save & close
               </Btn>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 <Btn onClick={() => void copyRegister(r.id)}>
                   {copied === r.id ? "Copied" : "Copy this register"}
                 </Btn>
-                <Btn
-                  onClick={() => {
-                    removeRegister(r.id);
-                    setOpenId(null);
-                  }}
-                >
-                  <IconX /> Delete this register
-                </Btn>
+                {/* A SECOND TAP BEFORE ANYTHING IS LOST. Sarel: "when you
+                    click on delete register first warn to ask if you are
+                    sure you want to delete in case the user accidentally
+                    clicked on delete." No confirm dialog anywhere else in
+                    the app, and this button sits right next to Save &
+                    close and Copy — exactly the kind of neighbour a thumb
+                    hits by mistake. */}
+                {confirmingDelete ? (
+                  <>
+                    <span className="text-[11px] font-semibold" style={{ color: "var(--warn)" }}>
+                      Delete this register?
+                    </span>
+                    <Btn onClick={() => setConfirmingDelete(false)}>Cancel</Btn>
+                    <Btn
+                      onClick={() => {
+                        removeRegister(r.id);
+                        setOpenId(null);
+                        setConfirmingDelete(false);
+                      }}
+                    >
+                      <IconX /> Yes, delete
+                    </Btn>
+                  </>
+                ) : (
+                  <Btn onClick={() => setConfirmingDelete(true)}>
+                    <IconX /> Delete this register
+                  </Btn>
+                )}
               </div>
             </div>
             {unbacked.length ? (
