@@ -101,7 +101,7 @@ check(
 check(
   "the check screen keeps one tab strip even where it splits into two columns from lg",
   !/lg:grid-cols-\[minmax\(0,1fr\)_minmax\(0,1\.08fr\)\]/.test(detail) &&
-    (detail.match(/className="flex items-center gap-x-\[14px\]/g) || []).length === 1 &&
+    (detail.match(/className="flex flex-nowrap items-center gap-x-\[14px\]/g) || []).length === 1 &&
     /role="tabpanel"[\s\S]{0,400}lg:min-h-0 lg:w-1\/2 lg:shrink-0 lg:overflow-y-auto/.test(detail),
   "a tab strip per column was the busyness Sarel named — one strip above two scrolling columns is not the same layout"
 );

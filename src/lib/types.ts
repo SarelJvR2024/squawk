@@ -457,6 +457,26 @@ export interface Response {
    *  where they are once per place rather than once per check. */
   location?: string;
   flaggedForField: boolean;
+  /** AN INTERNAL NOTE ON THE CHECK ITSELF, NOT ON THE ASSET IT AUDITS.
+   *
+   *  Sarel: "add an internal flag option to tag with a note on how to
+   *  improve this check." Everything else on this record is the audit —
+   *  what ACSA's register asks for and what TPJV found. This is the one
+   *  field that is about the register row, not the site: the wording is
+   *  ambiguous, the evidence list is missing something, the threshold
+   *  looks stale — feedback for whoever next revises the check-points
+   *  (see BACKLOG.md, "Re-cut the register against ACSA's full policy
+   *  set"), never sent to ACSA and never counted in a rating.
+   *
+   *  Optional, same shape as `location` and `feedback` — a record written
+   *  before this existed simply has none, which reads correctly as
+   *  "nobody flagged it", so no persist version bump is needed. */
+  improvementFlag?: boolean;
+  /** Only meaningful while `improvementFlag` is true — what should change,
+   *  and why. Left as typed rather than cleared if the flag is toggled
+   *  off, the same choice `evidenceStatusNote` makes: a note typed once
+   *  is not worth losing to an accidental tap. */
+  improvementNote?: string;
   /** When this record last changed, on whichever device changed it.
    *
    *  THE FIELD THAT MAKES A MERGE POSSIBLE. Two auditors capture the same
