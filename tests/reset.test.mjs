@@ -156,9 +156,50 @@ check(
 
 check(
   "and that is true — reset only clears captured state",
-  /set\(\{ byVisit: \{\}, findings: \[\], lastSavedAt: null \}\)/.test(store) &&
-    !/CHECKS = \[\]/.test(store),
+  /byVisit: \{\},\s*\n\s*findings: \[\],/.test(store) && !/CHECKS = \[\]/.test(store),
   "CHECKS, the Answer Library and PRIOR are loaded from files, not state"
+);
+
+/* DECISION REVERSED, in effect rather than in words: resetEverything's own
+   set() silently never cleared hazards or any of the Tier 1 forms (ISF,
+   interviews, site days/diary, PPE, site access, toolbox talks, incident
+   reports, attendance registers) — a dry run's "Start again → Everything"
+   left HIRA and every tablet form showing data from a supposedly clean
+   sheet. Found live, the night before the real O.R. Tambo audit, by someone
+   actually using the button. Both reset functions now cover every flat
+   captured-state array the store has, not just the two that existed when
+   this panel was first built. */
+check(
+  "a full reset clears HIRA and every Tier 1 form, not just findings",
+  [
+    "hazards",
+    "safetyFindings",
+    "interviewDays",
+    "siteDays",
+    "evidenceItems",
+    "ppeChecks",
+    "siteAccessLogs",
+    "toolboxTalks",
+    "incidentReports",
+    "attendanceRegisters",
+  ].every((field) => new RegExp(`${field}: \\[\\]`).test(store)),
+  "hazards and the tablet forms are flat arrays just like findings, and must be cleared the same way"
+);
+
+check(
+  "a visit-only reset scopes HIRA and the forms to that visit, same as findings",
+  [
+    "hazards",
+    "safetyFindings",
+    "interviewDays",
+    "siteDays",
+    "evidenceItems",
+    "ppeChecks",
+    "siteAccessLogs",
+    "toolboxTalks",
+    "incidentReports",
+    "attendanceRegisters",
+  ].every((field) => new RegExp(`${field}: st\\.${field}\\.filter\\(\\(r\\) => !mine\\(r\\)\\)`).test(store))
 );
 
 console.log(
