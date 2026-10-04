@@ -960,7 +960,7 @@ export function isfSheet(x: ExportInput): Sheet {
       f.location,
       f.locationDescription,
       f.discipline ?? "",
-      f.assetSystem ?? "",
+      f.assetSystems.join(", "),
       f.description,
       f.actualImpact,
       f.potentialImpact,
@@ -1202,15 +1202,24 @@ export function ppeSheet(x: ExportInput): Sheet {
 
 /** ONE ROW PER VISITOR, across every area logged this visit — Sarel: "where
  *  we went, purpose, who escorted us, who went from ACSA and TPJV." */
+function hhmmOrBlank(t: number | null): string {
+  return t === null ? "" : new Date(t).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
 export function siteAccessSheet(x: ExportInput): Sheet {
   const logs = (x.siteAccessLogs ?? []).filter((l) => l.originVisit === x.visit);
   const rows: CellValue[][] = [];
   for (const l of logs) {
+    const start = hhmmOrBlank(l.openedAt);
+    const end = hhmmOrBlank(l.endTime);
     for (const v of l.people) {
-      rows.push([l.id, l.date, l.area, l.purpose, l.escortedBy, v.name, v.side, v.organisation, sigCell(v.signature)]);
+      rows.push([
+        l.id, l.date, l.area, l.purpose, l.escortedBy, start, end, l.notes,
+        v.name, v.side, v.organisation, sigCell(v.signature),
+      ]);
     }
     if (l.people.length === 0) {
-      rows.push([l.id, l.date, l.area, l.purpose, l.escortedBy, "", "", "", ""]);
+      rows.push([l.id, l.date, l.area, l.purpose, l.escortedBy, start, end, l.notes, "", "", "", ""]);
     }
   }
   return {
@@ -1221,6 +1230,9 @@ export function siteAccessSheet(x: ExportInput): Sheet {
       { header: "Area", width: 26 },
       { header: "Purpose", width: 26 },
       { header: "Escorted by", width: 20 },
+      { header: "Start", width: 10 },
+      { header: "End", width: 10 },
+      { header: "Notes", width: 30 },
       { header: "Name", width: 24 },
       { header: "Side", width: 10 },
       { header: "Organisation", width: 20 },

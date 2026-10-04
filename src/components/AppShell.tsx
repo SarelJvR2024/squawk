@@ -272,8 +272,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pct = checks.length ? Math.round((done / checks.length) * 100) : 0;
 
   /* Each nav badge counts what is outstanding in THAT view, not across the
-     register. Capture lists 315 and Field lists 299; a badge of 324 on either
-     is a number that cannot be worked down to zero. */
+     register. Capture and Field both list every check at this site now
+     (needsDesk/needsField always true — see verification.ts), so the two
+     badges share the same denominator by design. */
   const desk = useMemo(() => {
     const scope = checks.filter(needsDesk);
     return { done: scope.filter((c) => deskDone(responses[c.id])).length, total: scope.length };

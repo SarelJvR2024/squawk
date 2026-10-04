@@ -40,13 +40,11 @@ import {
   METHOD_LABEL,
   isfStage,
   missingFields,
-  noticeText,
   notifyGapMs,
   unbackedIsfSignature,
   writtenStatus,
 } from "@/lib/isf";
-import { systemsAt } from "@/lib/register";
-import { siteFor, siteCodeFor } from "@/lib/sites";
+import { systemsOf } from "@/lib/register";
 import { useNow } from "@/lib/clock";
 import { useFormsHubDeepLink } from "@/lib/deepLink";
 import { AttachmentStrip, PhotoButton, VoiceNoteButton } from "@/components/Capture";
@@ -101,10 +99,10 @@ function timeInputValue(t: number): string {
 export default function IsfPage() {
   const findings = useSafetyFindings();
   const entityCode = useEntityCode();
-  const visitId = useStore((s) => s.visit);
   const auditor = useStore((s) => s.auditor);
   const add = useStore((s) => s.addSafetyFinding);
   const patch = useStore((s) => s.updateSafetyFinding);
+  const remove = useStore((s) => s.removeSafetyFinding);
   const signFinding = useStore((s) => s.signIsf);
   const addPhoto = useStore((s) => s.addIsfAttachment);
   const removePhoto = useStore((s) => s.removeIsfAttachment);
@@ -112,11 +110,10 @@ export default function IsfPage() {
 
   const [draft, setDraft] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
   const [signing, setSigning] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const disciplines = useMemo(() => disciplinesAt(entityCode), [entityCode]);
-  const assetSystems = useMemo(() => systemsAt(entityCode), [entityCode]);
-  const site = siteFor(entityCode);
 
   function setRaisedDate(f: SafetyFinding, v: string) {
     if (!v) return;
@@ -149,24 +146,6 @@ export default function IsfPage() {
     /* Open it immediately. The next thing the auditor does is tell somebody,
        and the notify control is the first thing in the panel. */
     setOpenId(id);
-  }
-
-  async function copyNotice(f: SafetyFinding) {
-    const text = noticeText(f, {
-      siteName: site ? `${site.name} (${site.icao})` : entityCode,
-      siteCode: siteCodeFor(entityCode),
-      visitId,
-    });
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(f.id);
-      window.setTimeout(() => setCopied(null), 2500);
-    } catch {
-      /* Clipboard is refused often enough on a locked-down tablet that a
-         silent failure here would be a notice nobody sent. Fall back to
-         something the auditor can select by hand. */
-      window.prompt("Copy this notice", text);
-    }
   }
 
   const open = findings.filter((f) => !f.closedAt);
@@ -235,13 +214,17 @@ export default function IsfPage() {
             <Panel tone={STAGE[stage].tone}>
               <button
                 type="button"
-                onClick={() => setOpenId(isOpen ? null : f.id)}
+                onClick={() => {
+                  setOpenId(isOpen ? null : f.id);
+                  setConfirmingDelete(false);
+                }}
                 className="flex w-full items-start justify-between gap-3 text-left"
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-[10px]">{f.id}</span>
                     <Pill>{STAGE[stage].label}</Pill>
+                    {savedId === f.id ? <Pill tone="accent">✓ SAVED</Pill> : null}
                     {written === "late" && !f.closedAt ? (
                       <Pill>WRITTEN NOTICE OVERDUE</Pill>
                     ) : null}
@@ -399,22 +382,71 @@ export default function IsfPage() {
                         ))}
                       </select>
                     </Field>
-                    <Field label="ASSET SYSTEM">
+                  </div>
+
+                  {/* ASSET SYSTEM(S) — multi-select, grouped by discipline.
+                      DECISION REVERSED, Sarel: "asset system should be a
+                      multi select, the [l]ist should be a hierarchy grouped
+                      by discipline." A single immediate danger can span more
+                      than one system (a fire in a baggage hall is both Fire
+                      and Baggage handling), same reasoning as
+                      Hazard.systems — add-one-at-a-time from a <select>,
+                      rendered back as removable chips, same pattern that
+                      list already uses on /hazards. The <select> itself is
+                      grouped into one <optgroup> per discipline rather than
+                      one flat 75+-item list, via disciplinesAt/systemsOf. */}
+                  <div className="mb-3">
+                    <div className="label-xs mb-1">
+                      Asset system(s) ({f.assetSystems.length})
+                    </div>
+                    <div className="flex flex-wrap gap-[5px]">
+                      {f.assetSystems.map((sys) => (
+                        <span
+                          key={sys}
+                          className="flex items-center gap-[5px] rounded-full border px-[9px] py-[3px] text-[10.5px]"
+                          style={{ borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+                        >
+                          {sys}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              patch(f.id, { assetSystems: f.assetSystems.filter((x) => x !== sys) })
+                            }
+                            aria-label={`Remove ${sys} from asset systems`}
+                            style={{ color: "var(--ink-4)" }}
+                          >
+                            <IconX width={10} height={10} />
+                          </button>
+                        </span>
+                      ))}
                       <select
-                        value={f.assetSystem ?? ""}
-                        onChange={(e) => patch(f.id, { assetSystem: e.target.value || null })}
-                        aria-label={`Asset system for ${f.id}`}
-                        className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
-                        style={{ background: "var(--bg)", borderColor: "var(--line)" }}
+                        value=""
+                        onChange={(e) => {
+                          if (!e.target.value) return;
+                          patch(f.id, { assetSystems: [...f.assetSystems, e.target.value] });
+                        }}
+                        aria-label={`Add an asset system for ${f.id}`}
+                        className="rounded-full border px-[9px] py-[3px] text-[10.5px]"
+                        style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
                       >
-                        <option value="">Not attributed</option>
-                        {assetSystems.map((sys) => (
-                          <option key={sys} value={sys}>
-                            {sys}
-                          </option>
-                        ))}
+                        <option value="">+ add an asset system…</option>
+                        {disciplines.map((d) => {
+                          const options = systemsOf(entityCode, d).filter(
+                            (sys) => !f.assetSystems.includes(sys)
+                          );
+                          if (options.length === 0) return null;
+                          return (
+                            <optgroup key={d} label={d}>
+                              {options.map((sys) => (
+                                <option key={sys} value={sys}>
+                                  {sys}
+                                </option>
+                              ))}
+                            </optgroup>
+                          );
+                        })}
                       </select>
-                    </Field>
+                    </div>
                   </div>
 
                   <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -471,7 +503,11 @@ export default function IsfPage() {
                       record={{
                         ...f,
                         discipline: f.discipline ?? undefined,
-                        system: f.assetSystem ?? undefined,
+                        /* RecordActions and RootCauseAdvice both want one
+                           system for their matrix lookups, same precedent
+                           as /hazards (active.systems[0]) — the first of
+                           however many were picked. */
+                        system: f.assetSystems[0] ?? undefined,
                       }}
                       entityCode={entityCode}
                       onChange={(p) => patch(f.id, p)}
@@ -480,7 +516,7 @@ export default function IsfPage() {
                           finding={{
                             description: f.description,
                             discipline: f.discipline ?? "",
-                            system: f.assetSystem ?? "",
+                            system: f.assetSystems[0] ?? "",
                             rootCause: f.rootCause,
                           }}
                           attachments={f.attachments}
@@ -567,9 +603,6 @@ export default function IsfPage() {
                       style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                     />
                     <div className="flex flex-wrap gap-2">
-                      <Btn onClick={() => void copyNotice(f)}>
-                        {copied === f.id ? "Copied" : "Copy notice"}
-                      </Btn>
                       {!f.writtenIssuedAt ? (
                         <Btn
                           onClick={() => patch(f.id, { writtenIssuedAt: Date.now() })}
@@ -617,8 +650,7 @@ export default function IsfPage() {
                     )}
                     {unbackedIsfSignature(f).length ? (
                       <p className="mt-2 font-mono text-[9px]" style={{ color: "var(--warn)" }}>
-                        THIS SIGNATURE IS ON THIS DEVICE ONLY. COPY THE NOTICE OUT BEFORE THE
-                        TABLET LEAVES SITE.
+                        THIS SIGNATURE IS ON THIS DEVICE ONLY — THE RECORD COPY IS NOT WIRED YET.
                       </p>
                     ) : null}
                   </Field>
@@ -659,8 +691,66 @@ export default function IsfPage() {
                     </Field>
                   )}
 
+                  {/* SAVE, SAVE & CLOSE, DELETE. Sarel: "add a save button
+                      and save and close and delete button." Every field on
+                      this panel already autosaves the instant it changes —
+                      these give the deliberate "I'm done with this one"
+                      moment, and a way to remove a record that should never
+                      have been raised (a false alarm, a duplicate), which
+                      this screen had no control for at all before. */}
+                  <div
+                    className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t pt-3"
+                    style={{ borderColor: "var(--line)" }}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Btn
+                        variant="primary"
+                        onClick={() => {
+                          setSavedId(f.id);
+                          window.setTimeout(() => setSavedId(null), 2500);
+                        }}
+                      >
+                        <IconCheck /> Save
+                      </Btn>
+                      <Btn
+                        variant="primary"
+                        onClick={() => {
+                          setOpenId(null);
+                          setConfirmingDelete(false);
+                          setSavedId(f.id);
+                          window.setTimeout(() => setSavedId(null), 2500);
+                        }}
+                      >
+                        <IconCheck /> Save & close
+                      </Btn>
+                    </div>
+                    {/* A SECOND TAP BEFORE ANYTHING IS LOST — same pattern
+                        as every other register's "Delete this X". */}
+                    {confirmingDelete ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-semibold" style={{ color: "var(--warn)" }}>
+                          Delete this finding?
+                        </span>
+                        <Btn onClick={() => setConfirmingDelete(false)}>Cancel</Btn>
+                        <Btn
+                          onClick={() => {
+                            remove(f.id);
+                            setOpenId(null);
+                            setConfirmingDelete(false);
+                          }}
+                        >
+                          <IconX /> Yes, delete
+                        </Btn>
+                      </div>
+                    ) : (
+                      <Btn onClick={() => setConfirmingDelete(true)}>
+                        <IconX /> Delete this finding
+                      </Btn>
+                    )}
+                  </div>
+
                   {gaps.length ? (
-                    <p className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                    <p className="mt-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
                       STILL MISSING: {gaps.join(", ").toUpperCase()}
                     </p>
                   ) : null}

@@ -53,6 +53,7 @@ const entry = (over = {}) => ({
   category: "general",
   at: 1000,
   text: "",
+  attachments: [],
   createdAt: 1000,
   updatedAt: 1000,
   ...over,
@@ -70,6 +71,7 @@ const day = (over = {}) => ({
   dayEnd: null,
   diaryEntries: [],
   diarySignature: null,
+  workedBy: [],
   entries: [],
   attachments: [],
   ...over,
@@ -185,7 +187,7 @@ check(
 );
 check(
   "removing an entry clears the day's signature",
-  /removeDiaryEntry[\s\S]{0,400}diarySignature: null,/.test(store)
+  /removeDiaryEntry[\s\S]{0,600}diarySignature: null,/.test(store)
 );
 check(
   "a patch cannot smuggle a different id or createdAt onto an entry",
@@ -281,11 +283,85 @@ check(
 check("signing is disabled with nothing to attest to", /disabled=\{entries\.length === 0\}/.test(page));
 check(
   "there is a visible Save action, not just silent autosave",
-  /Save\{!pinned \? " & close" : ""\}/.test(page)
+  /<IconCheck \/> Save & close/.test(page)
 );
 check(
   "saving gives a visible confirmation",
   /savedId === day\.id \? <Pill tone="accent">✓ SAVED<\/Pill>/.test(page)
+);
+check(
+  "there is no longer a Copy this diary button",
+  !/Copy this diary/.test(page) && !/function copyDay/.test(page)
+);
+check(
+  "today starts open and folds to a summary line once saved",
+  /const \[todayOpen, setTodayOpen\] = useState\(true\)/.test(page) &&
+    /onSaved=\{\(\) => setTodayOpen\(false\)\}/.test(page) &&
+    /onClick=\{\(\) => setTodayOpen\(true\)\}/.test(page)
+);
+
+/* ---- 10. Sarel's follow-up: per-entry evidence and who worked today ---- */
+
+check(
+  "an entry carries its own evidence, same Attachment shape as everywhere else",
+  /interface DiaryEntry \{[\s\S]{0,700}attachments: Attachment\[\];/.test(types)
+);
+check(
+  "a day carries a worked-by roster",
+  /workedBy: DiaryWorker\[\];/.test(types) &&
+    /interface DiaryWorker \{[\s\S]{0,200}contactId\?: string;[\s\S]{0,80}name: string;[\s\S]{0,80}company: string;/.test(
+      types
+    )
+);
+check(
+  "an entry can take several photographs and a voice note",
+  /<PhotoButton[\s\S]{0,120}onCaptured=\{\(m\) => addEntryAttachment\(day\.id, e\.id, \{ \.\.\.m, createdBy: auditor \}\)\}/.test(
+    page
+  ) &&
+    /<VoiceNoteButton[\s\S]{0,120}onCaptured=\{\(m\) => addEntryAttachment\(day\.id, e\.id, \{ \.\.\.m, createdBy: auditor \}\)\}/.test(
+      page
+    )
+);
+check(
+  "an entry's evidence is shown and removable, not just captured",
+  /<AttachmentStrip[\s\S]{0,60}attachments=\{e\.attachments\}[\s\S]{0,200}onRemove=\{\(aid\) => removeEntryAttachment\(day\.id, e\.id, aid\)\}/.test(
+    page
+  )
+);
+check(
+  "the store assigns a photo reference shared across the whole day, entry and day-level attachments together",
+  /addDiaryEntryAttachment[\s\S]{0,500}const allPhotos = \[\.\.\.d\.attachments, \.\.\.d\.diaryEntries\.flatMap\(\(e\) => e\.attachments\)\]/.test(
+    store
+  ),
+  "two attachments both numbered _P01 on the same day record is the exact confusion a stable reference exists to prevent"
+);
+check(
+  "removing an entry releases its own attachments' blobs, not just the entry itself",
+  /removeDiaryEntry: \(id, entryId\) => \{[\s\S]{0,300}gone\?\.attachments[\s\S]{0,300}delBlobs\(keys\)/.test(
+    store
+  )
+);
+check(
+  "there is a WHO WORKED TODAY section, scoped to the TPJV team",
+  /<Field label="WHO WORKED TODAY"/.test(page) && /filterContacts=\{isTpjv\}/.test(page)
+);
+check(
+  "a worked-by pick defaults to the TPJV team, same as a typed new name",
+  /addDiaryWorker: \(id, name, seed\) => \{[\s\S]{0,300}company: "TPJV", name, \.\.\.seed/.test(store)
+);
+check(
+  "there is a control to remove someone from the worked-by roster",
+  /removeWorker\(day\.id, w\.id\)/.test(page)
+);
+check(
+  "the persisted shape was versioned again to carry per-entry evidence and the roster",
+  Number(/version: (\d+),/.exec(store)?.[1] ?? 0) >= 30
+);
+check(
+  "the migration backfills attachments and workedBy rather than leaving them undefined",
+  /from < 30 && Array\.isArray\(st\.siteDays\)[\s\S]{0,700}workedBy = \[\][\s\S]{0,400}attachments = \[\]/.test(
+    store
+  )
 );
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");

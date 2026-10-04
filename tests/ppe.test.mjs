@@ -57,7 +57,7 @@ const person = (over = {}) => ({
   name: "T. Nkosi",
   organisation: "",
   role: "",
-  items: blankItems(false),
+  items: blankItems(),
   notes: "",
   signature: null,
   createdAt: 1,
@@ -88,18 +88,25 @@ check("hi-vis jacket is one of them", PPE_ITEMS.includes("hiVisJacket"));
 check("safety shoes is one of them", PPE_ITEMS.includes("safetyShoes"));
 check("hearing protection is one of them", PPE_ITEMS.includes("hearingProtection"));
 
-/* ---------------------------------------------- 2. hearing protection defaults */
+/* ---------------------------------------------- 2. every item defaults to N/A */
 
+/* DECISION REVERSED. Hi-vis and safety shoes used to default to "missing" so
+   an untouched row read as an outstanding gap, and only hearing protection
+   started N/A outside a declared noise zone. Sarel: "default for all PPE
+   should be NA, first click should make it Complaint." */
 check(
-  "hearing protection defaults to missing in a declared noise zone",
-  blankItems(true).hearingProtection === "missing"
+  "hearing protection defaults to not applicable, noise zone or not",
+  blankItems().hearingProtection === "notApplicable"
 );
 check(
-  "and to not applicable outside one",
-  blankItems(false).hearingProtection === "notApplicable",
-  "asking for a tick on PPE that does not apply is how a checklist stops being trusted"
+  "the other two items default to not applicable as well",
+  blankItems().hiVisJacket === "notApplicable" && blankItems().safetyShoes === "notApplicable",
+  "an untouched row should read as unlooked-at, not as a gap nobody has addressed"
 );
-check("the other two items default to missing either way", blankItems(true).hiVisJacket === "missing" && blankItems(false).hiVisJacket === "missing");
+check(
+  "the first tap on an untouched item marks it compliant",
+  /NEXT_STATUS[\s\S]{0,150}notApplicable: "compliant"/.test(page)
+);
 
 /* --------------------------------------- 3. what a signature signs for */
 

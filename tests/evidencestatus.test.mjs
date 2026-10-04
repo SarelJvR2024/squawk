@@ -99,7 +99,7 @@ check(
     /key: "specificNotAvailable",[\s\S]{0,120}label: "Specific evidence not available"/.test(
       codeOnly
     ) &&
-    /key: "toBeProvided",[\s\S]{0,120}label: "Evidence to be provided"/.test(codeOnly) &&
+    /key: "toBeProvided",[\s\S]{0,120}label: "Evidence Pending"/.test(codeOnly) &&
     /key: "providedForReview",[\s\S]{0,120}label: "Evidence provided for review"/.test(codeOnly)
 );
 
@@ -138,9 +138,13 @@ check(
    `evidenceStatusNote` field underneath, one string joined on "\n" — the
    change is in how it is edited, not what is persisted, so no migration. */
 check(
-  "the note writes into evidenceStatusNote, not a field another state could also use",
-  /const items = r\.evidenceStatusNote\.split\("\\n"\);/.test(codeOnly) &&
-    /patch\(check\.id, \{ evidenceStatusNote: next\.join\("\\n"\) \}\)/.test(codeOnly)
+  "specificNotAvailable and toBeProvided each write into their own field, not one shared between them",
+  /const field = active\.key === "toBeProvided" \? "evidencePendingNote" : "evidenceStatusNote";/.test(
+    codeOnly
+  ) &&
+    /const items = r\[field\]\.split\("\\n"\);/.test(codeOnly) &&
+    /patch\(check\.id, \{ \[field\]: next\.join\("\\n"\) \}\)/.test(codeOnly),
+  'Sarel: "the list of evidence for evidence pending and specific evidence not availbale is two seperate lists, allow to keep seperate lists"'
 );
 check(
   "it is a list of items, not one paragraph — each is its own input, with add/remove",
@@ -187,6 +191,29 @@ check(
     return /addAttachment\(check\.id,/.test(slice);
   })(),
   "a second, evidence-only attachment list is a second place a photo can go missing from"
+);
+
+/* ---- a description for each uploaded file ------------------------------- */
+
+/* DECISION REVERSED. Sarel: "when uploading evidence allow to add a
+   description for each file." A photograph already carried a caption via
+   AttachmentStrip's own PhotoRow; a plain file attached here had nowhere
+   to say what it was until FileRow gained the same editable field (see
+   src/components/Capture.tsx). This panel renders the strip right under
+   the upload buttons so that description can be added the moment
+   something is attached, not only from the observation panel elsewhere. */
+check(
+  "uploaded evidence is shown right here, with its description editable",
+  (() => {
+    const start = codeOnly.indexOf('mt-2.5 flex flex-wrap items-center gap-[6px]');
+    const end = codeOnly.indexOf("A SPACER", start);
+    const slice = codeOnly.slice(start, end === -1 ? start + 1800 : end);
+    return (
+      /<AttachmentStrip/.test(slice) &&
+      /attachments=\{r\.attachments\}/.test(slice) &&
+      /onUpdate=\{\(id, p\) => updateAttachment\(check\.id, id, p\)\}/.test(slice)
+    );
+  })()
 );
 
 /* ---- the strip can say which state is chosen without opening the tab ---- */

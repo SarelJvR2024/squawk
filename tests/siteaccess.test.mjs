@@ -70,6 +70,8 @@ const log = (over = {}) => ({
   escortedBy: "",
   openedAt: 1,
   openedBy: "Sarel Jansen van Rensburg",
+  endTime: null,
+  notes: "",
   people: [],
   createdAt: 1,
   updatedAt: 1,
@@ -154,6 +156,15 @@ check("a visitor's side is printed", full.includes("ACSA"));
 check("the escort is printed", full.includes("P. Mahlangu"));
 check("a signed row names its reference", full.includes("ACC-7K2P9_S01"));
 
+check("an unrecorded end time reads as not recorded, not a fabricated clock reading", bare.includes("not recorded"));
+const withEnd = logText(
+  log({ endTime: new Date("2026-10-01T15:45:00").getTime(), notes: "Panel door was unlocked on arrival." }),
+  { siteName: "O.R. Tambo International Airport (FAOR)", siteCode: "ORTIA", visitId: "2026-09" }
+);
+check("a recorded end time is printed", withEnd.includes("15:45"));
+check("the log's own observation notes are printed", withEnd.includes("Panel door was unlocked on arrival."));
+check("an empty notes field prints nothing for it", !bare.includes("Notes"));
+
 /* ------------------------------------------------------------ 8. the store */
 
 check(
@@ -172,6 +183,24 @@ check(
 check(
   "deleting a log releases its signatures",
   /removeSiteAccessLog[\s\S]{0,500}delBlobs\(keys\)/.test(store)
+);
+check(
+  "a new log starts with no end time and no notes",
+  /openSiteAccessLog[\s\S]{0,600}endTime: null,[\s\S]{0,80}notes: "",/.test(store)
+);
+check(
+  "the persisted shape was versioned again to carry day/start/end/notes",
+  Number(/version: (\d+),/.exec(store)?.[1] ?? 0) >= 29
+);
+check(
+  "the migration backfills endTime and notes rather than leaving them undefined",
+  /from < 29 && Array\.isArray\(st\.siteAccessLogs\)[\s\S]{0,500}endTime === undefined[\s\S]{0,40}endTime = null[\s\S]{0,120}notes === undefined[\s\S]{0,40}notes = ""/.test(
+    store
+  )
+);
+check(
+  "SiteAccessLog declares the two new fields",
+  /interface SiteAccessLog \{[\s\S]{0,1400}endTime: number \| null;[\s\S]{0,300}notes: string;/.test(types)
 );
 
 /* ------------------------------------------------------------- 9. reachable */
@@ -197,6 +226,45 @@ check(
   "it is wired into the export workbook, named for what it is",
   /export function siteAccessSheet\(x: ExportInput\): Sheet \{/.test(exportsSrc) &&
     /name: "Site access",/.test(exportsSrc)
+);
+
+/* ---- 10. Sarel's follow-up: day/start/end, observation notes, one row per visitor ---- */
+
+check(
+  "the date is editable, not just stamped and read-only",
+  /type="date"[\s\S]{0,80}value=\{l\.date\}[\s\S]{0,80}onChange=\{\(e\) => setLogDate\(l, e\.target\.value\)\}/.test(
+    page
+  )
+);
+check(
+  "start time is editable",
+  /type="time"[\s\S]{0,80}value=\{timeInputValue\(l\.openedAt\)\}[\s\S]{0,80}onChange=\{\(e\) => setStartTime\(l, e\.target\.value\)\}/.test(
+    page
+  )
+);
+check(
+  "end time is editable and allowed to be blank",
+  /type="time"[\s\S]{0,80}value=\{l\.endTime !== null \? timeInputValue\(l\.endTime\) : ""\}[\s\S]{0,80}onChange=\{\(e\) => setEndTime\(l, e\.target\.value\)\}/.test(
+    page
+  )
+);
+check(
+  "editing the date keeps every time of day the log carries",
+  /function setLogDate[\s\S]{0,500}openedAt: mergeDate\(l\.openedAt\),[\s\S]{0,100}endTime: l\.endTime !== null \? mergeDate\(l\.endTime\) : null,/.test(
+    page
+  )
+);
+check(
+  "there is a log-level observation notes field, separate from any one visitor",
+  /<Field label="NOTES"[\s\S]{0,200}<textarea[\s\S]{0,80}value=\{l\.notes\}[\s\S]{0,80}onChange=\{\(e\) => patchLog\(l\.id, \{ notes: e\.target\.value \}\)\}/.test(
+    page
+  )
+);
+check(
+  "adding a visitor no longer auto-expands their row into the detail panel",
+  !/addVisitor\(l\.id, p\.name,[\s\S]{0,200}setExpandedRowId\(rowId\)/.test(page) &&
+    /onAdd=\{\(p\) => \{\s*\n\s*addVisitor\(l\.id, p\.name,/.test(page),
+  'Sarel: "when adding a person to the site access just keep it in one row, dont show expanded box"'
 );
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");

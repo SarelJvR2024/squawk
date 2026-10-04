@@ -409,12 +409,23 @@ export interface Response {
    *  EvidenceStatus. `null` is "nobody has said" rather than "none exists";
    *  the register has to be able to tell those apart. */
   evidenceStatus: EvidenceStatus | null;
-  /** What it means depends on evidenceStatus: the description of what is
-   *  missing for `specificNotAvailable`, or what and when for
-   *  `toBeProvided`. Unused by the other two states and left blank rather
-   *  than cleared retroactively if the status changes — a note typed once
-   *  is not worth losing to a tap that changed something else. */
+  /** The list of what is missing, for `specificNotAvailable`. Unused by the
+   *  other three states and left blank rather than cleared retroactively if
+   *  the status changes — a note typed once is not worth losing to a tap
+   *  that changed something else.
+   *
+   *  DECISION REVERSED. This used to double as `toBeProvided`'s own list
+   *  too — one field, read differently depending on which status was
+   *  selected, so switching between the two statuses showed the same items
+   *  under a different heading rather than two genuinely separate lists.
+   *  Sarel: "the list of evidence for evidence pending and specific
+   *  evidence not available is two seperate lists, allow to keep seperate
+   *  lists" — see evidencePendingNote below, `toBeProvided`'s own field. */
   evidenceStatusNote: string;
+  /** `toBeProvided`'s own list — what, and by when. See the note on
+   *  evidenceStatusNote above for why this is a separate field rather than
+   *  the same one read two ways. */
+  evidencePendingNote: string;
   observation: string;
   evidencePicked: number[];
   issuesPicked: number[];
@@ -1186,11 +1197,16 @@ export interface SafetyFinding {
    *  years from now needs to find the exact spot. */
   locationDescription: string;
   discipline: string | null;
-  /** The named asset system this is about — Baggage handling system, Fire
+  /** The named asset system(s) this is about — Baggage handling system, Fire
    *  system, and so on, same list `systemsAt()` gives Hazards. Distinct from
    *  `assetIds` below: this is the CATEGORY, assetIds are specific tagged
-   *  items within it. */
-  assetSystem: string | null;
+   *  items within it.
+   *
+   *  DECISION REVERSED — plural, like Hazard.systems. Sarel: "asset system
+   *  should be a multi select" — a single immediate danger can span more
+   *  than one system (a fire in a baggage hall is both Fire and Baggage
+   *  handling), and the single-select version could only ever name one. */
+  assetSystems: string[];
   /** The register tags this is about, where there are any. Same reasoning as a
    *  finding's: plenty of immediate risks are not about one tagged asset. */
   assetIds?: string[];
@@ -1629,8 +1645,27 @@ export interface DiaryEntry {
   category: DiaryCategory;
   at: number | null;
   text: string;
+  /** Evidence for this one line — photographs and an optional voice note,
+   *  the same Attachment shape every other record in the app uses (added
+   *  4 October 2026, Sarel: "should be able to add multiple photos for each
+   *  entry, also should be able to add a voice note for each entry"). Kept
+   *  separate from SiteDay.attachments, which is about the day as a whole —
+   *  these belong to the specific thing this line is describing. */
+  attachments: Attachment[];
   createdAt: number;
   updatedAt: number;
+}
+
+/** One TPJV person marked as having worked on site this day — Sarel: "add a
+ *  section to select which people worked on the project on the day from the
+ *  TPJV team." Deliberately lighter than Attendance: no signature, no
+ *  induction, no arrival/departure time — just attribution, who actually
+ *  did the work this diary is an account of. */
+export interface DiaryWorker {
+  id: string;
+  contactId?: string;
+  name: string;
+  company: string;
 }
 
 /** A site day — TK-003 form 2's register, and the daily diary that goes with it.
@@ -1693,6 +1728,8 @@ export interface SiteDay {
    *  other signature in this app: see diarySignedFieldsChanged() in
    *  src/lib/diary.ts. */
   diarySignature: Signature | null;
+  /** Who from the TPJV team worked on site this day. See DiaryWorker. */
+  workedBy: DiaryWorker[];
 
   entries: AttendanceEntry[];
   attachments: Attachment[];
@@ -1964,8 +2001,19 @@ export interface SiteAccessLog {
   purpose: string;
   escortedBy: string;
 
+  /** When the team went in. Stamped the moment "Log this visit" is tapped,
+   *  same as every other form's openedAt, and from then on this doubles as
+   *  the editable START TIME Sarel asked for. */
   openedAt: number;
   openedBy: string;
+  /** When the team came back out, if recorded — nullable like DiaryEntry.at:
+   *  a visit still being walked has no end yet, and a blank is more honest
+   *  than a fabricated one. */
+  endTime: number | null;
+
+  /** The log's own observation, separate from any one visitor — what the
+   *  team saw or noted about the area itself while they were in it. */
+  notes: string;
 
   people: SiteAccessVisitor[];
 

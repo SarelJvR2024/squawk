@@ -33,6 +33,13 @@ function hhmm(t: number): string {
   return new Date(t).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
+/** HH:MM for a <input type="time">, in the device's own timezone. */
+function timeInputValue(t: number): string {
+  const d = new Date(t);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function SiteAccessPage() {
   const logs = useSiteAccessLogs();
   const entityCode = useEntityCode();
@@ -51,7 +58,13 @@ export default function SiteAccessPage() {
   const [savedId, setSavedId] = useState<string | null>(null);
   /* ONE VISITOR EXPANDED AT A TIME, same reasoning as the attendance
      register: name/side/organisation only matter while a row is actually
-     being filled in; once recorded it folds to a single line. */
+     being filled in; once recorded it folds to a single line.
+     DECISION REVERSED: adding a visitor used to auto-expand their new row
+     straight into that detail panel. Sarel: "when adding a person to the
+     site access just keep it in one row, dont show expanded box" — a
+     freshly added visitor now folds to the same one-line row as everyone
+     else; tapping it still opens the detail panel to fill in side/
+     organisation. */
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [draftArea, setDraftArea] = useState("");
@@ -72,6 +85,46 @@ export default function SiteAccessPage() {
     setDraftArea("");
     setDraftPurpose("");
     setDraftEscort("");
+  }
+
+  /* Day/start/end, same editable-not-just-stamped pattern as PPE's
+     setCheckDate/setCheckTime (Sarel, 4 October 2026: "allow adding day,
+     start and end time"). Changing the date keeps every time of day it
+     carries — openedAt (the start) and, if set, endTime. */
+  function setLogDate(l: SiteAccessLog, v: string) {
+    if (!v) return;
+    const mergeDate = (t: number) => {
+      const d = new Date(t);
+      return new Date(
+        `${v}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:00`
+      ).getTime();
+    };
+    patchLog(l.id, {
+      date: v,
+      openedAt: mergeDate(l.openedAt),
+      endTime: l.endTime !== null ? mergeDate(l.endTime) : null,
+    });
+  }
+  function setStartTime(l: SiteAccessLog, v: string) {
+    const [hh, mm] = v.split(":").map(Number);
+    if (Number.isNaN(hh) || Number.isNaN(mm)) return;
+    const merged = new Date(`${l.date}T00:00:00`);
+    merged.setHours(hh, mm, 0, 0);
+    patchLog(l.id, { openedAt: merged.getTime() });
+  }
+  /* Nullable like DiaryEntry.at — a visit still being walked has no end
+     yet, and clearing the input puts it back there rather than keeping a
+     stale time. */
+  function setEndTime(l: SiteAccessLog, v: string) {
+    if (!v) {
+      patchLog(l.id, { endTime: null });
+      return;
+    }
+    const [hh, mm] = v.split(":").map(Number);
+    if (Number.isNaN(hh) || Number.isNaN(mm)) return;
+    const merged = new Date(`${l.date}T00:00:00`);
+    merged.setHours(hh, mm, 0, 0);
+    patchLog(l.id, { endTime: merged.getTime() });
   }
 
   async function copyLog(l: SiteAccessLog) {
@@ -115,11 +168,40 @@ export default function SiteAccessPage() {
           </button>
 
           <Panel>
-            <div data-record-id={l.id} className="font-mono text-[10px]">
-              {l.date} · {hhmm(l.openedAt)}
+            <div data-record-id={l.id} className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <Field label="DATE">
+                <input
+                  type="date"
+                  value={l.date}
+                  onChange={(e) => setLogDate(l, e.target.value)}
+                  aria-label={`Date for log ${l.id}`}
+                  className={inputCls}
+                  style={inputStyle}
+                />
+              </Field>
+              <Field label="START">
+                <input
+                  type="time"
+                  value={timeInputValue(l.openedAt)}
+                  onChange={(e) => setStartTime(l, e.target.value)}
+                  aria-label={`Start time for log ${l.id}`}
+                  className={inputCls}
+                  style={inputStyle}
+                />
+              </Field>
+              <Field label="END" hint="optional">
+                <input
+                  type="time"
+                  value={l.endTime !== null ? timeInputValue(l.endTime) : ""}
+                  onChange={(e) => setEndTime(l, e.target.value)}
+                  aria-label={`End time for log ${l.id}`}
+                  className={inputCls}
+                  style={inputStyle}
+                />
+              </Field>
             </div>
 
-            <div className="mt-3 mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
               <Field label="AREA">
                 <input
                   value={l.area}
@@ -149,18 +231,31 @@ export default function SiteAccessPage() {
               </Field>
             </div>
 
-            <Field label="WHO WENT IN" hint={`${l.people.length} recorded`}>
-              <ContactPicker
-                entityCode={entityCode}
-                onAdd={(p) => {
-                  const rowId = addVisitor(l.id, p.name, {
-                    contactId: p.contactId,
-                    organisation: p.organisation ?? "",
-                  });
-                  setExpandedRowId(rowId);
-                }}
+            <Field label="NOTES" hint="optional — what the team saw or noted about the area itself">
+              <textarea
+                value={l.notes}
+                onChange={(e) => patchLog(l.id, { notes: e.target.value })}
+                rows={2}
+                aria-label={`Notes for log ${l.id}`}
+                placeholder="Site access observation notes…"
+                className={inputCls}
+                style={inputStyle}
               />
             </Field>
+
+            <div className="mt-3">
+              <Field label="WHO WENT IN" hint={`${l.people.length} recorded`}>
+                <ContactPicker
+                  entityCode={entityCode}
+                  onAdd={(p) => {
+                    addVisitor(l.id, p.name, {
+                      contactId: p.contactId,
+                      organisation: p.organisation ?? "",
+                    });
+                  }}
+                />
+              </Field>
+            </div>
 
             {l.people.map((v) => {
               const rowOpen = expandedRowId === v.id;

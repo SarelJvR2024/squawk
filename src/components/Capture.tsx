@@ -1141,62 +1141,80 @@ function PhotoRow({
 function FileRow({
   a,
   onRemove,
+  onUpdate,
 }: {
   a: Attachment;
   onRemove?: () => void;
+  /** A plain typed description, same `caption` field a photograph carries —
+   *  not an AI-proposed one, there is nothing here to send a model. Omit it
+   *  and the description is read-only, same convention as every other row. */
+  onUpdate?: (patch: Partial<Attachment>) => void;
 }) {
   const { url, missing } = useBlobUrl(a.blobKey);
   const dead = a.unavailable || (missing && !a.dataUrl);
+  const caption = a.caption ?? "";
 
   return (
     <div
-      className="flex items-center gap-[9px] rounded-[9px] border px-[9px] py-[7px]"
+      className="flex flex-col gap-[6px] rounded-[9px] border px-[9px] py-[7px]"
       style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
     >
-      <span
-        className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[7px]"
-        style={{ background: "var(--sunken)", color: "var(--ink-3)" }}
-      >
-        <IconPaperclip width={15} height={15} />
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-[11.5px] font-semibold" style={{ color: "var(--ink-1)" }} title={a.name}>
-          {a.name}
-        </span>
-        <span className="flex flex-wrap items-center gap-[6px] font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-          {dead ? (
-            <span className="line-through">no longer stored on this device</span>
-          ) : (
-            <>
-              {a.bytes ? <span>{formatBytes(a.bytes)}</span> : null}
-              {a.mimeType && <span>{a.mimeType}</span>}
-              {a.takenAt && <span>added {new Date(a.takenAt).toLocaleString("en-ZA")}</span>}
-            </>
-          )}
-        </span>
-      </span>
-      {!dead && url && (
-        <a
-          href={url}
-          download={a.name}
-          aria-label={`Open ${a.name}`}
-          title="Open or save this file"
-          className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[7px] border"
-          style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+      <div className="flex items-center gap-[9px]">
+        <span
+          className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[7px]"
+          style={{ background: "var(--sunken)", color: "var(--ink-3)" }}
         >
-          <IconDownload width={13} height={13} />
-        </a>
-      )}
-      {onRemove && (
-        <button
-          type="button"
-          onClick={onRemove}
-          aria-label={`Remove ${a.name}`}
-          className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[7px] border"
-          style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
-        >
-          <IconX width={12} height={12} />
-        </button>
+          <IconPaperclip width={15} height={15} />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-[11.5px] font-semibold" style={{ color: "var(--ink-1)" }} title={a.name}>
+            {a.name}
+          </span>
+          <span className="flex flex-wrap items-center gap-[6px] font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+            {dead ? (
+              <span className="line-through">no longer stored on this device</span>
+            ) : (
+              <>
+                {a.bytes ? <span>{formatBytes(a.bytes)}</span> : null}
+                {a.mimeType && <span>{a.mimeType}</span>}
+                {a.takenAt && <span>added {new Date(a.takenAt).toLocaleString("en-ZA")}</span>}
+              </>
+            )}
+          </span>
+        </span>
+        {!dead && url && (
+          <a
+            href={url}
+            download={a.name}
+            aria-label={`Open ${a.name}`}
+            title="Open or save this file"
+            className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[7px] border"
+            style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+          >
+            <IconDownload width={13} height={13} />
+          </a>
+        )}
+        {onRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={`Remove ${a.name}`}
+            className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[7px] border"
+            style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+          >
+            <IconX width={12} height={12} />
+          </button>
+        )}
+      </div>
+      {!dead && onUpdate && (
+        <input
+          value={caption}
+          onChange={(e) => onUpdate({ caption: e.target.value })}
+          aria-label={`Description of ${a.name}`}
+          placeholder="What this file is"
+          className="w-full rounded-[7px] border px-[9px] py-[5px] text-[11px]"
+          style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-1)" }}
+        />
       )}
     </div>
   );
@@ -1257,7 +1275,12 @@ export function AttachmentStrip({
         />
       ))}
       {files.map((a) => (
-        <FileRow key={a.id} a={a} onRemove={onRemove ? () => onRemove(a.id) : undefined} />
+        <FileRow
+          key={a.id}
+          a={a}
+          onRemove={onRemove ? () => onRemove(a.id) : undefined}
+          onUpdate={onUpdate ? (patch) => onUpdate(a.id, patch) : undefined}
+        />
       ))}
     </div>
   );

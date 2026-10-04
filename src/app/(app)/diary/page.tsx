@@ -26,11 +26,29 @@
  *  changed or removed after signing. A "Delete" on this screen only ever
  *  removes one entry: there is deliberately no control that deletes the
  *  SiteDay record itself, because that would take the attendance register
- *  for the day with it. */
+ *  for the day with it.
+ *
+ *  EVIDENCE AND A ROSTER, ADDED 4 October 2026 — Sarel: "should be able to
+ *  add multiple photos for each entry, also should be able to add a voice
+ *  note for each entry and then use ai to transcrive the voicenote... add a
+ *  section to select which people worked on the project on the day from
+ *  the TPJV team." Photos and a voice note belong to the specific entry
+ *  they are evidence for (DiaryEntry.attachments), the same PhotoButton /
+ *  VoiceNoteButton / AttachmentStrip trio the check screen uses, including
+ *  that component's own "Transcribe" button for the AI step. The worked-by
+ *  roster is day-level, lighter than Attendance — just names, no signature
+ *  — and deliberately scoped to the TPJV team via ContactPicker's
+ *  filterContacts. The copy-to-clipboard button Sarel asked to have removed
+ *  is gone, now that every day on screen carries its own evidence and
+ *  roster inline; every
+ *  Save button reads "Save & close" and actually closes — today's entry is
+ *  open by default but folds to a summary line the same way every other
+ *  day already did, rather than being the one record on this screen with
+ *  no close to press. */
 
 import { useMemo, useState } from "react";
 import { useEntityCode, useSiteDays, useStore } from "@/lib/store";
-import { dayText, localDate } from "@/lib/attendance";
+import { localDate } from "@/lib/attendance";
 import {
   DIARY_CATEGORIES,
   DIARY_CATEGORY_LABEL,
@@ -39,14 +57,22 @@ import {
   sortedEntries,
   unbackedDiarySignature,
 } from "@/lib/diary";
-import { siteCodeFor, siteFor } from "@/lib/sites";
 import { useNow } from "@/lib/clock";
 import { useFormsHubDeepLink } from "@/lib/deepLink";
-import { AttachmentStrip, PhotoButton } from "@/components/Capture";
+import { AttachmentStrip, PhotoButton, VoiceNoteButton } from "@/components/Capture";
+import ContactPicker from "@/components/ContactPicker";
 import { SignaturePad } from "@/components/SignaturePad";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconX } from "@/components/ui/icons";
-import type { DiaryCategory, SiteDay } from "@/lib/types";
+import type { Contact, DiaryCategory, SiteDay } from "@/lib/types";
+
+/** The daily diary's "who worked today" only wants the TPJV team — see the
+ *  note on ContactPicker's filterContacts. `company` is free text on a
+ *  Contact (TPJV, ACSA, a named contractor), not a fixed enum, so this is a
+ *  substring match rather than an equality check. */
+function isTpjv(c: Contact): boolean {
+  return c.company.toLowerCase().includes("tpjv");
+}
 
 const inputCls = "min-h-[44px] w-full rounded-[9px] border px-3 py-2 text-[13px]";
 const inputStyle = { background: "var(--bg)", borderColor: "var(--line)" } as const;
@@ -96,27 +122,23 @@ function mergeTime(dateStr: string, v: string): number | null {
 
 function DiaryDayBody({
   day,
-  pinned,
   signing,
   setSigning,
-  copied,
-  setCopied,
   savedId,
   setSavedId,
   onSaved,
 }: {
   day: SiteDay;
-  pinned?: boolean;
   signing: string | null;
   setSigning: (id: string | null) => void;
-  copied: string | null;
-  setCopied: (id: string | null) => void;
   savedId: string | null;
   setSavedId: (id: string | null) => void;
-  onSaved?: () => void;
+  /** Always supplied now that every Save button reads "Save & close" — the
+   *  caller decides what "close" means (fold this day's panel, collapse
+   *  today back to a summary line). */
+  onSaved: () => void;
 }) {
   const entityCode = useEntityCode();
-  const visitId = useStore((s) => s.visit);
   const auditor = useStore((s) => s.auditor);
   const patchDay = useStore((s) => s.updateSiteDay);
   const addEntry = useStore((s) => s.addDiaryEntry);
@@ -126,25 +148,14 @@ function DiaryDayBody({
   const addPhoto = useStore((s) => s.addDayAttachment);
   const removePhoto = useStore((s) => s.removeDayAttachment);
   const updatePhoto = useStore((s) => s.updateDayAttachment);
+  const addEntryAttachment = useStore((s) => s.addDiaryEntryAttachment);
+  const removeEntryAttachment = useStore((s) => s.removeDiaryEntryAttachment);
+  const updateEntryAttachment = useStore((s) => s.updateDiaryEntryAttachment);
+  const addWorker = useStore((s) => s.addDiaryWorker);
+  const removeWorker = useStore((s) => s.removeDiaryWorker);
 
-  const site = siteFor(entityCode);
   const entries = sortedEntries(day);
   const unbacked = unbackedDiarySignature(day);
-
-  async function copyDay() {
-    const text = dayText(day, {
-      siteName: site ? `${site.name} (${site.icao})` : entityCode,
-      siteCode: siteCodeFor(entityCode),
-      visitId,
-    });
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(day.id);
-      window.setTimeout(() => setCopied(null), 2500);
-    } catch {
-      window.prompt("Copy this diary", text);
-    }
-  }
 
   return (
     <>
@@ -202,6 +213,41 @@ function DiaryDayBody({
           "optional"
         )}
       </div>
+
+      {/* WHO WORKED TODAY. Sarel: "add a section to select which people
+          worked on the project on the day from the TPJV team." Deliberately
+          not the attendance register — no signature, no induction — just
+          who to credit for the work this diary is an account of. */}
+      <Field label="WHO WORKED TODAY" hint={`${day.workedBy.length} recorded`}>
+        <ContactPicker
+          entityCode={entityCode}
+          placeholder="Search the TPJV team, or type a new name"
+          filterContacts={isTpjv}
+          onAdd={(p) => addWorker(day.id, p.name, { contactId: p.contactId, company: "TPJV" })}
+        />
+        {day.workedBy.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-[6px]">
+            {day.workedBy.map((w) => (
+              <span
+                key={w.id}
+                className="flex items-center gap-[6px] rounded-full border py-[5px] pl-[12px] pr-[6px] text-[12px] font-semibold"
+                style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+              >
+                {w.name}
+                <button
+                  type="button"
+                  onClick={() => removeWorker(day.id, w.id)}
+                  aria-label={`Remove ${w.name} from who worked today`}
+                  className="flex h-[22px] w-[22px] items-center justify-center rounded-full"
+                  style={{ color: "var(--ink-3)" }}
+                >
+                  <IconX width={11} height={11} />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </Field>
 
       {/* ADD A LINE. One tap per category. UNTIMED BY DEFAULT now — Sarel:
           "link a time each entry as optional." Stamping `Date.now()` on
@@ -276,6 +322,33 @@ function DiaryDayBody({
             className={`mt-[6px] ${inputCls}`}
             style={inputStyle}
           />
+          {/* EVIDENCE FOR THIS ONE LINE — photographs and a voice note,
+              Sarel: "should be able to add multiple photos for each entry,
+              also should be able to add a voice note for each entry and
+              then use ai to transcrive the voicenote." PhotoButton already
+              takes several at once; AttachmentStrip's own "Transcribe"
+              button is the AI step, no writeUp offered since a diary entry
+              is not a check observation being drafted from a transcript. */}
+          <div className="mt-[6px] flex items-center gap-[6px]">
+            <PhotoButton
+              compact
+              onCaptured={(m) => addEntryAttachment(day.id, e.id, { ...m, createdBy: auditor })}
+            />
+            <VoiceNoteButton
+              inline
+              onCaptured={(m) => addEntryAttachment(day.id, e.id, { ...m, createdBy: auditor })}
+            />
+          </div>
+          {e.attachments.length > 0 ? (
+            <div className="mt-[6px]">
+              <AttachmentStrip
+                attachments={e.attachments}
+                thumbSize={40}
+                onRemove={(aid) => removeEntryAttachment(day.id, e.id, aid)}
+                onUpdate={(aid, p) => updateEntryAttachment(day.id, e.id, aid, p)}
+              />
+            </div>
+          ) : null}
         </div>
       ))}
       {entries.length === 0 ? (
@@ -332,7 +405,7 @@ function DiaryDayBody({
       </Field>
 
       <div
-        className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t pt-3"
+        className="mt-3 flex items-center border-t pt-3"
         style={{ borderColor: "var(--line)" }}
       >
         <Btn
@@ -341,19 +414,17 @@ function DiaryDayBody({
             /* Every field here already writes to the store the instant it
                changes — this gives the deliberate "I'm done with this one"
                moment that was missing, not something the data needed. */
-            onSaved?.();
+            onSaved();
             setSavedId(day.id);
             window.setTimeout(() => setSavedId(null), 2500);
           }}
         >
-          <IconCheck /> Save{!pinned ? " & close" : ""}
+          <IconCheck /> Save & close
         </Btn>
-        <Btn onClick={() => void copyDay()}>{copied === day.id ? "Copied" : "Copy this diary"}</Btn>
       </div>
       {unbacked.length ? (
         <p className="mt-2 font-mono text-[9px]" style={{ color: "var(--warn)" }}>
-          THE DIARY SIGNATURE IS ON THIS DEVICE ONLY. THE RECORD COPY IS NOT WIRED YET — COPY THIS
-          DIARY OUT BEFORE THE TABLET LEAVES SITE.
+          THE DIARY SIGNATURE IS ON THIS DEVICE ONLY — THE RECORD COPY IS NOT WIRED YET.
         </p>
       ) : null}
       {savedId === day.id ? (
@@ -365,19 +436,53 @@ function DiaryDayBody({
   );
 }
 
+/** A collapsed day's summary line — the same shape today's entry folds to
+ *  once "Save & close" is pressed as every other day already used. */
+function DaySummary({ day, savedId }: { day: SiteDay; savedId: string | null }) {
+  const gaps = diaryGaps(day);
+  return (
+    <div className="min-w-0">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-mono text-[10px]">{day.date}</span>
+        {gaps.length ? (
+          <Pill tone="warn">{gaps.join(", ").toUpperCase()}</Pill>
+        ) : (
+          <Pill tone="accent">COMPLETE</Pill>
+        )}
+        {savedId === day.id ? <Pill tone="accent">✓ SAVED</Pill> : null}
+      </div>
+      <p className="mt-1 line-clamp-2 text-[13px]">
+        {day.diaryEntries.length === 0
+          ? "Nothing recorded"
+          : sortedEntries(day)
+              .map((e) => `${DIARY_CATEGORY_LABEL[e.category]}: ${e.text.trim() || "—"}`)
+              .join(" · ")}
+      </p>
+    </div>
+  );
+}
+
 export default function DiaryPage() {
   const days = useSiteDays();
   const openDay = useStore((s) => s.openSiteDay);
 
   const [openId, setOpenId] = useState<string | null>(null);
   const [signing, setSigning] = useState<string | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   useFormsHubDeepLink(setOpenId);
 
   const now = useNow();
   const today = now ? localDate(now) : "";
   const todaysDay = useMemo(() => (today ? days.find((d) => d.date === today) : undefined), [days, today]);
+
+  /* TODAY STARTS OPEN — it is the one thing actually being filled in "from
+     the car at the end of the day" — but from here on it behaves exactly
+     like every other day: Save & close folds it to the same summary line,
+     tapping that line reopens it. Deliberately a SEPARATE boolean from
+     openId rather than folding today into the list below: today has no
+     "nobody has looked at it yet" state to initialise, it is simply open
+     the moment it exists. */
+  const [todayOpen, setTodayOpen] = useState(true);
 
   return (
     <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -394,22 +499,38 @@ export default function DiaryPage() {
       <div data-record-id={todaysDay?.id} className="mb-4">
         <Panel tone="accent">
           {todaysDay ? (
-            <DiaryDayBody
-              day={todaysDay}
-              pinned
-              signing={signing}
-              setSigning={setSigning}
-              copied={copied}
-              setCopied={setCopied}
-              savedId={savedId}
-              setSavedId={setSavedId}
-            />
+            todayOpen ? (
+              <DiaryDayBody
+                day={todaysDay}
+                signing={signing}
+                setSigning={setSigning}
+                savedId={savedId}
+                setSavedId={setSavedId}
+                onSaved={() => setTodayOpen(false)}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setTodayOpen(true)}
+                className="flex w-full items-start justify-between gap-3 text-left"
+              >
+                <DaySummary day={todaysDay} savedId={savedId} />
+              </button>
+            )
           ) : (
             <div className="flex items-center justify-between gap-3">
               <p className="text-[12.5px]" style={{ color: "var(--ink-3)" }}>
                 No entry opened for today yet.
               </p>
-              <Btn variant="primary" disabled={!now} onClick={() => now && openDay(localDate(now))}>
+              <Btn
+                variant="primary"
+                disabled={!now}
+                onClick={() => {
+                  if (!now) return;
+                  openDay(localDate(now));
+                  setTodayOpen(true);
+                }}
+              >
                 Open today
               </Btn>
             </div>
@@ -428,7 +549,6 @@ export default function DiaryPage() {
         .filter((d) => d.id !== todaysDay?.id)
         .map((day) => {
           const isOpen = openId === day.id;
-          const gaps = diaryGaps(day);
           return (
             <div key={day.id} data-record-id={day.id} className="mb-3">
               <Panel>
@@ -437,24 +557,7 @@ export default function DiaryPage() {
                   onClick={() => setOpenId(isOpen ? null : day.id)}
                   className="flex w-full items-start justify-between gap-3 text-left"
                 >
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-[10px]">{day.date}</span>
-                      {gaps.length ? (
-                        <Pill tone="warn">{gaps.join(", ").toUpperCase()}</Pill>
-                      ) : (
-                        <Pill tone="accent">COMPLETE</Pill>
-                      )}
-                      {savedId === day.id ? <Pill tone="accent">✓ SAVED</Pill> : null}
-                    </div>
-                    <p className="mt-1 line-clamp-2 text-[13px]">
-                      {day.diaryEntries.length === 0
-                        ? "Nothing recorded"
-                        : sortedEntries(day)
-                            .map((e) => `${DIARY_CATEGORY_LABEL[e.category]}: ${e.text.trim() || "—"}`)
-                            .join(" · ")}
-                    </p>
-                  </div>
+                  <DaySummary day={day} savedId={savedId} />
                 </button>
 
                 {isOpen ? (
@@ -463,8 +566,6 @@ export default function DiaryPage() {
                       day={day}
                       signing={signing}
                       setSigning={setSigning}
-                      copied={copied}
-                      setCopied={setCopied}
                       savedId={savedId}
                       setSavedId={setSavedId}
                       onSaved={() => setOpenId(null)}

@@ -57,6 +57,7 @@ export default function ContactPicker({
   placeholder,
   onAdd,
   disabled,
+  filterContacts,
 }: {
   entityCode: string;
   placeholder?: string;
@@ -68,6 +69,12 @@ export default function ContactPicker({
    *  nobody was. A disabled input cannot be typed into or submitted at all,
    *  so there is nothing for the handler to drop. */
   disabled?: boolean;
+  /** Narrows the directory this one picker searches — the daily diary's
+   *  "who worked today" only wants the TPJV team, where every other caller
+   *  wants the whole directory. Typing a name the filter would exclude still
+   *  works exactly as it always has; this only narrows matches, it is not a
+   *  second gate on what gets added. */
+  filterContacts?: (c: Contact) => boolean;
 }) {
   const contacts = useContacts();
   const addContact = useStore((s) => s.addContact);
@@ -77,7 +84,8 @@ export default function ContactPicker({
   const matches = useMemo(() => {
     const s = q.trim().toLowerCase();
     if (!s) return [];
-    const hit = contacts.filter((c) =>
+    const pool = filterContacts ? contacts.filter(filterContacts) : contacts;
+    const hit = pool.filter((c) =>
       [`${c.name} ${c.surname}`, c.role, c.company, c.department, c.discipline].some((v) =>
         v.toLowerCase().includes(s)
       )
@@ -87,7 +95,7 @@ export default function ContactPicker({
        looking for someone relevant at KSIA, not a namesake at Bram Fischer. */
     const here = (c: Contact) => c.site === entityCode || c.site === SITE_ALL;
     return hit.sort((a, b) => (here(a) ? 0 : 1) - (here(b) ? 0 : 1)).slice(0, 8);
-  }, [contacts, q, entityCode]);
+  }, [contacts, q, entityCode, filterContacts]);
 
   function pick(c: Contact) {
     onAdd({
