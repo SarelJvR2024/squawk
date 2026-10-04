@@ -147,14 +147,22 @@ check(
 
 /* ---- the upload — one state only, into the SAME attachments array ------- */
 
+/* A DECISION OF SAREL'S THAT HE LATER REVERSED: "remove the paperclip and
+   photo icon, introduce them in the evidence section — all photos and
+   evidence will be uploaded in the evidence section." The upload used to
+   be gated to the one state most likely to carry proof; it is
+   unconditional now, since a photo is just as often the proof that
+   evidence is still outstanding as it is the proof itself, and this panel
+   is now the one place in the whole screen an auditor reaches for either
+   control. */
 check(
-  "the upload row appears only for \"evidence provided for review\"",
-  /\{r\.evidenceStatus === "providedForReview" && \(/.test(codeOnly)
+  "the upload is unconditional, not gated to any one evidence state",
+  !/\{r\.evidenceStatus === "providedForReview" && \(/.test(codeOnly)
 );
 check(
   "and it offers both a photo capture and a file pick, Sarel's own wording",
   (() => {
-    const start = codeOnly.indexOf('r.evidenceStatus === "providedForReview"');
+    const start = codeOnly.indexOf('mt-2.5 flex flex-wrap items-center gap-[6px]');
     const end = codeOnly.indexOf("A SPACER", start);
     const slice = codeOnly.slice(start, end === -1 ? start + 1200 : end);
     return /<PhotoButton/.test(slice) && /<FileButton/.test(slice);
@@ -163,7 +171,7 @@ check(
 check(
   "it writes into the one attachments array every other evidence control already uses",
   (() => {
-    const start = codeOnly.indexOf('r.evidenceStatus === "providedForReview"');
+    const start = codeOnly.indexOf('mt-2.5 flex flex-wrap items-center gap-[6px]');
     const end = codeOnly.indexOf("A SPACER", start);
     const slice = codeOnly.slice(start, end === -1 ? start + 1200 : end);
     return /addAttachment\(check\.id,/.test(slice);

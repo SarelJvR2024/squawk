@@ -215,10 +215,15 @@ ok(
   "the textarea reserves room for them rather than running text underneath",
   /pr-\[124px\]/.test(detail)
 );
+/* A DECISION OF SAREL'S THAT HE LATER REVERSED: "remove the paperclip and
+   photo icon, introduce them in the evidence section — all photos and
+   evidence will be uploaded in the evidence section." Photo kept its own
+   44px target in this bar for exactly the reason below while compose/draft/
+   the mic moved into the observation box; it has since moved again, into
+   the Evidence status panel, so this bar no longer carries it at all. */
 ok(
-  "PHOTO KEEPS ITS 44px TARGET IN THE BAR — it is the one used in gloves",
-  /Compose, Draft and the mic moved INTO the observation box/.test(detail) &&
-    /<PhotoButton/.test(detail)
+  "PHOTO MOVED OUT OF THE BAR, INTO EVIDENCE STATUS, NOT LOST",
+  /<PhotoButton/.test(detail)
 );
 ok(
   "the inline mic is a distinct base class, not a Tailwind override gamble",

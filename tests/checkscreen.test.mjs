@@ -222,8 +222,8 @@ check(
 const pinned = codeOnly.slice(at('className="sticky bottom-0 z-[7]'));
 
 check(
-  "THE ANSWER BOX, THE VOICE NOTE AND THE CAMERA ARE PINNED TOGETHER",
-  /<textarea/.test(pinned) && /<VoiceNoteButton/.test(pinned) && /<PhotoButton/.test(pinned),
+  "THE ANSWER BOX AND THE VOICE NOTE ARE PINNED TOGETHER",
+  /<textarea/.test(pinned) && /<VoiceNoteButton/.test(pinned),
   "on a phone they were below six groups of chips"
 );
 
@@ -278,10 +278,18 @@ check(
   "and they are anchored to the top, so they do not walk down a box that grows on focus",
   /absolute top-\[5px\] right-\[5px\]/.test(codeOnly)
 );
+/* Sarel, later: "remove the paperclip and photo icon, introduce them in
+   the evidence section — all photos and evidence will be uploaded in the
+   evidence section." Photo and File moved out of this bar into the
+   Evidence status panel, the one place an auditor now reaches for either,
+   rather than a second copy floating under every tab. */
 check(
-  "PHOTO KEEPS ITS FULL-SIZE LABELLED BUTTON IN THE BAR",
-  /<PhotoButton/.test(pinned),
-  "it is the one of the four reached for in gloves"
+  "PHOTO AND FILE MOVED TO THE EVIDENCE STATUS PANEL, NOT THE PINNED BAR",
+  !/<PhotoButton/.test(pinned) &&
+    !/<FileButton/.test(pinned) &&
+    /<PhotoButton/.test(codeOnly) &&
+    /<FileButton/.test(codeOnly),
+  "one upload surface, reached from Evidence status, not a second one under every tab"
 );
 check(
   "the remaining row still scrolls sideways rather than wrapping to a second 50px band",
@@ -349,11 +357,18 @@ check(
   /r\.issuesPicked\.length > 0 \? \{ badge: String\(r\.issuesPicked\.length\) \}/.test(codeOnly),
   "a zero on every check is noise on the one thing that must stand out"
 );
+/* A DECISION OF SAREL'S THAT HE LATER REVERSED, recorded for the same
+   reason the one above it is: "make all buttons fit in one row (the
+   buttons for acsa requirements, issues, walkabout...)" — twelve tabs
+   beside a half-width reference panel wrapped to two rows even on a
+   desk-width window, the same busyness the tabbed redesign was built to
+   remove. The strip now scrolls sideways at every width instead. */
 check(
-  "the strip WRAPS wherever there is room, and scrolls sideways only on a phone",
-  /sm:flex-wrap sm:overflow-visible/.test(codeOnly) &&
-    /overflow-x-auto border-b px-5/.test(codeOnly),
-  "a tab pushed off the right edge is a panel nobody knows is there — but five rows of PINNED strip is most of a 664px phone"
+  "the strip SCROLLS SIDEWAYS AT EVERY WIDTH, rather than wrapping to a second row",
+  /className="flex flex-nowrap items-center gap-x-\[14px\] gap-y-\[5px\] overflow-x-auto border-b px-5 py-\[8px\] whitespace-nowrap"/.test(
+    codeOnly
+  ),
+  "two rows of PINNED tab strip is most of a 664px phone, and it is no less true on a desk-width window beside a half-width reference panel"
 );
 
 /* (?<!EVIDENCE_) EXCLUDES EVIDENCE_STATUSES.map( — added 2 October 2026

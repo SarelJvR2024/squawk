@@ -23,6 +23,7 @@ import {
   IconClipboard,
   IconClock,
   IconDash,
+  IconFlag,
   IconHelp,
   IconInfo,
   IconLeft,
@@ -768,36 +769,38 @@ export default function CheckDetail({
           ) : null;
         })()}
 
-        {/* UPLOAD, RIGHT WHERE THE STATE THAT NEEDS IT IS — "evidence
-            provided for review" is nothing without the evidence attached.
-            Photo and File write into the same attachments array the
-            observation panel's own strip shows; this is not a second,
-            evidence-only attachment list, just the upload control offered
-            again where an auditor reaching for this specific state expects
-            to find it. */}
-        {r.evidenceStatus === "providedForReview" && (
-          <div className="mt-2.5 flex flex-wrap items-center gap-[6px]">
-            <PhotoButton
-              compact
-              onCaptured={(m) => {
-                addAttachment(check.id, { ...m, createdBy: auditor });
-                onSaved(`Photo attached to ${portalId}`);
-              }}
-            />
-            <FileButton
-              compact
-              onCaptured={(m) => {
-                addAttachment(check.id, { ...m, createdBy: auditor });
-                onSaved(`File attached to ${portalId}`);
-              }}
-            />
-            <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-              {r.attachments.length === 0
-                ? "nothing attached yet"
-                : `${r.attachments.length} attached`}
-            </span>
-          </div>
-        )}
+        {/* UPLOAD LIVES HERE NOW, NOT IN A FLOATING BAR UNDER EVERY TAB.
+            Sarel: "remove the paperclip and photo icon, introduce them in
+            the evidence section — all photos and evidence will be
+            uploaded in the evidence section." Unconditional rather than
+            gated to "evidence provided for review" — a photo is just as
+            often the proof that evidence is still outstanding ("to be
+            provided", dated) as it is the proof itself. Photo and File
+            write into the same attachments array the observation panel's
+            own strip shows; this is not a second, evidence-only
+            attachment list, just the one place an auditor now reaches for
+            either. */}
+        <div className="mt-2.5 flex flex-wrap items-center gap-[6px]">
+          <PhotoButton
+            compact
+            onCaptured={(m) => {
+              addAttachment(check.id, { ...m, createdBy: auditor });
+              onSaved(`Photo attached to ${portalId}`);
+            }}
+          />
+          <FileButton
+            compact
+            onCaptured={(m) => {
+              addAttachment(check.id, { ...m, createdBy: auditor });
+              onSaved(`File attached to ${portalId}`);
+            }}
+          />
+          <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+            {r.attachments.length === 0
+              ? "nothing attached yet"
+              : `${r.attachments.length} attached`}
+          </span>
+        </div>
 
         {/* A SPACER, not a design choice — this panel is the first in the
            "do" group routinely tall enough to expose a `position: sticky`
@@ -812,6 +815,53 @@ export default function CheckDetail({
            touching the pinned bar itself, which every other tab also
            depends on. */}
         <div aria-hidden className="h-[220px]" />
+      </>
+    ),
+  });
+
+  /* FLAG FOR REVIEW — an internal note on the check-point itself, never on
+     the asset it audits and never sent to ACSA. Sarel: "add an internal
+     flag option to tag with a note on how to improve this check." Its own
+     tab rather than folded into Issues found, which is about what the
+     audit found wrong on site — a different question from "this
+     check-point's wording is ambiguous" or "the evidence list is missing
+     something". Same toggle-then-note shape as Evidence status, so the
+     note only shows once there is something to say. */
+  panels.push({
+    key: "improve",
+    label: "Flag for review",
+    ...(r.improvementFlag ? { badge: "⚑" } : {}),
+    group: "do",
+    body: (
+      <>
+        <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+          a note on the check-point itself, not on what was found here — never part of the audit record
+        </div>
+        <button
+          type="button"
+          onClick={() => patch(check.id, { improvementFlag: !r.improvementFlag })}
+          aria-pressed={!!r.improvementFlag}
+          className="flex min-h-[44px] items-center gap-[7px] rounded-[9px] border px-[10px] py-[7px] text-left text-[11px] font-semibold transition-[var(--t)]"
+          style={toneStyle("warn", !!r.improvementFlag)}
+        >
+          <IconFlag width={14} height={14} className="shrink-0" />
+          Flag this check for improvement
+        </button>
+
+        {r.improvementFlag && (
+          <div className="mt-2.5">
+            <div className="label-xs mb-1">What should change, and why</div>
+            <textarea
+              value={r.improvementNote ?? ""}
+              onChange={(e) => patch(check.id, { improvementNote: e.target.value })}
+              rows={3}
+              aria-label="How to improve this check"
+              placeholder="e.g. the wording is ambiguous, the evidence list is missing something, the threshold looks outdated"
+              className="w-full rounded-[9px] border px-3 py-2 text-[12.5px]"
+              style={{ background: "var(--bg)", borderColor: "var(--line-2)" }}
+            />
+          </div>
+        )}
       </>
     ),
   });
@@ -1395,18 +1445,17 @@ export default function CheckDetail({
           heading, because eleven pills under two headings is a heading per
           three pills.
 
-          It wraps rather than scrolling sideways. The whole reason the counts
-          are on the tabs is so nothing tapped is hidden — a strip that pushes
-          the last two off the right edge hides them again, and a horizontal
-          scrollbar is the least likely thing on the screen to be noticed. */}
+          IT SCROLLS SIDEWAYS, ALWAYS, rather than wrapping from sm. Sarel:
+          "make all buttons fit in one row (the buttons for acsa
+          requirements, issues, walkabout...)." It used to wrap on anything
+          with room, so nothing tapped was ever hidden by a closed panel —
+          but twelve tabs beside a half-width reference panel wraps to two
+          rows even on a desk-width window, and two rows of tab strip is
+          the same busyness the tabbed redesign was built to get rid of.
+          One row, scrolling, is the same bargain the strip already made
+          for a phone, now kept at every width. */}
       <div
-        /* WRAPS from sm, and scrolls sideways below it. The counts are on the
-           tabs so that nothing tapped is hidden by a closed panel, and a strip
-           that pushes the last two off the right edge hides them again — so on
-           anything with room, it wraps. A 390px phone has no such room: eleven
-           pills wrap to five rows, and five rows of PINNED strip is most of
-           what is left after the answer bar. */
-        className="flex items-center gap-x-[14px] gap-y-[5px] overflow-x-auto border-b px-5 py-[8px] whitespace-nowrap sm:flex-wrap sm:overflow-visible"
+        className="flex flex-nowrap items-center gap-x-[14px] gap-y-[5px] overflow-x-auto border-b px-5 py-[8px] whitespace-nowrap"
         style={{ background: "var(--panel)", borderColor: "var(--line)" }}
       >
         {(["acsa", "do", "read"] as const).map((group) => {
@@ -1423,7 +1472,7 @@ export default function CheckDetail({
                     ? "Answer library"
                     : "Reference"
               }
-              className="flex shrink-0 gap-[5px] sm:flex-wrap"
+              className="flex shrink-0 flex-nowrap gap-[5px]"
             >
               {mine.map((t) => {
                 const on = openKey === t.key;
@@ -1732,47 +1781,19 @@ export default function CheckDetail({
             paddingBottom: "calc(0.5rem + var(--sticky-safe))",
           }}
         >
-          {/* WRITING IT DOWN AND ANSWERING IT, IN ONE BAR.
-
-              These four used to be their own row above the observation field,
-              which put a band of 31-44px controls between the box you type in
-              and the buttons that answer the check — three stacked strips of
-              furniture where two would do. They belong beside the answer: on a
-              phone they are one row above the compliance buttons, on a desk
-              they sit inline with them.
-
-              IT STILL SCROLLS SIDEWAYS RATHER THAN WRAPPING on a phone, which
-              is the same reasoning as before the move: at 44px a wrapped
-              toolbar is a second 50px band taken off a 664px screen for the
-              whole session, and this bar already spends a third of it.
-              Sideways it costs nothing and every label stays the length it
-              needs to be. */}
-          {/* Compose, Draft and the mic moved INTO the observation box above —
-              see the note there. What is left is the one control that has to
-              stay a proper 44px target, and the pills saying what is attached. */}
+          {/* WHAT IS ALREADY ATTACHED, NOT WHERE YOU ATTACH IT.
+              Sarel: "remove the paperclip and photo icon, introduce them in
+              the evidence section — all photos and evidence will be
+              uploaded in the evidence section." Photo and File used to
+              live here, in their own row above the compliance buttons;
+              they are both now in the Evidence status panel instead, the
+              one place an auditor reaches for either, rather than a
+              second copy floating under every tab. These pills are what
+              is left: a glance at what is attached without leaving
+              whichever tab is open — the label row above the observation
+              says the same thing and is desk-only, so on a phone these
+              are the only place it is said. */}
           <div className="no-scrollbar flex flex-nowrap items-center gap-[6px] overflow-x-auto sm:overflow-visible [&>*]:shrink-0">
-            <PhotoButton
-              onCaptured={(m) => {
-                addAttachment(check.id, { ...m, createdBy: auditor });
-                onSaved(`Photo attached to ${portalId}`);
-              }}
-            />
-            {/* Sarel: "add an option to add multiple evidence files all
-                general formats." Same 44px target and same row as Photo —
-                this is the other thing an auditor attaches as evidence,
-                just not a photograph: a PDF handed over on site, a
-                spreadsheet, a certificate. FileButton already accepts
-                multiple files per pick. */}
-            <FileButton
-              compact
-              onCaptured={(m) => {
-                addAttachment(check.id, { ...m, createdBy: auditor });
-                onSaved(`File attached to ${portalId}`);
-              }}
-            />
-            {/* What is already attached. The label row above the observation
-                says the same thing and is desk-only, so on a phone these pills
-                are the only place it is said. */}
             {photos > 0 && (
               <Pill>
                 {photos} photo{photos > 1 ? "s" : ""}
@@ -1842,7 +1863,13 @@ export default function CheckDetail({
             })}
           </div>
 
-          <div className="flex gap-[7px]">
+          {/* CENTERED, ON ITS OWN ROW. Sarel: "centre the save, save next
+              buttons." `w-full` is the same trick the note below already
+              uses to force a line of its own in this flex-wrap bar — once
+              it has the full width, `justify-center` centers the four
+              controls within it rather than leaving them pinned to
+              wherever the pills/verdict grid happened to end. */}
+          <div className="flex w-full items-center justify-center gap-[7px]">
             <Btn icon onClick={onPrev} aria-label="Previous">
               <IconLeft width={14} height={14} />
             </Btn>
