@@ -75,49 +75,73 @@ export function modesOf(check: Check): Modes {
   };
 }
 
-/** Belongs in the audit workspace: there is something to ask or collect at a
- *  desk, in a document review, or across a table from the responsible person.
+/** A DECISION OF SAREL'S THAT HE LATER REVERSED.
  *
- *  DELIBERATELY STILL ON `vtype`, and it was worth the hour spent proving it.
+ *  needsDesk and needsField used to route checks onto Checks (315) or
+ *  Inspection (290) based on vtype/`inspect` — real reasoning, not a filter
+ *  bug: nine checks (ELE-037, the ILS flight calibration certificate;
+ *  MEC-043, buried-pipe coating visible only during an excavation; PSR-037,
+ *  whether incidents were reported inside the statutory clock, among them)
+ *  genuinely have nothing on site to go and look at, so listing them on a
+ *  tablet in the field cost an auditor nine walks to nowhere. The original
+ *  comment below this one, kept for the record, is the hour of analysis that
+ *  reasoning took.
  *
- *  The obvious move once the register review landed was to route this on
- *  `confirmedBy` too — Document and Practice to the desk, Asset to the walk.
- *  That takes 76 checks off this tab, and every one of those 76 has evidence
- *  ACSA names by document and clause. ELE-012 is the example that settles it:
- *  classified Asset/examine because the state of the cable route is what
- *  decides it, and its requirement reads "cable routes marked, trenches/covers
- *  intact, CABLE TEST AND THERMOGRAPHY RECORDS". There is desk work there, and
- *  routing it off the desk would make it unanswerable at one.
+ *  Sarel: "We have 315 items in checks and 290 in inspections. I had a
+ *  rethink about this, lets rather have all 324 in each and if they are not
+ *  relevant we can just ignore them or mark them as NA, the different
+ *  numbers might make people confused." Two different counts on the same
+ *  register read as a discrepancy to explain even when both are correct —
+ *  and every one of the nine field-reaches-nothing checks already has N/A
+ *  as an available outcome on both screens (STATUSES on Checks,
+ *  OutcomeControl.OUTCOMES on Inspection), so "mark it N/A" costs the
+ *  auditor one tap where the routing used to cost nothing — a trade Sarel
+ *  chose explicitly over having the app pre-mark it for them, so a check
+ *  that is irrelevant for a reason nobody anticipated does not silently
+ *  carry an answer nobody gave it.
  *
- *  `confirmedBy` answers "what settles compliance". It does not answer "is
- *  there a document to collect", and 313 of the 324 carry one. Those are
- *  different questions and only the second one belongs here. */
-export function needsDesk(check: Check): boolean {
-  const m = modesOf(check);
-  return m.evidence || m.question;
+ *  Both screens, and every count built on them (the masthead badges, the
+ *  dashboard rollups, the per-discipline totals, deskOk/fieldOk below), now
+ *  see the full 324 — Checks and Inspection are no longer two different
+ *  subsets of the same register, they are the same 324 checks asked twice,
+ *  once as "what does the document say" and once as "what did the walk
+ *  show". `modesOf`, `needsQuestion`, `modeLabels` and `countModes` are
+ *  unchanged — they still say what KIND of evidence a check wants, which is
+ *  still true and still useful; what changed is only that kind no longer
+ *  decides which screen gets to see the check at all. */
+export function needsDesk(_check: Check): boolean {
+  return true;
 }
 
-/** Belongs in field inspection: there is something on site to go and do.
- *
- *  ROUTED ON `inspect`, NOT ON `vtype` (2026-09-11). The register review gave
- *  every check a declared answer to "what does the walk contribute" — examine,
- *  reconcile, or none — and that is a different and better question than
- *  vtype's "Site Physical Verification", which reads true on 299 of 324 and
- *  therefore separates almost nothing.
- *
- *  Nine checks say `none`: their compliance is settled entirely at a desk and
- *  an auditor standing on the apron cannot progress them. ELE-037 is the ILS
- *  flight calibration certificate; MEC-043 is buried-pipe coating, which can
- *  only be seen during an excavation; PSR-037 is whether incidents were
- *  reported inside the statutory clock. None of those is a thing to look at,
- *  and listing them on a tablet costs an auditor nine walks to nowhere.
- *
- *  `vtype` remains the fallback for a row added later without a classification,
- *  because a check nobody can see is worse than one in the wrong place. */
-export function needsField(check: Check): boolean {
-  if (check.inspect) return check.inspect !== "none";
-  return modesOf(check).physical;
+export function needsField(_check: Check): boolean {
+  return true;
 }
+
+/* Routed (until 4 October 2026, reversed above): desk 315 (Evidence or
+   Question, off vtype), field 290 (inspect is not "none"), overlap 290,
+   desk-only 25, field-only 0, orphaned 0.
+
+   DELIBERATELY STILL ON `vtype`, and it was worth the hour spent proving
+   it, for as long as it was the routing in force.
+
+   The obvious move once the register review landed was to route this on
+   `confirmedBy` too — Document and Practice to the desk, Asset to the walk.
+   That takes 76 checks off this tab, and every one of those 76 has evidence
+   ACSA names by document and clause. ELE-012 is the example that settles it:
+   classified Asset/examine because the state of the cable route is what
+   decides it, and its requirement reads "cable routes marked, trenches/covers
+   intact, CABLE TEST AND THERMOGRAPHY RECORDS". There is desk work there, and
+   routing it off the desk would make it unanswerable at one.
+
+   `confirmedBy` answers "what settles compliance". It does not answer "is
+   there a document to collect", and 313 of the 324 carry one. Those were
+   different questions and only the second one belonged here.
+
+   ROUTED ON `inspect`, NOT ON `vtype` (2026-09-11), for field. The register
+   review gave every check a declared answer to "what does the walk
+   contribute" — examine, reconcile, or none — and that was a different and
+   better question than vtype's "Site Physical Verification", which reads
+   true on 299 of 324 and therefore separated almost nothing. */
 
 /** Carries a question for the audit question set. */
 export function needsQuestion(check: Check): boolean {

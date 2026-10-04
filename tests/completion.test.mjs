@@ -4,8 +4,9 @@ import { fileURLToPath } from "node:url";
 
 /* A check is complete when every mode it declares has been answered.
  *
- *  There was one `captured` flag, set by whichever screen saved first. For the
- *  290 checks that need both a document review and the asset seen, ticking it
+ *  There was one `captured` flag, set by whichever screen saved first. For
+ *  checks that need both a document review and the asset seen — all 324 of
+ *  them, since Capture and Field both list the full register — ticking it
  *  at a desk marked it done — the dashboard counted it, the export said
  *  "Captured: Yes", and nobody had walked out to look at the pump. The auditor
  *  was told the truth by a banner and the data was not.

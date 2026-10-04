@@ -182,7 +182,9 @@ check(
    the clock" state for a picker to be disabled against any more. */
 check(
   "ppe defaults a typed person's organisation and role rather than passing them through raw",
-  /organisation: p\.organisation \?\? "", role: p\.role \?\? ""/.test(src("app", "(app)", "ppe", "page.tsx")),
+  /organisation: p\.organisation \?\? "",\s*\n?\s*role: p\.role \?\? ""/.test(
+    src("app", "(app)", "ppe", "page.tsx")
+  ),
   'belt-and-suspenders alongside the ContactPicker fix above — this call site is what actually shipped the bug'
 );
 

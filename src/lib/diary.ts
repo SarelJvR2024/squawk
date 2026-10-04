@@ -61,9 +61,21 @@ function hhmm(t: number): string {
 
 /** The entries, oldest first — the order they actually happened in, not the
  *  order they were typed in (somebody filling in the morning's weather at
- *  lunchtime should not jump ahead of an issue logged at 09:00). */
+ *  lunchtime should not jump ahead of an issue logged at 09:00).
+ *
+ *  UNTIMED ENTRIES SORT LAST, in the order they were added — `at` being
+ *  optional (Sarel: "link a time each entry as optional") means there is
+ *  no "happened at" to order some entries by at all; putting them after
+ *  every timed one, rather than treating a missing time as 0 (midnight) or
+ *  `Date.now()` (now), is the only reading that does not silently invent a
+ *  time nobody gave. */
 export function sortedEntries(day: SiteDay): DiaryEntry[] {
-  return [...day.diaryEntries].sort((a, b) => a.at - b.at);
+  return [...day.diaryEntries].sort((a, b) => {
+    if (a.at !== null && b.at !== null) return a.at - b.at;
+    if (a.at !== null) return -1;
+    if (b.at !== null) return 1;
+    return a.createdAt - b.createdAt;
+  });
 }
 
 /** The diary's own section of dayText() in src/lib/attendance.ts — kept
@@ -84,7 +96,7 @@ export function diaryLines(day: SiteDay): string[] {
   } else {
     for (const e of sortedEntries(day)) {
       lines.push(
-        `  ${hhmm(e.at)}  ${DIARY_CATEGORY_LABEL[e.category].toUpperCase().padEnd(10)}${e.text.trim() || "— not recorded —"}`
+        `  ${(e.at !== null ? hhmm(e.at) : "— : —").padEnd(5)}  ${DIARY_CATEGORY_LABEL[e.category].toUpperCase().padEnd(10)}${e.text.trim() || "— not recorded —"}`
       );
     }
   }

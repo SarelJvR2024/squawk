@@ -23,7 +23,7 @@ import { useFormsHubDeepLink } from "@/lib/deepLink";
 import ContactPicker from "@/components/ContactPicker";
 import { SignaturePad } from "@/components/SignaturePad";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
-import { IconX } from "@/components/ui/icons";
+import { IconCheck, IconLeft, IconX } from "@/components/ui/icons";
 
 const inputCls = "min-h-[44px] w-full rounded-[9px] border px-3 py-2 text-[13px]";
 const inputStyle = { background: "var(--bg)", borderColor: "var(--line)" } as const;
@@ -48,6 +48,12 @@ export default function SiteAccessPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [signing, setSigning] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  /* ONE VISITOR EXPANDED AT A TIME, same reasoning as the attendance
+     register: name/side/organisation only matter while a row is actually
+     being filled in; once recorded it folds to a single line. */
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [draftArea, setDraftArea] = useState("");
   useFormsHubDeepLink(setOpenId);
   const [draftPurpose, setDraftPurpose] = useState("");
@@ -81,6 +87,253 @@ export default function SiteAccessPage() {
     } catch {
       window.prompt("Copy this site access log", text);
     }
+  }
+
+  /* ONE LOG AT A TIME, FULL FOCUS — same change as attendance: Sarel,
+     "don't show the top section to create a new register... it should
+     represent only that specific register." An open log is handed from
+     person to person the same way. */
+  const activeLog = logs.find((l) => l.id === openId) ?? null;
+
+  if (activeLog) {
+    const l = activeLog;
+    const unbacked = unbackedSignatures(l);
+    return (
+      <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <div className="mx-auto w-full max-w-[760px] px-4 pb-24 pt-3">
+          <button
+            type="button"
+            onClick={() => {
+              setOpenId(null);
+              setConfirmingDelete(false);
+            }}
+            className="mb-2.5 flex items-center gap-1 text-[12px] font-semibold"
+            style={{ color: "var(--acc)" }}
+          >
+            <IconLeft width={12} height={12} />
+            All site access logs
+          </button>
+
+          <Panel>
+            <div data-record-id={l.id} className="font-mono text-[10px]">
+              {l.date} · {hhmm(l.openedAt)}
+            </div>
+
+            <div className="mt-3 mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <Field label="AREA">
+                <input
+                  value={l.area}
+                  onChange={(e) => patchLog(l.id, { area: e.target.value })}
+                  aria-label={`Area for log ${l.id}`}
+                  className={inputCls}
+                  style={inputStyle}
+                />
+              </Field>
+              <Field label="PURPOSE">
+                <input
+                  value={l.purpose}
+                  onChange={(e) => patchLog(l.id, { purpose: e.target.value })}
+                  aria-label={`Purpose for log ${l.id}`}
+                  className={inputCls}
+                  style={inputStyle}
+                />
+              </Field>
+              <Field label="ESCORTED BY">
+                <input
+                  value={l.escortedBy}
+                  onChange={(e) => patchLog(l.id, { escortedBy: e.target.value })}
+                  aria-label={`Escort for log ${l.id}`}
+                  className={inputCls}
+                  style={inputStyle}
+                />
+              </Field>
+            </div>
+
+            <Field label="WHO WENT IN" hint={`${l.people.length} recorded`}>
+              <ContactPicker
+                entityCode={entityCode}
+                onAdd={(p) => {
+                  const rowId = addVisitor(l.id, p.name, {
+                    contactId: p.contactId,
+                    organisation: p.organisation ?? "",
+                  });
+                  setExpandedRowId(rowId);
+                }}
+              />
+            </Field>
+
+            {l.people.map((v) => {
+              const rowOpen = expandedRowId === v.id;
+              const rowSigning = signing === v.id;
+              const signed = isSigned(v);
+              const rowSummary = [v.side, v.organisation].filter((s) => s.trim()).join(" · ");
+              return (
+                <div
+                  key={v.id}
+                  className="mb-2 mt-2 rounded-[9px] border p-2"
+                  style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
+                >
+                  <div className="flex items-center gap-[6px]">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedRowId(rowOpen ? null : v.id)}
+                      className="flex min-h-[30px] min-w-0 flex-1 items-center gap-[6px] text-left"
+                    >
+                      {signed ? <Pill tone="accent">SIGNED</Pill> : <Pill tone="warn">NOT SIGNED</Pill>}
+                      <span className="truncate text-[12.5px] font-semibold">
+                        {v.name.trim() || "Unnamed"}
+                      </span>
+                    </button>
+
+                    {/* THE QUICK SIGN — same control as attendance. */}
+                    {!rowSigning && (
+                      <button
+                        type="button"
+                        onClick={() => setSigning(v.id)}
+                        className="flex shrink-0 items-center gap-[4px] rounded-[8px] border px-[10px] py-[6px] font-display text-[11px] font-semibold"
+                        style={
+                          signed
+                            ? { background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }
+                            : { background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }
+                        }
+                      >
+                        {signed ? "Sign again" : "Sign"}
+                      </button>
+                    )}
+                  </div>
+
+                  {!rowOpen && !rowSigning && rowSummary ? (
+                    <p className="mt-[3px] truncate text-[11px]" style={{ color: "var(--ink-3)" }}>
+                      {rowSummary}
+                    </p>
+                  ) : null}
+
+                  {rowSigning ? (
+                    <div className="mt-[6px]">
+                      <SignaturePad
+                        name={v.name}
+                        onCancel={() => setSigning(null)}
+                        onSigned={(s) => {
+                          sign(l.id, v.id, s);
+                          setSigning(null);
+                          setExpandedRowId(null);
+                        }}
+                      />
+                    </div>
+                  ) : rowOpen ? (
+                    <div className="mt-[6px]">
+                      <div className="mb-[5px] flex items-center justify-between gap-2">
+                        {v.signature ? (
+                          <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                            {v.signature.ref} · SIGNED {hhmm(v.signature.signedAt)} AS{" "}
+                            {v.signature.signedName.toUpperCase() || "—"}
+                          </span>
+                        ) : (
+                          <span />
+                        )}
+                        <Btn
+                          onClick={() => {
+                            removeVisitor(l.id, v.id);
+                            setExpandedRowId((cur) => (cur === v.id ? null : cur));
+                          }}
+                        >
+                          <IconX /> Remove
+                        </Btn>
+                      </div>
+
+                      <input
+                        value={v.name}
+                        onChange={(ev) => patchVisitor(l.id, v.id, { name: ev.target.value })}
+                        aria-label={`Name of visitor ${v.id}`}
+                        placeholder="Full name"
+                        className={`mb-2 ${inputCls}`}
+                        style={inputStyle}
+                      />
+
+                      <div className="flex flex-wrap gap-[6px]">
+                        {SIDES.map((side) => (
+                          <Btn
+                            key={side}
+                            variant={v.side === side ? "primary" : "default"}
+                            onClick={() => patchVisitor(l.id, v.id, { side })}
+                          >
+                            {side}
+                          </Btn>
+                        ))}
+                        <input
+                          value={v.organisation}
+                          onChange={(ev) => patchVisitor(l.id, v.id, { organisation: ev.target.value })}
+                          aria-label={`Organisation of visitor ${v.id}`}
+                          placeholder="Organisation / subconsultant (optional)"
+                          className="min-h-[44px] flex-1 min-w-[160px] rounded-[9px] border px-3 text-[13px]"
+                          style={inputStyle}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+            {l.people.length === 0 ? (
+              <p className="text-[12px]" style={{ color: "var(--ink-3)" }}>
+                Nobody recorded yet. Use the box above.
+              </p>
+            ) : null}
+
+            <div
+              className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t pt-2"
+              style={{ borderColor: "var(--line)" }}
+            >
+              <Btn
+                variant="primary"
+                onClick={() => {
+                  setOpenId(null);
+                  setConfirmingDelete(false);
+                  setSavedId(l.id);
+                  window.setTimeout(() => setSavedId(null), 2500);
+                }}
+              >
+                <IconCheck /> Save & close
+              </Btn>
+              <div className="flex items-center gap-2">
+                <Btn onClick={() => void copyLog(l)}>
+                  {copied === l.id ? "Copied" : "Copy this log"}
+                </Btn>
+                {/* A SECOND TAP BEFORE ANYTHING IS LOST — same pattern as
+                    the attendance register's "Delete this register". */}
+                {confirmingDelete ? (
+                  <>
+                    <span className="text-[11px] font-semibold" style={{ color: "var(--warn)" }}>
+                      Delete this log?
+                    </span>
+                    <Btn onClick={() => setConfirmingDelete(false)}>Cancel</Btn>
+                    <Btn
+                      onClick={() => {
+                        removeLog(l.id);
+                        setOpenId(null);
+                        setConfirmingDelete(false);
+                      }}
+                    >
+                      <IconX /> Yes, delete
+                    </Btn>
+                  </>
+                ) : (
+                  <Btn onClick={() => setConfirmingDelete(true)}>
+                    <IconX /> Delete this log
+                  </Btn>
+                )}
+              </div>
+            </div>
+            {unbacked.length ? (
+              <p className="mt-1.5 font-mono text-[9px]" style={{ color: "var(--warn)" }}>
+                {unbacked.length} SIGNATURE{unbacked.length > 1 ? "S" : ""} ON THIS DEVICE ONLY. THE
+                RECORD COPY IS NOT WIRED YET — COPY THIS LOG OUT BEFORE THE TABLET LEAVES SITE.
+              </p>
+            ) : null}
+          </Panel>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -140,21 +393,22 @@ export default function SiteAccessPage() {
       ) : null}
 
       {logs.map((l) => {
-        const isOpen = openId === l.id;
         const gaps = logGaps(l);
-        const unbacked = unbackedSignatures(l);
         return (
-          <div key={l.id} data-record-id={l.id} className="mb-3">
+          <div key={l.id} data-record-id={l.id} className="mb-2">
             <Panel>
               <button
                 type="button"
-                onClick={() => setOpenId(isOpen ? null : l.id)}
+                onClick={() => setOpenId(l.id)}
                 className="flex w-full items-start justify-between gap-3 text-left"
               >
                 <div className="min-w-0">
-                  <span className="font-mono text-[10px]">
-                    {l.date} · {hhmm(l.openedAt)}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-[10px]">
+                      {l.date} · {hhmm(l.openedAt)}
+                    </span>
+                    {savedId === l.id ? <Pill tone="accent">✓ SAVED</Pill> : null}
+                  </div>
                   <p className="mt-1 text-[13px]">
                     {l.area.trim() || "No area recorded"}
                     {l.purpose.trim() ? ` — ${l.purpose.trim()}` : ""}
@@ -171,136 +425,6 @@ export default function SiteAccessPage() {
                   </div>
                 </div>
               </button>
-
-              {isOpen ? (
-                <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--line)" }}>
-                  <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                    <Field label="AREA">
-                      <input
-                        value={l.area}
-                        onChange={(e) => patchLog(l.id, { area: e.target.value })}
-                        aria-label={`Area for log ${l.id}`}
-                        className={inputCls}
-                        style={inputStyle}
-                      />
-                    </Field>
-                    <Field label="PURPOSE">
-                      <input
-                        value={l.purpose}
-                        onChange={(e) => patchLog(l.id, { purpose: e.target.value })}
-                        aria-label={`Purpose for log ${l.id}`}
-                        className={inputCls}
-                        style={inputStyle}
-                      />
-                    </Field>
-                    <Field label="ESCORTED BY">
-                      <input
-                        value={l.escortedBy}
-                        onChange={(e) => patchLog(l.id, { escortedBy: e.target.value })}
-                        aria-label={`Escort for log ${l.id}`}
-                        className={inputCls}
-                        style={inputStyle}
-                      />
-                    </Field>
-                  </div>
-
-                  <Field label="WHO WENT IN" hint={`${l.people.length} recorded`}>
-                    <ContactPicker
-                      entityCode={entityCode}
-                      onAdd={(p) => addVisitor(l.id, p.name, { contactId: p.contactId, organisation: p.organisation ?? "" })}
-                    />
-                  </Field>
-
-                  {l.people.map((v) => (
-                    <div
-                      key={v.id}
-                      className="mb-3 rounded-[9px] border p-2.5"
-                      style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
-                    >
-                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                        {isSigned(v) ? (
-                          <Pill tone="accent">SIGNED {v.signature?.ref}</Pill>
-                        ) : (
-                          <Pill tone="warn">NOT SIGNED</Pill>
-                        )}
-                        <Btn onClick={() => removeVisitor(l.id, v.id)}>
-                          <IconX /> Remove
-                        </Btn>
-                      </div>
-
-                      <input
-                        value={v.name}
-                        onChange={(ev) => patchVisitor(l.id, v.id, { name: ev.target.value })}
-                        aria-label={`Name of visitor ${v.id}`}
-                        placeholder="Full name"
-                        className={`mb-2 ${inputCls}`}
-                        style={inputStyle}
-                      />
-
-                      <div className="mb-2 flex flex-wrap gap-[6px]">
-                        {SIDES.map((side) => (
-                          <Btn
-                            key={side}
-                            variant={v.side === side ? "primary" : "default"}
-                            onClick={() => patchVisitor(l.id, v.id, { side })}
-                          >
-                            {side}
-                          </Btn>
-                        ))}
-                        <input
-                          value={v.organisation}
-                          onChange={(ev) => patchVisitor(l.id, v.id, { organisation: ev.target.value })}
-                          aria-label={`Organisation of visitor ${v.id}`}
-                          placeholder="Organisation / subconsultant (optional)"
-                          className="min-h-[44px] flex-1 min-w-[160px] rounded-[9px] border px-3 text-[13px]"
-                          style={inputStyle}
-                        />
-                      </div>
-
-                      {signing === v.id ? (
-                        <SignaturePad
-                          name={v.name}
-                          onCancel={() => setSigning(null)}
-                          onSigned={(s) => {
-                            sign(l.id, v.id, s);
-                            setSigning(null);
-                          }}
-                        />
-                      ) : v.signature ? (
-                        <div className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                          {v.signature.ref} · SIGNED {hhmm(v.signature.signedAt)} AS{" "}
-                          {v.signature.signedName.toUpperCase() || "—"}
-                          <Btn className="ml-2" onClick={() => setSigning(v.id)}>
-                            Sign again
-                          </Btn>
-                        </div>
-                      ) : (
-                        <Btn variant="primary" onClick={() => setSigning(v.id)}>
-                          Sign
-                        </Btn>
-                      )}
-                    </div>
-                  ))}
-                  {l.people.length === 0 ? (
-                    <p className="text-[12px]" style={{ color: "var(--ink-3)" }}>
-                      Nobody recorded yet. Use the box above.
-                    </p>
-                  ) : null}
-
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t pt-3" style={{ borderColor: "var(--line)" }}>
-                    <Btn onClick={() => void copyLog(l)}>{copied === l.id ? "Copied" : "Copy this log"}</Btn>
-                    <Btn onClick={() => { removeLog(l.id); setOpenId(null); }}>
-                      <IconX /> Delete this log
-                    </Btn>
-                  </div>
-                  {unbacked.length ? (
-                    <p className="mt-2 font-mono text-[9px]" style={{ color: "var(--warn)" }}>
-                      {unbacked.length} SIGNATURE{unbacked.length > 1 ? "S" : ""} ON THIS DEVICE ONLY. THE
-                      RECORD COPY IS NOT WIRED YET — COPY THIS LOG OUT BEFORE THE TABLET LEAVES SITE.
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
             </Panel>
           </div>
         );

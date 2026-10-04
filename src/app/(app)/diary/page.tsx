@@ -51,6 +51,29 @@ import type { DiaryCategory, SiteDay } from "@/lib/types";
 const inputCls = "min-h-[44px] w-full rounded-[9px] border px-3 py-2 text-[13px]";
 const inputStyle = { background: "var(--bg)", borderColor: "var(--line)" } as const;
 
+/* A FIELD WITHOUT Field's OVERHEAD — the same trick src/app/(app)/attendance
+   uses, and for the same reason. Sarel, on this screen: "use the space
+   better so to limit open spaces and scrolling." LOCATION/PURPOSE/DAY
+   START/DAY END were four full <Field>s stacked, each with its own label
+   row and 16px of bottom margin; this is the same label-over-input shape at
+   a fraction of the chrome. Kept local rather than changed in the shared
+   primitive, which every other form in the app still wants its normal
+   spacing from. */
+function mini(label: string, input: React.ReactNode, hint?: string) {
+  return (
+    <label className="block">
+      <span
+        className="mb-[3px] flex items-baseline justify-between font-mono text-[9px] font-semibold tracking-wide"
+        style={{ color: "var(--ink-4)" }}
+      >
+        {label}
+        {hint ? <span className="font-normal normal-case tracking-normal">{hint}</span> : null}
+      </span>
+      {input}
+    </label>
+  );
+}
+
 function hhmm(t: number): string {
   return new Date(t).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
@@ -125,29 +148,33 @@ function DiaryDayBody({
 
   return (
     <>
-      <Field label="LOCATION" hint="optional">
-        <input
-          value={day.location}
-          onChange={(e) => patchDay(day.id, { location: e.target.value })}
-          aria-label={`Where ${day.date} was spent`}
-          placeholder="MV rooms Pier B and C, AGL vault…"
-          className={`mb-2 ${inputCls}`}
-          style={inputStyle}
-        />
-      </Field>
-      <Field label="PURPOSE" hint="optional">
-        <input
-          value={day.purpose}
-          onChange={(e) => patchDay(day.id, { purpose: e.target.value })}
-          aria-label={`Purpose of visit on ${day.date}`}
-          placeholder="Round 2 asset assurance walk…"
-          className={`mb-2 ${inputCls}`}
-          style={inputStyle}
-        />
-      </Field>
-
-      <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <Field label="DAY START" hint="optional">
+      <div className="mb-2 grid grid-cols-2 gap-[6px] sm:grid-cols-4">
+        {mini(
+          "LOCATION",
+          <input
+            value={day.location}
+            onChange={(e) => patchDay(day.id, { location: e.target.value })}
+            aria-label={`Where ${day.date} was spent`}
+            placeholder="MV rooms Pier B and C…"
+            className={inputCls}
+            style={inputStyle}
+          />,
+          "optional"
+        )}
+        {mini(
+          "PURPOSE",
+          <input
+            value={day.purpose}
+            onChange={(e) => patchDay(day.id, { purpose: e.target.value })}
+            aria-label={`Purpose of visit on ${day.date}`}
+            placeholder="Round 2 asset walk…"
+            className={inputCls}
+            style={inputStyle}
+          />,
+          "optional"
+        )}
+        {mini(
+          "DAY START",
           <input
             type="time"
             value={day.dayStart ? timeInputValue(day.dayStart) : ""}
@@ -157,9 +184,11 @@ function DiaryDayBody({
             aria-label={`Start time for ${day.date}`}
             className={inputCls}
             style={inputStyle}
-          />
-        </Field>
-        <Field label="DAY END" hint="optional">
+          />,
+          "optional"
+        )}
+        {mini(
+          "DAY END",
           <input
             type="time"
             value={day.dayEnd ? timeInputValue(day.dayEnd) : ""}
@@ -169,72 +198,82 @@ function DiaryDayBody({
             aria-label={`End time for ${day.date}`}
             className={inputCls}
             style={inputStyle}
-          />
-        </Field>
+          />,
+          "optional"
+        )}
       </div>
 
-      {/* ADD A LINE. One tap per category — the time is stamped and
-          correctable afterwards, the same pattern as every other "add"
-          control in this app. */}
+      {/* ADD A LINE. One tap per category. UNTIMED BY DEFAULT now — Sarel:
+          "link a time each entry as optional." Stamping `Date.now()` on
+          every entry made the time field look required when it was meant
+          to be the opposite; a note added without a specific moment in
+          mind now stays untimed until someone sets one. */}
       <Field label="ADD AN ENTRY" hint={`${entries.length} so far`}>
         <div className="flex flex-wrap gap-[6px]">
           {DIARY_CATEGORIES.map((cat) => (
-            <Btn key={cat} onClick={() => addEntry(day.id, cat)}>
+            <Btn key={cat} onClick={() => addEntry(day.id, cat, { at: null })}>
               + {DIARY_CATEGORY_LABEL[cat]}
             </Btn>
           ))}
         </div>
       </Field>
 
+      {/* ONE COMPACT ROW PER ENTRY, not three. Category and an optional time
+          sit beside each other on the entry's own header line instead of
+          each getting a full labelled <Field> in a two-column grid below
+          it — Sarel: "use the space better so to limit open spaces and
+          scrolling." The time input is allowed to sit blank; blank IS "no
+          time set", not a value waiting to be filled in. */}
       {entries.map((e) => (
         <div
           key={e.id}
-          className="mb-2 rounded-[9px] border p-2.5"
+          className="mb-2 rounded-[9px] border p-2"
           style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
         >
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <Pill tone="accent">{DIARY_CATEGORY_LABEL[e.category]}</Pill>
-            <Btn onClick={() => removeEntry(day.id, e.id)}>
-              <IconX /> Delete
-            </Btn>
-          </div>
-          <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Field label="TIME">
-              <input
-                type="time"
-                value={timeInputValue(e.at)}
-                onChange={(ev) => {
-                  const t = mergeTime(day.date, ev.target.value);
-                  if (t !== null) patchEntry(day.id, e.id, { at: t });
-                }}
-                aria-label={`Time for this ${DIARY_CATEGORY_LABEL[e.category].toLowerCase()} entry`}
-                className={inputCls}
-                style={inputStyle}
-              />
-            </Field>
-            <Field label="CATEGORY">
-              <select
-                value={e.category}
-                onChange={(ev) => patchEntry(day.id, e.id, { category: ev.target.value as DiaryCategory })}
-                aria-label="Category for this entry"
-                className={inputCls}
-                style={inputStyle}
-              >
-                {DIARY_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {DIARY_CATEGORY_LABEL[cat]}
-                  </option>
-                ))}
-              </select>
-            </Field>
+          <div className="flex items-center gap-[6px]">
+            <select
+              value={e.category}
+              onChange={(ev) => patchEntry(day.id, e.id, { category: ev.target.value as DiaryCategory })}
+              aria-label="Category for this entry"
+              className="min-h-[36px] shrink-0 rounded-full border px-2 text-[11px] font-semibold"
+              style={{ background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }}
+            >
+              {DIARY_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {DIARY_CATEGORY_LABEL[cat]}
+                </option>
+              ))}
+            </select>
+            <input
+              type="time"
+              value={e.at !== null ? timeInputValue(e.at) : ""}
+              onChange={(ev) =>
+                patchEntry(day.id, e.id, {
+                  at: ev.target.value ? mergeTime(day.date, ev.target.value) : null,
+                })
+              }
+              aria-label={`Time for this ${DIARY_CATEGORY_LABEL[e.category].toLowerCase()} entry — optional`}
+              className="min-h-[36px] w-[108px] shrink-0 rounded-[8px] border px-2 text-[12px]"
+              style={inputStyle}
+            />
+            <div className="flex-1" />
+            <button
+              type="button"
+              onClick={() => removeEntry(day.id, e.id)}
+              aria-label="Delete this entry"
+              className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-[8px]"
+              style={{ color: "var(--ink-4)" }}
+            >
+              <IconX width={14} height={14} />
+            </button>
           </div>
           <textarea
             value={e.text}
             onChange={(ev) => patchEntry(day.id, e.id, { text: ev.target.value })}
-            rows={2}
+            rows={1}
             aria-label="What happened"
             placeholder="What happened"
-            className={inputCls}
+            className={`mt-[6px] ${inputCls}`}
             style={inputStyle}
           />
         </div>

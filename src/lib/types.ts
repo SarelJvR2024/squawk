@@ -421,11 +421,13 @@ export interface Response {
   walkaboutPicked: number | null;
   attachments: Attachment[];
   /** DERIVED, and written only by the store: true when every mode this check's
-   *  vtype declares has been answered. A check needing both a document review
-   *  and the asset seen is not captured until both halves are done — before
-   *  per-portal tracking existed this flag went true on the first save from
-   *  either screen, so 290 checks could read as complete with nobody having
-   *  looked at the asset. Never set this directly; call commit(id, portal). */
+   *  vtype declares has been answered. Every one of the 324 checks needs both
+   *  a document review and the asset seen (see the note on needsDesk/
+   *  needsField in src/lib/verification.ts) and is not captured until both
+   *  halves are done — before per-portal tracking existed this flag went
+   *  true on the first save from either screen, so a check could read as
+   *  complete with nobody having looked at the asset. Never set this
+   *  directly; call commit(id, portal). */
   captured: boolean;
   /** Who and when for the half that COMPLETED the check. */
   capturedBy: string;
@@ -1613,11 +1615,19 @@ export type DiaryCategory =
  *  `at` is the entry's OWN time, separate from `createdAt` — an auditor
  *  logging at 16:00 that it rained at 10:00 should be able to say so, the
  *  same reasoning as an observation's capture time versus event time
- *  elsewhere in this app. */
+ *  elsewhere in this app.
+ *
+ *  OPTIONAL (2026-10-04) — Sarel: "link a time each entry as optional."
+ *  `null` means nobody set one, which is different from "unknown" or
+ *  "midnight": a general note logged without a specific moment in mind
+ *  stays untimed rather than inheriting whatever `Date.now()` happened to
+ *  read when the category button was tapped. Every entry captured before
+ *  this changed already carries a real number, which still reads
+ *  correctly, so no migration is needed. */
 export interface DiaryEntry {
   id: string;
   category: DiaryCategory;
-  at: number;
+  at: number | null;
   text: string;
   createdAt: number;
   updatedAt: number;

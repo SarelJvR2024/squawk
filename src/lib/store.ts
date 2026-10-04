@@ -297,9 +297,11 @@ export const deskAnswered = (r: Response | undefined) =>
 /** Has the field half been answered? */
 export const fieldDone = (r: Response | undefined) => !!r?.fieldDoneAt;
 
-/** Complete means every mode the register declares for this check has been
- *  answered — not "somebody pressed Save once". For the 290 checks that need
- *  both a document review and the asset seen, one half is half. */
+/** Complete means both halves have been answered — not "somebody pressed
+ *  Save once". Every one of the 324 checks now appears on both Capture and
+ *  Field (see the note on needsDesk/needsField in src/lib/verification.ts),
+ *  so every one of them needs both a document review and the asset seen;
+ *  one half is half. */
 export function isComplete(checkId: string, r: Response | undefined): boolean {
   if (!r) return false;
   const c = checkById.get(checkId);

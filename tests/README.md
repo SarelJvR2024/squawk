@@ -45,7 +45,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `carryforward.test.mjs` | no | 48 |
 | `review.test.mjs` | no | 34 |
 | `tablet.test.mjs` | no | 43 |
-| `portals.test.mjs` | no | 31 |
+| `portals.test.mjs` | no | 32 |
 | `reset.test.mjs` | no | 18 |
 | `completion.test.mjs` | no | 19 |
 | `location.test.mjs` | no | 51 |
@@ -60,7 +60,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `suite-table.test.mjs` | no | 5 |
 | `reviewfields.test.mjs` | no | 20 |
 | `evidencepending.test.mjs` | no | 30 |
-| `evidencestatus.test.mjs` | no | 21 |
+| `evidencestatus.test.mjs` | no | 22 |
 | `photoview.test.mjs` | no | 25 |
 | `people.test.mjs` | no | 36 |
 | `saveall.test.mjs` | no | 5 |
@@ -72,7 +72,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `erm-matrix.test.mjs` | no | 80 |
 | `sharepoint.test.mjs` | no | 194 |
 | `assets.test.mjs` | no | 21 |
-| `checkscreen.test.mjs` | no | 58 |
+| `checkscreen.test.mjs` | no | 52 |
 | `merge.test.mjs` | no | 55 |
 | `figures.test.mjs` | no | 7 |
 | `home.test.mjs` | no | 58 |
@@ -80,7 +80,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `isf.test.mjs` | no | 86 |
 | `interviews.test.mjs` | no | 79 |
 | `attendance.test.mjs` | no | 117 |
-| `diary.test.mjs` | no | 56 |
+| `diary.test.mjs` | no | 58 |
 | `evidence.test.mjs` | no | 80 |
 | `toolbox.test.mjs` | no | 35 |
 | `incident.test.mjs` | no | 41 |
@@ -98,7 +98,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**2,693 assertions in total**, every count above verified by running the suite,
+**2,691 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -758,7 +758,8 @@ touched.
 
 Guards that a check is complete only when every mode it declares has been
 answered. There was one `captured` flag set by whichever screen saved first, so
-for the 290 checks needing both a document review and the asset seen, ticking it
+for checks needing both a document review and the asset seen — all 324 of
+them, since Capture and Field both list the full register — ticking it
 at a desk marked it done — the dashboard counted it, the export said
 "Captured: Yes", and nobody had walked out to look at the pump.
 

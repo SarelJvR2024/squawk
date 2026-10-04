@@ -63,18 +63,15 @@ const ok=(n,c,x='')=>{c?(pass++,log.push('PASS  '+n)):(fail++,log.push('FAIL  '+
   const p=await (await b.newContext({viewport:{width:1440,height:900}})).newPage();
   const errs=[]; p.on('pageerror',e=>errs.push(String(e)));
   await p.goto(''+B1+'/capture',{waitUntil:'networkidle'}); await p.waitForTimeout(2500);
-  /* UPDATED 2026-09-10. "Draft with AI" is on the page; "Explain this check"
-     is not, because the check screen became TABBED and the plain reading now
-     lives under "In plain English". This assertion had been failing on main
-     since that shipped — reading body text and expecting both strings is only
-     right while everything is stacked. Open the tab, then assert. */
-  /* Also an icon now, so it is counted rather than read out of the page. */
+  /* UPDATED 2026-10-04. "In plain English" (and "Explain this check", the
+     button that filled it) is gone — Sarel: "remove the external and in
+     plain english buttons here". "Draft with AI" is the one AI control left
+     on this screen now, so that is the whole assertion. Also an icon, so it
+     is counted rather than read out of the page. */
   const draftVisible = (await p.locator('button[aria-label="Draft with AI"]').count()) === 1;
-  await openTab(p, 'In plain English'); await p.waitForTimeout(500);
-  const t=await p.locator('body').innerText();
-  ok('AI buttons appear when a model is configured', draftVisible && /Explain this check/.test(t));
-  /* Back to the tab the composer lives on, so the click below finds it. */
-  await openTab(p, 'ACSA requirement'); await p.waitForTimeout(400);
+  ok('AI buttons appear when a model is configured', draftVisible);
+  /* ACSA requirement is already the default open tab — no need to switch to
+     it before the composer click below finds it. */
   // a failing model must surface an honest message and leave the record alone
   const before = await p.locator('textarea[aria-label="Observation"]').first().inputValue();
   await p.locator('button[aria-label="Draft with AI"]').first().click();

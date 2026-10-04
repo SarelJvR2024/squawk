@@ -46,7 +46,7 @@ import { useFormsHubDeepLink } from "@/lib/deepLink";
 import { SignaturePad } from "@/components/SignaturePad";
 import ContactPicker from "@/components/ContactPicker";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
-import { IconCheck, IconX } from "@/components/ui/icons";
+import { IconCheck, IconLeft, IconX } from "@/components/ui/icons";
 import type { InterviewDay, InterviewDayStage } from "@/lib/types";
 
 const STAGE: Record<InterviewDayStage, { label: string; tone: "accent" | undefined }> = {
@@ -93,6 +93,12 @@ export default function InterviewsPage() {
   const [closing, setClosing] = useState<string | null>(null);
   const [closerName, setCloserName] = useState(auditor);
   const [copied, setCopied] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  /* ONE ENTRY EXPANDED AT A TIME, same reasoning as the attendance register:
+     a person's full detail (role, location, the interview clock, the
+     signature) only matters while they are actually being talked to or
+     signing; once recorded it folds to a single line. */
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   useFormsHubDeepLink(setOpenId);
 
   const site = siteFor(entityCode);
@@ -108,7 +114,8 @@ export default function InterviewsPage() {
     const id = todaysDay ? todaysDay.id : now ? openDay(localDate(now)) : null;
     if (!id) return;
     setOpenId(id);
-    addEntry(id, p.name, { contactId: p.contactId, role: p.role ?? "" });
+    const rowId = addEntry(id, p.name, { contactId: p.contactId, role: p.role ?? "" });
+    setExpandedRowId(rowId);
   }
 
   async function copyDay(day: InterviewDay) {
@@ -124,6 +131,324 @@ export default function InterviewsPage() {
     } catch {
       window.prompt("Copy this record", text);
     }
+  }
+
+  /* ONE DAY AT A TIME, FULL FOCUS — the same change attendance went through:
+     Sarel, on that register, "don't show the top section to create a new
+     register... it should represent only that specific register." An open
+     day here is handed from person to person the same way, so the "who are
+     you talking to" quick-add box and every other day on the list are noise
+     on a screen somebody else is about to sign. */
+  const activeDay = days.find((d) => d.id === openId) ?? null;
+
+  if (activeDay) {
+    const day = activeDay;
+    const stage = interviewDayStage(day);
+    const unbacked = unbackedSignatures(day);
+    const canClose = dayCanClose(day);
+    return (
+      <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <div className="mx-auto w-full max-w-[760px] px-4 pb-24 pt-3">
+          <button
+            type="button"
+            onClick={() => {
+              setOpenId(null);
+              setSavedId(day.id);
+              window.setTimeout(() => setSavedId(null), 2500);
+            }}
+            className="mb-2.5 flex items-center gap-1 text-[12px] font-semibold"
+            style={{ color: "var(--acc)" }}
+          >
+            <IconLeft width={12} height={12} />
+            All interview records
+          </button>
+
+          <Panel tone={STAGE[stage].tone}>
+            <div data-record-id={day.id} className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-[10px]">{day.id}</span>
+              <span className="font-mono text-[10px]">{day.date}</span>
+              <Pill tone={STAGE[stage].tone}>{STAGE[stage].label}</Pill>
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Field label="LOCATION" hint="optional — where the day's interviews were held">
+                <input
+                  value={day.location}
+                  onChange={(e) => patchDay(day.id, { location: e.target.value })}
+                  aria-label={`Location for interviews on ${day.date}`}
+                  className={inputCls}
+                  style={inputStyle}
+                  disabled={!!day.closedAt}
+                />
+              </Field>
+              <Field label="PURPOSE" hint="optional">
+                <input
+                  value={day.purpose}
+                  onChange={(e) => patchDay(day.id, { purpose: e.target.value })}
+                  aria-label={`Purpose of interviews on ${day.date}`}
+                  className={inputCls}
+                  style={inputStyle}
+                  disabled={!!day.closedAt}
+                />
+              </Field>
+            </div>
+
+            <Field
+              label="WHO WAS INTERVIEWED"
+              hint={`${day.entries.length} ${day.entries.length === 1 ? "person" : "people"}`}
+            >
+              {!day.closedAt ? (
+                <div className="mb-3">
+                  <ContactPicker
+                    entityCode={entityCode}
+                    placeholder="Search the directory, or type a new name"
+                    onAdd={(p) => {
+                      const rowId = addEntry(day.id, p.name, {
+                        contactId: p.contactId,
+                        role: p.role ?? "",
+                      });
+                      setExpandedRowId(rowId);
+                    }}
+                  />
+                </div>
+              ) : null}
+              {day.entries.map((e) => {
+                const rowOpen = expandedRowId === e.id;
+                const rowSigning = signing === e.id;
+                const signed = isSigned(e);
+                const ran = durationMs(e, now);
+                const missing = entryGaps(e);
+                /* THE FOLDED LINE CARRIES THE WHOLE PERSON, same reasoning as
+                   the attendance register's rowSummary: role and where, plus
+                   the interview clock — "still running" is the one fact that
+                   matters even collapsed, since it is the thing an auditor
+                   comes back to this screen to check. */
+                const rowSummary = [e.role, e.location].filter((v) => v.trim()).join(" · ");
+                const timeLine = `FROM ${hhmm(e.startedAt)}${
+                  e.endedAt ? ` TO ${hhmm(e.endedAt)}` : " · STILL RUNNING"
+                }${ran !== null ? ` · ${mins(ran).toUpperCase()}` : ""}`;
+                return (
+                  <div
+                    key={e.id}
+                    className="mb-2 mt-2 rounded-[9px] border p-2"
+                    style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
+                  >
+                    <div className="flex items-center gap-[6px]">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedRowId(rowOpen ? null : e.id)}
+                        className="flex min-h-[30px] min-w-0 flex-1 items-center gap-[6px] text-left"
+                      >
+                        {signed ? <Pill tone="accent">SIGNED</Pill> : <Pill tone="warn">NOT SIGNED</Pill>}
+                        <span className="truncate text-[12.5px] font-semibold">
+                          {e.name.trim() || "Unnamed"}
+                        </span>
+                      </button>
+
+                      {/* THE QUICK SIGN — same control as attendance: color-coded,
+                          opens only the pad, hidden once the pad is actually open.
+                          Tapping the row's name still opens the full detail. */}
+                      {!rowSigning && !day.closedAt && (
+                        <button
+                          type="button"
+                          onClick={() => setSigning(e.id)}
+                          className="flex shrink-0 items-center gap-[4px] rounded-[8px] border px-[10px] py-[6px] font-display text-[11px] font-semibold"
+                          style={
+                            signed
+                              ? { background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }
+                              : { background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }
+                          }
+                        >
+                          {signed ? "Sign again" : "Sign"}
+                        </button>
+                      )}
+                    </div>
+
+                    {!rowOpen && !rowSigning ? (
+                      <p className="mt-[3px] truncate text-[11px]" style={{ color: "var(--ink-3)" }}>
+                        {rowSummary ? `${rowSummary} · ` : ""}
+                        {timeLine}
+                      </p>
+                    ) : null}
+
+                    {rowSigning ? (
+                      <div className="mt-[6px]">
+                        <SignaturePad
+                          name={e.name}
+                          onCancel={() => setSigning(null)}
+                          onSigned={(s) => {
+                            sign(day.id, e.id, s);
+                            setSigning(null);
+                            setExpandedRowId(null);
+                          }}
+                        />
+                      </div>
+                    ) : rowOpen ? (
+                      <div className="mt-[6px]">
+                        <div className="mb-[5px] flex items-center justify-between gap-2">
+                          <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                            {timeLine}
+                          </span>
+                          {!day.closedAt ? (
+                            <Btn
+                              onClick={() => {
+                                removeEntry(day.id, e.id);
+                                setExpandedRowId((cur) => (cur === e.id ? null : cur));
+                              }}
+                            >
+                              <IconX /> Remove
+                            </Btn>
+                          ) : null}
+                        </div>
+
+                        <input
+                          value={e.name}
+                          onChange={(ev) => patchEntry(day.id, e.id, { name: ev.target.value })}
+                          aria-label={`Name of person ${e.id}`}
+                          placeholder="Full name"
+                          className={`mb-2 ${inputCls}`}
+                          style={inputStyle}
+                          disabled={!!day.closedAt}
+                        />
+                        <input
+                          value={e.role}
+                          onChange={(ev) => patchEntry(day.id, e.id, { role: ev.target.value })}
+                          aria-label={`Role of person ${e.id}`}
+                          placeholder="Role — optional"
+                          className={`mb-2 ${inputCls}`}
+                          style={inputStyle}
+                          disabled={!!day.closedAt}
+                        />
+                        <input
+                          value={e.location}
+                          onChange={(ev) =>
+                            patchEntry(day.id, e.id, { location: ev.target.value })
+                          }
+                          aria-label={`Location of interview with ${e.id}`}
+                          placeholder="Where — maintenance office, Pier B"
+                          className={`mb-2 ${inputCls}`}
+                          style={inputStyle}
+                          disabled={!!day.closedAt}
+                        />
+
+                        {!e.endedAt ? (
+                          <Btn
+                            className="mb-2"
+                            onClick={() => patchEntry(day.id, e.id, { endedAt: Date.now() })}
+                          >
+                            End
+                          </Btn>
+                        ) : !day.closedAt ? (
+                          <Btn
+                            className="mb-2"
+                            onClick={() => patchEntry(day.id, e.id, { endedAt: null })}
+                          >
+                            <IconX /> Undo end
+                          </Btn>
+                        ) : null}
+
+                        {e.signature ? (
+                          <div className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                            {e.signature.ref} · {hhmm(e.signature.signedAt)}
+                          </div>
+                        ) : day.closedAt ? (
+                          <p className="font-mono text-[9px]" style={{ color: "var(--warn)" }}>
+                            NOT SIGNED
+                          </p>
+                        ) : null}
+
+                        {missing.length ? (
+                          <p className="mt-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                            STILL MISSING: {missing.join(", ").toUpperCase()}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+              {day.entries.length === 0 ? (
+                <p className="text-[12px]" style={{ color: "var(--ink-3)" }}>
+                  Nobody recorded yet. Use the box above.
+                </p>
+              ) : null}
+            </Field>
+
+            {/* THE CLOSING APPROVAL. */}
+            <Field
+              label={day.closedAt ? "CLOSED AND APPROVED" : "CLOSE THE DAY"}
+              hint={
+                day.closedAt
+                  ? undefined
+                  : canClose
+                    ? "one approval for the whole day's list"
+                    : dayGaps(day).includes("nobody recorded")
+                      ? "nothing to approve yet"
+                      : "end every interview first"
+              }
+            >
+              {day.closedAt ? (
+                <div>
+                  <p className="text-[12px]">
+                    {hhmm(day.closedAt)} by {day.closedBy || "—"}
+                    {day.closeSignature ? ` · ${day.closeSignature.ref}` : ""}
+                  </p>
+                  <Btn className="mt-2" onClick={() => reopenDay(day.id)}>
+                    <IconX /> Reopen to add another interview
+                  </Btn>
+                </div>
+              ) : closing === day.id ? (
+                <div>
+                  <input
+                    value={closerName}
+                    onChange={(ev) => setCloserName(ev.target.value)}
+                    aria-label="Name of whoever is approving and closing the day"
+                    placeholder="Who is approving this record"
+                    className={`mb-2 ${inputCls}`}
+                    style={inputStyle}
+                  />
+                  <SignaturePad
+                    name={closerName}
+                    onCancel={() => setClosing(null)}
+                    onSigned={(s) => {
+                      closeDay(day.id, closerName.trim() || auditor, s);
+                      setClosing(null);
+                    }}
+                  />
+                  <Btn
+                    className="mt-2"
+                    onClick={() => {
+                      closeDay(day.id, closerName.trim() || auditor);
+                      setClosing(null);
+                    }}
+                    disabled={!closerName.trim()}
+                  >
+                    Close without drawing a signature
+                  </Btn>
+                </div>
+              ) : (
+                <Btn variant="primary" onClick={() => setClosing(day.id)} disabled={!canClose}>
+                  <IconCheck /> Approve and close the day
+                </Btn>
+              )}
+            </Field>
+
+            <Field label="THE DAY'S RECORD">
+              <Btn onClick={() => void copyDay(day)}>
+                {copied === day.id ? "Copied" : "Copy the record"}
+              </Btn>
+              {unbacked.length ? (
+                <p className="mt-2 font-mono text-[9px]" style={{ color: "var(--warn)" }}>
+                  {unbacked.length} SIGNATURE{unbacked.length > 1 ? "S" : ""} ON THIS
+                  DEVICE ONLY. THE RECORD COPY IS NOT WIRED YET — COPY THE RECORD OUT
+                  BEFORE THE TABLET LEAVES SITE.
+                </p>
+              ) : null}
+            </Field>
+          </Panel>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -179,16 +504,13 @@ export default function InterviewsPage() {
 
       {days.map((day) => {
         const stage = interviewDayStage(day);
-        const isOpen = openId === day.id;
         const gaps = dayGaps(day);
-        const unbacked = unbackedSignatures(day);
-        const canClose = dayCanClose(day);
         return (
-          <div key={day.id} data-record-id={day.id} className="mb-3">
-            <Panel tone={STAGE[stage].tone}>
+          <div key={day.id} data-record-id={day.id} className="mb-2">
+            <Panel>
               <button
                 type="button"
-                onClick={() => setOpenId(isOpen ? null : day.id)}
+                onClick={() => setOpenId(day.id)}
                 className="flex w-full items-start justify-between gap-3 text-left"
               >
                 <div className="min-w-0">
@@ -196,6 +518,7 @@ export default function InterviewsPage() {
                     <span className="font-mono text-[10px]">{day.id}</span>
                     <span className="font-mono text-[10px]">{day.date}</span>
                     <Pill tone={STAGE[stage].tone}>{STAGE[stage].label}</Pill>
+                    {savedId === day.id ? <Pill tone="accent">✓ SAVED</Pill> : null}
                   </div>
                   <p className="mt-1 text-[13px]">
                     {day.entries.length === 0
@@ -208,244 +531,6 @@ export default function InterviewsPage() {
                   </div>
                 </div>
               </button>
-
-              {isOpen ? (
-                <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--line)" }}>
-                  <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <Field label="LOCATION" hint="optional — where the day's interviews were held">
-                      <input
-                        value={day.location}
-                        onChange={(e) => patchDay(day.id, { location: e.target.value })}
-                        aria-label={`Location for interviews on ${day.date}`}
-                        className={inputCls}
-                        style={inputStyle}
-                        disabled={!!day.closedAt}
-                      />
-                    </Field>
-                    <Field label="PURPOSE" hint="optional">
-                      <input
-                        value={day.purpose}
-                        onChange={(e) => patchDay(day.id, { purpose: e.target.value })}
-                        aria-label={`Purpose of interviews on ${day.date}`}
-                        className={inputCls}
-                        style={inputStyle}
-                        disabled={!!day.closedAt}
-                      />
-                    </Field>
-                  </div>
-
-                  <Field
-                    label="WHO WAS INTERVIEWED"
-                    hint={`${day.entries.length} ${day.entries.length === 1 ? "person" : "people"}`}
-                  >
-                    {!day.closedAt ? (
-                      <div className="mb-3">
-                        <ContactPicker
-                          entityCode={entityCode}
-                          placeholder="Search the directory, or type a new name"
-                          onAdd={(p) => addEntry(day.id, p.name, { contactId: p.contactId, role: p.role ?? "" })}
-                        />
-                      </div>
-                    ) : null}
-                    {day.entries.map((e) => {
-                      const ran = durationMs(e, now);
-                      const missing = entryGaps(e);
-                      return (
-                        <div
-                          key={e.id}
-                          className="mb-3 rounded-[9px] border p-2.5"
-                          style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
-                        >
-                          <div className="mb-2 flex items-center justify-between gap-2">
-                            {isSigned(e) ? (
-                              <Pill tone="accent">SIGNED {e.signature?.ref}</Pill>
-                            ) : (
-                              <Pill tone="warn">NOT SIGNED</Pill>
-                            )}
-                            {!day.closedAt ? (
-                              <Btn onClick={() => removeEntry(day.id, e.id)}>
-                                <IconX /> Remove
-                              </Btn>
-                            ) : null}
-                          </div>
-
-                          <input
-                            value={e.name}
-                            onChange={(ev) => patchEntry(day.id, e.id, { name: ev.target.value })}
-                            aria-label={`Name of person ${e.id}`}
-                            placeholder="Full name"
-                            className={`mb-2 ${inputCls}`}
-                            style={inputStyle}
-                            disabled={!!day.closedAt}
-                          />
-                          <input
-                            value={e.role}
-                            onChange={(ev) => patchEntry(day.id, e.id, { role: ev.target.value })}
-                            aria-label={`Role of person ${e.id}`}
-                            placeholder="Role — optional"
-                            className={`mb-2 ${inputCls}`}
-                            style={inputStyle}
-                            disabled={!!day.closedAt}
-                          />
-                          <input
-                            value={e.location}
-                            onChange={(ev) =>
-                              patchEntry(day.id, e.id, { location: ev.target.value })
-                            }
-                            aria-label={`Location of interview with ${e.id}`}
-                            placeholder="Where — maintenance office, Pier B"
-                            className={`mb-2 ${inputCls}`}
-                            style={inputStyle}
-                            disabled={!!day.closedAt}
-                          />
-
-                          <div
-                            className="mb-2 font-mono text-[9px]"
-                            style={{ color: "var(--ink-4)" }}
-                          >
-                            FROM {hhmm(e.startedAt)}
-                            {e.endedAt ? ` TO ${hhmm(e.endedAt)}` : " · STILL RUNNING"}
-                            {ran !== null ? ` · ${mins(ran).toUpperCase()}` : ""}
-                          </div>
-                          {!e.endedAt ? (
-                            <Btn
-                              className="mb-2"
-                              onClick={() => patchEntry(day.id, e.id, { endedAt: Date.now() })}
-                            >
-                              End
-                            </Btn>
-                          ) : !day.closedAt ? (
-                            <Btn
-                              className="mb-2"
-                              onClick={() => patchEntry(day.id, e.id, { endedAt: null })}
-                            >
-                              <IconX /> Undo end
-                            </Btn>
-                          ) : null}
-
-                          {signing === e.id ? (
-                            <SignaturePad
-                              name={e.name}
-                              onCancel={() => setSigning(null)}
-                              onSigned={(s) => {
-                                sign(day.id, e.id, s);
-                                setSigning(null);
-                              }}
-                            />
-                          ) : e.signature ? (
-                            <div className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                              {e.signature.ref} · {hhmm(e.signature.signedAt)}
-                              {!day.closedAt ? (
-                                <Btn className="ml-2" onClick={() => setSigning(e.id)}>
-                                  Sign again
-                                </Btn>
-                              ) : null}
-                            </div>
-                          ) : !day.closedAt ? (
-                            <Btn variant="primary" onClick={() => setSigning(e.id)}>
-                              Sign
-                            </Btn>
-                          ) : (
-                            <p className="font-mono text-[9px]" style={{ color: "var(--warn)" }}>
-                              NOT SIGNED
-                            </p>
-                          )}
-
-                          {missing.length ? (
-                            <p
-                              className="mt-2 font-mono text-[9px]"
-                              style={{ color: "var(--ink-4)" }}
-                            >
-                              STILL MISSING: {missing.join(", ").toUpperCase()}
-                            </p>
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                    {day.entries.length === 0 ? (
-                      <p className="text-[12px]" style={{ color: "var(--ink-3)" }}>
-                        Nobody recorded yet. Use the box at the top of the screen.
-                      </p>
-                    ) : null}
-                  </Field>
-
-                  {/* THE CLOSING APPROVAL. */}
-                  <Field
-                    label={day.closedAt ? "CLOSED AND APPROVED" : "CLOSE THE DAY"}
-                    hint={
-                      day.closedAt
-                        ? undefined
-                        : canClose
-                          ? "one approval for the whole day's list"
-                          : dayGaps(day).includes("nobody recorded")
-                            ? "nothing to approve yet"
-                            : "end every interview first"
-                    }
-                  >
-                    {day.closedAt ? (
-                      <div>
-                        <p className="text-[12px]">
-                          {hhmm(day.closedAt)} by {day.closedBy || "—"}
-                          {day.closeSignature ? ` · ${day.closeSignature.ref}` : ""}
-                        </p>
-                        <Btn className="mt-2" onClick={() => reopenDay(day.id)}>
-                          <IconX /> Reopen to add another interview
-                        </Btn>
-                      </div>
-                    ) : closing === day.id ? (
-                      <div>
-                        <input
-                          value={closerName}
-                          onChange={(ev) => setCloserName(ev.target.value)}
-                          aria-label="Name of whoever is approving and closing the day"
-                          placeholder="Who is approving this record"
-                          className={`mb-2 ${inputCls}`}
-                          style={inputStyle}
-                        />
-                        <SignaturePad
-                          name={closerName}
-                          onCancel={() => setClosing(null)}
-                          onSigned={(s) => {
-                            closeDay(day.id, closerName.trim() || auditor, s);
-                            setClosing(null);
-                          }}
-                        />
-                        <Btn
-                          className="mt-2"
-                          onClick={() => {
-                            closeDay(day.id, closerName.trim() || auditor);
-                            setClosing(null);
-                          }}
-                          disabled={!closerName.trim()}
-                        >
-                          Close without drawing a signature
-                        </Btn>
-                      </div>
-                    ) : (
-                      <Btn
-                        variant="primary"
-                        onClick={() => setClosing(day.id)}
-                        disabled={!canClose}
-                      >
-                        <IconCheck /> Approve and close the day
-                      </Btn>
-                    )}
-                  </Field>
-
-                  <Field label="THE DAY'S RECORD">
-                    <Btn onClick={() => void copyDay(day)}>
-                      {copied === day.id ? "Copied" : "Copy the record"}
-                    </Btn>
-                    {unbacked.length ? (
-                      <p className="mt-2 font-mono text-[9px]" style={{ color: "var(--warn)" }}>
-                        {unbacked.length} SIGNATURE{unbacked.length > 1 ? "S" : ""} ON THIS
-                        DEVICE ONLY. THE RECORD COPY IS NOT WIRED YET — COPY THE RECORD OUT
-                        BEFORE THE TABLET LEAVES SITE.
-                      </p>
-                    ) : null}
-                  </Field>
-                </div>
-              ) : null}
             </Panel>
           </div>
         );

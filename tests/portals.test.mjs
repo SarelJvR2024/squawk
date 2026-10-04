@@ -22,7 +22,20 @@ import { fileURLToPath } from "node:url";
  *  Part 1 parses the register independently — the way risk-matrix.test.mjs
  *  bands the matrix against its own table — so the counts are checked against
  *  the data rather than against src/lib/verification.ts agreeing with itself.
- *  Part 2 reads the source to confirm the screens actually route through it. */
+ *  Part 2 used to read the source to confirm the screens actually routed
+ *  through this split.
+ *
+ *  A DECISION OF SAREL'S THAT HE LATER REVERSED (4 October 2026): "the
+ *  different numbers might make people confused" — Capture and Field both
+ *  list the full 324 now, deliberately, with N/A one tap away wherever the
+ *  walk genuinely has nothing to confirm. `isDesk`/`isPhysical` below still
+ *  describe something true and still worth testing — what KIND of evidence
+ *  the register declares each check wants — they just no longer describe
+ *  which screen gets to show it. Part 2's "no orphans, no blanket
+ *  duplication" framing assumed the screens filtered on this; duplication
+ *  is the deliberate design now, so what Part 2 still guards is narrower:
+ *  that the register's own classification data stayed correct, not that
+ *  needsDesk/needsField still read it. */
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8");
@@ -115,16 +128,20 @@ check(
   `${n.neither} check(s) appear in neither Capture nor Field`
 );
 
+/* These three no longer describe what either SCREEN shows — both show all
+   324 — only what the register itself declares. "desk" and "physical" here
+   are what used to be the routing; now they are just the register's own
+   vtype split, true independent of the app. */
 check(
-  "the audit workspace is not the whole register",
+  "the register still declares a desk-verifiable subset of its own",
   n.desk === 315 && n.desk < n.total,
-  `desk ${n.desk} of ${n.total} — the 9 physical-only checks belong on the tablet`
+  `desk ${n.desk} of ${n.total} — this is register classification, not what Capture shows`
 );
 
 check(
-  "field inspection is not the whole register",
+  "and a physically-verifiable subset of its own",
   n.physical === 299 && n.physical < n.total,
-  `field ${n.physical} of ${n.total} — 25 desk-only checks must not reach the apron`
+  `physical ${n.physical} of ${n.total} — this is register classification, not what Field shows`
 );
 
 check(
@@ -200,11 +217,24 @@ check(
   "being in a list without being told why is how people stop trusting the list"
 );
 
+/* A DECISION OF SAREL'S THAT HE LATER REVERSED: a banner used to flag the
+   ~290-check overlap here — "this check also needs the asset seen on site".
+   Capture and Field both list the full 324 now, so that would be true of
+   every check on this screen, every time; a permanent banner that never
+   distinguishes anything is wallpaper, not information, so it was removed
+   rather than made unconditional. The save toast still says so, per check,
+   for as long as the field half is actually outstanding — see the next
+   assertion. */
 check(
-  "a desk check that also needs the asset seen says so",
-  /needsField\(check\) &&/.test(detail) &&
-    /appears in Field inspection too/.test(detail),
-  "saving at the desk answers half of a 290-check overlap, and must not read as done"
+  "the banner that used to single out the overlap is gone, not made unconditional",
+  !/appears in Field inspection too/.test(detail)
+);
+
+check(
+  "saving at the desk still says when the field half is still outstanding",
+  /needsField\(check\) && !r\.fieldDoneAt/.test(detail) &&
+    /Still needs the asset seen in Field/.test(detail),
+  "every check needs both halves now — saving one must not read as done"
 );
 
 check(
@@ -218,10 +248,10 @@ check(
 const shell = src("components", "AppShell.tsx");
 
 check(
-  "the Checks badge is scoped to the desk list, not the whole register",
+  "the Checks badge counts the actual desk list, not a hardcoded register size",
   /n\.href === "\/capture"\s*\n?\s*\? `\$\{desk\.done\}\/\$\{desk\.total\}`/.test(shell) &&
     !/CHECKS\.length/.test(shell),
-  "a badge of 324 on a list of 315 cannot be worked down to zero"
+  "desk.total is 324 now that Capture lists the whole register, but it must still be DERIVED, not a different number written down beside it"
 );
 
 check(

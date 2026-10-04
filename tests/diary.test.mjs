@@ -118,6 +118,21 @@ check(
     )
   ) === JSON.stringify(["a", "b"])
 );
+check(
+  "an untimed entry is not treated as happening at 0 (midnight) or now — it sorts after every timed one",
+  JSON.stringify(
+    sortedEntries(
+      day({
+        diaryEntries: [
+          entry({ id: "timed", at: 100 }),
+          entry({ id: "untimed-first", at: null, createdAt: 50 }),
+          entry({ id: "untimed-second", at: null, createdAt: 150 }),
+        ],
+      })
+    ).map((e) => e.id)
+  ) === JSON.stringify(["timed", "untimed-first", "untimed-second"]),
+  "untimed entries keep creation order among themselves, since there is no time to order them by"
+);
 
 /* ----------------------------------------------- 5. signatures only on this device */
 
@@ -148,6 +163,15 @@ check("it names the day's window", full.some((l) => l.includes("07:00") && l.inc
 check("it carries the entry text", full.some((l) => l.includes("Clear, light wind.")));
 check("it names the category", full.some((l) => l.includes("WEATHER")));
 check("a signed diary names its reference", full.some((l) => l.includes("ATT-7K2P9_DIARY")));
+
+const untimed = diaryLines(
+  day({ diaryEntries: [entry({ category: "general", text: "Quiet day overall.", at: null })] })
+);
+check(
+  "an untimed entry's export line says so rather than printing a fabricated clock reading",
+  untimed.some((l) => l.includes("— : —") && l.includes("Quiet day overall.")),
+  "Date.now() at export time is not when this happened; a blank is more honest than a wrong answer"
+);
 
 /* ------------------------------------------------------------ 7. the store */
 
@@ -196,7 +220,9 @@ check(
 );
 check(
   "DiaryEntry carries its own category and time, same shape described in types.ts",
-  /interface DiaryEntry \{[\s\S]{0,200}category: DiaryCategory;[\s\S]{0,100}at: number;/.test(types)
+  /interface DiaryEntry \{[\s\S]{0,200}category: DiaryCategory;[\s\S]{0,100}at: number \| null;/.test(
+    types
+  )
 );
 check(
   "SiteDay no longer carries the old free-text diary field",
@@ -221,11 +247,19 @@ check(
 );
 check(
   "tapping a category immediately adds an entry — no separate add step",
-  /DIARY_CATEGORIES\.map\(\(cat\) => \(\s*<Btn key=\{cat\} onClick=\{\(\) => addEntry\(day\.id, cat\)\}/.test(page)
+  /DIARY_CATEGORIES\.map\(\(cat\) => \(\s*<Btn key=\{cat\} onClick=\{\(\) => addEntry\(day\.id, cat, \{ at: null \}\)\}/.test(
+    page
+  )
 );
+/* A DECISION OF SAREL'S THAT HE LATER REVERSED: every entry used to be
+   stamped with `Date.now()` the moment its category button was tapped, so
+   the time field always carried a value whether or not it meant anything.
+   Sarel: "link a time each entry as optional" — a new entry now starts
+   untimed, and the time input is allowed to sit blank rather than defaulting
+   to a moment nobody chose. */
 check(
-  "each entry has its own editable time",
-  /type="time"[\s\S]{0,120}value=\{timeInputValue\(e\.at\)\}/.test(page)
+  "each entry has its own editable time, and it is allowed to be blank",
+  /type="time"[\s\S]{0,80}value=\{e\.at !== null \? timeInputValue\(e\.at\) : ""\}/.test(page)
 );
 check(
   "each entry has its own editable category",

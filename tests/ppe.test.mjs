@@ -276,7 +276,8 @@ check(
 );
 check(
   "the declaration is shown only while actually signing, addressed to the person by name",
-  /signing === e\.id \? \(\s*\n\s*<>/.test(page) && /\{e\.name\.trim\(\) \|\| "this person"\}/.test(page)
+  /rowSigning \? \(/.test(page) && /\{e\.name\.trim\(\) \|\| "this person"\}/.test(page),
+  "rowSigning is `const rowSigning = signing === e.id;` — same condition, precomputed once the row folds and unfolds rather than read twice"
 );
 check(
   "there is a visible Save action, not just silent autosave",
