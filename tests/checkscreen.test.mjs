@@ -118,7 +118,10 @@ check(
 
 /* ------------------------ the answer, always on screen -------------------- */
 
-const header = codeOnly.slice(at('className="relative z-[6] sm:sticky'), at("{needsField(check) && ("));
+const header = codeOnly.slice(
+  at('className="relative z-[6] sm:sticky'),
+  at('{(check.question || evidenceLine) && (')
+);
 /* The className grew lg: variants once the bar became the right-hand
    column from lg (see the note on it in CheckDetail.tsx) — anchor on the
    prefix, not the exact attribute value, so an appended class does not

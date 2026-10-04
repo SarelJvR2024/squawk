@@ -209,17 +209,25 @@ check(
   `expected ${fmt(OPTIONS)}`
 );
 
+/* Until 4 October 2026 this checked that Capture and Field quoted two
+   DIFFERENT figures for what each screen lists — the whole point of the
+   split. Sarel reversed that split ("the different numbers might make
+   people confused"), so there is no longer a desk number and a field number
+   to keep in step; there is one number, quoted in both places, and this
+   checks the prose actually says so rather than having gone silent on the
+   split the way the stale-figures scan above cannot catch for free text. */
 check(
-  "and how the work splits between the desk and the walk",
-  readme.includes(`${DESK} a desk can progress`) &&
-    readme.includes(`Field lists the ${FIELD} with something on site to do`),
-  `expected desk ${DESK}, field ${FIELD}`
+  "and both screens are said to list the whole register now",
+  DESK === TOTAL &&
+    FIELD === TOTAL &&
+    readme.includes(`both screens now list all ${TOTAL} checks`),
+  `expected desk ${DESK} === field ${FIELD} === total ${TOTAL}`
 );
 
 check(
-  "the test notes carry the same split",
-  testsReadme.includes(`desk ${DESK} · field ${FIELD} · overlap ${BOTH}`),
-  `expected desk ${DESK} · field ${FIELD} · overlap ${BOTH}`
+  "the test notes carry the same figure",
+  testsReadme.replace(/\s+/g, " ").includes(`all ${TOTAL} of them`),
+  `expected "all ${TOTAL} of them" stated for the no-longer-split desk/field count`
 );
 
 /* ------------------------------------------------------------------ result */

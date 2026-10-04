@@ -45,7 +45,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `carryforward.test.mjs` | no | 48 |
 | `review.test.mjs` | no | 34 |
 | `tablet.test.mjs` | no | 43 |
-| `portals.test.mjs` | no | 31 |
+| `portals.test.mjs` | no | 32 |
 | `reset.test.mjs` | no | 18 |
 | `completion.test.mjs` | no | 19 |
 | `location.test.mjs` | no | 51 |
@@ -98,7 +98,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**2,688 assertions in total**, every count above verified by running the suite,
+**2,689 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -758,7 +758,8 @@ touched.
 
 Guards that a check is complete only when every mode it declares has been
 answered. There was one `captured` flag set by whichever screen saved first, so
-for the 290 checks needing both a document review and the asset seen, ticking it
+for checks needing both a document review and the asset seen — all 324 of
+them, since Capture and Field both list the full register — ticking it
 at a desk marked it done — the dashboard counted it, the export said
 "Captured: Yes", and nobody had walked out to look at the pump.
 

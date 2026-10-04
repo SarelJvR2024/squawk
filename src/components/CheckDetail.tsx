@@ -1316,15 +1316,15 @@ export default function CheckDetail({
         )}
       </div>
 
-      {needsField(check) && (
-        <div
-          className="flex items-center gap-2 border-b px-5 py-[6px] text-[10.5px] leading-[1.4] sm:py-[7px] sm:text-[11px]"
-          style={{ background: "var(--warn-bg)", borderColor: "var(--line)", color: "var(--warn)" }}
-        >
-          <IconPin width={12} height={12} />
-          This check also needs the asset seen on site — it appears in Field inspection too.
-        </div>
-      )}
+      {/* A DECISION OF SAREL'S THAT HE LATER REVERSED: this banner used to
+          show here only for the checks that `needsField` picked out as
+          also belonging on Inspection (290 of them), flagging the overlap. Capture and
+          Field both list the full 324 now (see the note on needsDesk/
+          needsField in src/lib/verification.ts), so "this check also needs
+          the asset seen on site" would be true of every check on this
+          screen, every time — a permanent banner that never distinguishes
+          anything is not information, it is wallpaper. Removed rather than
+          made unconditional. */}
 
       {/* THE TWO LINES THE CONVERSATION STARTS FROM, above the tabs and out
           of them. Everything else about this check is one tap away; these two

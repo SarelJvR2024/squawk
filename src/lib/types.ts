@@ -421,11 +421,13 @@ export interface Response {
   walkaboutPicked: number | null;
   attachments: Attachment[];
   /** DERIVED, and written only by the store: true when every mode this check's
-   *  vtype declares has been answered. A check needing both a document review
-   *  and the asset seen is not captured until both halves are done — before
-   *  per-portal tracking existed this flag went true on the first save from
-   *  either screen, so 290 checks could read as complete with nobody having
-   *  looked at the asset. Never set this directly; call commit(id, portal). */
+   *  vtype declares has been answered. Every one of the 324 checks needs both
+   *  a document review and the asset seen (see the note on needsDesk/
+   *  needsField in src/lib/verification.ts) and is not captured until both
+   *  halves are done — before per-portal tracking existed this flag went
+   *  true on the first save from either screen, so a check could read as
+   *  complete with nobody having looked at the asset. Never set this
+   *  directly; call commit(id, portal). */
   captured: boolean;
   /** Who and when for the half that COMPLETED the check. */
   capturedBy: string;
