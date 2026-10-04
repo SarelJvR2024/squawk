@@ -246,6 +246,8 @@ export default function AttendancePage() {
 
             {r.rows.map((row) => {
               const rowOpen = expandedRowId === row.id;
+              const rowSigning = signing === row.id;
+              const signed = isSigned(row);
               /* THE FOLDED LINE CARRIES THE WHOLE PERSON, NOT JUST THEIR
                  NAME. Sarel: "in row only the persons name is shown, it
                  should show his name, surname, role, company, email, cell
@@ -263,27 +265,81 @@ export default function AttendancePage() {
                   className="mb-2 mt-2 rounded-[9px] border p-2"
                   style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
                 >
-                  <button
-                    type="button"
-                    onClick={() => setExpandedRowId(rowOpen ? null : row.id)}
-                    className="flex w-full min-h-[32px] flex-col items-start gap-[2px] text-left"
-                  >
-                    <span className="flex min-w-0 items-center gap-[6px]">
-                      {isSigned(row) ? <Pill tone="accent">SIGNED</Pill> : <Pill tone="warn">NOT SIGNED</Pill>}
+                  <div className="flex items-center gap-[6px]">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedRowId(rowOpen ? null : row.id)}
+                      className="flex min-h-[30px] min-w-0 flex-1 items-center gap-[6px] text-left"
+                    >
+                      {signed ? <Pill tone="accent">SIGNED</Pill> : <Pill tone="warn">NOT SIGNED</Pill>}
                       <span className="truncate text-[12.5px] font-semibold">
                         {row.name.trim() || "Unnamed"}
                       </span>
-                    </span>
-                    {!rowOpen && rowSummary ? (
-                      <span className="w-full truncate text-[11px]" style={{ color: "var(--ink-3)" }}>
-                        {rowSummary}
-                      </span>
-                    ) : null}
-                  </button>
+                    </button>
 
-                  {rowOpen ? (
+                    {/* THE QUICK SIGN. Sarel: "add a sign button next to
+                        each person so that it only opens the signature box
+                        and dont show all the information... color code the
+                        sign based on whether it is signed." Tapping the row
+                        itself still opens the full detail panel to edit
+                        role/organisation/phone/email — most of the time an
+                        auditor just needs to hand the tablet over for a
+                        mark, which this does without that panel ever
+                        opening. Hidden once the pad is actually open — it
+                        has its own Cancel, and a second "Sign" beside it is
+                        just noise. */}
+                    {!rowSigning && (
+                      <button
+                        type="button"
+                        onClick={() => setSigning(row.id)}
+                        className="flex shrink-0 items-center gap-[4px] rounded-[8px] border px-[10px] py-[6px] font-display text-[11px] font-semibold"
+                        style={
+                          signed
+                            ? { background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }
+                            : { background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }
+                        }
+                      >
+                        {signed ? "Sign again" : "Sign"}
+                      </button>
+                    )}
+                  </div>
+
+                  {!rowOpen && !rowSigning && rowSummary ? (
+                    <p className="mt-[3px] truncate text-[11px]" style={{ color: "var(--ink-3)" }}>
+                      {rowSummary}
+                    </p>
+                  ) : null}
+
+                  {rowSigning ? (
                     <div className="mt-[6px]">
-                      <div className="mb-[6px] flex justify-end">
+                      <SignaturePad
+                        name={row.name}
+                        onCancel={() => setSigning(null)}
+                        onSigned={(s) => {
+                          /* Sarel: "after signing and clicking signed it
+                             should close the panel automatically and only
+                             show the person in one row again." Signing is
+                             the natural "done with this person" moment —
+                             fold their row back to the summary line the
+                             same way Save & close folds the whole register
+                             away. */
+                          sign(r.id, row.id, s);
+                          setSigning(null);
+                          setExpandedRowId(null);
+                        }}
+                      />
+                    </div>
+                  ) : rowOpen ? (
+                    <div className="mt-[6px]">
+                      <div className="mb-[5px] flex items-center justify-between gap-2">
+                        {row.signature ? (
+                          <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                            {row.signature.ref} · SIGNED {hhmm(row.signature.signedAt)} AS{" "}
+                            {row.signature.signedName.toUpperCase() || "—"}
+                          </span>
+                        ) : (
+                          <span />
+                        )}
                         <Btn
                           onClick={() => {
                             removeRow(r.id, row.id);
@@ -299,7 +355,7 @@ export default function AttendancePage() {
                         onChange={(ev) => patchRow(r.id, row.id, { name: ev.target.value })}
                         aria-label={`Name of attendee ${row.id}`}
                         placeholder="Full name"
-                        className={`mb-[6px] ${inputCls}`}
+                        className={`mb-[5px] ${inputCls}`}
                         style={inputStyle}
                       />
 
@@ -311,7 +367,7 @@ export default function AttendancePage() {
                           on the system with the email and phone number they
                           can be added in there" — so the next form that picks
                           this person already has it. */}
-                      <div className="grid grid-cols-2 gap-[6px]">
+                      <div className="grid grid-cols-2 gap-[5px]">
                         <input
                           value={row.role}
                           onChange={(ev) => patchRow(r.id, row.id, { role: ev.target.value })}
@@ -353,38 +409,6 @@ export default function AttendancePage() {
                           style={inputStyle}
                         />
                       </div>
-                      <div className="mt-[6px]" />
-
-                      {signing === row.id ? (
-                        <SignaturePad
-                          name={row.name}
-                          onCancel={() => setSigning(null)}
-                          onSigned={(s) => {
-                            /* Sarel: "after signing and clicking signed it
-                               should close the panel automatically and only
-                               show the person in one row again." Signing is
-                               the natural "done with this person" moment —
-                               fold their row back to the summary line the
-                               same way Save & close folds the whole
-                               register away. */
-                            sign(r.id, row.id, s);
-                            setSigning(null);
-                            setExpandedRowId(null);
-                          }}
-                        />
-                      ) : row.signature ? (
-                        <div className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                          {row.signature.ref} · SIGNED {hhmm(row.signature.signedAt)} AS{" "}
-                          {row.signature.signedName.toUpperCase() || "—"}
-                          <Btn className="ml-2" onClick={() => setSigning(row.id)}>
-                            Sign again
-                          </Btn>
-                        </div>
-                      ) : (
-                        <Btn variant="primary" onClick={() => setSigning(row.id)}>
-                          Sign
-                        </Btn>
-                      )}
                     </div>
                   ) : null}
                 </div>
