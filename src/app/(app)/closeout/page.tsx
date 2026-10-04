@@ -243,8 +243,8 @@ export default function CloseoutPage() {
         <h2 className="font-display text-[15px] font-semibold">Daily site closeout</h2>
         <p className="mt-1 text-[11px]" style={{ color: "var(--ink-3)" }}>
           Were there findings today, are they all logged in sheet 9, and the team lead&rsquo;s sign-off
-          that the reconciliation is accurate. Shares its record with Attendance and the Daily
-          diary — one entry per day.
+          that the reconciliation is accurate. Shares its record with the Daily diary — one entry
+          per day.
         </p>
       </header>
 

@@ -255,6 +255,17 @@ check(
   "a kind the strip never filters for is a kind that vanishes from the screen after it is stored"
 );
 
+check(
+  "a file attachment can carry its own typed description, same as a photo's caption",
+  /function FileRow\(\{[\s\S]{0,200}onUpdate,/.test(capture) &&
+    /onChange=\{\(e\) => onUpdate\(\{ caption: e\.target\.value \}\)\}/.test(capture),
+  'Sarel: "when uploading evidence allow to add a description for each file" — a plain file never had anywhere to say what it was before this'
+);
+check(
+  "AttachmentStrip wires that update through to FileRow, same as it already does for PhotoRow",
+  /<FileRow[\s\S]{0,150}onUpdate=\{onUpdate \? \(patch\) => onUpdate\(a\.id, patch\) : undefined\}/.test(capture)
+);
+
 /* ------------------------------------------------------------------ result */
 
 console.log(

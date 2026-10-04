@@ -16,10 +16,10 @@
  *  and Interviews, there is nothing here that opens-or-returns.
  *
  *  THREE ITEMS, EACH ITS OWN TICK. Hi-vis jacket, safety shoes, and hearing
- *  protection — tap a status pill to cycle compliant → missing → N/A. Hearing
- *  protection defaults to N/A on a check NOT flagged as a noise zone, because
- *  asking for a tick on PPE that genuinely does not apply here is how a
- *  checklist stops being trusted. */
+ *  protection all start at N/A — asking for a tick on PPE nobody has looked
+ *  at yet is how a checklist stops being trusted. Tap a status pill to cycle
+ *  N/A → compliant → missing → N/A, so the first tap is always the one that
+ *  marks it, not one that has to clear a false "missing" first. */
 
 import { useState } from "react";
 import { useEntityCode, usePpeChecks, useStore } from "@/lib/store";
@@ -78,12 +78,13 @@ export default function PpePage() {
   const [signing, setSigning] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
-  /* ONE PERSON EXPANDED AT A TIME, same reasoning as the attendance
-     register: name/employer/role and notes only matter while a row is
-     actually being filled in; once ticked and signed it folds to a line.
-     The PPE ticks themselves stay out of the fold — see the note where the
-     row renders — because tapping through them quickly is this screen's
-     whole point. */
+  /* DECISION REVERSED. Rows used to expand when you tapped the person's
+     name, same as the other three forms. Sarel: "dont expand the person
+     when clicking on it, only keep the row view to be able to select what
+     PPE is in place" — this screen's whole job is tapping through three
+     ticks fast, not editing a name. The row now never expands on its own;
+     name/employer/role/notes/Remove only show behind the explicit Edit
+     button, and adding a person no longer auto-opens that detail either. */
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   useFormsHubDeepLink(setOpenId);
@@ -226,12 +227,11 @@ export default function PpePage() {
               <ContactPicker
                 entityCode={entityCode}
                 onAdd={(p) => {
-                  const rowId = addPerson(c.id, p.name, {
+                  addPerson(c.id, p.name, {
                     contactId: p.contactId,
                     organisation: p.organisation ?? "",
                     role: p.role ?? "",
                   });
-                  setExpandedRowId(rowId);
                 }}
               />
             </Field>
@@ -249,21 +249,17 @@ export default function PpePage() {
                   style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
                 >
                   <div className="flex items-center gap-[6px]">
-                    <button
-                      type="button"
-                      onClick={() => setExpandedRowId(rowOpen ? null : e.id)}
-                      className="flex min-h-[30px] min-w-0 flex-1 items-center gap-[6px] text-left"
-                    >
+                    <div className="flex min-h-[30px] min-w-0 flex-1 items-center gap-[6px]">
                       {signed ? <Pill tone="accent">SIGNED</Pill> : <Pill tone="warn">NOT SIGNED</Pill>}
                       <span className="truncate text-[12.5px] font-semibold">
                         {e.name.trim() || "Unnamed"}
                       </span>
                       {missing.length ? <Pill tone="warn">{missing.length} MISSING</Pill> : null}
-                    </button>
+                    </div>
 
                     {/* THE QUICK SIGN — same control as attendance: color-coded,
                         opens only the pad, hidden once the pad is actually
-                        open. Tapping the name still opens the full detail. */}
+                        open. */}
                     {!rowSigning && (
                       <button
                         type="button"
@@ -276,6 +272,19 @@ export default function PpePage() {
                         }
                       >
                         {signed ? "Sign again" : "Sign"}
+                      </button>
+                    )}
+                    {/* THE ONLY WAY THIS ROW EXPANDS. Name/employer/role,
+                        notes, and Remove are behind this explicit tap — see
+                        the DECISION REVERSED note above. */}
+                    {!rowSigning && (
+                      <button
+                        type="button"
+                        onClick={() => setExpandedRowId(rowOpen ? null : e.id)}
+                        className="flex shrink-0 items-center gap-[4px] rounded-[8px] border px-[10px] py-[6px] font-display text-[11px] font-semibold"
+                        style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+                      >
+                        {rowOpen ? "Done" : "Edit"}
                       </button>
                     )}
                   </div>

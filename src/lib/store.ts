@@ -30,6 +30,7 @@ import type {
   AttendanceEntry,
   DiaryCategory,
   DiaryEntry,
+  DiaryWorker,
   EvidenceItem,
   EvidenceMedium,
   IncidentReport,
@@ -255,6 +256,7 @@ function emptyResponse(checkId: string): Response {
     evidencePending: false,
     evidenceStatus: null,
     evidenceStatusNote: "",
+    evidencePendingNote: "",
     captured: false,
     capturedBy: "",
     capturedAt: null,
@@ -512,6 +514,22 @@ interface State {
   updateDiaryEntry: (id: string, entryId: string, p: Partial<DiaryEntry>) => void;
   removeDiaryEntry: (id: string, entryId: string) => void;
   signDiary: (id: string, s: Omit<Signature, "ref">) => void;
+  /** One entry's own evidence — see the note beside the implementation. */
+  addDiaryEntryAttachment: (
+    id: string,
+    entryId: string,
+    a: Omit<Attachment, "id" | "createdAt">
+  ) => void;
+  updateDiaryEntryAttachment: (
+    id: string,
+    entryId: string,
+    attachmentId: string,
+    patch: Partial<Attachment>
+  ) => void;
+  removeDiaryEntryAttachment: (id: string, entryId: string, attachmentId: string) => void;
+  /** Who from the TPJV team worked on site this day. See DiaryWorker. */
+  addDiaryWorker: (id: string, name: string, seed?: Partial<DiaryWorker>) => string;
+  removeDiaryWorker: (id: string, workerId: string) => void;
 
   /* ---- The document and evidence collection log. See src/lib/evidence.ts. ----
      Only a title is required. Somebody is handing over a folder and walking
@@ -1088,7 +1106,7 @@ export const useStore = create<State>()(
                 location: "",
                 locationDescription: "",
                 discipline: null,
-                assetSystem: null,
+                assetSystems: [],
                 riskToPersons: "",
                 immediateAction: "",
                 actualImpact: "",
@@ -1155,8 +1173,15 @@ export const useStore = create<State>()(
             ),
           })),
 
-        removeSafetyFinding: (id) =>
-          set((s) => ({ safetyFindings: s.safetyFindings.filter((f) => f.id !== id) })),
+        removeSafetyFinding: (id) => {
+          const f = get().safetyFindings.find((x) => x.id === id);
+          const keys = [
+            ...(f?.attachments ?? []).map((a) => a.blobKey),
+            f?.authorisedSignature?.blobKey,
+          ].filter((k): k is string => !!k);
+          set((s) => ({ safetyFindings: s.safetyFindings.filter((x) => x.id !== id) }));
+          if (keys.length) void delBlobs(keys);
+        },
 
         signIsf: (id, sig) => {
           const f = get().safetyFindings.find((x) => x.id === id);
@@ -1415,6 +1440,7 @@ export const useStore = create<State>()(
                 dayEnd: null,
                 diaryEntries: [],
                 diarySignature: null,
+                workedBy: [],
                 entries: [],
                 attachments: [],
                 closeoutFindingsToday: null,
@@ -1616,7 +1642,16 @@ export const useStore = create<State>()(
           get().updateSiteDay(id, {
             diaryEntries: [
               ...d.diaryEntries,
-              { category, at: now, text: "", ...seed, id: entryId, createdAt: now, updatedAt: now },
+              {
+                category,
+                at: now,
+                text: "",
+                attachments: [],
+                ...seed,
+                id: entryId,
+                createdAt: now,
+                updatedAt: now,
+              },
             ],
             /* The signature was of the diary as it stood; adding a line
                changes what it stood for. */
@@ -1641,10 +1676,13 @@ export const useStore = create<State>()(
         removeDiaryEntry: (id, entryId) => {
           const d = get().siteDays.find((x) => x.id === id);
           if (!d) return;
+          const gone = d.diaryEntries.find((e) => e.id === entryId);
+          const keys = (gone?.attachments ?? []).map((a) => a.blobKey).filter((k): k is string => !!k);
           get().updateSiteDay(id, {
             diaryEntries: d.diaryEntries.filter((e) => e.id !== entryId),
             diarySignature: null,
           });
+          if (keys.length) void delBlobs(keys);
         },
 
         signDiary: (id, sig) => {
@@ -1653,6 +1691,98 @@ export const useStore = create<State>()(
           const previous = d.diarySignature;
           get().updateSiteDay(id, { diarySignature: { ...sig, ref: `${id}_DIARY` } });
           if (previous?.blobKey && previous.blobKey !== sig.blobKey) void delBlob(previous.blobKey);
+        },
+
+        /* ENTRY-LEVEL EVIDENCE, same shape as addDayAttachment/
+           removeDayAttachment/updateDayAttachment just above but one level
+           deeper — a photo or voice note belongs to the one line it is
+           evidence for, not to the day as a whole. Deliberately does NOT
+           clear diarySignature: the day's attestation is about the account
+           given, and attaching evidence to it afterward does not change
+           what was said, same reasoning as the day-level attachments. */
+        addDiaryEntryAttachment: (id, entryId, a) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          const entry = d?.diaryEntries.find((e) => e.id === entryId);
+          if (!d || !entry) return;
+          /* One photo-reference sequence for the whole day, day-level and
+             per-entry attachments together — two photographs both numbered
+             _P01 on the same record is the exact confusion a stable
+             reference exists to prevent. */
+          const allPhotos = [...d.attachments, ...d.diaryEntries.flatMap((e) => e.attachments)];
+          get().updateSiteDay(id, {
+            diaryEntries: d.diaryEntries.map((e) =>
+              e.id === entryId
+                ? {
+                    ...e,
+                    attachments: [
+                      ...e.attachments,
+                      {
+                        ...a,
+                        id: uid(),
+                        ...(a.kind === "photo" ? { ref: nextPhotoRef(id, allPhotos) } : {}),
+                        createdAt: Date.now(),
+                      },
+                    ],
+                    updatedAt: Date.now(),
+                  }
+                : e
+            ),
+          });
+        },
+
+        removeDiaryEntryAttachment: (id, entryId, attachmentId) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          const entry = d?.diaryEntries.find((e) => e.id === entryId);
+          if (!d || !entry) return;
+          const gone = entry.attachments.find((a) => a.id === attachmentId);
+          get().updateSiteDay(id, {
+            diaryEntries: d.diaryEntries.map((e) =>
+              e.id === entryId
+                ? { ...e, attachments: e.attachments.filter((a) => a.id !== attachmentId), updatedAt: Date.now() }
+                : e
+            ),
+          });
+          if (gone?.blobKey) void delBlob(gone.blobKey);
+        },
+
+        updateDiaryEntryAttachment: (id, entryId, attachmentId, patch) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          const entry = d?.diaryEntries.find((e) => e.id === entryId);
+          if (!d || !entry) return;
+          const { id: _i, blobKey: _b, createdAt: _c, ...safe } = patch;
+          void _i; void _b; void _c;
+          get().updateSiteDay(id, {
+            diaryEntries: d.diaryEntries.map((e) =>
+              e.id === entryId
+                ? {
+                    ...e,
+                    attachments: e.attachments.map((a) => (a.id === attachmentId ? { ...a, ...safe } : a)),
+                    updatedAt: Date.now(),
+                  }
+                : e
+            ),
+          });
+        },
+
+        /* THE DAY'S WORKED-BY ROSTER. Lighter than Attendance on purpose —
+           see DiaryWorker in types.ts — so adding/removing a name never
+           touches diarySignature, the same reasoning as the day-level
+           attachments: this says who did the work, not what the account of
+           the day says. */
+        addDiaryWorker: (id, name, seed) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          if (!d) return "";
+          const workerId = uid();
+          get().updateSiteDay(id, {
+            workedBy: [...d.workedBy, { company: "TPJV", name, ...seed, id: workerId }],
+          });
+          return workerId;
+        },
+
+        removeDiaryWorker: (id, workerId) => {
+          const d = get().siteDays.find((x) => x.id === id);
+          if (!d) return;
+          get().updateSiteDay(id, { workedBy: d.workedBy.filter((w) => w.id !== workerId) });
         },
 
         addEvidenceItem: (title, seed) => {
@@ -1872,7 +2002,7 @@ export const useStore = create<State>()(
                 name,
                 organisation: "",
                 role: "",
-                items: blankPpeItems(c.noiseZone),
+                items: blankPpeItems(),
                 notes: "",
                 signature: null,
                 ...seed,
@@ -1937,6 +2067,8 @@ export const useStore = create<State>()(
                 escortedBy: "",
                 openedAt: now,
                 openedBy: s0.auditor || "",
+                endTime: null,
+                notes: "",
                 people: [],
                 ...seed,
                 id,
@@ -2972,7 +3104,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 28,
+      version: 32,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -3393,6 +3525,7 @@ export const useStore = create<State>()(
                           category: "general" as const,
                           at: d.openedAt,
                           text,
+                          attachments: [],
                           createdAt: d.openedAt,
                           updatedAt: d.openedAt,
                         },
@@ -3427,7 +3560,11 @@ export const useStore = create<State>()(
               ...f,
               recordedBy: f.recordedBy ?? f.raisedBy ?? "",
               locationDescription: f.locationDescription ?? "",
-              assetSystem: f.assetSystem ?? null,
+              assetSystems: Array.isArray(f.assetSystems)
+                ? f.assetSystems
+                : (f as unknown as { assetSystem?: string | null }).assetSystem
+                  ? [(f as unknown as { assetSystem: string }).assetSystem]
+                  : [],
               actualImpact: f.actualImpact ?? "",
               potentialImpact: f.potentialImpact ?? "",
               urgency: f.urgency ?? null,
@@ -3523,6 +3660,73 @@ export const useStore = create<State>()(
               const contact = c as Partial<Contact>;
               if (contact.phone === undefined) contact.phone = "";
               if (contact.email === undefined) contact.email = "";
+            }
+          }
+        }
+        if (from < 29 && Array.isArray(st.siteAccessLogs)) {
+          /* Day/start/end and an observation note on the log itself (Sarel,
+             4 October 2026: "allow adding day, start and end time, and site
+             access observation notes"). openedAt already served as the
+             start time; every log on file predates endTime and notes. */
+          for (const l of st.siteAccessLogs) {
+            const log = l as Partial<SiteAccessLog>;
+            if (log.endTime === undefined) log.endTime = null;
+            if (log.notes === undefined) log.notes = "";
+          }
+        }
+        if (from < 30 && Array.isArray(st.siteDays)) {
+          /* Per-entry evidence and the TPJV worked-by roster (Sarel,
+             4 October 2026: "should be able to add multiple photos for each
+             entry, also should be able to add a voice note... add a section
+             to select which people worked on the project on the day from
+             the TPJV team"). Every day and every entry on file predates
+             both. */
+          for (const d of st.siteDays) {
+            const day = d as Partial<SiteDay>;
+            if (!Array.isArray(day.workedBy)) day.workedBy = [];
+            if (Array.isArray(day.diaryEntries)) {
+              for (const e of day.diaryEntries) {
+                const entry = e as Partial<DiaryEntry>;
+                if (!Array.isArray(entry.attachments)) entry.attachments = [];
+              }
+            }
+          }
+        }
+        if (from < 31 && st.byVisit) {
+          /* DECISION REVERSED. evidenceStatusNote used to double as both
+             specificNotAvailable's list and toBeProvided's own — one field
+             read two ways, so switching between the two statuses showed
+             the same items under a different heading rather than two
+             genuinely separate lists (Sarel, 4 October 2026: "the list of
+             evidence for evidence pending and specific evidence not
+             availbale is two seperate lists, allow to keep seperate
+             lists"). Every response on file predates evidencePendingNote;
+             whatever it was carrying under toBeProvided before this split
+             stays where it was — on evidenceStatusNote, now
+             specificNotAvailable's alone — rather than being guessed into
+             the new field, since there is no way to tell from here which
+             status it was typed under. */
+          for (const key of Object.keys(st.byVisit)) {
+            const responses = st.byVisit[key]?.responses;
+            if (!responses) continue;
+            for (const checkId of Object.keys(responses)) {
+              const r = responses[checkId] as Partial<Response>;
+              if (r.evidencePendingNote === undefined) r.evidencePendingNote = "";
+            }
+          }
+        }
+        if (from < 32 && Array.isArray(st.safetyFindings)) {
+          /* assetSystem (one) became assetSystems (several) — Sarel: "asset
+             system should be a multi select." Every ISF raised between v24
+             (when the field was introduced) and here already has the old
+             singular field backfilled to a real string-or-null by that
+             migration, so unlike v24's own defensive read of possibly-raw
+             JSON, this only has that one known shape to convert: carry the
+             single value forward as a one-item list rather than discard it. */
+          for (const f of st.safetyFindings) {
+            const finding = f as Partial<SafetyFinding> & { assetSystem?: string | null };
+            if (!Array.isArray(finding.assetSystems)) {
+              finding.assetSystems = finding.assetSystem ? [finding.assetSystem] : [];
             }
           }
         }

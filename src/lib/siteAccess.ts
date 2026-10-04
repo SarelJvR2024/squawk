@@ -63,11 +63,12 @@ export function logText(
     `Area            ${L(log.area)}`,
     `Purpose         ${L(log.purpose)}`,
     `Escorted by     ${L(log.escortedBy)}`,
-    `Opened          ${stamp(log.openedAt)}`,
+    `Start           ${stamp(log.openedAt)}`,
+    `End             ${log.endTime !== null ? stamp(log.endTime) : unknown}`,
     `Opened by       ${L(log.openedBy)}`,
-    "",
-    "WHO WENT IN",
   ];
+  if (log.notes.trim()) lines.push("", `Notes           ${log.notes.trim()}`);
+  lines.push("", "WHO WENT IN");
 
   if (log.people.length === 0) {
     lines.push(unknown);

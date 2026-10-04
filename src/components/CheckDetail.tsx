@@ -161,7 +161,7 @@ const EVIDENCE_STATUSES: {
   },
   {
     key: "toBeProvided",
-    label: "Evidence to be provided",
+    label: "Evidence Pending",
     hint: "ACSA will produce it after the visit",
     Icon: IconClock,
     tone: "acc",
@@ -251,6 +251,7 @@ export default function CheckDetail({
     evidencePending: false,
     evidenceStatus: null,
     evidenceStatusNote: "",
+    evidencePendingNote: "",
     issuesPicked: [],
     walkaboutPicked: null,
     attachments: [],
@@ -753,15 +754,26 @@ export default function CheckDetail({
             textarea — "Doc 1\nDoc 2" typed as two lines of one blob, which
             reads back as a paragraph to split apart rather than a list to
             scan or export cell-by-cell. One row per item instead, add/remove
-            as needed. Still stored as `evidenceStatusNote`, one string
-            joined on "\n" — same field, same export, no migration — the
-            change is in how it's edited, not what's persisted. */}
+            as needed. Still stored as a string joined on "\n" — same
+            export, the change is in how it's edited, not the shape it's
+            persisted in.
+
+            TWO SEPARATE LISTS, NOT ONE READ TWO WAYS. DECISION REVERSED —
+            Sarel: "the list of evidence for evidence pending and specific
+            evidence not availbale is two seperate lists, allow to keep
+            seperate lists." `evidenceStatusNote` used to carry both
+            statuses' items, so switching between them showed the same
+            list under a different heading and a note typed under one
+            looked like it belonged to the other the moment you tapped
+            back. specificNotAvailable keeps evidenceStatusNote;
+            toBeProvided gets its own field, evidencePendingNote — see the
+            note on both in types.ts. */}
         {(() => {
           const active = EVIDENCE_STATUSES.find((es) => es.key === r.evidenceStatus);
           if (!active?.note) return null;
-          const items = r.evidenceStatusNote.split("\n");
-          const setItems = (next: string[]) =>
-            patch(check.id, { evidenceStatusNote: next.join("\n") });
+          const field = active.key === "toBeProvided" ? "evidencePendingNote" : "evidenceStatusNote";
+          const items = r[field].split("\n");
+          const setItems = (next: string[]) => patch(check.id, { [field]: next.join("\n") });
           const itemPlaceholder =
             active.key === "specificNotAvailable"
               ? "Which document or record ACSA could not produce"
@@ -841,6 +853,23 @@ export default function CheckDetail({
               : `${r.attachments.length} attached`}
           </span>
         </div>
+
+        {/* A DESCRIPTION FOR EACH FILE, RIGHT WHERE IT WAS JUST ATTACHED.
+            Sarel: "when uploading evidence allow to add a description for
+            each file." A photograph already carried a caption; a plain
+            file never did — FileRow gained one here rather than the
+            auditor having to go find the same attachment in the
+            observation panel's strip below to say what it is. */}
+        {r.attachments.length > 0 ? (
+          <div className="mt-2.5">
+            <AttachmentStrip
+              attachments={r.attachments}
+              thumbSize={40}
+              onRemove={(id) => removeAttachment(check.id, id)}
+              onUpdate={(id, p) => updateAttachment(check.id, id, p)}
+            />
+          </div>
+        ) : null}
 
         {/* A SPACER, not a design choice — this panel is the first in the
            "do" group routinely tall enough to expose a `position: sticky`

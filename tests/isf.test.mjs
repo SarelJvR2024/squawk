@@ -87,7 +87,7 @@ const base = {
   location: "",
   locationDescription: "",
   discipline: null,
-  assetSystem: null,
+  assetSystems: [],
   riskToPersons: "",
   immediateAction: "",
   actualImpact: "",
@@ -439,7 +439,16 @@ check(
 check("what happened is editable after raising, not only set at raise time", /WHAT HAPPENED/.test(page) && /patch\(f\.id, \{ description: e\.target\.value \}\)/.test(page));
 check("identified by and recorded by are both captured", /IDENTIFIED BY/.test(page) && /RECORDED BY/.test(page));
 check("a location description is captured alongside the short location", /LOCATION DESCRIPTION/.test(page));
-check("the asset system is picked from the same taxonomy Hazards uses", /ASSET SYSTEM/.test(page) && /systemsAt\(entityCode\)/.test(page));
+check(
+  "the asset system is picked from the same taxonomy Hazards uses, grouped by discipline",
+  /Asset system\(s\)/.test(page) && /systemsOf\(entityCode, d\)/.test(page),
+  'Sarel: "asset system should be a multi select, the [l]ist should be a hierarchy grouped by discipline"'
+);
+check(
+  "more than one asset system can be picked, same pattern as Hazard.systems",
+  /assetSystems: \[\.\.\.f\.assetSystems, e\.target\.value\]/.test(page) &&
+    /assetSystems: f\.assetSystems\.filter\(\(x\) => x !== sys\)/.test(page)
+);
 check("both impact questions are captured, as two distinct fields", /WHAT WAS THE IMPACT/.test(page) && /WHAT IS A POSSIBLE IMPACT/.test(page));
 check(
   "the risk assessment reuses RecordActions — the same instrument as Findings and Hazards",
@@ -486,6 +495,33 @@ check(
     /useNow/.test(home) &&
     !/const clockSubs = new Set/.test(home),
   "two clocks is two answers to whether a notice is overdue"
+);
+
+/* ---- Sarel's follow-up: Save, Save & close, Delete; the copy button gone ---- */
+
+check(
+  "there is a Save action and a separate Save & close",
+  /<IconCheck \/> Save\s*<\/Btn>/.test(page) && /<IconCheck \/> Save & close/.test(page)
+);
+check(
+  "there is a Delete control, with a second tap before anything is lost",
+  /Delete this finding\?/.test(page) &&
+    /Yes, delete/.test(page) &&
+    /remove\(f\.id\)/.test(page),
+  'Sarel: "add a save button and save and close and delete button" — there was no way to remove a finding before this'
+);
+check(
+  "deleting a finding releases its own attachments and its signature's blob, not just the record",
+  /removeSafetyFinding: \(id\) => \{[\s\S]{0,400}delBlobs\(keys\)/.test(store)
+);
+check(
+  "the Copy notice button and its copy-the-notice-out warning are gone",
+  !/Copy notice/.test(page) && !/COPY THE NOTICE OUT/.test(page),
+  'Sarel: "remove the copy button or the notice"'
+);
+check(
+  "saving gives a visible confirmation",
+  /savedId === f\.id \? <Pill tone="accent">✓ SAVED<\/Pill>/.test(page)
 );
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");

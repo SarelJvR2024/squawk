@@ -27,10 +27,16 @@ export function signedFieldsChanged(p: Partial<PpeEntry>): boolean {
   return p.items !== undefined;
 }
 
-export function blankItems(noiseZone: boolean): Record<PpeItemKey, PpeStatus> {
+/* DECISION REVERSED. Hi-vis and safety shoes used to default to "missing" so
+   they read as an outstanding gap until ticked, and only hearing protection
+   started at "notApplicable" outside a declared noise zone. Sarel: "default
+   for all PPE should be NA, first click should make it Compliant" — every
+   item now starts neutral, and the auditor's first tap is the one that marks
+   it rather than clears a false "missing" nobody has looked at yet. */
+export function blankItems(): Record<PpeItemKey, PpeStatus> {
   return PPE_ITEMS.reduce(
     (acc, k) => {
-      acc[k] = k === "hearingProtection" && !noiseZone ? "notApplicable" : "missing";
+      acc[k] = "notApplicable";
       return acc;
     },
     {} as Record<PpeItemKey, PpeStatus>
