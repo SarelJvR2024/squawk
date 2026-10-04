@@ -772,6 +772,26 @@ interface State {
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
+/** Every `blobKey` nested anywhere inside a record — attachments, a
+ *  top-level signature, a signature on an entry/attendee buried inside an
+ *  array, whatever shape this particular form happens to have. Walked
+ *  generically rather than hand-enumerated per type: the Tier 1 forms (ISF,
+ *  interviews, site days, PPE, site access, toolbox talks, incident
+ *  reports, attendance registers) each nest their attachments and
+ *  signatures differently, and a hand-written path is exactly the kind of
+ *  thing that goes stale the next time a field moves. */
+function collectBlobKeys(value: unknown, acc: string[] = []): string[] {
+  if (Array.isArray(value)) {
+    for (const v of value) collectBlobKeys(v, acc);
+  } else if (value && typeof value === "object") {
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (k === "blobKey" && typeof v === "string") acc.push(v);
+      else collectBlobKeys(v, acc);
+    }
+  }
+  return acc;
+}
+
 const idbStorage = {
   getItem: async (name: string) => (await idbGet(name)) ?? null,
   setItem: async (name: string, value: string) => {
@@ -3060,6 +3080,27 @@ export const useStore = create<State>()(
           const s = get();
           const key = scopeKey(s.entity, s.visit);
           const data = s.byVisit[key];
+          const mine = <T extends { entity: string; originVisit: string }>(r: T) =>
+            r.entity === s.entity && r.originVisit === s.visit;
+          /* Every flat, entity+visit-scoped record this visit holds — HIRA and
+             every Tier 1 form (ISF, interviews, site days/diary, PPE, site
+             access, toolbox talks, incident reports, attendance registers) —
+             alongside `findings`, which this already cleared. Missing any of
+             these was a real bug: "Start again" for one visit left every one
+             of them untouched, so HIRA and the tablet forms kept showing a
+             visit that was supposedly just cleared. */
+          const scoped = {
+            hazards: s.hazards.filter(mine),
+            safetyFindings: s.safetyFindings.filter(mine),
+            interviewDays: s.interviewDays.filter(mine),
+            siteDays: s.siteDays.filter(mine),
+            evidenceItems: s.evidenceItems.filter(mine),
+            ppeChecks: s.ppeChecks.filter(mine),
+            siteAccessLogs: s.siteAccessLogs.filter(mine),
+            toolboxTalks: s.toolboxTalks.filter(mine),
+            incidentReports: s.incidentReports.filter(mine),
+            attendanceRegisters: s.attendanceRegisters.filter(mine),
+          };
           /* Drop this visit's media before its records go, or the blobs become
              orphans nothing can reach and nothing will clean up. */
           if (data) {
@@ -3075,6 +3116,14 @@ export const useStore = create<State>()(
             ].filter((k): k is string => !!k);
             if (keys.length) void delBlobs(keys);
           }
+          /* Same reasoning, for the records above — collected generically
+             rather than per field, since each form nests its attachments and
+             signatures differently. */
+          const formKeys = collectBlobKeys(Object.values(scoped)).filter(
+            (k): k is string => !!k
+          );
+          if (formKeys.length) void delBlobs(formKeys);
+
           set((st) => {
             const rest = { ...st.byVisit };
             delete rest[key];
@@ -3083,6 +3132,16 @@ export const useStore = create<State>()(
               findings: st.findings.filter(
                 (f) => !(f.entity === st.entity && f.originVisit === st.visit)
               ),
+              hazards: st.hazards.filter((r) => !mine(r)),
+              safetyFindings: st.safetyFindings.filter((r) => !mine(r)),
+              interviewDays: st.interviewDays.filter((r) => !mine(r)),
+              siteDays: st.siteDays.filter((r) => !mine(r)),
+              evidenceItems: st.evidenceItems.filter((r) => !mine(r)),
+              ppeChecks: st.ppeChecks.filter((r) => !mine(r)),
+              siteAccessLogs: st.siteAccessLogs.filter((r) => !mine(r)),
+              toolboxTalks: st.toolboxTalks.filter((r) => !mine(r)),
+              incidentReports: st.incidentReports.filter((r) => !mine(r)),
+              attendanceRegisters: st.attendanceRegisters.filter((r) => !mine(r)),
               lastSavedAt: null,
             };
           });
@@ -3090,9 +3149,28 @@ export const useStore = create<State>()(
 
         resetEverything: () => {
           /* Sweeps the media prefix rather than walking the records, so a
-             photograph whose record was already deleted goes too. */
+             photograph whose record was already deleted goes too — covers
+             every one of the arrays cleared below, however they nest their
+             attachments and signatures. */
           void clearAllMedia();
-          set({ byVisit: {}, findings: [], lastSavedAt: null });
+          set({
+            byVisit: {},
+            findings: [],
+            /* Same bug as resetVisit, wider: HIRA and every Tier 1 form were
+               never part of "Everything" either, so a dry run's hazards and
+               forms outlived a full reset. */
+            hazards: [],
+            safetyFindings: [],
+            interviewDays: [],
+            siteDays: [],
+            evidenceItems: [],
+            ppeChecks: [],
+            siteAccessLogs: [],
+            toolboxTalks: [],
+            incidentReports: [],
+            attendanceRegisters: [],
+            lastSavedAt: null,
+          });
         },
       };
     },
