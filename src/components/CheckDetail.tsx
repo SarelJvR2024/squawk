@@ -1468,7 +1468,23 @@ export default function CheckDetail({
       </div>
       </div>
 
-      {/* THE PANEL — the whole width, and from lg the whole leftover height,
+      {/* FROM lg, TWO COLUMNS, EACH SCROLLING INSIDE ITSELF.
+          Sarel: "the space to read the box of text is getting very small,
+          rework this layout so that it is easier to read, maybe split into
+          a left and right panel." The reference panel used to take the
+          whole width and whatever height was left under the capture column
+          below it — on a desk-width window with photographs and a long
+          observation already attached, that could be three lines of ACSA's
+          own wording in a box with a scrollbar. Reading and writing now sit
+          side by side instead, each with the full leftover height to
+          scroll inside, so the reference text is never squeezed by how
+          much the auditor has already written below it.
+
+          Below lg this is a plain stack again, unchanged from before — a
+          two-column row on a phone is two half-width columns neither one
+          can be read in. */}
+      <div className="lg:flex lg:min-h-0 lg:flex-1 lg:items-stretch">
+      {/* THE PANEL — half the width from lg, the whole leftover height,
           scrolling inside itself.
 
           `flex-1` only from lg, and that is a bug fix, not a tidy-up. From lg
@@ -1482,11 +1498,14 @@ export default function CheckDetail({
         role="tabpanel"
         data-panel={openKey}
         /* No deep bottom padding at lg any more: the panel is its own
-           scroller and the pinned bar is a sibling below it, not something
-           floating over its last line. Below lg the whole screen scrolls and
-           the bar is the last thing in it, so the same holds. */
-        className="px-5 pt-[13px] pb-[18px] lg:min-h-0 lg:flex-1 lg:overflow-y-auto"
-        style={{ background: open.group === "do" ? "var(--focus-surface)" : "var(--sunken)" }}
+           scroller and the capture column is a sibling beside it, not
+           something floating over its last line. Below lg the whole screen
+           scrolls and the bar is the last thing in it, so the same holds. */
+        className="px-5 pt-[13px] pb-[18px] lg:min-h-0 lg:w-1/2 lg:shrink-0 lg:overflow-y-auto lg:border-r"
+        style={{
+          background: open.group === "do" ? "var(--focus-surface)" : "var(--sunken)",
+          borderColor: "var(--line)",
+        }}
       >
         {open.body}
       </div>
@@ -1507,14 +1526,26 @@ export default function CheckDetail({
         /* bottom-0, not bottom-[var(--bottom-nav)]: `.app-scroll` already pads
            this scroller by the nav's height, and Chrome takes that padding off
            the sticky floor — offsetting again left the bar hovering 56px above
-           the nav with a strip of content sliding under it. */
-        className="sticky bottom-0 z-[7]"
+           the nav with a strip of content sliding under it.
+
+           FROM lg this is the right-hand column instead, beside the
+           reference panel rather than pinned under the page — `lg:static`
+           turns the stickiness off (there is nothing left for it to stick
+           to; the column is simply as tall as the row beside it) and
+           `lg:flex-col` lets the Observation block below take the leftover
+           height of ITS OWN column and scroll inside that, with the
+           compliance bar still the last, non-scrolling thing in it — the
+           same pinned-bar bargain the page above makes, one level deeper. */
+        className="sticky bottom-0 z-[7] lg:static lg:flex lg:min-h-0 lg:w-1/2 lg:shrink-0 lg:flex-col"
         style={{
           background: "var(--panel)",
           boxShadow: "0 -6px 18px -10px rgba(22,16,40,.2)",
         }}
       >
-        <div className="border-t px-5 pt-[9px] pb-[9px]" style={{ borderColor: "var(--line)" }}>
+        <div
+          className="border-t px-5 pt-[9px] pb-[9px] lg:min-h-0 lg:flex-1 lg:overflow-y-auto"
+          style={{ borderColor: "var(--line)" }}
+        >
           <div className="mb-[6px] hidden items-center justify-between gap-3 sm:flex">
             <b className="font-display text-[11px] font-semibold">Observation</b>
             {/* It used to read "type · speak · photograph", naming the three
@@ -1864,6 +1895,7 @@ export default function CheckDetail({
               ` · ${r.issuesPicked.length} finding${r.issuesPicked.length > 1 ? "s" : ""}`}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

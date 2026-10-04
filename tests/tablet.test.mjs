@@ -82,15 +82,28 @@ check(
 
 /* ------------------------------------- Part 2: capture is not below the fold */
 
-/* The two panes are ONE now. An iPad in landscape is 1180px and the check was
-   spending 508px of it on a system rail and a check list beside the panes; the
-   navigator is one column and the check screen is one tabbed panel, so nothing
-   has to be ordered around a stack that no longer happens. */
+/* The two panes were ONE for a while. An iPad in landscape is 1180px and the
+   check was spending 508px of it on a system rail and a check list beside
+   the panes, each pane with its own tab strip — that busyness is what
+   became one tabbed panel taking the whole width.
+
+   Then Sarel, reading the register's own wording in that one panel on a
+   desk-width window with photographs already attached: "the space to read
+   the box of text is getting very small, rework this layout so that it is
+   easier to read, maybe split into a left and right panel." From lg the
+   panel is half the width again, but what made the old two-pane layout
+   busy was never "two columns" on its own — it was two separate tab
+   strips, one per pane, doubling the thing an auditor had to track. There
+   is still exactly one tab strip here, above both columns, and only the
+   content it opens is split: the reference material scrolls on the left,
+   the capture column scrolls on the right, beside it rather than below
+   it. */
 check(
-  "the check screen is one panel that takes the width, not two panes",
+  "the check screen keeps one tab strip even where it splits into two columns from lg",
   !/lg:grid-cols-\[minmax\(0,1fr\)_minmax\(0,1\.08fr\)\]/.test(detail) &&
-    /role="tabpanel"[\s\S]{0,400}lg:min-h-0 lg:flex-1 lg:overflow-y-auto/.test(detail),
-  "two columns each with their own tab strip was the busyness Sarel named"
+    (detail.match(/className="flex items-center gap-x-\[14px\]/g) || []).length === 1 &&
+    /role="tabpanel"[\s\S]{0,400}lg:min-h-0 lg:w-1\/2 lg:shrink-0 lg:overflow-y-auto/.test(detail),
+  "a tab strip per column was the busyness Sarel named — one strip above two scrolling columns is not the same layout"
 );
 
 /* The strip is three groups now — The requirement, then the Answer library,

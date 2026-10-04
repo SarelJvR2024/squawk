@@ -126,7 +126,11 @@ check(
 /* ------------------------ the answer, always on screen -------------------- */
 
 const header = codeOnly.slice(at('className="relative z-[6] sm:sticky'), at("{needsField(check) && ("));
-const pinnedBar = codeOnly.slice(at('className="sticky bottom-0 z-[7]"'));
+/* The className grew lg: variants once the bar became the right-hand
+   column from lg (see the note on it in CheckDetail.tsx) — anchor on the
+   prefix, not the exact attribute value, so an appended class does not
+   move this slice. */
+const pinnedBar = codeOnly.slice(at('className="sticky bottom-0 z-[7]'));
 
 check(
   "THE COMPLIANCE BUTTONS ARE IN THE PINNED BOTTOM BAR, WITH SAVE",
@@ -141,8 +145,8 @@ check(
 );
 
 check(
-  "the bar is still pinned, so the answer is on screen at every scroll position",
-  /className="sticky bottom-0 z-\[7\]"/.test(codeOnly),
+  "the bar is still pinned below lg, so the answer is on screen at every scroll position",
+  /className="sticky bottom-0 z-\[7\]/.test(codeOnly),
   "moving them down is only safe because this bar does not scroll away"
 );
 
@@ -215,7 +219,7 @@ check(
 
 /* ------------------- the answer box, the voice note, the camera ----------- */
 
-const pinned = codeOnly.slice(at('className="sticky bottom-0 z-[7]"'));
+const pinned = codeOnly.slice(at('className="sticky bottom-0 z-[7]'));
 
 check(
   "THE ANSWER BOX, THE VOICE NOTE AND THE CAMERA ARE PINNED TOGETHER",
@@ -231,7 +235,7 @@ check(
 
 check(
   "the pinned block clears the phone's bottom nav rather than hiding behind it",
-  /className="sticky bottom-0 z-\[7\]"/.test(codeOnly) &&
+  /className="sticky bottom-0 z-\[7\]/.test(codeOnly) &&
     /\.app-scroll \{\s*\n\s*padding-bottom: var\(--bottom-nav\);/.test(css),
   "the scroller's own padding lifts the sticky floor; offsetting again floats the bar"
 );
@@ -427,11 +431,34 @@ check(
   "an auditor walking a discipline works the same panel check after check"
 );
 
+/* Sarel, later: "the space to read the box of text is getting very small,
+   rework this layout so that it is easier to read, maybe split into a left
+   and right panel." The panel used to take the whole width and whatever
+   height the capture column below it left over — on a desk-width window
+   with photographs already attached, that could be a few lines of ACSA's
+   own wording behind a scrollbar. It is half the width now, beside the
+   capture column rather than above it, with the full leftover height to
+   itself; the capture column gets the other half and scrolls its own
+   Observation block the same way, so neither one is squeezed by the
+   other's content any more. */
 check(
-  "the panel takes the whole width and scrolls inside itself from lg",
-  /lg:min-h-0 lg:flex-1 lg:overflow-y-auto/.test(codeOnly) &&
+  "the panel takes half the width from lg and scrolls inside itself",
+  /lg:min-h-0 lg:w-1\/2 lg:shrink-0 lg:overflow-y-auto lg:border-r/.test(codeOnly) &&
     /role="tabpanel"/.test(codeOnly),
   "below lg the whole screen scrolls, and flex-1 there spilled the content out of a short box"
+);
+
+check(
+  "and the capture column beside it scrolls its own Observation block the same way",
+  /lg:static lg:flex lg:min-h-0 lg:w-1\/2 lg:shrink-0 lg:flex-col/.test(codeOnly) &&
+    /border-t px-5 pt-\[9px\] pb-\[9px\] lg:min-h-0 lg:flex-1 lg:overflow-y-auto/.test(codeOnly),
+  "a long observation with several photographs attached must not push the compliance buttons off the bottom of their own column"
+);
+
+check(
+  "and the two columns sit in one row from lg, a plain stack below it",
+  /lg:flex lg:min-h-0 lg:flex-1 lg:items-stretch/.test(codeOnly),
+  "a two-column row on a phone is two half-width columns neither one can be read in"
 );
 
 check(
