@@ -23,8 +23,31 @@ export default function ResetPanel({ onClose }: { onClose: () => void }) {
   const responses = useResponses();
   const byVisit = useStore((s) => s.byVisit);
   const findings = useStore((s) => s.findings);
+  const hazards = useStore((s) => s.hazards);
   const resetVisit = useStore((s) => s.resetVisit);
   const resetEverything = useStore((s) => s.resetEverything);
+
+  /* HIRA and every Tier 1 form (ISF, interviews, site days/diary, PPE, site
+     access, toolbox talks, incident reports, attendance registers) — flat
+     arrays, same shape as findings/hazards above. Summed into one "forms"
+     count below rather than named individually: nine separate numbers in a
+     confirm dialog is nine numbers nobody actually reads before tapping
+     through. */
+  const forms = {
+    safetyFindings: useStore((s) => s.safetyFindings),
+    interviewDays: useStore((s) => s.interviewDays),
+    siteDays: useStore((s) => s.siteDays),
+    evidenceItems: useStore((s) => s.evidenceItems),
+    ppeChecks: useStore((s) => s.ppeChecks),
+    siteAccessLogs: useStore((s) => s.siteAccessLogs),
+    toolboxTalks: useStore((s) => s.toolboxTalks),
+    incidentReports: useStore((s) => s.incidentReports),
+    attendanceRegisters: useStore((s) => s.attendanceRegisters),
+  };
+  const mine = (r: { entity: string; originVisit: string }) =>
+    r.entity === entity.code && r.originVisit === visitId;
+  const formsCount = (pred: (r: { entity: string; originVisit: string }) => boolean) =>
+    Object.values(forms).reduce((n, list) => n + list.filter(pred).length, 0);
 
   const [scope, setScope] = useState<Scope>("visit");
   const [armed, setArmed] = useState(false);
@@ -39,6 +62,8 @@ export default function ResetPanel({ onClose }: { onClose: () => void }) {
     attachments: Object.values(responses).reduce((n, r) => n + r.attachments.length, 0),
     findings: findings.filter((f) => f.entity === entity.code && f.originVisit === visitId)
       .length,
+    hazards: hazards.filter(mine).length,
+    forms: formsCount(mine),
   };
   const everything = {
     visits: Object.keys(byVisit).length,
@@ -51,12 +76,19 @@ export default function ResetPanel({ onClose }: { onClose: () => void }) {
       0
     ),
     findings: findings.length,
+    hazards: hazards.length,
+    forms: formsCount(() => true),
   };
 
   const nothingToClear =
     scope === "visit"
-      ? thisVisit.captured + thisVisit.attachments + thisVisit.findings === 0
-      : everything.visits + everything.findings === 0;
+      ? thisVisit.captured +
+          thisVisit.attachments +
+          thisVisit.findings +
+          thisVisit.hazards +
+          thisVisit.forms ===
+        0
+      : everything.visits + everything.findings + everything.hazards + everything.forms === 0;
 
   const go = () => {
     if (scope === "visit") {
@@ -118,12 +150,12 @@ export default function ResetPanel({ onClose }: { onClose: () => void }) {
                   [
                     "visit",
                     `This visit — ${entity.short} · ${visitLabel}`,
-                    `${thisVisit.captured} captured · ${thisVisit.attachments} photos and recordings · ${thisVisit.findings} findings`,
+                    `${thisVisit.captured} captured · ${thisVisit.attachments} photos and recordings · ${thisVisit.findings} findings · ${thisVisit.hazards} hazards · ${thisVisit.forms} form entries`,
                   ],
                   [
                     "everything",
                     "Everything — every entity, every visit",
-                    `${everything.visits} visit${everything.visits === 1 ? "" : "s"} with data · ${everything.captured} captured · ${everything.attachments} photos and recordings · ${everything.findings} findings`,
+                    `${everything.visits} visit${everything.visits === 1 ? "" : "s"} with data · ${everything.captured} captured · ${everything.attachments} photos and recordings · ${everything.findings} findings · ${everything.hazards} hazards · ${everything.forms} form entries`,
                   ],
                 ] as [Scope, string, string][]
               ).map(([k, label, detail]) => (
@@ -171,15 +203,19 @@ export default function ResetPanel({ onClose }: { onClose: () => void }) {
                       {entity.short} · {visitLabel} loses {thisVisit.captured} captured check
                       {thisVisit.captured === 1 ? "" : "s"}, {thisVisit.attachments} photograph
                       {thisVisit.attachments === 1 ? "" : "s"} and recording
-                      {thisVisit.attachments === 1 ? "" : "s"}, and {thisVisit.findings} finding
-                      {thisVisit.findings === 1 ? "" : "s"}. Other visits are untouched.
+                      {thisVisit.attachments === 1 ? "" : "s"}, {thisVisit.findings} finding
+                      {thisVisit.findings === 1 ? "" : "s"}, {thisVisit.hazards} hazard
+                      {thisVisit.hazards === 1 ? "" : "s"}, and {thisVisit.forms} form
+                      entr{thisVisit.forms === 1 ? "y" : "ies"}. Other visits are untouched.
                     </>
                   ) : (
                     <>
                       All {everything.visits} visit{everything.visits === 1 ? "" : "s"} across
                       every entity, {everything.attachments} media file
-                      {everything.attachments === 1 ? "" : "s"} and {everything.findings} finding
-                      {everything.findings === 1 ? "" : "s"} are deleted.
+                      {everything.attachments === 1 ? "" : "s"}, {everything.findings} finding
+                      {everything.findings === 1 ? "" : "s"}, {everything.hazards} hazard
+                      {everything.hazards === 1 ? "" : "s"}, and {everything.forms} form
+                      entr{everything.forms === 1 ? "y" : "ies"} are deleted.
                     </>
                   )}
                 </div>
