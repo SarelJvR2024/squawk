@@ -39,7 +39,7 @@ import { useFormsHubDeepLink } from "@/lib/deepLink";
 import ContactPicker from "@/components/ContactPicker";
 import { SignaturePad } from "@/components/SignaturePad";
 import { Btn, Empty, Panel, Pill } from "@/components/ui/primitives";
-import { IconLeft, IconX } from "@/components/ui/icons";
+import { IconCheck, IconLeft, IconX } from "@/components/ui/icons";
 
 const inputCls = "min-h-[38px] w-full rounded-[8px] border px-2.5 py-1.5 text-[12.5px]";
 const inputStyle = { background: "var(--bg)", borderColor: "var(--line)" } as const;
@@ -98,6 +98,18 @@ export default function AttendancePage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [signing, setSigning] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  /* ONE ATTENDEE EXPANDED AT A TIME. Sarel: "once you add a new person
+     that person must roll up and fold up into one row — we currently
+     install the whole block of all the fields... It takes up quite a
+     lot of space." A signed-up row's detail (role, organisation, phone,
+     email, the signature itself) only matters while that person is
+     actually filling it in or signing; once done it folds to a single
+     line — pill, name, role/organisation — same as a collapsed register
+     in the list below. Adding a person expands their row immediately
+     (see the ContactPicker onAdd below), since that is exactly when the
+     detail is needed. */
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [draftDate, setDraftDate] = useState(todayLocal);
   const [draftTime, setDraftTime] = useState("");
   const [draftLocation, setDraftLocation] = useState("");
@@ -214,121 +226,148 @@ export default function AttendancePage() {
               <ContactPicker
                 entityCode={entityCode}
                 placeholder="Search the directory, or type a new name"
-                onAdd={(p) =>
-                  addRow(r.id, p.name, {
+                onAdd={(p) => {
+                  const rowId = addRow(r.id, p.name, {
                     contactId: p.contactId,
                     organisation: p.organisation ?? "",
                     role: p.role ?? "",
                     phone: p.phone ?? "",
                     email: p.email ?? "",
-                  })
-                }
+                  });
+                  setExpandedRowId(rowId);
+                }}
               />,
               `${r.rows.length} recorded`
             )}
 
-            {r.rows.map((row) => (
-              <div
-                key={row.id}
-                className="mb-2 mt-2 rounded-[9px] border p-2"
-                style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
-              >
-                <div className="mb-[6px] flex flex-wrap items-center justify-between gap-2">
-                  {isSigned(row) ? (
-                    <Pill tone="accent">SIGNED {row.signature?.ref}</Pill>
-                  ) : (
-                    <Pill tone="warn">NOT SIGNED</Pill>
-                  )}
-                  <Btn onClick={() => removeRow(r.id, row.id)}>
-                    <IconX /> Remove
-                  </Btn>
+            {r.rows.map((row) => {
+              const rowOpen = expandedRowId === row.id;
+              const rowSummary = [row.role, row.organisation].filter((v) => v.trim()).join(" · ");
+              return (
+                <div
+                  key={row.id}
+                  className="mb-2 mt-2 rounded-[9px] border p-2"
+                  style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setExpandedRowId(rowOpen ? null : row.id)}
+                    className="flex w-full min-h-[32px] items-center justify-between gap-2 text-left"
+                  >
+                    <span className="flex min-w-0 items-center gap-[6px]">
+                      {isSigned(row) ? <Pill tone="accent">SIGNED</Pill> : <Pill tone="warn">NOT SIGNED</Pill>}
+                      <span className="truncate text-[12.5px] font-semibold">
+                        {row.name.trim() || "Unnamed"}
+                      </span>
+                    </span>
+                    {!rowOpen && rowSummary ? (
+                      <span className="truncate text-[11px]" style={{ color: "var(--ink-3)" }}>
+                        {rowSummary}
+                      </span>
+                    ) : null}
+                  </button>
+
+                  {rowOpen ? (
+                    <div className="mt-[6px]">
+                      <div className="mb-[6px] flex justify-end">
+                        <Btn
+                          onClick={() => {
+                            removeRow(r.id, row.id);
+                            setExpandedRowId((cur) => (cur === row.id ? null : cur));
+                          }}
+                        >
+                          <IconX /> Remove
+                        </Btn>
+                      </div>
+
+                      <input
+                        value={row.name}
+                        onChange={(ev) => patchRow(r.id, row.id, { name: ev.target.value })}
+                        aria-label={`Name of attendee ${row.id}`}
+                        placeholder="Full name"
+                        className={`mb-[6px] ${inputCls}`}
+                        style={inputStyle}
+                      />
+
+                      {/* ROLE/ORGANISATION, THEN PHONE/EMAIL — a 2x2 grid, not
+                          two full-width rows each. Sarel: "Forms need to fit
+                          without scrolling, use space efficiently." Phone and
+                          email are patched onto the directory contact too,
+                          when there is one — Sarel: "if they're not already
+                          on the system with the email and phone number they
+                          can be added in there" — so the next form that picks
+                          this person already has it. */}
+                      <div className="grid grid-cols-2 gap-[6px]">
+                        <input
+                          value={row.role}
+                          onChange={(ev) => patchRow(r.id, row.id, { role: ev.target.value })}
+                          aria-label={`Role of attendee ${row.id}`}
+                          placeholder="Role (optional)"
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                        <input
+                          value={row.organisation}
+                          onChange={(ev) => patchRow(r.id, row.id, { organisation: ev.target.value })}
+                          aria-label={`Organisation of attendee ${row.id}`}
+                          placeholder="Organisation (optional)"
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                        <input
+                          value={row.phone}
+                          onChange={(ev) => {
+                            patchRow(r.id, row.id, { phone: ev.target.value });
+                            if (row.contactId) updateContact(row.contactId, { phone: ev.target.value });
+                          }}
+                          type="tel"
+                          aria-label={`Phone number of attendee ${row.id}`}
+                          placeholder="Phone (optional)"
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                        <input
+                          value={row.email}
+                          onChange={(ev) => {
+                            patchRow(r.id, row.id, { email: ev.target.value });
+                            if (row.contactId) updateContact(row.contactId, { email: ev.target.value });
+                          }}
+                          type="email"
+                          aria-label={`Email address of attendee ${row.id}`}
+                          placeholder="Email (optional)"
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </div>
+                      <div className="mt-[6px]" />
+
+                      {signing === row.id ? (
+                        <SignaturePad
+                          name={row.name}
+                          onCancel={() => setSigning(null)}
+                          onSigned={(s) => {
+                            sign(r.id, row.id, s);
+                            setSigning(null);
+                          }}
+                        />
+                      ) : row.signature ? (
+                        <div className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                          {row.signature.ref} · SIGNED {hhmm(row.signature.signedAt)} AS{" "}
+                          {row.signature.signedName.toUpperCase() || "—"}
+                          <Btn className="ml-2" onClick={() => setSigning(row.id)}>
+                            Sign again
+                          </Btn>
+                        </div>
+                      ) : (
+                        <Btn variant="primary" onClick={() => setSigning(row.id)}>
+                          Sign
+                        </Btn>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
-
-                <input
-                  value={row.name}
-                  onChange={(ev) => patchRow(r.id, row.id, { name: ev.target.value })}
-                  aria-label={`Name of attendee ${row.id}`}
-                  placeholder="Full name"
-                  className={`mb-[6px] ${inputCls}`}
-                  style={inputStyle}
-                />
-
-                {/* ROLE/ORGANISATION, THEN PHONE/EMAIL — a 2x2 grid, not
-                    two full-width rows each. Sarel: "Forms need to fit
-                    without scrolling, use space efficiently." Phone and
-                    email are patched onto the directory contact too,
-                    when there is one — Sarel: "if they're not already
-                    on the system with the email and phone number they
-                    can be added in there" — so the next form that picks
-                    this person already has it. */}
-                <div className="grid grid-cols-2 gap-[6px]">
-                  <input
-                    value={row.role}
-                    onChange={(ev) => patchRow(r.id, row.id, { role: ev.target.value })}
-                    aria-label={`Role of attendee ${row.id}`}
-                    placeholder="Role (optional)"
-                    className={inputCls}
-                    style={inputStyle}
-                  />
-                  <input
-                    value={row.organisation}
-                    onChange={(ev) => patchRow(r.id, row.id, { organisation: ev.target.value })}
-                    aria-label={`Organisation of attendee ${row.id}`}
-                    placeholder="Organisation (optional)"
-                    className={inputCls}
-                    style={inputStyle}
-                  />
-                  <input
-                    value={row.phone}
-                    onChange={(ev) => {
-                      patchRow(r.id, row.id, { phone: ev.target.value });
-                      if (row.contactId) updateContact(row.contactId, { phone: ev.target.value });
-                    }}
-                    type="tel"
-                    aria-label={`Phone number of attendee ${row.id}`}
-                    placeholder="Phone (optional)"
-                    className={inputCls}
-                    style={inputStyle}
-                  />
-                  <input
-                    value={row.email}
-                    onChange={(ev) => {
-                      patchRow(r.id, row.id, { email: ev.target.value });
-                      if (row.contactId) updateContact(row.contactId, { email: ev.target.value });
-                    }}
-                    type="email"
-                    aria-label={`Email address of attendee ${row.id}`}
-                    placeholder="Email (optional)"
-                    className={inputCls}
-                    style={inputStyle}
-                  />
-                </div>
-                <div className="mt-[6px]" />
-
-                {signing === row.id ? (
-                  <SignaturePad
-                    name={row.name}
-                    onCancel={() => setSigning(null)}
-                    onSigned={(s) => {
-                      sign(r.id, row.id, s);
-                      setSigning(null);
-                    }}
-                  />
-                ) : row.signature ? (
-                  <div className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                    {row.signature.ref} · SIGNED {hhmm(row.signature.signedAt)} AS{" "}
-                    {row.signature.signedName.toUpperCase() || "—"}
-                    <Btn className="ml-2" onClick={() => setSigning(row.id)}>
-                      Sign again
-                    </Btn>
-                  </div>
-                ) : (
-                  <Btn variant="primary" onClick={() => setSigning(row.id)}>
-                    Sign
-                  </Btn>
-                )}
-              </div>
-            ))}
+              );
+            })}
             {r.rows.length === 0 ? (
               <p className="text-[12px]" style={{ color: "var(--ink-3)" }}>
                 Nobody recorded yet. Use the box above.
@@ -339,17 +378,35 @@ export default function AttendancePage() {
               className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t pt-2"
               style={{ borderColor: "var(--line)" }}
             >
-              <Btn onClick={() => void copyRegister(r.id)}>
-                {copied === r.id ? "Copied" : "Copy this register"}
-              </Btn>
               <Btn
+                variant="primary"
                 onClick={() => {
-                  removeRegister(r.id);
+                  /* Every field on this screen is already written to the
+                     store the moment it changes — there is nothing this
+                     button needs to do to make the data safe. What it gives
+                     is what Sarel asked for: a visible "I'm done with this
+                     one" action, instead of only the small back link at the
+                     top of the screen. */
                   setOpenId(null);
+                  setSavedId(r.id);
+                  window.setTimeout(() => setSavedId(null), 2500);
                 }}
               >
-                <IconX /> Delete this register
+                <IconCheck /> Save & close
               </Btn>
+              <div className="flex gap-2">
+                <Btn onClick={() => void copyRegister(r.id)}>
+                  {copied === r.id ? "Copied" : "Copy this register"}
+                </Btn>
+                <Btn
+                  onClick={() => {
+                    removeRegister(r.id);
+                    setOpenId(null);
+                  }}
+                >
+                  <IconX /> Delete this register
+                </Btn>
+              </div>
             </div>
             {unbacked.length ? (
               <p className="mt-1.5 font-mono text-[9px]" style={{ color: "var(--warn)" }}>
@@ -457,10 +514,13 @@ export default function AttendancePage() {
                 className="flex w-full items-start justify-between gap-3 text-left"
               >
                 <div className="min-w-0">
-                  <span className="font-mono text-[10px]">
-                    {r.date}
-                    {r.time ? ` · ${r.time}` : ""}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-[10px]">
+                      {r.date}
+                      {r.time ? ` · ${r.time}` : ""}
+                    </span>
+                    {savedId === r.id ? <Pill tone="accent">✓ SAVED</Pill> : null}
+                  </div>
                   <p className="mt-1 text-[13px]">
                     {r.purpose.trim() || "No purpose recorded"}
                     {r.location.trim() ? ` — ${r.location.trim()}` : ""}
