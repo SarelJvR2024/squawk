@@ -1615,11 +1615,19 @@ export type DiaryCategory =
  *  `at` is the entry's OWN time, separate from `createdAt` — an auditor
  *  logging at 16:00 that it rained at 10:00 should be able to say so, the
  *  same reasoning as an observation's capture time versus event time
- *  elsewhere in this app. */
+ *  elsewhere in this app.
+ *
+ *  OPTIONAL (2026-10-04) — Sarel: "link a time each entry as optional."
+ *  `null` means nobody set one, which is different from "unknown" or
+ *  "midnight": a general note logged without a specific moment in mind
+ *  stays untimed rather than inheriting whatever `Date.now()` happened to
+ *  read when the category button was tapped. Every entry captured before
+ *  this changed already carries a real number, which still reads
+ *  correctly, so no migration is needed. */
 export interface DiaryEntry {
   id: string;
   category: DiaryCategory;
-  at: number;
+  at: number | null;
   text: string;
   createdAt: number;
   updatedAt: number;
