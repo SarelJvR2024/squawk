@@ -131,12 +131,22 @@ check(
   !/key: "noneAvailable",[\s\S]{0,120}note:/.test(codeOnly) &&
     !/key: "providedForReview",[\s\S]{0,120}note:/.test(codeOnly)
 );
+/* A DECISION OF SAREL'S THAT HE LATER REVERSED: "this section should allow
+   multiple evidence to be recorded and not all in one text box." The note
+   was a single textarea — "Doc 1\nDoc 2" typed as two lines of one blob —
+   now it is one row per item, add/remove as needed. Still the same
+   `evidenceStatusNote` field underneath, one string joined on "\n" — the
+   change is in how it is edited, not what is persisted, so no migration. */
 check(
   "the note writes into evidenceStatusNote, not a field another state could also use",
-  /value=\{r\.evidenceStatusNote\}/.test(codeOnly) &&
-    /onChange=\{\(e\) => patch\(check\.id, \{ evidenceStatusNote: e\.target\.value \}\)\}/.test(
-      codeOnly
-    )
+  /const items = r\.evidenceStatusNote\.split\("\\n"\);/.test(codeOnly) &&
+    /patch\(check\.id, \{ evidenceStatusNote: next\.join\("\\n"\) \}\)/.test(codeOnly)
+);
+check(
+  "it is a list of items, not one paragraph — each is its own input, with add/remove",
+  /items\.map\(\(item, i\) =>/.test(codeOnly) &&
+    /Remove this item/.test(codeOnly) &&
+    /Add another/.test(codeOnly)
 );
 check(
   "its placeholder is specific to which of the two states is active",

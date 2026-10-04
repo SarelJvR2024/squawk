@@ -91,12 +91,6 @@ check(
 );
 
 check(
-  "and the order in the panels is standard, then plain reading",
-  at("The standard to audit against") < at("In plain English"),
-  `${at("The standard to audit against")} / ${at("In plain English")}`
-);
-
-check(
   "the site's stricter threshold sits INSIDE the standard, above ACSA's network wording",
   at("overrides the network default") > at("The standard to audit against") &&
     at("overrides the network default") < at("ACSA states ·"),
@@ -110,18 +104,17 @@ check(
   "silence reads as nothing to see here; it is the opposite"
 );
 
-check(
-  "the plain reading is never presented as evidence",
-  /In plain English\{explained \? " · AI reading, not evidence" : ""\}/.test(codeOnly),
-  ""
-);
-
-check(
-  "and the slot still says something with no model configured",
-  /No model is configured on this build/.test(codeOnly) &&
-    !/No model is configured[\s\S]{0,200}Explain this check/.test(codeOnly),
-  "an empty third panel would read as a check with nothing to explain"
-);
+/* A DECISION OF SAREL'S THAT HE LATER REVERSED: "In plain English" and
+   "External basis" were two tabs in the Reference group — an AI reading of
+   the check back in plain words, and the clause from an external instrument
+   (SACAA, SANS, OHS Act) a check was built on where one applied. Sarel:
+   "remove the external and in plain english buttons here" — the tab strip
+   was already eight tabs scrolling sideways, and neither read as something
+   an auditor reached for during a visit. Both panels, their state
+   (`explained`), and the "basis"/"plain" keys are gone from CheckDetail.tsx;
+   `check.basis`/`basisConfidence`/`basisNote` are unused here now but stay
+   on the Check type and in the register data — removing a tab is not the
+   same decision as removing what the register itself carries. */
 
 /* ------------------------ the answer, always on screen -------------------- */
 
@@ -386,13 +379,17 @@ check(
 
 /* --------------------------- NOTHING WAS DROPPED -------------------------- */
 
+/* A DECISION OF SAREL'S THAT HE LATER REVERSED: check.basis and
+   check.basisNote — the external-instrument citation and its qualifying
+   note — were rendered under "External basis", removed along with that tab
+   (see the note above, under "the answer, always on screen"). They are no
+   longer in this list because they are genuinely gone from the screen, not
+   because this list stopped checking. */
 const fields = [
   ["check.acsaRequirement", "what ACSA's procedure requires"],
   ["check.acsaEvidence", "the records ACSA names"],
   ["check.evidenceExpected", "the evidence expected"],
   ["check.walkabout", "the walkabout instruction"],
-  ["check.basis", "the external standard"],
-  ["check.basisNote", "the note qualifying that standard"],
   ["check.acsaConflict", "a conflict between ACSA's own documents"],
   ["check.target", "the register's own target"],
   ["check.acsaThreshold", "ACSA's stated threshold"],
@@ -407,29 +404,24 @@ for (const [field, what] of fields) {
   );
 }
 
-check(
-  "the medium-confidence caveat survived the move into a tab",
-  /check\.basisConfidence === "medium"/.test(codeOnly) &&
-    /cited at document level/.test(codeOnly),
-  "quoting a clause number off a document-level citation is how a report gets withdrawn"
-);
-
 /* ------------------------------- the tabs --------------------------------- */
 
 /* ONE STRIP, TWO GROUPS: what the auditor DOES with the check, then what the
    auditor READS to do it. Both are `panels.push`, which is what makes the
-   merge real rather than two strips drawn next to each other. */
+   merge real rather than two strips drawn next to each other. The reference
+   group shrank from four tabs to two (ACSA wording, and the 2025 prior
+   finding where one exists) once "In plain English" and "External basis"
+   were removed — down from "at least 4", not a regression. */
 check(
   "the doing and the reading are tabs in the same list",
   (codeOnly.match(/group: "do"/g) || []).length >= 5 &&
-    (codeOnly.match(/group: "read"/g) || []).length >= 4,
-  "five capture panels and four reference panels, in one strip"
+    (codeOnly.match(/group: "read"/g) || []).length >= 2,
+  "capture panels and reference panels, in one strip"
 );
 
 check(
   "a tab exists only where the register carries that field",
-  /if \(check\.basis\)\n\s*panels\.push/.test(codeOnly) &&
-    /if \(pf\?\.note\)\n\s*panels\.push/.test(codeOnly) &&
+  /if \(pf\?\.note\)\n\s*panels\.push/.test(codeOnly) &&
     /check\.acsaRequirement \|\|\n?\s*check\.acsaEvidence\.length > 0/.test(codeOnly),
   "a thin check shows the tabs it has, not empty ones"
 );

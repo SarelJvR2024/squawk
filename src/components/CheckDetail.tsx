@@ -28,6 +28,7 @@ import {
   IconInfo,
   IconLeft,
   IconPin,
+  IconPlus,
   IconRight,
   IconSpark,
   IconWand,
@@ -278,8 +279,7 @@ export default function CheckDetail({
 
   const aiOn = useAssistAvailable();
   const [draft, setDraft] = useState<string | null>(null);
-  const [thinking, setThinking] = useState<null | "observation" | "explain">(null);
-  const [explained, setExplained] = useState<string | null>(null);
+  const [thinking, setThinking] = useState<null | "observation">(null);
   const [titleOpen, setTitleOpen] = useState(false);
   /* ONE open panel, by key.
    *
@@ -332,7 +332,6 @@ export default function CheckDetail({
   if (shownFor !== check.id) {
     setShownFor(check.id);
     setDraft(null);
-    setExplained(null);
     setThinking(null);
     setTitleOpen(false);
   }
@@ -742,31 +741,72 @@ export default function CheckDetail({
           })}
         </div>
 
-        {/* THE NOTE, ONLY WHERE IT MEANS SOMETHING. "No evidence available"
-            and "provided for review" are self-explanatory; the other two
-            are not useful without saying what is missing, or what and
-            when — so the field appears only for those two, labelled for
-            the question it is actually answering. */}
+        {/* THE NOTE, ONLY WHERE IT MEANS SOMETHING, AND AS ITEMS NOT A PARAGRAPH.
+            "No evidence available" and "provided for review" are
+            self-explanatory; the other two are not useful without saying
+            what is missing, or what and when — so the field appears only
+            for those two, labelled for the question it is actually
+            answering.
+
+            Sarel: "this section should allow multiple evidence to be
+            recorded and not all in one text box." It was a single
+            textarea — "Doc 1\nDoc 2" typed as two lines of one blob, which
+            reads back as a paragraph to split apart rather than a list to
+            scan or export cell-by-cell. One row per item instead, add/remove
+            as needed. Still stored as `evidenceStatusNote`, one string
+            joined on "\n" — same field, same export, no migration — the
+            change is in how it's edited, not what's persisted. */}
         {(() => {
           const active = EVIDENCE_STATUSES.find((es) => es.key === r.evidenceStatus);
-          return active?.note ? (
+          if (!active?.note) return null;
+          const items = r.evidenceStatusNote.split("\n");
+          const setItems = (next: string[]) =>
+            patch(check.id, { evidenceStatusNote: next.join("\n") });
+          const itemPlaceholder =
+            active.key === "specificNotAvailable"
+              ? "Which document or record ACSA could not produce"
+              : "What it is, and when it is expected";
+          return (
             <div className="mt-2.5">
               <div className="label-xs mb-1">{active.note}</div>
-              <textarea
-                value={r.evidenceStatusNote}
-                onChange={(e) => patch(check.id, { evidenceStatusNote: e.target.value })}
-                rows={2}
-                aria-label={active.note}
-                placeholder={
-                  active.key === "specificNotAvailable"
-                    ? "Which document or record ACSA could not produce"
-                    : "What it is, and when it is expected"
-                }
-                className="w-full rounded-[9px] border px-3 py-2 text-[12.5px]"
-                style={{ background: "var(--bg)", borderColor: "var(--line-2)" }}
-              />
+              <div className="flex flex-col gap-[6px]">
+                {items.map((item, i) => (
+                  <div key={i} className="flex items-center gap-[6px]">
+                    <input
+                      value={item}
+                      onChange={(e) => {
+                        const next = [...items];
+                        next[i] = e.target.value;
+                        setItems(next);
+                      }}
+                      aria-label={`${active.note} — item ${i + 1}`}
+                      placeholder={itemPlaceholder}
+                      className="w-full rounded-[9px] border px-3 py-2 text-[12.5px]"
+                      style={{ background: "var(--bg)", borderColor: "var(--line-2)" }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setItems(items.length > 1 ? items.filter((_, j) => j !== i) : [""])}
+                      aria-label="Remove this item"
+                      className="shrink-0 rounded-[7px] p-1.5"
+                      style={{ color: "var(--ink-4)" }}
+                    >
+                      <IconX width={13} height={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setItems([...items, ""])}
+                className="mt-1.5 flex items-center gap-[5px] rounded-[7px] px-[7px] py-1 text-[11px] font-semibold"
+                style={{ color: "var(--acc)" }}
+              >
+                <IconPlus width={12} height={12} />
+                Add another
+              </button>
             </div>
-          ) : null;
+          );
         })()}
 
         {/* UPLOAD LIVES HERE NOW, NOT IN A FLOATING BAR UNDER EVERY TAB.
@@ -1049,63 +1089,6 @@ export default function CheckDetail({
     ),
   });
 
-  /* Reading a procedure back in plain English is the one thing on this screen
-     a rule cannot do. It reads only this check's own fields — nothing it says
-     is new information, and nothing it says is evidence. The tab is always
-     here so the strip keeps its shape; what fills it depends on whether a
-     model is configured. */
-  panels.push({
-    key: "plain",
-    label: "In plain English",
-    group: "read",
-    body: (
-      <>
-        <div className="label-xs">
-          In plain English{explained ? " · AI reading, not evidence" : ""}
-        </div>
-        {explained ? (
-          <div className="relative">
-            <div className="mt-1 max-w-[92ch] xl:max-w-[150ch] pr-6 text-[12.5px] leading-[1.55]" style={{ color: "var(--ink-2)" }}>
-              {explained}
-            </div>
-            <button
-              onClick={() => setExplained(null)}
-              aria-label="Dismiss the explanation"
-              className="absolute -top-[3px] right-0 rounded-[6px] p-1"
-              style={{ color: "var(--ink-4)" }}
-            >
-              <IconX width={13} height={13} />
-            </button>
-          </div>
-        ) : aiOn ? (
-          <button
-            disabled={thinking === "explain"}
-            onClick={async () => {
-              setThinking("explain");
-              try {
-                setExplained(await assist("explain", checkContext(check)));
-              } catch (err) {
-                onSaved(err instanceof Error ? err.message : "The assistant is unavailable");
-              } finally {
-                setThinking(null);
-              }
-            }}
-            className="mt-1.5 flex items-center gap-[6px] rounded-[8px] border px-[11px] py-[6px] text-[11px] transition-[var(--t)] disabled:opacity-55"
-            style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
-          >
-            <IconSpark width={13} height={13} />
-            {thinking === "explain" ? "Reading…" : "Explain this check"}
-          </button>
-        ) : (
-          <div className="mt-1 text-[12px] leading-[1.55]" style={{ color: "var(--ink-3)" }}>
-            No model is configured on this build, so there is no plain reading to offer here.
-            ACSA&apos;s own wording is under ACSA wording.
-          </div>
-        )}
-      </>
-    ),
-  });
-
   /* ACSA's own words, in full: what the procedure requires, the records it
      names, the evidence it expects, and any place its own documents disagree.
      Four tabs in the old reference column, four headed sections in one now —
@@ -1154,35 +1137,6 @@ export default function CheckDetail({
             </section>
           )}
         </div>
-      ),
-    });
-
-  if (check.basis)
-    panels.push({
-      key: "basis",
-      label: "External basis",
-      group: "read",
-      body: (
-        <>
-          {check.basisConfidence === "medium" && (
-            <div
-              className="mb-1.5 inline-flex rounded-full px-[7px] py-[2px] font-mono text-[9px]"
-              style={{ background: "var(--warn-bg)", color: "var(--warn)" }}
-              title="The instrument applies, but the clause is cited at document level. Do not quote a clause number from this."
-            >
-              cited at document level
-            </div>
-          )}
-          <RefText>{check.basis}</RefText>
-          {check.basisNote && (
-            <div
-              className="mt-2 border-t pt-2 text-[11.5px] leading-[1.5]"
-              style={{ borderColor: "var(--line)", color: "var(--warn)" }}
-            >
-              {check.basisNote}
-            </div>
-          )}
-        </>
       ),
     });
 
