@@ -44,13 +44,26 @@ export const PASS_KEY = "squawk-team-passphrase";
 const AVAIL_KEY = "squawk-shared-available";
 const cursorKey = (entity: string, visit: string) => `squawk-cursor:${entity}/${visit}`;
 const pushedKey = (entity: string, visit: string) => `squawk-pushed:${entity}/${visit}`;
+/** The server time of the newest "reset" row this device has already acted
+ *  on, for this entity/visit. Anything pulled with a server_at at or before
+ *  this boundary is void — captured before the team started again — and is
+ *  neither applied nor allowed to re-arm a reset this device has already
+ *  run. Kept as its own key, never inside the cursor: the cursor says what
+ *  this device has SEEN, this says what it has SEEN AND ACTED ON, and a
+ *  reset row seen but not yet acted on (a sync that crashed between the two)
+ *  must still wipe the device on the very next try. */
+const resetBoundaryKey = (entity: string, visit: string) => `squawk-reset-boundary:${entity}/${visit}`;
 
 /** Rows are what travels: one per record, with the device clock that stamped it. */
 export interface SharedRow {
   /* `kind` is a bare text column in Postgres with no CHECK constraint (see
      supabase/0001_shared_record.sql), deliberately — adding a record type must
-     not need a schema migration run by hand on a live audit. */
-  kind: "response" | "verification" | "finding" | "hazard" | "feedback" | "capture" | "adhoc";
+     not need a schema migration run by hand on a live audit. "reset" is not a
+     captured record at all — see pushReset below — but travels the same way
+     because it needs the same thing every other row already has: a server
+     clock nobody's device clock can fake, and a cursor every device already
+     polls. */
+  kind: "response" | "verification" | "finding" | "hazard" | "feedback" | "capture" | "adhoc" | "reset";
   id: string;
   updated_at: number;
   payload: unknown;
@@ -129,6 +142,38 @@ export function rowsToPush(since: number): SharedRow[] {
     add("feedback", checkId, at, notes);
   }
   return rows;
+}
+
+/** Tell every other device on this audit to start again too.
+ *
+ *  "Start again" on one tablet only ever cleared that tablet — the shared
+ *  record kept whatever it had, and the next sync on any OTHER device, or
+ *  this same one, pulled it straight back in. Sarel hit this directly: a
+ *  truncate held for a few seconds and then the same checks were back,
+ *  because a second tablet that was never reset pushed its own old answers
+ *  into the table the moment it next synced. Reset is now pushed too, as a
+ *  row every device already polls for — see the boundary check in
+ *  useSharedRecord's sync() below, which is what actually acts on it.
+ *
+ *  Fire-and-forget: a reset must never fail, or wait, on a network call. A
+ *  device with no signal right now will push this the moment it gets any —
+ *  same as every other row — and a device that never comes back online was
+ *  never going to resurrect anything anyway. */
+export async function pushReset(entity: string, visit: string): Promise<void> {
+  const passphrase = local.get(PASS_KEY);
+  if (!passphrase) return;
+  const row: SharedRow = { kind: "reset", id: "reset", updated_at: Date.now(), payload: { at: Date.now() } };
+  try {
+    await fetch("/api/sync", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ passphrase, entity, visit, since: null, records: [row] }),
+    });
+  } catch {
+    /* Said nowhere, because there is nowhere on the Reset screen that is
+       about the network — the local wipe this follows already succeeded and
+       is the thing the screen confirms. */
+  }
 }
 
 /** Rows from the record, shaped into the bundle the merge already understands. */
@@ -222,6 +267,7 @@ export function useSharedRecord(): SharedRecord {
   const visit = useStore((s) => s.visit);
   const hydrated = useStore((s) => s.hydrated);
   const importBundle = useStore((s) => s.importBundle);
+  const resetVisit = useStore((s) => s.resetVisit);
   /* Bumped by every commit. Watching it is what turns "your work reaches the
      team within half a minute" into "within a few seconds of pressing Save",
      which is the difference between a shared record an auditor trusts and one
@@ -312,6 +358,39 @@ export function useSharedRecord(): SharedRecord {
       }
 
       const rows = json.records ?? [];
+
+      /* A reset voids everything at or before it — pushed by this device
+         moments ago, or by any other device on this audit. Checked before
+         anything else is applied: this device pulling its own reset back is
+         exactly as in need of the wipe as it pulling somebody else's, which
+         is the whole point — "Start again" used to only ever clear the
+         tablet it was pressed on, and the shared record handed the old
+         answers straight back on the next sync, from this device or
+         another one that was never reset at all. The boundary is the
+         SERVER's clock on the reset row, never a device's own, for the same
+         reason the pull cursor already is: a device's clock is not proof of
+         anything. */
+      const resetRows = rows.filter((r) => r.kind === "reset");
+      const storedBoundary = Number(local.get(resetBoundaryKey(entity, visit)) ?? 0);
+      const pulledBoundary = resetRows.reduce(
+        (max, r) => Math.max(max, Date.parse(r.server_at ?? "") || 0),
+        0
+      );
+      const boundary = Math.max(storedBoundary, pulledBoundary);
+      if (boundary > storedBoundary) {
+        /* The same wipe the Reset panel's own "this visit" button runs —
+           this is that button, pressed by the network instead of a finger. */
+        resetVisit();
+        local.set(resetBoundaryKey(entity, visit), String(boundary));
+      }
+      /* Never apply a row from at or before the boundary, reset rows
+         themselves aside — a device that was offline across the reset and
+         comes back with a long-stale cursor must not un-wipe itself with
+         its own first pull. */
+      const applicable = rows.filter(
+        (r) => r.kind !== "reset" && (Date.parse(r.server_at ?? "") || 0) > boundary
+      );
+
       /* How many of the pulled rows CHANGED something on this device.
 
          The cursor deliberately overlaps — see the note in /api/sync — so the
@@ -324,10 +403,10 @@ export function useSharedRecord(): SharedRecord {
          an audit this device is no longer in, which happens if somebody
          switches airport or visit while a sync is in flight. */
       let refused: string | null = null;
-      if (rows.length) {
+      if (applicable.length) {
         /* Same rules as the file merge — evidence unioned, newer wins, and a
            record both sides changed reported rather than swallowed. */
-        const report = importBundle(bundleFromRows(entity, visit, rows));
+        const report = importBundle(bundleFromRows(entity, visit, applicable));
         if (typeof report === "string") {
           refused = report;
         } else {
@@ -370,7 +449,7 @@ export function useSharedRecord(): SharedRecord {
     } finally {
       running.current = false;
     }
-  }, [available, hydrated, entity, visit, importBundle]);
+  }, [available, hydrated, entity, visit, importBundle, resetVisit]);
 
   /* Saved something? Push it, shortly. Debounced rather than immediate because
      answering a check is often three or four saves in a row — one sync at the

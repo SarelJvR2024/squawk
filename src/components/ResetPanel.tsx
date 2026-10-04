@@ -11,6 +11,7 @@
 
 import { useState } from "react";
 import { scopeKey, useEntity, useResponses, useStore, useVisitId } from "@/lib/store";
+import { pushReset } from "@/lib/shared";
 import { PROGRAMME_VISITS } from "@/lib/programme";
 import { Btn, Panel, Pill } from "@/components/ui/primitives";
 import { IconLoop, IconX } from "@/components/ui/icons";
@@ -98,6 +99,14 @@ export default function ResetPanel({ onClose }: { onClose: () => void }) {
       resetEverything();
       setDone("Every visit at every entity cleared, and all media deleted.");
     }
+    /* Tell every other device on THIS audit to start again too — see
+       pushReset in lib/shared.ts. Fire-and-forget: this screen's confirm
+       above already reflects the local wipe, which has already happened
+       whether or not a network exists to carry the word further. Scoped to
+       the one audit open here — "everything" clears every entity/visit on
+       THIS device, but the shared record only ever syncs one at a time, so
+       that is the one other devices on this team need told about. */
+    void pushReset(entity.code, visitId);
     setArmed(false);
   };
 
