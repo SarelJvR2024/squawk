@@ -38,9 +38,7 @@ const check = (name, cond, detail = "") => {
 
 check(
   "reset is a row kind every device already polls for, not a new endpoint",
-  /kind: "response" \| "verification" \| "finding" \| "hazard" \| "feedback" \| "capture" \| "adhoc" \| "reset"/.test(
-    shared
-  )
+  /\| "response"[\s\S]{0,120}\| "adhoc"[\s\S]{0,20}\| "reset"/.test(shared)
 );
 
 check(

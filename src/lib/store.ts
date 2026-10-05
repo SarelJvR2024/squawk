@@ -2902,6 +2902,15 @@ export const useStore = create<State>()(
             visit: d,
             findings,
             hazards,
+            safetyFindings: s.safetyFindings.filter(mine),
+            interviewDays: s.interviewDays.filter(mine),
+            siteDays: s.siteDays.filter(mine),
+            evidenceItems: s.evidenceItems.filter(mine),
+            ppeChecks: s.ppeChecks.filter(mine),
+            siteAccessLogs: s.siteAccessLogs.filter(mine),
+            toolboxTalks: s.toolboxTalks.filter(mine),
+            incidentReports: s.incidentReports.filter(mine),
+            attendanceRegisters: s.attendanceRegisters.filter(mine),
           };
         },
 
@@ -2921,7 +2930,20 @@ export const useStore = create<State>()(
              twice in the array, once stale from `elsewhere` and once fresh
              from the merge. */
           const mine = (r: { entity: string }) => r.entity === s.entity;
-          const elsewhere = { findings: s.findings.filter((f) => !mine(f)), hazards: s.hazards.filter((h) => !mine(h)) };
+          const notMine = <T extends { entity: string }>(list: T[]) => list.filter((r) => !mine(r));
+          const elsewhere = {
+            findings: notMine(s.findings),
+            hazards: notMine(s.hazards),
+            safetyFindings: notMine(s.safetyFindings),
+            interviewDays: notMine(s.interviewDays),
+            siteDays: notMine(s.siteDays),
+            evidenceItems: notMine(s.evidenceItems),
+            ppeChecks: notMine(s.ppeChecks),
+            siteAccessLogs: notMine(s.siteAccessLogs),
+            toolboxTalks: notMine(s.toolboxTalks),
+            incidentReports: notMine(s.incidentReports),
+            attendanceRegisters: notMine(s.attendanceRegisters),
+          };
           const result = mergeBundle(
             {
               entity: s.entity,
@@ -2929,6 +2951,15 @@ export const useStore = create<State>()(
               visitData: s.visitData(),
               findings: s.findings.filter(mine),
               hazards: s.hazards.filter(mine),
+              safetyFindings: s.safetyFindings.filter(mine),
+              interviewDays: s.interviewDays.filter(mine),
+              siteDays: s.siteDays.filter(mine),
+              evidenceItems: s.evidenceItems.filter(mine),
+              ppeChecks: s.ppeChecks.filter(mine),
+              siteAccessLogs: s.siteAccessLogs.filter(mine),
+              toolboxTalks: s.toolboxTalks.filter(mine),
+              incidentReports: s.incidentReports.filter(mine),
+              attendanceRegisters: s.attendanceRegisters.filter(mine),
             },
             b
           );
@@ -2936,6 +2967,15 @@ export const useStore = create<State>()(
             byVisit: { ...st.byVisit, [scopeKey(s.entity, s.visit)]: result.visitData },
             findings: [...elsewhere.findings, ...result.findings],
             hazards: [...elsewhere.hazards, ...result.hazards],
+            safetyFindings: [...elsewhere.safetyFindings, ...result.safetyFindings],
+            interviewDays: [...elsewhere.interviewDays, ...result.interviewDays],
+            siteDays: [...elsewhere.siteDays, ...result.siteDays],
+            evidenceItems: [...elsewhere.evidenceItems, ...result.evidenceItems],
+            ppeChecks: [...elsewhere.ppeChecks, ...result.ppeChecks],
+            siteAccessLogs: [...elsewhere.siteAccessLogs, ...result.siteAccessLogs],
+            toolboxTalks: [...elsewhere.toolboxTalks, ...result.toolboxTalks],
+            incidentReports: [...elsewhere.incidentReports, ...result.incidentReports],
+            attendanceRegisters: [...elsewhere.attendanceRegisters, ...result.attendanceRegisters],
             lastSavedAt: Date.now(),
           }));
           return result.report;
