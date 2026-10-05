@@ -53,8 +53,19 @@ check(
 
 check(
   "ACSA cannot reset the audit",
-  /\{role !== "acsa" && \(\s*\n?\s*<>[\s\S]{0,900}?setResetting\(true\)/.test(shell),
+  /\{role !== "acsa" && RESET_ENABLED && \(\s*\n?\s*<>[\s\S]{0,900}?setResetting\(true\)/.test(shell),
   "their role is read-only everywhere else"
+);
+
+/* DECISION: Sarel, 5 October 2026 — official O.R. Tambo work started, and the
+   menu item is hidden behind RESET_ENABLED for now (see the constant's own
+   comment in AppShell.tsx). Everything above it — the panel, the local wipe,
+   the cross-device propagation, the form coverage — is untouched and still
+   fully tested; only the one entry point into it is switched off. */
+check(
+  "the menu item is switched off for now, not deleted — one flag, not a removal",
+  /const RESET_ENABLED = false;/.test(shell) && /role !== "acsa" && RESET_ENABLED &&/.test(shell),
+  "official audit work started 5 October 2026 — a reset reaching a real audit by accident is a worse failure than during the dry run"
 );
 
 check(
