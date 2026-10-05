@@ -26,7 +26,25 @@ import { createContext, createElement, useCallback, useContext, useEffect, useRe
 import { useStore } from "./store";
 import type { Bundle } from "./merge";
 import { BUNDLE_KIND, BUNDLE_VERSION } from "./merge";
-import type { AdHocItem, Attachment, Capture, FeedbackNote, Finding, Hazard, Response, Verification } from "./types";
+import type {
+  AdHocItem,
+  Attachment,
+  AttendanceRegister,
+  Capture,
+  EvidenceItem,
+  FeedbackNote,
+  Finding,
+  Hazard,
+  IncidentReport,
+  InterviewDay,
+  PpeCheck,
+  Response,
+  SafetyFinding,
+  SiteAccessLog,
+  SiteDay,
+  ToolboxTalk,
+  Verification,
+} from "./types";
 
 /** Where the team passphrase lives on a device. Exported so the one other
  *  place that needs it — fetching the record copy of a photograph, in
@@ -63,7 +81,24 @@ export interface SharedRow {
      because it needs the same thing every other row already has: a server
      clock nobody's device clock can fake, and a cursor every device already
      polls. */
-  kind: "response" | "verification" | "finding" | "hazard" | "feedback" | "capture" | "adhoc" | "reset";
+  kind:
+    | "response"
+    | "verification"
+    | "finding"
+    | "hazard"
+    | "feedback"
+    | "capture"
+    | "adhoc"
+    | "reset"
+    | "safetyFinding"
+    | "interviewDay"
+    | "siteDay"
+    | "evidenceItem"
+    | "ppeCheck"
+    | "siteAccessLog"
+    | "toolboxTalk"
+    | "incidentReport"
+    | "attendanceRegister";
   id: string;
   updated_at: number;
   payload: unknown;
@@ -129,6 +164,18 @@ export function rowsToPush(since: number): SharedRow[] {
   for (const [pf, v] of Object.entries(d.verifications)) add("verification", pf, when(v), v);
   for (const f of s.findings.filter(mine)) add("finding", f.id, when(f), f);
   for (const h of s.hazards.filter(mine)) add("hazard", h.id, when(h), h);
+  /* HIRA aside, every Tier 1 form — flat across the entity like findings and
+     hazards, same reasoning: an ISF raised last visit and reopened now, or
+     an evidence item still outstanding, has to travel too. */
+  for (const x of s.safetyFindings.filter(mine)) add("safetyFinding", x.id, when(x), x);
+  for (const x of s.interviewDays.filter(mine)) add("interviewDay", x.id, when(x), x);
+  for (const x of s.siteDays.filter(mine)) add("siteDay", x.id, when(x), x);
+  for (const x of s.evidenceItems.filter(mine)) add("evidenceItem", x.id, when(x), x);
+  for (const x of s.ppeChecks.filter(mine)) add("ppeCheck", x.id, when(x), x);
+  for (const x of s.siteAccessLogs.filter(mine)) add("siteAccessLog", x.id, when(x), x);
+  for (const x of s.toolboxTalks.filter(mine)) add("toolboxTalk", x.id, when(x), x);
+  for (const x of s.incidentReports.filter(mine)) add("incidentReport", x.id, when(x), x);
+  for (const x of s.attendanceRegisters.filter(mine)) add("attendanceRegister", x.id, when(x), x);
   /* Captures and feedback carry no updatedAt of their own — they are
      append-only and their identity is their id, so the newest thing in the list
      is the list's clock. */
@@ -185,6 +232,15 @@ export function bundleFromRows(entity: string, visit: string, rows: SharedRow[])
   const adhoc: AdHocItem[] = [];
   const findings: Finding[] = [];
   const hazards: Hazard[] = [];
+  const safetyFindings: SafetyFinding[] = [];
+  const interviewDays: InterviewDay[] = [];
+  const siteDays: SiteDay[] = [];
+  const evidenceItems: EvidenceItem[] = [];
+  const ppeChecks: PpeCheck[] = [];
+  const siteAccessLogs: SiteAccessLog[] = [];
+  const toolboxTalks: ToolboxTalk[] = [];
+  const incidentReports: IncidentReport[] = [];
+  const attendanceRegisters: AttendanceRegister[] = [];
 
   for (const r of rows) {
     if (r.kind === "response") responses[r.id] = r.payload as Response;
@@ -194,6 +250,15 @@ export function bundleFromRows(entity: string, visit: string, rows: SharedRow[])
     else if (r.kind === "adhoc") adhoc.push(r.payload as AdHocItem);
     else if (r.kind === "finding") findings.push(r.payload as Finding);
     else if (r.kind === "hazard") hazards.push(r.payload as Hazard);
+    else if (r.kind === "safetyFinding") safetyFindings.push(r.payload as SafetyFinding);
+    else if (r.kind === "interviewDay") interviewDays.push(r.payload as InterviewDay);
+    else if (r.kind === "siteDay") siteDays.push(r.payload as SiteDay);
+    else if (r.kind === "evidenceItem") evidenceItems.push(r.payload as EvidenceItem);
+    else if (r.kind === "ppeCheck") ppeChecks.push(r.payload as PpeCheck);
+    else if (r.kind === "siteAccessLog") siteAccessLogs.push(r.payload as SiteAccessLog);
+    else if (r.kind === "toolboxTalk") toolboxTalks.push(r.payload as ToolboxTalk);
+    else if (r.kind === "incidentReport") incidentReports.push(r.payload as IncidentReport);
+    else if (r.kind === "attendanceRegister") attendanceRegisters.push(r.payload as AttendanceRegister);
   }
 
   /* Inspections count too. They did not, which understated the number on a
@@ -226,6 +291,15 @@ export function bundleFromRows(entity: string, visit: string, rows: SharedRow[])
     visit: { responses, verifications, captures, feedback, adhoc },
     findings,
     hazards,
+    safetyFindings,
+    interviewDays,
+    siteDays,
+    evidenceItems,
+    ppeChecks,
+    siteAccessLogs,
+    toolboxTalks,
+    incidentReports,
+    attendanceRegisters,
   };
 }
 

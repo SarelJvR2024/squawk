@@ -36,14 +36,23 @@
 
 import type {
   ActionStatus,
+  AttendanceRegister,
   Attachment,
+  EvidenceItem,
   Finding,
   Hazard,
+  IncidentReport,
+  InterviewDay,
   MitigationAction,
   PossibleEvent,
+  PpeCheck,
   ProgressNote,
   Response,
+  SafetyFinding,
+  SiteAccessLog,
+  SiteDay,
   SystemAssessment,
+  ToolboxTalk,
   Verification,
 } from "./types";
 import type { VisitData } from "./store";
@@ -129,6 +138,20 @@ export interface Bundle {
    *  not a copy of the whole programme. */
   findings: Finding[];
   hazards: Hazard[];
+  /** HIRA aside, every Tier 1 form — flat across the whole programme, same
+   *  as findings/hazards above and for the same reason: an ISF raised at an
+   *  earlier visit, or an evidence item still outstanding from one, is still
+   *  this entity's open business, not something a later visit's merge should
+   *  drop. */
+  safetyFindings: SafetyFinding[];
+  interviewDays: InterviewDay[];
+  siteDays: SiteDay[];
+  evidenceItems: EvidenceItem[];
+  ppeChecks: PpeCheck[];
+  siteAccessLogs: SiteAccessLog[];
+  toolboxTalks: ToolboxTalk[];
+  incidentReports: IncidentReport[];
+  attendanceRegisters: AttendanceRegister[];
 }
 
 /** What a merge did, in enough detail to be checked by a person. */
@@ -141,6 +164,11 @@ export interface MergeReport {
   findings: Counts;
   hazards: Counts;
   verifications: Counts;
+  /** One bucket for all nine Tier 1 forms, not nine of its own — see the
+   *  same choice on ResetPanel's confirm screen. A person reading a sync
+   *  report wants "did my forms come across," not nine counts to add up by
+   *  hand to find out. */
+  forms: Counts;
   attachmentsAdded: number;
   progressAdded: number;
   /** Records BOTH devices changed. The newer won; these are named so somebody
@@ -266,12 +294,31 @@ export interface MergeInput {
   /** The whole programme's findings and hazards; only this audit's are touched. */
   findings: Finding[];
   hazards: Hazard[];
+  /** Same deal, for all nine Tier 1 forms. */
+  safetyFindings: SafetyFinding[];
+  interviewDays: InterviewDay[];
+  siteDays: SiteDay[];
+  evidenceItems: EvidenceItem[];
+  ppeChecks: PpeCheck[];
+  siteAccessLogs: SiteAccessLog[];
+  toolboxTalks: ToolboxTalk[];
+  incidentReports: IncidentReport[];
+  attendanceRegisters: AttendanceRegister[];
 }
 
 export interface MergeResult {
   visitData: VisitData;
   findings: Finding[];
   hazards: Hazard[];
+  safetyFindings: SafetyFinding[];
+  interviewDays: InterviewDay[];
+  siteDays: SiteDay[];
+  evidenceItems: EvidenceItem[];
+  ppeChecks: PpeCheck[];
+  siteAccessLogs: SiteAccessLog[];
+  toolboxTalks: ToolboxTalk[];
+  incidentReports: IncidentReport[];
+  attendanceRegisters: AttendanceRegister[];
   report: MergeReport;
 }
 
@@ -287,6 +334,7 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
     findings: empty(),
     hazards: empty(),
     verifications: empty(),
+    forms: empty(),
     attachmentsAdded: 0,
     progressAdded: 0,
     contested: [],
@@ -430,6 +478,37 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
     report
   );
 
+  /* -------------------------------------------- the nine Tier 1 forms --- */
+  const safetyFindings = mergeForm(
+    mine.safetyFindings,
+    theirs.safetyFindings ?? [],
+    ["attachments", "actions"],
+    report
+  );
+  const interviewDays = mergeForm(mine.interviewDays, theirs.interviewDays ?? [], ["entries"], report);
+  const siteDays = mergeForm(
+    mine.siteDays,
+    theirs.siteDays ?? [],
+    ["diaryEntries", "workedBy", "entries", "attachments"],
+    report
+  );
+  const evidenceItems = mergeForm(mine.evidenceItems, theirs.evidenceItems ?? [], ["attachments"], report);
+  const ppeChecks = mergeForm(mine.ppeChecks, theirs.ppeChecks ?? [], ["people"], report);
+  const siteAccessLogs = mergeForm(mine.siteAccessLogs, theirs.siteAccessLogs ?? [], ["people"], report);
+  const toolboxTalks = mergeForm(mine.toolboxTalks, theirs.toolboxTalks ?? [], ["attendees"], report);
+  const incidentReports = mergeForm(
+    mine.incidentReports,
+    theirs.incidentReports ?? [],
+    ["actions", "attachments"],
+    report
+  );
+  const attendanceRegisters = mergeForm(
+    mine.attendanceRegisters,
+    theirs.attendanceRegisters ?? [],
+    ["rows"],
+    report
+  );
+
   /* Only the pairs THIS merge brought together. A duplicate already sitting in
      the audit — one somebody has looked at and decided to keep, because it is
      two switch rooms and not one — must not be raised again every time two
@@ -460,6 +539,15 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
     visitData: { responses, verifications, captures, feedback, adhoc, systems: assessedSystems },
     findings,
     hazards,
+    safetyFindings,
+    interviewDays,
+    siteDays,
+    evidenceItems,
+    ppeChecks,
+    siteAccessLogs,
+    toolboxTalks,
+    incidentReports,
+    attendanceRegisters,
     report,
   };
 }
@@ -501,6 +589,62 @@ function mergeRecords<T extends { id: string; updatedAt?: number; progress?: Pro
   /* Order: this device's records keep their positions, theirs are appended. */
   const order = [...mine.map((r) => r.id), ...theirs.map((r) => r.id).filter((id) => !mine.some((r) => r.id === id))];
   return order.map((id) => byId.get(id)!).filter(Boolean);
+}
+
+/** The same rule as mergeRecords, generalised to the nine Tier 1 forms: newer
+ *  wins on the record as a whole, but every id-bearing sub-list it carries —
+ *  an ISF's actions, an interview day's entries, a PPE check's people, a site
+ *  day's diary lines and workedBy and attendance entries, whatever the form
+ *  happens to have — unions rather than follows the newer side. Two auditors
+ *  adding different people to the same open interview day is exactly the
+ *  "two people add to it independently" case a progress log already is for
+ *  findings; a form's own entries are no different, just named differently
+ *  per form. No report bucket of its own, same as adhoc — there is no
+ *  progress log to reconcile and nothing for a person to arbitrate beyond
+ *  "newer wins," so added/updated/kept is enough. */
+function mergeFlatRecords<T extends { id: string; updatedAt?: number }>(
+  mine: T[] = [],
+  theirs: T[] = [],
+  listFields: (keyof T)[] = [],
+  counts: Counts
+): T[] {
+  const byId = new Map(mine.map((r) => [r.id, r]));
+  for (const t of theirs) {
+    const m = byId.get(t.id);
+    if (!m) {
+      byId.set(t.id, t);
+      counts.added.push(t.id);
+      continue;
+    }
+    const newer = when(t) > when(m) ? t : m;
+    const merged = { ...newer } as T;
+    for (const field of listFields) {
+      const mv = (m[field] as unknown as { id: string }[] | undefined) ?? [];
+      const tv = (t[field] as unknown as { id: string }[] | undefined) ?? [];
+      (merged as Record<string, unknown>)[field as string] = unionById(mv, tv);
+    }
+    byId.set(t.id, merged);
+    if (when(t) > when(m)) counts.updated.push(t.id);
+    else counts.kept.push(t.id);
+  }
+  const order = [...mine.map((r) => r.id), ...theirs.map((r) => r.id).filter((id) => !mine.some((r) => r.id === id))];
+  return order.map((id) => byId.get(id)!).filter(Boolean);
+}
+
+/** One form type's merge call, folded into the aggregate `forms` bucket
+ *  rather than reported on its own — see the note on MergeReport.forms. */
+function mergeForm<T extends { id: string; updatedAt?: number }>(
+  mine: T[],
+  theirs: T[],
+  listFields: (keyof T)[],
+  report: MergeReport
+): T[] {
+  const counts = empty();
+  const merged = mergeFlatRecords(mine, theirs, listFields, counts);
+  report.forms.added.push(...counts.added);
+  report.forms.updated.push(...counts.updated);
+  report.forms.kept.push(...counts.kept);
+  return merged;
 }
 
 /** Findings that look like ONE defect raised twice.
@@ -551,6 +695,7 @@ export function summarise(r: MergeReport): string {
     `${n(r.responses)} check${n(r.responses) === 1 ? "" : "s"}`,
     `${n(r.findings)} finding${n(r.findings) === 1 ? "" : "s"}`,
     `${n(r.hazards)} hazard${n(r.hazards) === 1 ? "" : "s"}`,
+    `${n(r.forms)} form entr${n(r.forms) === 1 ? "y" : "ies"}`,
   ];
   const tail = r.contested.length
     ? ` · ${r.contested.length} both devices had changed`
