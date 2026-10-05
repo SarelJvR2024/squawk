@@ -33,6 +33,11 @@ const checks = JSON.parse(read("src", "data", "checks.json"));
 const review = JSON.parse(read("src", "data", "source", "register-review.json"));
 const types = read("src", "lib", "types.ts");
 const detail = read("src", "components", "CheckDetail.tsx");
+/* The conflict/variant/compliance-test content moved into its own component,
+   reused unchanged from the walk screen's ACSA tab — see
+   AcsaRequirementPanel.tsx's own header note. */
+const acsaPanel = read("src", "components", "AcsaRequirementPanel.tsx");
+const detailAndPanel = detail + acsaPanel;
 const exports_ = read("src", "lib", "exports.ts");
 const assist = read("src", "lib", "assist.ts");
 
@@ -162,19 +167,19 @@ check(
 check(
   "the check screen says a conflict is a conflict, not a variant",
   /CONFLICT · \{check\.siteVariant\.site\}/.test(detail) &&
-    /the check and ACSA&rsquo;s own manual disagree at/.test(detail),
+    /the check and ACSA&rsquo;s own manual disagree at/.test(detailAndPanel),
   "a variant adds detail; a conflict means the title says something ACSA contradicts"
 );
 
 check(
   "and shows both figures rather than picking one silently",
-  /The check as written says/.test(detail) && /requires — this governs/.test(detail),
+  /The check as written says/.test(detailAndPanel) && /requires — this governs/.test(detailAndPanel),
   ""
 );
 
 check(
   "the screen carries the compliance test where the evidence is judged",
-  /\{check\.complianceTest\}/.test(detail) && /Compliant when —/.test(detail),
+  /\{check\.complianceTest\}/.test(detailAndPanel) && /Compliant when —/.test(detailAndPanel),
   ""
 );
 

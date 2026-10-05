@@ -39,6 +39,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8");
 
 const detail = src("components", "CheckDetail.tsx");
+/* The ACSA-requirement content (standard, threshold, site variant/conflict,
+   "compliant when") moved into its own component — see
+   AcsaRequirementPanel.tsx's own header note — reused unchanged from the
+   walk screen's new ACSA tab. Checked together: CheckDetail renders it via
+   <AcsaRequirementPanel>, the literal text being checked for lives in the
+   extracted file now. */
+const acsaPanel = src("components", "AcsaRequirementPanel.tsx");
+const detailAndPanel = detail + acsaPanel;
 const css = src("app", "globals.css");
 
 let failures = 0;
@@ -51,7 +59,7 @@ const check = (name, cond, detailText = "") => {
 };
 
 /* The comments describe the design; the assertions must not trip on them. */
-const codeOnly = detail
+const codeOnly = detailAndPanel
   .replace(/\/\*[\s\S]*?\*\//g, "")
   .replace(/^\s*\/\/.*$/gm, "");
 
