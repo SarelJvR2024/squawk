@@ -24,6 +24,7 @@ import AddItemSheet from "@/components/AddItemSheet";
 import GroupRow from "@/components/ui/GroupRow";
 import Sheet from "@/components/ui/Sheet";
 import OutcomeControl, { OUTCOMES } from "@/components/OutcomeControl";
+import AcsaRequirementPanel from "@/components/AcsaRequirementPanel";
 import {
   AttachmentStrip,
   LOCATION_LIST_ID,
@@ -142,6 +143,20 @@ export default function FieldPage() {
      does on a walk. Collapsing HIDES; nothing is discarded, because every
      control writes straight to the store on change. */
   const [openItem, setOpenItem] = useState<string | null>(null);
+  /* WHICH HALF OF THE SHEET IS SHOWING — our own walkabout instruction and
+     the capture controls, or ACSA's own wording for the check. Sarel: he
+     wants the actual ACSA requirement reachable from the walk, not only the
+     TPJV walkabout note. It used to be a "Full check-point →" link off to
+     the desk screen; that left the walk for the desk mid-walk, which is the
+     opposite of what this screen is for, and was removed for exactly that
+     reason (see the Save & close footer below). A tab keeps the reference
+     material on the one screen without reopening the question that removal
+     answered — nothing here navigates anywhere.
+
+     Reset to "walkabout" whenever a different check opens, same as
+     issuesOpenFor resets per item — opening one check's ACSA wording must
+     not leave the next one open to it too. */
+  const [checkTab, setCheckTab] = useState<"walkabout" | "acsa">("walkabout");
   /* THE ANSWER LIBRARY IS FOLDED ON A PHONE.
      Sarel, from the apron: "when capturing findings on my phone, minimise the
      list of issues, give the user an option to maximise the list when needed."
@@ -694,7 +709,7 @@ export default function FieldPage() {
                           >
                             {/* THE COLLAPSED ROW. Full width, one tap. */}
                             <button
-                              onClick={() => setOpenItem(c.id)}
+                              onClick={() => { setOpenItem(c.id); setCheckTab("walkabout"); }}
                               aria-haspopup="dialog"
                               aria-expanded={itemOpen}
                               className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left"
@@ -1303,6 +1318,43 @@ export default function FieldPage() {
               </>
             }
           >
+            {/* WHICH HALF OF THE SHEET IS SHOWING — see checkTab's own note
+                above. Two tabs, pill-shaped like CheckDetail's own tab strip,
+                so a reference tab reads the same wherever it appears in this
+                app. "ACSA requirement" is deliberately the same label the
+                desk screen uses for the identical panel — see
+                AcsaRequirementPanel. */}
+            <div role="tablist" className="mb-3 flex flex-nowrap gap-[5px]">
+              {(
+                [
+                  ["walkabout", "Walkabout"],
+                  ["acsa", "ACSA requirement"],
+                ] as [typeof checkTab, string][]
+              ).map(([key, label]) => {
+                const on = checkTab === key;
+                return (
+                  <button
+                    key={key}
+                    role="tab"
+                    aria-selected={on}
+                    onClick={() => setCheckTab(key)}
+                    className="flex shrink-0 items-center gap-[5px] rounded-full border px-[11px] py-[6px] font-display text-[10.5px] font-semibold whitespace-nowrap transition-[var(--t)]"
+                    style={
+                      on
+                        ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
+                        : { background: "var(--sunken)", borderColor: "transparent", color: "var(--ink-3)" }
+                    }
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {checkTab === "acsa" ? (
+              <AcsaRequirementPanel check={c} />
+            ) : (
+              <>
             {/* OURS, AND IT SAYS SO. 25 of the 324 have no walkabout written;
                 an empty one renders nothing at all. */}
             {c.walkabout?.trim() && (
@@ -1496,6 +1548,8 @@ export default function FieldPage() {
                   }}
                 />
               </div>
+            )}
+              </>
             )}
           </Sheet>
         );
