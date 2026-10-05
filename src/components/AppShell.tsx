@@ -150,6 +150,15 @@ const OFF_NAV: Record<string, string> = {
   "/preflight": "Pre-flight",
 };
 
+/** Hidden for now — Sarel, 5 October 2026: official O.R. Tambo work has
+ *  started, and "Start again" clearing a real audit by accident is a
+ *  categorically worse failure than it was during the dry run, when that
+ *  was the whole point of the button. The panel and every bit of the
+ *  reset/sync logic underneath it are untouched; this is a one-line
+ *  reversion once there is a reason to let somebody reach it again (a
+ *  genuine dry run elsewhere, a future audit's own setup phase). */
+const RESET_ENABLED = false;
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -846,7 +855,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     hint="What the keys do, on a device that has them"
                     onClick={() => { setMore(false); setHelp(true); }}
                   />
-                  {role !== "acsa" && (
+                  {role !== "acsa" && RESET_ENABLED && (
                     <>
                       <div className="my-[4px] h-px" style={{ background: "var(--menu-line)" }} />
                       {/* Last, under a rule, and named for what it does rather
