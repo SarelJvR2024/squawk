@@ -1423,6 +1423,19 @@ check(
     sp.portalChoice("NC", ["C - Compliant", "NC - Non-compliant"]) === "NC - Non-compliant"
 );
 
+/* A real one, found live against ORTIA's own portal 6 October 2026: a check
+ * answered N/A never matched "N/A - Not applicable", because the code
+ * extractor split on "/" as a separator and broke the code's own slash
+ * apart before comparing it — "N/A" never reconstructed to look for. Every
+ * other compliance code (C, NC, NV) has no slash in it, so this was invisible
+ * until somebody actually answered a check N/A. */
+check(
+  "a code WITH A SLASH IN IT still finds its option — N/A is a code, not two codes",
+  sp.portalChoice("N/A", ["C - Compliant", "NC - Non-compliant", "N/A - Not applicable", "NV - Not available"]) ===
+    "N/A - Not applicable",
+  "the separator list used to include / and split N/A into N and A before either reached the comparison"
+);
+
 check(
   "an exact option passes through untouched",
   sp.portalChoice("4 - Critical", ["4 - Critical", "3 - Major"]) === "4 - Critical",

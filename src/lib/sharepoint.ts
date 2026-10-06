@@ -473,8 +473,14 @@ export function portalChoice(value: string, choices: string[] | undefined): stri
   const loose = choices.find((c) => norm(c) === norm(v));
   if (loose) return loose;
   /* The option's leading code, up to the first separator: "C - Compliant" -> C,
-     "3 - Likely" -> 3. Compared case-insensitively against the whole value. */
-  const code = (c: string) => c.split(/[\s\-–—:,/]+/)[0]?.trim().toLowerCase() ?? "";
+     "3 - Likely" -> 3. Compared case-insensitively against the whole value.
+     NOT a slash: every code/description pair the register actually uses is
+     split by " - ", never "/" — but "N/A - Not applicable" has a slash
+     INSIDE its own code, and splitting on it broke "N/A" into "N" before
+     either half got anywhere near matching "A". A real compliance value
+     never wrote to a column offering this choice, silently or not: the
+     code never reconstructed to "N/A" to be compared at all. */
+  const code = (c: string) => c.split(/[\s\-–—:,]+/)[0]?.trim().toLowerCase() ?? "";
   const byCode = choices.find((c) => code(c) === v.toLowerCase());
   return byCode ?? null;
 }
