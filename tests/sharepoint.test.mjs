@@ -1168,7 +1168,8 @@ check(
 
 check(
   "the writer is given the inspection items, not just the register",
-  /auditor, findings, adhoc, attendanceRegisters \}/.test(panel) && /const adhoc = useAdhoc\(\)/.test(panel)
+  /auditor, findings, adhoc, attendanceRegisters, evidenceItems, systems \}/.test(panel) &&
+    /const adhoc = useAdhoc\(\)/.test(panel)
 );
 
 check(
@@ -1992,6 +1993,276 @@ check(
     sp.LIST_NAMES.attendance.test("Attendance Registers") &&
     sp.LIST_NAMES.attendance.test("Attendance") &&
     !sp.LIST_NAMES.attendance.test("Findings")
+);
+
+/* ---------- Part 1e: the evidence log (TK-003 form 7) ---------------------
+ *
+ *  THE LINK TO THE AUDIT CHECKS is the whole point — Sarel: "maintain the
+ *  link to the audit checks." These assertions are weighted towards that
+ *  column and towards the visit filter, which evidenceLogSheet's own export
+ *  already applies and this sync must not disagree with. */
+
+const DOC = (id, over = {}) => ({
+  id, entity: "FALE", originVisit: "2026-09",
+  title: "Maintenance log book", documentNo: "", revision: "",
+  documentDate: null,
+  requestedAt: null, requestedFrom: "",
+  receivedAt: null, receivedFrom: "", receivedBy: "",
+  medium: null, isOriginal: false,
+  returnedAt: null, returnedTo: "",
+  unavailableAt: null, unavailableReason: "",
+  checkIds: [], attachments: [], signature: null, notes: "",
+  createdAt: 1_757_000_000_000, updatedAt: 1_757_000_000_000, ...over,
+});
+
+const BASE_EV = { ...BASE_ATT, evidenceItems: [] };
+const NOTHING_EV = { ...NOTHING_ATT, evidenceLog: new Map() };
+
+check(
+  "a document with no title is skipped and counted, not written blank",
+  (() => {
+    const p = sp.buildPlan({ ...BASE_EV, evidenceItems: [DOC("DOC-1", { title: "  " })] }, NOTHING_EV);
+    return (
+      p.evidenceLog.length === 0 &&
+      p.skipped.some((s) => s.what === "evidence log entries" && s.count === 1)
+    );
+  })()
+);
+
+check(
+  "a document from THIS visit IS written",
+  (() => {
+    const p = sp.buildPlan({ ...BASE_EV, evidenceItems: [DOC("DOC-1")] }, NOTHING_EV);
+    return p.evidenceLog.length === 1 && p.evidenceLog[0].values.documentTitle === "Maintenance log book";
+  })()
+);
+
+check(
+  "a document from a DIFFERENT visit is not written — same filter the export already applies",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE_EV, evidenceItems: [DOC("DOC-1", { originVisit: "2025-03" })] },
+      NOTHING_EV
+    );
+    return p.evidenceLog.length === 0;
+  })(),
+  "useEvidenceItems() spans visits on purpose; the sync writes one visit's capture, same as every other list"
+);
+
+check(
+  "THE LINK TO THE AUDIT CHECKS: checkPoints carries the portal's own check-point ids",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE_EV, evidenceItems: [DOC("DOC-1", { checkIds: ["KSIA-ELE-002", "KSIA-ELE-001"] })] },
+      NOTHING_EV
+    );
+    const siteCode = sites.siteCodeFor("FALE");
+    return p.evidenceLog[0].values.checkPoints === `${siteCode}-ELE-001, ${siteCode}-ELE-002`;
+  })(),
+  "sorted, so the same document always writes the same string regardless of capture order"
+);
+
+check(
+  "a document already in the portal is an UPDATE, not a second copy",
+  (() => {
+    const doc = DOC("DOC-1");
+    const siteCode = sites.siteCodeFor("FALE");
+    const key = `${siteCode}-DOC-1`;
+    const existing = { ...NOTHING_EV, evidenceLog: new Map([[key, "item-7"]]) };
+    const p = sp.buildPlan({ ...BASE_EV, evidenceItems: [doc] }, existing);
+    return p.evidenceLog[0].action === "update" && p.evidenceLog[0].itemId === "item-7";
+  })()
+);
+
+check(
+  "medium reads in plain words, not the internal key",
+  (() => {
+    const p = sp.buildPlan({ ...BASE_EV, evidenceItems: [DOC("DOC-1", { medium: "paper" })] }, NOTHING_EV);
+    return p.evidenceLog[0].values.medium === "Paper";
+  })()
+);
+
+check(
+  "isOriginal becomes a plain word too",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE_EV, evidenceItems: [DOC("DOC-1", { isOriginal: true }), DOC("DOC-2", { isOriginal: false })] },
+      NOTHING_EV
+    );
+    return p.evidenceLog[0].values.originalOrCopy === "Original" && p.evidenceLog[1].values.originalOrCopy === "Copy";
+  })()
+);
+
+check(
+  "the writer sends the evidence log to its own list, never the photo library",
+  /writeRows\(plan\.evidenceLog, resolved\.evidenceLogList, "evidence log entry"\)/.test(panel)
+);
+
+check(
+  "the evidence log is found by display name, and not confused with the photo library",
+  sp.LIST_NAMES.evidenceLog.test("Evidence Log") &&
+    sp.LIST_NAMES.evidenceLog.test("Document and Evidence Collection Log") &&
+    !sp.LIST_NAMES.evidenceLog.test("Findings")
+);
+
+/* ---------------- Part 1f: asset risk, one row per asset system ----------- */
+
+const SYS = (over = {}) => ({
+  key: "Electrical|AGL", discipline: "Electrical", system: "AGL",
+  severity: null, likelihood: null, ratingConfirmed: false, ratingRationale: "",
+  rootCauses: [], actions: [], events: [], note: "", assessedBy: "", assessedAt: null,
+  ...over,
+});
+
+const BASE_AR = { ...BASE_EV, systems: {} };
+const NOTHING_AR = { ...NOTHING_EV, assetRisk: new Map() };
+
+check(
+  "a pair with NOTHING recorded against it is skipped, not invented as a row",
+  (() => {
+    const p = sp.buildPlan(BASE_AR, NOTHING_AR);
+    return p.assetRisk.length === 0 && p.skipped.some((s) => s.what === "asset systems" && s.count === 1);
+  })(),
+  "an empty assessment is 'not reached', not a rating of Green — inventing a row would say otherwise"
+);
+
+check(
+  "a CONFIRMED rating goes across with severity, likelihood, band and strategy all populated",
+  (() => {
+    const sys = { "Electrical|AGL": SYS({ ratingConfirmed: true, severity: "A - Catastrophic", likelihood: "1 - Extremely Improbable" }) };
+    const p = sp.buildPlan({ ...BASE_AR, systems: sys }, NOTHING_AR);
+    const v = p.assetRisk[0].values;
+    return (
+      v.severity === "A - Catastrophic" &&
+      v.likelihood === "1 - Extremely Improbable" &&
+      v.ratingAgreed === "Yes" &&
+      typeof v.band === "string" &&
+      typeof v.strategy === "string"
+    );
+  })()
+);
+
+check(
+  "an UNCONFIRMED rating still goes across — the work syncs, the rating does not",
+  (() => {
+    const sys = {
+      "Electrical|AGL": SYS({
+        ratingConfirmed: false,
+        severity: "A - Catastrophic",
+        likelihood: "1 - Extremely Improbable",
+        rootCauses: [{ id: "r1", cause: "Corrosion", note: "" }],
+      }),
+    };
+    const p = sp.buildPlan({ ...BASE_AR, systems: sys }, NOTHING_AR);
+    const v = p.assetRisk[0].values;
+    return (
+      v.severity === null &&
+      v.likelihood === null &&
+      v.band === null &&
+      v.ratingAgreed === "No" &&
+      /Corrosion/.test(String(v.rootCause))
+    );
+  })(),
+  "same gate a hazard's ERM rating gets — unconfirmed is a suggestion, not a fact for the portal"
+);
+
+check(
+  "root causes, actions and possible events all flatten onto their own fields",
+  (() => {
+    const sys = {
+      "Electrical|AGL": SYS({
+        rootCauses: [{ id: "r1", cause: "Corrosion", note: "at the base" }],
+        actions: [{ id: "a1", discipline: "Electrical", action: "Replace fixing", owner: "J. Smith", dueDate: "2026-12-01", status: "Open" }],
+        events: [{ id: "e1", event: "AGL failure", likelihood: "3 - Occasional", note: "" }],
+      }),
+    };
+    const p = sp.buildPlan({ ...BASE_AR, systems: sys }, NOTHING_AR);
+    const v = p.assetRisk[0].values;
+    return (
+      /Corrosion — at the base/.test(String(v.rootCause)) &&
+      /Replace fixing/.test(String(v.treatment)) &&
+      v.owner === "J. Smith" &&
+      v.targetDate === "2026-12-01" &&
+      /AGL failure/.test(String(v.events))
+    );
+  })()
+);
+
+check(
+  "the Title is deterministic from discipline and system — no minting sequence needed",
+  (() => {
+    const sys = { "Electrical|AGL": SYS({ ratingConfirmed: true, severity: "A - Catastrophic", likelihood: "1 - Extremely Improbable" }) };
+    const p1 = sp.buildPlan({ ...BASE_AR, systems: sys }, NOTHING_AR);
+    const p2 = sp.buildPlan({ ...BASE_AR, systems: sys }, NOTHING_AR);
+    const siteCode = sites.siteCodeFor("FALE");
+    return p1.assetRisk[0].key === p2.assetRisk[0].key && p1.assetRisk[0].key.startsWith(`${siteCode}-RISK-ELE-AGL`);
+  })(),
+  "a hazard's key is minted once and remembered; an asset system's key is the pair itself, every time"
+);
+
+check(
+  "a pair already in the portal is an UPDATE, not a second copy",
+  (() => {
+    const sys = { "Electrical|AGL": SYS({ ratingConfirmed: true, severity: "A - Catastrophic", likelihood: "1 - Extremely Improbable" }) };
+    const key = `${sites.siteCodeFor("FALE")}-RISK-ELE-AGL`;
+    const existing = { ...NOTHING_AR, assetRisk: new Map([[key, "item-3"]]) };
+    const p = sp.buildPlan({ ...BASE_AR, systems: sys }, existing);
+    return p.assetRisk[0].action === "update" && p.assetRisk[0].itemId === "item-3";
+  })()
+);
+
+check(
+  "a second, different asset system gets its own row and its own key",
+  (() => {
+    const checks = [...BASE_AR.checks, CHECK("KSIA-CIV-001", "Civil", "Pavement")];
+    const sys = {
+      "Electrical|AGL": SYS({ ratingConfirmed: true, severity: "A - Catastrophic", likelihood: "1 - Extremely Improbable" }),
+      "Civil|Pavement": SYS({ key: "Civil|Pavement", discipline: "Civil", system: "Pavement", ratingConfirmed: true, severity: "C - Major", likelihood: "3 - Occasional" }),
+    };
+    const p = sp.buildPlan({ ...BASE_AR, checks, systems: sys }, NOTHING_AR);
+    return p.assetRisk.length === 2 && p.assetRisk[0].key !== p.assetRisk[1].key;
+  })()
+);
+
+check(
+  "the writer sends asset risk to its own list",
+  /writeRows\(plan\.assetRisk, resolved\.assetRiskList, "asset risk row"\)/.test(panel)
+);
+
+check(
+  "the asset risk list is found by display name",
+  sp.LIST_NAMES.assetRisk.test("Asset Risk") &&
+    sp.LIST_NAMES.assetRisk.test("Asset Systems") &&
+    sp.LIST_NAMES.assetRisk.test("Asset Assurance") &&
+    !sp.LIST_NAMES.assetRisk.test("Findings")
+);
+
+check(
+  "EVIDENCE_LOG_FIELDS and ASSET_RISK_FIELDS agree with FIELD_CANDIDATES, same as every other list",
+  sp.EVIDENCE_LOG_FIELDS.every((k) => Array.isArray(sp.FIELD_CANDIDATES[k]) && sp.FIELD_CANDIDATES[k].length > 0) &&
+    sp.ASSET_RISK_FIELDS.every((k) => Array.isArray(sp.FIELD_CANDIDATES[k]) && sp.FIELD_CANDIDATES[k].length > 0)
+);
+
+check(
+  "planTotals counts evidence log and asset risk separately from everything else",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE_AR,
+        evidenceItems: [DOC("DOC-1")],
+        systems: { "Electrical|AGL": SYS({ ratingConfirmed: true, severity: "A - Catastrophic", likelihood: "1 - Extremely Improbable" }) },
+      },
+      NOTHING_AR
+    );
+    const t = sp.planTotals(p);
+    return (
+      t.evidenceLogNew === 1 &&
+      t.evidenceLogChanged === 0 &&
+      t.assetRiskNew === 1 &&
+      t.assetRiskChanged === 0 &&
+      t.writes === 2
+    );
+  })()
 );
 
 /* -------------------- Part 2: properties the source has to carry ---------- */

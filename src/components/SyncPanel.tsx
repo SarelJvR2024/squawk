@@ -22,8 +22,10 @@ import {
   checksAt,
   priorFindingsAt,
   useEntityCode,
+  useEvidenceItems,
   useResponses,
   useStore,
+  useSystems,
   useVerifications,
   useAdhoc,
   useVisitAttendanceRegisters,
@@ -45,8 +47,10 @@ import {
   type ExistingIndex,
   planTotals,
   projectFields,
+  ASSET_RISK_FIELDS,
   ATTENDANCE_FIELDS,
   CHECK_FIELDS,
+  EVIDENCE_LOG_FIELDS,
   FINDING_FIELDS,
   LIST_NAMES,
   siteFolderIn,
@@ -77,6 +81,8 @@ interface Resolved {
   checkList: { id: string; map: FieldMap } | null;
   findingList: { id: string; map: FieldMap } | null;
   attendanceList: { id: string; map: FieldMap } | null;
+  evidenceLogList: { id: string; map: FieldMap } | null;
+  assetRiskList: { id: string; map: FieldMap } | null;
   driveId: string | null;
   /** The EVIDENCE LIBRARY'S own columns. A document library is a list, and its
    *  columns are where a photograph's CheckID, reference and caption go — the
@@ -92,6 +98,8 @@ interface Resolved {
     checkList: string | null;
     findingList: string | null;
     attendanceList: string | null;
+    evidenceLogList: string | null;
+    assetRiskList: string | null;
     drive: string | null;
   };
 }
@@ -106,6 +114,8 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   /* Inspection items — their photographs are evidence too; see buildPlan. */
   const adhoc = useAdhoc();
   const attendanceRegisters = useVisitAttendanceRegisters();
+  const evidenceItems = useEvidenceItems();
+  const systems = useSystems();
   const auditor = useStore((s) => s.auditor);
   const updateHazard = useStore((s) => s.updateHazard);
 
@@ -121,6 +131,8 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
     checkpoints: ExistingIndex | null;
     findings: ExistingIndex | null;
     attendance: ExistingIndex | null;
+    evidenceLog: ExistingIndex | null;
+    assetRisk: ExistingIndex | null;
     siteCode: string;
   } | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number; what: string } | null>(null);
@@ -178,14 +190,20 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       const checkList = find(LIST_NAMES.checkpoints);
       const findingList = find(LIST_NAMES.findings);
       const attendanceList = find(LIST_NAMES.attendance);
+      const evidenceLogList = find(LIST_NAMES.evidenceLog);
+      const assetRiskList = find(LIST_NAMES.assetRisk);
 
       let checkPart: Resolved["checkList"] = null;
       let findPart: Resolved["findingList"] = null;
       let attendancePart: Resolved["attendanceList"] = null;
+      let evidenceLogPart: Resolved["evidenceLogList"] = null;
+      let assetRiskPart: Resolved["assetRiskList"] = null;
       const existing = {
         checkpoints: new Map<string, string>(),
         findings: new Map<string, string>(),
         attendance: new Map<string, string>(),
+        evidenceLog: new Map<string, string>(),
+        assetRisk: new Map<string, string>(),
       };
 
       /* Indexed per SITE, not per list — see indexExisting. A row for another
@@ -195,6 +213,8 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       let checkIdx: ExistingIndex | null = null;
       let findIdx: ExistingIndex | null = null;
       let attendanceIdx: ExistingIndex | null = null;
+      let evidenceLogIdx: ExistingIndex | null = null;
+      let assetRiskIdx: ExistingIndex | null = null;
 
       if (checkList) {
         const map = mapFields(await graph.columns(site.id, checkList.id), [...CHECK_FIELDS]);
@@ -232,7 +252,38 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
         );
         existing.attendance = attendanceIdx.byTitle;
       }
-      setIndexes({ checkpoints: checkIdx, findings: findIdx, attendance: attendanceIdx, siteCode });
+      if (evidenceLogList) {
+        const map = mapFields(await graph.columns(site.id, evidenceLogList.id), [...EVIDENCE_LOG_FIELDS]);
+        evidenceLogPart = { id: evidenceLogList.id, map };
+        evidenceLogIdx = indexExisting(
+          (await graph.items(site.id, evidenceLogList.id, ["Title"])).map((it) => ({
+            title: String(it.fields.Title ?? ""),
+            id: it.id,
+          })),
+          siteCode
+        );
+        existing.evidenceLog = evidenceLogIdx.byTitle;
+      }
+      if (assetRiskList) {
+        const map = mapFields(await graph.columns(site.id, assetRiskList.id), [...ASSET_RISK_FIELDS]);
+        assetRiskPart = { id: assetRiskList.id, map };
+        assetRiskIdx = indexExisting(
+          (await graph.items(site.id, assetRiskList.id, ["Title"])).map((it) => ({
+            title: String(it.fields.Title ?? ""),
+            id: it.id,
+          })),
+          siteCode
+        );
+        existing.assetRisk = assetRiskIdx.byTitle;
+      }
+      setIndexes({
+        checkpoints: checkIdx,
+        findings: findIdx,
+        attendance: attendanceIdx,
+        evidenceLog: evidenceLogIdx,
+        assetRisk: assetRiskIdx,
+        siteCode,
+      });
 
       const drive = (await graph.drives(site.id)).find((d) => LIST_NAMES.evidence.test(d.name))
         ?? (await graph.drives(site.id))[0];
@@ -265,6 +316,8 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
         checkList: checkPart,
         findingList: findPart,
         attendanceList: attendancePart,
+        evidenceLogList: evidenceLogPart,
+        assetRiskList: assetRiskPart,
         driveId: drive?.id ?? null,
         driveMap,
         lists: all.map((l) => l.displayName),
@@ -272,12 +325,14 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
           checkList: checkList?.displayName ?? null,
           findingList: findingList?.displayName ?? null,
           attendanceList: attendanceList?.displayName ?? null,
+          evidenceLogList: evidenceLogList?.displayName ?? null,
+          assetRiskList: assetRiskList?.displayName ?? null,
           drive: drive?.name ?? null,
         },
       });
       setPlan(
         buildPlan(
-          { entity: entityCode, visit: visitId, visitLabel: visitId, library: drive?.name, siteFolder, libraryUrl: drive?.webUrl, checks, responses, hazards, prior, verifications, auditor, findings, adhoc, attendanceRegisters },
+          { entity: entityCode, visit: visitId, visitLabel: visitId, library: drive?.name, siteFolder, libraryUrl: drive?.webUrl, checks, responses, hazards, prior, verifications, auditor, findings, adhoc, attendanceRegisters, evidenceItems, systems },
           existing,
           unconsolidated
         )
@@ -342,6 +397,8 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       await writeRows(plan.checkpoints, resolved.checkList, "check-point");
       await writeRows(plan.findings, resolved.findingList, "finding");
       await writeRows(plan.attendance, resolved.attendanceList, "attendance row");
+      await writeRows(plan.evidenceLog, resolved.evidenceLogList, "evidence log entry");
+      await writeRows(plan.assetRisk, resolved.assetRiskList, "asset risk row");
 
       if (sendPhotos && resolved.driveId && plan.evidence.length) {
         /* THE FOLDER IS ONE CALL THAT CAN FAIL ALL FIVE.
@@ -427,6 +484,8 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
     ...(indexes?.checkpoints?.duplicates ?? []),
     ...(indexes?.findings?.duplicates ?? []),
     ...(indexes?.attendance?.duplicates ?? []),
+    ...(indexes?.evidenceLog?.duplicates ?? []),
+    ...(indexes?.assetRisk?.duplicates ?? []),
   ];
   /* The site's audit has not started. See syncedBeforeAudit — this is the check
      that would have caught both Bram Fischer incidents, and the only one that
@@ -436,7 +495,9 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   const foreign =
     (indexes?.checkpoints?.foreign ?? 0) +
     (indexes?.findings?.foreign ?? 0) +
-    (indexes?.attendance?.foreign ?? 0);
+    (indexes?.attendance?.foreign ?? 0) +
+    (indexes?.evidenceLog?.foreign ?? 0) +
+    (indexes?.assetRisk?.foreign ?? 0);
 
   /* Values bound for a Choice column that will not accept them. */
   const mismatches = plan
@@ -446,12 +507,20 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
         ...(resolved?.attendanceList
           ? choiceMismatches(resolved.attendanceList.map, plan.attendance)
           : []),
+        ...(resolved?.evidenceLogList
+          ? choiceMismatches(resolved.evidenceLogList.map, plan.evidenceLog)
+          : []),
+        ...(resolved?.assetRiskList
+          ? choiceMismatches(resolved.assetRiskList.map, plan.assetRisk)
+          : []),
       ]
     : [];
   const missing = [
     ...(resolved?.checkList?.map.missing ?? []).map((m) => `Check-points · ${m}`),
     ...(resolved?.findingList?.map.missing ?? []).map((m) => `Findings · ${m}`),
     ...(resolved?.attendanceList?.map.missing ?? []).map((m) => `Attendance Register · ${m}`),
+    ...(resolved?.evidenceLogList?.map.missing ?? []).map((m) => `Evidence Log · ${m}`),
+    ...(resolved?.assetRiskList?.map.missing ?? []).map((m) => `Asset Risk · ${m}`),
     /* Only when photographs are actually going. A library with no CheckID
        column costs nothing on a rows-only sync, and a warning about a column
        nobody is about to write is noise. */
@@ -466,6 +535,8 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
     resolved?.checkList && !canJoin(resolved.checkList.map) ? "Check-points" : null,
     resolved?.findingList && !canJoin(resolved.findingList.map) ? "Findings" : null,
     resolved?.attendanceList && !canJoin(resolved.attendanceList.map) ? "Attendance Register" : null,
+    resolved?.evidenceLogList && !canJoin(resolved.evidenceLogList.map) ? "Evidence Log" : null,
+    resolved?.assetRiskList && !canJoin(resolved.assetRiskList.map) ? "Asset Risk" : null,
   ].filter((v): v is string => !!v);
 
   /* AND WHETHER IT ACTUALLY BITES, which is not the same question.
@@ -487,6 +558,12 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       : null,
     resolved?.attendanceList && !canJoin(resolved.attendanceList.map) && (plan?.attendance ?? []).some((r) => r.action === "create")
       ? "Attendance Register"
+      : null,
+    resolved?.evidenceLogList && !canJoin(resolved.evidenceLogList.map) && (plan?.evidenceLog ?? []).some((r) => r.action === "create")
+      ? "Evidence Log"
+      : null,
+    resolved?.assetRiskList && !canJoin(resolved.assetRiskList.map) && (plan?.assetRisk ?? []).some((r) => r.action === "create")
+      ? "Asset Risk"
       : null,
   ].filter((v): v is string => !!v);
 
@@ -554,7 +631,12 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       label: "The lists and the evidence library are there",
       state: !resolved
         ? "waiting"
-        : resolved.checkList && resolved.findingList && resolved.attendanceList && resolved.driveId
+        : resolved.checkList &&
+            resolved.findingList &&
+            resolved.attendanceList &&
+            resolved.evidenceLogList &&
+            resolved.assetRiskList &&
+            resolved.driveId
           ? "ok"
           : "todo",
       detail: !resolved
@@ -563,11 +645,13 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
             resolved.checkList ? null : "no list matching Check-points",
             resolved.findingList ? null : "no list matching Findings",
             resolved.attendanceList ? null : "no list matching Attendance Register",
+            resolved.evidenceLogList ? null : "no list matching Evidence Log",
+            resolved.assetRiskList ? null : "no list matching Asset Risk",
             resolved.driveId ? null : "no document library to put photographs in",
           ]
             .filter(Boolean)
             .join(" · ") ||
-          `Writing to “${resolved.chose.checkList}”, “${resolved.chose.findingList}” and “${resolved.chose.attendanceList}”, photographs to “${resolved.chose.drive}”. ${resolved.lists.length} lists on the site — check these are the right ones.`,
+          `Writing to “${resolved.chose.checkList}”, “${resolved.chose.findingList}”, “${resolved.chose.attendanceList}”, “${resolved.chose.evidenceLogList}” and “${resolved.chose.assetRiskList}”, photographs to “${resolved.chose.drive}”. ${resolved.lists.length} lists on the site — check these are the right ones.`,
     },
     {
       label: "Every field has a column to go in",
@@ -731,6 +815,10 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                   <Tile n={totals.findingsChanged} label="findings to update" />
                   <Tile n={totals.attendanceNew} label="attendance rows to add" />
                   <Tile n={totals.attendanceChanged} label="attendance rows to update" />
+                  <Tile n={totals.evidenceLogNew} label="evidence log entries to add" />
+                  <Tile n={totals.evidenceLogChanged} label="evidence log entries to update" />
+                  <Tile n={totals.assetRiskNew} label="asset risk rows to add" />
+                  <Tile n={totals.assetRiskChanged} label="asset risk rows to update" />
                   <Tile
                     n={totals.photographs}
                     label={sendPhotos ? "photographs to upload" : "photographs, not being sent"}
@@ -738,6 +826,20 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                   <Tile n={writes} label="writes in total" strong />
                 </div>
 
+                {!resolved?.assetRiskList && (
+                  <Note tone="warn">
+                    No list called <b>Asset Risk</b> on this site — asset-system ratings will not be
+                    written.
+                    {resolved?.lists.length ? ` Lists seen: ${resolved.lists.join(", ")}.` : ""}
+                  </Note>
+                )}
+                {!resolved?.evidenceLogList && (
+                  <Note tone="warn">
+                    No list called <b>Evidence Log</b> on this site — document custody rows will not
+                    be written.
+                    {resolved?.lists.length ? ` Lists seen: ${resolved.lists.join(", ")}.` : ""}
+                  </Note>
+                )}
                 {!resolved?.attendanceList && (
                   <Note tone="warn">
                     No list called <b>Attendance Register</b> on this site — attendance rows will not
@@ -879,6 +981,8 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                         ["Check-points", indexes.checkpoints],
                         ["Findings", indexes.findings],
                         ["Attendance Register", indexes.attendance],
+                        ["Evidence Log", indexes.evidenceLog],
+                        ["Asset Risk", indexes.assetRisk],
                       ] as [string, ExistingIndex | null][]).map(([label, idx]) =>
                         !idx ? null : (
                           <div key={label} className="mb-2">
@@ -907,10 +1011,21 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                 <details className="mb-3">
                   <summary className="cursor-pointer text-[11.5px]" style={{ color: "var(--ink-3)" }}>
                     Every row, one line each (
-                    {plan.checkpoints.length + plan.findings.length + plan.attendance.length})
+                    {plan.checkpoints.length +
+                      plan.findings.length +
+                      plan.attendance.length +
+                      plan.evidenceLog.length +
+                      plan.assetRisk.length}
+                    )
                   </summary>
                   <ul className="mt-2 max-h-[240px] overflow-y-auto font-mono text-[10.5px]" style={{ color: "var(--ink-2)" }}>
-                    {[...plan.findings, ...plan.checkpoints, ...plan.attendance].map((r, i) => (
+                    {[
+                      ...plan.findings,
+                      ...plan.checkpoints,
+                      ...plan.attendance,
+                      ...plan.evidenceLog,
+                      ...plan.assetRisk,
+                    ].map((r, i) => (
                       <li key={`${r.key}-${i}`} className="py-[2px]">
                         <span style={{ color: r.action === "create" ? "var(--good)" : "var(--ink-3)" }}>
                           {r.action === "create" ? "add   " : "update"}
@@ -1050,10 +1165,20 @@ function Contract() {
       alsoNamed: "Attendance · Attendance Registers",
       fields: columnContract(ATTENDANCE_FIELDS),
     },
-    /* The library's columns belong in the same contract as the two lists. They
-       were not here, which is how five photographs reached the library with
-       every column blank: nothing asked for the columns and nothing wrote
-       them. */
+    {
+      list: "Evidence Log",
+      alsoNamed: "Evidence Register · Document Log · Document and Evidence Collection Log — TK-003 form 7, NOT the photo library below",
+      fields: columnContract(EVIDENCE_LOG_FIELDS),
+    },
+    {
+      list: "Asset Risk",
+      alsoNamed: "Asset Systems · Asset Assurance · Asset Risk Register",
+      fields: columnContract(ASSET_RISK_FIELDS),
+    },
+    /* The library's columns belong in the same contract as the lists above.
+       They were not here, which is how five photographs reached the library
+       with every column blank: nothing asked for the columns and nothing
+       wrote them. */
     {
       list: "Evidence (the document library)",
       alsoNamed: "Documents · Shared Documents",
@@ -1067,7 +1192,7 @@ function Contract() {
       </summary>
       <div className="mt-2 text-[11px] leading-[1.55]" style={{ color: "var(--ink-2)" }}>
         <p className="mb-2">
-          Three lists and one document library, found by <b>display name</b>. <b>Title</b> is the join
+          Five lists and one document library, found by <b>display name</b>. <b>Title</b> is the join
           key in every list — it is what makes a second sync update rather than duplicate. A column
           Squawk cannot find is reported in the plan and skipped, never guessed; a read-only or
           computed column counts as absent.
