@@ -505,7 +505,7 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
   const attendanceRegisters = mergeForm(
     mine.attendanceRegisters,
     theirs.attendanceRegisters ?? [],
-    ["rows"],
+    ["rows", "apologies"],
     report
   );
 

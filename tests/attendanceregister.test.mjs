@@ -30,6 +30,7 @@ const hub = src("app", "(app)", "forms", "page.tsx");
 const formsIndex = src("lib", "formsIndex.ts");
 const exportsSrc = src("lib", "exports.ts");
 const dashboard = src("app", "(app)", "dashboard", "page.tsx");
+const merge = src("lib", "merge.ts");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -41,6 +42,7 @@ const check = (name, cond, detail = "") => {
 };
 
 const {
+  apologiesOf,
   isSigned,
   nextSignatureRef,
   registerGaps,
@@ -285,6 +287,107 @@ check(
 check(
   "the dashboard counts registers created, not the old day count",
   /label: "Attendance registers",[\s\S]{0,80}value: attendanceRegisters\.length/.test(dashboard)
+);
+
+/* ---------------------------------------------------------- 10. apologies */
+
+/* Sarel: "add an option to capture a person to attend apologies if they
+ *  don't attend." Deliberately NOT another row — a row is proof somebody
+ *  was in the room and signed for it; an apology is the opposite fact
+ *  about the same invitee list, and the two must never be confusable in
+ *  the export six months later. */
+
+const apology = (over = {}) => ({
+  id: "a1",
+  name: "P. Dlamini",
+  organisation: "",
+  role: "",
+  reason: "",
+  createdAt: 1,
+  updatedAt: 1,
+  ...over,
+});
+
+check(
+  "apologiesOf reads the optional field, defaulting to none rather than throwing",
+  Array.isArray(apologiesOf(register())) &&
+    apologiesOf(register()).length === 0 &&
+    apologiesOf(register({ apologies: [apology()] })).length === 1,
+  "a register persisted before this feature shipped has no apologies key at all"
+);
+
+check(
+  "ApologyEntry is its own type, not a reuse of AttendanceRow",
+  /export interface ApologyEntry \{/.test(types) &&
+    !/export interface ApologyEntry \{[\s\S]{0,400}signature/.test(types),
+  "nothing here is signed, so a signature field would be a lie"
+);
+
+check(
+  "the register carries them as an optional slice, so no migration is owed to an existing register",
+  /apologies\?: ApologyEntry\[\];/.test(types)
+);
+
+check(
+  "the store can add, edit and remove an apology",
+  /addApology: \(id, name, seed\) => \{/.test(store) &&
+    /updateApology: \(id, apologyId, p\) => \{/.test(store) &&
+    /removeApology: \(id, apologyId\) => \{/.test(store)
+);
+
+check(
+  "adding one goes through the SAME record the row it is not — no signature, no phone, no email",
+  /apologies: \[\s*\n\s*\.\.\.\(r\.apologies \?\? \[\]\),\s*\n\s*\{\s*\n\s*name,\s*\n\s*organisation: "",\s*\n\s*role: "",\s*\n\s*reason: "",/.test(
+    store
+  )
+);
+
+check(
+  "they union across devices the same way rows do, not newer-wins-the-lot",
+  /attendanceRegisters = mergeForm\(\s*\n\s*mine\.attendanceRegisters,\s*\n\s*theirs\.attendanceRegisters \?\? \[\],\s*\n\s*\["rows", "apologies"\],/.test(
+    merge
+  ),
+  "without this, one device's apology additions are lost whenever the OTHER device's register happens to be newer"
+);
+
+const withApology = registerText(
+  register({ rows: [row()], apologies: [apology({ role: "Site Manager", organisation: "ACSA", reason: "Travelling" })] }),
+  { siteName: "O.R. Tambo International Airport (FAOR)", siteCode: "ORTIA", visitId: "2026-09" }
+);
+check("the printed register has an APOLOGIES section", withApology.includes("APOLOGIES"));
+check("it names who, their role and organisation", withApology.includes("P. Dlamini — Site Manager, ACSA"));
+check("and the reason, when one was given", withApology.includes("Travelling"));
+
+const noApologies = registerText(register({ rows: [row()] }), {
+  siteName: "O.R. Tambo International Airport (FAOR)",
+  siteCode: "ORTIA",
+  visitId: "2026-09",
+});
+check(
+  "a register with nobody apologising prints no APOLOGIES section at all",
+  !noApologies.includes("APOLOGIES")
+);
+
+check(
+  "the open register screen offers the same people-directory picker apologies use",
+  /APOLOGIES/.test(page) &&
+    /placeholder="Invited but not attending — search the directory, or type a name"/.test(page)
+);
+check(
+  "an apology row is visibly NOT an attendee row — its own pill, not SIGNED or NOT SIGNED",
+  /<Pill>APOLOGY<\/Pill>/.test(page)
+);
+check(
+  "removing one goes through removeApology, not removeAttendanceRow",
+  /removeApology\(r\.id, a\.id\)/.test(page) && !/removeAttendanceRow\(r\.id, a\.id\)/.test(page)
+);
+
+check(
+  "the export sheet tells attended and apologised apart with their own Status column",
+  /"Attended", sigCell\(row\.signature\), ""/.test(exportsSrc) &&
+    /"Apology", "", a\.reason/.test(exportsSrc) &&
+    /\{ header: "Status", width: 12 \}/.test(exportsSrc) &&
+    /\{ header: "Apology reason", width: 26 \}/.test(exportsSrc)
 );
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");

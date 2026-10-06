@@ -8,7 +8,7 @@
  *  and closeout still live on SiteDay, and dayText() still has to read
  *  historic entries correctly for any day captured before this change. */
 
-import type { AttendanceRegister, AttendanceRow, Signature } from "@/lib/types";
+import type { ApologyEntry, AttendanceRegister, AttendanceRow, Signature } from "@/lib/types";
 
 /** What a signature signs for: name, who they were there for, what they do.
  *  Phone and email are deliberately NOT in this list — contact details are
@@ -21,6 +21,13 @@ export function signedFieldsChanged(p: Partial<AttendanceRow>): boolean {
 
 export function isSigned(r: AttendanceRow): boolean {
   return !!r.signature?.blobKey;
+}
+
+/** `reg.apologies` is optional — see ApologyEntry's own note — so every
+ *  reader goes through here rather than repeating `?? []` at every call
+ *  site. */
+export function apologiesOf(reg: AttendanceRegister): ApologyEntry[] {
+  return reg.apologies ?? [];
 }
 
 /** The next signature reference on a register — numbered across the whole
@@ -122,6 +129,16 @@ export function registerText(reg: AttendanceRegister, ctx: RegisterContext): str
             : "NOT SIGNED"
         }`
       );
+    }
+  }
+
+  const apologies = apologiesOf(reg);
+  if (apologies.length) {
+    lines.push("", "APOLOGIES");
+    for (const a of apologies) {
+      lines.push("");
+      lines.push(`${L(a.name)} — ${L(a.role)}, ${L(a.organisation)}`);
+      if (a.reason.trim()) lines.push(`  Reason        ${a.reason.trim()}`);
     }
   }
 
