@@ -2,13 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { Btn } from "@/components/ui/primitives";
-import { AttachmentStrip, PhotoButton, VoiceNoteButton } from "@/components/Capture";
+import { AttachmentStrip, PhotoButton, VoiceNoteButton, forgetMedia } from "@/components/Capture";
 import OutcomeControl from "@/components/OutcomeControl";
 import { areasAt, disciplinesAt, systemsOf, useAdhoc, useEntityCode, useStore } from "@/lib/store";
 import { checksAt } from "@/lib/register";
 import { assist, adhocTranscriptContext, useAssistAvailable } from "@/lib/assist";
 import { IconCheck, IconSearch, IconX } from "@/components/ui/icons";
-import type { AdHocItem, Compliance } from "@/lib/types";
+import type { AdHocItem, Attachment, Compliance } from "@/lib/types";
+
+const uid = () => Math.random().toString(36).slice(2, 10);
 
 /** ADD SOMETHING THE REGISTER DOES NOT COVER.
  *
@@ -65,16 +67,21 @@ export default function AddItemSheet({
   /* Sarel: a new item should be able to take a photograph and a voice note
      the same sitting it is typed in, not only after reopening it from the
      list — "take the photograph, keep moving" was always the brief, and
-     pressing Record it used to close the sheet before either control ever
-     appeared. A photograph's reference (WALK-xxxxx_P01) is built from the
-     item's own id, which does not exist until the first save — so rather
-     than inventing a parallel "attach before it exists" path, Record it now
-     creates the item and the SAME sheet carries straight on into the
-     capture controls the editing flow already has, instead of closing.
-     Tracked by id, reactively, so the attachments just taken show up here
-     as they land. */
+     "this is where I need the microphone and add photos" pointed straight
+     at the box above, BEFORE anything is typed. A photograph's reference
+     (WALK-xxxxx_P01) is built from the item's own id, which does not exist
+     until Record it is pressed — so a capture taken before that is held
+     here, unattached, and only becomes part of the item (and gets its
+     reference number) once there is an id for it to belong to. See
+     pendingAttachments below. */
   const [createdId, setCreatedId] = useState<string | null>(null);
   const createdItem = createdId ? adhocItems.find((a) => a.id === createdId) ?? null : null;
+
+  /* Photographs and a voice note taken BEFORE Record it is pressed — see the
+     note above. Forgotten (blob and all) if the sheet closes without ever
+     becoming a real item, same as any other capture nobody kept; folded
+     into the new item, in the order they were taken, the moment it exists. */
+  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
 
   /* A new item's draft. An item being completed writes straight through to the
      store on every change — it already exists, so there is nothing to lose and
@@ -136,6 +143,10 @@ export default function AddItemSheet({
      is not remounted between opens. */
   const close = () => {
     setCreatedId(null);
+    /* Never assigned to an item, so never recorded anywhere else — the
+       bytes go the same way a discarded field-tray capture always has. */
+    for (const a of pendingAttachments) void forgetMedia(a.blobKey);
+    setPendingAttachments([]);
     setDraft({
       description: "",
       discipline: presetDiscipline ?? null,
@@ -166,10 +177,17 @@ export default function AddItemSheet({
       findingId: null,
       createdBy: auditor,
     });
+    /* Whatever was taken before this id existed joins the item now, in the
+       order it was captured — addAdhocAttachment assigns each photograph's
+       reference number (P01, P02, …) off the item's attachments as they
+       land, so calling it in order is what keeps that numbering true. */
+    for (const { id: _pid, createdAt: _pc, ...rest } of pendingAttachments) {
+      void _pid; void _pc;
+      addAdhocAttachment(id, rest);
+    }
+    setPendingAttachments([]);
     onSaved?.(id, `${id} recorded — not one of the 324`);
-    /* Stay open, on the SAME id — see createdId's own note. The photograph
-       and voice-note controls below are keyed on `item`, which is now this
-       row, so they appear without anything else changing. */
+    /* Stay open, on the SAME id — see createdId's own note. */
     setCreatedId(id);
   };
 
@@ -275,66 +293,94 @@ export default function AddItemSheet({
 
           {/* WP5's layout, applied here from the start: the text has the full
               width and the capture buttons sit under it, rather than sharing
-              its horizontal run and squeezing it to a strip. */}
-          {item ? (
-            <>
-              <div className="mt-2 flex justify-end gap-2">
-                <PhotoButton
-                  compact
-                  onCaptured={(m) =>
-                    addAdhocAttachment(item.id, {
-                      ...m,
-                      /* WHERE IT WAS TAKEN, WITHOUT AN EXTRA TAP. The camera is
-                         always where the auditor is, so it inherits the item's
-                         own location; editable per photograph afterwards. */
-                      location: value.area.trim(),
-                      createdBy: auditor,
-                    })
-                  }
-                />
-                <VoiceNoteButton
-                  compact
-                  onCaptured={(m) => addAdhocAttachment(item.id, { ...m, createdBy: auditor })}
-                />
-              </div>
-              {item.attachments.length > 0 && (
-                <div className="mt-2">
-                  <AttachmentStrip
-                    attachments={item.attachments}
-                    thumbSize={40}
-                    onRemove={(id) => removeAdhocAttachment(item.id, id)}
-                    onUpdate={(id, p) =>
-                      updateAdhoc(item.id, {
-                        attachments: item.attachments.map((a) =>
-                          a.id === id ? { ...a, ...p } : a
-                        ),
-                      })
-                    }
-                    /* The write-up goes into Description, appended — the
-                       same field a typed observation already fills, so a
-                       transcribed voice note and typed text end up read
-                       together rather than split across two boxes nobody
-                       thinks to check both of. */
-                    writeUp={
-                      aiOn ? (t) => assist("transcript", adhocTranscriptContext(t, item)) : undefined
-                    }
-                    onAccept={(text) =>
-                      set({
-                        description: value.description.trim()
-                          ? `${value.description}\n${text}`
-                          : text,
-                      })
-                    }
+              its horizontal run and squeezing it to a strip.
+
+              AVAILABLE BEFORE Record it IS EVER PRESSED. A capture here, before
+              the item exists, is held in pendingAttachments rather than
+              dropped on the floor or forced to wait — see that state's own
+              note. Once the item exists the same two buttons write straight
+              to it, same as any other field on this sheet. */}
+          {(() => {
+            const attachments = item ? item.attachments : pendingAttachments;
+            return (
+              <>
+                <div className="mt-2 flex justify-end gap-2">
+                  <PhotoButton
+                    compact
+                    onCaptured={(m) => {
+                      const a = {
+                        ...m,
+                        /* WHERE IT WAS TAKEN, WITHOUT AN EXTRA TAP. The camera is
+                           always where the auditor is, so it inherits the item's
+                           own location; editable per photograph afterwards. */
+                        location: value.area.trim(),
+                        createdBy: auditor,
+                      };
+                      if (item) addAdhocAttachment(item.id, a);
+                      else setPendingAttachments((cur) => [...cur, { ...a, id: uid(), createdAt: Date.now() }]);
+                    }}
+                  />
+                  <VoiceNoteButton
+                    compact
+                    onCaptured={(m) => {
+                      const a = { ...m, createdBy: auditor };
+                      if (item) addAdhocAttachment(item.id, a);
+                      else setPendingAttachments((cur) => [...cur, { ...a, id: uid(), createdAt: Date.now() }]);
+                    }}
                   />
                 </div>
-              )}
-            </>
-          ) : (
-            <p className="mt-2 text-[11px]" style={{ color: "var(--ink-4)" }}>
-              Record it first — photographs and a voice note attach the moment it exists,
-              which is one tap away.
-            </p>
-          )}
+                {attachments.length > 0 && (
+                  <div className="mt-2">
+                    <AttachmentStrip
+                      attachments={attachments}
+                      thumbSize={40}
+                      onRemove={(id) => {
+                        if (item) {
+                          removeAdhocAttachment(item.id, id);
+                        } else {
+                          const a = pendingAttachments.find((x) => x.id === id);
+                          if (a) void forgetMedia(a.blobKey);
+                          setPendingAttachments((cur) => cur.filter((x) => x.id !== id));
+                        }
+                      }}
+                      onUpdate={(id, p) => {
+                        if (item) {
+                          updateAdhoc(item.id, {
+                            attachments: item.attachments.map((a) =>
+                              a.id === id ? { ...a, ...p } : a
+                            ),
+                          });
+                        } else {
+                          setPendingAttachments((cur) =>
+                            cur.map((a) => (a.id === id ? { ...a, ...p } : a))
+                          );
+                        }
+                      }}
+                      /* The write-up goes into Description, appended — the
+                         same field a typed observation already fills, so a
+                         transcribed voice note and typed text end up read
+                         together rather than split across two boxes nobody
+                         thinks to check both of. Works before the item exists
+                         too — adhocTranscriptContext only ever reads the four
+                         fields draft and item both carry. */
+                      writeUp={
+                        aiOn
+                          ? (t) => assist("transcript", adhocTranscriptContext(t, item ?? draft))
+                          : undefined
+                      }
+                      onAccept={(text) =>
+                        set({
+                          description: value.description.trim()
+                            ? `${value.description}\n${text}`
+                            : text,
+                        })
+                      }
+                    />
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           <div className="mt-4">
             <span className={label}>Outcome</span>

@@ -195,13 +195,16 @@ check(
    save used to close the sheet before the camera or microphone ever
    appeared, so the photograph that was supposedly one tap away in fact
    needed the auditor to find the row again and reopen it. Sarel asked for
-   this directly: photos, a voice note, and the transcription write-up,
-   available the moment a new item is created, not after. */
+   this twice: first that capture should survive Record it rather than
+   close the sheet, then — pointing straight at the box above the
+   description field, before anything is typed — that it should not have
+   to wait for Record it at all. A capture taken before the item exists is
+   held in pendingAttachments and folded in the moment it does. */
 check(
   "Record it no longer closes the sheet — it creates the item and stays open",
-  /const save = \(\) => \{[\s\S]{0,400}const id = addAdhoc\(\{[\s\S]{0,700}setCreatedId\(id\);/.test(
+  /const save = \(\) => \{[\s\S]{0,400}const id = addAdhoc\(\{[\s\S]{0,1000}setCreatedId\(id\);/.test(
     sheet
-  ) && !/const save = \(\) => \{[\s\S]{0,900}onClose\(\);/.test(sheet),
+  ) && !/const save = \(\) => \{[\s\S]{0,1200}\n\s*onClose\(\);/.test(sheet),
   "a new item's photo and voice-note controls must appear in the same sitting it was typed in"
 );
 
@@ -222,15 +225,29 @@ check(
 );
 
 check(
-  "the photo and voice-note buttons are keyed on `item`, which is now true the instant Record it is pressed",
-  /\{item \? \(\s*\n\s*<>\s*\n\s*<div className="mt-2 flex justify-end gap-2">\s*\n\s*<PhotoButton/.test(
-    sheet
-  )
+  "a capture taken before Record it is held locally, not dropped and not blocked on",
+  /const \[pendingAttachments, setPendingAttachments\] = useState<Attachment\[\]>\(\[\]\);/.test(sheet) &&
+    /if \(item\) addAdhocAttachment\(item\.id, a\);\s*\n\s*else setPendingAttachments/.test(sheet),
+  "the mic and camera must work in the same box the description is typed into, before the item exists"
 );
 
 check(
-  "a transcribed voice note can be written up, same AI gate as every other capture screen",
-  /writeUp=\{\s*\n\s*aiOn \? \(t\) => assist\("transcript", adhocTranscriptContext\(t, item\)\) : undefined\s*\n\s*\}/.test(
+  "a capture nobody keeps is forgotten, bytes and all, when the sheet closes without becoming an item",
+  /for \(const a of pendingAttachments\) void forgetMedia\(a\.blobKey\);/.test(sheet),
+  "an abandoned photograph must not sit in storage forever with nothing pointing at it"
+);
+
+check(
+  "pending captures join the item in the order they were taken, the moment Record it gives them an id",
+  /for \(const \{ id: _pid, createdAt: _pc, \.\.\.rest \} of pendingAttachments\) \{[\s\S]{0,120}addAdhocAttachment\(id, rest\);/.test(
+    sheet
+  ),
+  "a photograph's reference number is assigned off the item's own attachments, so order matters"
+);
+
+check(
+  "a transcribed voice note can be written up before the item exists too, same AI gate as every other capture screen",
+  /writeUp=\{\s*\n\s*aiOn\s*\n\s*\? \(t\) => assist\("transcript", adhocTranscriptContext\(t, item \?\? draft\)\)\s*\n\s*: undefined\s*\n\s*\}/.test(
     sheet
   )
 );
