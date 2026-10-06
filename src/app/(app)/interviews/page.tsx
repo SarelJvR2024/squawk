@@ -29,6 +29,7 @@
 import { useMemo, useState } from "react";
 import { useEntityCode, useInterviewDays, useStore } from "@/lib/store";
 import {
+  apologiesOf,
   dayCanClose,
   dayGaps,
   dayText,
@@ -70,8 +71,27 @@ function hhmm(t: number): string {
   });
 }
 
-const inputCls = "w-full rounded-[9px] border px-3 py-2 text-[13px]";
+const inputCls = "min-h-[38px] w-full rounded-[8px] border px-2.5 py-1.5 text-[12.5px]";
 const inputStyle = { background: "var(--bg)", borderColor: "var(--line)" } as const;
+
+/* A FIELD WITHOUT Field's OVERHEAD — same reasoning and same shape as the
+   attendance register's own mini(), kept local to this screen for the same
+   reason that one is: the dense header row this saves space on is not a
+   shape every other form in the app wants from the shared primitive. */
+function mini(label: string, input: React.ReactNode, hint?: string) {
+  return (
+    <label className="block">
+      <span
+        className="mb-[3px] flex items-baseline justify-between font-mono text-[9px] font-semibold tracking-wide"
+        style={{ color: "var(--ink-4)" }}
+      >
+        {label}
+        {hint ? <span className="font-normal normal-case tracking-normal">{hint}</span> : null}
+      </span>
+      {input}
+    </label>
+  );
+}
 
 export default function InterviewsPage() {
   const days = useInterviewDays();
@@ -85,6 +105,9 @@ export default function InterviewsPage() {
   const sign = useStore((s) => s.signInterviewEntry);
   const closeDay = useStore((s) => s.closeInterviewDay);
   const reopenDay = useStore((s) => s.reopenInterviewDay);
+  const addApology = useStore((s) => s.addInterviewApology);
+  const patchApology = useStore((s) => s.updateInterviewApology);
+  const removeApology = useStore((s) => s.removeInterviewApology);
 
   const patchDay = useStore((s) => s.updateInterviewDay);
 
@@ -99,6 +122,9 @@ export default function InterviewsPage() {
      signature) only matters while they are actually being talked to or
      signing; once recorded it folds to a single line. */
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  /* Same reasoning, kept separate — opening an apology must not fold an
+     entry being signed, and vice versa. */
+  const [expandedApologyId, setExpandedApologyId] = useState<string | null>(null);
   useFormsHubDeepLink(setOpenId);
 
   const site = siteFor(entityCode);
@@ -170,8 +196,9 @@ export default function InterviewsPage() {
               <Pill tone={STAGE[stage].tone}>{STAGE[stage].label}</Pill>
             </div>
 
-            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <Field label="LOCATION" hint="optional — where the day's interviews were held">
+            <div className="mt-3 grid grid-cols-1 gap-[6px] sm:grid-cols-2">
+              {mini(
+                "LOCATION",
                 <input
                   value={day.location}
                   onChange={(e) => patchDay(day.id, { location: e.target.value })}
@@ -179,9 +206,11 @@ export default function InterviewsPage() {
                   className={inputCls}
                   style={inputStyle}
                   disabled={!!day.closedAt}
-                />
-              </Field>
-              <Field label="PURPOSE" hint="optional">
+                />,
+                "optional"
+              )}
+              {mini(
+                "PURPOSE",
                 <input
                   value={day.purpose}
                   onChange={(e) => patchDay(day.id, { purpose: e.target.value })}
@@ -189,16 +218,15 @@ export default function InterviewsPage() {
                   className={inputCls}
                   style={inputStyle}
                   disabled={!!day.closedAt}
-                />
-              </Field>
+                />,
+                "optional"
+              )}
             </div>
 
-            <Field
-              label="WHO WAS INTERVIEWED"
-              hint={`${day.entries.length} ${day.entries.length === 1 ? "person" : "people"}`}
-            >
-              {!day.closedAt ? (
-                <div className="mb-3">
+            <div className="mt-3">
+              {mini(
+                "WHO WAS INTERVIEWED",
+                !day.closedAt ? (
                   <ContactPicker
                     entityCode={entityCode}
                     placeholder="Search the directory, or type a new name"
@@ -210,8 +238,9 @@ export default function InterviewsPage() {
                       setExpandedRowId(rowId);
                     }}
                   />
-                </div>
-              ) : null}
+                ) : undefined,
+                `${day.entries.length} ${day.entries.length === 1 ? "person" : "people"}`
+              )}
               {day.entries.map((e) => {
                 const rowOpen = expandedRowId === e.id;
                 const rowSigning = signing === e.id;
@@ -372,7 +401,128 @@ export default function InterviewsPage() {
                   Nobody recorded yet. Use the box above.
                 </p>
               ) : null}
-            </Field>
+            </div>
+
+            {/* COULD NOT BE INTERVIEWED — same reasoning as the attendance
+                register's own apologies: somebody meant to be talked to who
+                was not available is the opposite fact about the same "who
+                we meant to talk to" list, never one of the entries above,
+                because nothing here is a conversation that happened. No
+                signature, because there is nothing to sign. */}
+            <div className="mt-3 border-t pt-2" style={{ borderColor: "var(--line)" }}>
+              {mini(
+                "COULD NOT BE INTERVIEWED",
+                !day.closedAt ? (
+                  <ContactPicker
+                    entityCode={entityCode}
+                    placeholder="Expected but not available — search the directory, or type a name"
+                    onAdd={(p) => {
+                      const apologyId = addApology(day.id, p.name, {
+                        contactId: p.contactId,
+                        organisation: p.organisation ?? "",
+                        role: p.role ?? "",
+                      });
+                      setExpandedApologyId(apologyId);
+                    }}
+                  />
+                ) : undefined,
+                `${apologiesOf(day).length} recorded`
+              )}
+
+              {apologiesOf(day).map((a) => {
+                const rowOpen = expandedApologyId === a.id;
+                const summary = [a.role, a.organisation].filter((v) => v.trim()).join(" · ");
+                return (
+                  <div
+                    key={a.id}
+                    className="mb-2 mt-2 rounded-[9px] border p-2"
+                    style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setExpandedApologyId(rowOpen ? null : a.id)}
+                      className="flex min-h-[30px] w-full items-center gap-[6px] text-left"
+                    >
+                      <Pill>NOT AVAILABLE</Pill>
+                      <span className="truncate text-[12.5px] font-semibold">
+                        {a.name.trim() || "Unnamed"}
+                      </span>
+                    </button>
+
+                    {!rowOpen && (summary || a.reason.trim()) ? (
+                      <p className="mt-[3px] truncate text-[11px]" style={{ color: "var(--ink-3)" }}>
+                        {[summary, a.reason.trim()].filter(Boolean).join(" — ")}
+                      </p>
+                    ) : null}
+
+                    {rowOpen ? (
+                      <div className="mt-[6px]">
+                        {!day.closedAt ? (
+                          <div className="mb-[5px] flex items-center justify-end">
+                            <Btn
+                              onClick={() => {
+                                removeApology(day.id, a.id);
+                                setExpandedApologyId((cur) => (cur === a.id ? null : cur));
+                              }}
+                            >
+                              <IconX /> Remove
+                            </Btn>
+                          </div>
+                        ) : null}
+
+                        <input
+                          value={a.name}
+                          onChange={(ev) => patchApology(day.id, a.id, { name: ev.target.value })}
+                          aria-label={`Name of apology ${a.id}`}
+                          placeholder="Full name"
+                          className={`mb-[5px] ${inputCls}`}
+                          style={inputStyle}
+                          disabled={!!day.closedAt}
+                        />
+
+                        <div className="grid grid-cols-2 gap-[5px]">
+                          <input
+                            value={a.role}
+                            onChange={(ev) => patchApology(day.id, a.id, { role: ev.target.value })}
+                            aria-label={`Role of apology ${a.id}`}
+                            placeholder="Role (optional)"
+                            className={inputCls}
+                            style={inputStyle}
+                            disabled={!!day.closedAt}
+                          />
+                          <input
+                            value={a.organisation}
+                            onChange={(ev) =>
+                              patchApology(day.id, a.id, { organisation: ev.target.value })
+                            }
+                            aria-label={`Organisation of apology ${a.id}`}
+                            placeholder="Organisation (optional)"
+                            className={inputCls}
+                            style={inputStyle}
+                            disabled={!!day.closedAt}
+                          />
+                        </div>
+
+                        <input
+                          value={a.reason}
+                          onChange={(ev) => patchApology(day.id, a.id, { reason: ev.target.value })}
+                          aria-label={`Reason for apology ${a.id}`}
+                          placeholder="Reason (optional)"
+                          className={`mt-[5px] ${inputCls}`}
+                          style={inputStyle}
+                          disabled={!!day.closedAt}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+              {apologiesOf(day).length === 0 ? (
+                <p className="text-[12px]" style={{ color: "var(--ink-3)" }}>
+                  Nobody marked unavailable. Use the box above.
+                </p>
+              ) : null}
+            </div>
 
             {/* THE CLOSING APPROVAL. */}
             <Field

@@ -478,6 +478,19 @@ interface State {
      unless dayCanClose() would say yes. */
   closeInterviewDay: (id: string, closedBy: string, s?: Omit<Signature, "ref">) => void;
   reopenInterviewDay: (id: string) => void;
+  /** Somebody meant to be interviewed who was not available — see
+     ApologyEntry and InterviewDay.apologies. Never a signed entry. */
+  addInterviewApology: (
+    id: string,
+    name: string,
+    seed?: Partial<ApologyEntry>
+  ) => string;
+  updateInterviewApology: (
+    id: string,
+    apologyId: string,
+    p: Partial<ApologyEntry>
+  ) => void;
+  removeInterviewApology: (id: string, apologyId: string) => void;
 
   /* ---- Site attendance and the daily diary. See src/lib/attendance.ts. ----
      ONE RECORD PER SITE PER CALENDAR DAY. openSiteDay RETURNS THE EXISTING ONE
@@ -1440,6 +1453,49 @@ export const useStore = create<State>()(
             closedAt: null,
             closedBy: "",
             closeSignature: null,
+          });
+        },
+
+        addInterviewApology: (id, name, seed) => {
+          const d = get().interviewDays.find((x) => x.id === id);
+          if (!d) return "";
+          const apologyId = uid();
+          const now = Date.now();
+          get().updateInterviewDay(id, {
+            apologies: [
+              ...(d.apologies ?? []),
+              {
+                name,
+                organisation: "",
+                role: "",
+                reason: "",
+                ...seed,
+                id: apologyId,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          });
+          return apologyId;
+        },
+
+        updateInterviewApology: (id, apologyId, p) => {
+          const d = get().interviewDays.find((x) => x.id === id);
+          if (!d) return;
+          const { id: _i, createdAt: _c, ...safe } = p;
+          void _i; void _c;
+          get().updateInterviewDay(id, {
+            apologies: (d.apologies ?? []).map((a) =>
+              a.id === apologyId ? { ...a, ...safe, updatedAt: Date.now() } : a
+            ),
+          });
+        },
+
+        removeInterviewApology: (id, apologyId) => {
+          const d = get().interviewDays.find((x) => x.id === id);
+          if (!d) return;
+          get().updateInterviewDay(id, {
+            apologies: (d.apologies ?? []).filter((a) => a.id !== apologyId),
           });
         },
 

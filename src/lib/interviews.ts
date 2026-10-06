@@ -17,7 +17,7 @@
  *  own judgement on the check screen; this register is evidence the
  *  conversation happened, at this time, in this place, with this person. */
 
-import type { InterviewDay, InterviewDayStage, InterviewEntry, Signature } from "@/lib/types";
+import type { ApologyEntry, InterviewDay, InterviewDayStage, InterviewEntry, Signature } from "@/lib/types";
 
 /** What an entry's signature stands behind. Change any of these afterwards and
  *  the mark is cleared — it was a signature on a different statement of who
@@ -49,6 +49,12 @@ export function nextSignatureRef(dayId: string, entries: InterviewEntry[]): stri
 /** Signed means a mark was drawn and stored, not that a name was typed. */
 export function isSigned(e: InterviewEntry): boolean {
   return !!e.signature?.blobKey;
+}
+
+/** `d.apologies` is optional — see InterviewDay's own note — so every
+ *  reader goes through here rather than repeating `?? []`. */
+export function apologiesOf(d: InterviewDay): ApologyEntry[] {
+  return d.apologies ?? [];
 }
 
 /** The stage, derived. Never stored. */
@@ -169,6 +175,17 @@ export function dayText(d: InterviewDay, ctx: DayContext): string {
           e.signature ? `${e.signature.ref}, signed ${stamp(e.signature.signedAt)}` : "NOT SIGNED"
         }`
       );
+    }
+  }
+
+  const apologies = apologiesOf(d);
+  if (apologies.length) {
+    lines.push("", "COULD NOT BE INTERVIEWED");
+    for (const a of apologies) {
+      lines.push("");
+      lines.push(`${L(a.name)}${a.role.trim() ? ` — ${a.role.trim()}` : ""}`);
+      if (a.organisation.trim()) lines.push(`  Organisation  ${a.organisation.trim()}`);
+      if (a.reason.trim()) lines.push(`  Reason        ${a.reason.trim()}`);
     }
   }
 

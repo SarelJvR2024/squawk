@@ -24,6 +24,7 @@ import type {
   Verification,
 } from "./types";
 import { apologiesOf } from "./attendanceRegister";
+import { apologiesOf as interviewApologiesOf } from "./interviews";
 import { PPE_ITEMS, PPE_ITEM_LABEL } from "./ppe";
 import { BAND_AS_RATING, BAND_META, bandFor, cellCode, movement } from "./risk";
 import { entity as entityOf, PROGRAMME_VISITS } from "./programme";
@@ -1035,20 +1036,28 @@ export function interviewsSheet(x: ExportInput): Sheet {
   const days = (x.interviewDays ?? []).filter((d) => d.originVisit === x.visit);
   const rows: CellValue[][] = [];
   for (const d of days) {
+    const apologies = interviewApologiesOf(d);
     for (const e of d.entries) {
       rows.push([
-        d.id,
-        d.date,
-        e.name,
-        e.role,
-        e.location,
-        when(e.startedAt),
-        when(e.endedAt),
-        sigCell(e.signature),
+        d.id, d.date,
+        e.name, e.role, e.location,
+        when(e.startedAt), when(e.endedAt),
+        "Interviewed", sigCell(e.signature), "",
       ]);
     }
-    if (d.entries.length === 0) {
-      rows.push([d.id, d.date, "", "", "", null, null, ""]);
+    /* Somebody meant to be interviewed and not available — see the note on
+       InterviewDay.apologies. Same columns as a held interview, not a
+       second sheet, with Status telling the two apart. */
+    for (const a of apologies) {
+      rows.push([
+        d.id, d.date,
+        a.name, a.role, "",
+        null, null,
+        "Not available", "", a.reason,
+      ]);
+    }
+    if (d.entries.length === 0 && apologies.length === 0) {
+      rows.push([d.id, d.date, "", "", "", null, null, "", "", ""]);
     }
   }
   return {
@@ -1061,7 +1070,9 @@ export function interviewsSheet(x: ExportInput): Sheet {
       { header: "Location", width: 24 },
       { header: "Started", width: 16 },
       { header: "Ended", width: 16 },
+      { header: "Status", width: 14 },
       { header: "Signed", width: 30 },
+      { header: "Reason not interviewed", width: 26 },
     ],
     rows,
   };

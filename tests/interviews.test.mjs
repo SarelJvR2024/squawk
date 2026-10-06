@@ -40,6 +40,8 @@ const types = src("lib", "types.ts");
 const page = src("app", "(app)", "interviews", "page.tsx");
 const shell = src("components", "AppShell.tsx");
 const hub = src("app", "(app)", "forms", "page.tsx");
+const exportsSrc = src("lib", "exports.ts");
+const merge = src("lib", "merge.ts");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -52,6 +54,7 @@ const check = (name, cond, detail = "") => {
 
 const {
   SIGNED_FIELDS,
+  apologiesOf,
   dayCanClose,
   dayGaps,
   dayText,
@@ -427,6 +430,120 @@ check(
 check(
   "the local-date helper is imported from attendance rather than duplicated",
   /import \{ localDate \} from "@\/lib\/attendance"/.test(page)
+);
+
+/* --------------------------------------------- 13. the compact layout */
+
+check(
+  "the open-day header uses the same space-saving field as the attendance register, not Field",
+  /function mini\(label: string, input: React\.ReactNode, hint\?: string\)/.test(page)
+);
+check(
+  "LOCATION and PURPOSE sit in one compact row",
+  /mini\(\s*\n\s*"LOCATION",/.test(page) && /mini\(\s*\n\s*"PURPOSE",/.test(page)
+);
+check(
+  "so does WHO WAS INTERVIEWED",
+  /mini\(\s*\n\s*"WHO WAS INTERVIEWED",/.test(page)
+);
+
+/* --------------------------------------------- 14. could not be interviewed */
+
+/* Sarel: apply the attendance register's apologies pattern here too — a
+ *  stakeholder scheduled for interview who was not available is the same
+ *  kind of fact as an invitee who sent regrets, never one of the entries
+ *  above, because nothing here is a conversation that happened. */
+
+const apology = (over = {}) => ({
+  id: "a1",
+  name: "P. Dlamini",
+  organisation: "",
+  role: "",
+  reason: "",
+  createdAt: 1,
+  updatedAt: 1,
+  ...over,
+});
+
+check(
+  "apologiesOf reads the optional field, defaulting to none rather than throwing",
+  Array.isArray(apologiesOf(day())) &&
+    apologiesOf(day()).length === 0 &&
+    apologiesOf(day({ apologies: [apology()] })).length === 1,
+  "a day persisted before this feature shipped has no apologies key at all"
+);
+check(
+  "the day carries them as an optional slice, so no migration is owed to an existing day",
+  /apologies\?: ApologyEntry\[\];/.test(types)
+);
+check(
+  "it is the SAME ApologyEntry the attendance register uses, not a parallel type",
+  (types.match(/export interface ApologyEntry \{/g) ?? []).length === 1,
+  "one shape for 'invited/expected, did not happen' everywhere it is true"
+);
+
+check(
+  "the store can add, edit and remove one",
+  /addInterviewApology: \(id, name, seed\) => \{/.test(store) &&
+    /updateInterviewApology: \(id, apologyId, p\) => \{/.test(store) &&
+    /removeInterviewApology: \(id, apologyId\) => \{/.test(store)
+);
+check(
+  "adding one never touches entries or a signature",
+  /apologies: \[\s*\n\s*\.\.\.\(d\.apologies \?\? \[\]\),\s*\n\s*\{\s*\n\s*name,\s*\n\s*organisation: "",\s*\n\s*role: "",\s*\n\s*reason: "",/.test(
+    store
+  )
+);
+check(
+  "they union across devices the same way entries do, not newer-wins-the-lot",
+  /interviewDays = mergeForm\(\s*\n\s*mine\.interviewDays,\s*\n\s*theirs\.interviewDays \?\? \[\],\s*\n\s*\["entries", "apologies"\],/.test(
+    merge
+  )
+);
+
+const withApology = dayText(
+  day({
+    entries: [complete()],
+    apologies: [apology({ role: "Site Manager", organisation: "ACSA", reason: "Travelling" })],
+  }),
+  ctx
+);
+check("the printed record has a COULD NOT BE INTERVIEWED section", withApology.includes("COULD NOT BE INTERVIEWED"));
+check("it names who, their role and organisation", withApology.includes("P. Dlamini — Site Manager") && withApology.includes("ACSA"));
+check("and the reason, when one was given", withApology.includes("Travelling"));
+
+const noApologies = dayText(day({ entries: [complete()] }), ctx);
+check(
+  "a day with nobody unavailable prints no such section at all",
+  !noApologies.includes("COULD NOT BE INTERVIEWED")
+);
+
+check(
+  "the open-day screen offers the same people-directory picker, labelled for this form",
+  /COULD NOT BE INTERVIEWED/.test(page) &&
+    /placeholder="Expected but not available — search the directory, or type a name"/.test(page)
+);
+check(
+  "an apology row is visibly NOT an interview entry — its own pill, not SIGNED or NOT SIGNED",
+  /<Pill>NOT AVAILABLE<\/Pill>/.test(page)
+);
+check(
+  "removing one goes through removeInterviewApology, not removeInterviewEntry",
+  /removeApology\(day\.id, a\.id\)/.test(page) && !/removeInterviewEntry\(day\.id, a\.id\)/.test(page)
+);
+
+check(
+  "closing the day still requires an actual entry — apologies alone do not satisfy it",
+  dayCanClose(day({ apologies: [apology()] })) === false,
+  "an apology is not evidence a conversation happened"
+);
+
+check(
+  "the export sheet tells interviewed and not-available apart with their own Status column",
+  /"Interviewed", sigCell\(e\.signature\), ""/.test(exportsSrc) &&
+    /"Not available", "", a\.reason/.test(exportsSrc) &&
+    /\{ header: "Status", width: 14 \}/.test(exportsSrc) &&
+    /\{ header: "Reason not interviewed", width: 26 \}/.test(exportsSrc)
 );
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");

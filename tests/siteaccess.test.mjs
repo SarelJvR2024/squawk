@@ -256,7 +256,7 @@ check(
 );
 check(
   "there is a log-level observation notes field, separate from any one visitor",
-  /<Field label="NOTES"[\s\S]{0,200}<textarea[\s\S]{0,80}value=\{l\.notes\}[\s\S]{0,80}onChange=\{\(e\) => patchLog\(l\.id, \{ notes: e\.target\.value \}\)\}/.test(
+  /mini\(\s*\n\s*"NOTES",[\s\S]{0,200}<textarea[\s\S]{0,80}value=\{l\.notes\}[\s\S]{0,80}onChange=\{\(e\) => patchLog\(l\.id, \{ notes: e\.target\.value \}\)\}/.test(
     page
   )
 );
@@ -265,6 +265,45 @@ check(
   !/addVisitor\(l\.id, p\.name,[\s\S]{0,200}setExpandedRowId\(rowId\)/.test(page) &&
     /onAdd=\{\(p\) => \{\s*\n\s*addVisitor\(l\.id, p\.name,/.test(page),
   'Sarel: "when adding a person to the site access just keep it in one row, dont show expanded box"'
+);
+
+/* -------------------------------------------- 10. the compact layout */
+
+/* Sarel: apply the attendance register's compact header to this form too —
+ *  the same space-saving field, replacing Field's own label row and
+ *  bottom margin on every dense header grid this screen has. No apologies
+ *  here, deliberately: a site access log has no "invited" list to measure
+ *  a no-show against, only who actually walked in under escort. */
+
+check(
+  "the open-log header uses the same space-saving field as the attendance register, not Field",
+  /function mini\(label: string, input: React\.ReactNode, hint\?: string\)/.test(page) &&
+    !/<Field /.test(page)
+);
+check(
+  "DATE, START and END sit in one compact row",
+  /mini\(\s*\n\s*"DATE",/.test(page) &&
+    /mini\(\s*\n\s*"START",/.test(page) &&
+    /mini\(\s*\n\s*"END",/.test(page)
+);
+check(
+  "AREA, PURPOSE and ESCORTED BY sit in one compact row",
+  /mini\(\s*\n\s*"AREA",/.test(page) &&
+    /mini\(\s*\n\s*"PURPOSE",/.test(page) &&
+    /mini\(\s*\n\s*"ESCORTED BY",/.test(page)
+);
+check(
+  "so does WHO WENT IN",
+  /mini\(\s*\n\s*"WHO WENT IN",/.test(page)
+);
+check(
+  "the creation panel's three fields are one compact row too, not three stacked",
+  /mini\(\s*\n\s*"WHERE DID YOU GO\?",/.test(page)
+);
+check(
+  "no apologies concept was added here — this form logs who actually went in, not who was invited",
+  !/apolog/i.test(page),
+  "a site access log has no invited list to measure a no-show against"
 );
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");

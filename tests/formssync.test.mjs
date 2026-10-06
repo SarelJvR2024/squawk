@@ -121,7 +121,7 @@ check(
   /const safetyFindings = mergeForm\(\s*\n\s*mine\.safetyFindings,\s*\n\s*theirs\.safetyFindings \?\? \[\],\s*\n\s*\["attachments", "actions"\]/.test(
     merge
   ) &&
-    /const interviewDays = mergeForm\(mine\.interviewDays, theirs\.interviewDays \?\? \[\], \["entries"\], report\);/.test(
+    /const interviewDays = mergeForm\(\s*\n\s*mine\.interviewDays,\s*\n\s*theirs\.interviewDays \?\? \[\],\s*\n\s*\["entries", "apologies"\],\s*\n\s*report\s*\n\s*\);/.test(
       merge
     ) &&
     /const siteDays = mergeForm\(\s*\n\s*mine\.siteDays,\s*\n\s*theirs\.siteDays \?\? \[\],\s*\n\s*\["diaryEntries", "workedBy", "entries", "attachments"\]/.test(
