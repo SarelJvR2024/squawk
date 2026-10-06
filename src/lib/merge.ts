@@ -485,7 +485,12 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
     ["attachments", "actions"],
     report
   );
-  const interviewDays = mergeForm(mine.interviewDays, theirs.interviewDays ?? [], ["entries"], report);
+  const interviewDays = mergeForm(
+    mine.interviewDays,
+    theirs.interviewDays ?? [],
+    ["entries", "apologies"],
+    report
+  );
   const siteDays = mergeForm(
     mine.siteDays,
     theirs.siteDays ?? [],

@@ -22,15 +22,34 @@ import { siteCodeFor, siteFor } from "@/lib/sites";
 import { useFormsHubDeepLink } from "@/lib/deepLink";
 import ContactPicker from "@/components/ContactPicker";
 import { SignaturePad } from "@/components/SignaturePad";
-import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
+import { Btn, Empty, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconLeft, IconX } from "@/components/ui/icons";
 
-const inputCls = "min-h-[44px] w-full rounded-[9px] border px-3 py-2 text-[13px]";
+const inputCls = "min-h-[38px] w-full rounded-[8px] border px-2.5 py-1.5 text-[12.5px]";
 const inputStyle = { background: "var(--bg)", borderColor: "var(--line)" } as const;
 const SIDES: SiteAccessSide[] = ["ACSA", "TPJV", "Other"];
 
 function hhmm(t: number): string {
   return new Date(t).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+/* A FIELD WITHOUT Field's OVERHEAD — same reasoning and same shape as the
+   attendance register's own mini(), kept local to this screen for the same
+   reason that one is: the dense header rows this saves space on are not a
+   shape every other form in the app wants from the shared primitive. */
+function mini(label: string, input: React.ReactNode, hint?: string) {
+  return (
+    <label className="block">
+      <span
+        className="mb-[3px] flex items-baseline justify-between font-mono text-[9px] font-semibold tracking-wide"
+        style={{ color: "var(--ink-4)" }}
+      >
+        {label}
+        {hint ? <span className="font-normal normal-case tracking-normal">{hint}</span> : null}
+      </span>
+      {input}
+    </label>
+  );
 }
 
 /** HH:MM for a <input type="time">, in the device's own timezone. */
@@ -168,8 +187,9 @@ export default function SiteAccessPage() {
           </button>
 
           <Panel>
-            <div data-record-id={l.id} className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <Field label="DATE">
+            <div data-record-id={l.id} className="mb-2 grid grid-cols-2 gap-[6px] sm:grid-cols-3">
+              {mini(
+                "DATE",
                 <input
                   type="date"
                   value={l.date}
@@ -178,8 +198,9 @@ export default function SiteAccessPage() {
                   className={inputCls}
                   style={inputStyle}
                 />
-              </Field>
-              <Field label="START">
+              )}
+              {mini(
+                "START",
                 <input
                   type="time"
                   value={timeInputValue(l.openedAt)}
@@ -188,8 +209,9 @@ export default function SiteAccessPage() {
                   className={inputCls}
                   style={inputStyle}
                 />
-              </Field>
-              <Field label="END" hint="optional">
+              )}
+              {mini(
+                "END",
                 <input
                   type="time"
                   value={l.endTime !== null ? timeInputValue(l.endTime) : ""}
@@ -197,12 +219,14 @@ export default function SiteAccessPage() {
                   aria-label={`End time for log ${l.id}`}
                   className={inputCls}
                   style={inputStyle}
-                />
-              </Field>
+                />,
+                "optional"
+              )}
             </div>
 
-            <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <Field label="AREA">
+            <div className="mb-2 grid grid-cols-2 gap-[6px] sm:grid-cols-3">
+              {mini(
+                "AREA",
                 <input
                   value={l.area}
                   onChange={(e) => patchLog(l.id, { area: e.target.value })}
@@ -210,8 +234,9 @@ export default function SiteAccessPage() {
                   className={inputCls}
                   style={inputStyle}
                 />
-              </Field>
-              <Field label="PURPOSE">
+              )}
+              {mini(
+                "PURPOSE",
                 <input
                   value={l.purpose}
                   onChange={(e) => patchLog(l.id, { purpose: e.target.value })}
@@ -219,8 +244,9 @@ export default function SiteAccessPage() {
                   className={inputCls}
                   style={inputStyle}
                 />
-              </Field>
-              <Field label="ESCORTED BY">
+              )}
+              {mini(
+                "ESCORTED BY",
                 <input
                   value={l.escortedBy}
                   onChange={(e) => patchLog(l.id, { escortedBy: e.target.value })}
@@ -228,10 +254,11 @@ export default function SiteAccessPage() {
                   className={inputCls}
                   style={inputStyle}
                 />
-              </Field>
+              )}
             </div>
 
-            <Field label="NOTES" hint="optional — what the team saw or noted about the area itself">
+            {mini(
+              "NOTES",
               <textarea
                 value={l.notes}
                 onChange={(e) => patchLog(l.id, { notes: e.target.value })}
@@ -240,11 +267,13 @@ export default function SiteAccessPage() {
                 placeholder="Site access observation notes…"
                 className={inputCls}
                 style={inputStyle}
-              />
-            </Field>
+              />,
+              "optional — what the team saw or noted about the area itself"
+            )}
 
             <div className="mt-3">
-              <Field label="WHO WENT IN" hint={`${l.people.length} recorded`}>
+              {mini(
+                "WHO WENT IN",
                 <ContactPicker
                   entityCode={entityCode}
                   onAdd={(p) => {
@@ -253,8 +282,9 @@ export default function SiteAccessPage() {
                       organisation: p.organisation ?? "",
                     });
                   }}
-                />
-              </Field>
+                />,
+                `${l.people.length} recorded`
+              )}
             </div>
 
             {l.people.map((v) => {
@@ -360,7 +390,7 @@ export default function SiteAccessPage() {
                           onChange={(ev) => patchVisitor(l.id, v.id, { organisation: ev.target.value })}
                           aria-label={`Organisation of visitor ${v.id}`}
                           placeholder="Organisation / subconsultant (optional)"
-                          className="min-h-[44px] flex-1 min-w-[160px] rounded-[9px] border px-3 text-[13px]"
+                          className="min-h-[38px] flex-1 min-w-[160px] rounded-[8px] border px-2.5 text-[12.5px]"
                           style={inputStyle}
                         />
                       </div>
@@ -442,38 +472,45 @@ export default function SiteAccessPage() {
         </p>
       </header>
 
-      <Panel tone="accent" className="mb-4">
-        <Field label="WHERE DID YOU GO?">
-          <input
-            value={draftArea}
-            onChange={(e) => setDraftArea(e.target.value)}
-            aria-label="Area or zone visited"
-            placeholder="MV switchroom, Pier B · Airside apron, Stand 14…"
-            className={inputCls}
-            style={inputStyle}
-          />
-        </Field>
-        <Field label="PURPOSE" hint="optional">
-          <input
-            value={draftPurpose}
-            onChange={(e) => setDraftPurpose(e.target.value)}
-            aria-label="Purpose of this visit"
-            placeholder="Asset inspection, follow-up on a finding…"
-            className={inputCls}
-            style={inputStyle}
-          />
-        </Field>
-        <Field label="ESCORTED BY" hint="optional">
-          <input
-            value={draftEscort}
-            onChange={(e) => setDraftEscort(e.target.value)}
-            aria-label="Who escorted the team"
-            placeholder="Name of escort"
-            className={inputCls}
-            style={inputStyle}
-          />
-        </Field>
-        <div className="flex justify-end">
+      <Panel tone="accent" className="mb-4 py-[9px]">
+        <div className="grid grid-cols-1 gap-[6px] sm:grid-cols-3">
+          {mini(
+            "WHERE DID YOU GO?",
+            <input
+              value={draftArea}
+              onChange={(e) => setDraftArea(e.target.value)}
+              aria-label="Area or zone visited"
+              placeholder="MV switchroom, Pier B · Airside apron, Stand 14…"
+              className={inputCls}
+              style={inputStyle}
+            />
+          )}
+          {mini(
+            "PURPOSE",
+            <input
+              value={draftPurpose}
+              onChange={(e) => setDraftPurpose(e.target.value)}
+              aria-label="Purpose of this visit"
+              placeholder="Asset inspection, follow-up on a finding…"
+              className={inputCls}
+              style={inputStyle}
+            />,
+            "optional"
+          )}
+          {mini(
+            "ESCORTED BY",
+            <input
+              value={draftEscort}
+              onChange={(e) => setDraftEscort(e.target.value)}
+              aria-label="Who escorted the team"
+              placeholder="Name of escort"
+              className={inputCls}
+              style={inputStyle}
+            />,
+            "optional"
+          )}
+        </div>
+        <div className="mt-[8px] flex justify-end">
           <Btn variant="primary" onClick={startLog} disabled={!draftArea.trim()}>
             Log this visit
           </Btn>

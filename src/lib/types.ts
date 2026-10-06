@@ -1496,6 +1496,13 @@ export interface InterviewDay {
   openedBy: string;
 
   entries: InterviewEntry[];
+  /** Somebody who was meant to be interviewed and was not available — the
+   *  same ApologyEntry shape the attendance register uses, and the same
+   *  reasoning: it is the opposite fact about the same "who we meant to
+   *  talk to" list, never one of `entries`, because nothing here is a
+   *  conversation that happened. OPTIONAL for the same reason — no
+   *  migration owed to a day that already exists on a device. */
+  apologies?: ApologyEntry[];
 
   /** The closing approval. Null while the day is still open to more entries. */
   closedAt: number | null;
