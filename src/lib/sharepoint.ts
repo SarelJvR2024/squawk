@@ -53,11 +53,14 @@ import * as erm from "./erm";
 import { photoFilename } from "./photos";
 import { portalIdFor, siteCodeFor, siteFor } from "./sites";
 import { apologiesOf } from "./attendanceRegister";
+import { MEDIUM_LABEL } from "./evidence";
+import { bandFor, BAND_META } from "./risk";
 import type {
   AdHocItem,
   Attachment,
   AttendanceRegister,
   Check,
+  EvidenceItem,
   Finding,
   ErmConsequence,
   ErmLikelihood,
@@ -67,6 +70,7 @@ import type {
   ProgressNote,
   Response,
   Signature,
+  SystemAssessment,
   Verification,
 } from "./types";
 
@@ -221,6 +225,45 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
   email: ["Email", "Email address"],
   signed: ["Signed", "Signature"],
   apologyReason: ["Apology reason", "Apology Reason", "Reason"],
+
+  /* THE EVIDENCE LOG'S OWN COLUMNS. TK-003 form 7 — what ACSA's document was,
+     who gave it and took it back, and (the point of the whole exercise, Sarel:
+     "maintain the link to the audit checks") which check-points it bears on.
+     `title` here is still the join key, same as every other list — the
+     document's own name goes in `documentTitle`. */
+  documentTitle: ["Document title", "Document Title", "Title of document"],
+  documentNo: ["Document No", "Document no.", "Document Number", "Doc No"],
+  revision: ["Revision", "Rev"],
+  documentDate: ["Document date", "Document Date"],
+  requestedAt: ["Requested", "Date requested", "Requested on"],
+  requestedFrom: ["Requested from", "Requested From"],
+  receivedAt: ["Received", "Date received", "Received on"],
+  receivedFrom: ["Received from", "Received From"],
+  receivedBy: ["Received by", "Collected by"],
+  medium: ["Medium"],
+  originalOrCopy: ["Original or copy", "Original/Copy", "Original"],
+  returnedAt: ["Returned", "Date returned"],
+  returnedTo: ["Returned to"],
+  unavailable: ["Unavailable"],
+  unavailableReason: ["Unavailable reason", "Reason"],
+  /* PLURAL, and deliberately not sharing a candidate with the photo library's
+     singular `checkId` — one evidence item can bear on several check-points,
+     and folding it into `checkId` would make the second one quietly overwrite
+     the first. */
+  checkPoints: ["Check-points", "Check points", "Checkpoints", "Related check-points"],
+  notes: ["Notes", "Note", "Comments"],
+
+  /* THE ASSET RISK LIST'S OWN COLUMNS. One row per (discipline, asset system)
+     pair — the same rows systemsSheet's workbook export already derives by
+     grouping the register's own checks. `severity`/`likelihood` here are
+     B170 001M, not ERM — this is a new list with no ACSA-authored vocabulary
+     of its own to honour, unlike the Findings list's rating columns, so the
+     register's own words go across untranslated. */
+  band: ["Band", "Risk band", "Rating"],
+  strategy: ["Treatment strategy", "Risk treatment strategy", "Strategy"],
+  ratingAgreed: ["Rating agreed", "Agreed"],
+  rationale: ["Why that cell", "Rationale", "Why", "Justification"],
+  events: ["Possible hazardous events", "Possible events", "Hazardous events"],
 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -247,6 +290,10 @@ export const LIST_NAMES = {
       here, and a site has exactly one of them worth writing photographs to. */
   evidence: /document|shared|evidence/i,
   attendance: /^attendance([-\s]?registers?)?$/i,
+  /** TK-003 form 7 — distinct from `evidence` above, which is the photo
+   *  library. A list, not a drive: rows with fields, not uploaded files. */
+  evidenceLog: /^(evidence\s*(log|register)|document\s*(and|&)?\s*evidence\s*(collection)?\s*log)s?$/i,
+  assetRisk: /^asset\s*(risk|systems?|assurance)(\s*register)?$/i,
 } as const;
 
 export const CHECK_FIELDS = [
@@ -263,6 +310,23 @@ export const ATTENDANCE_FIELDS = [
   "title", "registerDate", "time", "purpose", "location",
   "name", "organisation", "role", "phone", "email",
   "status", "signed", "apologyReason",
+] as const;
+
+/** One row per DOCUMENT — TK-003 form 7, the chain-of-custody log, not the
+ *  checks it bears on. `checkPoints` is what keeps the link alive. */
+export const EVIDENCE_LOG_FIELDS = [
+  "title", "documentTitle", "documentNo", "revision", "documentDate",
+  "requestedAt", "requestedFrom", "receivedAt", "receivedFrom", "receivedBy",
+  "medium", "originalOrCopy", "returnedAt", "returnedTo",
+  "unavailable", "unavailableReason", "checkPoints", "signed", "notes",
+] as const;
+
+/** One row per (discipline, asset system) pair — same grouping systemsSheet's
+ *  workbook export already does over the register's own checks. */
+export const ASSET_RISK_FIELDS = [
+  "title", "discipline", "assetSystem", "severity", "likelihood", "band",
+  "strategy", "ratingAgreed", "rationale", "rootCause", "treatment", "owner",
+  "targetDate", "events", "auditor", "assessedOn", "notes",
 ] as const;
 
 /** The columns on the EVIDENCE LIBRARY itself — metadata on the uploaded file,
@@ -635,6 +699,16 @@ export interface SyncInput {
   /** This visit's attendance registers. Optional for the same reason adhoc
    *  and findings are — the plan builder's own tests do not have to care. */
   attendanceRegisters?: AttendanceRegister[];
+  /** THE ENTITY'S evidence items, not the visit's — useEvidenceItems() spans
+   *  visits on purpose (an original borrowed last visit is still outstanding
+   *  this one), same as the dashboard. buildPlan filters to this visit's own
+   *  items itself, the same way evidenceLogSheet's export does, so an item
+   *  requested two visits ago and still unreturned does not get a second,
+   *  wrong-dated row here. */
+  evidenceItems?: EvidenceItem[];
+  /** This visit's asset-system ratings, keyed `${discipline}|${system}` —
+   *  see useSystems(). Optional for the same reason the rest are. */
+  systems?: Record<string, SystemAssessment>;
 }
 
 export type RowAction = "create" | "update";
@@ -683,6 +757,11 @@ export interface SyncPlan {
   findings: PlannedRow[];
   /** One row per person — attendee or apology. See ATTENDANCE_FIELDS. */
   attendance: PlannedRow[];
+  /** One row per document — TK-003 form 7. See EVIDENCE_LOG_FIELDS. Not to
+   *  be confused with `evidence` below, the photo library. */
+  evidenceLog: PlannedRow[];
+  /** One row per (discipline, asset system) pair. See ASSET_RISK_FIELDS. */
+  assetRisk: PlannedRow[];
   evidence: PlannedFile[];
   /** Why rows were left out, in the words of somebody who might disagree. */
   skipped: { what: string; why: string; count: number }[];
@@ -738,6 +817,18 @@ function signedCell(s: Signature | null): string {
     hour12: false,
   });
   return `${s.signedName} · ${when}`;
+}
+
+/** `<site>-RISK-<discipline>-<system>` — DETERMINISTIC, unlike a hazard's
+ *  mintPortalId. An asset system is one of a fixed, enumerable set (the
+ *  register's own disciplines and systems), so the pair itself is already a
+ *  stable key — no taken-set or sequence counter needed, and a re-sync finds
+ *  the same row from the pair alone, every time. */
+function assetRiskTitle(entityCode: string, discipline: string, system: string): string {
+  const site = siteCodeFor(entityCode);
+  const disc = discipline.slice(0, 3).toUpperCase() || "GEN";
+  const sys = system.toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || "SYSTEM";
+  return `${site}-RISK-${disc}-${sys}`;
 }
 
 /** The single owner or date the portal's own `owner`/`targetDate` fields
@@ -1053,6 +1144,8 @@ export function buildPlan(
     checkpoints: Map<string, string>;
     findings: Map<string, string>;
     attendance?: Map<string, string>;
+    evidenceLog?: Map<string, string>;
+    assetRisk?: Map<string, string>;
   },
   unconsolidatedFindings = 0
 ): SyncPlan {
@@ -1061,6 +1154,8 @@ export function buildPlan(
   const checkpoints: PlannedRow[] = [];
   const findings: PlannedRow[] = [];
   const attendance: PlannedRow[] = [];
+  const evidenceLog: PlannedRow[] = [];
+  const assetRisk: PlannedRow[] = [];
   const evidence: PlannedFile[] = [];
   const skipped: SyncPlan["skipped"] = [];
   const warnings: SyncPlan["warnings"] = [];
@@ -1374,7 +1469,150 @@ export function buildPlan(
     });
   }
 
-  return { checkpoints, findings, attendance, evidence, skipped, warnings, folder };
+  /* --- evidence log: TK-003 form 7, the chain-of-custody record ---------
+   *
+   *  THIS VISIT'S OWN ITEMS, not the entity's every item ever — same filter
+   *  evidenceLogSheet's export already applies. useEvidenceItems() spans
+   *  visits on purpose (an original borrowed last visit and still out is
+   *  still worth showing on the dashboard), but a sync writes one visit's
+   *  capture, same as every other list here. */
+  const existingEvidenceLog = existing.evidenceLog ?? new Map<string, string>();
+  let blankDocuments = 0;
+  for (const item of (x.evidenceItems ?? []).filter((e) => e.originVisit === x.visit)) {
+    if (!item.title.trim()) {
+      blankDocuments++;
+      continue;
+    }
+    const key = `${site}-${item.id}`;
+    const itemId = existingEvidenceLog.get(key);
+    evidenceLog.push({
+      key,
+      action: itemId ? "update" : "create",
+      itemId,
+      values: {
+        title: key,
+        documentTitle: item.title,
+        documentNo: item.documentNo,
+        revision: item.revision,
+        documentDate: item.documentDate ? new Date(item.documentDate).toISOString() : null,
+        requestedAt: item.requestedAt ? new Date(item.requestedAt).toISOString() : null,
+        requestedFrom: item.requestedFrom,
+        receivedAt: item.receivedAt ? new Date(item.receivedAt).toISOString() : null,
+        receivedFrom: item.receivedFrom,
+        receivedBy: item.receivedBy,
+        medium: item.medium ? MEDIUM_LABEL[item.medium] : "",
+        originalOrCopy: item.isOriginal ? "Original" : "Copy",
+        returnedAt: item.returnedAt ? new Date(item.returnedAt).toISOString() : null,
+        returnedTo: item.returnedTo,
+        unavailable: item.unavailableAt ? "Yes" : "No",
+        unavailableReason: item.unavailableReason,
+        /* THE LINK TO THE AUDIT CHECKS — every check-point this document
+           bears on, in the portal's own ids, so a reader on the evidence
+           log can trace straight back to the check-point it was produced
+           for without going by filename. */
+        checkPoints: item.checkIds.map((id) => portalIdFor(x.entity, id)).sort().join(", "),
+        signed: signedCell(item.signature),
+        notes: item.notes,
+      },
+      summary: `${key} · ${item.title}${item.unavailableAt ? " (declared unavailable)" : item.returnedAt ? " (returned)" : item.receivedAt ? " (received)" : " (outstanding)"}`,
+    });
+  }
+  if (blankDocuments) {
+    skipped.push({
+      what: "evidence log entries",
+      why: "no document title captured yet",
+      count: blankDocuments,
+    });
+  }
+
+  /* --- asset risk: one row per (discipline, asset system) pair ----------
+   *
+   *  Same grouping systemsSheet's workbook export already does over the
+   *  register's own checks, so the two never disagree about which pairs
+   *  exist. A pair with nothing recorded against it yet is skipped entirely
+   *  — there is nothing here to tell apart from "not reached" and inventing
+   *  a row for it would read as an assessment nobody made. */
+  const existingAssetRisk = existing.assetRisk ?? new Map<string, string>();
+  const seenPairs = new Set<string>();
+  let emptyPairs = 0;
+  for (const c of x.checks) {
+    const system = c.system?.trim() || "No asset system recorded";
+    const pairKey = `${c.discipline}|${system}`;
+    if (seenPairs.has(pairKey)) continue;
+    seenPairs.add(pairKey);
+    const a = x.systems?.[pairKey];
+    const hasContent =
+      !!a &&
+      (a.ratingConfirmed ||
+        a.rootCauses.length > 0 ||
+        a.actions.length > 0 ||
+        a.events.length > 0 ||
+        a.note.trim() !== "" ||
+        a.ratingRationale.trim() !== "");
+    if (!hasContent) {
+      emptyPairs++;
+      continue;
+    }
+    const key = assetRiskTitle(x.entity, c.discipline, system);
+    const itemId = existingAssetRisk.get(key);
+    /* THE RATING ITSELF IS GATED, exactly as a hazard's is — a severity and
+       likelihood nobody confirmed is a suggestion, not a fact for a portal
+       the Audit & Risk Committee reads. Root causes, actions and events
+       still go across unconfirmed: unfinished work in progress has value,
+       the same reasoning an unrated hazard's own fields already get. */
+    const agreed = a!.ratingConfirmed === true;
+    const band = agreed ? bandFor(a!.severity, a!.likelihood) : null;
+    assetRisk.push({
+      key,
+      action: itemId ? "update" : "create",
+      itemId,
+      values: {
+        title: key,
+        discipline: c.discipline,
+        assetSystem: system,
+        severity: agreed ? a!.severity : null,
+        likelihood: agreed ? a!.likelihood : null,
+        band: agreed && band ? BAND_META[band].label : null,
+        strategy: agreed && band ? BAND_META[band].strategy : null,
+        ratingAgreed: agreed ? "Yes" : "No",
+        rationale: a!.ratingRationale ?? "",
+        rootCause: a!.rootCauses
+          .map((r) => (r.note ? `${r.cause} — ${r.note}` : r.cause))
+          .join("\n"),
+        treatment: flattenActions(a!.actions),
+        owner: firstOwner(a!.actions),
+        targetDate: firstDueDate(a!.actions),
+        events: a!.events
+          .map((e) => [e.event, e.likelihood, e.note].filter(Boolean).join(" · "))
+          .join("\n"),
+        auditor: a!.assessedBy ?? "",
+        assessedOn: a!.assessedAt ? new Date(a!.assessedAt).toISOString() : null,
+        notes: a!.note ?? "",
+      },
+      summary: agreed
+        ? `${key} · ${band ? BAND_META[band].label : ""}`
+        : `${key} · no agreed rating — the work goes across, the rating does not`,
+    });
+  }
+  if (emptyPairs) {
+    skipped.push({
+      what: "asset systems",
+      why: "no rating, root cause, action or event recorded against them yet",
+      count: emptyPairs,
+    });
+  }
+
+  return {
+    checkpoints,
+    findings,
+    attendance,
+    evidenceLog,
+    assetRisk,
+    evidence,
+    skipped,
+    warnings,
+    folder,
+  };
 }
 
 /** Asset links that are safe to send.
@@ -1404,9 +1642,18 @@ export function planTotals(plan: SyncPlan) {
     findingsChanged: count(plan.findings, "update"),
     attendanceNew: count(plan.attendance, "create"),
     attendanceChanged: count(plan.attendance, "update"),
+    evidenceLogNew: count(plan.evidenceLog, "create"),
+    evidenceLogChanged: count(plan.evidenceLog, "update"),
+    assetRiskNew: count(plan.assetRisk, "create"),
+    assetRiskChanged: count(plan.assetRisk, "update"),
     photographs: plan.evidence.length,
     writes:
-      plan.checkpoints.length + plan.findings.length + plan.attendance.length + plan.evidence.length,
+      plan.checkpoints.length +
+      plan.findings.length +
+      plan.attendance.length +
+      plan.evidenceLog.length +
+      plan.assetRisk.length +
+      plan.evidence.length,
   };
 }
 
