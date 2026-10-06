@@ -21,7 +21,7 @@ import { Btn, Dot, Empty, Pill } from "@/components/ui/primitives";
 import { IconInbox } from "@/components/ui/icons";
 import type { Check } from "@/lib/types";
 
-type Filter = "all" | "open" | "q" | "nc" | "pf";
+type Filter = "all" | "open" | "q" | "nc" | "na" | "pf";
 
 const RATING_TONE = {
   Unacceptable: "bad",
@@ -91,6 +91,7 @@ function CaptureInner() {
     let list = deskChecks;
     if (filter === "open") list = list.filter((c) => !deskDone(responses[c.id]));
     if (filter === "nc") list = list.filter((c) => responses[c.id]?.compliance === "NC");
+    if (filter === "na") list = list.filter((c) => responses[c.id]?.compliance === "N/A");
     if (filter === "pf")
       list = list.filter((c) => !!priorFor(entityCode, c.discipline, c.system));
     if (filter === "q") list = list.filter(needsQuestion);
@@ -218,7 +219,7 @@ function CaptureInner() {
           style={{ background: "var(--panel)", borderColor: "var(--line)" }}
         >
           <div className="mb-[7px] flex flex-wrap gap-1">
-            {([["all", "All"], ["open", "Open"], ["q", "Ask"], ["nc", "NC"], ["pf", "2025"]] as [Filter, string][]).map(
+            {([["all", "All"], ["open", "Open"], ["q", "Ask"], ["nc", "NC"], ["na", "N/A"], ["pf", "2025"]] as [Filter, string][]).map(
               ([k, label]) => (
                 <button
                   key={k}
