@@ -1168,7 +1168,7 @@ check(
 
 check(
   "the writer is given the inspection items, not just the register",
-  /auditor, findings, adhoc \}/.test(panel) && /const adhoc = useAdhoc\(\)/.test(panel)
+  /auditor, findings, adhoc, attendanceRegisters \}/.test(panel) && /const adhoc = useAdhoc\(\)/.test(panel)
 );
 
 check(
@@ -1788,6 +1788,210 @@ check(
 check(
   "there is a column candidate for it, so a real register can sync one day",
   Array.isArray(sp.FIELD_CANDIDATES.assets) && sp.FIELD_CANDIDATES.assets.includes("Assets")
+);
+
+/* ---------------- Part 1d: attendance registers, one row per person ------- */
+
+const ROW = (id, name = "A. Auditor", over = {}) => ({
+  id, name, organisation: "TPJV", role: "Auditor", phone: "", email: "",
+  signature: null, createdAt: 1_757_000_000_000, updatedAt: 1_757_000_000_000, ...over,
+});
+
+const APOLOGY = (id, name = "N. Ghadbois", over = {}) => ({
+  id, name, organisation: "ACSA", role: "Engineer", reason: "",
+  createdAt: 1_757_000_000_000, updatedAt: 1_757_000_000_000, ...over,
+});
+
+const REGISTER = (over = {}) => ({
+  id: "ATR-00001", entity: "FALE", originVisit: "2026-09",
+  date: "2026-09-15", time: "08:00", location: "Site office", purpose: "Morning muster",
+  openedAt: 1_757_000_000_000, openedBy: "Sarel", rows: [], apologies: [],
+  createdAt: 1_757_000_000_000, updatedAt: 1_757_000_000_000, ...over,
+});
+
+const BASE_ATT = { ...BASE, attendanceRegisters: [] };
+const NOTHING_ATT = { ...NOTHING, attendance: new Map() };
+
+check(
+  "an empty register writes nothing and is counted, not silently dropped",
+  (() => {
+    const p = sp.buildPlan({ ...BASE_ATT, attendanceRegisters: [REGISTER()] }, NOTHING_ATT);
+    return (
+      p.attendance.length === 0 &&
+      p.skipped.some((s) => s.what === "attendance registers" && s.count === 1)
+    );
+  })(),
+  "a register opened ahead of time with nobody signed in yet is working as intended, not a gap"
+);
+
+check(
+  "a signed-in attendee IS written, one row for them",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE_ATT, attendanceRegisters: [REGISTER({ rows: [ROW("r1")] })] },
+      NOTHING_ATT
+    );
+    return (
+      p.attendance.length === 1 &&
+      p.attendance[0].values.name === "A. Auditor" &&
+      p.attendance[0].values.status === "Attended" &&
+      p.attendance[0].action === "create"
+    );
+  })()
+);
+
+check(
+  "an apology IS written too, same columns, Status tells them apart",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE_ATT, attendanceRegisters: [REGISTER({ apologies: [APOLOGY("a1", "N. Ghadbois", { reason: "On leave" })] })] },
+      NOTHING_ATT
+    );
+    const row = p.attendance[0];
+    return (
+      p.attendance.length === 1 &&
+      row.values.status === "Apology" &&
+      row.values.apologyReason === "On leave" &&
+      row.values.name === "N. Ghadbois"
+    );
+  })(),
+  "an apology is never a row in `rows` — merging the two is how 'signed' and 'sent regrets' blur"
+);
+
+check(
+  "every person in the register gets their own row — presence is counted, not the register",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE_ATT,
+        attendanceRegisters: [
+          REGISTER({ rows: [ROW("r1", "A. One"), ROW("r2", "B. Two")], apologies: [APOLOGY("a1", "C. Three")] }),
+        ],
+      },
+      NOTHING_ATT
+    );
+    return p.attendance.length === 3;
+  })()
+);
+
+check(
+  "the row's Title leads with the site code, and it is unique per person",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE_ATT, attendanceRegisters: [REGISTER({ rows: [ROW("r1"), ROW("r2")] })] },
+      NOTHING_ATT
+    );
+    const siteCode = sites.siteCodeFor("FALE");
+    return (
+      p.attendance.every((r) => r.key.startsWith(`${siteCode}-`)) &&
+      p.attendance[0].key !== p.attendance[1].key
+    );
+  })(),
+  "belongsToSite refuses any Title that does not lead with this site's code"
+);
+
+check(
+  "a row already in the portal is an UPDATE, not a second copy",
+  (() => {
+    const reg = REGISTER({ rows: [ROW("r1")] });
+    const siteCode = sites.siteCodeFor("FALE");
+    const key = `${siteCode}-${reg.id}-r1`;
+    const existing = { ...NOTHING_ATT, attendance: new Map([[key, "item-9"]]) };
+    const p = sp.buildPlan({ ...BASE_ATT, attendanceRegisters: [reg] }, existing);
+    return p.attendance[0].action === "update" && p.attendance[0].itemId === "item-9";
+  })(),
+  "running the sync twice must update the same row, never duplicate it"
+);
+
+check(
+  "a signed attendee carries who and when, in one cell; an unsigned one carries nothing",
+  (() => {
+    const signed = ROW("r1", "A. Auditor", {
+      signature: { ref: "ATR-00001_S01", signedName: "A. Auditor", signedAt: 1_757_500_000_000, blobKey: "b1" },
+    });
+    const p = sp.buildPlan(
+      { ...BASE_ATT, attendanceRegisters: [REGISTER({ rows: [signed, ROW("r2")] })] },
+      NOTHING_ATT
+    );
+    const [withSig, without] = p.attendance;
+    return (
+      /A\. Auditor/.test(String(withSig.values.signed)) &&
+      String(withSig.values.signed).length > "A. Auditor".length &&
+      without.values.signed === ""
+    );
+  })()
+);
+
+check(
+  "the register's own date, time, purpose and location travel onto every row",
+  (() => {
+    const reg = REGISTER({ date: "2026-09-16", time: "14:30", purpose: "Toolbox talk", location: "Switch room 3", rows: [ROW("r1")] });
+    const p = sp.buildPlan({ ...BASE_ATT, attendanceRegisters: [reg] }, NOTHING_ATT);
+    const v = p.attendance[0].values;
+    return (
+      v.registerDate === "2026-09-16" &&
+      v.time === "14:30" &&
+      v.purpose === "Toolbox talk" &&
+      v.location === "Switch room 3"
+    );
+  })()
+);
+
+check(
+  "two registers in the same visit do not collide",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE_ATT,
+        attendanceRegisters: [
+          REGISTER({ id: "ATR-00001", rows: [ROW("r1")] }),
+          REGISTER({ id: "ATR-00002", rows: [ROW("r1")] }),
+        ],
+      },
+      NOTHING_ATT
+    );
+    return p.attendance.length === 2 && p.attendance[0].key !== p.attendance[1].key;
+  })(),
+  "the same row id in two different registers must not resolve to the same Title"
+);
+
+check(
+  "when attendanceRegisters is not passed at all, the plan still builds — nothing to sync, no crash",
+  (() => {
+    const p = sp.buildPlan(BASE, NOTHING);
+    return p.attendance.length === 0;
+  })(),
+  "SyncInput.attendanceRegisters is optional, same as findings/adhoc, so other callers are unaffected"
+);
+
+check(
+  "ATTENDANCE_FIELDS and FIELD_CANDIDATES agree — every field the sync writes has a column it can look for",
+  sp.ATTENDANCE_FIELDS.every((k) => Array.isArray(sp.FIELD_CANDIDATES[k]) && sp.FIELD_CANDIDATES[k].length > 0)
+);
+
+check(
+  "planTotals counts attendance rows separately from check-points and findings",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE_ATT, attendanceRegisters: [REGISTER({ rows: [ROW("r1"), ROW("r2")] })] },
+      NOTHING_ATT
+    );
+    const t = sp.planTotals(p);
+    return t.attendanceNew === 2 && t.attendanceChanged === 0 && t.writes === 2;
+  })()
+);
+
+check(
+  "the writer sends the attendance plan to its own list, not folded into check-points or findings",
+  /writeRows\(plan\.attendance, resolved\.attendanceList, "attendance row"\)/.test(panel)
+);
+
+check(
+  "the new list is found by display name, same pattern as the other two",
+  sp.LIST_NAMES.attendance.test("Attendance Register") &&
+    sp.LIST_NAMES.attendance.test("Attendance Registers") &&
+    sp.LIST_NAMES.attendance.test("Attendance") &&
+    !sp.LIST_NAMES.attendance.test("Findings")
 );
 
 /* -------------------- Part 2: properties the source has to carry ---------- */
