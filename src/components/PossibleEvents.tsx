@@ -32,6 +32,13 @@ import { LIKELIHOODS } from "@/lib/risk";
 import { Btn } from "@/components/ui/primitives";
 import { IconPlus, IconX } from "@/components/ui/icons";
 
+const summaryOf = (e: PossibleEvent): string => {
+  const bits = [e.likelihood ?? "unrated"];
+  if (e.findingIds?.length) bits.push(`${e.findingIds.length} finding${e.findingIds.length === 1 ? "" : "s"}`);
+  if (e.assetIds?.length) bits.push(`${e.assetIds.length} asset${e.assetIds.length === 1 ? "" : "s"}`);
+  return bits.join(" · ");
+};
+
 export default function PossibleEvents({
   events,
   onAdd,
@@ -61,6 +68,20 @@ export default function PossibleEvents({
 }) {
   const [draft, setDraft] = useState("");
   const [suggestOpen, setSuggestOpen] = useState(false);
+  /* Sarel: "allow me to minimize hazardous events." A system like Runway
+     carries a dozen of these, each with its own likelihood row, note and
+     linked evidence — reading the one you actually came for meant scrolling
+     past every other one, fully open, every time. Collapsed is a toggle, not
+     a default: nothing here starts folded, so a screen that worked before
+     this still looks the same until the auditor chooses to fold one away. */
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const toggleCollapsed = (id: string) =>
+    setCollapsed((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const add = (text: string) => {
     if (!text.trim()) return;
     onAdd(text.trim());
@@ -98,20 +119,52 @@ export default function PossibleEvents({
         is the group&rsquo;s, agreed on the matrix.
       </p>
 
-      {events.map((e) => (
+      {events.map((e) => {
+        const isCollapsed = collapsed.has(e.id);
+        return (
         <div
           key={e.id}
           className="mb-1.5 rounded-[11px] border px-3 py-2.5"
           style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
         >
           <div className="flex items-start gap-2">
-            <input
-              value={e.event}
-              onChange={(ev) => onPatch(e.id, { event: ev.target.value })}
-              aria-label="The event"
-              className="min-w-0 flex-1 rounded-[8px] border px-2.5 py-[7px] text-[12px] font-semibold outline-none focus:border-[var(--acc)]"
-              style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
-            />
+            <button
+              type="button"
+              onClick={() => toggleCollapsed(e.id)}
+              aria-expanded={!isCollapsed}
+              aria-label={isCollapsed ? `Expand ${e.event || "this event"}` : `Minimize ${e.event || "this event"}`}
+              className="mt-[9px] flex h-[16px] w-[16px] shrink-0 items-center justify-center"
+            >
+              <span
+                aria-hidden="true"
+                className="font-mono text-[8px] leading-none"
+                style={{ color: "var(--ink-4)" }}
+              >
+                {isCollapsed ? "▶" : "▼"}
+              </span>
+            </button>
+            {isCollapsed ? (
+              <button
+                type="button"
+                onClick={() => toggleCollapsed(e.id)}
+                className="min-w-0 flex-1 py-[2px] text-left"
+              >
+                <span className="block truncate text-[12px] font-semibold">
+                  {e.event || "Untitled event"}
+                </span>
+                <span className="block font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
+                  {summaryOf(e)}
+                </span>
+              </button>
+            ) : (
+              <input
+                value={e.event}
+                onChange={(ev) => onPatch(e.id, { event: ev.target.value })}
+                aria-label="The event"
+                className="min-w-0 flex-1 rounded-[8px] border px-2.5 py-[7px] text-[12px] font-semibold outline-none focus:border-[var(--acc)]"
+                style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+              />
+            )}
             <button
               type="button"
               onClick={() => onRemove(e.id)}
@@ -123,6 +176,8 @@ export default function PossibleEvents({
             </button>
           </div>
 
+          {!isCollapsed && (
+          <>
           {/* LIKELIHOOD, AND "NOT YET" IS ONE OF THE ANSWERS. Pressing the
               selected one again clears it — an auditor who tapped 4 by mistake
               must be able to get back to unrated, because unrated is honest and
@@ -186,8 +241,11 @@ export default function PossibleEvents({
           <div className="mt-1.5 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
             {e.createdBy} · {new Date(e.createdAt).toLocaleDateString("en-ZA")}
           </div>
+          </>
+          )}
         </div>
-      ))}
+        );
+      })}
 
       <div className="flex flex-wrap gap-2">
         <div className="relative min-w-0 flex-1">

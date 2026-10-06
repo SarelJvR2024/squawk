@@ -42,6 +42,7 @@ const merge = read("src", "lib", "merge.ts");
 const exports_ = read("src", "lib", "exports.ts");
 const panel = read("src", "components", "ExportPanel.tsx");
 const picker = read("src", "components", "RatingPicker.tsx");
+const possibleEvents = read("src", "components", "PossibleEvents.tsx");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -194,8 +195,60 @@ check(
 
 check(
   "THE PREVIOUS AUDIT'S BAND IS ON THE ROW BESIDE THIS ONE'S",
-  /2025 \{pf\.rating\.toUpperCase\(\)\}/.test(page) && /opacity: 0\.55/.test(page),
+  /2025 \{pf\.rating\.toUpperCase\(\)\}/.test(page),
   "Sarel: we need to include previous rating and current audit's rating, the previous can be made transparent"
+);
+
+/* Sarel: "color code the asset systems to show previous classification, add
+ *  filter for tolerable, unacceptable." The pill alone used to carry last
+ *  year's band at reduced opacity; now the whole row is tinted by it too, so
+ *  scanning the list for risk does not mean reading 75 small pills — and the
+ *  pill itself went from a soft fill to a panel-coloured chip with the
+ *  tone's border, because a soft fill in the same colour as the row it now
+ *  sits on would have disappeared into it. */
+check(
+  "the row itself is tinted by last audit's band, not only the small pill",
+  /const priorTone = pf \? TONE_VARS\[ratingTone\(pf\.rating\)\] : null;/.test(page) &&
+    /background: on \? "var\(--acc-soft\)" : \(priorTone\?\.bg \?\? "transparent"\),/.test(page),
+  "reading the colour of 75 rows one small pill at a time is not scanning"
+);
+check(
+  "the pill no longer fades into the row it now sits on",
+  /background: "var\(--panel\)",\s*\n\s*borderColor: priorTone\.line,\s*\n\s*color: priorTone\.fg,/.test(
+    page
+  ),
+  "a soft-fill pill in the same tone as its now-tinted row would be invisible"
+);
+check(
+  "the tone-to-CSS-variable table is correct for every tone, including neutral",
+  /const TONE_VARS: Record<Tone, \{ fg: string; bg: string; line: string \}> = \{/.test(page) &&
+    /neutral: \{ fg: "var\(--neu\)", bg: "var\(--neu-bg\)", line: "var\(--line-2\)" \},/.test(page),
+  "neutral breaks the `--${tone}...` template on both counts — the colour variable is --neu, not --neutral, and it has no -line variant of its own"
+);
+
+check(
+  "the previous rating is also a filter, not only a colour",
+  /const \[bandFilter, setBandFilter\] = useState<Set<Tolerance>>\(new Set\(\)\);/.test(page) &&
+    /const BANDS: Tolerance\[\] = \["Unacceptable", "Tolerable", "Acceptable", "Not audited"\];/.test(
+      page
+    ),
+  "Sarel named Tolerable and Unacceptable; all four of Tolerance's own values are offered, the same set the row's own pill already prints"
+);
+check(
+  "nothing checked reads as no filter, same rule the rest of the screen's filters use",
+  /bandFilter\.size === 0 \|\|/.test(page),
+  "a filter that starts narrowed is a trap on first load, not a feature"
+);
+check(
+  "a system with no prior rating at all matches no band and drops out while any band is checked",
+  /bandFilter\.has\(priorFor\(entityCode, discipline, x\.system\)\?\.rating as Tolerance\)/.test(page),
+  "a system absent from the 2025 list has no previous classification to filter on"
+);
+check(
+  "the filter is offered only where a previous classification exists to filter on",
+  /mode === "systems" && \(/.test(page) &&
+    /aria-label="Filter by the previous audit's rating"/.test(page),
+  "the findings-raised view has no asset-system band to filter by"
 );
 
 check(
@@ -481,8 +534,37 @@ check(
 
 check(
   "PossibleEvents renders whatever evidence the caller supplies, but does not know what a finding or an asset is",
-  /evidence\?: \(event: PossibleEvent\) => ReactNode;/.test(codeOnly(read("src", "components", "PossibleEvents.tsx"))),
+  /evidence\?: \(event: PossibleEvent\) => ReactNode;/.test(codeOnly(possibleEvents)),
   "the closure screen's own possible events have nothing to link — they are already tied to the one finding they were raised against"
+);
+
+/* Sarel: "allow me to minimize hazardous events" — a system like Runway
+ *  carries a dozen, each with its own likelihood row, note and linked
+ *  evidence, so finding the one you came for meant scrolling past every
+ *  other one fully open. */
+check(
+  "an event can be minimized to a folded summary line",
+  /const \[collapsed, setCollapsed\] = useState<Set<string>>\(new Set\(\)\);/.test(possibleEvents) &&
+    /const isCollapsed = collapsed\.has\(e\.id\);/.test(possibleEvents),
+  "a toggle the auditor reaches for, not a default — see the next check"
+);
+check(
+  "nothing starts collapsed — a screen that worked before this looks the same until the auditor folds one away",
+  /useState<Set<string>>\(new Set\(\)\)/.test(possibleEvents),
+  "an empty Set means every event renders exactly as it always has on first paint"
+);
+check(
+  "collapsing still leaves the likelihood and any findings/assets linked visible, as a summary",
+  /const summaryOf = \(e: PossibleEvent\): string => \{/.test(possibleEvents) &&
+    /bits\.push\(`\$\{e\.findingIds\.length\} finding/.test(possibleEvents) &&
+    /bits\.push\(`\$\{e\.assetIds\.length\} asset/.test(possibleEvents),
+  "folding an event away must not hide whether it has a likelihood or linked evidence, only the editing controls"
+);
+check(
+  "removing an event does not require expanding it first",
+  /<\/button>\s*\n\s*\{isCollapsed \? \(/.test(possibleEvents) &&
+    /onClick=\{\(\) => onRemove\(e\.id\)\}/.test(possibleEvents),
+  "the Remove button sits outside the collapsed/expanded branch"
 );
 
 check(

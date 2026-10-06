@@ -52,7 +52,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `completion.test.mjs` | no | 21 |
 | `location.test.mjs` | no | 51 |
 | `followup.test.mjs` | no | 60 |
-| `systems.test.mjs` | no | 87 |
+| `systems.test.mjs` | no | 98 |
 | `register-review.test.mjs` | no | 24 |
 | `reports.test.mjs` | no | 22 |
 | `ppe.test.mjs` | no | 53 |
@@ -101,7 +101,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**2,823 assertions in total**, every count above verified by running the suite,
+**2,834 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
