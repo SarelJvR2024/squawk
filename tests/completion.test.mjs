@@ -99,6 +99,25 @@ check(
   ""
 );
 
+/* Sarel: "when i saved this one automatically was set to compliant...
+ *  i also cant remove it from compliant." commit() used to default
+ *  compliance to "C" whenever it was null — and because patch() merges
+ *  onto the existing response, clearing the verdict and saving again hit
+ *  the same default and put it straight back. Saving a walkabout note is
+ *  not a verdict; isComplete() already tracks completion from
+ *  deskDoneAt/fieldDoneAt alone, so commit() has no reason to touch
+ *  compliance at all. */
+check(
+  "commit no longer invents a verdict nobody gave",
+  !/compliance: r\.compliance \?\? "C"/.test(store) && !/compliance: "C"/.test(store),
+  "a saved walkabout note must not silently become a Compliant verdict"
+);
+check(
+  "commit's patch call does not set compliance at all",
+  /get\(\)\.patch\(checkId, \{\s*\n\s*\.\.\.half,\s*\n\s*captured: complete,/.test(store),
+  "null stays null — 'not yet decided' is a real state, the same philosophy the walk's outcome control already keeps"
+);
+
 check(
   "completing stamps who finished it, and only then",
   /\.\.\.\(complete \? \{ capturedBy: who, capturedAt: now \} : \{\}\)/.test(store),
