@@ -189,6 +189,69 @@ check(
     !/if \(!draft\.discipline\)/.test(sheet),
   "ten seconds on a walk is the budget; a half-captured item beats a lost one"
 );
+
+/* "take the photograph, keep moving" — the sheet's own stated brief — only
+   held true for an item reopened from the list. A brand-new item's first
+   save used to close the sheet before the camera or microphone ever
+   appeared, so the photograph that was supposedly one tap away in fact
+   needed the auditor to find the row again and reopen it. Sarel asked for
+   this directly: photos, a voice note, and the transcription write-up,
+   available the moment a new item is created, not after. */
+check(
+  "Record it no longer closes the sheet — it creates the item and stays open",
+  /const save = \(\) => \{[\s\S]{0,400}const id = addAdhoc\(\{[\s\S]{0,700}setCreatedId\(id\);/.test(
+    sheet
+  ) && !/const save = \(\) => \{[\s\S]{0,900}onClose\(\);/.test(sheet),
+  "a new item's photo and voice-note controls must appear in the same sitting it was typed in"
+);
+
+check(
+  "the just-created item is looked up reactively, so its own attachments appear as they land",
+  /const \[createdId, setCreatedId\] = useState<string \| null>\(null\);/.test(sheet) &&
+    /const createdItem = createdId \? adhocItems\.find\(\(a\) => a\.id === createdId\) \?\? null : null;/.test(
+      sheet
+    ) &&
+    /const item = editing \?\? createdItem;/.test(sheet)
+);
+
+check(
+  "every path that closes the sheet clears the just-created id, so reopening fresh is actually fresh",
+  /const close = \(\) => \{\s*\n\s*setCreatedId\(null\);/.test(sheet) &&
+    !/onClick=\{onClose\}/.test(sheet),
+  "this component is not remounted between opens — a stale createdId would reopen on last walk's item, not a blank draft"
+);
+
+check(
+  "the photo and voice-note buttons are keyed on `item`, which is now true the instant Record it is pressed",
+  /\{item \? \(\s*\n\s*<>\s*\n\s*<div className="mt-2 flex justify-end gap-2">\s*\n\s*<PhotoButton/.test(
+    sheet
+  )
+);
+
+check(
+  "a transcribed voice note can be written up, same AI gate as every other capture screen",
+  /writeUp=\{\s*\n\s*aiOn \? \(t\) => assist\("transcript", adhocTranscriptContext\(t, item\)\) : undefined\s*\n\s*\}/.test(
+    sheet
+  )
+);
+
+check(
+  "accepting the write-up appends to Description rather than silently overwriting what was typed",
+  /onAccept=\{\(\) =>\s*\n\s*set\(\{\s*\n\s*description: value\.description\.trim\(\)\s*\n\s*\? `\$\{value\.description\}\\n\$\{text\}`\s*\n\s*: text,/.test(
+    sheet
+  ) ||
+    /onAccept=\{\(text\) =>\s*\n\s*set\(\{\s*\n\s*description: value\.description\.trim\(\)\s*\n\s*\? `\$\{value\.description\}\\n\$\{text\}`\s*\n\s*: text,/.test(
+      sheet
+    ),
+  "a voice note is evidence added to what was already captured, not a replacement for it"
+);
+
+check(
+  "adhocTranscriptContext exists for items with no Check to give the model, same shape as transcriptContext",
+  /export function adhocTranscriptContext\(\s*\n\s*transcript: string,\s*\n\s*item: \{ description: string; discipline: string \| null; system: string \| null; area: string \}\s*\n\s*\): string \{/.test(
+    read("src", "lib", "assist.ts")
+  )
+);
 check(
   'it never writes the literal string "Ad-hoc" as an asset system',
   !/system: "Ad-hoc"/.test(codeOnly(sheet)) && !/system: "Ad-hoc"/.test(codeOnly(field)),
