@@ -72,7 +72,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `photos.test.mjs` | no | 113 |
 | `hazards.test.mjs` | no | 121 |
 | `erm-matrix.test.mjs` | no | 80 |
-| `sharepoint.test.mjs` | no | 228 |
+| `sharepoint.test.mjs` | no | 229 |
 | `assets.test.mjs` | no | 21 |
 | `checkscreen.test.mjs` | no | 52 |
 | `checksfilter.test.mjs` | no | 3 |
@@ -102,7 +102,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**2,871 assertions in total**, every count above verified by running the suite,
+**2,872 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
