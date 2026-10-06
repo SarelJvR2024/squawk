@@ -64,7 +64,11 @@ import RatingPicker from "@/components/RatingPicker";
 import FindingDetail from "@/components/FindingDetail";
 import SystemTreatment from "@/components/SystemTreatment";
 import { IconInbox, IconSearch } from "@/components/ui/icons";
-import type { Check, Finding } from "@/lib/types";
+import type { Check, Finding, Tolerance } from "@/lib/types";
+
+/** Every value the band filter can take, in the order the chips render — the
+ *  worst-first reading order an auditor scans a risk list in. */
+const BANDS: Tolerance[] = ["Unacceptable", "Tolerable", "Acceptable", "Not audited"];
 
 const NO_SYSTEM = "No asset system recorded";
 
@@ -73,6 +77,20 @@ const NO_SYSTEM = "No asset system recorded";
  *  vocabularies are bridged rather than treated as the same words. */
 const ratingTone = (r: string): Tone =>
   r === "Unacceptable" ? "bad" : r === "Tolerable" ? "warn" : r === "Acceptable" ? "good" : "neutral";
+
+/** The actual CSS custom property behind each tone — NOT a `--${tone}...`
+ *  template, because "neutral" breaks that pattern on both counts: the
+ *  colour variable is `--neu` (not `--neutral`) and it has no `-line`
+ *  variant of its own at all, only the generic `--line-2` every muted border
+ *  in the app already uses. Mirrors Pill's own internal table in
+ *  components/ui/primitives.tsx, which is not exported. */
+const TONE_VARS: Record<Tone, { fg: string; bg: string; line: string }> = {
+  good: { fg: "var(--good)", bg: "var(--good-bg)", line: "var(--good-line)" },
+  bad: { fg: "var(--bad)", bg: "var(--bad-bg)", line: "var(--bad-line)" },
+  warn: { fg: "var(--warn)", bg: "var(--warn-bg)", line: "var(--warn-line)" },
+  neutral: { fg: "var(--neu)", bg: "var(--neu-bg)", line: "var(--line-2)" },
+  accent: { fg: "var(--acc)", bg: "var(--acc-soft)", line: "var(--acc-line)" },
+};
 
 /** SEVERITY, LIKELIHOOD AND RATING AS THREE SMALL MARKS.
  *
@@ -158,6 +176,16 @@ export default function FindingsPage() {
   const systemAssessment = useStore((s) => s.systemAssessment);
 
   const [q, setQ] = useState("");
+  /* Sarel: "color code the asset systems to show previous classification, add
+     filter for tolerable, unacceptable." The previous audit's band is already
+     a coloured pill on every row (see the 2025 one below); this filters the
+     tree down to only the bands checked — empty means no filter, same
+     "nothing picked reads as everything" rule the discipline filter and the
+     walk screen's group filter already use. A system with no prior rating at
+     all (`priorFor` returns null — it was not in the 2025 list) matches no
+     band and is filtered OUT while any band is checked, because it has no
+     previous classification to filter on. */
+  const [bandFilter, setBandFilter] = useState<Set<Tolerance>>(new Set());
   /* TWO WAYS INTO THE SAME WORK, and the second one is not a nicety.
      The screen is the asset-system assessment — that is what Sarel asked for
      and it is the default. But a finding still carries its own B170 cell, and
@@ -230,13 +258,18 @@ export default function FindingsPage() {
               `${x.system} ${discipline}`.toLowerCase().includes(s) ||
               x.checks.some((c) => c.requirement?.toLowerCase().includes(s))
           )
+          .filter(
+            (x) =>
+              bandFilter.size === 0 ||
+              bandFilter.has(priorFor(entityCode, discipline, x.system)?.rating as Tolerance)
+          )
           .sort((a, b) =>
             a.system === NO_SYSTEM ? 1 : b.system === NO_SYSTEM ? -1 : a.system.localeCompare(b.system)
           ),
       }))
       .filter((d) => d.systems.length > 0)
       .sort((a, b) => a.discipline.localeCompare(b.discipline));
-  }, [entityCode, q]);
+  }, [entityCode, q, bandFilter]);
 
   /* THE SCREEN ARRIVES ON SOMETHING. An asset-system assessment whose right
      panel says "pick one" is half a screen of nothing and a press before any
@@ -444,6 +477,62 @@ export default function FindingsPage() {
               className="min-h-[40px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
             />
           </div>
+
+          {/* THE 2025 BAND, AS A FILTER — not just a colour on the row. Sarel:
+              "add filter for tolerable, unacceptable." Toggled, not
+              radio-picked, because "everything that is not fine" is exactly
+              Unacceptable + Tolerable together, and an auditor triaging what
+              needs attention first wants both checked at once. Nothing
+              checked reads as no filter, same rule the rest of this screen's
+              filters use. */}
+          {mode === "systems" && (
+            <div
+              role="group"
+              aria-label="Filter by the previous audit's rating"
+              className="mt-1.5 flex flex-wrap items-center gap-[5px]"
+            >
+              <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                2025 RATING
+              </span>
+              {BANDS.map((b) => {
+                const on = bandFilter.has(b);
+                const t = TONE_VARS[ratingTone(b)];
+                return (
+                  <button
+                    key={b}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() =>
+                      setBandFilter((cur) => {
+                        const next = new Set(cur);
+                        if (next.has(b)) next.delete(b);
+                        else next.add(b);
+                        return next;
+                      })
+                    }
+                    className="rounded-full border px-[9px] py-[4px] font-mono text-[10px] font-semibold transition-[var(--t)]"
+                    style={
+                      on
+                        ? { background: t.fg, borderColor: t.fg, color: "#fff" }
+                        : { background: t.bg, borderColor: t.line, color: t.fg }
+                    }
+                  >
+                    {b}
+                  </button>
+                );
+              })}
+              {bandFilter.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setBandFilter(new Set())}
+                  className="font-mono text-[9.5px] underline-offset-2 hover:underline"
+                  style={{ color: "var(--ink-3)" }}
+                >
+                  clear
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="grid gap-3 lg:grid-cols-[340px_minmax(0,1fr)]">
@@ -570,6 +659,14 @@ export default function FindingsPage() {
                         const confirmed = rec?.ratingConfirmed === true;
                         const on = key === shownKey;
                         const pf = priorFor(entityCode, d.discipline, x.system);
+                        /* THE ROW ITSELF CARRIES LAST AUDIT'S COLOUR, not only
+                           the small pill at the end of it — Sarel: "color code
+                           the asset systems to show previous classification."
+                           Scanning 75 rows for the pill's text is slower than
+                           scanning for a tint; the pill stays too, because the
+                           word is the part colour alone must never carry
+                           alone. */
+                        const priorTone = pf ? TONE_VARS[ratingTone(pf.rating)] : null;
                         const open2025 = priorBySystem.get(key)?.length ?? 0;
                         const raised = findingsBySystem.get(key)?.length ?? 0;
                         return (
@@ -596,7 +693,7 @@ export default function FindingsPage() {
                             className="relative flex w-full items-center gap-2 border-b px-[10px] py-[7px] text-left transition-[var(--t)]"
                             style={{
                               borderColor: "var(--line)",
-                              background: on ? "var(--acc-soft)" : "transparent",
+                              background: on ? "var(--acc-soft)" : (priorTone?.bg ?? "transparent"),
                             }}
                           >
                             {on && (
@@ -643,13 +740,20 @@ export default function FindingsPage() {
                                     "2025" is on it, because a faded pill with no
                                     date is just a pill somebody has to ask
                                     about. */}
-                                {pf ? (
+                                {pf && priorTone ? (
                                   <span
-                                    className="shrink-0 rounded-full px-[6px] py-[1px] font-mono text-[8.5px] font-semibold whitespace-nowrap"
+                                    className="shrink-0 rounded-full border px-[6px] py-[1px] font-mono text-[8.5px] font-semibold whitespace-nowrap"
                                     style={{
-                                      background: `var(--${ratingTone(pf.rating)}-bg)`,
-                                      color: `var(--${ratingTone(pf.rating)})`,
-                                      opacity: 0.55,
+                                      /* Solid, not the tone's own soft fill — the
+                                         row behind it is ALREADY that fill (see
+                                         priorTone above), so a pill in the same
+                                         colour would blend straight into it. A
+                                         panel-coloured chip with the tone's own
+                                         border and text is what still reads as
+                                         its own label sitting on a tinted row. */
+                                      background: "var(--panel)",
+                                      borderColor: priorTone.line,
+                                      color: priorTone.fg,
                                     }}
                                     title={`March 2025 rated this asset system ${pf.rating}`}
                                   >
