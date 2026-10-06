@@ -1063,9 +1063,19 @@ export const useStore = create<State>()(
              desk save on a check that also needs the asset seen leaves it
              outstanding — which is the whole point of tracking the halves. */
           const complete = isComplete(checkId, next);
+          /* compliance is NOT touched here. It used to default to "C" on every
+             save — Sarel: "when i saved this one automatically was set to
+             compliant... i also cant remove it from compliant" — because
+             patch() merges onto the existing response, so even explicitly
+             clearing the verdict and saving again hit this same default and
+             snapped it straight back to Compliant. Saving a walkabout note is
+             not a verdict; isComplete() above already tracks "both halves
+             answered" from deskDoneAt/fieldDoneAt alone, so nothing here
+             needs compliance to be non-null — leaving it exactly as the
+             auditor set it, including null for "not yet decided", is both
+             correct and sufficient. */
           get().patch(checkId, {
             ...half,
-            compliance: r.compliance ?? "C",
             captured: complete,
             ...(complete ? { capturedBy: who, capturedAt: now } : {}),
           });
