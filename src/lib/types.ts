@@ -1918,6 +1918,27 @@ export interface AttendanceRow {
   updatedAt: number;
 }
 
+/** Somebody invited to the meeting this register is for, who said ahead of
+ *  time that they would not be there. Never a row in `rows` — a row is a
+ *  presence: a name, a mark, proof somebody was in the room. An apology is
+ *  the opposite fact about the same list of invitees, and merging the two
+ *  is how a reviewer reading the register six months later cannot tell
+ *  "signed" from "sent regrets" apart. No signature, because there is
+ *  nothing here anybody signed. */
+export interface ApologyEntry {
+  id: string;
+  contactId?: string;
+  name: string;
+  organisation: string;
+  role: string;
+  /** Why, in their own words — optional. Half the value of an apology is
+   *  just the name; the reason is a bonus, not a requirement. */
+  reason: string;
+
+  createdAt: number;
+  updatedAt: number;
+}
+
 /** An attendance register — a signed sign-in sheet for one meeting, muster
  *  or briefing. ONE RECORD PER REGISTER YOU CREATE, not per day, same
  *  reasoning as ToolboxTalk: a morning muster and an afternoon toolbox
@@ -1949,6 +1970,12 @@ export interface AttendanceRegister {
   openedBy: string;
 
   rows: AttendanceRow[];
+  /** Invited, did not attend, said so ahead of time. See ApologyEntry.
+   *  OPTIONAL rather than defaulted to `[]` at the type level, same reason
+   *  as every other array added to a persisted record after the fact — see
+   *  AdHocItem's own note on `VisitData.adhoc` — so no migration is owed to
+   *  a register that already exists on a device. */
+  apologies?: ApologyEntry[];
 
   createdAt: number;
   updatedAt: number;

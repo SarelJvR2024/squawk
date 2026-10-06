@@ -33,7 +33,13 @@
 
 import { useState } from "react";
 import { useAttendanceRegisters, useEntityCode, useStore } from "@/lib/store";
-import { isSigned, registerGaps, registerText, unbackedSignatures } from "@/lib/attendanceRegister";
+import {
+  apologiesOf,
+  isSigned,
+  registerGaps,
+  registerText,
+  unbackedSignatures,
+} from "@/lib/attendanceRegister";
 import { siteCodeFor, siteFor } from "@/lib/sites";
 import { useFormsHubDeepLink } from "@/lib/deepLink";
 import ContactPicker from "@/components/ContactPicker";
@@ -94,6 +100,9 @@ export default function AttendancePage() {
   const removeRow = useStore((s) => s.removeAttendanceRow);
   const sign = useStore((s) => s.signAttendanceRow);
   const updateContact = useStore((s) => s.updateContact);
+  const addApology = useStore((s) => s.addApology);
+  const patchApology = useStore((s) => s.updateApology);
+  const removeApology = useStore((s) => s.removeApology);
 
   const [openId, setOpenId] = useState<string | null>(null);
   const [signing, setSigning] = useState<string | null>(null);
@@ -110,6 +119,9 @@ export default function AttendancePage() {
      (see the ContactPicker onAdd below), since that is exactly when the
      detail is needed. */
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  /* Same reasoning as expandedRowId, kept separate — an apology opening
+     must not fold an attendee being signed, and vice versa. */
+  const [expandedApologyId, setExpandedApologyId] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [draftDate, setDraftDate] = useState(todayLocal);
   const [draftTime, setDraftTime] = useState("");
@@ -419,6 +431,121 @@ export default function AttendancePage() {
                 Nobody recorded yet. Use the box above.
               </p>
             ) : null}
+
+            {/* APOLOGIES — invited, did not attend, said so ahead of time.
+                Sarel: "add an option to capture a person to attend apologies
+                if they don't attend." Never one of the rows above: a row is
+                proof somebody was in the room and signed for it, and an
+                apology is the opposite fact about the same list of
+                invitees — folding the two together is how a reviewer six
+                months later cannot tell "signed" from "sent regrets" apart.
+                No signature here, because there is nothing to sign. */}
+            <div className="mt-3 border-t pt-2" style={{ borderColor: "var(--line)" }}>
+              {mini(
+                "APOLOGIES",
+                <ContactPicker
+                  entityCode={entityCode}
+                  placeholder="Invited but not attending — search the directory, or type a name"
+                  onAdd={(p) => {
+                    const apologyId = addApology(r.id, p.name, {
+                      contactId: p.contactId,
+                      organisation: p.organisation ?? "",
+                      role: p.role ?? "",
+                    });
+                    setExpandedApologyId(apologyId);
+                  }}
+                />,
+                `${apologiesOf(r).length} recorded`
+              )}
+
+              {apologiesOf(r).map((a) => {
+                const rowOpen = expandedApologyId === a.id;
+                const summary = [a.role, a.organisation].filter((v) => v.trim()).join(" · ");
+                return (
+                  <div
+                    key={a.id}
+                    className="mb-2 mt-2 rounded-[9px] border p-2"
+                    style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setExpandedApologyId(rowOpen ? null : a.id)}
+                      className="flex min-h-[30px] w-full items-center gap-[6px] text-left"
+                    >
+                      <Pill>APOLOGY</Pill>
+                      <span className="truncate text-[12.5px] font-semibold">
+                        {a.name.trim() || "Unnamed"}
+                      </span>
+                    </button>
+
+                    {!rowOpen && (summary || a.reason.trim()) ? (
+                      <p className="mt-[3px] truncate text-[11px]" style={{ color: "var(--ink-3)" }}>
+                        {[summary, a.reason.trim()].filter(Boolean).join(" — ")}
+                      </p>
+                    ) : null}
+
+                    {rowOpen ? (
+                      <div className="mt-[6px]">
+                        <div className="mb-[5px] flex items-center justify-end">
+                          <Btn
+                            onClick={() => {
+                              removeApology(r.id, a.id);
+                              setExpandedApologyId((cur) => (cur === a.id ? null : cur));
+                            }}
+                          >
+                            <IconX /> Remove
+                          </Btn>
+                        </div>
+
+                        <input
+                          value={a.name}
+                          onChange={(ev) => patchApology(r.id, a.id, { name: ev.target.value })}
+                          aria-label={`Name of apology ${a.id}`}
+                          placeholder="Full name"
+                          className={`mb-[5px] ${inputCls}`}
+                          style={inputStyle}
+                        />
+
+                        <div className="grid grid-cols-2 gap-[5px]">
+                          <input
+                            value={a.role}
+                            onChange={(ev) => patchApology(r.id, a.id, { role: ev.target.value })}
+                            aria-label={`Role of apology ${a.id}`}
+                            placeholder="Role (optional)"
+                            className={inputCls}
+                            style={inputStyle}
+                          />
+                          <input
+                            value={a.organisation}
+                            onChange={(ev) =>
+                              patchApology(r.id, a.id, { organisation: ev.target.value })
+                            }
+                            aria-label={`Organisation of apology ${a.id}`}
+                            placeholder="Organisation (optional)"
+                            className={inputCls}
+                            style={inputStyle}
+                          />
+                        </div>
+
+                        <input
+                          value={a.reason}
+                          onChange={(ev) => patchApology(r.id, a.id, { reason: ev.target.value })}
+                          aria-label={`Reason for apology ${a.id}`}
+                          placeholder="Reason (optional)"
+                          className={`mt-[5px] ${inputCls}`}
+                          style={inputStyle}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+              {apologiesOf(r).length === 0 ? (
+                <p className="text-[12px]" style={{ color: "var(--ink-3)" }}>
+                  Nobody has sent apologies. Use the box above.
+                </p>
+              ) : null}
+            </div>
 
             <div
               className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t pt-2"

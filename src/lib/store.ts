@@ -17,6 +17,7 @@ import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
 import { clearAllMedia, delBlob, delBlobs } from "./media";
 import type {
   AdHocItem,
+  ApologyEntry,
   Attachment,
   AttendanceRegister,
   AttendanceRow,
@@ -627,6 +628,19 @@ interface State {
     rowId: string,
     s: Omit<Signature, "ref">
   ) => void;
+  /** Invited, did not attend, said so ahead of time — see ApologyEntry.
+   *  Never a row: nothing here is signed. */
+  addApology: (
+    id: string,
+    name: string,
+    seed?: Partial<ApologyEntry>
+  ) => string;
+  updateApology: (
+    id: string,
+    apologyId: string,
+    p: Partial<ApologyEntry>
+  ) => void;
+  removeApology: (id: string, apologyId: string) => void;
 
   /* ---- Incident / near-miss reports, built against OHS Act Annexure 1.
      See src/lib/incident.ts. ---- */
@@ -2389,6 +2403,49 @@ export const useStore = create<State>()(
             ),
           });
           if (previous?.blobKey && previous.blobKey !== sig.blobKey) void delBlob(previous.blobKey);
+        },
+
+        addApology: (id, name, seed) => {
+          const r = get().attendanceRegisters.find((x) => x.id === id);
+          if (!r) return "";
+          const apologyId = uid();
+          const now = Date.now();
+          get().updateAttendanceRegister(id, {
+            apologies: [
+              ...(r.apologies ?? []),
+              {
+                name,
+                organisation: "",
+                role: "",
+                reason: "",
+                ...seed,
+                id: apologyId,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          });
+          return apologyId;
+        },
+
+        updateApology: (id, apologyId, p) => {
+          const r = get().attendanceRegisters.find((x) => x.id === id);
+          if (!r) return;
+          const { id: _i, createdAt: _c, ...safe } = p;
+          void _i; void _c;
+          get().updateAttendanceRegister(id, {
+            apologies: (r.apologies ?? []).map((a) =>
+              a.id === apologyId ? { ...a, ...safe, updatedAt: Date.now() } : a
+            ),
+          });
+        },
+
+        removeApology: (id, apologyId) => {
+          const r = get().attendanceRegisters.find((x) => x.id === id);
+          if (!r) return;
+          get().updateAttendanceRegister(id, {
+            apologies: (r.apologies ?? []).filter((a) => a.id !== apologyId),
+          });
         },
 
         addIncidentReport: (seed) => {

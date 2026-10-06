@@ -23,6 +23,7 @@ import type {
   ToolboxTalk,
   Verification,
 } from "./types";
+import { apologiesOf } from "./attendanceRegister";
 import { PPE_ITEMS, PPE_ITEM_LABEL } from "./ppe";
 import { BAND_AS_RATING, BAND_META, bandFor, cellCode, movement } from "./risk";
 import { entity as entityOf, PROGRAMME_VISITS } from "./programme";
@@ -1279,15 +1280,27 @@ export function attendanceRegisterSheet(x: ExportInput): Sheet {
   const registers = (x.attendanceRegisters ?? []).filter((r) => r.originVisit === x.visit);
   const rows: CellValue[][] = [];
   for (const r of registers) {
+    const apologies = apologiesOf(r);
     for (const row of r.rows) {
       rows.push([
         r.id, r.date, r.time, r.purpose, r.location,
         row.name, row.organisation, row.role, row.phone, row.email,
-        sigCell(row.signature),
+        "Attended", sigCell(row.signature), "",
       ]);
     }
-    if (r.rows.length === 0) {
-      rows.push([r.id, r.date, r.time, r.purpose, r.location, "", "", "", "", "", ""]);
+    /* Apologies get the SAME columns, not a second sheet — a reviewer
+       working through who was invited reads one list, not two, and the
+       Status column is what tells "signed" from "sent regrets" apart. No
+       phone/email/signature: nothing here was captured for that. */
+    for (const a of apologies) {
+      rows.push([
+        r.id, r.date, r.time, r.purpose, r.location,
+        a.name, a.organisation, a.role, "", "",
+        "Apology", "", a.reason,
+      ]);
+    }
+    if (r.rows.length === 0 && apologies.length === 0) {
+      rows.push([r.id, r.date, r.time, r.purpose, r.location, "", "", "", "", "", "", "", ""]);
     }
   }
   return {
@@ -1303,7 +1316,9 @@ export function attendanceRegisterSheet(x: ExportInput): Sheet {
       { header: "Role", width: 18 },
       { header: "Phone", width: 16 },
       { header: "Email", width: 24 },
+      { header: "Status", width: 12 },
       { header: "Signed", width: 30 },
+      { header: "Apology reason", width: 26 },
     ],
     rows,
   };
