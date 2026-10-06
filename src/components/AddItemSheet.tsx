@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import { Btn } from "@/components/ui/primitives";
 import { AttachmentStrip, PhotoButton, VoiceNoteButton } from "@/components/Capture";
 import OutcomeControl from "@/components/OutcomeControl";
-import { areasAt, disciplinesAt, systemsOf, useEntityCode, useStore } from "@/lib/store";
+import { areasAt, disciplinesAt, systemsOf, useAdhoc, useEntityCode, useStore } from "@/lib/store";
 import { checksAt } from "@/lib/register";
+import { assist, adhocTranscriptContext, useAssistAvailable } from "@/lib/assist";
 import { IconCheck, IconSearch, IconX } from "@/components/ui/icons";
 import type { AdHocItem, Compliance } from "@/lib/types";
 
@@ -55,9 +56,25 @@ export default function AddItemSheet({
   const removeAdhocAttachment = useStore((s) => s.removeAdhocAttachment);
   const addFinding = useStore((s) => s.addFinding);
   const visitId = useStore((s) => s.visit);
+  const adhocItems = useAdhoc();
+  const aiOn = useAssistAvailable();
 
   const disciplines = useMemo(() => disciplinesAt(entityCode), [entityCode]);
   const areas = useMemo(() => areasAt(entityCode), [entityCode]);
+
+  /* Sarel: a new item should be able to take a photograph and a voice note
+     the same sitting it is typed in, not only after reopening it from the
+     list — "take the photograph, keep moving" was always the brief, and
+     pressing Record it used to close the sheet before either control ever
+     appeared. A photograph's reference (WALK-xxxxx_P01) is built from the
+     item's own id, which does not exist until the first save — so rather
+     than inventing a parallel "attach before it exists" path, Record it now
+     creates the item and the SAME sheet carries straight on into the
+     capture controls the editing flow already has, instead of closing.
+     Tracked by id, reactively, so the attachments just taken show up here
+     as they land. */
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const createdItem = createdId ? adhocItems.find((a) => a.id === createdId) ?? null : null;
 
   /* A new item's draft. An item being completed writes straight through to the
      store on every change — it already exists, so there is nothing to lose and
@@ -80,7 +97,7 @@ export default function AddItemSheet({
   const [systemQuery, setSystemQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const item = editing;
+  const item = editing ?? createdItem;
   const value = item
     ? {
         description: item.description,
@@ -112,16 +129,31 @@ export default function AddItemSheet({
 
   if (!open) return null;
 
+  /* Every path that closes the sheet goes through here, so a stale
+     just-created id can never bleed into the next time it opens fresh —
+     without this, tapping "+ New item" again would reopen on the ITEM a
+     minute ago created, not a blank draft, because this component instance
+     is not remounted between opens. */
+  const close = () => {
+    setCreatedId(null);
+    setDraft({
+      description: "",
+      discipline: presetDiscipline ?? null,
+      system: null,
+      area: presetArea ?? "",
+      outcome: null,
+      note: "",
+    });
+    onClose();
+  };
+
   const save = () => {
     const text = value.description.trim();
     if (!text) {
       setError("Say what you found. Everything else can wait.");
       return;
     }
-    if (item) {
-      onClose();
-      return;
-    }
+    if (item) return;
     const id = addAdhoc({
       origin: "field",
       description: text,
@@ -135,15 +167,10 @@ export default function AddItemSheet({
       createdBy: auditor,
     });
     onSaved?.(id, `${id} recorded — not one of the 324`);
-    setDraft({
-      description: "",
-      discipline: presetDiscipline ?? null,
-      system: null,
-      area: presetArea ?? "",
-      outcome: null,
-      note: "",
-    });
-    onClose();
+    /* Stay open, on the SAME id — see createdId's own note. The photograph
+       and voice-note controls below are keyed on `item`, which is now this
+       row, so they appear without anything else changing. */
+    setCreatedId(id);
   };
 
   /* An observation becomes a finding when somebody decides it is one. Offered,
@@ -190,7 +217,7 @@ export default function AddItemSheet({
     <div
       className="fixed inset-0 z-[90] flex items-end justify-center sm:items-start sm:pt-[8vh]"
       style={{ background: "rgba(16,10,32,.5)", backdropFilter: "blur(4px)" }}
-      onClick={onClose}
+      onClick={close}
     >
       <div
         className="flex max-h-[92vh] w-full flex-col rounded-t-[20px] border sm:max-h-[84vh] sm:w-[min(600px,94vw)] sm:rounded-[20px]"
@@ -219,7 +246,7 @@ export default function AddItemSheet({
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={close}
             aria-label="Close"
             className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[9px]"
             style={{ color: "var(--ink-3)" }}
@@ -281,6 +308,21 @@ export default function AddItemSheet({
                         attachments: item.attachments.map((a) =>
                           a.id === id ? { ...a, ...p } : a
                         ),
+                      })
+                    }
+                    /* The write-up goes into Description, appended — the
+                       same field a typed observation already fills, so a
+                       transcribed voice note and typed text end up read
+                       together rather than split across two boxes nobody
+                       thinks to check both of. */
+                    writeUp={
+                      aiOn ? (t) => assist("transcript", adhocTranscriptContext(t, item)) : undefined
+                    }
+                    onAccept={(text) =>
+                      set({
+                        description: value.description.trim()
+                          ? `${value.description}\n${text}`
+                          : text,
                       })
                     }
                   />
@@ -455,7 +497,7 @@ export default function AddItemSheet({
           className="flex items-center justify-end gap-2 border-t px-5 py-3"
           style={{ borderColor: "var(--line)" }}
         >
-          <Btn variant="ghost" onClick={onClose}>
+          <Btn variant="ghost" onClick={close}>
             {item ? "Done" : "Cancel"}
           </Btn>
           {!item && (

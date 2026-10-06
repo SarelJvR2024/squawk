@@ -422,6 +422,26 @@ export function transcriptContext(transcript: string, check: Check, r?: Response
   ].join("\n");
 }
 
+/** The same thing, for a note recorded against something seen on the walk
+ *  that is not one of the 324 check-points — AddItemSheet's own flow. There
+ *  is no Check to give the model, only whatever the auditor has typed so
+ *  far, so that is what goes instead. */
+export function adhocTranscriptContext(
+  transcript: string,
+  item: { description: string; discipline: string | null; system: string | null; area: string }
+): string {
+  return [
+    "VERBATIM TRANSCRIPT OF THE VOICE NOTE:",
+    transcript,
+    "",
+    "WHAT THIS IS ABOUT — something seen on the walk, not one of ACSA's 324 check-points:",
+    `Typed so far: ${item.description.trim() || "(nothing yet)"}`,
+    `Discipline: ${item.discipline ?? "not attributed"}`,
+    `Asset system: ${item.system ?? "none"}`,
+    `Area: ${item.area.trim() || "not given"}`,
+  ].join("\n");
+}
+
 /** What goes with a photograph when a caption is proposed.
  *
  *  Note what is NOT here: the auditor's observation, the finding, the status.
