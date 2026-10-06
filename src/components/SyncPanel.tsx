@@ -26,6 +26,7 @@ import {
   useStore,
   useVerifications,
   useAdhoc,
+  useVisitAttendanceRegisters,
   useVisitFindings,
   useVisitHazards,
   useVisitId,
@@ -44,6 +45,7 @@ import {
   type ExistingIndex,
   planTotals,
   projectFields,
+  ATTENDANCE_FIELDS,
   CHECK_FIELDS,
   FINDING_FIELDS,
   LIST_NAMES,
@@ -74,6 +76,7 @@ interface Resolved {
   siteId: string;
   checkList: { id: string; map: FieldMap } | null;
   findingList: { id: string; map: FieldMap } | null;
+  attendanceList: { id: string; map: FieldMap } | null;
   driveId: string | null;
   /** The EVIDENCE LIBRARY'S own columns. A document library is a list, and its
    *  columns are where a photograph's CheckID, reference and caption go — the
@@ -85,7 +88,12 @@ interface Resolved {
      fits a pattern. Which one it picked is not a detail — it decides where 33
      rows land — so it is shown rather than left to be inferred from the fact
      that something was found. */
-  chose: { checkList: string | null; findingList: string | null; drive: string | null };
+  chose: {
+    checkList: string | null;
+    findingList: string | null;
+    attendanceList: string | null;
+    drive: string | null;
+  };
 }
 
 export function SyncPanel({ onClose }: { onClose: () => void }) {
@@ -97,6 +105,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   const verifications = useVerifications();
   /* Inspection items — their photographs are evidence too; see buildPlan. */
   const adhoc = useAdhoc();
+  const attendanceRegisters = useVisitAttendanceRegisters();
   const auditor = useStore((s) => s.auditor);
   const updateHazard = useStore((s) => s.updateHazard);
 
@@ -111,6 +120,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   const [indexes, setIndexes] = useState<{
     checkpoints: ExistingIndex | null;
     findings: ExistingIndex | null;
+    attendance: ExistingIndex | null;
     siteCode: string;
   } | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number; what: string } | null>(null);
@@ -167,10 +177,16 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       const find = (want: RegExp) => all.find((l) => want.test(l.displayName));
       const checkList = find(LIST_NAMES.checkpoints);
       const findingList = find(LIST_NAMES.findings);
+      const attendanceList = find(LIST_NAMES.attendance);
 
       let checkPart: Resolved["checkList"] = null;
       let findPart: Resolved["findingList"] = null;
-      const existing = { checkpoints: new Map<string, string>(), findings: new Map<string, string>() };
+      let attendancePart: Resolved["attendanceList"] = null;
+      const existing = {
+        checkpoints: new Map<string, string>(),
+        findings: new Map<string, string>(),
+        attendance: new Map<string, string>(),
+      };
 
       /* Indexed per SITE, not per list — see indexExisting. A row for another
          airport is never matched, and a Title this site has twice is refused
@@ -178,6 +194,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       const siteCode = siteCodeFor(entityCode);
       let checkIdx: ExistingIndex | null = null;
       let findIdx: ExistingIndex | null = null;
+      let attendanceIdx: ExistingIndex | null = null;
 
       if (checkList) {
         const map = mapFields(await graph.columns(site.id, checkList.id), [...CHECK_FIELDS]);
@@ -203,7 +220,19 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
         );
         existing.findings = findIdx.byTitle;
       }
-      setIndexes({ checkpoints: checkIdx, findings: findIdx, siteCode });
+      if (attendanceList) {
+        const map = mapFields(await graph.columns(site.id, attendanceList.id), [...ATTENDANCE_FIELDS]);
+        attendancePart = { id: attendanceList.id, map };
+        attendanceIdx = indexExisting(
+          (await graph.items(site.id, attendanceList.id, ["Title"])).map((it) => ({
+            title: String(it.fields.Title ?? ""),
+            id: it.id,
+          })),
+          siteCode
+        );
+        existing.attendance = attendanceIdx.byTitle;
+      }
+      setIndexes({ checkpoints: checkIdx, findings: findIdx, attendance: attendanceIdx, siteCode });
 
       const drive = (await graph.drives(site.id)).find((d) => LIST_NAMES.evidence.test(d.name))
         ?? (await graph.drives(site.id))[0];
@@ -235,18 +264,20 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
         siteId: site.id,
         checkList: checkPart,
         findingList: findPart,
+        attendanceList: attendancePart,
         driveId: drive?.id ?? null,
         driveMap,
         lists: all.map((l) => l.displayName),
         chose: {
           checkList: checkList?.displayName ?? null,
           findingList: findingList?.displayName ?? null,
+          attendanceList: attendanceList?.displayName ?? null,
           drive: drive?.name ?? null,
         },
       });
       setPlan(
         buildPlan(
-          { entity: entityCode, visit: visitId, visitLabel: visitId, library: drive?.name, siteFolder, libraryUrl: drive?.webUrl, checks, responses, hazards, prior, verifications, auditor, findings, adhoc },
+          { entity: entityCode, visit: visitId, visitLabel: visitId, library: drive?.name, siteFolder, libraryUrl: drive?.webUrl, checks, responses, hazards, prior, verifications, auditor, findings, adhoc, attendanceRegisters },
           existing,
           unconsolidated
         )
@@ -310,6 +341,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
     try {
       await writeRows(plan.checkpoints, resolved.checkList, "check-point");
       await writeRows(plan.findings, resolved.findingList, "finding");
+      await writeRows(plan.attendance, resolved.attendanceList, "attendance row");
 
       if (sendPhotos && resolved.driveId && plan.evidence.length) {
         /* THE FOLDER IS ONE CALL THAT CAN FAIL ALL FIVE.
@@ -394,24 +426,32 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   const dupes = [
     ...(indexes?.checkpoints?.duplicates ?? []),
     ...(indexes?.findings?.duplicates ?? []),
+    ...(indexes?.attendance?.duplicates ?? []),
   ];
   /* The site's audit has not started. See syncedBeforeAudit — this is the check
      that would have caught both Bram Fischer incidents, and the only one that
      could have: every other guard passed, correctly. Computed from today rather
      than from the plan, because the question is about now. */
   const early = syncedBeforeAudit(entityCode, new Date().toISOString().slice(0, 10));
-  const foreign = (indexes?.checkpoints?.foreign ?? 0) + (indexes?.findings?.foreign ?? 0);
+  const foreign =
+    (indexes?.checkpoints?.foreign ?? 0) +
+    (indexes?.findings?.foreign ?? 0) +
+    (indexes?.attendance?.foreign ?? 0);
 
   /* Values bound for a Choice column that will not accept them. */
   const mismatches = plan
     ? [
         ...(resolved?.checkList ? choiceMismatches(resolved.checkList.map, plan.checkpoints) : []),
         ...(resolved?.findingList ? choiceMismatches(resolved.findingList.map, plan.findings) : []),
+        ...(resolved?.attendanceList
+          ? choiceMismatches(resolved.attendanceList.map, plan.attendance)
+          : []),
       ]
     : [];
   const missing = [
     ...(resolved?.checkList?.map.missing ?? []).map((m) => `Check-points · ${m}`),
     ...(resolved?.findingList?.map.missing ?? []).map((m) => `Findings · ${m}`),
+    ...(resolved?.attendanceList?.map.missing ?? []).map((m) => `Attendance Register · ${m}`),
     /* Only when photographs are actually going. A library with no CheckID
        column costs nothing on a rows-only sync, and a warning about a column
        nobody is about to write is noise. */
@@ -425,6 +465,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   const unjoinable = [
     resolved?.checkList && !canJoin(resolved.checkList.map) ? "Check-points" : null,
     resolved?.findingList && !canJoin(resolved.findingList.map) ? "Findings" : null,
+    resolved?.attendanceList && !canJoin(resolved.attendanceList.map) ? "Attendance Register" : null,
   ].filter((v): v is string => !!v);
 
   /* AND WHETHER IT ACTUALLY BITES, which is not the same question.
@@ -443,6 +484,9 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       : null,
     resolved?.findingList && !canJoin(resolved.findingList.map) && (plan?.findings ?? []).some((r) => r.action === "create")
       ? "Findings"
+      : null,
+    resolved?.attendanceList && !canJoin(resolved.attendanceList.map) && (plan?.attendance ?? []).some((r) => r.action === "create")
+      ? "Attendance Register"
       : null,
   ].filter((v): v is string => !!v);
 
@@ -507,10 +551,10 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
         : "Press “Read the portal” — everything up to the last button is a GET.",
     },
     {
-      label: "The two lists and the evidence library are there",
+      label: "The lists and the evidence library are there",
       state: !resolved
         ? "waiting"
-        : resolved.checkList && resolved.findingList && resolved.driveId
+        : resolved.checkList && resolved.findingList && resolved.attendanceList && resolved.driveId
           ? "ok"
           : "todo",
       detail: !resolved
@@ -518,11 +562,12 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
         : [
             resolved.checkList ? null : "no list matching Check-points",
             resolved.findingList ? null : "no list matching Findings",
+            resolved.attendanceList ? null : "no list matching Attendance Register",
             resolved.driveId ? null : "no document library to put photographs in",
           ]
             .filter(Boolean)
             .join(" · ") ||
-          `Writing to “${resolved.chose.checkList}” and “${resolved.chose.findingList}”, photographs to “${resolved.chose.drive}”. ${resolved.lists.length} lists on the site — check these are the right ones.`,
+          `Writing to “${resolved.chose.checkList}”, “${resolved.chose.findingList}” and “${resolved.chose.attendanceList}”, photographs to “${resolved.chose.drive}”. ${resolved.lists.length} lists on the site — check these are the right ones.`,
     },
     {
       label: "Every field has a column to go in",
@@ -684,6 +729,8 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                   <Tile n={totals.checkpointsChanged} label="check-points to update" />
                   <Tile n={totals.findingsNew} label="findings to add" />
                   <Tile n={totals.findingsChanged} label="findings to update" />
+                  <Tile n={totals.attendanceNew} label="attendance rows to add" />
+                  <Tile n={totals.attendanceChanged} label="attendance rows to update" />
                   <Tile
                     n={totals.photographs}
                     label={sendPhotos ? "photographs to upload" : "photographs, not being sent"}
@@ -691,6 +738,13 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                   <Tile n={writes} label="writes in total" strong />
                 </div>
 
+                {!resolved?.attendanceList && (
+                  <Note tone="warn">
+                    No list called <b>Attendance Register</b> on this site — attendance rows will not
+                    be written.
+                    {resolved?.lists.length ? ` Lists seen: ${resolved.lists.join(", ")}.` : ""}
+                  </Note>
+                )}
                 {!resolved?.findingList && (
                   <Note tone="warn">
                     No list called <b>Findings</b> on this site — its rows will not be written.
@@ -824,6 +878,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                       {([
                         ["Check-points", indexes.checkpoints],
                         ["Findings", indexes.findings],
+                        ["Attendance Register", indexes.attendance],
                       ] as [string, ExistingIndex | null][]).map(([label, idx]) =>
                         !idx ? null : (
                           <div key={label} className="mb-2">
@@ -851,10 +906,11 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
 
                 <details className="mb-3">
                   <summary className="cursor-pointer text-[11.5px]" style={{ color: "var(--ink-3)" }}>
-                    Every row, one line each ({plan.checkpoints.length + plan.findings.length})
+                    Every row, one line each (
+                    {plan.checkpoints.length + plan.findings.length + plan.attendance.length})
                   </summary>
                   <ul className="mt-2 max-h-[240px] overflow-y-auto font-mono text-[10.5px]" style={{ color: "var(--ink-2)" }}>
-                    {[...plan.findings, ...plan.checkpoints].map((r, i) => (
+                    {[...plan.findings, ...plan.checkpoints, ...plan.attendance].map((r, i) => (
                       <li key={`${r.key}-${i}`} className="py-[2px]">
                         <span style={{ color: r.action === "create" ? "var(--good)" : "var(--ink-3)" }}>
                           {r.action === "create" ? "add   " : "update"}
@@ -989,6 +1045,11 @@ function Contract() {
   const rows = [
     { list: "Check-points", alsoNamed: "Checkpoints · Check point · Check points", fields: columnContract(CHECK_FIELDS) },
     { list: "Findings", alsoNamed: "Finding", fields: columnContract(FINDING_FIELDS) },
+    {
+      list: "Attendance Register",
+      alsoNamed: "Attendance · Attendance Registers",
+      fields: columnContract(ATTENDANCE_FIELDS),
+    },
     /* The library's columns belong in the same contract as the two lists. They
        were not here, which is how five photographs reached the library with
        every column blank: nothing asked for the columns and nothing wrote
@@ -1006,8 +1067,8 @@ function Contract() {
       </summary>
       <div className="mt-2 text-[11px] leading-[1.55]" style={{ color: "var(--ink-2)" }}>
         <p className="mb-2">
-          Two lists and one document library, found by <b>display name</b>. <b>Title</b> is the join
-          key in both lists — it is what makes a second sync update rather than duplicate. A column
+          Three lists and one document library, found by <b>display name</b>. <b>Title</b> is the join
+          key in every list — it is what makes a second sync update rather than duplicate. A column
           Squawk cannot find is reported in the plan and skipped, never guessed; a read-only or
           computed column counts as absent.
         </p>

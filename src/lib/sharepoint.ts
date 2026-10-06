@@ -52,9 +52,11 @@ import priorRaw from "@/data/priorFindings.json";
 import * as erm from "./erm";
 import { photoFilename } from "./photos";
 import { portalIdFor, siteCodeFor, siteFor } from "./sites";
+import { apologiesOf } from "./attendanceRegister";
 import type {
   AdHocItem,
   Attachment,
+  AttendanceRegister,
   Check,
   Finding,
   ErmConsequence,
@@ -64,6 +66,7 @@ import type {
   PriorFinding,
   ProgressNote,
   Response,
+  Signature,
   Verification,
 } from "./types";
 
@@ -202,6 +205,22 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
      on both and two logical fields resolving to one column means the second
      quietly overwrites the first. */
   evidenceLink: ["EvidenceLink", "Evidence link", "Evidence folder", "Evidence", "Photos link"],
+
+  /* THE ATTENDANCE REGISTER'S OWN COLUMNS. One row per person — attendee or
+     apology — so a reader on the portal can filter and count people the way
+     registerSheet's workbook rows already let them. `title`, `location` and
+     `status` are shared with the lists above on purpose: the same word means
+     the same thing everywhere in this file. */
+  registerDate: ["Date"],
+  time: ["Time"],
+  purpose: ["Purpose"],
+  name: ["Name"],
+  organisation: ["Organisation", "Organization", "Company", "Employer"],
+  role: ["Role", "Designation"],
+  phone: ["Phone", "Phone number", "Cell", "Contact number"],
+  email: ["Email", "Email address"],
+  signed: ["Signed", "Signature"],
+  apologyReason: ["Apology reason", "Apology Reason", "Reason"],
 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -227,11 +246,23 @@ export const LIST_NAMES = {
       "Documents", "Shared Documents" and "Evidence" are all the same thing
       here, and a site has exactly one of them worth writing photographs to. */
   evidence: /document|shared|evidence/i,
+  attendance: /^attendance([-\s]?registers?)?$/i,
 } as const;
 
 export const CHECK_FIELDS = [
   "title", "discipline", "assetSystem", "compliance", "observation", "auditor", "assessedOn",
   "photos", "evidenceLink",
+] as const;
+
+/** One row per PERSON — attendee or apology — not per register. Mirrors
+ *  `attendanceRegisterSheet` in exports.ts exactly: the same columns, the
+ *  same "apologies get the same columns, not a second list" choice, so a
+ *  reader moving between the workbook and the portal finds the same shape
+ *  in both. */
+export const ATTENDANCE_FIELDS = [
+  "title", "registerDate", "time", "purpose", "location",
+  "name", "organisation", "role", "phone", "email",
+  "status", "signed", "apologyReason",
 ] as const;
 
 /** The columns on the EVIDENCE LIBRARY itself — metadata on the uploaded file,
@@ -601,6 +632,9 @@ export interface SyncInput {
   prior: PriorFinding[];
   verifications: Record<string, Verification>;
   auditor: string;
+  /** This visit's attendance registers. Optional for the same reason adhoc
+   *  and findings are — the plan builder's own tests do not have to care. */
+  attendanceRegisters?: AttendanceRegister[];
 }
 
 export type RowAction = "create" | "update";
@@ -647,6 +681,8 @@ export interface PlannedFile {
 export interface SyncPlan {
   checkpoints: PlannedRow[];
   findings: PlannedRow[];
+  /** One row per person — attendee or apology. See ATTENDANCE_FIELDS. */
+  attendance: PlannedRow[];
   evidence: PlannedFile[];
   /** Why rows were left out, in the words of somebody who might disagree. */
   skipped: { what: string; why: string; count: number }[];
@@ -685,6 +721,23 @@ export function flattenActions(actions: MitigationAction[] | undefined): string 
         `${m.discipline ? `${m.discipline} — ` : ""}${m.action} · ${m.owner || "NO OWNER"} · ${m.dueDate || "NO TARGET DATE"} · ${m.status}`
     )
     .join("\n");
+}
+
+/** The signature as one cell — who, and when, the same text
+ *  `attendanceRegister.ts`'s own `registerText()` prints in the plain-text
+ *  register, so a reader moving between the portal and the printed text
+ *  finds the same words. Blank for an apology: nobody signs one. */
+function signedCell(s: Signature | null): string {
+  if (!s) return "";
+  const when = new Date(s.signedAt).toLocaleString("en-ZA", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  return `${s.signedName} · ${when}`;
 }
 
 /** The single owner or date the portal's own `owner`/`targetDate` fields
@@ -996,13 +1049,18 @@ function evidenceFolderUrl(libraryUrl: string | undefined, folder: string): stri
 
 export function buildPlan(
   x: SyncInput,
-  existing: { checkpoints: Map<string, string>; findings: Map<string, string> },
+  existing: {
+    checkpoints: Map<string, string>;
+    findings: Map<string, string>;
+    attendance?: Map<string, string>;
+  },
   unconsolidatedFindings = 0
 ): SyncPlan {
   const folder = evidenceFolder(x.entity, x.visit, x.library, x.siteFolder);
   const folderUrl = evidenceFolderUrl(x.libraryUrl, folder);
   const checkpoints: PlannedRow[] = [];
   const findings: PlannedRow[] = [];
+  const attendance: PlannedRow[] = [];
   const evidence: PlannedFile[] = [];
   const skipped: SyncPlan["skipped"] = [];
   const warnings: SyncPlan["warnings"] = [];
@@ -1258,7 +1316,65 @@ export function buildPlan(
     });
   }
 
-  return { checkpoints, findings, evidence, skipped, warnings, folder };
+  /* --- attendance registers: one row per person, attendee or apology --- */
+  const existingAttendance = existing.attendance ?? new Map<string, string>();
+  const site = siteCodeFor(x.entity);
+  let blankRegisters = 0;
+  for (const reg of x.attendanceRegisters ?? []) {
+    const people: { name: string; organisation: string; role: string; phone: string;
+      email: string; signature: Signature | null; reason: string; isApology: boolean; id: string }[] = [
+      ...reg.rows.map((r) => ({
+        name: r.name, organisation: r.organisation, role: r.role, phone: r.phone,
+        email: r.email, signature: r.signature, reason: "", isApology: false, id: r.id,
+      })),
+      ...apologiesOf(reg).map((a) => ({
+        name: a.name, organisation: a.organisation, role: a.role, phone: "",
+        email: "", signature: null, reason: a.reason, isApology: true, id: a.id,
+      })),
+    ];
+    if (!people.length) {
+      blankRegisters++;
+      continue;
+    }
+    for (const p of people) {
+      /* Every name, even a blank one someone hasn't filled in yet, still
+         gets a row — the register's own `rowGaps` already flags a missing
+         name as something owed, and silently leaving the row out of the
+         portal would hide a headcount gap rather than surface it. */
+      const key = `${site}-${reg.id}-${p.id}`;
+      const itemId = existingAttendance.get(key);
+      attendance.push({
+        key,
+        action: itemId ? "update" : "create",
+        itemId,
+        values: {
+          title: key,
+          registerDate: reg.date,
+          time: reg.time,
+          purpose: reg.purpose,
+          location: reg.location,
+          name: p.name,
+          organisation: p.organisation,
+          role: p.role,
+          phone: p.phone,
+          email: p.email,
+          status: p.isApology ? "Apology" : "Attended",
+          signed: signedCell(p.signature),
+          apologyReason: p.reason,
+        },
+        summary: `${key} · ${p.name || "(no name)"} · ${p.isApology ? "apology" : "attended"}`,
+      });
+    }
+  }
+  if (blankRegisters) {
+    skipped.push({
+      what: "attendance registers",
+      why: "nobody signed in and nobody sent apologies yet",
+      count: blankRegisters,
+    });
+  }
+
+  return { checkpoints, findings, attendance, evidence, skipped, warnings, folder };
 }
 
 /** Asset links that are safe to send.
@@ -1286,8 +1402,11 @@ export function planTotals(plan: SyncPlan) {
     checkpointsChanged: count(plan.checkpoints, "update"),
     findingsNew: count(plan.findings, "create"),
     findingsChanged: count(plan.findings, "update"),
+    attendanceNew: count(plan.attendance, "create"),
+    attendanceChanged: count(plan.attendance, "update"),
     photographs: plan.evidence.length,
-    writes: plan.checkpoints.length + plan.findings.length + plan.evidence.length,
+    writes:
+      plan.checkpoints.length + plan.findings.length + plan.attendance.length + plan.evidence.length,
   };
 }
 

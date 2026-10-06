@@ -4262,6 +4262,20 @@ export function useVisitHazards(): Hazard[] {
   );
 }
 
+/** Attendance registers opened at the entity and visit in view. Scoped the
+ *  same way findings and hazards are, for the same reason — a register
+ *  opened on a different visit to the same airport is not this visit's to
+ *  sync or report on. */
+export function useVisitAttendanceRegisters(): AttendanceRegister[] {
+  const all = useStore((s) => s.attendanceRegisters);
+  const entity = useStore((s) => s.entity);
+  const visit = useStore((s) => s.visit);
+  return useMemo(
+    () => all.filter((r) => r.entity === entity && r.originVisit === visit),
+    [all, entity, visit]
+  );
+}
+
 /* ---------- derived selectors ---------- */
 
 
