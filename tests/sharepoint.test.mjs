@@ -384,35 +384,31 @@ check(
 
 check(
   "a library already called Evidence does not get an Evidence folder inside it",
-  sp.evidenceFolder("FALE", "2026-09", "Evidence") ===
-    "King Shaka International Airport FALE/2026-09",
-  sp.evidenceFolder("FALE", "2026-09", "Evidence")
+  sp.evidenceFolder("FALE", "Evidence") === "King Shaka International Airport FALE",
+  sp.evidenceFolder("FALE", "Evidence")
 );
 
 check(
   "and it is the library's NAME that decides, however it is cased or spaced",
-  sp.evidenceFolder("FALE", "2026-09", " evidence ") ===
-    sp.evidenceFolder("FALE", "2026-09", "Evidence")
+  sp.evidenceFolder("FALE", " evidence ") === sp.evidenceFolder("FALE", "Evidence")
 );
 
 check(
   "a library that is not about evidence still gets an Evidence folder of its own",
-  sp.evidenceFolder("FALE", "2026-09", "Documents") ===
-    "Evidence/King Shaka International Airport FALE/2026-09",
+  sp.evidenceFolder("FALE", "Documents") === "Evidence/King Shaka International Airport FALE",
   "loose among whatever else lives in Documents is not where audit evidence goes"
 );
 
 check(
   "an unnamed library keeps the old shape rather than guessing",
-  sp.evidenceFolder("FALE", "2026-09") ===
-    "Evidence/King Shaka International Airport FALE/2026-09",
-  sp.evidenceFolder("FALE", "2026-09")
+  sp.evidenceFolder("FALE") === "Evidence/King Shaka International Airport FALE",
+  sp.evidenceFolder("FALE")
 );
 
 check(
   "NO PATH EVER REPEATS A SEGMENT",
   ["Evidence", "Documents", "Shared Documents", undefined].every((lib) => {
-    const parts = sp.evidenceFolder("FALE", "2026-09", lib).split("/");
+    const parts = sp.evidenceFolder("FALE", lib).split("/");
     return new Set(parts).size === parts.length;
   }),
   "the doubled folder was exactly this, and a test is cheaper than another move"
@@ -447,7 +443,7 @@ check(
     const row = p.checkpoints.find((r) => r.key === "KSIA-ELE-001");
     return (
       row.values.evidenceLink ===
-      "https://tpjv.sharepoint.com/sites/ACSA-Asset-Assurance/Evidence/King%20Shaka%20International%20FALE/2026-09"
+      "https://tpjv.sharepoint.com/sites/ACSA-Asset-Assurance/Evidence/King%20Shaka%20International%20FALE"
     );
   })(),
   sp.buildPlan(LINKED, NOTHING).checkpoints.find((r) => r.key === "KSIA-ELE-001")?.values.evidenceLink
@@ -798,74 +794,64 @@ check(
 
 check(
   "and the fallback is the site table's spelling, so a bare library still works",
-  sp.evidenceFolder("FALE", "2026-09", "Evidence", sp.siteFolderIn("FALE", [])) ===
-    "King Shaka International Airport FALE/2026-09"
+  sp.evidenceFolder("FALE", "Evidence", sp.siteFolderIn("FALE", [])) ===
+    "King Shaka International Airport FALE"
 );
 
 check(
   "THE FOLDER THE LIBRARY HAS WINS over the one Squawk would mint",
-  sp.evidenceFolder("FALE", "2026-09", "Evidence", sp.siteFolderIn("FALE", ACSA_FOLDERS)) ===
-    "King Shaka International FALE/2026-09",
-  sp.evidenceFolder("FALE", "2026-09", "Evidence", sp.siteFolderIn("FALE", ACSA_FOLDERS))
+  sp.evidenceFolder("FALE", "Evidence", sp.siteFolderIn("FALE", ACSA_FOLDERS)) ===
+    "King Shaka International FALE",
+  sp.evidenceFolder("FALE", "Evidence", sp.siteFolderIn("FALE", ACSA_FOLDERS))
 );
 
 check(
   "and the plan carries it, so what is written is what was read",
   (() => {
     const p = sp.buildPlan(
-      { ...BASE, visit: "2026-09", library: "Evidence", siteFolder: sp.siteFolderIn("FALE", ACSA_FOLDERS) },
+      { ...BASE, library: "Evidence", siteFolder: sp.siteFolderIn("FALE", ACSA_FOLDERS) },
       NOTHING
     );
-    return p.folder === "King Shaka International FALE/2026-09";
+    return p.folder === "King Shaka International FALE";
   })()
 );
 
 check(
   "and per site means PER SITE — another airport gets its own, from the site table",
-  sp.evidenceFolder("FAOR", "2026-09", "Evidence") ===
-    "O.R. Tambo International Airport FAOR/2026-09",
+  sp.evidenceFolder("FAOR", "Evidence") === "O.R. Tambo International Airport FAOR",
   "nothing is hardcoded to King Shaka; a new airport gets the shape for free"
 );
 
-/* AND PER VISIT, which it was not until Sarel asked "add a audit date into the
- * hierarchy maybe" on 16 September 2026. Not tidiness — evidence.
+/* NO VISIT SEGMENT ANY MORE, AND NO MONTH FOLDER EITHER — see dayFolder and
+ * Part 1h below. It was added 16 September 2026 (Sarel: "add a audit date
+ * into the hierarchy maybe") for a real reason: a photograph's reference is
+ * scoped to the CHECK, not the visit, so KSIA-ELE-001_P01.jpg means a
+ * different photograph in September 2026 than in March 2027, and uploads
+ * use conflictBehavior=replace — one folder for both visits would let the
+ * second silently overwrite the first.
  *
- * A photograph's reference is scoped to the CHECK, not the visit: nextPhotoRef
- * counts the attachments on that check's response. So the first photograph of
- * KSIA-ELE-001 in September 2026 is KSIA-ELE-001_P01.jpg, and so is the first
- * photograph of the same check in March 2027. Uploads use
- * conflictBehavior=replace on purpose, so one folder for both visits means the
- * second audit silently overwrites the first audit's evidence. */
+ * Removed 7 October 2026 (Sarel: "no month folder... use [site]/20261007")
+ * because the DAY folder Part 1h adds now carries that same guarantee, more
+ * finely — two different visits landing on the exact same calendar date is
+ * not a real case this register has to plan for. See
+ * "two photographs taken on different days file into different day
+ * folders, same visit" in Part 1h for the replacement coverage. */
 
 check(
-  "TWO VISITS TO ONE AIRPORT DO NOT SHARE A FOLDER",
-  sp.evidenceFolder("FALE", "2026-09", "Evidence") !==
-    sp.evidenceFolder("FALE", "2027-03", "Evidence"),
-  "the filename repeats across visits and the upload replaces on conflict"
+  "the site's own folder is visit-agnostic now — the day folder inside it is what tells two audits apart",
+  sp.evidenceFolder("FALE", "Evidence") === sp.evidenceFolder("FALE", "Evidence"),
+  "see Part 1h for the day-folder collision guarantee this used to provide"
 );
 
 check(
-  "the folder sorts, because 2026-09 does and Sep 2026 does not",
-  /\/\d{4}-\d{2}$/.test(sp.evidenceFolder("FALE", "2026-09", "Evidence"))
-);
-
-check(
-  "and the plan's folder carries the visit it was built for",
+  "the blob store and the portal now describe the same audit DIFFERENTLY, on purpose",
   (() => {
-    const p = sp.buildPlan({ ...BASE, visit: "2027-03", library: "Evidence" }, NOTHING);
-    return p.folder === "King Shaka International Airport FALE/2027-03";
-  })()
-);
-
-check(
-  "the blob store and the portal describe the same audit the same way",
-  (() => {
-    const photos = "";
-    void photos;
-    /* photoObjectPath is `FALE/2026-09/...`; the portal folder now ends the
-       same way, so somebody looking at both stores sees one audit twice rather
-       than two schemes. */
-    return sp.evidenceFolder("FALE", "2026-09", "Evidence").endsWith("/2026-09");
+    /* photoObjectPath is still `FALE/2026-09/...` — the internal backup
+       store's own scheme is unchanged by this. The portal folder dropped the
+       visit segment entirely; the two no longer need to agree, because
+       nothing reads them side by side the way EvidenceLink does within
+       SharePoint itself. */
+    return !sp.evidenceFolder("FALE", "Evidence").includes("2026-09");
   })()
 );
 
@@ -2489,17 +2475,22 @@ check(
     /export function signatureObjectPath/.test(src("lib", "signatures.ts"))
 );
 
-/* ---------------- Part 1h: one folder per day, inside the visit's own ----- *
+/* ---------------- Part 1h: one folder per day, no month folder at all ----- *
  *
  *  Sarel, 7 October 2026: "create a folder for each day and put the photos
  *  in each day it was captured" — a visit's own folder was one flat folder
  *  for the whole visit (keyed on `2026-09`, a month), and every photograph
- *  and signature from a three-week audit landed in it together. */
+ *  and signature from a three-week audit landed in it together. Then: "So
+ *  no month folder only [site]/7 OCT 2026... wait, 20261007, use this
+ *  format." */
 
 const TAKEN = (t) => ({ id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-001_P01", caption: "c", takenAt: t, createdAt: t });
 
+/* `20260915`, not `2026-09-15` — the same reading dayFolder itself does. */
+const ymd = (t) => localDate(t).replace(/-/g, "");
+
 check(
-  "a photograph files under the day it was taken, inside the visit's own folder",
+  "a photograph files under the day it was taken, inside the site's own folder — YYYYMMDD, no dashes",
   (() => {
     const takenAt = Date.parse("2026-09-15T10:00:00+02:00");
     const p = sp.buildPlan(
@@ -2507,12 +2498,12 @@ check(
       NOTHING
     );
     const f = p.evidence[0];
-    return f.folder === `${p.folder}/${localDate(takenAt)}` && f.folder.endsWith(`/${localDate(takenAt)}`);
+    return f.folder === `${p.folder}/${ymd(takenAt)}` && f.folder.endsWith("/20260915");
   })()
 );
 
 check(
-  "two photographs taken on different days file into different day folders, same visit",
+  "two photographs taken on different days file into different day folders, same site",
   (() => {
     const day1 = Date.parse("2026-09-15T10:00:00+02:00");
     const day2 = Date.parse("2026-09-22T10:00:00+02:00");
@@ -2531,8 +2522,8 @@ check(
       f1.folder !== f2.folder &&
       f1.folder.startsWith(p.folder) &&
       f2.folder.startsWith(p.folder) &&
-      f1.folder.endsWith(localDate(day1)) &&
-      f2.folder.endsWith(localDate(day2))
+      f1.folder.endsWith(ymd(day1)) &&
+      f2.folder.endsWith(ymd(day2))
     );
   })()
 );
@@ -2546,13 +2537,13 @@ check(
       { ...BASE, responses: { "KSIA-ELE-001": { compliance: "NC", observation: "x", attachments: [a] } } },
       NOTHING
     );
-    return p.evidence[0].folder === `${p.folder}/${localDate(createdAt)}`;
+    return p.evidence[0].folder === `${p.folder}/${ymd(createdAt)}`;
   })(),
   "takenAt is EXIF-only and absent on plenty of real photographs; createdAt is always there"
 );
 
 check(
-  "a photograph with neither timestamp falls back to the visit folder, never a NaN-NaN-NaN one",
+  "a photograph with neither timestamp falls back to the site folder, never a NaNNaNNaN one",
   (() => {
     const a = { id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-001_P01", caption: "c" };
     const p = sp.buildPlan(
@@ -2580,7 +2571,7 @@ check(
       },
       NOTHING
     );
-    return p.evidence[0].folder === `${p.folder}/${localDate(takenAt)}`;
+    return p.evidence[0].folder === `${p.folder}/${ymd(takenAt)}`;
   })()
 );
 
@@ -2595,12 +2586,12 @@ check(
       { ...BASE_ATT, attendanceRegisters: [REGISTER({ date: "2026-09-10", rows: [signed] })] },
       NOTHING_ATT
     );
-    return p.signatures[0].folder === `${p.folder}/${localDate(signedAt)}`;
+    return p.signatures[0].folder === `${p.folder}/${ymd(signedAt)}`;
   })()
 );
 
 check(
-  "EvidenceLink is unaffected — it still names the visit's own folder, not any day inside it",
+  "EvidenceLink is unaffected — it still names the site's own folder, not any day inside it",
   (() => {
     const takenAt = Date.parse("2026-09-15T10:00:00+02:00");
     const dated = {
@@ -2613,12 +2604,19 @@ check(
     const row = p.checkpoints.find((r) => r.key === "KSIA-ELE-001");
     return (
       row.values.evidenceLink ===
-      "https://tpjv.sharepoint.com/sites/ACSA-Asset-Assurance/Evidence/King%20Shaka%20International%20FALE/2026-09" &&
-      p.evidence[0].folder === `${p.folder}/${localDate(takenAt)}` &&
+      "https://tpjv.sharepoint.com/sites/ACSA-Asset-Assurance/Evidence/King%20Shaka%20International%20FALE" &&
+      p.evidence[0].folder === `${p.folder}/${ymd(takenAt)}` &&
       p.evidence[0].folder !== p.folder
     );
   })(),
   "one stable link per row; the day split only changes where the bytes themselves land"
+);
+
+check(
+  "YYYYMMDD sorts correctly as plain text, same as the old YYYY-MM-DD did",
+  ymd(Date.parse("2026-09-05T00:00:00+02:00")) < ymd(Date.parse("2026-10-07T00:00:00+02:00")) &&
+    ymd(Date.parse("2026-01-05T00:00:00+02:00")) < ymd(Date.parse("2026-01-22T00:00:00+02:00")),
+  "a reader scrolling a SharePoint folder list needs the dates to sort without reading each one"
 );
 
 check(

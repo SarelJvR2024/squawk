@@ -405,7 +405,8 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
         /* ONE DAY FOLDER PER FILE, not one folder for the whole visit — see
            PlannedFile.folder/PlannedSignature.folder. A visit can run for
            weeks; each photograph and signature now files under the day it
-           was actually captured, inside the visit's own folder.
+           was actually captured, inside the site's own folder — no month
+           folder in between.
 
            THE FOLDER IS ONE CALL THAT CAN FAIL EVERYTHING HEADED FOR IT.
            It used to sit outside the per-photograph try entirely, so when it
@@ -1275,13 +1276,14 @@ function Contract() {
         ))}
         <p>
           Photographs and signatures go to a document library whose name contains <b>Document</b>,{" "}
-          <b>Shared</b> or <b>Evidence</b>, in a folder named for the site and then for the visit, and
-          then for the day — each file sits under the date it was actually captured, not the visit
-          as a whole, so a three-week audit does not land every image in one folder together. The
-          path is relative to that library, so a library already called <b>Evidence</b> does not get
-          an <b>Evidence</b> folder inside it. <b>EvidenceLink</b> still points at the visit&rsquo;s
-          own folder, one level up — a stable link per row, whichever day&rsquo;s subfolder the
-          evidence it names actually sits in. A signature is written as its own file, named by its ref — it
+          <b>Shared</b> or <b>Evidence</b>, in a folder named for the site and then for the day —{" "}
+          <span className="font-mono text-[10.5px]">YYYYMMDD</span>, no dashes, no month folder in
+          between. Each file sits under the date it was actually captured, so a three-week audit does
+          not land every image in one folder together. The path is relative to that library, so a
+          library already called <b>Evidence</b> does not get an <b>Evidence</b> folder inside it.{" "}
+          <b>EvidenceLink</b> still points at the site&rsquo;s own folder, one level up — a stable
+          link per row, whichever day&rsquo;s subfolder the evidence it names actually sits in. A
+          signature is written as its own file, named by its ref — it
           carries no columns of its own; the attendance/evidence log row it belongs to is where
           who-signed-and-when lives.
         </p>

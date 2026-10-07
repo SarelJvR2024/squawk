@@ -899,27 +899,21 @@ function firstDueDate(actions: MitigationAction[] | undefined): string | null {
  *  Per site, derived from the site table so a new airport gets the same shape
  *  without anybody editing a path by hand — that part was always right.
  *
- *  THE VISIT WAS NOT, AND IT WOULD HAVE COST THE EVIDENCE. Sarel, 16 September
- *  2026: "add a audit date into the hierarchy maybe." He is right, and it is
- *  not a tidiness question.
- *
- *  A photograph's reference is scoped to the CHECK, not to the visit —
- *  nextPhotoRef counts the attachments on that check's response, and the
- *  response belongs to one entity and one visit. So the first photograph of
- *  KSIA-ELE-001 in September 2026 is `KSIA-ELE-001_P01.jpg`, and so is the
- *  first photograph of the same check in March 2027. Uploads use
- *  `conflictBehavior=replace`, deliberately, so that re-running a sync does not
- *  litter the library with `..._P01 1.jpg`. Put both visits in one folder and
- *  the second audit silently overwrites the first audit's evidence — at a
- *  national key point, in the system ACSA reads.
- *
- *  The visit id rather than its label, because `2026-09` sorts and `Sep 2026`
- *  does not. It is also exactly what the record copy in the blob store already
- *  uses (see photoObjectPath), so the two stores describe the same audit the
- *  same way. */
+ *  NO MONTH/VISIT SEGMENT — see dayFolder below. A photograph's reference is
+ *  scoped to the CHECK, not to the visit — nextPhotoRef counts the
+ *  attachments on that check's response. Uploads use
+ *  `conflictBehavior=replace`, deliberately, so that re-running a sync does
+ *  not litter the library with `..._P01 1.jpg`. The collision that would
+ *  risk — the first photograph of KSIA-ELE-001 in September 2026 silently
+ *  overwritten by the first photograph of the same check in March 2027 — is
+ *  what a VISIT folder originally existed to prevent (Sarel, 16 September
+ *  2026: "add a audit date into the hierarchy maybe"). A DAY folder prevents
+ *  it just as well, and more finely: two different visits landing on the
+ *  exact same calendar date is not a real case this register has to plan
+ *  for, so dayFolder below carries that guarantee now and this function no
+ *  longer needs to. */
 export function evidenceFolder(
   entityCode: string,
-  visitId?: string,
   library?: string,
   siteFolder?: string | null
 ): string {
@@ -930,21 +924,20 @@ export function evidenceFolder(
   const parts = [
     nested ? "Evidence" : "",
     (siteFolder ?? "").trim() || (s ? `${s.name} ${s.icao}` : ""),
-    (visitId ?? "").trim(),
   ].filter(Boolean);
   return parts.join("/");
 }
 
-/** `{the visit's own folder}/2026-09-15` — ONE FOLDER PER DAY, inside it.
+/** `{the site's own folder}/20260915` — ONE FOLDER PER DAY, inside it, no
+ *  month/visit folder in between.
  *
  *  Sarel, 7 October 2026: "create a folder for each day and put the photos
- *  in each day it was captured" — a visit's own folder is keyed on
- *  `visitId` (`2026-09`, a month), and a three-week audit was putting every
- *  photograph and signature from the whole visit into that one flat folder
- *  together. This still sits inside the visit's folder (EvidenceLink keeps
- *  pointing there — one stable link per check-point/finding row, unaffected
- *  by which day anything inside it was captured on), but each file now goes
- *  into a subfolder for the day it actually happened.
+ *  in each day it was captured" — first with a visit folder still in the
+ *  middle, then: "So no month folder only [site]/7 OCT 2026... wait,
+ *  20261007, use this format." Every photograph and signature now files
+ *  directly under the site's own folder (EvidenceLink keeps pointing there —
+ *  one stable link per check-point/finding row, unaffected by which day
+ *  anything inside it was captured on), in a day folder named `YYYYMMDD`.
  *
  *  `when` is the capture moment — a photograph's EXIF `takenAt` where one
  *  exists, its `createdAt` otherwise; a signature's `signedAt`, always
@@ -953,16 +946,17 @@ export function evidenceFolder(
  *  a photograph taken just after midnight SAST must not file itself under
  *  the day before because UTC still called it that.
  *
- *  FALLS BACK TO THE VISIT FOLDER, not a day folder, when `when` is not a
+ *  FALLS BACK TO THE SITE FOLDER, not a day folder, when `when` is not a
  *  real timestamp — `createdAt` is required on every Attachment the app
  *  writes today, but a record from before that was true, or a test fixture
- *  missing it, must not turn into a literal "NaN-NaN-NaN" folder in a
- *  system of record. A visit-level folder is at least a real place; an
- *  invented date is a wrong one. */
-function dayFolder(visitFolder: string, when: number): string {
-  if (!Number.isFinite(when)) return visitFolder;
-  const day = localDate(when);
-  return visitFolder ? `${visitFolder}/${day}` : day;
+ *  missing it, must not turn into a literal "NaNNaNNaN" folder in a system
+ *  of record. The site folder is at least a real place; an invented date is
+ *  a wrong one. */
+function dayFolder(siteFolder: string, when: number): string {
+  if (!Number.isFinite(when)) return siteFolder;
+  /* YYYYMMDD, not YYYY-MM-DD — Sarel's own correction, mid-request. */
+  const day = localDate(when).replace(/-/g, "");
+  return siteFolder ? `${siteFolder}/${day}` : day;
 }
 
 /** What a sync would write against a site NOBODY HAS AUDITED YET.
@@ -1218,7 +1212,7 @@ export function buildPlan(
   },
   unconsolidatedFindings = 0
 ): SyncPlan {
-  const folder = evidenceFolder(x.entity, x.visit, x.library, x.siteFolder);
+  const folder = evidenceFolder(x.entity, x.library, x.siteFolder);
   const folderUrl = evidenceFolderUrl(x.libraryUrl, folder);
   const checkpoints: PlannedRow[] = [];
   const findings: PlannedRow[] = [];
