@@ -32,6 +32,7 @@ const check = (name, cond, detail = "") => {
 
 const sp = await import("../src/lib/sharepoint.ts");
 const sites = await import("../src/lib/sites.ts");
+const { localDate } = await import("../src/lib/attendance.ts");
 
 /** The source with its COMMENTS REMOVED.
  *
@@ -1372,9 +1373,9 @@ check(
  *  so five photographs went missing and the screen called it a success. */
 
 check(
-  "a folder that could not be prepared names every photograph it took down",
-  /folderReady/.test(panel) && /could not be prepared/.test(panel),
-  "one call failing all five must not be one silence"
+  "a day folder that could not be prepared names every file headed for it, not the whole plan",
+  /folderFailed/.test(panel) && /could not be prepared/.test(panel),
+  "one day's folder failing must not silently take down a different day's files, or go unnamed"
 );
 
 check(
@@ -2425,9 +2426,21 @@ check(
 );
 
 check(
-  "the writer uploads signatures through fullSignatureBlob, into the same folder as photographs",
+  "the writer uploads signatures through fullSignatureBlob, into their own day folder",
   /const blob = await fullSignatureBlob\(s\.signature, entityCode, visitId\)/.test(panel) &&
-    /graph\.uploadEvidence\(resolved\.driveId, plan\.folder, s\.filename, blob\)/.test(panel)
+    /graph\.uploadEvidence\(resolved\.driveId, s\.folder, s\.filename, blob\)/.test(panel)
+);
+
+check(
+  "photographs and signatures each upload into their OWN day folder, not one shared visit folder",
+  /graph\.uploadEvidence\(resolved\.driveId, f\.folder, f\.filename, blob\)/.test(panel) &&
+    /graph\.uploadEvidence\(resolved\.driveId, s\.folder, s\.filename, blob\)/.test(panel) &&
+    !/graph\.uploadEvidence\(resolved\.driveId, plan\.folder/.test(panel)
+);
+
+check(
+  "a bad day folder is ensured per-folder, not once for the whole plan — one call per distinct day",
+  /const folders = new Set\(\[/.test(panel) && /for \(const dayFolder of folders\)/.test(panel)
 );
 
 check(
@@ -2474,6 +2487,145 @@ check(
   !/^"use client"/.test(src("lib", "signatures.ts")) &&
     /export function signatureFilename/.test(src("lib", "signatures.ts")) &&
     /export function signatureObjectPath/.test(src("lib", "signatures.ts"))
+);
+
+/* ---------------- Part 1h: one folder per day, inside the visit's own ----- *
+ *
+ *  Sarel, 7 October 2026: "create a folder for each day and put the photos
+ *  in each day it was captured" — a visit's own folder was one flat folder
+ *  for the whole visit (keyed on `2026-09`, a month), and every photograph
+ *  and signature from a three-week audit landed in it together. */
+
+const TAKEN = (t) => ({ id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-001_P01", caption: "c", takenAt: t, createdAt: t });
+
+check(
+  "a photograph files under the day it was taken, inside the visit's own folder",
+  (() => {
+    const takenAt = Date.parse("2026-09-15T10:00:00+02:00");
+    const p = sp.buildPlan(
+      { ...BASE, responses: { "KSIA-ELE-001": { compliance: "NC", observation: "x", attachments: [TAKEN(takenAt)] } } },
+      NOTHING
+    );
+    const f = p.evidence[0];
+    return f.folder === `${p.folder}/${localDate(takenAt)}` && f.folder.endsWith(`/${localDate(takenAt)}`);
+  })()
+);
+
+check(
+  "two photographs taken on different days file into different day folders, same visit",
+  (() => {
+    const day1 = Date.parse("2026-09-15T10:00:00+02:00");
+    const day2 = Date.parse("2026-09-22T10:00:00+02:00");
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": { compliance: "NC", observation: "x", attachments: [TAKEN(day1)] },
+          "KSIA-ELE-002": { compliance: "NC", observation: "x", attachments: [{ ...TAKEN(day2), ref: "KSIA-ELE-002_P01" }] },
+        },
+      },
+      NOTHING
+    );
+    const [f1, f2] = p.evidence;
+    return (
+      f1.folder !== f2.folder &&
+      f1.folder.startsWith(p.folder) &&
+      f2.folder.startsWith(p.folder) &&
+      f1.folder.endsWith(localDate(day1)) &&
+      f2.folder.endsWith(localDate(day2))
+    );
+  })()
+);
+
+check(
+  "with no EXIF takenAt, the photograph still files by the day it was logged — createdAt",
+  (() => {
+    const createdAt = Date.parse("2026-09-16T08:00:00+02:00");
+    const a = { id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-001_P01", caption: "c", createdAt };
+    const p = sp.buildPlan(
+      { ...BASE, responses: { "KSIA-ELE-001": { compliance: "NC", observation: "x", attachments: [a] } } },
+      NOTHING
+    );
+    return p.evidence[0].folder === `${p.folder}/${localDate(createdAt)}`;
+  })(),
+  "takenAt is EXIF-only and absent on plenty of real photographs; createdAt is always there"
+);
+
+check(
+  "a photograph with neither timestamp falls back to the visit folder, never a NaN-NaN-NaN one",
+  (() => {
+    const a = { id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-001_P01", caption: "c" };
+    const p = sp.buildPlan(
+      { ...BASE, responses: { "KSIA-ELE-001": { compliance: "NC", observation: "x", attachments: [a] } } },
+      NOTHING
+    );
+    return p.evidence[0].folder === p.folder && !/NaN/.test(p.evidence[0].folder);
+  })(),
+  "a wrong folder is worse than a coarser real one — an invented date must never reach SharePoint"
+);
+
+check(
+  "a WALK inspection photograph gets a day folder too, same rule as a check-point's",
+  (() => {
+    const takenAt = Date.parse("2026-09-18T09:00:00+02:00");
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        adhoc: [
+          {
+            id: "WALK-A3F2K", description: "Loose kerb", discipline: null, system: null, area: "Apron",
+            attachments: [{ id: "w1", kind: "photo", name: "n", blobKey: "b9", ref: "WALK-A3F2K_P01", caption: "Kerb", takenAt, createdAt: takenAt }],
+          },
+        ],
+      },
+      NOTHING
+    );
+    return p.evidence[0].folder === `${p.folder}/${localDate(takenAt)}`;
+  })()
+);
+
+check(
+  "a signature files by when it was SIGNED, not when the register was opened",
+  (() => {
+    const signedAt = 1_758_500_000_000;
+    const signed = ROW("r1", "A. Auditor", {
+      signature: { ref: "ATR-00001_S01", signedName: "A. Auditor", signedAt, blobKey: "b1" },
+    });
+    const p = sp.buildPlan(
+      { ...BASE_ATT, attendanceRegisters: [REGISTER({ date: "2026-09-10", rows: [signed] })] },
+      NOTHING_ATT
+    );
+    return p.signatures[0].folder === `${p.folder}/${localDate(signedAt)}`;
+  })()
+);
+
+check(
+  "EvidenceLink is unaffected — it still names the visit's own folder, not any day inside it",
+  (() => {
+    const takenAt = Date.parse("2026-09-15T10:00:00+02:00");
+    const dated = {
+      ...LINKED,
+      responses: {
+        "KSIA-ELE-001": { ...LINKED.responses["KSIA-ELE-001"], attachments: [TAKEN(takenAt)] },
+      },
+    };
+    const p = sp.buildPlan(dated, NOTHING);
+    const row = p.checkpoints.find((r) => r.key === "KSIA-ELE-001");
+    return (
+      row.values.evidenceLink ===
+      "https://tpjv.sharepoint.com/sites/ACSA-Asset-Assurance/Evidence/King%20Shaka%20International%20FALE/2026-09" &&
+      p.evidence[0].folder === `${p.folder}/${localDate(takenAt)}` &&
+      p.evidence[0].folder !== p.folder
+    );
+  })(),
+  "one stable link per row; the day split only changes where the bytes themselves land"
+);
+
+check(
+  "ensureFolder is called once per distinct day, not once for the whole plan",
+  /const folders = new Set\(\[\s*\.\.\.plan\.evidence\.map\(\(f\) => f\.folder\),\s*\.\.\.plan\.signatures\.map\(\(s\) => s\.folder\),\s*\]\);/.test(
+    panel
+  )
 );
 
 /* -------------------- Part 2: properties the source has to carry ---------- */

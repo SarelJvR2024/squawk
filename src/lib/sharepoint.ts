@@ -49,6 +49,7 @@
  *  somebody else. */
 
 import priorRaw from "@/data/priorFindings.json";
+import { localDate } from "./attendance";
 import * as erm from "./erm";
 import { photoFilename } from "./photos";
 import { signatureFilename } from "./signatures";
@@ -757,6 +758,11 @@ export interface PlannedFile {
    *  work out from the bytes: which check-point it answers, what it shows, who
    *  attached it. See EVIDENCE_FIELDS. */
   values: Record<string, string>;
+  /** The day folder this file's own bytes upload into — see `dayFolder`. Not
+   *  `SyncPlan.folder`: that is the visit's own folder, used for EvidenceLink;
+   *  this is one day's subfolder inside it, and two files in the same plan
+   *  can carry different ones. */
+  folder: string;
 }
 
 /** A signature's actual mark, going to the same evidence library the
@@ -775,6 +781,10 @@ export interface PlannedSignature {
   filename: string;
   signature: Signature;
   caption: string;
+  /** The day folder this signature's own bytes upload into — see
+   *  `dayFolder` and `PlannedFile.folder`'s own note on why this is not
+   *  `SyncPlan.folder`. */
+  folder: string;
 }
 
 export interface SyncPlan {
@@ -923,6 +933,36 @@ export function evidenceFolder(
     (visitId ?? "").trim(),
   ].filter(Boolean);
   return parts.join("/");
+}
+
+/** `{the visit's own folder}/2026-09-15` — ONE FOLDER PER DAY, inside it.
+ *
+ *  Sarel, 7 October 2026: "create a folder for each day and put the photos
+ *  in each day it was captured" — a visit's own folder is keyed on
+ *  `visitId` (`2026-09`, a month), and a three-week audit was putting every
+ *  photograph and signature from the whole visit into that one flat folder
+ *  together. This still sits inside the visit's folder (EvidenceLink keeps
+ *  pointing there — one stable link per check-point/finding row, unaffected
+ *  by which day anything inside it was captured on), but each file now goes
+ *  into a subfolder for the day it actually happened.
+ *
+ *  `when` is the capture moment — a photograph's EXIF `takenAt` where one
+ *  exists, its `createdAt` otherwise; a signature's `signedAt`, always
+ *  present. `localDate` reads it in the auditor's own timezone, the same
+ *  rule attendance.ts uses for every other "which day was this" question —
+ *  a photograph taken just after midnight SAST must not file itself under
+ *  the day before because UTC still called it that.
+ *
+ *  FALLS BACK TO THE VISIT FOLDER, not a day folder, when `when` is not a
+ *  real timestamp — `createdAt` is required on every Attachment the app
+ *  writes today, but a record from before that was true, or a test fixture
+ *  missing it, must not turn into a literal "NaN-NaN-NaN" folder in a
+ *  system of record. A visit-level folder is at least a real place; an
+ *  invented date is a wrong one. */
+function dayFolder(visitFolder: string, when: number): string {
+  if (!Number.isFinite(when)) return visitFolder;
+  const day = localDate(when);
+  return visitFolder ? `${visitFolder}/${day}` : day;
 }
 
 /** What a sync would write against a site NOBODY HAS AUDITED YET.
@@ -1253,6 +1293,7 @@ export function buildPlan(
         attachment: a,
         caption: a.caption?.trim() ?? "",
         values: evidenceValues(a, key, c.discipline, c.system),
+        folder: dayFolder(folder, a.takenAt ?? a.createdAt),
       });
       /* And the other direction: the check-point row names its photographs, so
          a reader on the check-point can see there IS evidence and what it is
@@ -1332,6 +1373,7 @@ export function buildPlan(
            guessed: an empty column reads as "not applicable here", a wrong one
            reads as fact. */
         values: evidenceValues(a, item.id, "", ""),
+        folder: dayFolder(folder, a.takenAt ?? a.createdAt),
       });
     }
   }
@@ -1495,6 +1537,7 @@ export function buildPlan(
           filename: signatureFilename(p.signature),
           signature: p.signature,
           caption: `Signature: ${p.name || "(no name)"}, ${reg.date}`,
+          folder: dayFolder(folder, p.signature.signedAt),
         });
       }
     }
@@ -1560,6 +1603,7 @@ export function buildPlan(
         filename: signatureFilename(item.signature),
         signature: item.signature,
         caption: `Signature: ${item.receivedBy || "(no name)"}, ${item.title}`,
+        folder: dayFolder(folder, item.signature.signedAt),
       });
     }
   }

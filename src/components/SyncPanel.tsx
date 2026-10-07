@@ -402,32 +402,49 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       await writeRows(plan.assetRisk, resolved.assetRiskList, "asset risk row");
 
       if (sendPhotos && resolved.driveId && (plan.evidence.length || plan.signatures.length)) {
-        /* THE FOLDER IS ONE CALL THAT CAN FAIL EVERYTHING BELOW IT.
-           It used to sit outside the per-photograph try, so when it threw, the
-           outer catch set an error — and then reported "33 written. Everything
-           in the plan reached the portal", because `failed` was still empty.
-           A partial write calling itself complete is the one outcome this
-           screen exists to prevent. Every photograph and signature it takes
-           down is now named. */
-        let folderReady = true;
-        try {
-          await graph.ensureFolder(resolved.driveId, plan.folder);
-        } catch (e) {
-          folderReady = false;
-          const why = `the evidence folder "${plan.folder}" could not be prepared — ${
-            e instanceof Error ? e.message : "failed"
-          }`;
-          for (const f of plan.evidence) failed.push({ key: f.filename, why });
-          for (const s of plan.signatures) failed.push({ key: s.filename, why });
+        /* ONE DAY FOLDER PER FILE, not one folder for the whole visit — see
+           PlannedFile.folder/PlannedSignature.folder. A visit can run for
+           weeks; each photograph and signature now files under the day it
+           was actually captured, inside the visit's own folder.
+
+           THE FOLDER IS ONE CALL THAT CAN FAIL EVERYTHING HEADED FOR IT.
+           It used to sit outside the per-photograph try entirely, so when it
+           threw, the outer catch set an error — and then reported "33
+           written. Everything in the plan reached the portal", because
+           `failed` was still empty. A partial write calling itself complete
+           is the one outcome this screen exists to prevent. Now there is one
+           such call per DAY rather than one for the whole plan — a bad day
+           folder must not take down a different day's files with it. */
+        const folders = new Set([
+          ...plan.evidence.map((f) => f.folder),
+          ...plan.signatures.map((s) => s.folder),
+        ]);
+        const folderFailed = new Map<string, string>();
+        for (const dayFolder of folders) {
+          try {
+            await graph.ensureFolder(resolved.driveId, dayFolder);
+          } catch (e) {
+            folderFailed.set(
+              dayFolder,
+              `the evidence folder "${dayFolder}" could not be prepared — ${
+                e instanceof Error ? e.message : "failed"
+              }`
+            );
+          }
         }
-        for (const f of folderReady ? plan.evidence : []) {
+        for (const f of plan.evidence) {
+          const why = folderFailed.get(f.folder);
+          if (why) {
+            failed.push({ key: f.filename, why });
+            continue;
+          }
           setProgress({ done: written, total, what: `photograph ${f.filename}` });
           try {
             /* This device's copy if it has one, the record copy otherwise. An
                auditor who joined the audit rather than taking the photographs
                still uploads every one of them. */
             const blob = await fullPhotoBlob(f.attachment, entityCode, visitId);
-            const up = await graph.uploadEvidence(resolved.driveId, plan.folder, f.filename, blob);
+            const up = await graph.uploadEvidence(resolved.driveId, f.folder, f.filename, blob);
             written++;
             /* THE METADATA IS ITS OWN STEP, AND ITS OWN FAILURE.
                Prince Mahlangu, 17 September 2026: "They carry no metadata at
@@ -455,16 +472,21 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
             failed.push({ key: f.filename, why: e instanceof Error ? e.message : "failed" });
           }
         }
-        /* SIGNATURES, THE SAME WAY — same folder, same device-then-record
-           fallback, but no metadata step: EVIDENCE_FIELDS describes a
+        /* SIGNATURES, THE SAME WAY — same per-day folders, same device-then-
+           record fallback, but no metadata step: EVIDENCE_FIELDS describes a
            photograph (discipline, asset system, check-point), none of which
            a signature has. The file itself, named by its own ref, is the
            whole of what goes across. */
-        for (const s of folderReady ? plan.signatures : []) {
+        for (const s of plan.signatures) {
+          const why = folderFailed.get(s.folder);
+          if (why) {
+            failed.push({ key: s.filename, why });
+            continue;
+          }
           setProgress({ done: written, total, what: `signature ${s.filename}` });
           try {
             const blob = await fullSignatureBlob(s.signature, entityCode, visitId);
-            await graph.uploadEvidence(resolved.driveId, plan.folder, s.filename, blob);
+            await graph.uploadEvidence(resolved.driveId, s.folder, s.filename, blob);
             written++;
           } catch (e) {
             failed.push({ key: s.filename, why: e instanceof Error ? e.message : "failed" });
@@ -934,7 +956,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                       <span className="font-mono text-[10.5px]">
                         {resolved?.chose.drive ?? "the library"}/{plan.folder}
                       </span>
-                      . Off by
+                      , each one in a subfolder for the day it was actually captured. Off by
                       default — the rows carry the audit, and the images are large, of a national
                       key point, and not yet wanted in the portal. The workbook export still
                       includes every one of them.
@@ -1253,11 +1275,15 @@ function Contract() {
         ))}
         <p>
           Photographs and signatures go to a document library whose name contains <b>Document</b>,{" "}
-          <b>Shared</b> or <b>Evidence</b>, in a folder named for the site and then for the visit. The
+          <b>Shared</b> or <b>Evidence</b>, in a folder named for the site and then for the visit, and
+          then for the day — each file sits under the date it was actually captured, not the visit
+          as a whole, so a three-week audit does not land every image in one folder together. The
           path is relative to that library, so a library already called <b>Evidence</b> does not get
-          an <b>Evidence</b> folder inside it. A signature is written as its own file, named by its
-          ref — it carries no columns of its own; the attendance/evidence log row it belongs to is
-          where who-signed-and-when lives.
+          an <b>Evidence</b> folder inside it. <b>EvidenceLink</b> still points at the visit&rsquo;s
+          own folder, one level up — a stable link per row, whichever day&rsquo;s subfolder the
+          evidence it names actually sits in. A signature is written as its own file, named by its ref — it
+          carries no columns of its own; the attendance/evidence log row it belongs to is where
+          who-signed-and-when lives.
         </p>
         <p className="mt-2" style={{ color: "var(--ink-3)" }}>
           Start every column as text, and dates as Date — except <b>EvidenceLink</b>, which must be a{" "}
