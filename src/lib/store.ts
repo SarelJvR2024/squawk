@@ -402,6 +402,14 @@ interface State {
   contacts: Contact[];
   lastSavedAt: number | null;
   hydrated: boolean;
+  /** Set when the last write to this device's own storage failed — see
+   *  idbStorage.setItem below. Null means the last write that was attempted
+   *  succeeded; it says nothing about writes still in flight. Deliberately
+   *  NOT in `partialize`: it describes this device's storage right now, not
+   *  the audit, and persisting it would have a device that recovers still
+   *  showing yesterday's failure on its next launch. */
+  persistError: string | null;
+  clearPersistError: () => void;
 
   setRole: (r: Role) => void;
   setAuditor: (a: string) => void;
@@ -819,10 +827,38 @@ function collectBlobKeys(value: unknown, acc: string[] = []): string[] {
   return acc;
 }
 
+/** Capture.tsx already has this sentence for a photograph that could not be
+ *  stored; the whole audit's own state never got the same one. zustand's
+ *  persist middleware calls `setItem` after every `set()` and does not await
+ *  it — a write that throws here becomes an unhandled promise rejection with
+ *  nothing on screen, the exact failure mode Capture.tsx's own header
+ *  describes finding and fixing for photo blobs, left open for everything
+ *  else. */
+function whyPersistFailed(err: unknown): string {
+  const name = err instanceof Error ? err.name : "";
+  if (name === "QuotaExceededError" || /quota/i.test(String(err))) {
+    return "No room left on this device to save your last change — it may not survive a reload. Open Export, download what you have, then clear some space.";
+  }
+  return `This device could not save your last change — it may not survive a reload. ${
+    err instanceof Error && err.message ? err.message : "Try again, or reload now while this message is showing."
+  }`;
+}
+
 const idbStorage = {
   getItem: async (name: string) => (await idbGet(name)) ?? null,
   setItem: async (name: string, value: string) => {
-    await idbSet(name, value);
+    try {
+      await idbSet(name, value);
+      /* A later write succeeding does not mean an earlier one did — but it
+         does mean THIS device's storage is working again right now, which is
+         the question the banner answers. */
+      if (useStore.getState().persistError) useStore.setState({ persistError: null });
+    } catch (err) {
+      useStore.setState({ persistError: whyPersistFailed(err) });
+      /* Not rethrown: nothing awaits this promise (that is the bug this
+         exists to work around), so throwing here would only turn into the
+         same unhandled rejection with none of the above having run first. */
+    }
   },
   removeItem: async (name: string) => {
     await idbDel(name);
@@ -869,6 +905,8 @@ export const useStore = create<State>()(
         contacts: [],
         lastSavedAt: null,
         hydrated: false,
+        persistError: null,
+        clearPersistError: () => set({ persistError: null }),
 
         setRole: (role) => set({ role }),
         setAuditor: (auditor) => set({ auditor }),
@@ -4017,6 +4055,9 @@ if (typeof window !== "undefined") {
    would loop. */
 
 export const useEntityCode = () => useStore((s) => s.entity);
+/** Null while this device's own storage is working; a sentence for the
+ *  banner the moment a write to it fails. See idbStorage.setItem. */
+export const usePersistError = () => useStore((s) => s.persistError);
 /** Whether the browser's live dictation engine may run while a note records.
  *  Off by default — see the `dictation` field on State for why. */
 export const useDictationEnabled = () => useStore((s) => s.dictation);

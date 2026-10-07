@@ -27,6 +27,8 @@ import { usePhotoSync } from "@/lib/sync";
 import { useShared } from "@/lib/shared";
 import ExportPanel from "@/components/ExportPanel";
 import JoinPrompt from "@/components/JoinPrompt";
+import PersistErrorBanner from "@/components/PersistErrorBanner";
+import TabGuard from "@/components/TabGuard";
 import { SyncPanel } from "@/components/SyncPanel";
 import ResetPanel from "@/components/ResetPanel";
 import AuditsPanel from "@/components/AuditsPanel";
@@ -162,6 +164,17 @@ const RESET_ENABLED = false;
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  /* THE HYDRATION RACE. Confirmed as a real cause of lost data, 7 October
+     2026: zustand reads the device's own IndexedDB asynchronously, and
+     nothing before this gated a tap on it finishing — an answer given in
+     the gap between first paint and hydration completing was overwritten
+     the instant hydration's own merge landed, because the merge takes
+     whatever was on disk over whatever just happened in memory. The sync
+     poller already had this guard (see `hydrated` in shared.ts); every
+     interactive screen shared the shell that never did. Closing the window
+     here, once, covers all of them rather than threading the same check
+     through every page. */
+  const hydrated = useStore((s) => s.hydrated);
   const role = useStore((s) => s.role);
   const setRole = useStore((s) => s.setRole);
   const auditor = useStore((s) => s.auditor);
@@ -359,6 +372,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [q, checks, entityCode]);
 
   const C = 2 * Math.PI * 12;
+
+  /* Nothing below this is interactive until the device's own storage has
+     actually loaded — see the note on `hydrated` above. A blank beat is a
+     far smaller cost than a tap that gets silently wiped a moment later. */
+  if (!hydrated) {
+    return (
+      <div
+        className="flex min-h-screen w-full flex-1 items-center justify-center"
+        style={{ background: "var(--bg)" }}
+      >
+        <p className="text-[12px]" style={{ color: "var(--ink-3)" }}>
+          Loading your audit…
+        </p>
+      </div>
+    );
+  }
 
   return (
     /* THE SHELL IS LOCKED TO THE VIEWPORT, and it took a real defect to make
@@ -1146,6 +1175,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           buttons the whole audit is made of. A banner that pushes the work down
           costs a strip of height once and can never swallow a tap. */}
       <JoinPrompt />
+      {/* Same in-flow reasoning as JoinPrompt above — a device's own storage
+          failing is read here, not floated over the work. */}
+      <PersistErrorBanner />
+      {/* A full block, not in-flow — see TabGuard's own header for why a
+          second tab gets a refusal rather than a banner. */}
+      <TabGuard />
 
       <main id="work" className="flex min-h-0 flex-1">
         <h1 className="sr-only">
