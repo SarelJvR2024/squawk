@@ -5,8 +5,13 @@ import { IconCheck, IconClock, IconDash, IconX } from "@/components/ui/icons";
 
 /** THE OUTCOME OF ONE INSPECTION. One control, four segments.
  *
- *  ACSA's four values, and the repo's own words for them, unchanged:
- *  C Pass · NC Fail · N/A Not applicable · NV Later.
+ *  ACSA's four values: C Compliant · NC Non-compliant · N/A N/A · NV Later.
+ *  Sarel, 7 October 2026: "the check is pass or fail, it should stick to
+ *  compliant and not compliant, the same as the checks view" — this screen
+ *  used to say Pass/Fail where CheckDetail.tsx's own verdict buttons say
+ *  Compliant/Non-compliant for the exact same two values; one inspection
+ *  answering the same check as a desk answer must read as the same verdict,
+ *  not a different-sounding one depending on which screen gave it.
  *
  *  AN OUTCOME IS NOT A RATING, and the palette is where that gets taught
  *  wrongly. `--bad` (#B93338) and `--warn` (#946511) mean Unacceptable and
@@ -28,8 +33,8 @@ import { IconCheck, IconClock, IconDash, IconX } from "@/components/ui/icons";
  *  without being read. */
 
 export const OUTCOMES: { key: Compliance; label: string; Icon: typeof IconCheck }[] = [
-  { key: "C", label: "Pass", Icon: IconCheck },
-  { key: "NC", label: "Fail", Icon: IconX },
+  { key: "C", label: "Compliant", Icon: IconCheck },
+  { key: "NC", label: "Non-compliant", Icon: IconX },
   { key: "N/A", label: "N/A", Icon: IconDash },
   { key: "NV", label: "Later", Icon: IconClock },
 ];
