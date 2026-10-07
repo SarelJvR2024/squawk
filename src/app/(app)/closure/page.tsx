@@ -427,7 +427,23 @@ export default function ClosurePage() {
             timeline it draws is still what visitsSurvived() counts, and it will
             be wanted again when there is somewhere with room for it. */}
 
-        <div className="grid gap-3 lg:grid-cols-[380px_minmax(0,1fr)]">
+        {/* `grid-cols-1` BELOW `lg`, NOT JUST "grid" ON ITS OWN. A bare `grid`
+            sets no `grid-template-columns`, so the browser's implicit single
+            column has `min-width: auto` — it refuses to shrink below its
+            content's own min-content width, which on this screen is a
+            GroupRow wide enough to hold a full discipline/system name.
+            Below `lg` that overflowed the panel by nearly 300px, clipped
+            silently by the panel's own `overflow-hidden` rather than
+            wrapping or scrolling — which is why Sarel saw it as broken, not
+            just cramped: rows were cut off mid-word, and a tap landing past
+            the visible 350px could miss a control that was there, just
+            off-screen. `grid-cols-1` compiles to
+            `grid-template-columns: repeat(1, minmax(0, 1fr))` — the same
+            `minmax(0, ...)` floor `lg:`'s own `[380px_minmax(0,1fr)]`
+            already gives its second column — so the single mobile column
+            can shrink to the panel's actual width instead of the content's
+            natural one. */}
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[380px_minmax(0,1fr)]">
           <div className="overflow-hidden rounded-[15px] border" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
             {list.length === 0 ? (
               <Empty>Nothing matches this filter.</Empty>
