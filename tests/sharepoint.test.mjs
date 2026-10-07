@@ -2626,6 +2626,245 @@ check(
   )
 );
 
+/* ------------- Part 1i: holding a discipline back from this run ---------- *
+ *
+ *  Sarel: "I captured some electrical info but didnt want to sync it yet
+ *  but i want to sync everything else." Before this, the only tool was
+ *  "sync nothing" — one discipline not ready meant none of them went. */
+
+check(
+  "with nothing excluded, every discipline still syncs — the default is unchanged",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        checks: [CHECK("KSIA-ELE-001", "Electrical"), CHECK("KSIA-CIV-001", "Civil")],
+        responses: {
+          "KSIA-ELE-001": { compliance: "C", observation: "fine", attachments: [] },
+          "KSIA-CIV-001": { compliance: "C", observation: "fine", attachments: [] },
+        },
+      },
+      NOTHING
+    );
+    return p.checkpoints.length === 2;
+  })()
+);
+
+check(
+  "excluding Electrical holds its check back, but Civil still syncs",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        checks: [CHECK("KSIA-ELE-001", "Electrical"), CHECK("KSIA-CIV-001", "Civil")],
+        responses: {
+          "KSIA-ELE-001": { compliance: "C", observation: "fine", attachments: [] },
+          "KSIA-CIV-001": { compliance: "C", observation: "fine", attachments: [] },
+        },
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING
+    );
+    return (
+      p.checkpoints.length === 1 &&
+      p.checkpoints[0].values.discipline === "Civil" &&
+      p.skipped.some((s) => s.what === "check-points (discipline held back)" && s.count === 1)
+    );
+  })()
+);
+
+check(
+  "the held-back reason names which disciplines, and says it is this run, not the audit",
+  sp
+    .buildPlan(
+      {
+        ...BASE,
+        checks: [CHECK("KSIA-ELE-001", "Electrical")],
+        responses: { "KSIA-ELE-001": { compliance: "C", observation: "fine", attachments: [] } },
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING
+    )
+    .skipped.some(
+      (s) => /Electrical/.test(s.why) && /not from the audit/.test(s.why)
+    )
+);
+
+check(
+  "a held-back check's own photograph is held back with it — no orphaned evidence",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        checks: [CHECK("KSIA-ELE-001", "Electrical")],
+        responses: {
+          "KSIA-ELE-001": { compliance: "NC", observation: "x", attachments: [TAKEN(Date.parse("2026-09-15T10:00:00+02:00"))] },
+        },
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING
+    );
+    return p.evidence.length === 0;
+  })(),
+  "uploading a photograph for a check-point that was never written would reference a row that does not exist"
+);
+
+check(
+  "a WALK photograph is never held back by a discipline exclusion — it has no discipline to match",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        checks: [CHECK("KSIA-ELE-001", "Electrical")],
+        responses: {},
+        adhoc: [
+          {
+            id: "WALK-A3F2K", description: "Loose kerb", discipline: null, system: null, area: "Apron",
+            attachments: [{ id: "w1", kind: "photo", name: "n", blobKey: "b9", ref: "WALK-A3F2K_P01", caption: "Kerb", createdAt: 1_757_000_000_000 }],
+          },
+        ],
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING
+    );
+    return p.evidence.length === 1;
+  })()
+);
+
+check(
+  "an asset-risk pair in the held-back discipline is withheld; another discipline's still syncs",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        checks: [CHECK("KSIA-ELE-001", "Electrical", "Generators"), CHECK("KSIA-CIV-001", "Civil", "Runway")],
+        systems: {
+          "Electrical|Generators": SYS({ discipline: "Electrical", system: "Generators", note: "checked" }),
+          "Civil|Runway": SYS({ discipline: "Civil", system: "Runway", note: "checked" }),
+        },
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING
+    );
+    return (
+      p.assetRisk.length === 1 &&
+      p.assetRisk[0].values.discipline === "Civil" &&
+      p.skipped.some((s) => s.what === "asset systems (discipline held back)" && s.count === 1)
+    );
+  })()
+);
+
+check(
+  "a hazard raised purely in the held-back discipline is held back whole",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE, hazards: [HAZARD({ disciplines: ["Electrical"] })], excludedDisciplines: ["Electrical"] },
+      NOTHING
+    );
+    return p.findings.length === 0 && p.skipped.some((s) => s.what === "hazards" && s.count === 1);
+  })()
+);
+
+check(
+  "a hazard spanning a held-back discipline AND an included one is still held back whole",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        hazards: [HAZARD({ disciplines: ["Electrical", "Civil"] })],
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING
+    );
+    return p.findings.length === 0;
+  })(),
+  "the portal takes one row per hazard — there is no partial write to cut the Electrical half out of"
+);
+
+check(
+  "a hazard that never touches the held-back discipline syncs normally",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE, hazards: [HAZARD({ disciplines: ["Civil"] })], excludedDisciplines: ["Electrical"] },
+      NOTHING
+    );
+    return p.findings.length === 1;
+  })()
+);
+
+check(
+  "a bare-NC warning never counts a check that was held back this run",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        checks: [CHECK("KSIA-ELE-001", "Electrical")],
+        responses: { "KSIA-ELE-001": { compliance: "NC", observation: "x", attachments: [] } },
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING
+    );
+    return !p.warnings.some((w) => /no finding behind them/.test(w.why));
+  })(),
+  "a check not going across this run has nothing to warn about yet"
+);
+
+check(
+  "attendance, the evidence log and signatures carry no discipline and are never held back",
+  (() => {
+    const signed = ROW("r1", "A. Auditor", {
+      signature: { ref: "ATR-00001_S01", signedName: "A. Auditor", signedAt: 1_758_500_000_000, blobKey: "b1" },
+    });
+    const p = sp.buildPlan(
+      {
+        ...BASE_ATT,
+        attendanceRegisters: [REGISTER({ rows: [signed] })],
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING_ATT
+    );
+    return p.attendance.length === 1 && p.signatures.length === 1;
+  })()
+);
+
+check(
+  "excludedDisciplines is optional — every existing caller that never heard of it still builds, unaffected",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        checks: [CHECK("KSIA-ELE-001", "Electrical")],
+        responses: { "KSIA-ELE-001": { compliance: "C", observation: "fine", attachments: [] } },
+      },
+      NOTHING
+    );
+    return p.checkpoints.length === 1 && !p.skipped.some((s) => /held back/.test(s.why));
+  })(),
+  "a caller written before this feature exists must sync exactly as it always did"
+);
+
+check(
+  "the panel passes the chip selection into buildPlan as excludedDisciplines",
+  /excludedDisciplines: \[\.\.\.excludedDisciplines\]/.test(panel)
+);
+
+check(
+  "toggling a discipline re-plans from the last read, not by re-issuing GETs against the portal",
+  (() => {
+    const m = panel.match(
+      /useEffect\(\(\) => \{\s*if \(!lastPlanBase\.current\) return;([\s\S]*?)\n {2}\}, \[excludedDisciplines, unconsolidated\]\);/
+    );
+    return !!m && /setPlan\(buildPlan/.test(m[1]) && !/graph\./.test(m[1]);
+  })(),
+  "a chip toggle must not cost a round trip to SharePoint just to change which rows are counted"
+);
+
+check(
+  "every chip starts included — unchecking narrows this run, it is never opt-in from empty",
+  /useState<Set<string>>\(new Set\(\)\)/.test(panel),
+  "an empty excluded set must mean 'sync everything', matching what every existing sync already did"
+);
+
 /* -------------------- Part 2: properties the source has to carry ---------- */
 
 check(

@@ -717,6 +717,20 @@ export interface SyncInput {
   /** This visit's asset-system ratings, keyed `${discipline}|${system}` —
    *  see useSystems(). Optional for the same reason the rest are. */
   systems?: Record<string, SystemAssessment>;
+  /** Held back from THIS sync run, not dropped from the audit.
+   *
+   *  Sarel: "I captured some electrical info but didnt want to sync it yet
+   *  but i want to sync everything else." A capture mistake or an answer
+   *  still being checked is common, and the only tool for it before this was
+   *  "sync nothing" — withholding one discipline meant withholding all of
+   *  them, every time, until the one thing was ready. Checked against
+   *  `Check.discipline` (check-points, and the asset-risk pairs derived
+   *  from the same checks) and `Hazard.disciplines` (a hazard spanning an
+   *  excluded discipline is held back whole — see the hazards loop's own
+   *  note). Attendance, the evidence log and signatures carry no
+   *  discipline and are never affected. Absent or empty means what it
+   *  always meant: everything goes. */
+  excludedDisciplines?: string[];
 }
 
 export type RowAction = "create" | "update";
@@ -1214,6 +1228,9 @@ export function buildPlan(
 ): SyncPlan {
   const folder = evidenceFolder(x.entity, x.library, x.siteFolder);
   const folderUrl = evidenceFolderUrl(x.libraryUrl, folder);
+  /* See SyncInput.excludedDisciplines. A Set, read in every loop below that
+     has a discipline to check against — never rebuilt per check. */
+  const excluded = new Set(x.excludedDisciplines ?? []);
   const checkpoints: PlannedRow[] = [];
   const findings: PlannedRow[] = [];
   const attendance: PlannedRow[] = [];
@@ -1226,7 +1243,16 @@ export function buildPlan(
 
   /* --- check-points: only the ones somebody actually answered --------- */
   let unanswered = 0;
+  let excludedChecks = 0;
   for (const c of x.checks) {
+    /* HELD BACK, NOT LOST. See SyncInput.excludedDisciplines. Checked before
+       `unanswered` so a held-back discipline reports as held back rather
+       than as if nobody had answered it — the two reasons read very
+       differently to somebody reviewing the plan. */
+    if (excluded.has(c.discipline)) {
+      excludedChecks++;
+      continue;
+    }
     const r = x.responses[c.id];
     if (!r || !r.compliance) {
       unanswered++;
@@ -1308,6 +1334,16 @@ export function buildPlan(
       count: unanswered,
     });
   }
+  if (excludedChecks) {
+    skipped.push({
+      /* Deliberately not "check-points" again — the UI keys this list on
+         `what`, and a second entry sharing the "no compliance captured"
+         row's key would collide with it. */
+      what: "check-points (discipline held back)",
+      why: `held back this run — ${[...excluded].join(", ")} excluded from this sync, not from the audit`,
+      count: excludedChecks,
+    });
+  }
 
   /* PLACEHOLDER: what a non-compliant check says when nobody typed anything.
    *
@@ -1321,7 +1357,10 @@ export function buildPlan(
     (x.findings ?? []).map((f) => f.checkId).filter((id): id is string => !!id)
   );
   const bareNC = x.checks.filter(
-    (c) => x.responses[c.id]?.compliance === "NC" && !withFinding.has(c.id)
+    (c) =>
+      !excluded.has(c.discipline) &&
+      x.responses[c.id]?.compliance === "NC" &&
+      !withFinding.has(c.id)
   ).length;
   if (bareNC) {
     warnings.push({
@@ -1375,7 +1414,21 @@ export function buildPlan(
   /* --- this visit's hazards ------------------------------------------- */
   const taken = new Set(existing.findings.keys());
   let unrated = 0;
+  let excludedHazards = 0;
   for (const h of x.hazards) {
+    /* HELD BACK WHOLE if it touches ANY excluded discipline — see
+       SyncInput.excludedDisciplines. A hazard spanning Electrical and Civil
+       is exactly the case `disciplines` being plural already plans for (the
+       March 2025 KSIA fuse: two write-ups, one hazard), and there is no
+       partial-hazard write — the portal takes one row with one event, one
+       description, one rating, so there is nothing to cut the Electrical
+       half out of. Holding back a Civil hazard a day longer is a far
+       smaller cost than syncing Electrical content the auditor explicitly
+       asked to hold. */
+    if (h.disciplines.some((d) => excluded.has(d))) {
+      excludedHazards++;
+      continue;
+    }
     /* A hazard whose ERM cell NOBODY AGREED still goes across — it is a real
        exposure and the portal should carry it — but WITHOUT a rating. A
        severity the assistant proposed and a person never looked at is
@@ -1426,6 +1479,13 @@ export function buildPlan(
       what: "hazard ratings",
       why: "nobody has agreed the ERM cell — the hazard syncs, the rating does not",
       count: unrated,
+    });
+  }
+  if (excludedHazards) {
+    skipped.push({
+      what: "hazards",
+      why: `held back this run — spans ${[...excluded].join(", ")}, excluded from this sync, not from the audit`,
+      count: excludedHazards,
     });
   }
   const withheldAssets = x.hazards.reduce(
@@ -1619,11 +1679,19 @@ export function buildPlan(
   const existingAssetRisk = existing.assetRisk ?? new Map<string, string>();
   const seenPairs = new Set<string>();
   let emptyPairs = 0;
+  let excludedPairs = 0;
   for (const c of x.checks) {
     const system = c.system?.trim() || "No asset system recorded";
     const pairKey = `${c.discipline}|${system}`;
     if (seenPairs.has(pairKey)) continue;
     seenPairs.add(pairKey);
+    /* Held back with the rest of the discipline — see
+       SyncInput.excludedDisciplines. After the dedup above, so this counts
+       distinct PAIRS the same way emptyPairs does, not one per check. */
+    if (excluded.has(c.discipline)) {
+      excludedPairs++;
+      continue;
+    }
     const a = x.systems?.[pairKey];
     const hasContent =
       !!a &&
@@ -1683,6 +1751,15 @@ export function buildPlan(
       what: "asset systems",
       why: "no rating, root cause, action or event recorded against them yet",
       count: emptyPairs,
+    });
+  }
+  if (excludedPairs) {
+    skipped.push({
+      /* Deliberately not "asset systems" again — see the check-points skip
+         entry's own note on why the UI's key would collide. */
+      what: "asset systems (discipline held back)",
+      why: `held back this run — ${[...excluded].join(", ")} excluded from this sync, not from the audit`,
+      count: excludedPairs,
     });
   }
 

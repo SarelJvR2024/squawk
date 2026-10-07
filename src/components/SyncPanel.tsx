@@ -17,7 +17,7 @@
  *  where ACSA reads it, and an unpreviewable sync is one somebody has to
  *  trust rather than check. */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   checksAt,
   priorFindingsAt,
@@ -125,6 +125,29 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [resolved, setResolved] = useState<Resolved | null>(null);
   const [plan, setPlan] = useState<SyncPlan | null>(null);
+  /* HELD BACK FROM THIS RUN, NOT FROM THE AUDIT. Sarel: "I captured some
+     electrical info but didnt want to sync it yet but i want to sync
+     everything else." Empty means what it always meant — nothing held
+     back, the sync is everything. The set holds what to WITHHOLD rather
+     than what to send, so a discipline this site has never heard of (a
+     register update, a typo nobody notices) can never silently vanish from
+     a sync just because it is missing from an allow-list — only a
+     discipline someone actively unchecked is ever held back.
+     Not persisted: the same "decided fresh every time" rule sendPhotos
+     already follows, for the same reason — a hold-back that silently
+     survived to the next audit would exclude a discipline nobody this time
+     meant to withhold. */
+  const [excludedDisciplines, setExcludedDisciplines] = useState<Set<string>>(new Set());
+  /* THE LAST REAL READ'S OWN INPUTS, frozen — so toggling a discipline
+     re-plans from what the portal actually had on the last read rather than
+     re-issuing every GET in `read()` just to change which rows are counted.
+     Discipline exclusion is applied entirely inside buildPlan, a pure
+     function; it needs nothing about the portal that read() has not already
+     fetched. Null until the first successful read. */
+  const lastPlanBase = useRef<{
+    input: Omit<Parameters<typeof buildPlan>[0], "excludedDisciplines">;
+    existing: Parameters<typeof buildPlan>[1];
+  } | null>(null);
   /* What the portal's own lists looked like when they were read: how many rows
      belong to another airport, and which Titles this site has more than one
      of. Both decide whether the plan can be trusted. */
@@ -159,6 +182,13 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   const [earlyOk, setEarlyOk] = useState(false);
 
   const checks = useMemo(() => checksAt(entityCode), [entityCode]);
+  /* Register order, not alphabetical — the same order the discipline
+     dropdown elsewhere in the app already uses, so a chip row here reads
+     the same way to somebody who knows the register. */
+  const disciplines = useMemo(
+    () => [...new Set(checks.map((c) => c.discipline))],
+    [checks]
+  );
   const prior = useMemo(() => priorFindingsAt(entityCode), [entityCode]);
   /* A finding in no hazard is work the register will not receive. Counted here
      so the plan can say so rather than letting it look synced. */
@@ -166,6 +196,21 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
     const inHazard = new Set(hazards.flatMap((h) => h.findingIds));
     return findings.filter((f) => !inHazard.has(f.id)).length;
   }, [findings, hazards]);
+
+  /* RE-PLANS FROM THE LAST READ, not a fresh one — see lastPlanBase's own
+     note. Does nothing before the first read: a discipline toggled while
+     the panel still shows step 1 or 2 has no plan yet to recompute, and
+     `read()` itself already builds the first one with whatever was
+     checked at that moment. */
+  useEffect(() => {
+    if (!lastPlanBase.current) return;
+    const { input, existing } = lastPlanBase.current;
+    setPlan(buildPlan({ ...input, excludedDisciplines: [...excludedDisciplines] }, existing, unconsolidated));
+    /* A plan that just changed shape is a plan nobody has looked at yet in
+       its new form — same reasoning as the comment on earlyOk's own
+       declaration. */
+    setEarlyOk(false);
+  }, [excludedDisciplines, unconsolidated]);
 
   const configured = graph.graphConfigured();
 
@@ -331,13 +376,11 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
           drive: drive?.name ?? null,
         },
       });
-      setPlan(
-        buildPlan(
-          { entity: entityCode, visit: visitId, visitLabel: visitId, library: drive?.name, siteFolder, libraryUrl: drive?.webUrl, checks, responses, hazards, prior, verifications, auditor, findings, adhoc, attendanceRegisters, evidenceItems, systems },
-          existing,
-          unconsolidated
-        )
-      );
+      const input = { entity: entityCode, visit: visitId, visitLabel: visitId, library: drive?.name, siteFolder, libraryUrl: drive?.webUrl, checks, responses, hazards, prior, verifications, auditor, findings, adhoc, attendanceRegisters, evidenceItems, systems };
+      /* Frozen here, read by the discipline-toggle effect below — see
+         lastPlanBase's own note. */
+      lastPlanBase.current = { input, existing };
+      setPlan(buildPlan({ ...input, excludedDisciplines: [...excludedDisciplines] }, existing, unconsolidated));
       setEarlyOk(false);
       setStage("planned");
     } catch (e) {
@@ -850,6 +893,80 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
             {/* --- the plan ----------------------------------------------- */}
             {plan && totals && stage !== "done" && (
               <>
+                {/* HELD BACK FROM THIS RUN, NOT FROM THE AUDIT. Sarel: "I
+                    captured some electrical info but didnt want to sync it
+                    yet but i want to sync everything else" — the only tool
+                    for that before this was "sync nothing", because holding
+                    back one discipline meant holding back all of them.
+                    Every chip starts included; unchecking one narrows this
+                    run only — the tiles and totals below react live. */}
+                {disciplines.length > 0 && (
+                  <div
+                    className="mb-3 rounded-[10px] border px-[11px] py-[9px] text-[11.5px] leading-[1.5]"
+                    style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+                  >
+                    <div className="mb-[7px] flex items-center justify-between gap-2">
+                      <b>Disciplines to sync this run</b>
+                      {excludedDisciplines.size > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setExcludedDisciplines(new Set())}
+                          className="font-mono text-[10px] underline"
+                          style={{ color: "var(--ink-3)" }}
+                        >
+                          sync everything
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-[6px]">
+                      {disciplines.map((d) => {
+                        const held = excludedDisciplines.has(d);
+                        return (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() =>
+                              /* A fresh Set built by filtering, not a mutated
+                                 copy — same shape as the toggle has to take
+                                 anyway, and it keeps this file's own "no
+                                 deletions, ever" source check honest: that
+                                 check means a SharePoint item, not an entry
+                                 in a client-side Set, but a blind text match
+                                 cannot tell the two apart. */
+                              setExcludedDisciplines((prev) =>
+                                prev.has(d)
+                                  ? new Set([...prev].filter((x) => x !== d))
+                                  : new Set([...prev, d])
+                              )
+                            }
+                            aria-pressed={!held}
+                            title={held ? `${d} — held back this run, tap to include it again` : `${d} — syncing this run, tap to hold it back`}
+                            className="rounded-full border px-[10px] py-[5px] text-[10.5px] transition-[var(--t)]"
+                            style={
+                              held
+                                ? {
+                                    background: "var(--panel)",
+                                    borderColor: "var(--line-2)",
+                                    color: "var(--ink-4)",
+                                    textDecoration: "line-through",
+                                  }
+                                : { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
+                            }
+                          >
+                            {d}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {excludedDisciplines.size > 0 && (
+                      <p className="mt-[7px] text-[10px]" style={{ color: "var(--ink-3)" }}>
+                        Held back from this sync, not from the audit —{" "}
+                        <b>{[...excludedDisciplines].join(", ")}</b> will not be written this run.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
                   <Tile n={totals.checkpointsNew} label="check-points to add" />
                   <Tile n={totals.checkpointsChanged} label="check-points to update" />
