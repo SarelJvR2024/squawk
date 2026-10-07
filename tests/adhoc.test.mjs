@@ -286,9 +286,15 @@ for (const token of ["--bad", "--warn", "--good"]) {
   check(
     `the outcome control does not fill with ${token}`,
     !outcomeCode.includes(token),
-    "those are band colours — Unacceptable and Tolerable — and a Fail is not a band"
+    "those are band colours — Unacceptable and Tolerable — and a verdict is not a band"
   );
 }
+check(
+  "the field verdict reads Compliant/Non-compliant, same as the desk's own words for C/NC",
+  /\{ key: "C", label: "Compliant", Icon: IconCheck \}/.test(outcome) &&
+    /\{ key: "NC", label: "Non-compliant", Icon: IconX \}/.test(outcome),
+  'Sarel, 7 October 2026: one check answered on two screens must not read as two different verdicts — "Pass/Fail" here, "Compliant/Non-compliant" on CheckDetail, for the exact same C/NC'
+);
 check(
   "it fills with the brand accent instead",
   /background: on \? "var\(--acc\)"/.test(outcomeCode)
@@ -305,7 +311,7 @@ check(
 check(
   "the same segment tapped twice clears the outcome",
   /onChange\(on \? null : key\)/.test(outcome),
-  "a status set by mistake that cannot be unset turns a blank 'not captured' into an untrue Pass"
+  "a status set by mistake that cannot be unset turns a blank 'not captured' into an untrue Compliant"
 );
 
 console.log(`\n${failures === 0 ? "AD-HOC OK" : `${failures} FAILURES`}`);
