@@ -51,6 +51,7 @@
 import priorRaw from "@/data/priorFindings.json";
 import * as erm from "./erm";
 import { photoFilename } from "./photos";
+import { signatureFilename } from "./signatures";
 import { portalIdFor, siteCodeFor, siteFor } from "./sites";
 import { apologiesOf } from "./attendanceRegister";
 import { MEDIUM_LABEL } from "./evidence";
@@ -758,6 +759,24 @@ export interface PlannedFile {
   values: Record<string, string>;
 }
 
+/** A signature's actual mark, going to the same evidence library the
+ *  photographs do — `signedCell` already puts WHO and WHEN into the
+ *  attendance/evidence-log row as text; this is the image behind it.
+ *
+ *  Deliberately not a PlannedFile: a signature has no check-point, no
+ *  discipline, no asset system — EVIDENCE_FIELDS' columns do not describe
+ *  it, and writing blanks into them would be worse than writing none. The
+ *  file itself, named by its own ref, is the whole point; nothing here
+ *  claims the library's photograph columns for it. */
+export interface PlannedSignature {
+  /** The attendance or evidence-log row this mark belongs to, for the plan
+   *  preview's own readability only. */
+  rowKey: string;
+  filename: string;
+  signature: Signature;
+  caption: string;
+}
+
 export interface SyncPlan {
   checkpoints: PlannedRow[];
   findings: PlannedRow[];
@@ -769,6 +788,10 @@ export interface SyncPlan {
   /** One row per (discipline, asset system) pair. See ASSET_RISK_FIELDS. */
   assetRisk: PlannedRow[];
   evidence: PlannedFile[];
+  /** The actual marks behind `attendance`/`evidenceLog`'s `signed` text
+   *  column — see PlannedSignature. Uploaded to the same evidence library,
+   *  not written as rows. */
+  signatures: PlannedSignature[];
   /** Why rows were left out, in the words of somebody who might disagree. */
   skipped: { what: string; why: string; count: number }[];
   /** Things that ARE going across and should be said out loud anyway.
@@ -1163,6 +1186,7 @@ export function buildPlan(
   const evidenceLog: PlannedRow[] = [];
   const assetRisk: PlannedRow[] = [];
   const evidence: PlannedFile[] = [];
+  const signatures: PlannedSignature[] = [];
   const skipped: SyncPlan["skipped"] = [];
   const warnings: SyncPlan["warnings"] = [];
 
@@ -1465,6 +1489,14 @@ export function buildPlan(
         },
         summary: `${key} · ${p.name || "(no name)"} · ${p.isApology ? "apology" : "attended"}`,
       });
+      if (p.signature) {
+        signatures.push({
+          rowKey: key,
+          filename: signatureFilename(p.signature),
+          signature: p.signature,
+          caption: `Signature: ${p.name || "(no name)"}, ${reg.date}`,
+        });
+      }
     }
   }
   if (blankRegisters) {
@@ -1522,6 +1554,14 @@ export function buildPlan(
       },
       summary: `${key} · ${item.title}${item.unavailableAt ? " (declared unavailable)" : item.returnedAt ? " (returned)" : item.receivedAt ? " (received)" : " (outstanding)"}`,
     });
+    if (item.signature) {
+      signatures.push({
+        rowKey: key,
+        filename: signatureFilename(item.signature),
+        signature: item.signature,
+        caption: `Signature: ${item.receivedBy || "(no name)"}, ${item.title}`,
+      });
+    }
   }
   if (blankDocuments) {
     skipped.push({
@@ -1615,6 +1655,7 @@ export function buildPlan(
     evidenceLog,
     assetRisk,
     evidence,
+    signatures,
     skipped,
     warnings,
     folder,
@@ -1653,13 +1694,15 @@ export function planTotals(plan: SyncPlan) {
     assetRiskNew: count(plan.assetRisk, "create"),
     assetRiskChanged: count(plan.assetRisk, "update"),
     photographs: plan.evidence.length,
+    signatures: plan.signatures.length,
     writes:
       plan.checkpoints.length +
       plan.findings.length +
       plan.attendance.length +
       plan.evidenceLog.length +
       plan.assetRisk.length +
-      plan.evidence.length,
+      plan.evidence.length +
+      plan.signatures.length,
   };
 }
 

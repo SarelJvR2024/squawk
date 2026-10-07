@@ -1353,13 +1353,15 @@ check(
 
 check(
   "nothing is uploaded unless it is on",
-  /if \(sendPhotos && resolved\.driveId && plan\.evidence\.length\)/.test(panel)
+  /if \(sendPhotos && resolved\.driveId && \(plan\.evidence\.length \|\| plan\.signatures\.length\)\)/.test(
+    panel
+  )
 );
 
 check(
   "and the count on the button drops with it, rather than promising writes it will not make",
-  /t\.writes - \(sendPhotos \? 0 : t\.photographs\)/.test(panel) &&
-    /totals\.writes - \(sendPhotos \? 0 : totals\.photographs\)/.test(panel) &&
+  /t\.writes - \(sendPhotos \? 0 : t\.photographs \+ t\.signatures\)/.test(panel) &&
+    /totals\.writes - \(sendPhotos \? 0 : totals\.photographs \+ totals\.signatures\)/.test(panel) &&
     /`Write \$\{writes\} to the portal`/.test(panel)
 );
 
@@ -2276,6 +2278,202 @@ check(
       t.writes === 2
     );
   })()
+);
+
+/* ---------------- Part 1g: the marks behind the signed cell --------------- *
+ *
+ *  signedCell puts WHO and WHEN into the attendance/evidence-log row as text
+ *  — this is the image behind it, going to the same evidence library the
+ *  photographs do. Sarel: "sync the actual signatures to sharepoint." */
+
+check(
+  "a signed-in attendee's mark is planned as a signature file, named by its own ref",
+  (() => {
+    const signed = ROW("r1", "A. Auditor", {
+      signature: { ref: "ATR-00001_S01", signedName: "A. Auditor", signedAt: 1_757_500_000_000, blobKey: "b1" },
+    });
+    const p = sp.buildPlan(
+      { ...BASE_ATT, attendanceRegisters: [REGISTER({ rows: [signed] })] },
+      NOTHING_ATT
+    );
+    return (
+      p.signatures.length === 1 &&
+      p.signatures[0].filename === "ATR-00001_S01.png" &&
+      p.signatures[0].signature.blobKey === "b1"
+    );
+  })()
+);
+
+check(
+  "an unsigned attendee plans no signature file at all",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE_ATT, attendanceRegisters: [REGISTER({ rows: [ROW("r1")] })] },
+      NOTHING_ATT
+    );
+    return p.signatures.length === 0;
+  })()
+);
+
+check(
+  "an apology — nobody signed anything — never produces a signature file",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE_ATT, attendanceRegisters: [REGISTER({ apologies: [APOLOGY("a1")] })] },
+      NOTHING_ATT
+    );
+    return p.signatures.length === 0;
+  })(),
+  "ApologyEntry carries no signature field — there is nothing here anybody signed"
+);
+
+check(
+  "two registers' signed rows both plan their own signature file — no collision",
+  (() => {
+    const sig = (ref) => ({ ref, signedName: "A. Auditor", signedAt: 1_757_500_000_000, blobKey: "b1" });
+    const p = sp.buildPlan(
+      {
+        ...BASE_ATT,
+        attendanceRegisters: [
+          REGISTER({ id: "ATR-00001", rows: [ROW("r1", "A. One", { signature: sig("ATR-00001_S01") })] }),
+          REGISTER({ id: "ATR-00002", rows: [ROW("r1", "B. Two", { signature: sig("ATR-00002_S01") })] }),
+        ],
+      },
+      NOTHING_ATT
+    );
+    return (
+      p.signatures.length === 2 &&
+      p.signatures[0].filename !== p.signatures[1].filename
+    );
+  })()
+);
+
+check(
+  "a signed evidence-log collector's mark is planned too, same as an attendance row",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE_EV,
+        evidenceItems: [
+          DOC("DOC-1", {
+            receivedBy: "A. Auditor",
+            signature: { ref: "DOC-1_S01", signedName: "A. Auditor", signedAt: 1_757_500_000_000, blobKey: "b2" },
+          }),
+        ],
+      },
+      NOTHING_EV
+    );
+    return (
+      p.signatures.length === 1 &&
+      p.signatures[0].filename === "DOC-1_S01.png" &&
+      /A\. Auditor/.test(p.signatures[0].caption)
+    );
+  })()
+);
+
+check(
+  "an evidence-log entry with no collector's mark plans no signature file",
+  (() => {
+    const p = sp.buildPlan({ ...BASE_EV, evidenceItems: [DOC("DOC-1")] }, NOTHING_EV);
+    return p.signatures.length === 0;
+  })()
+);
+
+check(
+  "planTotals counts signatures separately, and folds them into the writes total",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE_ATT,
+        attendanceRegisters: [
+          REGISTER({
+            rows: [
+              ROW("r1", "A. One", {
+                signature: { ref: "ATR-00001_S01", signedName: "A. One", signedAt: 1_757_500_000_000, blobKey: "b1" },
+              }),
+            ],
+          }),
+        ],
+      },
+      NOTHING_ATT
+    );
+    const t = sp.planTotals(p);
+    return t.signatures === 1 && t.writes === t.attendanceNew + t.signatures;
+  })()
+);
+
+check(
+  "a signature does not carry EVIDENCE_FIELDS-style metadata — it is a file, not a labelled row",
+  (() => {
+    const signed = ROW("r1", "A. Auditor", {
+      signature: { ref: "ATR-00001_S01", signedName: "A. Auditor", signedAt: 1_757_500_000_000, blobKey: "b1" },
+    });
+    const p = sp.buildPlan(
+      { ...BASE_ATT, attendanceRegisters: [REGISTER({ rows: [signed] })] },
+      NOTHING_ATT
+    );
+    const s = p.signatures[0];
+    return (
+      typeof s.rowKey === "string" &&
+      typeof s.filename === "string" &&
+      typeof s.caption === "string" &&
+      !("values" in s) &&
+      !("checkId" in s)
+    );
+  })(),
+  "PlannedFile's checkId/discipline/assetSystem columns describe a photograph; a signature has none of them"
+);
+
+check(
+  "the writer uploads signatures through fullSignatureBlob, into the same folder as photographs",
+  /const blob = await fullSignatureBlob\(s\.signature, entityCode, visitId\)/.test(panel) &&
+    /graph\.uploadEvidence\(resolved\.driveId, plan\.folder, s\.filename, blob\)/.test(panel)
+);
+
+check(
+  "signatures are gated on the same off-by-default switch as photographs — not an always-on upload",
+  (() => {
+    const m = panel.match(
+      /if \(sendPhotos && resolved\.driveId && \(plan\.evidence\.length \|\| plan\.signatures\.length\)\) \{([\s\S]*?)\n {6}\}/
+    );
+    return !!m && /plan\.signatures/.test(m[1]) && /fullSignatureBlob/.test(m[1]);
+  })(),
+  "these are images of a national key point — uploading them needs the same deliberate tick photographs already require"
+);
+
+check(
+  "the shell mounts the signature backup queue, next to the photograph one",
+  /const sigSync = useSignatureSync\(\);/.test(shell) && /usePhotoSync\(\)/.test(shell)
+);
+
+check(
+  "signatureSync tries this device's own copy before the record copy — same order fullPhotoBlob uses",
+  (() => {
+    const sync = src("lib", "signatureSync.ts");
+    const i1 = sync.indexOf("const local = await getBlob(s.blobKey)");
+    const i2 = sync.indexOf("return fetchRecordPhoto(signatureObjectPath");
+    return i1 > -1 && i2 > -1 && i1 < i2;
+  })(),
+  "a device that captured the signature must never pay for a network round trip to see its own evidence"
+);
+
+check(
+  "signatureSync is scoped to attendance and evidence-log signatures only — not every signature in the app",
+  (() => {
+    const sync = src("lib", "signatureSync.ts");
+    return (
+      /SignatureOwner = "attendance" \| "evidenceLog"/.test(sync) &&
+      !/closeSignature|closeoutLeadSignature|diarySignature|authorisedSignature/.test(sync)
+    );
+  })(),
+  "diary/closeout/ISF signatures keep their existing unbacked-signature warning and nothing more, deliberately"
+);
+
+check(
+  "signatures.ts is framework-free — sharepoint.ts's own test suite, and a client hook, both import it",
+  !/^"use client"/.test(src("lib", "signatures.ts")) &&
+    /export function signatureFilename/.test(src("lib", "signatures.ts")) &&
+    /export function signatureObjectPath/.test(src("lib", "signatures.ts"))
 );
 
 /* -------------------- Part 2: properties the source has to carry ---------- */

@@ -34,6 +34,7 @@ import {
   useVisitId,
 } from "@/lib/store";
 import { fullPhotoBlob } from "@/lib/recordimage";
+import { fullSignatureBlob } from "@/lib/signatureSync";
 import * as graph from "@/lib/graph";
 import {
   buildPlan,
@@ -356,7 +357,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
     const unlabelled: { key: string; why: string }[] = [];
     let written = 0;
     const t = planTotals(plan);
-    const total = t.writes - (sendPhotos ? 0 : t.photographs);
+    const total = t.writes - (sendPhotos ? 0 : t.photographs + t.signatures);
 
     const writeRows = async (rows: PlannedRow[], list: { id: string; map: FieldMap } | null, what: string) => {
       if (!list) return;
@@ -400,14 +401,14 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       await writeRows(plan.evidenceLog, resolved.evidenceLogList, "evidence log entry");
       await writeRows(plan.assetRisk, resolved.assetRiskList, "asset risk row");
 
-      if (sendPhotos && resolved.driveId && plan.evidence.length) {
-        /* THE FOLDER IS ONE CALL THAT CAN FAIL ALL FIVE.
+      if (sendPhotos && resolved.driveId && (plan.evidence.length || plan.signatures.length)) {
+        /* THE FOLDER IS ONE CALL THAT CAN FAIL EVERYTHING BELOW IT.
            It used to sit outside the per-photograph try, so when it threw, the
            outer catch set an error — and then reported "33 written. Everything
            in the plan reached the portal", because `failed` was still empty.
            A partial write calling itself complete is the one outcome this
-           screen exists to prevent. Every photograph it takes down is now
-           named. */
+           screen exists to prevent. Every photograph and signature it takes
+           down is now named. */
         let folderReady = true;
         try {
           await graph.ensureFolder(resolved.driveId, plan.folder);
@@ -417,6 +418,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
             e instanceof Error ? e.message : "failed"
           }`;
           for (const f of plan.evidence) failed.push({ key: f.filename, why });
+          for (const s of plan.signatures) failed.push({ key: s.filename, why });
         }
         for (const f of folderReady ? plan.evidence : []) {
           setProgress({ done: written, total, what: `photograph ${f.filename}` });
@@ -453,6 +455,21 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
             failed.push({ key: f.filename, why: e instanceof Error ? e.message : "failed" });
           }
         }
+        /* SIGNATURES, THE SAME WAY — same folder, same device-then-record
+           fallback, but no metadata step: EVIDENCE_FIELDS describes a
+           photograph (discipline, asset system, check-point), none of which
+           a signature has. The file itself, named by its own ref, is the
+           whole of what goes across. */
+        for (const s of folderReady ? plan.signatures : []) {
+          setProgress({ done: written, total, what: `signature ${s.filename}` });
+          try {
+            const blob = await fullSignatureBlob(s.signature, entityCode, visitId);
+            await graph.uploadEvidence(resolved.driveId, plan.folder, s.filename, blob);
+            written++;
+          } catch (e) {
+            failed.push({ key: s.filename, why: e instanceof Error ? e.message : "failed" });
+          }
+        }
       }
       setResult({ written, failed, unlabelled });
       setStage("done");
@@ -479,7 +496,9 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   const totals = plan ? planTotals(plan) : null;
   /* What the button will actually send, which is not the plan's own total
      while the photographs are switched off. */
-  const writes = totals ? totals.writes - (sendPhotos ? 0 : totals.photographs) : 0;
+  const writes = totals
+    ? totals.writes - (sendPhotos ? 0 : totals.photographs + totals.signatures)
+    : 0;
   const dupes = [
     ...(indexes?.checkpoints?.duplicates ?? []),
     ...(indexes?.findings?.duplicates ?? []),
@@ -647,11 +666,11 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
             resolved.attendanceList ? null : "no list matching Attendance Register",
             resolved.evidenceLogList ? null : "no list matching Evidence Log",
             resolved.assetRiskList ? null : "no list matching Asset Risk",
-            resolved.driveId ? null : "no document library to put photographs in",
+            resolved.driveId ? null : "no document library to put photographs and signatures in",
           ]
             .filter(Boolean)
             .join(" · ") ||
-          `Writing to “${resolved.chose.checkList}”, “${resolved.chose.findingList}”, “${resolved.chose.attendanceList}”, “${resolved.chose.evidenceLogList}” and “${resolved.chose.assetRiskList}”, photographs to “${resolved.chose.drive}”. ${resolved.lists.length} lists on the site — check these are the right ones.`,
+          `Writing to “${resolved.chose.checkList}”, “${resolved.chose.findingList}”, “${resolved.chose.attendanceList}”, “${resolved.chose.evidenceLogList}” and “${resolved.chose.assetRiskList}”, photographs and signatures to “${resolved.chose.drive}”. ${resolved.lists.length} lists on the site — check these are the right ones.`,
     },
     {
       label: "Every field has a column to go in",
@@ -823,6 +842,10 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                     n={totals.photographs}
                     label={sendPhotos ? "photographs to upload" : "photographs, not being sent"}
                   />
+                  <Tile
+                    n={totals.signatures}
+                    label={sendPhotos ? "signatures to upload" : "signatures, not being sent"}
+                  />
                   <Tile n={writes} label="writes in total" strong />
                 </div>
 
@@ -884,8 +907,8 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
 
                 {/* The switch, next to the count it governs rather than in a
                     settings corner — this is the one screen where "are the
-                    photographs going" is a live question. */}
-                {plan.evidence.length > 0 && (
+                    photographs and signatures going" is a live question. */}
+                {(plan.evidence.length > 0 || plan.signatures.length > 0) && (
                   <label
                     className="mb-2 flex cursor-pointer items-start gap-[9px] rounded-[10px] border px-[11px] py-[9px] text-[11.5px] leading-[1.5]"
                     style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
@@ -897,7 +920,16 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                       className="mt-[2px] h-[15px] w-[15px] shrink-0"
                     />
                     <span>
-                      <b>Also upload the {plan.evidence.length} photograph{plan.evidence.length === 1 ? "" : "s"}</b>{" "}
+                      <b>
+                        Also upload
+                        {plan.evidence.length > 0
+                          ? ` the ${plan.evidence.length} photograph${plan.evidence.length === 1 ? "" : "s"}`
+                          : ""}
+                        {plan.evidence.length > 0 && plan.signatures.length > 0 ? " and" : ""}
+                        {plan.signatures.length > 0
+                          ? ` the ${plan.signatures.length} signature${plan.signatures.length === 1 ? "" : "s"}`
+                          : ""}
+                      </b>{" "}
                       into{" "}
                       <span className="font-mono text-[10.5px]">
                         {resolved?.chose.drive ?? "the library"}/{plan.folder}
@@ -1220,10 +1252,12 @@ function Contract() {
           </div>
         ))}
         <p>
-          Photographs go to a document library whose name contains <b>Document</b>, <b>Shared</b> or{" "}
-          <b>Evidence</b>, in a folder named for the site and then for the visit. The path is
-          relative to that library, so a library already called <b>Evidence</b> does not get an{" "}
-          <b>Evidence</b> folder inside it.
+          Photographs and signatures go to a document library whose name contains <b>Document</b>,{" "}
+          <b>Shared</b> or <b>Evidence</b>, in a folder named for the site and then for the visit. The
+          path is relative to that library, so a library already called <b>Evidence</b> does not get
+          an <b>Evidence</b> folder inside it. A signature is written as its own file, named by its
+          ref — it carries no columns of its own; the attendance/evidence log row it belongs to is
+          where who-signed-and-when lives.
         </p>
         <p className="mt-2" style={{ color: "var(--ink-3)" }}>
           Start every column as text, and dates as Date — except <b>EvidenceLink</b>, which must be a{" "}
