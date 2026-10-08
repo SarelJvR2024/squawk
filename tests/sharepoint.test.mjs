@@ -32,6 +32,7 @@ const check = (name, cond, detail = "") => {
 
 const sp = await import("../src/lib/sharepoint.ts");
 const sites = await import("../src/lib/sites.ts");
+const { localDate } = await import("../src/lib/attendance.ts");
 
 /** The source with its COMMENTS REMOVED.
  *
@@ -383,35 +384,31 @@ check(
 
 check(
   "a library already called Evidence does not get an Evidence folder inside it",
-  sp.evidenceFolder("FALE", "2026-09", "Evidence") ===
-    "King Shaka International Airport FALE/2026-09",
-  sp.evidenceFolder("FALE", "2026-09", "Evidence")
+  sp.evidenceFolder("FALE", "Evidence") === "King Shaka International Airport FALE",
+  sp.evidenceFolder("FALE", "Evidence")
 );
 
 check(
   "and it is the library's NAME that decides, however it is cased or spaced",
-  sp.evidenceFolder("FALE", "2026-09", " evidence ") ===
-    sp.evidenceFolder("FALE", "2026-09", "Evidence")
+  sp.evidenceFolder("FALE", " evidence ") === sp.evidenceFolder("FALE", "Evidence")
 );
 
 check(
   "a library that is not about evidence still gets an Evidence folder of its own",
-  sp.evidenceFolder("FALE", "2026-09", "Documents") ===
-    "Evidence/King Shaka International Airport FALE/2026-09",
+  sp.evidenceFolder("FALE", "Documents") === "Evidence/King Shaka International Airport FALE",
   "loose among whatever else lives in Documents is not where audit evidence goes"
 );
 
 check(
   "an unnamed library keeps the old shape rather than guessing",
-  sp.evidenceFolder("FALE", "2026-09") ===
-    "Evidence/King Shaka International Airport FALE/2026-09",
-  sp.evidenceFolder("FALE", "2026-09")
+  sp.evidenceFolder("FALE") === "Evidence/King Shaka International Airport FALE",
+  sp.evidenceFolder("FALE")
 );
 
 check(
   "NO PATH EVER REPEATS A SEGMENT",
   ["Evidence", "Documents", "Shared Documents", undefined].every((lib) => {
-    const parts = sp.evidenceFolder("FALE", "2026-09", lib).split("/");
+    const parts = sp.evidenceFolder("FALE", lib).split("/");
     return new Set(parts).size === parts.length;
   }),
   "the doubled folder was exactly this, and a test is cheaper than another move"
@@ -446,7 +443,7 @@ check(
     const row = p.checkpoints.find((r) => r.key === "KSIA-ELE-001");
     return (
       row.values.evidenceLink ===
-      "https://tpjv.sharepoint.com/sites/ACSA-Asset-Assurance/Evidence/King%20Shaka%20International%20FALE/2026-09"
+      "https://tpjv.sharepoint.com/sites/ACSA-Asset-Assurance/Evidence/King%20Shaka%20International%20FALE"
     );
   })(),
   sp.buildPlan(LINKED, NOTHING).checkpoints.find((r) => r.key === "KSIA-ELE-001")?.values.evidenceLink
@@ -797,74 +794,64 @@ check(
 
 check(
   "and the fallback is the site table's spelling, so a bare library still works",
-  sp.evidenceFolder("FALE", "2026-09", "Evidence", sp.siteFolderIn("FALE", [])) ===
-    "King Shaka International Airport FALE/2026-09"
+  sp.evidenceFolder("FALE", "Evidence", sp.siteFolderIn("FALE", [])) ===
+    "King Shaka International Airport FALE"
 );
 
 check(
   "THE FOLDER THE LIBRARY HAS WINS over the one Squawk would mint",
-  sp.evidenceFolder("FALE", "2026-09", "Evidence", sp.siteFolderIn("FALE", ACSA_FOLDERS)) ===
-    "King Shaka International FALE/2026-09",
-  sp.evidenceFolder("FALE", "2026-09", "Evidence", sp.siteFolderIn("FALE", ACSA_FOLDERS))
+  sp.evidenceFolder("FALE", "Evidence", sp.siteFolderIn("FALE", ACSA_FOLDERS)) ===
+    "King Shaka International FALE",
+  sp.evidenceFolder("FALE", "Evidence", sp.siteFolderIn("FALE", ACSA_FOLDERS))
 );
 
 check(
   "and the plan carries it, so what is written is what was read",
   (() => {
     const p = sp.buildPlan(
-      { ...BASE, visit: "2026-09", library: "Evidence", siteFolder: sp.siteFolderIn("FALE", ACSA_FOLDERS) },
+      { ...BASE, library: "Evidence", siteFolder: sp.siteFolderIn("FALE", ACSA_FOLDERS) },
       NOTHING
     );
-    return p.folder === "King Shaka International FALE/2026-09";
+    return p.folder === "King Shaka International FALE";
   })()
 );
 
 check(
   "and per site means PER SITE — another airport gets its own, from the site table",
-  sp.evidenceFolder("FAOR", "2026-09", "Evidence") ===
-    "O.R. Tambo International Airport FAOR/2026-09",
+  sp.evidenceFolder("FAOR", "Evidence") === "O.R. Tambo International Airport FAOR",
   "nothing is hardcoded to King Shaka; a new airport gets the shape for free"
 );
 
-/* AND PER VISIT, which it was not until Sarel asked "add a audit date into the
- * hierarchy maybe" on 16 September 2026. Not tidiness — evidence.
+/* NO VISIT SEGMENT ANY MORE, AND NO MONTH FOLDER EITHER — see dayFolder and
+ * Part 1h below. It was added 16 September 2026 (Sarel: "add a audit date
+ * into the hierarchy maybe") for a real reason: a photograph's reference is
+ * scoped to the CHECK, not the visit, so KSIA-ELE-001_P01.jpg means a
+ * different photograph in September 2026 than in March 2027, and uploads
+ * use conflictBehavior=replace — one folder for both visits would let the
+ * second silently overwrite the first.
  *
- * A photograph's reference is scoped to the CHECK, not the visit: nextPhotoRef
- * counts the attachments on that check's response. So the first photograph of
- * KSIA-ELE-001 in September 2026 is KSIA-ELE-001_P01.jpg, and so is the first
- * photograph of the same check in March 2027. Uploads use
- * conflictBehavior=replace on purpose, so one folder for both visits means the
- * second audit silently overwrites the first audit's evidence. */
+ * Removed 7 October 2026 (Sarel: "no month folder... use [site]/20261007")
+ * because the DAY folder Part 1h adds now carries that same guarantee, more
+ * finely — two different visits landing on the exact same calendar date is
+ * not a real case this register has to plan for. See
+ * "two photographs taken on different days file into different day
+ * folders, same visit" in Part 1h for the replacement coverage. */
 
 check(
-  "TWO VISITS TO ONE AIRPORT DO NOT SHARE A FOLDER",
-  sp.evidenceFolder("FALE", "2026-09", "Evidence") !==
-    sp.evidenceFolder("FALE", "2027-03", "Evidence"),
-  "the filename repeats across visits and the upload replaces on conflict"
+  "the site's own folder is visit-agnostic now — the day folder inside it is what tells two audits apart",
+  sp.evidenceFolder("FALE", "Evidence") === sp.evidenceFolder("FALE", "Evidence"),
+  "see Part 1h for the day-folder collision guarantee this used to provide"
 );
 
 check(
-  "the folder sorts, because 2026-09 does and Sep 2026 does not",
-  /\/\d{4}-\d{2}$/.test(sp.evidenceFolder("FALE", "2026-09", "Evidence"))
-);
-
-check(
-  "and the plan's folder carries the visit it was built for",
+  "the blob store and the portal now describe the same audit DIFFERENTLY, on purpose",
   (() => {
-    const p = sp.buildPlan({ ...BASE, visit: "2027-03", library: "Evidence" }, NOTHING);
-    return p.folder === "King Shaka International Airport FALE/2027-03";
-  })()
-);
-
-check(
-  "the blob store and the portal describe the same audit the same way",
-  (() => {
-    const photos = "";
-    void photos;
-    /* photoObjectPath is `FALE/2026-09/...`; the portal folder now ends the
-       same way, so somebody looking at both stores sees one audit twice rather
-       than two schemes. */
-    return sp.evidenceFolder("FALE", "2026-09", "Evidence").endsWith("/2026-09");
+    /* photoObjectPath is still `FALE/2026-09/...` — the internal backup
+       store's own scheme is unchanged by this. The portal folder dropped the
+       visit segment entirely; the two no longer need to agree, because
+       nothing reads them side by side the way EvidenceLink does within
+       SharePoint itself. */
+    return !sp.evidenceFolder("FALE", "Evidence").includes("2026-09");
   })()
 );
 
@@ -1353,13 +1340,15 @@ check(
 
 check(
   "nothing is uploaded unless it is on",
-  /if \(sendPhotos && resolved\.driveId && plan\.evidence\.length\)/.test(panel)
+  /if \(sendPhotos && resolved\.driveId && \(plan\.evidence\.length \|\| plan\.signatures\.length\)\)/.test(
+    panel
+  )
 );
 
 check(
   "and the count on the button drops with it, rather than promising writes it will not make",
-  /t\.writes - \(sendPhotos \? 0 : t\.photographs\)/.test(panel) &&
-    /totals\.writes - \(sendPhotos \? 0 : totals\.photographs\)/.test(panel) &&
+  /t\.writes - \(sendPhotos \? 0 : t\.photographs \+ t\.signatures\)/.test(panel) &&
+    /totals\.writes - \(sendPhotos \? 0 : totals\.photographs \+ totals\.signatures\)/.test(panel) &&
     /`Write \$\{writes\} to the portal`/.test(panel)
 );
 
@@ -1370,9 +1359,9 @@ check(
  *  so five photographs went missing and the screen called it a success. */
 
 check(
-  "a folder that could not be prepared names every photograph it took down",
-  /folderReady/.test(panel) && /could not be prepared/.test(panel),
-  "one call failing all five must not be one silence"
+  "a day folder that could not be prepared names every file headed for it, not the whole plan",
+  /folderFailed/.test(panel) && /could not be prepared/.test(panel),
+  "one day's folder failing must not silently take down a different day's files, or go unnamed"
 );
 
 check(
@@ -2276,6 +2265,604 @@ check(
       t.writes === 2
     );
   })()
+);
+
+/* ---------------- Part 1g: the marks behind the signed cell --------------- *
+ *
+ *  signedCell puts WHO and WHEN into the attendance/evidence-log row as text
+ *  — this is the image behind it, going to the same evidence library the
+ *  photographs do. Sarel: "sync the actual signatures to sharepoint." */
+
+check(
+  "a signed-in attendee's mark is planned as a signature file, named by its own ref",
+  (() => {
+    const signed = ROW("r1", "A. Auditor", {
+      signature: { ref: "ATR-00001_S01", signedName: "A. Auditor", signedAt: 1_757_500_000_000, blobKey: "b1" },
+    });
+    const p = sp.buildPlan(
+      { ...BASE_ATT, attendanceRegisters: [REGISTER({ rows: [signed] })] },
+      NOTHING_ATT
+    );
+    return (
+      p.signatures.length === 1 &&
+      p.signatures[0].filename === "ATR-00001_S01.png" &&
+      p.signatures[0].signature.blobKey === "b1"
+    );
+  })()
+);
+
+check(
+  "an unsigned attendee plans no signature file at all",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE_ATT, attendanceRegisters: [REGISTER({ rows: [ROW("r1")] })] },
+      NOTHING_ATT
+    );
+    return p.signatures.length === 0;
+  })()
+);
+
+check(
+  "an apology — nobody signed anything — never produces a signature file",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE_ATT, attendanceRegisters: [REGISTER({ apologies: [APOLOGY("a1")] })] },
+      NOTHING_ATT
+    );
+    return p.signatures.length === 0;
+  })(),
+  "ApologyEntry carries no signature field — there is nothing here anybody signed"
+);
+
+check(
+  "two registers' signed rows both plan their own signature file — no collision",
+  (() => {
+    const sig = (ref) => ({ ref, signedName: "A. Auditor", signedAt: 1_757_500_000_000, blobKey: "b1" });
+    const p = sp.buildPlan(
+      {
+        ...BASE_ATT,
+        attendanceRegisters: [
+          REGISTER({ id: "ATR-00001", rows: [ROW("r1", "A. One", { signature: sig("ATR-00001_S01") })] }),
+          REGISTER({ id: "ATR-00002", rows: [ROW("r1", "B. Two", { signature: sig("ATR-00002_S01") })] }),
+        ],
+      },
+      NOTHING_ATT
+    );
+    return (
+      p.signatures.length === 2 &&
+      p.signatures[0].filename !== p.signatures[1].filename
+    );
+  })()
+);
+
+check(
+  "a signed evidence-log collector's mark is planned too, same as an attendance row",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE_EV,
+        evidenceItems: [
+          DOC("DOC-1", {
+            receivedBy: "A. Auditor",
+            signature: { ref: "DOC-1_S01", signedName: "A. Auditor", signedAt: 1_757_500_000_000, blobKey: "b2" },
+          }),
+        ],
+      },
+      NOTHING_EV
+    );
+    return (
+      p.signatures.length === 1 &&
+      p.signatures[0].filename === "DOC-1_S01.png" &&
+      /A\. Auditor/.test(p.signatures[0].caption)
+    );
+  })()
+);
+
+check(
+  "an evidence-log entry with no collector's mark plans no signature file",
+  (() => {
+    const p = sp.buildPlan({ ...BASE_EV, evidenceItems: [DOC("DOC-1")] }, NOTHING_EV);
+    return p.signatures.length === 0;
+  })()
+);
+
+check(
+  "planTotals counts signatures separately, and folds them into the writes total",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE_ATT,
+        attendanceRegisters: [
+          REGISTER({
+            rows: [
+              ROW("r1", "A. One", {
+                signature: { ref: "ATR-00001_S01", signedName: "A. One", signedAt: 1_757_500_000_000, blobKey: "b1" },
+              }),
+            ],
+          }),
+        ],
+      },
+      NOTHING_ATT
+    );
+    const t = sp.planTotals(p);
+    return t.signatures === 1 && t.writes === t.attendanceNew + t.signatures;
+  })()
+);
+
+check(
+  "a signature does not carry EVIDENCE_FIELDS-style metadata — it is a file, not a labelled row",
+  (() => {
+    const signed = ROW("r1", "A. Auditor", {
+      signature: { ref: "ATR-00001_S01", signedName: "A. Auditor", signedAt: 1_757_500_000_000, blobKey: "b1" },
+    });
+    const p = sp.buildPlan(
+      { ...BASE_ATT, attendanceRegisters: [REGISTER({ rows: [signed] })] },
+      NOTHING_ATT
+    );
+    const s = p.signatures[0];
+    return (
+      typeof s.rowKey === "string" &&
+      typeof s.filename === "string" &&
+      typeof s.caption === "string" &&
+      !("values" in s) &&
+      !("checkId" in s)
+    );
+  })(),
+  "PlannedFile's checkId/discipline/assetSystem columns describe a photograph; a signature has none of them"
+);
+
+check(
+  "the writer uploads signatures through fullSignatureBlob, into their own day folder",
+  /const blob = await fullSignatureBlob\(s\.signature, entityCode, visitId\)/.test(panel) &&
+    /graph\.uploadEvidence\(resolved\.driveId, s\.folder, s\.filename, blob\)/.test(panel)
+);
+
+check(
+  "photographs and signatures each upload into their OWN day folder, not one shared visit folder",
+  /graph\.uploadEvidence\(resolved\.driveId, f\.folder, f\.filename, blob\)/.test(panel) &&
+    /graph\.uploadEvidence\(resolved\.driveId, s\.folder, s\.filename, blob\)/.test(panel) &&
+    !/graph\.uploadEvidence\(resolved\.driveId, plan\.folder/.test(panel)
+);
+
+check(
+  "a bad day folder is ensured per-folder, not once for the whole plan — one call per distinct day",
+  /const folders = new Set\(\[/.test(panel) && /for \(const dayFolder of folders\)/.test(panel)
+);
+
+check(
+  "signatures are gated on the same off-by-default switch as photographs — not an always-on upload",
+  (() => {
+    const m = panel.match(
+      /if \(sendPhotos && resolved\.driveId && \(plan\.evidence\.length \|\| plan\.signatures\.length\)\) \{([\s\S]*?)\n {6}\}/
+    );
+    return !!m && /plan\.signatures/.test(m[1]) && /fullSignatureBlob/.test(m[1]);
+  })(),
+  "these are images of a national key point — uploading them needs the same deliberate tick photographs already require"
+);
+
+check(
+  "the shell mounts the signature backup queue, next to the photograph one",
+  /const sigSync = useSignatureSync\(\);/.test(shell) && /usePhotoSync\(\)/.test(shell)
+);
+
+check(
+  "signatureSync tries this device's own copy before the record copy — same order fullPhotoBlob uses",
+  (() => {
+    const sync = src("lib", "signatureSync.ts");
+    const i1 = sync.indexOf("const local = await getBlob(s.blobKey)");
+    const i2 = sync.indexOf("return fetchRecordPhoto(signatureObjectPath");
+    return i1 > -1 && i2 > -1 && i1 < i2;
+  })(),
+  "a device that captured the signature must never pay for a network round trip to see its own evidence"
+);
+
+check(
+  "signatureSync is scoped to attendance and evidence-log signatures only — not every signature in the app",
+  (() => {
+    const sync = src("lib", "signatureSync.ts");
+    return (
+      /SignatureOwner = "attendance" \| "evidenceLog"/.test(sync) &&
+      !/closeSignature|closeoutLeadSignature|diarySignature|authorisedSignature/.test(sync)
+    );
+  })(),
+  "diary/closeout/ISF signatures keep their existing unbacked-signature warning and nothing more, deliberately"
+);
+
+check(
+  "signatures.ts is framework-free — sharepoint.ts's own test suite, and a client hook, both import it",
+  !/^"use client"/.test(src("lib", "signatures.ts")) &&
+    /export function signatureFilename/.test(src("lib", "signatures.ts")) &&
+    /export function signatureObjectPath/.test(src("lib", "signatures.ts"))
+);
+
+/* ---------------- Part 1h: one folder per day, no month folder at all ----- *
+ *
+ *  Sarel, 7 October 2026: "create a folder for each day and put the photos
+ *  in each day it was captured" — a visit's own folder was one flat folder
+ *  for the whole visit (keyed on `2026-09`, a month), and every photograph
+ *  and signature from a three-week audit landed in it together. Then: "So
+ *  no month folder only [site]/7 OCT 2026... wait, 20261007, use this
+ *  format." */
+
+const TAKEN = (t) => ({ id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-001_P01", caption: "c", takenAt: t, createdAt: t });
+
+/* `20260915`, not `2026-09-15` — the same reading dayFolder itself does. */
+const ymd = (t) => localDate(t).replace(/-/g, "");
+
+check(
+  "a photograph files under the day it was taken, inside the site's own folder — YYYYMMDD, no dashes",
+  (() => {
+    const takenAt = Date.parse("2026-09-15T10:00:00+02:00");
+    const p = sp.buildPlan(
+      { ...BASE, responses: { "KSIA-ELE-001": { compliance: "NC", observation: "x", attachments: [TAKEN(takenAt)] } } },
+      NOTHING
+    );
+    const f = p.evidence[0];
+    return f.folder === `${p.folder}/${ymd(takenAt)}` && f.folder.endsWith("/20260915");
+  })()
+);
+
+check(
+  "two photographs taken on different days file into different day folders, same site",
+  (() => {
+    const day1 = Date.parse("2026-09-15T10:00:00+02:00");
+    const day2 = Date.parse("2026-09-22T10:00:00+02:00");
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": { compliance: "NC", observation: "x", attachments: [TAKEN(day1)] },
+          "KSIA-ELE-002": { compliance: "NC", observation: "x", attachments: [{ ...TAKEN(day2), ref: "KSIA-ELE-002_P01" }] },
+        },
+      },
+      NOTHING
+    );
+    const [f1, f2] = p.evidence;
+    return (
+      f1.folder !== f2.folder &&
+      f1.folder.startsWith(p.folder) &&
+      f2.folder.startsWith(p.folder) &&
+      f1.folder.endsWith(ymd(day1)) &&
+      f2.folder.endsWith(ymd(day2))
+    );
+  })()
+);
+
+check(
+  "with no EXIF takenAt, the photograph still files by the day it was logged — createdAt",
+  (() => {
+    const createdAt = Date.parse("2026-09-16T08:00:00+02:00");
+    const a = { id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-001_P01", caption: "c", createdAt };
+    const p = sp.buildPlan(
+      { ...BASE, responses: { "KSIA-ELE-001": { compliance: "NC", observation: "x", attachments: [a] } } },
+      NOTHING
+    );
+    return p.evidence[0].folder === `${p.folder}/${ymd(createdAt)}`;
+  })(),
+  "takenAt is EXIF-only and absent on plenty of real photographs; createdAt is always there"
+);
+
+check(
+  "a photograph with neither timestamp falls back to the site folder, never a NaNNaNNaN one",
+  (() => {
+    const a = { id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-001_P01", caption: "c" };
+    const p = sp.buildPlan(
+      { ...BASE, responses: { "KSIA-ELE-001": { compliance: "NC", observation: "x", attachments: [a] } } },
+      NOTHING
+    );
+    return p.evidence[0].folder === p.folder && !/NaN/.test(p.evidence[0].folder);
+  })(),
+  "a wrong folder is worse than a coarser real one — an invented date must never reach SharePoint"
+);
+
+check(
+  "a WALK inspection photograph gets a day folder too, same rule as a check-point's",
+  (() => {
+    const takenAt = Date.parse("2026-09-18T09:00:00+02:00");
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        adhoc: [
+          {
+            id: "WALK-A3F2K", description: "Loose kerb", discipline: null, system: null, area: "Apron",
+            attachments: [{ id: "w1", kind: "photo", name: "n", blobKey: "b9", ref: "WALK-A3F2K_P01", caption: "Kerb", takenAt, createdAt: takenAt }],
+          },
+        ],
+      },
+      NOTHING
+    );
+    return p.evidence[0].folder === `${p.folder}/${ymd(takenAt)}`;
+  })()
+);
+
+check(
+  "a signature files by when it was SIGNED, not when the register was opened",
+  (() => {
+    const signedAt = 1_758_500_000_000;
+    const signed = ROW("r1", "A. Auditor", {
+      signature: { ref: "ATR-00001_S01", signedName: "A. Auditor", signedAt, blobKey: "b1" },
+    });
+    const p = sp.buildPlan(
+      { ...BASE_ATT, attendanceRegisters: [REGISTER({ date: "2026-09-10", rows: [signed] })] },
+      NOTHING_ATT
+    );
+    return p.signatures[0].folder === `${p.folder}/${ymd(signedAt)}`;
+  })()
+);
+
+check(
+  "EvidenceLink is unaffected — it still names the site's own folder, not any day inside it",
+  (() => {
+    const takenAt = Date.parse("2026-09-15T10:00:00+02:00");
+    const dated = {
+      ...LINKED,
+      responses: {
+        "KSIA-ELE-001": { ...LINKED.responses["KSIA-ELE-001"], attachments: [TAKEN(takenAt)] },
+      },
+    };
+    const p = sp.buildPlan(dated, NOTHING);
+    const row = p.checkpoints.find((r) => r.key === "KSIA-ELE-001");
+    return (
+      row.values.evidenceLink ===
+      "https://tpjv.sharepoint.com/sites/ACSA-Asset-Assurance/Evidence/King%20Shaka%20International%20FALE" &&
+      p.evidence[0].folder === `${p.folder}/${ymd(takenAt)}` &&
+      p.evidence[0].folder !== p.folder
+    );
+  })(),
+  "one stable link per row; the day split only changes where the bytes themselves land"
+);
+
+check(
+  "YYYYMMDD sorts correctly as plain text, same as the old YYYY-MM-DD did",
+  ymd(Date.parse("2026-09-05T00:00:00+02:00")) < ymd(Date.parse("2026-10-07T00:00:00+02:00")) &&
+    ymd(Date.parse("2026-01-05T00:00:00+02:00")) < ymd(Date.parse("2026-01-22T00:00:00+02:00")),
+  "a reader scrolling a SharePoint folder list needs the dates to sort without reading each one"
+);
+
+check(
+  "ensureFolder is called once per distinct day, not once for the whole plan",
+  /const folders = new Set\(\[\s*\.\.\.plan\.evidence\.map\(\(f\) => f\.folder\),\s*\.\.\.plan\.signatures\.map\(\(s\) => s\.folder\),\s*\]\);/.test(
+    panel
+  )
+);
+
+/* ------------- Part 1i: holding a discipline back from this run ---------- *
+ *
+ *  Sarel: "I captured some electrical info but didnt want to sync it yet
+ *  but i want to sync everything else." Before this, the only tool was
+ *  "sync nothing" — one discipline not ready meant none of them went. */
+
+check(
+  "with nothing excluded, every discipline still syncs — the default is unchanged",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        checks: [CHECK("KSIA-ELE-001", "Electrical"), CHECK("KSIA-CIV-001", "Civil")],
+        responses: {
+          "KSIA-ELE-001": { compliance: "C", observation: "fine", attachments: [] },
+          "KSIA-CIV-001": { compliance: "C", observation: "fine", attachments: [] },
+        },
+      },
+      NOTHING
+    );
+    return p.checkpoints.length === 2;
+  })()
+);
+
+check(
+  "excluding Electrical holds its check back, but Civil still syncs",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        checks: [CHECK("KSIA-ELE-001", "Electrical"), CHECK("KSIA-CIV-001", "Civil")],
+        responses: {
+          "KSIA-ELE-001": { compliance: "C", observation: "fine", attachments: [] },
+          "KSIA-CIV-001": { compliance: "C", observation: "fine", attachments: [] },
+        },
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING
+    );
+    return (
+      p.checkpoints.length === 1 &&
+      p.checkpoints[0].values.discipline === "Civil" &&
+      p.skipped.some((s) => s.what === "check-points (discipline held back)" && s.count === 1)
+    );
+  })()
+);
+
+check(
+  "the held-back reason names which disciplines, and says it is this run, not the audit",
+  sp
+    .buildPlan(
+      {
+        ...BASE,
+        checks: [CHECK("KSIA-ELE-001", "Electrical")],
+        responses: { "KSIA-ELE-001": { compliance: "C", observation: "fine", attachments: [] } },
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING
+    )
+    .skipped.some(
+      (s) => /Electrical/.test(s.why) && /not from the audit/.test(s.why)
+    )
+);
+
+check(
+  "a held-back check's own photograph is held back with it — no orphaned evidence",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        checks: [CHECK("KSIA-ELE-001", "Electrical")],
+        responses: {
+          "KSIA-ELE-001": { compliance: "NC", observation: "x", attachments: [TAKEN(Date.parse("2026-09-15T10:00:00+02:00"))] },
+        },
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING
+    );
+    return p.evidence.length === 0;
+  })(),
+  "uploading a photograph for a check-point that was never written would reference a row that does not exist"
+);
+
+check(
+  "a WALK photograph is never held back by a discipline exclusion — it has no discipline to match",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        checks: [CHECK("KSIA-ELE-001", "Electrical")],
+        responses: {},
+        adhoc: [
+          {
+            id: "WALK-A3F2K", description: "Loose kerb", discipline: null, system: null, area: "Apron",
+            attachments: [{ id: "w1", kind: "photo", name: "n", blobKey: "b9", ref: "WALK-A3F2K_P01", caption: "Kerb", createdAt: 1_757_000_000_000 }],
+          },
+        ],
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING
+    );
+    return p.evidence.length === 1;
+  })()
+);
+
+check(
+  "an asset-risk pair in the held-back discipline is withheld; another discipline's still syncs",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        checks: [CHECK("KSIA-ELE-001", "Electrical", "Generators"), CHECK("KSIA-CIV-001", "Civil", "Runway")],
+        systems: {
+          "Electrical|Generators": SYS({ discipline: "Electrical", system: "Generators", note: "checked" }),
+          "Civil|Runway": SYS({ discipline: "Civil", system: "Runway", note: "checked" }),
+        },
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING
+    );
+    return (
+      p.assetRisk.length === 1 &&
+      p.assetRisk[0].values.discipline === "Civil" &&
+      p.skipped.some((s) => s.what === "asset systems (discipline held back)" && s.count === 1)
+    );
+  })()
+);
+
+check(
+  "a hazard raised purely in the held-back discipline is held back whole",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE, hazards: [HAZARD({ disciplines: ["Electrical"] })], excludedDisciplines: ["Electrical"] },
+      NOTHING
+    );
+    return p.findings.length === 0 && p.skipped.some((s) => s.what === "hazards" && s.count === 1);
+  })()
+);
+
+check(
+  "a hazard spanning a held-back discipline AND an included one is still held back whole",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        hazards: [HAZARD({ disciplines: ["Electrical", "Civil"] })],
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING
+    );
+    return p.findings.length === 0;
+  })(),
+  "the portal takes one row per hazard — there is no partial write to cut the Electrical half out of"
+);
+
+check(
+  "a hazard that never touches the held-back discipline syncs normally",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE, hazards: [HAZARD({ disciplines: ["Civil"] })], excludedDisciplines: ["Electrical"] },
+      NOTHING
+    );
+    return p.findings.length === 1;
+  })()
+);
+
+check(
+  "a bare-NC warning never counts a check that was held back this run",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        checks: [CHECK("KSIA-ELE-001", "Electrical")],
+        responses: { "KSIA-ELE-001": { compliance: "NC", observation: "x", attachments: [] } },
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING
+    );
+    return !p.warnings.some((w) => /no finding behind them/.test(w.why));
+  })(),
+  "a check not going across this run has nothing to warn about yet"
+);
+
+check(
+  "attendance, the evidence log and signatures carry no discipline and are never held back",
+  (() => {
+    const signed = ROW("r1", "A. Auditor", {
+      signature: { ref: "ATR-00001_S01", signedName: "A. Auditor", signedAt: 1_758_500_000_000, blobKey: "b1" },
+    });
+    const p = sp.buildPlan(
+      {
+        ...BASE_ATT,
+        attendanceRegisters: [REGISTER({ rows: [signed] })],
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING_ATT
+    );
+    return p.attendance.length === 1 && p.signatures.length === 1;
+  })()
+);
+
+check(
+  "excludedDisciplines is optional — every existing caller that never heard of it still builds, unaffected",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        checks: [CHECK("KSIA-ELE-001", "Electrical")],
+        responses: { "KSIA-ELE-001": { compliance: "C", observation: "fine", attachments: [] } },
+      },
+      NOTHING
+    );
+    return p.checkpoints.length === 1 && !p.skipped.some((s) => /held back/.test(s.why));
+  })(),
+  "a caller written before this feature exists must sync exactly as it always did"
+);
+
+check(
+  "the panel passes the chip selection into buildPlan as excludedDisciplines",
+  /excludedDisciplines: \[\.\.\.excludedDisciplines\]/.test(panel)
+);
+
+check(
+  "toggling a discipline re-plans from the last read, not by re-issuing GETs against the portal",
+  (() => {
+    const m = panel.match(
+      /useEffect\(\(\) => \{\s*if \(!lastPlanBase\.current\) return;([\s\S]*?)\n {2}\}, \[excludedDisciplines, unconsolidated\]\);/
+    );
+    return !!m && /setPlan\(buildPlan/.test(m[1]) && !/graph\./.test(m[1]);
+  })(),
+  "a chip toggle must not cost a round trip to SharePoint just to change which rows are counted"
+);
+
+check(
+  "every chip starts included — unchecking narrows this run, it is never opt-in from empty",
+  /useState<Set<string>>\(new Set\(\)\)/.test(panel),
+  "an empty excluded set must mean 'sync everything', matching what every existing sync already did"
 );
 
 /* -------------------- Part 2: properties the source has to carry ---------- */

@@ -49,8 +49,10 @@
  *  somebody else. */
 
 import priorRaw from "@/data/priorFindings.json";
+import { localDate } from "./attendance";
 import * as erm from "./erm";
 import { photoFilename } from "./photos";
+import { signatureFilename } from "./signatures";
 import { portalIdFor, siteCodeFor, siteFor } from "./sites";
 import { apologiesOf } from "./attendanceRegister";
 import { MEDIUM_LABEL } from "./evidence";
@@ -715,6 +717,20 @@ export interface SyncInput {
   /** This visit's asset-system ratings, keyed `${discipline}|${system}` —
    *  see useSystems(). Optional for the same reason the rest are. */
   systems?: Record<string, SystemAssessment>;
+  /** Held back from THIS sync run, not dropped from the audit.
+   *
+   *  Sarel: "I captured some electrical info but didnt want to sync it yet
+   *  but i want to sync everything else." A capture mistake or an answer
+   *  still being checked is common, and the only tool for it before this was
+   *  "sync nothing" — withholding one discipline meant withholding all of
+   *  them, every time, until the one thing was ready. Checked against
+   *  `Check.discipline` (check-points, and the asset-risk pairs derived
+   *  from the same checks) and `Hazard.disciplines` (a hazard spanning an
+   *  excluded discipline is held back whole — see the hazards loop's own
+   *  note). Attendance, the evidence log and signatures carry no
+   *  discipline and are never affected. Absent or empty means what it
+   *  always meant: everything goes. */
+  excludedDisciplines?: string[];
 }
 
 export type RowAction = "create" | "update";
@@ -756,6 +772,33 @@ export interface PlannedFile {
    *  work out from the bytes: which check-point it answers, what it shows, who
    *  attached it. See EVIDENCE_FIELDS. */
   values: Record<string, string>;
+  /** The day folder this file's own bytes upload into — see `dayFolder`. Not
+   *  `SyncPlan.folder`: that is the visit's own folder, used for EvidenceLink;
+   *  this is one day's subfolder inside it, and two files in the same plan
+   *  can carry different ones. */
+  folder: string;
+}
+
+/** A signature's actual mark, going to the same evidence library the
+ *  photographs do — `signedCell` already puts WHO and WHEN into the
+ *  attendance/evidence-log row as text; this is the image behind it.
+ *
+ *  Deliberately not a PlannedFile: a signature has no check-point, no
+ *  discipline, no asset system — EVIDENCE_FIELDS' columns do not describe
+ *  it, and writing blanks into them would be worse than writing none. The
+ *  file itself, named by its own ref, is the whole point; nothing here
+ *  claims the library's photograph columns for it. */
+export interface PlannedSignature {
+  /** The attendance or evidence-log row this mark belongs to, for the plan
+   *  preview's own readability only. */
+  rowKey: string;
+  filename: string;
+  signature: Signature;
+  caption: string;
+  /** The day folder this signature's own bytes upload into — see
+   *  `dayFolder` and `PlannedFile.folder`'s own note on why this is not
+   *  `SyncPlan.folder`. */
+  folder: string;
 }
 
 export interface SyncPlan {
@@ -769,6 +812,10 @@ export interface SyncPlan {
   /** One row per (discipline, asset system) pair. See ASSET_RISK_FIELDS. */
   assetRisk: PlannedRow[];
   evidence: PlannedFile[];
+  /** The actual marks behind `attendance`/`evidenceLog`'s `signed` text
+   *  column — see PlannedSignature. Uploaded to the same evidence library,
+   *  not written as rows. */
+  signatures: PlannedSignature[];
   /** Why rows were left out, in the words of somebody who might disagree. */
   skipped: { what: string; why: string; count: number }[];
   /** Things that ARE going across and should be said out loud anyway.
@@ -866,27 +913,21 @@ function firstDueDate(actions: MitigationAction[] | undefined): string | null {
  *  Per site, derived from the site table so a new airport gets the same shape
  *  without anybody editing a path by hand — that part was always right.
  *
- *  THE VISIT WAS NOT, AND IT WOULD HAVE COST THE EVIDENCE. Sarel, 16 September
- *  2026: "add a audit date into the hierarchy maybe." He is right, and it is
- *  not a tidiness question.
- *
- *  A photograph's reference is scoped to the CHECK, not to the visit —
- *  nextPhotoRef counts the attachments on that check's response, and the
- *  response belongs to one entity and one visit. So the first photograph of
- *  KSIA-ELE-001 in September 2026 is `KSIA-ELE-001_P01.jpg`, and so is the
- *  first photograph of the same check in March 2027. Uploads use
- *  `conflictBehavior=replace`, deliberately, so that re-running a sync does not
- *  litter the library with `..._P01 1.jpg`. Put both visits in one folder and
- *  the second audit silently overwrites the first audit's evidence — at a
- *  national key point, in the system ACSA reads.
- *
- *  The visit id rather than its label, because `2026-09` sorts and `Sep 2026`
- *  does not. It is also exactly what the record copy in the blob store already
- *  uses (see photoObjectPath), so the two stores describe the same audit the
- *  same way. */
+ *  NO MONTH/VISIT SEGMENT — see dayFolder below. A photograph's reference is
+ *  scoped to the CHECK, not to the visit — nextPhotoRef counts the
+ *  attachments on that check's response. Uploads use
+ *  `conflictBehavior=replace`, deliberately, so that re-running a sync does
+ *  not litter the library with `..._P01 1.jpg`. The collision that would
+ *  risk — the first photograph of KSIA-ELE-001 in September 2026 silently
+ *  overwritten by the first photograph of the same check in March 2027 — is
+ *  what a VISIT folder originally existed to prevent (Sarel, 16 September
+ *  2026: "add a audit date into the hierarchy maybe"). A DAY folder prevents
+ *  it just as well, and more finely: two different visits landing on the
+ *  exact same calendar date is not a real case this register has to plan
+ *  for, so dayFolder below carries that guarantee now and this function no
+ *  longer needs to. */
 export function evidenceFolder(
   entityCode: string,
-  visitId?: string,
   library?: string,
   siteFolder?: string | null
 ): string {
@@ -897,9 +938,39 @@ export function evidenceFolder(
   const parts = [
     nested ? "Evidence" : "",
     (siteFolder ?? "").trim() || (s ? `${s.name} ${s.icao}` : ""),
-    (visitId ?? "").trim(),
   ].filter(Boolean);
   return parts.join("/");
+}
+
+/** `{the site's own folder}/20260915` — ONE FOLDER PER DAY, inside it, no
+ *  month/visit folder in between.
+ *
+ *  Sarel, 7 October 2026: "create a folder for each day and put the photos
+ *  in each day it was captured" — first with a visit folder still in the
+ *  middle, then: "So no month folder only [site]/7 OCT 2026... wait,
+ *  20261007, use this format." Every photograph and signature now files
+ *  directly under the site's own folder (EvidenceLink keeps pointing there —
+ *  one stable link per check-point/finding row, unaffected by which day
+ *  anything inside it was captured on), in a day folder named `YYYYMMDD`.
+ *
+ *  `when` is the capture moment — a photograph's EXIF `takenAt` where one
+ *  exists, its `createdAt` otherwise; a signature's `signedAt`, always
+ *  present. `localDate` reads it in the auditor's own timezone, the same
+ *  rule attendance.ts uses for every other "which day was this" question —
+ *  a photograph taken just after midnight SAST must not file itself under
+ *  the day before because UTC still called it that.
+ *
+ *  FALLS BACK TO THE SITE FOLDER, not a day folder, when `when` is not a
+ *  real timestamp — `createdAt` is required on every Attachment the app
+ *  writes today, but a record from before that was true, or a test fixture
+ *  missing it, must not turn into a literal "NaNNaNNaN" folder in a system
+ *  of record. The site folder is at least a real place; an invented date is
+ *  a wrong one. */
+function dayFolder(siteFolder: string, when: number): string {
+  if (!Number.isFinite(when)) return siteFolder;
+  /* YYYYMMDD, not YYYY-MM-DD — Sarel's own correction, mid-request. */
+  const day = localDate(when).replace(/-/g, "");
+  return siteFolder ? `${siteFolder}/${day}` : day;
 }
 
 /** What a sync would write against a site NOBODY HAS AUDITED YET.
@@ -1155,20 +1226,33 @@ export function buildPlan(
   },
   unconsolidatedFindings = 0
 ): SyncPlan {
-  const folder = evidenceFolder(x.entity, x.visit, x.library, x.siteFolder);
+  const folder = evidenceFolder(x.entity, x.library, x.siteFolder);
   const folderUrl = evidenceFolderUrl(x.libraryUrl, folder);
+  /* See SyncInput.excludedDisciplines. A Set, read in every loop below that
+     has a discipline to check against — never rebuilt per check. */
+  const excluded = new Set(x.excludedDisciplines ?? []);
   const checkpoints: PlannedRow[] = [];
   const findings: PlannedRow[] = [];
   const attendance: PlannedRow[] = [];
   const evidenceLog: PlannedRow[] = [];
   const assetRisk: PlannedRow[] = [];
   const evidence: PlannedFile[] = [];
+  const signatures: PlannedSignature[] = [];
   const skipped: SyncPlan["skipped"] = [];
   const warnings: SyncPlan["warnings"] = [];
 
   /* --- check-points: only the ones somebody actually answered --------- */
   let unanswered = 0;
+  let excludedChecks = 0;
   for (const c of x.checks) {
+    /* HELD BACK, NOT LOST. See SyncInput.excludedDisciplines. Checked before
+       `unanswered` so a held-back discipline reports as held back rather
+       than as if nobody had answered it — the two reasons read very
+       differently to somebody reviewing the plan. */
+    if (excluded.has(c.discipline)) {
+      excludedChecks++;
+      continue;
+    }
     const r = x.responses[c.id];
     if (!r || !r.compliance) {
       unanswered++;
@@ -1229,6 +1313,7 @@ export function buildPlan(
         attachment: a,
         caption: a.caption?.trim() ?? "",
         values: evidenceValues(a, key, c.discipline, c.system),
+        folder: dayFolder(folder, a.takenAt ?? a.createdAt),
       });
       /* And the other direction: the check-point row names its photographs, so
          a reader on the check-point can see there IS evidence and what it is
@@ -1249,6 +1334,16 @@ export function buildPlan(
       count: unanswered,
     });
   }
+  if (excludedChecks) {
+    skipped.push({
+      /* Deliberately not "check-points" again — the UI keys this list on
+         `what`, and a second entry sharing the "no compliance captured"
+         row's key would collide with it. */
+      what: "check-points (discipline held back)",
+      why: `held back this run — ${[...excluded].join(", ")} excluded from this sync, not from the audit`,
+      count: excludedChecks,
+    });
+  }
 
   /* PLACEHOLDER: what a non-compliant check says when nobody typed anything.
    *
@@ -1262,7 +1357,10 @@ export function buildPlan(
     (x.findings ?? []).map((f) => f.checkId).filter((id): id is string => !!id)
   );
   const bareNC = x.checks.filter(
-    (c) => x.responses[c.id]?.compliance === "NC" && !withFinding.has(c.id)
+    (c) =>
+      !excluded.has(c.discipline) &&
+      x.responses[c.id]?.compliance === "NC" &&
+      !withFinding.has(c.id)
   ).length;
   if (bareNC) {
     warnings.push({
@@ -1308,6 +1406,7 @@ export function buildPlan(
            guessed: an empty column reads as "not applicable here", a wrong one
            reads as fact. */
         values: evidenceValues(a, item.id, "", ""),
+        folder: dayFolder(folder, a.takenAt ?? a.createdAt),
       });
     }
   }
@@ -1315,7 +1414,21 @@ export function buildPlan(
   /* --- this visit's hazards ------------------------------------------- */
   const taken = new Set(existing.findings.keys());
   let unrated = 0;
+  let excludedHazards = 0;
   for (const h of x.hazards) {
+    /* HELD BACK WHOLE if it touches ANY excluded discipline — see
+       SyncInput.excludedDisciplines. A hazard spanning Electrical and Civil
+       is exactly the case `disciplines` being plural already plans for (the
+       March 2025 KSIA fuse: two write-ups, one hazard), and there is no
+       partial-hazard write — the portal takes one row with one event, one
+       description, one rating, so there is nothing to cut the Electrical
+       half out of. Holding back a Civil hazard a day longer is a far
+       smaller cost than syncing Electrical content the auditor explicitly
+       asked to hold. */
+    if (h.disciplines.some((d) => excluded.has(d))) {
+      excludedHazards++;
+      continue;
+    }
     /* A hazard whose ERM cell NOBODY AGREED still goes across — it is a real
        exposure and the portal should carry it — but WITHOUT a rating. A
        severity the assistant proposed and a person never looked at is
@@ -1366,6 +1479,13 @@ export function buildPlan(
       what: "hazard ratings",
       why: "nobody has agreed the ERM cell — the hazard syncs, the rating does not",
       count: unrated,
+    });
+  }
+  if (excludedHazards) {
+    skipped.push({
+      what: "hazards",
+      why: `held back this run — spans ${[...excluded].join(", ")}, excluded from this sync, not from the audit`,
+      count: excludedHazards,
     });
   }
   const withheldAssets = x.hazards.reduce(
@@ -1465,6 +1585,15 @@ export function buildPlan(
         },
         summary: `${key} · ${p.name || "(no name)"} · ${p.isApology ? "apology" : "attended"}`,
       });
+      if (p.signature) {
+        signatures.push({
+          rowKey: key,
+          filename: signatureFilename(p.signature),
+          signature: p.signature,
+          caption: `Signature: ${p.name || "(no name)"}, ${reg.date}`,
+          folder: dayFolder(folder, p.signature.signedAt),
+        });
+      }
     }
   }
   if (blankRegisters) {
@@ -1522,6 +1651,15 @@ export function buildPlan(
       },
       summary: `${key} · ${item.title}${item.unavailableAt ? " (declared unavailable)" : item.returnedAt ? " (returned)" : item.receivedAt ? " (received)" : " (outstanding)"}`,
     });
+    if (item.signature) {
+      signatures.push({
+        rowKey: key,
+        filename: signatureFilename(item.signature),
+        signature: item.signature,
+        caption: `Signature: ${item.receivedBy || "(no name)"}, ${item.title}`,
+        folder: dayFolder(folder, item.signature.signedAt),
+      });
+    }
   }
   if (blankDocuments) {
     skipped.push({
@@ -1541,11 +1679,19 @@ export function buildPlan(
   const existingAssetRisk = existing.assetRisk ?? new Map<string, string>();
   const seenPairs = new Set<string>();
   let emptyPairs = 0;
+  let excludedPairs = 0;
   for (const c of x.checks) {
     const system = c.system?.trim() || "No asset system recorded";
     const pairKey = `${c.discipline}|${system}`;
     if (seenPairs.has(pairKey)) continue;
     seenPairs.add(pairKey);
+    /* Held back with the rest of the discipline — see
+       SyncInput.excludedDisciplines. After the dedup above, so this counts
+       distinct PAIRS the same way emptyPairs does, not one per check. */
+    if (excluded.has(c.discipline)) {
+      excludedPairs++;
+      continue;
+    }
     const a = x.systems?.[pairKey];
     const hasContent =
       !!a &&
@@ -1607,6 +1753,15 @@ export function buildPlan(
       count: emptyPairs,
     });
   }
+  if (excludedPairs) {
+    skipped.push({
+      /* Deliberately not "asset systems" again — see the check-points skip
+         entry's own note on why the UI's key would collide. */
+      what: "asset systems (discipline held back)",
+      why: `held back this run — ${[...excluded].join(", ")} excluded from this sync, not from the audit`,
+      count: excludedPairs,
+    });
+  }
 
   return {
     checkpoints,
@@ -1615,6 +1770,7 @@ export function buildPlan(
     evidenceLog,
     assetRisk,
     evidence,
+    signatures,
     skipped,
     warnings,
     folder,
@@ -1653,13 +1809,15 @@ export function planTotals(plan: SyncPlan) {
     assetRiskNew: count(plan.assetRisk, "create"),
     assetRiskChanged: count(plan.assetRisk, "update"),
     photographs: plan.evidence.length,
+    signatures: plan.signatures.length,
     writes:
       plan.checkpoints.length +
       plan.findings.length +
       plan.attendance.length +
       plan.evidenceLog.length +
       plan.assetRisk.length +
-      plan.evidence.length,
+      plan.evidence.length +
+      plan.signatures.length,
   };
 }
 

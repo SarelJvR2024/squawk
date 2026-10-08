@@ -17,7 +17,7 @@
  *  where ACSA reads it, and an unpreviewable sync is one somebody has to
  *  trust rather than check. */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   checksAt,
   priorFindingsAt,
@@ -34,6 +34,7 @@ import {
   useVisitId,
 } from "@/lib/store";
 import { fullPhotoBlob } from "@/lib/recordimage";
+import { fullSignatureBlob } from "@/lib/signatureSync";
 import * as graph from "@/lib/graph";
 import {
   buildPlan,
@@ -124,6 +125,29 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [resolved, setResolved] = useState<Resolved | null>(null);
   const [plan, setPlan] = useState<SyncPlan | null>(null);
+  /* HELD BACK FROM THIS RUN, NOT FROM THE AUDIT. Sarel: "I captured some
+     electrical info but didnt want to sync it yet but i want to sync
+     everything else." Empty means what it always meant — nothing held
+     back, the sync is everything. The set holds what to WITHHOLD rather
+     than what to send, so a discipline this site has never heard of (a
+     register update, a typo nobody notices) can never silently vanish from
+     a sync just because it is missing from an allow-list — only a
+     discipline someone actively unchecked is ever held back.
+     Not persisted: the same "decided fresh every time" rule sendPhotos
+     already follows, for the same reason — a hold-back that silently
+     survived to the next audit would exclude a discipline nobody this time
+     meant to withhold. */
+  const [excludedDisciplines, setExcludedDisciplines] = useState<Set<string>>(new Set());
+  /* THE LAST REAL READ'S OWN INPUTS, frozen — so toggling a discipline
+     re-plans from what the portal actually had on the last read rather than
+     re-issuing every GET in `read()` just to change which rows are counted.
+     Discipline exclusion is applied entirely inside buildPlan, a pure
+     function; it needs nothing about the portal that read() has not already
+     fetched. Null until the first successful read. */
+  const lastPlanBase = useRef<{
+    input: Omit<Parameters<typeof buildPlan>[0], "excludedDisciplines">;
+    existing: Parameters<typeof buildPlan>[1];
+  } | null>(null);
   /* What the portal's own lists looked like when they were read: how many rows
      belong to another airport, and which Titles this site has more than one
      of. Both decide whether the plan can be trusted. */
@@ -158,6 +182,13 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   const [earlyOk, setEarlyOk] = useState(false);
 
   const checks = useMemo(() => checksAt(entityCode), [entityCode]);
+  /* Register order, not alphabetical — the same order the discipline
+     dropdown elsewhere in the app already uses, so a chip row here reads
+     the same way to somebody who knows the register. */
+  const disciplines = useMemo(
+    () => [...new Set(checks.map((c) => c.discipline))],
+    [checks]
+  );
   const prior = useMemo(() => priorFindingsAt(entityCode), [entityCode]);
   /* A finding in no hazard is work the register will not receive. Counted here
      so the plan can say so rather than letting it look synced. */
@@ -165,6 +196,21 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
     const inHazard = new Set(hazards.flatMap((h) => h.findingIds));
     return findings.filter((f) => !inHazard.has(f.id)).length;
   }, [findings, hazards]);
+
+  /* RE-PLANS FROM THE LAST READ, not a fresh one — see lastPlanBase's own
+     note. Does nothing before the first read: a discipline toggled while
+     the panel still shows step 1 or 2 has no plan yet to recompute, and
+     `read()` itself already builds the first one with whatever was
+     checked at that moment. */
+  useEffect(() => {
+    if (!lastPlanBase.current) return;
+    const { input, existing } = lastPlanBase.current;
+    setPlan(buildPlan({ ...input, excludedDisciplines: [...excludedDisciplines] }, existing, unconsolidated));
+    /* A plan that just changed shape is a plan nobody has looked at yet in
+       its new form — same reasoning as the comment on earlyOk's own
+       declaration. */
+    setEarlyOk(false);
+  }, [excludedDisciplines, unconsolidated]);
 
   const configured = graph.graphConfigured();
 
@@ -330,13 +376,11 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
           drive: drive?.name ?? null,
         },
       });
-      setPlan(
-        buildPlan(
-          { entity: entityCode, visit: visitId, visitLabel: visitId, library: drive?.name, siteFolder, libraryUrl: drive?.webUrl, checks, responses, hazards, prior, verifications, auditor, findings, adhoc, attendanceRegisters, evidenceItems, systems },
-          existing,
-          unconsolidated
-        )
-      );
+      const input = { entity: entityCode, visit: visitId, visitLabel: visitId, library: drive?.name, siteFolder, libraryUrl: drive?.webUrl, checks, responses, hazards, prior, verifications, auditor, findings, adhoc, attendanceRegisters, evidenceItems, systems };
+      /* Frozen here, read by the discipline-toggle effect below — see
+         lastPlanBase's own note. */
+      lastPlanBase.current = { input, existing };
+      setPlan(buildPlan({ ...input, excludedDisciplines: [...excludedDisciplines] }, existing, unconsolidated));
       setEarlyOk(false);
       setStage("planned");
     } catch (e) {
@@ -356,7 +400,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
     const unlabelled: { key: string; why: string }[] = [];
     let written = 0;
     const t = planTotals(plan);
-    const total = t.writes - (sendPhotos ? 0 : t.photographs);
+    const total = t.writes - (sendPhotos ? 0 : t.photographs + t.signatures);
 
     const writeRows = async (rows: PlannedRow[], list: { id: string; map: FieldMap } | null, what: string) => {
       if (!list) return;
@@ -400,32 +444,51 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       await writeRows(plan.evidenceLog, resolved.evidenceLogList, "evidence log entry");
       await writeRows(plan.assetRisk, resolved.assetRiskList, "asset risk row");
 
-      if (sendPhotos && resolved.driveId && plan.evidence.length) {
-        /* THE FOLDER IS ONE CALL THAT CAN FAIL ALL FIVE.
-           It used to sit outside the per-photograph try, so when it threw, the
-           outer catch set an error — and then reported "33 written. Everything
-           in the plan reached the portal", because `failed` was still empty.
-           A partial write calling itself complete is the one outcome this
-           screen exists to prevent. Every photograph it takes down is now
-           named. */
-        let folderReady = true;
-        try {
-          await graph.ensureFolder(resolved.driveId, plan.folder);
-        } catch (e) {
-          folderReady = false;
-          const why = `the evidence folder "${plan.folder}" could not be prepared — ${
-            e instanceof Error ? e.message : "failed"
-          }`;
-          for (const f of plan.evidence) failed.push({ key: f.filename, why });
+      if (sendPhotos && resolved.driveId && (plan.evidence.length || plan.signatures.length)) {
+        /* ONE DAY FOLDER PER FILE, not one folder for the whole visit — see
+           PlannedFile.folder/PlannedSignature.folder. A visit can run for
+           weeks; each photograph and signature now files under the day it
+           was actually captured, inside the site's own folder — no month
+           folder in between.
+
+           THE FOLDER IS ONE CALL THAT CAN FAIL EVERYTHING HEADED FOR IT.
+           It used to sit outside the per-photograph try entirely, so when it
+           threw, the outer catch set an error — and then reported "33
+           written. Everything in the plan reached the portal", because
+           `failed` was still empty. A partial write calling itself complete
+           is the one outcome this screen exists to prevent. Now there is one
+           such call per DAY rather than one for the whole plan — a bad day
+           folder must not take down a different day's files with it. */
+        const folders = new Set([
+          ...plan.evidence.map((f) => f.folder),
+          ...plan.signatures.map((s) => s.folder),
+        ]);
+        const folderFailed = new Map<string, string>();
+        for (const dayFolder of folders) {
+          try {
+            await graph.ensureFolder(resolved.driveId, dayFolder);
+          } catch (e) {
+            folderFailed.set(
+              dayFolder,
+              `the evidence folder "${dayFolder}" could not be prepared — ${
+                e instanceof Error ? e.message : "failed"
+              }`
+            );
+          }
         }
-        for (const f of folderReady ? plan.evidence : []) {
+        for (const f of plan.evidence) {
+          const why = folderFailed.get(f.folder);
+          if (why) {
+            failed.push({ key: f.filename, why });
+            continue;
+          }
           setProgress({ done: written, total, what: `photograph ${f.filename}` });
           try {
             /* This device's copy if it has one, the record copy otherwise. An
                auditor who joined the audit rather than taking the photographs
                still uploads every one of them. */
             const blob = await fullPhotoBlob(f.attachment, entityCode, visitId);
-            const up = await graph.uploadEvidence(resolved.driveId, plan.folder, f.filename, blob);
+            const up = await graph.uploadEvidence(resolved.driveId, f.folder, f.filename, blob);
             written++;
             /* THE METADATA IS ITS OWN STEP, AND ITS OWN FAILURE.
                Prince Mahlangu, 17 September 2026: "They carry no metadata at
@@ -451,6 +514,26 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
             }
           } catch (e) {
             failed.push({ key: f.filename, why: e instanceof Error ? e.message : "failed" });
+          }
+        }
+        /* SIGNATURES, THE SAME WAY — same per-day folders, same device-then-
+           record fallback, but no metadata step: EVIDENCE_FIELDS describes a
+           photograph (discipline, asset system, check-point), none of which
+           a signature has. The file itself, named by its own ref, is the
+           whole of what goes across. */
+        for (const s of plan.signatures) {
+          const why = folderFailed.get(s.folder);
+          if (why) {
+            failed.push({ key: s.filename, why });
+            continue;
+          }
+          setProgress({ done: written, total, what: `signature ${s.filename}` });
+          try {
+            const blob = await fullSignatureBlob(s.signature, entityCode, visitId);
+            await graph.uploadEvidence(resolved.driveId, s.folder, s.filename, blob);
+            written++;
+          } catch (e) {
+            failed.push({ key: s.filename, why: e instanceof Error ? e.message : "failed" });
           }
         }
       }
@@ -479,7 +562,9 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   const totals = plan ? planTotals(plan) : null;
   /* What the button will actually send, which is not the plan's own total
      while the photographs are switched off. */
-  const writes = totals ? totals.writes - (sendPhotos ? 0 : totals.photographs) : 0;
+  const writes = totals
+    ? totals.writes - (sendPhotos ? 0 : totals.photographs + totals.signatures)
+    : 0;
   const dupes = [
     ...(indexes?.checkpoints?.duplicates ?? []),
     ...(indexes?.findings?.duplicates ?? []),
@@ -647,11 +732,11 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
             resolved.attendanceList ? null : "no list matching Attendance Register",
             resolved.evidenceLogList ? null : "no list matching Evidence Log",
             resolved.assetRiskList ? null : "no list matching Asset Risk",
-            resolved.driveId ? null : "no document library to put photographs in",
+            resolved.driveId ? null : "no document library to put photographs and signatures in",
           ]
             .filter(Boolean)
             .join(" · ") ||
-          `Writing to “${resolved.chose.checkList}”, “${resolved.chose.findingList}”, “${resolved.chose.attendanceList}”, “${resolved.chose.evidenceLogList}” and “${resolved.chose.assetRiskList}”, photographs to “${resolved.chose.drive}”. ${resolved.lists.length} lists on the site — check these are the right ones.`,
+          `Writing to “${resolved.chose.checkList}”, “${resolved.chose.findingList}”, “${resolved.chose.attendanceList}”, “${resolved.chose.evidenceLogList}” and “${resolved.chose.assetRiskList}”, photographs and signatures to “${resolved.chose.drive}”. ${resolved.lists.length} lists on the site — check these are the right ones.`,
     },
     {
       label: "Every field has a column to go in",
@@ -808,6 +893,80 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
             {/* --- the plan ----------------------------------------------- */}
             {plan && totals && stage !== "done" && (
               <>
+                {/* HELD BACK FROM THIS RUN, NOT FROM THE AUDIT. Sarel: "I
+                    captured some electrical info but didnt want to sync it
+                    yet but i want to sync everything else" — the only tool
+                    for that before this was "sync nothing", because holding
+                    back one discipline meant holding back all of them.
+                    Every chip starts included; unchecking one narrows this
+                    run only — the tiles and totals below react live. */}
+                {disciplines.length > 0 && (
+                  <div
+                    className="mb-3 rounded-[10px] border px-[11px] py-[9px] text-[11.5px] leading-[1.5]"
+                    style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+                  >
+                    <div className="mb-[7px] flex items-center justify-between gap-2">
+                      <b>Disciplines to sync this run</b>
+                      {excludedDisciplines.size > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setExcludedDisciplines(new Set())}
+                          className="font-mono text-[10px] underline"
+                          style={{ color: "var(--ink-3)" }}
+                        >
+                          sync everything
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-[6px]">
+                      {disciplines.map((d) => {
+                        const held = excludedDisciplines.has(d);
+                        return (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() =>
+                              /* A fresh Set built by filtering, not a mutated
+                                 copy — same shape as the toggle has to take
+                                 anyway, and it keeps this file's own "no
+                                 deletions, ever" source check honest: that
+                                 check means a SharePoint item, not an entry
+                                 in a client-side Set, but a blind text match
+                                 cannot tell the two apart. */
+                              setExcludedDisciplines((prev) =>
+                                prev.has(d)
+                                  ? new Set([...prev].filter((x) => x !== d))
+                                  : new Set([...prev, d])
+                              )
+                            }
+                            aria-pressed={!held}
+                            title={held ? `${d} — held back this run, tap to include it again` : `${d} — syncing this run, tap to hold it back`}
+                            className="rounded-full border px-[10px] py-[5px] text-[10.5px] transition-[var(--t)]"
+                            style={
+                              held
+                                ? {
+                                    background: "var(--panel)",
+                                    borderColor: "var(--line-2)",
+                                    color: "var(--ink-4)",
+                                    textDecoration: "line-through",
+                                  }
+                                : { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
+                            }
+                          >
+                            {d}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {excludedDisciplines.size > 0 && (
+                      <p className="mt-[7px] text-[10px]" style={{ color: "var(--ink-3)" }}>
+                        Held back from this sync, not from the audit —{" "}
+                        <b>{[...excludedDisciplines].join(", ")}</b> will not be written this run.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
                   <Tile n={totals.checkpointsNew} label="check-points to add" />
                   <Tile n={totals.checkpointsChanged} label="check-points to update" />
@@ -822,6 +981,10 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                   <Tile
                     n={totals.photographs}
                     label={sendPhotos ? "photographs to upload" : "photographs, not being sent"}
+                  />
+                  <Tile
+                    n={totals.signatures}
+                    label={sendPhotos ? "signatures to upload" : "signatures, not being sent"}
                   />
                   <Tile n={writes} label="writes in total" strong />
                 </div>
@@ -884,8 +1047,8 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
 
                 {/* The switch, next to the count it governs rather than in a
                     settings corner — this is the one screen where "are the
-                    photographs going" is a live question. */}
-                {plan.evidence.length > 0 && (
+                    photographs and signatures going" is a live question. */}
+                {(plan.evidence.length > 0 || plan.signatures.length > 0) && (
                   <label
                     className="mb-2 flex cursor-pointer items-start gap-[9px] rounded-[10px] border px-[11px] py-[9px] text-[11.5px] leading-[1.5]"
                     style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
@@ -897,12 +1060,21 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                       className="mt-[2px] h-[15px] w-[15px] shrink-0"
                     />
                     <span>
-                      <b>Also upload the {plan.evidence.length} photograph{plan.evidence.length === 1 ? "" : "s"}</b>{" "}
+                      <b>
+                        Also upload
+                        {plan.evidence.length > 0
+                          ? ` the ${plan.evidence.length} photograph${plan.evidence.length === 1 ? "" : "s"}`
+                          : ""}
+                        {plan.evidence.length > 0 && plan.signatures.length > 0 ? " and" : ""}
+                        {plan.signatures.length > 0
+                          ? ` the ${plan.signatures.length} signature${plan.signatures.length === 1 ? "" : "s"}`
+                          : ""}
+                      </b>{" "}
                       into{" "}
                       <span className="font-mono text-[10.5px]">
                         {resolved?.chose.drive ?? "the library"}/{plan.folder}
                       </span>
-                      . Off by
+                      , each one in a subfolder for the day it was actually captured. Off by
                       default — the rows carry the audit, and the images are large, of a national
                       key point, and not yet wanted in the portal. The workbook export still
                       includes every one of them.
@@ -1220,10 +1392,17 @@ function Contract() {
           </div>
         ))}
         <p>
-          Photographs go to a document library whose name contains <b>Document</b>, <b>Shared</b> or{" "}
-          <b>Evidence</b>, in a folder named for the site and then for the visit. The path is
-          relative to that library, so a library already called <b>Evidence</b> does not get an{" "}
-          <b>Evidence</b> folder inside it.
+          Photographs and signatures go to a document library whose name contains <b>Document</b>,{" "}
+          <b>Shared</b> or <b>Evidence</b>, in a folder named for the site and then for the day —{" "}
+          <span className="font-mono text-[10.5px]">YYYYMMDD</span>, no dashes, no month folder in
+          between. Each file sits under the date it was actually captured, so a three-week audit does
+          not land every image in one folder together. The path is relative to that library, so a
+          library already called <b>Evidence</b> does not get an <b>Evidence</b> folder inside it.{" "}
+          <b>EvidenceLink</b> still points at the site&rsquo;s own folder, one level up — a stable
+          link per row, whichever day&rsquo;s subfolder the evidence it names actually sits in. A
+          signature is written as its own file, named by its ref — it
+          carries no columns of its own; the attendance/evidence log row it belongs to is where
+          who-signed-and-when lives.
         </p>
         <p className="mt-2" style={{ color: "var(--ink-3)" }}>
           Start every column as text, and dates as Date — except <b>EvidenceLink</b>, which must be a{" "}

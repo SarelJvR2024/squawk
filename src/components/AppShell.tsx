@@ -24,6 +24,7 @@ import { useAssistAvailable, useTranscribeAvailable } from "@/lib/assist";
 import { portalIdFor } from "@/lib/sites";
 import { requestPersistentStorage } from "@/lib/media";
 import { usePhotoSync } from "@/lib/sync";
+import { useSignatureSync } from "@/lib/signatureSync";
 import { useShared } from "@/lib/shared";
 import ExportPanel from "@/components/ExportPanel";
 import JoinPrompt from "@/components/JoinPrompt";
@@ -326,6 +327,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   /* Mounted once, here, so the queue drains whichever screen the auditor is on
      and keeps going while they capture. */
   const sync = usePhotoSync();
+  const sigSync = useSignatureSync();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -987,6 +989,38 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   : sync.failed
                     ? `${sync.failed} failed`
                     : `${sync.outstanding} on device only`}
+            </button>
+          )}
+
+          {/* Same signal, for signatures — an attendance register or an
+              evidence log can be signed on one device and synced to
+              SharePoint from another, same as a photograph. */}
+          {(sigSync.outstanding > 0 || sigSync.failed > 0) && (
+            <button
+              onClick={sigSync.run}
+              disabled={sigSync.uploading || !sigSync.online}
+              title={
+                sigSync.failed
+                  ? "Some signatures could not be sent to the record store. Tap to try again."
+                  : sigSync.online
+                    ? "Signatures still only on this device. Tap to send them now."
+                    : "Offline — signatures will be sent when there is a network."
+              }
+              className="flex shrink-0 items-center gap-[5px] rounded-[7px] border px-[8px] py-[4px] font-mono text-[9.5px]"
+              style={{
+                background: sigSync.failed ? "var(--warn-bg)" : "var(--panel)",
+                borderColor: sigSync.failed ? "var(--warn-line)" : "var(--line-2)",
+                color: sigSync.failed ? "var(--warn)" : "var(--ink-3)",
+              }}
+            >
+              <IconCloud width={11} height={11} />
+              {sigSync.uploading
+                ? `sending ${sigSync.outstanding}`
+                : !sigSync.online
+                  ? `${sigSync.outstanding} waiting · offline`
+                  : sigSync.failed
+                    ? `${sigSync.failed} failed`
+                    : `${sigSync.outstanding} signature${sigSync.outstanding === 1 ? "" : "s"} on device only`}
             </button>
           )}
 
