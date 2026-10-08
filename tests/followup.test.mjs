@@ -431,5 +431,32 @@ check(
   "typing the same wording twice must grow one hazard's findingIds, not mint a second row for the same thing"
 );
 
+/* MOBILE: THE TWO-PANEL GRID MUST ACTUALLY FIT THE SCREEN IT IS ON.
+ *
+ * Sarel, on a phone: "The followup screen is not working and displaying
+ * nicely on mobile." Measured in a real browser at 390px: the list panel's
+ * own grid track was computing to 631.75px — the grid had no
+ * `grid-template-columns` set below `lg`, so the browser's implicit single
+ * column defaulted to `min-width: auto` and sized itself to the content's
+ * min-content width rather than shrinking to the panel. The overflow was
+ * silently clipped by the panel's own `overflow-hidden`, not scrollable —
+ * rows cut off mid-word, and a tap past the visible ~350px could miss a
+ * control that was there, just off-screen. That is "not working", not just
+ * "not pretty". */
+
+check(
+  "the list/detail grid has an explicit mobile column, not a bare 'grid'",
+  /className="grid grid-cols-1 gap-3 lg:grid-cols-\[380px_minmax\(0,1fr\)\]"/.test(
+    closure
+  ),
+  "a bare `grid` with no `grid-template-columns` lets the implicit column grow to its content's width instead of the panel's"
+);
+
+check(
+  "grid-cols-1 specifically, not grid-cols-[1fr] or omitted — it is the minmax(0,...) floor that matters",
+  !/className="grid gap-3 lg:grid-cols-\[380px_minmax\(0,1fr\)\]"/.test(closure),
+  "Tailwind's grid-cols-1 compiles to repeat(1, minmax(0, 1fr)) — the explicit 0 minimum is what lets the column shrink below its content"
+);
+
 console.log(failures === 0 ? "\nFOLLOW-UP OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);
