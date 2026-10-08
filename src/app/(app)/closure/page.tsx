@@ -45,6 +45,16 @@ const ratingTone = (r: string) =>
 
 type Filter = "all" | "priority" | "unverified" | "repeat" | "carried" | "nocover" | "context";
 
+const FILTER_LABEL: Record<Filter, string> = {
+  all: "Carries work",
+  priority: "Was Unacceptable / Tolerable",
+  unverified: "Not yet verified",
+  repeat: "Repeats",
+  carried: "Carried forward",
+  nocover: "Not covered this visit",
+  context: "Context only",
+};
+
 export default function ClosurePage() {
   const router = useRouter();
   const responses = useResponses();
@@ -280,6 +290,11 @@ export default function ClosurePage() {
       .length,
   };
 
+  const isDefault = discipline === "all" && filter === "all";
+  const filterSummary = isDefault
+    ? "everything that carries work"
+    : [discipline !== "all" ? discipline : null, FILTER_LABEL[filter]].filter(Boolean).join(" · ");
+
   const linked = active ? checksOf(entityCode, active.discipline, active.system) : [];
   const linkedNC = linked.filter((c) => responses[c.id]?.compliance === "NC").length;
   const cur = active ? currentRating(active.discipline, active.system) : "";
@@ -364,56 +379,85 @@ export default function ClosurePage() {
           </div>
         </details>
 
-        {disciplines.length > 1 && (
-          <div className="mb-2 flex flex-wrap items-center gap-[6px]">
-            <span className="label-xs" style={{ color: "var(--ink-3)" }}>
-              Discipline
+        {/* FILTERS, FOLDED. Sarel: these filters are not user friendly, there
+            are too many visible at the same time and scattered all over.
+            Same fix as the 3-year-cycle explainer two sections up: nothing is
+            deleted, every chip and every count is still here, but the default
+            state of the screen is the worklist, not the controls above it.
+            Shut by default, uncontrolled (no useState) — opens on tap and
+            stays open for the rest of this page visit. The summary line
+            always says what's showing, so a filtered list is never silently
+            unexplained. */}
+        <details className="group mb-3">
+          <summary
+            className="flex min-h-[44px] w-full cursor-pointer list-none items-start gap-2 rounded-[9px] border px-3 py-[9px] text-[11.5px] transition-[var(--t)]"
+            style={
+              isDefault
+                ? { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
+                : { background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }
+            }
+          >
+            <span aria-hidden className="mt-[1px] shrink-0 font-mono text-[9px] transition-transform group-open:rotate-90">
+              ›
             </span>
-            {["all", ...disciplines].map((d) => (
-              <button
-                key={d}
-                onClick={() => setDiscipline(d)}
-                className="min-h-[44px] rounded-full border px-[11px] py-[5px] text-[11.5px] transition-[var(--t)]"
-                style={
-                  discipline === d
-                    ? { background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }
-                    : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
-                }
-              >
-                {d === "all" ? `All ${carries.length}` : `${d} (${carries.filter((p) => p.discipline === d).length})`}
-              </button>
-            ))}
-          </div>
-        )}
+            <span className="min-w-0 flex-1">
+              Showing: <b>{filterSummary}</b>
+            </span>
+          </summary>
 
-        <div className="mb-3 flex flex-wrap gap-[6px]">
-          {(
-            [
-              ["all", `Carries work (${carries.length})`],
-              ["priority", "Was Unacceptable / Tolerable"],
-              ["unverified", "Not yet verified"],
-              ["repeat", "Repeats"],
-              ["carried", `Carried forward (${counts.carried})`],
-              ["nocover", "Not covered this visit"],
-              ...(context.length
-                ? ([["context", `Context only (${context.length})`]] as [Filter, string][])
-                : []),
-            ] as [Filter, string][]
-          ).map(([k, label]) => (
-            <button
-              key={k}
-              onClick={() => setFilter(k)}
-              className="rounded-full border px-[11px] py-[5px] text-[11.5px] transition-[var(--t)]"
-              style={
-                filter === k
-                  ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
-                  : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
-              }
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+          <div className="mt-2">
+            {disciplines.length > 1 && (
+              <div className="mb-2 flex flex-wrap items-center gap-[6px]">
+                <span className="label-xs" style={{ color: "var(--ink-3)" }}>
+                  Discipline
+                </span>
+                {["all", ...disciplines].map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setDiscipline(d)}
+                    className="min-h-[44px] rounded-full border px-[11px] py-[5px] text-[11.5px] transition-[var(--t)]"
+                    style={
+                      discipline === d
+                        ? { background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }
+                        : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
+                    }
+                  >
+                    {d === "all" ? `All ${carries.length}` : `${d} (${carries.filter((p) => p.discipline === d).length})`}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-[6px]">
+              {(
+                [
+                  ["all", `Carries work (${carries.length})`],
+                  ["priority", "Was Unacceptable / Tolerable"],
+                  ["unverified", "Not yet verified"],
+                  ["repeat", "Repeats"],
+                  ["carried", `Carried forward (${counts.carried})`],
+                  ["nocover", "Not covered this visit"],
+                  ...(context.length
+                    ? ([["context", `Context only (${context.length})`]] as [Filter, string][])
+                    : []),
+                ] as [Filter, string][]
+              ).map(([k, label]) => (
+                <button
+                  key={k}
+                  onClick={() => setFilter(k)}
+                  className="rounded-full border px-[11px] py-[5px] text-[11.5px] transition-[var(--t)]"
+                  style={
+                    filter === k
+                      ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
+                      : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </details>
 
         {/* THE LEGEND WENT WITH THE STRIP IT EXPLAINED.
             It was six little cells and their words, above the list, teaching a
