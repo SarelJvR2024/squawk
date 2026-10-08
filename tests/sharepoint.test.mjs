@@ -998,9 +998,9 @@ check(
       NOTHING
     );
     const v = p.evidence[0].values;
-    /* Discipline and asset system blank rather than guessed: an inspection is
-       something seen on a walk, not an item off the register. An empty column
-       reads as "not applicable here"; a wrong one reads as fact. */
+    /* This item never set its own discipline/system, so blank is correct —
+       see the tests below for what happens when it does. Blank here is "the
+       auditor genuinely left it unset," not "a walk item cannot carry one." */
     return v.checkId === "WALK-A3F2K" && v.discipline === "" && v.assetSystem === "";
   })()
 );
@@ -3242,6 +3242,46 @@ check(
     return v.assetName === "" && v.assetRef === "";
   })(),
   "WITH_PHOTO's attachments never set assetName/assetRef"
+);
+
+check(
+  "A WALK ITEM'S OWN DISCIPLINE/SYSTEM reaches the photo's evidence row too, not just blank",
+  (() => {
+    const v = sp.buildPlan(
+      {
+        ...BASE,
+        adhoc: [
+          {
+            id: "WALK-A3F2K", discipline: "Electrical", system: "Switchgear",
+            attachments: [{ id: "w1", kind: "photo", name: "n", blobKey: "b9", ref: "WALK-A3F2K_P01", caption: "c" }],
+          },
+        ],
+      },
+      NOTHING
+    ).evidence[0].values;
+    return v.discipline === "Electrical" && v.assetSystem === "Switchgear";
+  })(),
+  "AddItemSheet lets the auditor set both; the upload loop was discarding a real answer, not refusing to guess one"
+);
+
+check(
+  "and a walk item that genuinely left discipline/system unset still writes blank, not null or undefined",
+  (() => {
+    const v = sp.buildPlan(
+      {
+        ...BASE,
+        adhoc: [
+          {
+            id: "WALK-A3F2K", discipline: null, system: null,
+            attachments: [{ id: "w1", kind: "photo", name: "n", blobKey: "b9", ref: "WALK-A3F2K_P01", caption: "c" }],
+          },
+        ],
+      },
+      NOTHING
+    ).evidence[0].values;
+    return v.discipline === "" && v.assetSystem === "";
+  })(),
+  "null is a real, common answer on a walk — see AdHocItem.discipline's own comment"
 );
 
 const HAZ_WALK = {

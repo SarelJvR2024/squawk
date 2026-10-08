@@ -1432,11 +1432,15 @@ export function buildPlan(
         filename: photoFilename(a),
         attachment: a,
         caption: a.caption?.trim() ?? "",
-        /* An inspection has no register discipline or asset system — it is a
-           thing seen on a walk, not an item off the list. Blank rather than
-           guessed: an empty column reads as "not applicable here", a wrong one
-           reads as fact. */
-        values: evidenceValues(a, item.id, "", ""),
+        /* NOT the register's discipline/asset system — a walk item is not off
+           the list, so there is no check to read those from. But the item
+           carries its OWN discipline/system (AddItemSheet lets the auditor
+           set both, same vocabulary as a check's), and that was being
+           discarded here even when set. Still blank, not guessed, when the
+           auditor genuinely left it unset — an empty column reads as "not
+           applicable here", a wrong one reads as fact; this only stops
+           throwing away a real answer that was already sitting on the item. */
+        values: evidenceValues(a, item.id, item.discipline ?? "", item.system ?? ""),
         folder: dayFolder(folder, a.takenAt ?? a.createdAt),
       });
     }
