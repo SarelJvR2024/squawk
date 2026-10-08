@@ -998,9 +998,9 @@ check(
       NOTHING
     );
     const v = p.evidence[0].values;
-    /* Discipline and asset system blank rather than guessed: an inspection is
-       something seen on a walk, not an item off the register. An empty column
-       reads as "not applicable here"; a wrong one reads as fact. */
+    /* This item never set its own discipline/system, so blank is correct —
+       see the tests below for what happens when it does. Blank here is "the
+       auditor genuinely left it unset," not "a walk item cannot carry one." */
     return v.checkId === "WALK-A3F2K" && v.discipline === "" && v.assetSystem === "";
   })()
 );
@@ -3184,6 +3184,190 @@ check(
 check(
   "the persist key is still the one a tablet's audit is stored under",
   /name: "acsa-assurance-v1"/.test(src("lib", "store.ts"))
+);
+
+/* ------------- Part 1j: what the findings view shows but never synced ----
+ *
+ * Sarel: "Is the information linked with photo capture in the findings view
+ * being synced to sharepoint." Two real gaps found by reading the code, not
+ * guessed: assetName/assetRef never had a column of their own (silently
+ * dropped, even though the findings view folds them into the same line as
+ * Location, which DOES sync — so they look synced and are not), and a WALK
+ * finding's photograph never reached the hazard row's Photos/EvidenceLink
+ * column at all, because hazardPhotoRefs() only ever walked the register
+ * path (photo -> check -> finding -> hazard), never the ad-hoc one (photo ->
+ * ad-hoc item -> finding, via findingId -> hazard). The upload itself
+ * already worked; nothing walked back to find it. */
+
+check(
+  "assetName and assetRef are in the evidence library's own contract now",
+  sp.EVIDENCE_FIELDS.includes("assetName") && sp.EVIDENCE_FIELDS.includes("assetRef")
+);
+
+check(
+  "and the contract asks for columns named the way the findings view already shows them",
+  (() => {
+    const c = sp.columnContract(sp.EVIDENCE_FIELDS).map((x) => x.create);
+    return c.includes("Asset name") && c.includes("Asset ref");
+  })(),
+  sp.columnContract(sp.EVIDENCE_FIELDS).map((x) => x.create).join(", ")
+);
+
+check(
+  "WHICH asset a photograph is of travels to the library, not just where it was taken",
+  (() => {
+    const v = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": {
+            compliance: "NC", observation: "Busbar corroded",
+            attachments: [{
+              id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-001_P01",
+              caption: "c", assetName: "MV Switchboard 3B", assetRef: "SW-3B-011",
+            }],
+          },
+        },
+      },
+      NOTHING
+    ).evidence[0].values;
+    return v.assetName === "MV Switchboard 3B" && v.assetRef === "SW-3B-011";
+  })()
+);
+
+check(
+  "and an uncaptioned asset name/ref writes blank, not undefined — same rule as caption and location",
+  (() => {
+    const v = sp.buildPlan(WITH_PHOTO, NOTHING).evidence[0].values;
+    return v.assetName === "" && v.assetRef === "";
+  })(),
+  "WITH_PHOTO's attachments never set assetName/assetRef"
+);
+
+check(
+  "A WALK ITEM'S OWN DISCIPLINE/SYSTEM reaches the photo's evidence row too, not just blank",
+  (() => {
+    const v = sp.buildPlan(
+      {
+        ...BASE,
+        adhoc: [
+          {
+            id: "WALK-A3F2K", discipline: "Electrical", system: "Switchgear",
+            attachments: [{ id: "w1", kind: "photo", name: "n", blobKey: "b9", ref: "WALK-A3F2K_P01", caption: "c" }],
+          },
+        ],
+      },
+      NOTHING
+    ).evidence[0].values;
+    return v.discipline === "Electrical" && v.assetSystem === "Switchgear";
+  })(),
+  "AddItemSheet lets the auditor set both; the upload loop was discarding a real answer, not refusing to guess one"
+);
+
+check(
+  "and a walk item that genuinely left discipline/system unset still writes blank, not null or undefined",
+  (() => {
+    const v = sp.buildPlan(
+      {
+        ...BASE,
+        adhoc: [
+          {
+            id: "WALK-A3F2K", discipline: null, system: null,
+            attachments: [{ id: "w1", kind: "photo", name: "n", blobKey: "b9", ref: "WALK-A3F2K_P01", caption: "c" }],
+          },
+        ],
+      },
+      NOTHING
+    ).evidence[0].values;
+    return v.discipline === "" && v.assetSystem === "";
+  })(),
+  "null is a real, common answer on a walk — see AdHocItem.discipline's own comment"
+);
+
+const HAZ_WALK = {
+  ...HAZ,
+  adhoc: [
+    {
+      id: "WALK-A1F2K", findingId: "f4",
+      attachments: [
+        { id: "wa1", kind: "photo", name: "n", blobKey: "wb1", ref: "WALK-A1F2K_P01", caption: "c" },
+      ],
+    },
+    /* The normal state on the walk, before a finding exists to attach to. */
+    {
+      id: "WALK-B2G3L", findingId: null,
+      attachments: [
+        { id: "wb1x", kind: "photo", name: "n", blobKey: "wb2", ref: "WALK-B2G3L_P01", caption: "c" },
+      ],
+    },
+    /* Raised into a real finding — just not one of THIS hazard's. */
+    {
+      id: "WALK-C3H4M", findingId: "f5",
+      attachments: [
+        { id: "wc1", kind: "photo", name: "n", blobKey: "wb3", ref: "WALK-C3H4M_P01", caption: "c" },
+      ],
+    },
+  ],
+  findings: [...HAZ.findings, { id: "f4", checkId: null }, { id: "f5", checkId: null }],
+  hazards: [{ ...HAZ.hazards[0], findingIds: ["f1", "f2", "f3", "f4"] }],
+};
+
+check(
+  "A WALK FINDING'S PHOTOGRAPH REACHES THE HAZARD ROW TOO, not only a register one",
+  (() => {
+    const row = sp.buildPlan(HAZ_WALK, NOTHING).findings.find((r) => r.key === "KSIA-ELE-P01");
+    return row.values.photos ===
+      "KSIA-ELE-001_P01, KSIA-ELE-001_P02, KSIA-ELE-002_P01, WALK-A1F2K_P01";
+  })(),
+  sp.buildPlan(HAZ_WALK, NOTHING).findings.find((r) => r.key === "KSIA-ELE-P01")?.values.photos
+);
+
+check(
+  "an ad-hoc item NOT YET raised into a finding contributes nothing",
+  (() => {
+    const v = sp.buildPlan(HAZ_WALK, NOTHING).findings.find((r) => r.key === "KSIA-ELE-P01").values.photos;
+    return !v.includes("WALK-B2G3L");
+  })(),
+  "findingId: null is the normal state on the walk, before a finding exists to attach to"
+);
+
+check(
+  "an ad-hoc item raised into SOMEBODY ELSE'S finding contributes nothing",
+  (() => {
+    const v = sp.buildPlan(HAZ_WALK, NOTHING).findings.find((r) => r.key === "KSIA-ELE-P01").values.photos;
+    return !v.includes("WALK-C3H4M");
+  })(),
+  "f5 is a real finding, just not one of this hazard's — same rule the register path already follows"
+);
+
+check(
+  "a walk photograph that never left the capturing device is not claimed as evidence",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...HAZ_WALK,
+        adhoc: [
+          {
+            id: "WALK-D4I5N", findingId: "f4",
+            attachments: [{ id: "wd1", kind: "photo", name: "n", ref: "WALK-D4I5N_P01", caption: "c" }],
+          },
+        ],
+      },
+      NOTHING
+    );
+    return p.findings.find((r) => r.key === "KSIA-ELE-P01").values.photos ===
+      "KSIA-ELE-001_P01, KSIA-ELE-001_P02, KSIA-ELE-002_P01";
+  })(),
+  "same guard the register path already applies — a reference with no bytes anywhere is not evidence yet"
+);
+
+check(
+  "two findings sharing a hazard still dedupe across BOTH origins, register and walk alike",
+  (() => {
+    const v = sp.buildPlan(HAZ_WALK, NOTHING).findings.find((r) => r.key === "KSIA-ELE-P01").values.photos;
+    const parts = v.split(", ");
+    return parts.length === new Set(parts).size;
+  })()
 );
 
 /* ------------------------------------------------------------------ result */
