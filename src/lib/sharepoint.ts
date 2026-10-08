@@ -194,6 +194,15 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
   caption: ["Caption", "Description", "What it shows"],
   location: ["Location", "Where", "Where taken"],
   takenAt: ["TakenAt", "Taken at", "Taken On", "Date taken", "Photograph date"],
+  /* WHAT the photograph is of, not where it was taken — an auditor fills
+     both in at capture time (Attachment.assetName/assetRef) and the findings
+     view shows them folded into the same line as Location, so it reads as
+     synced the same way. It was not: these two never had a column of their
+     own and were silently dropped. Separate from `assets` below, which is
+     the HAZARD's register asset tags on the Findings list — this is the
+     free-text plate name/number on one photograph, on the Evidence library. */
+  assetName: ["Asset name", "Asset Name"],
+  assetRef: ["Asset ref", "Asset Ref", "Asset reference", "Asset number"],
   /* On the CHECK-POINT row, not on the file: the references of every
      photograph filed against that check, so a reader on the check-point can
      see there is evidence and what it is called. The other half of Prince's
@@ -340,7 +349,7 @@ export const ASSET_RISK_FIELDS = [
  *  the first upload produced, and the reason this list exists. */
 export const EVIDENCE_FIELDS = [
   "checkId", "photographReference", "discipline", "assetSystem", "caption",
-  "captionSource", "attachedBy", "location", "takenAt",
+  "captionSource", "attachedBy", "location", "takenAt", "assetName", "assetRef",
 ] as const;
 
 export const FINDING_FIELDS = [
@@ -1159,6 +1168,8 @@ function evidenceValues(
     attachedBy: a.createdBy ?? "",
     location: a.location?.trim() ?? "",
     takenAt: a.takenAt ? new Date(a.takenAt).toISOString() : "",
+    assetName: a.assetName?.trim() ?? "",
+    assetRef: a.assetRef?.trim() ?? "",
   };
 }
 
@@ -1169,11 +1180,22 @@ function evidenceValues(
  *  reads — a check-point row is the register, a finding is the thing somebody
  *  has to act on — and a finding whose evidence you cannot find is an assertion.
  *
- *  Three hops, because that is genuinely how far apart they sit: a photograph
- *  hangs off a CHECK, a finding names the check it came from, and a hazard
- *  consolidates findings. Squawk never attached a photograph to a hazard
- *  directly and should not start — the photograph is evidence of what was seen
- *  at one check, and a hazard spanning four checks would otherwise claim all
+ *  Three hops, because that is genuinely how far apart they sit — and there
+ *  are two different first hops, not one:
+ *    - a REGISTER finding: a photograph hangs off a CHECK, the finding names
+ *      the check it came from (`checkId`), and a hazard consolidates findings.
+ *    - a WALK finding: a photograph hangs off an AD-HOC ITEM instead (there is
+ *      no check — nothing on the register to hang it off), the item names the
+ *      finding it was raised into (`findingId`), and the same hazard
+ *      consolidation follows. This half was missing until now: the upload
+ *      itself worked (see the ad-hoc evidence loop above), but nothing ever
+ *      walked back from a hazard to an ad-hoc item's photographs, so a walk
+ *      finding's evidence reached the library with no Photos/EvidenceLink
+ *      reference pointing at it from the Findings list at all.
+ *
+ *  Squawk never attached a photograph to a hazard directly and should not
+ *  start — the photograph is evidence of what was seen at one check or one
+ *  walk item, and a hazard spanning four of them would otherwise claim all
  *  four images as one observation.
  *
  *  Deduplicated and ordered: two findings on one check are ordinary after a
@@ -1182,14 +1204,23 @@ function evidenceValues(
 function hazardPhotoRefs(
   h: Hazard,
   findings: Finding[] | undefined,
-  responses: Record<string, Response>
+  responses: Record<string, Response>,
+  adhoc: AdHocItem[] | undefined
 ): string[] {
-  if (!findings?.length || !h.findingIds?.length) return [];
+  if (!h.findingIds?.length) return [];
   const mine = new Set(h.findingIds);
   const refs = new Set<string>();
-  for (const f of findings) {
+  for (const f of findings ?? []) {
     if (!mine.has(f.id) || !f.checkId) continue;
     for (const a of responses[f.checkId]?.attachments ?? []) {
+      if (a.kind !== "photo" || a.unavailable || !a.ref) continue;
+      if (!a.blobKey && !a.cloudUrl) continue;
+      refs.add(a.ref);
+    }
+  }
+  for (const item of adhoc ?? []) {
+    if (!item.findingId || !mine.has(item.findingId)) continue;
+    for (const a of item.attachments ?? []) {
       if (a.kind !== "photo" || a.unavailable || !a.ref) continue;
       if (!a.blobKey && !a.cloudUrl) continue;
       refs.add(a.ref);
@@ -1441,7 +1472,7 @@ export function buildPlan(
     taken.add(key);
     const itemId = existing.findings.get(key);
     const priority = agreed ? erm.ermPriority(h.ermConsequence!, h.ermLikelihood!) : null;
-    const hazardRefs = hazardPhotoRefs(h, x.findings, x.responses);
+    const hazardRefs = hazardPhotoRefs(h, x.findings, x.responses, x.adhoc);
     findings.push({
       key,
       action: itemId ? "update" : "create",
