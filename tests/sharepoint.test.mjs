@@ -2475,6 +2475,40 @@ check(
     /export function signatureObjectPath/.test(src("lib", "signatures.ts"))
 );
 
+/* --------------- Part 1g2: the activity log's sync-run hook, both paths -- *
+ *
+ *  recordSyncRun is the one write run() makes that is not itself a portal
+ *  write — it is what makes a sync's own result survive closing the panel.
+ *  Source-read, like the rest of this file's SyncPanel checks: there is no
+ *  server here for run() to actually call against. */
+
+check(
+  "the panel pulls recordSyncRun off the store, alongside its other actions",
+  /const recordSyncRun = useStore\(\(s\) => s\.recordSyncRun\);/.test(panel)
+);
+
+check(
+  "a successful sync calls recordSyncRun, with error: null, before setResult reports it done",
+  (() => {
+    const m = panel.match(
+      /recordSyncRun\(\{([\s\S]*?)\}\);\n\s*setResult\(\{ written, failed, unlabelled \}\);\n\s*setStage\("done"\);\n\s*\} catch \(e\) \{/
+    );
+    return !!m && /error: null,/.test(m[1]) && /skipped: plan\.skipped\.map/.test(m[1]);
+  })(),
+  "the write path must log a clean run exactly as eagerly as a failed one"
+);
+
+check(
+  "the catch path ALSO calls recordSyncRun, with the stopping error, not just setResult",
+  (() => {
+    const m = panel.match(
+      /setError\(why\);\n\s*recordSyncRun\(\{([\s\S]*?)\}\);\n\s*setResult\(\{ written, failed, unlabelled \}\);/
+    );
+    return !!m && /error: why,/.test(m[1]) && /skipped: plan\.skipped\.map/.test(m[1]);
+  })(),
+  "a partial or failed sync is exactly as worth logging as a clean one — arguably more so"
+);
+
 /* ---------------- Part 1h: one folder per day, no month folder at all ----- *
  *
  *  Sarel, 7 October 2026: "create a folder for each day and put the photos

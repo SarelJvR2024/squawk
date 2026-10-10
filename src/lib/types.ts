@@ -693,6 +693,42 @@ export interface Hazard {
   updatedAt?: number;
 }
 
+/** One sync attempt to SharePoint — created once, on the write itself, and
+ *  never updated afterwards. It is a LOG, not a status, for the same reason
+ *  ProgressNote is: a cell that gets typed over cannot say what happened
+ *  last Tuesday, only what somebody last believed.
+ *
+ *  Sarel, after a sync bug let held-back data through: "Build an audit log
+ *  for me to keep track of all sync and captures to see what was done
+ *  everyday by whom." Before this existed, a sync's own result lived in
+ *  SyncPanel's component state alone — closing the panel or reloading the
+ *  tablet lost it, and nobody could answer "did yesterday's sync actually
+ *  go, and what did it leave out" without having been watching the screen
+ *  when it finished.
+ *
+ *  `by` is whoever the auditor picker said at the moment the sync ran — the
+ *  same self-reported identity every `createdBy` in this app already carries,
+ *  not a verified one. Null means nobody was signed in to the portal, which
+ *  is itself worth keeping rather than folding into an empty string.
+ *
+ *  `skipped` is the field this record exists for as much as `written` is —
+ *  Sarel's own request was to see "what was done", and a log that reports
+ *  only what went across is exactly the kind of sync that let held-back data
+ *  through unnoticed. What was deliberately left out has to be as visible as
+ *  what was sent. */
+export interface SyncRun {
+  id: string;
+  entity: string;
+  originVisit: string;
+  at: number;
+  by: string | null;
+  written: number;
+  failed: number;
+  unlabelled: number;
+  skipped: { what: string; count: number }[];
+  error: string | null;
+}
+
 export interface Finding {
   id: string;
   checkId: string | null;
