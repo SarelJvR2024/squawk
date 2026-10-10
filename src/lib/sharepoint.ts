@@ -1262,6 +1262,23 @@ export function buildPlan(
   /* See SyncInput.excludedDisciplines. A Set, read in every loop below that
      has a discipline to check against — never rebuilt per check. */
   const excluded = new Set(x.excludedDisciplines ?? []);
+  /* ONLY THIS ENTITY'S OWN RECORDS, even if the caller handed us more.
+     checks/prior are already a pure function of x.entity (checksAt(),
+     priorFindingsAt()) and adhoc/responses/systems come from a hook already
+     scoped to the entity+visit in view (useAdhoc(), useResponses(), …) — but
+     findings, hazards, attendance registers and evidence items each carry
+     their OWN entity tag, so this file does not have to trust every future
+     caller to never pass a second airport's records by mistake. One real
+     incident already got past a narrower guard (see excludedDisciplines'
+     own ad-hoc gap, fixed the same day as this) — this is the same kind of
+     mistake in a different shape, closed the same way: checked here, not
+     only at the call site. */
+  const sameEntity = <T extends { entity: string }>(rows: T[] | undefined): T[] =>
+    (rows ?? []).filter((r) => r.entity === x.entity);
+  const entityFindings = sameEntity(x.findings);
+  const entityHazards = sameEntity(x.hazards);
+  const entityAttendanceRegisters = sameEntity(x.attendanceRegisters);
+  const entityEvidenceItems = sameEntity(x.evidenceItems);
   const checkpoints: PlannedRow[] = [];
   const findings: PlannedRow[] = [];
   const attendance: PlannedRow[] = [];
@@ -1385,7 +1402,7 @@ export function buildPlan(
    *  2026: Energy and Demand Management at King Shaka reading Acceptable with
    *  a non-compliant check-point behind it. */
   const withFinding = new Set(
-    (x.findings ?? []).map((f) => f.checkId).filter((id): id is string => !!id)
+    entityFindings.map((f) => f.checkId).filter((id): id is string => !!id)
   );
   const bareNC = x.checks.filter(
     (c) =>
@@ -1423,7 +1440,22 @@ export function buildPlan(
    *  decision for ACSA rather than a gap to fill quietly. Today it reaches the
    *  portal the way it always has — through a finding, consolidated into a
    *  hazard. */
+  let excludedWalkPhotos = 0;
   for (const item of x.adhoc ?? []) {
+    /* HELD BACK, NOT LOST. See SyncInput.excludedDisciplines — the same rule
+       the register path applies. This loop was never checking it at all: a
+       walk item in a discipline the auditor held back from this run still
+       uploaded anyway, and once item.discipline started reaching the Asset
+       system/Discipline columns for real (see evidenceValues() below), the
+       file that should not have gone across was also correctly labelled as
+       the thing it was meant to withhold. Checked per item, before its
+       photographs, same as a check-point is checked before its row. */
+    if (item.discipline && excluded.has(item.discipline)) {
+      excludedWalkPhotos += (item.attachments ?? []).filter(
+        (a) => a.kind === "photo" && !a.unavailable && (a.blobKey || a.cloudUrl)
+      ).length;
+      continue;
+    }
     for (const a of item.attachments ?? []) {
       if (a.kind !== "photo" || a.unavailable) continue;
       if (!a.blobKey && !a.cloudUrl) continue;
@@ -1445,12 +1477,19 @@ export function buildPlan(
       });
     }
   }
+  if (excludedWalkPhotos) {
+    skipped.push({
+      what: "walk photographs (discipline held back)",
+      why: `held back this run — ${[...excluded].join(", ")} excluded from this sync, not from the audit`,
+      count: excludedWalkPhotos,
+    });
+  }
 
   /* --- this visit's hazards ------------------------------------------- */
   const taken = new Set(existing.findings.keys());
   let unrated = 0;
   let excludedHazards = 0;
-  for (const h of x.hazards) {
+  for (const h of entityHazards) {
     /* HELD BACK WHOLE if it touches ANY excluded discipline — see
        SyncInput.excludedDisciplines. A hazard spanning Electrical and Civil
        is exactly the case `disciplines` being plural already plans for (the
@@ -1476,7 +1515,7 @@ export function buildPlan(
     taken.add(key);
     const itemId = existing.findings.get(key);
     const priority = agreed ? erm.ermPriority(h.ermConsequence!, h.ermLikelihood!) : null;
-    const hazardRefs = hazardPhotoRefs(h, x.findings, x.responses, x.adhoc);
+    const hazardRefs = hazardPhotoRefs(h, entityFindings, x.responses, x.adhoc);
     findings.push({
       key,
       action: itemId ? "update" : "create",
@@ -1523,7 +1562,7 @@ export function buildPlan(
       count: excludedHazards,
     });
   }
-  const withheldAssets = x.hazards.reduce(
+  const withheldAssets = entityHazards.reduce(
     (n, h) => n + (h.assetIds ?? []).length - sendableAssets(h.assetIds).length,
     0
   );
@@ -1576,7 +1615,7 @@ export function buildPlan(
   const existingAttendance = existing.attendance ?? new Map<string, string>();
   const site = siteCodeFor(x.entity);
   let blankRegisters = 0;
-  for (const reg of x.attendanceRegisters ?? []) {
+  for (const reg of entityAttendanceRegisters) {
     const people: { name: string; organisation: string; role: string; phone: string;
       email: string; signature: Signature | null; reason: string; isApology: boolean; id: string }[] = [
       ...reg.rows.map((r) => ({
@@ -1648,7 +1687,7 @@ export function buildPlan(
    *  capture, same as every other list here. */
   const existingEvidenceLog = existing.evidenceLog ?? new Map<string, string>();
   let blankDocuments = 0;
-  for (const item of (x.evidenceItems ?? []).filter((e) => e.originVisit === x.visit)) {
+  for (const item of entityEvidenceItems.filter((e) => e.originVisit === x.visit)) {
     if (!item.title.trim()) {
       blankDocuments++;
       continue;

@@ -553,13 +553,13 @@ const HAZ = {
     },
   },
   findings: [
-    { id: "f1", checkId: "KSIA-ELE-001" },
-    { id: "f2", checkId: "KSIA-ELE-002" },
-    { id: "f3", checkId: "KSIA-ELE-001" },
+    { id: "f1", entity: "FALE", checkId: "KSIA-ELE-001" },
+    { id: "f2", entity: "FALE", checkId: "KSIA-ELE-002" },
+    { id: "f3", entity: "FALE", checkId: "KSIA-ELE-001" },
   ],
   hazards: [
     {
-      id: "h1", portalId: "KSIA-ELE-P01", findingIds: ["f1", "f2", "f3"],
+      id: "h1", entity: "FALE", portalId: "KSIA-ELE-P01", findingIds: ["f1", "f2", "f3"],
       disciplines: ["Electrical"], systems: ["Switchgear"],
       event: "Busbar failure", description: "d",
       ermConfirmed: true, ermConsequence: "C", ermLikelihood: "3",
@@ -1567,7 +1567,7 @@ check(
     const p = sp.buildPlan(
       {
         ...BASE,
-        findings: [{ id: "f1", checkId: "KSIA-ELE-001" }],
+        findings: [{ id: "f1", entity: "FALE", checkId: "KSIA-ELE-001" }],
         responses: { "KSIA-ELE-001": { compliance: "NC", observation: "", attachments: [] } },
       },
       NOTHING
@@ -3308,7 +3308,11 @@ const HAZ_WALK = {
       ],
     },
   ],
-  findings: [...HAZ.findings, { id: "f4", checkId: null }, { id: "f5", checkId: null }],
+  findings: [
+    ...HAZ.findings,
+    { id: "f4", entity: "FALE", checkId: null },
+    { id: "f5", entity: "FALE", checkId: null },
+  ],
   hazards: [{ ...HAZ.hazards[0], findingIds: ["f1", "f2", "f3", "f4"] }],
 };
 
@@ -3367,6 +3371,192 @@ check(
     const v = sp.buildPlan(HAZ_WALK, NOTHING).findings.find((r) => r.key === "KSIA-ELE-P01").values.photos;
     const parts = v.split(", ");
     return parts.length === new Set(parts).size;
+  })()
+);
+
+/* ------------- Part 1k: the KSIA incident — two real leaks, both closed ---
+ *
+ * Sarel: "There was KSIA info that got synced this week and shouldn't have."
+ * Traced to two separate gaps, neither hypothetical:
+ *
+ * 1. excludedDisciplines held back check-points, asset-risk pairs and
+ *    hazards, but never the walk/ad-hoc photo-upload loop — a photograph
+ *    on a WALK- item in a discipline this run was told to hold back
+ *    uploaded anyway, every time, since the day the exclusion feature
+ *    shipped.
+ * 2. buildPlan() trusted every findings/hazards/attendanceRegisters/
+ *    evidenceItems record it was handed to already belong to x.entity, with
+ *    nothing checking that locally — fine as long as every caller gets the
+ *    scoping right forever, which is exactly the kind of assumption #1 just
+ *    proved wrong once already. */
+
+check(
+  "A WALK ITEM IN A HELD-BACK DISCIPLINE DOES NOT UPLOAD — the gap that let KSIA info through",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        adhoc: [
+          {
+            id: "WALK-A3F2K", discipline: "Electrical", system: "Switchgear",
+            attachments: [{ id: "w1", kind: "photo", name: "n", blobKey: "b9", ref: "WALK-A3F2K_P01", caption: "c" }],
+          },
+        ],
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING
+    );
+    return p.evidence.length === 0;
+  })(),
+  "before this fix, excludedDisciplines never reached the ad-hoc upload loop at all"
+);
+
+check(
+  "and it's reported as held back, not silently dropped",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        adhoc: [
+          {
+            id: "WALK-A3F2K", discipline: "Electrical", system: "Switchgear",
+            attachments: [
+              { id: "w1", kind: "photo", name: "n", blobKey: "b9", ref: "WALK-A3F2K_P01", caption: "c" },
+              { id: "w2", kind: "photo", name: "n", blobKey: "b10", ref: "WALK-A3F2K_P02", caption: "c" },
+            ],
+          },
+        ],
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING
+    );
+    const s = p.skipped.find((x) => x.what === "walk photographs (discipline held back)");
+    return s?.count === 2 && /Electrical/.test(s.why);
+  })()
+);
+
+check(
+  "a walk item in a discipline NOT held back still uploads normally",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        adhoc: [
+          {
+            id: "WALK-A3F2K", discipline: "Civil", system: "Pavements",
+            attachments: [{ id: "w1", kind: "photo", name: "n", blobKey: "b9", ref: "WALK-A3F2K_P01", caption: "c" }],
+          },
+        ],
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING
+    );
+    return p.evidence.length === 1 && p.evidence[0].filename === "WALK-A3F2K_P01.jpg";
+  })(),
+  "holding Electrical back must not hold back Civil too"
+);
+
+check(
+  "a walk item with no discipline set is never held back by any exclusion — there is nothing to match",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        adhoc: [
+          {
+            id: "WALK-A3F2K", discipline: null, system: null,
+            attachments: [{ id: "w1", kind: "photo", name: "n", blobKey: "b9", ref: "WALK-A3F2K_P01", caption: "c" }],
+          },
+        ],
+        excludedDisciplines: ["Electrical", "Civil"],
+      },
+      NOTHING
+    );
+    return p.evidence.length === 1;
+  })()
+);
+
+check(
+  "ONLY THE HELD-BACK ITEM is withheld — a mix of walk items isolates correctly",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        adhoc: [
+          {
+            id: "WALK-HELD", discipline: "Electrical",
+            attachments: [{ id: "w1", kind: "photo", name: "n", blobKey: "b1", ref: "WALK-HELD_P01", caption: "c" }],
+          },
+          {
+            id: "WALK-SYNCS", discipline: "Civil",
+            attachments: [{ id: "w2", kind: "photo", name: "n", blobKey: "b2", ref: "WALK-SYNCS_P01", caption: "c" }],
+          },
+        ],
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING
+    );
+    return p.evidence.length === 1 && p.evidence[0].filename === "WALK-SYNCS_P01.jpg";
+  })()
+);
+
+check(
+  "A FINDING FROM A DIFFERENT AIRPORT NEVER REACHES THE PLAN, even if the caller handed it over",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...HAZ,
+        findings: [...HAZ.findings, { id: "fx", entity: "FACT", checkId: "KSIA-ELE-001" }],
+        hazards: [{ ...HAZ.hazards[0], entity: "FACT" }],
+      },
+      NOTHING
+    );
+    return p.findings.length === 0;
+  })(),
+  "x.entity is FALE throughout HAZ; a hazard tagged FACT must not become a row just because it was in the array"
+);
+
+check(
+  "and a MIX of two airports' hazards keeps only the active one's",
+  (() => {
+    const p = sp.buildPlan(
+      { ...HAZ, hazards: [HAZ.hazards[0], { ...HAZ.hazards[0], id: "h2", entity: "FACT", portalId: "FACT-ELE-P01" }] },
+      NOTHING
+    );
+    return p.findings.length === 1 && p.findings[0].key === "KSIA-ELE-P01";
+  })()
+);
+
+check(
+  "an attendance register from another airport is not synced either",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE_ATT, attendanceRegisters: [REGISTER({ entity: "FACT" })] },
+      NOTHING_ATT
+    );
+    return p.attendance.length === 0;
+  })()
+);
+
+check(
+  "and neither is an evidence log entry from another airport",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE_EV, evidenceItems: [DOC("DOC-1", { entity: "FACT" })] },
+      NOTHING_EV
+    );
+    return p.evidenceLog.length === 0;
+  })()
+);
+
+check(
+  "an attendance register for THIS airport still syncs normally — the guard isn't over-broad",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE_ATT, attendanceRegisters: [REGISTER({ rows: [ROW("r1")] })] },
+      NOTHING_ATT
+    );
+    return p.attendance.length > 0;
   })()
 );
 
