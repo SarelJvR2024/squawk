@@ -260,3 +260,16 @@ export const IconEyeOff = (p: SVGProps<SVGSVGElement>) => (
     <path d="M4 4l16 16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
   </svg>
 );
+
+/** A bulleted log — three dated lines, not a clock or a clipboard, which this
+ *  file already uses for Safety and for the register. The Activity screen is
+ *  a list of entries, one per thing that happened, and this is meant to read
+ *  as that at a glance. */
+export const IconActivity = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...s(p)}>
+    <circle cx="4.5" cy="6.5" r="1.4" fill="currentColor" />
+    <circle cx="4.5" cy="12" r="1.4" fill="currentColor" />
+    <circle cx="4.5" cy="17.5" r="1.4" fill="currentColor" />
+    <path d="M9 6.5h11M9 12h11M9 17.5h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);

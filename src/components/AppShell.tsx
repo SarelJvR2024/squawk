@@ -27,6 +27,7 @@ import { usePhotoSync } from "@/lib/sync";
 import { useSignatureSync } from "@/lib/signatureSync";
 import { useShared } from "@/lib/shared";
 import ExportPanel from "@/components/ExportPanel";
+import ActivityPanel from "@/components/ActivityPanel";
 import JoinPrompt from "@/components/JoinPrompt";
 import PersistErrorBanner from "@/components/PersistErrorBanner";
 import TabGuard from "@/components/TabGuard";
@@ -35,6 +36,7 @@ import ResetPanel from "@/components/ResetPanel";
 import AuditsPanel from "@/components/AuditsPanel";
 import SharedSheet from "@/components/SharedSheet";
 import {
+  IconActivity,
   IconClipboard,
   IconCamera,
   IconClock,
@@ -271,6 +273,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const setDictation = useStore((s) => s.setDictation);
   const [help, setHelp] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [resetting, setResetting] = useState(false);
   /* The two masthead popovers. Only one is ever open — opening either closes
@@ -343,6 +346,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         setPalette(false);
         setHelp(false);
         setExporting(false);
+        setActivityOpen(false);
         setSyncing(false);
         setResetting(false);
         setAudits(false);
@@ -880,6 +884,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       onClick={() => { setMore(false); setExporting(true); }}
                     />
                   )}
+                  {/* WHAT WAS CAPTURED AND SYNCED, BY WHOM, EACH DAY — Sarel,
+                      after a sync bug let held-back data through: "Build an
+                      audit log for me to keep track of all sync and
+                      captures to see what was done everyday by whom."
+                      Next to Export and Sync for the same reason Shared
+                      record is: all of them answer "where did my work go
+                      and can I prove it". */}
+                  {role !== "acsa" && (
+                    <MoreItem
+                      icon={<IconActivity width={14} height={14} />}
+                      label="Activity"
+                      hint="What was captured and synced, by whom, each day"
+                      onClick={() => { setMore(false); setActivityOpen(true); }}
+                    />
+                  )}
                   <MoreItem
                     icon={<IconHelp width={14} height={14} />}
                     label="Keyboard shortcuts"
@@ -1408,6 +1427,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       {exporting && <ExportPanel onClose={() => setExporting(false)} />}
+      {activityOpen && <ActivityPanel onClose={() => setActivityOpen(false)} />}
       {syncing && <SyncPanel onClose={() => setSyncing(false)} />}
       {resetting && <ResetPanel onClose={() => setResetting(false)} />}
       {audits && <AuditsPanel onClose={() => setAudits(false)} />}

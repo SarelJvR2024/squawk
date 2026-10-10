@@ -119,6 +119,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   const systems = useSystems();
   const auditor = useStore((s) => s.auditor);
   const updateHazard = useStore((s) => s.updateHazard);
+  const recordSyncRun = useStore((s) => s.recordSyncRun);
 
   const [who, setWho] = useState<string | null>(graph.signedInAs());
   const [stage, setStage] = useState<Stage>("idle");
@@ -537,6 +538,16 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
           }
         }
       }
+      recordSyncRun({
+        entity: entityCode,
+        originVisit: visitId,
+        by: who,
+        written,
+        failed: failed.length,
+        unlabelled: unlabelled.length,
+        skipped: plan.skipped.map((s) => ({ what: s.what, count: s.count })),
+        error: null,
+      });
       setResult({ written, failed, unlabelled });
       setStage("done");
     } catch (e) {
@@ -552,6 +563,16 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
         });
       }
       setError(why);
+      recordSyncRun({
+        entity: entityCode,
+        originVisit: visitId,
+        by: who,
+        written,
+        failed: failed.length,
+        unlabelled: unlabelled.length,
+        skipped: plan.skipped.map((s) => ({ what: s.what, count: s.count })),
+        error: why,
+      });
       setResult({ written, failed, unlabelled });
       setStage("done");
     } finally {
