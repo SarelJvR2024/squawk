@@ -426,6 +426,29 @@ export interface Response {
    *  evidenceStatusNote above for why this is a separate field rather than
    *  the same one read two ways. */
   evidencePendingNote: string;
+  /** WHAT THE EVIDENCE ITSELF SAYS — a free-text summary of what was read
+   *  off the document/record, and the verdict that follows from it. Added
+   *  when "Evidence to request", "Likely answers" and "Issues found" were
+   *  removed from the check screen (Sarel: keep the evidence question, drop
+   *  the chip-picking machinery around it) — this is the one thing that
+   *  replaced all three: not what to ask for, not a suggested answer, just
+   *  what the evidence produced actually proves, in the auditor's own words.
+   *
+   *  Separate from `evidenceStatus` above on purpose: that question is
+   *  whether the PROOF EXISTS; this one is what it SAYS once it does. A
+   *  record can be provided for review (`evidenceStatus: "providedForReview"`)
+   *  and still turn out to show a non-compliance. */
+  evidenceProves: string;
+  /** The verdict the evidence itself supports — reuses `Compliance` rather
+   *  than inventing a parallel type, but only three of its four values are
+   *  offered: "N/A" answers a different question (does this check apply at
+   *  all) that the evidence can't settle either way. `null` is "not yet
+   *  read," not "not applicable." Independent of the check's own
+   *  `compliance` verdict above — the auditor sets both, and they are
+   *  expected to usually agree, but this field exists so a disagreement is
+   *  visible rather than silently overwritten by whichever was answered
+   *  second. */
+  evidenceVerdict: Compliance | null;
   observation: string;
   evidencePicked: number[];
   issuesPicked: number[];

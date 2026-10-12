@@ -134,26 +134,19 @@ check(
   "the walkabout screen was the one screen that never opened it"
 );
 
+/* "FIELD MODE SHOWS THE RESEARCHED WALKABOUT OPTIONS" AND "TAPPING AN
+   OPTION RECORDS IT" ARE GONE, 11 October 2026 — Sarel: remove the answer
+   options from the popup screen. `library?.[c.id]?.WO ?? []` is still read
+   (for `needsPhoto`, two checks below) but no longer `.map()`-ed into chips,
+   and nothing in this popup calls `setWalkabout` any more — the desk
+   screen's own Walkabout tab (CheckDetail.tsx) is the only place left that
+   does. The regression to guard against is the chips coming back. */
 check(
-  "field mode shows the researched walkabout options",
-  /library\?\.\[c\.id\]\?\.WO \?\? \[\]/.test(field) && /wo\.map\(\(w, i\) =>/.test(field),
-  "four status buttons is not a visual inspection"
-);
-
-/* The two calls, in that order, with a comment allowed between them — and the
-   comment there is load-bearing, because the commit is exactly what got
-   dropped when the check moved from expanding in place into a sheet. The rule
-   is "tapping an option credits the field half", not "these two lines are
-   adjacent"; an assertion written to the formatting fails on a comment and
-   passes on a reordering, which is backwards. */
-check(
-  "tapping an option records it and its status, as FIELD work",
-  /* 2026-09-10: the commit goes through `saveField`, which writes the
-     inspection's location and then commits the field half. Same assertion —
-     tapping a researched option still credits the FIELD half in the same
-     handler — following the call through the helper. */
-  /setWalkabout\(c\.id, i, w\.sets\);[\s\S]{0,900}?saveField\(c\.id\);/.test(field),
-  "tapped not typed, and credited to the half the tablet can actually answer"
+  "the researched walkabout options do not come back in the popup",
+  /library\?\.\[c\.id\]\?\.WO \?\? \[\]/.test(field) &&
+    !/wo\.map\(\(w, i\) =>/.test(field) &&
+    !/setWalkabout\(c\.id, i, w\.sets\)/.test(field),
+  "four status buttons is not a visual inspection — WO is still read for needsPhoto, just no longer rendered as chips"
 );
 
 check(
@@ -168,9 +161,12 @@ check(
   ""
 );
 
+/* Gone with the chips themselves, 11 October 2026 — see the note two checks
+   above. The desk screen's Walkabout tab still carries its own copy of this
+   marker (CheckDetail.tsx), unaffected. */
 check(
-  "the option's own photo marker is shown on the chip",
-  /w\.photo \? " 📷" : ""/.test(field),
+  "the option's own photo marker is gone from the popup too",
+  !/w\.photo \? " 📷" : ""/.test(field),
   ""
 );
 
@@ -296,9 +292,16 @@ check(
     !/className="sticky bottom-0/.test(sticky)
 );
 
+/* 11 October 2026: folded onto the title's own row (Sarel: this view also
+   has a lot of wasted space on top, optimise it) rather than sitting under
+   it as its own stacked block — a few extra characters of width instead of
+   a whole line of height. Still hidden below sm; a 664px phone has room
+   for neither version of it. The class lost `mt-1 max-w-[78ch]` (no
+   longer its own line to cap the width of) and the size dropped a notch
+   to `text-[11.5px]` to sit quietly beside the title. */
 check(
   "the walkabout's preamble is kept off the phone's first screen",
-  /hidden max-w-\[78ch\] text-\[12\.5px\] sm:block/.test(field),
+  /hidden text-\[11\.5px\] sm:block/.test(field),
   "preamble, toggle, search and a category note filled all 664px and the first check-point sat below the fold"
 );
 
@@ -352,9 +355,11 @@ check(
   /* 2026-09-10: 16px on a phone, 18px from sm. The subtitle wrapped the
      heading onto a second line at 375px, which is 22px of a 664px screen spent
      restating the tab name — so it is desk-only and the title shrank with it.
-     The assertion is unchanged in substance: the screen is called what the
-     navigation calls it. */
-  /<h2 className="text-\[16px\] font-bold sm:text-\[18px\]">\s*\n\s*Inspection/.test(field),
+     11 October 2026: the two-tier size collapsed to one flat 15px when the
+     title and the (now-adjacent) preamble moved onto the same flex row — see
+     the preamble check above. The assertion is unchanged in substance: the
+     screen is called what the navigation calls it. */
+  /<h2 className="text-\[15px\] font-bold">\s*\n\s*Inspection/.test(field),
   "the audit method's word for the session is kept as the subtitle, not as the title"
 );
 

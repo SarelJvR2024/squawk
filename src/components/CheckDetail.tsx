@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Check, Compliance, EvidenceStatus } from "@/lib/types";
-import { priorFor, useEntityCode, useResponses, useStore, useVisitFindings, useVisitId } from "@/lib/store";
+import { priorFor, useEntityCode, useResponses, useStore } from "@/lib/store";
 import { portalIdFor } from "@/lib/sites";
 import { useAnswers } from "@/lib/answers";
 import {
@@ -12,12 +12,8 @@ import {
   transcriptContext,
   useAssistAvailable,
 } from "@/lib/assist";
-import { bandFor, BAND_META } from "@/lib/risk";
 import { modeLabels, needsField } from "@/lib/verification";
 import { AttachmentStrip, FileButton, PhotoButton, VoiceNoteButton } from "./Capture";
-import RootCauseAdvice from "./RootCauseAdvice";
-import HazardAdvice from "./HazardAdvice";
-import RecordActions from "./RecordActions";
 import AcsaRequirementPanel from "./AcsaRequirementPanel";
 import {
   IconCheck,
@@ -35,7 +31,7 @@ import {
   IconWand,
   IconX,
 } from "@/components/ui/icons";
-import { Btn, Chip, Panel, Pill } from "@/components/ui/primitives";
+import { Btn, Chip, Pill } from "@/components/ui/primitives";
 
 /** HOW A CHECK IS ANSWERED, as a shape.
  *
@@ -177,6 +173,28 @@ const EVIDENCE_STATUSES: {
   },
 ];
 
+/** THE VERDICT THE EVIDENCE ITSELF SUPPORTS — a different question from
+ *  EVIDENCE_STATUSES above (has the proof been produced) and from STATUSES
+ *  (the check's own compliance verdict). Reuses three of `Compliance`'s four
+ *  values rather than inventing a parallel set — "N/A" is deliberately not
+ *  offered here, because evidence cannot answer whether a check applies at
+ *  all, only what it shows once it does.
+ *
+ *  Replaces "Evidence to request", "Likely answers" and "Issues found" —
+ *  Sarel, 11 October 2026, removing all three chip-picking tabs in favour of
+ *  this: what the evidence actually proves, written and judged, not asked
+ *  for and ticked off. */
+const EVIDENCE_VERDICTS: {
+  key: Compliance;
+  label: string;
+  Icon: typeof IconCheck;
+  tone: string;
+}[] = [
+  { key: "C", label: "Compliant", Icon: IconCheck, tone: "good" },
+  { key: "NC", label: "Non-compliant", Icon: IconX, tone: "bad" },
+  { key: "NV", label: "Not Verified", Icon: IconHelp, tone: "warn" },
+];
+
 /** Every reference extract reads the same way: the document's words, set as
  *  the document set them. Whitespace is preserved because ACSA's procedures
  *  carry numbered sub-clauses on their own lines and reflowing them loses the
@@ -253,6 +271,8 @@ export default function CheckDetail({
     evidenceStatus: null,
     evidenceStatusNote: "",
     evidencePendingNote: "",
+    evidenceProves: "",
+    evidenceVerdict: null,
     issuesPicked: [],
     walkaboutPicked: null,
     attachments: [],
@@ -267,17 +287,13 @@ export default function CheckDetail({
   };
   const auditor = useStore((s) => s.auditor);
   const setCompliance = useStore((s) => s.setCompliance);
-  const toggleEvidence = useStore((s) => s.toggleEvidence);
-  const toggleIssue = useStore((s) => s.toggleIssue);
   const setWalkabout = useStore((s) => s.setWalkabout);
   const appendObservation = useStore((s) => s.appendObservation);
   const patch = useStore((s) => s.patch);
   const addAttachment = useStore((s) => s.addAttachment);
   const removeAttachment = useStore((s) => s.removeAttachment);
   const updateAttachment = useStore((s) => s.updateAttachment);
-  const updateFinding = useStore((s) => s.updateFinding);
   const commit = useStore((s) => s.commit);
-  const visitId = useVisitId();
 
   const aiOn = useAssistAvailable();
   const [draft, setDraft] = useState<string | null>(null);
@@ -309,10 +325,6 @@ export default function CheckDetail({
   const obsRef = useRef<HTMLTextAreaElement>(null);
   const a = useAnswers(check.id);
   const entityCode = useEntityCode();
-  const addFindingProgress = useStore((s) => s.addFindingProgress);
-  /* Findings this check has raised, so their root cause can be worked here
-     rather than only on the findings screen. */
-  const raised = useVisitFindings().filter((f) => f.checkId === check.id);
   /* The id an auditor reads out and the portal syncs on is the SITE's id.
      ORTIA-ELE-001 and KSIA-ELE-001 are the same requirement at two airports;
      showing the King Shaka number at O.R. Tambo would be quoting the wrong
@@ -408,301 +420,63 @@ export default function CheckDetail({
      means the rest are off it, and a tab that only said "Evidence to request"
      would hide the fact that three were picked. The badge is what keeps the
      state of the whole check legible while only one panel is open. */
-  if (a) {
+  /* "EVIDENCE TO REQUEST", "LIKELY ANSWERS" AND "ISSUES FOUND" REMOVED, 11
+     October 2026 — Sarel: remove those three tabs. All three were chip-pick
+     machinery over the Answer Library (what to ask for, what to answer,
+     what to raise); the Evidence status panel below absorbs the one
+     question worth keeping from them — not what was asked for, but what
+     the evidence actually proves — as a plain text field and a verdict,
+     rather than a researched list to tap through. See EVIDENCE_STATUSES and
+     Response.evidenceProves/evidenceVerdict in types.ts.
+
+     This also removes raising a finding from this screen's chips — "Issues
+     found" was the only place that happened from a check's issue options.
+     A finding already raised still opens from the Asset Assurance screen
+     (FindingDetail), where its root cause and treatment are worked exactly
+     as they were here; nothing about an EXISTING finding changed. Walkabout
+     is unaffected and still depends on the Answer Library being loaded, so
+     it keeps the same `if (a)` gate the removed three shared. */
+  if (a && a.WO.length > 0)
     panels.push({
-      key: "evidence",
-      label: "Evidence to request",
-      badge: `${r.evidencePicked.length}/${a.EO.length}`,
+      key: "walkabout",
+      label: "Walkabout",
+      ...(r.walkaboutPicked !== null ? { badge: "1" } : {}),
       group: "do",
       body: (
         <>
+          {/* The register's own walkabout instruction had a tab of its own in
+              the reference column, one tap from chips about the same walk.
+              It is the lead line of the walk now, which is where an auditor
+              would read it. */}
+          {check.walkabout && (
+            <div
+              className="mb-2.5 rounded-[9px] border px-[10px] py-[8px]"
+              style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+            >
+              <div className="label-xs">What the register says to look at</div>
+              <div className="mt-1">
+                <RefText>{check.walkabout}</RefText>
+              </div>
+            </div>
+          )}
           <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-            tap what you asked for
+            what the eye settles on
           </div>
           <div className="chip-row flex flex-wrap gap-[5px]">
-            {a.EO.map((e, i) => (
+            {a.WO.map((w, i) => (
               <Chip
                 key={i}
-                kind="evidence"
-                selected={r.evidencePicked.includes(i)}
-                title={e.hint}
-                onClick={() => toggleEvidence(check.id, i)}
+                selected={r.walkaboutPicked === i}
+                onClick={() => setWalkabout(check.id, i, w.sets)}
               >
-                {r.evidencePicked.includes(i) && <IconCheck width={12} height={12} />}
-                {e.label}
+                {w.label}
+                {w.photo ? " 📷" : ""}
               </Chip>
             ))}
           </div>
         </>
       ),
     });
-
-    if (a.AO.length > 0)
-      panels.push({
-        key: "answers",
-        label: "Likely answers",
-        group: "do",
-        body: (
-          <>
-            <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-              sets status &amp; seeds the note
-            </div>
-            <div className="chip-row flex flex-wrap gap-[5px]">
-              {a.AO.map((x, i) => (
-                <Chip
-                  key={i}
-                  onClick={() => {
-                    setCompliance(check.id, x.sets);
-                    appendObservation(check.id, x.observation);
-                  }}
-                >
-                  {x.label}
-                </Chip>
-              ))}
-            </div>
-          </>
-        ),
-      });
-
-    panels.push({
-      key: "issues",
-      label: "Issues found",
-      /* Only when something was raised. A zero on every check would be noise
-         on the one thing that must stand out when it is not zero. */
-      ...(r.issuesPicked.length > 0 ? { badge: String(r.issuesPicked.length) } : {}),
-      group: "do",
-      body: (
-        <>
-          <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-            raises a finding · suggests severity
-          </div>
-          <div className="chip-row flex flex-wrap gap-[5px]">
-            {a.IO.map((x, i) => {
-              const band = bandFor(x.severity_hint, x.likelihood_hint);
-              return (
-                <Chip
-                  key={i}
-                  kind="issue"
-                  selected={r.issuesPicked.includes(i)}
-                  title={band ? `${band} — ${BAND_META[band].label}` : undefined}
-                  onClick={() => {
-                    const picked = r.issuesPicked.includes(i);
-                    toggleIssue(check.id, i, {
-                      checkId: check.id,
-                      discipline: check.discipline,
-                      system: check.system,
-                      area: check.area,
-                      title: x.label,
-                      description: x.finding,
-                      issueIndex: i,
-                      severity: x.severity_hint,
-                      likelihood: x.likelihood_hint,
-                      ratingConfirmed: false,
-                      rootCause: "",
-                      actions: [],
-                      actionStatus: "Open",
-                      originVisit: visitId,
-                      priorRating: pf?.rating ?? null,
-                      suggestedEvent: "",
-                      progress: [],
-                      adHoc: false,
-                      createdBy: auditor,
-                    });
-                    if (!picked) {
-                      appendObservation(check.id, x.finding);
-                      onSaved(
-                        `Finding raised · ${x.severity_hint.charAt(0)}${x.likelihood_hint.charAt(0)}${band ? ` → ${BAND_META[band].label}` : ""}`
-                      );
-                    }
-                  }}
-                >
-                  {x.label}
-                  <span className="font-mono text-[8.5px] opacity-70">
-                    {x.likelihood_hint.charAt(0)}
-                    {x.severity_hint.charAt(0)}
-                  </span>
-                </Chip>
-              );
-            })}
-          </div>
-
-          {/* Root-cause advice for what this check has actually raised. It
-              sits here, next to the issue chips, because this is the moment
-              the auditor is still standing in front of the responsible person
-              — the questions are only useful before everyone leaves the room.
-              Same component as the findings screen. */}
-          {raised.map((f) => (
-            <div
-              key={f.id}
-              className="mt-[9px] rounded-[10px] border px-[10px] py-[8px]"
-              style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-            >
-              <div className="flex flex-wrap items-center gap-[6px]">
-                <span className="text-[11px] font-semibold">{f.title}</span>
-                {f.rootCause ? (
-                  <Pill tone="accent">{f.rootCause}</Pill>
-                ) : (
-                  <Pill tone="warn">No root cause</Pill>
-                )}
-              </div>
-              <RootCauseAdvice
-                finding={f}
-                check={check}
-                attachments={r.attachments}
-                onPick={(rc) => {
-                  updateFinding(f.id, { rootCause: rc });
-                  onSaved(`Root cause set · ${rc}`);
-                }}
-              />
-              {/* And the other half of the same moment: what event does this
-                  expose? Named here, it gives the hazard register something a
-                  person wrote to consolidate from. */}
-              <HazardAdvice
-                finding={f}
-                check={check}
-                attachments={r.attachments}
-                onAccept={(event) => {
-                  updateFinding(f.id, { suggestedEvent: event });
-                  onSaved(`Hazard noted · ${event}`);
-                }}
-              />
-
-              {/* The four fields ACSA's dashboards carry, on the screen where
-                  the issue was raised. The compliance session settles the
-                  check, confirms last cycle's finding and captures the root
-                  cause in ONE conversation with the responsible person in the
-                  room. Making the auditor navigate away is how the second and
-                  third get postponed and then never had.
-                  Folded, because a check can raise several findings and an
-                  open block each would bury the chips above it. The summary
-                  line says what is outstanding, so nothing has to be opened to
-                  find that out. */}
-              <details className="group mt-[7px]">
-                <summary
-                  className="flex cursor-pointer list-none items-center gap-1.5 py-[3px] text-[10.5px] select-none"
-                  style={{ color: "var(--ink-3)" }}
-                >
-                  <span className="transition-transform group-open:rotate-90">›</span>
-                  Treatment ·{" "}
-                  {[
-                    !f.rootCause && "no root cause",
-                    f.actions.length === 0 && "no action",
-                    f.actions.some((a) => !a.owner) && "an action has no owner",
-                    f.actions.some((a) => !a.dueDate) && "an action has no date",
-                  ].filter(Boolean).join(", ") || "complete"}
-                  {f.progress?.length ? ` · ${f.progress.length} update${f.progress.length === 1 ? "" : "s"}` : ""}
-                </summary>
-                <div className="mt-1.5">
-                  <RecordActions
-                    record={f}
-                    entityCode={entityCode}
-                    showRating={false}
-                    progress={f.progress}
-                    onProgress={(n) => {
-                      addFindingProgress(f.id, n);
-                      onSaved("Progress recorded");
-                    }}
-                    onChange={(patch) => updateFinding(f.id, patch)}
-                    onToast={onSaved}
-                  />
-                </div>
-              </details>
-            </div>
-          ))}
-        </>
-      ),
-    });
-
-    if (a.WO.length > 0)
-      panels.push({
-        key: "walkabout",
-        label: "Walkabout",
-        ...(r.walkaboutPicked !== null ? { badge: "1" } : {}),
-        group: "do",
-        body: (
-          <>
-            {/* The register's own walkabout instruction had a tab of its own in
-                the reference column, one tap from chips about the same walk.
-                It is the lead line of the walk now, which is where an auditor
-                would read it. */}
-            {check.walkabout && (
-              <div
-                className="mb-2.5 rounded-[9px] border px-[10px] py-[8px]"
-                style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
-              >
-                <div className="label-xs">What the register says to look at</div>
-                <div className="mt-1">
-                  <RefText>{check.walkabout}</RefText>
-                </div>
-              </div>
-            )}
-            <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-              what the eye settles on
-            </div>
-            <div className="chip-row flex flex-wrap gap-[5px]">
-              {a.WO.map((w, i) => (
-                <Chip
-                  key={i}
-                  selected={r.walkaboutPicked === i}
-                  onClick={() => setWalkabout(check.id, i, w.sets)}
-                >
-                  {w.label}
-                  {w.photo ? " 📷" : ""}
-                </Chip>
-              ))}
-            </div>
-          </>
-        ),
-      });
-
-  } else if (check.optionCount > 0) {
-    /* The library is fetched on first use, not bundled. The tab is declared
-       now, holding a skeleton, so the strip does not gain a tab and jump the
-       open panel sideways the moment the fetch lands. */
-    panels.push({
-      key: "evidence",
-      label: "Evidence to request",
-      group: "do",
-      body: (
-        <div aria-busy="true" aria-label="Loading the answer library">
-          {[6, 5, 5].map((n, row) => (
-            <div key={row} className="mb-3.5">
-              <div
-                className="mb-[7px] h-[9px] w-[110px] rounded-full"
-                style={{ background: "var(--line-2)", opacity: 0.7 }}
-              />
-              <div className="chip-row flex flex-wrap gap-[5px]">
-                {Array.from({ length: n }, (_, i) => (
-                  <div
-                    key={i}
-                    className="h-[27px] rounded-full"
-                    style={{
-                      width: `${88 + ((i * 37) % 96)}px`,
-                      background: "var(--line-2)",
-                      opacity: 0.55,
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      ),
-    });
-  } else {
-    panels.push({
-      key: "evidence",
-      label: "Evidence to request",
-      group: "do",
-      body: (
-        <Panel tone="warn">
-          <div className="text-[12px]" style={{ color: "var(--warn)" }}>
-            No researched options exist for this check yet — capture by typing.
-          </div>
-        </Panel>
-      ),
-    });
-  }
 
   /* EVIDENCE STATUS — whether the proof for this check has actually been
      produced, a question separate from the compliance verdict and from
@@ -821,6 +595,48 @@ export default function CheckDetail({
             </div>
           );
         })()}
+
+        {/* WHAT THE EVIDENCE PROVES, AND THE VERDICT IT SUPPORTS.
+            Replaces "Evidence to request" / "Likely answers" / "Issues
+            found" — Sarel, 11 October 2026. Unconditional, like the status
+            buttons above: the question ("what does the evidence show")
+            applies whether or not it has actually been produced yet, so
+            there is nothing to gate this behind. Independent of the status
+            buttons above (whether the proof exists) and of the check's own
+            compliance verdict (the top-level STATUSES) — this is what the
+            document itself says, in the auditor's words and the group's
+            read of it. */}
+        <div className="mt-3.5">
+          <label className="label-xs mb-1 block" style={{ color: "var(--ink-4)" }}>
+            What the evidence proves
+          </label>
+          <textarea
+            value={r.evidenceProves}
+            onChange={(e) => patch(check.id, { evidenceProves: e.target.value })}
+            placeholder="What the document or record actually shows, in your own words"
+            aria-label="What the evidence proves"
+            className="min-h-[64px] w-full resize-y rounded-[9px] border px-3 py-2 text-[12.5px] outline-none focus:border-[var(--acc)]"
+            style={{ background: "var(--bg)", borderColor: "var(--line-2)" }}
+          />
+          <div className="mt-2 grid grid-cols-3 gap-[6px]">
+            {EVIDENCE_VERDICTS.map((v) => {
+              const on = r.evidenceVerdict === v.key;
+              return (
+                <button
+                  key={v.key}
+                  type="button"
+                  onClick={() => patch(check.id, { evidenceVerdict: on ? null : v.key })}
+                  aria-pressed={on}
+                  className="flex min-h-[40px] items-center justify-center gap-[6px] rounded-[9px] border text-[11px] font-semibold transition-[var(--t)]"
+                  style={toneStyle(v.tone, on)}
+                >
+                  <v.Icon width={13} height={13} />
+                  {v.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {/* UPLOAD LIVES HERE NOW, NOT IN A FLOATING BAR UNDER EVERY TAB.
             Sarel: "remove the paperclip and photo icon, introduce them in

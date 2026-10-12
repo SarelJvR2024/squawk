@@ -259,6 +259,8 @@ function emptyResponse(checkId: string): Response {
     evidenceStatus: null,
     evidenceStatusNote: "",
     evidencePendingNote: "",
+    evidenceProves: "",
+    evidenceVerdict: null,
     captured: false,
     capturedBy: "",
     capturedAt: null,
@@ -3411,7 +3413,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 32,
+      version: 33,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -4034,6 +4036,25 @@ export const useStore = create<State>()(
             const finding = f as Partial<SafetyFinding> & { assetSystem?: string | null };
             if (!Array.isArray(finding.assetSystems)) {
               finding.assetSystems = finding.assetSystem ? [finding.assetSystem] : [];
+            }
+          }
+        }
+        if (from < 33 && st.byVisit) {
+          /* evidenceProves/evidenceVerdict, replacing "Evidence to request",
+             "Likely answers" and "Issues found" on the check screen (Sarel:
+             remove those three tabs; the evidence question becomes "what
+             does it prove", not "what did we ask for"). Every response
+             already on a tablet predates both fields, and the new Evidence
+             status panel reads them with no fallback — same backfill shape
+             as v27's evidenceStatus, for the same reason: absent is a
+             different answer from "nothing typed yet." */
+          for (const key of Object.keys(st.byVisit)) {
+            const responses = st.byVisit[key]?.responses;
+            if (!responses) continue;
+            for (const checkId of Object.keys(responses)) {
+              const r = responses[checkId] as Partial<Response>;
+              if (r.evidenceProves === undefined) r.evidenceProves = "";
+              if (r.evidenceVerdict === undefined) r.evidenceVerdict = null;
             }
           }
         }
