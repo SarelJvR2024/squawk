@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Sixty-four suites, no framework. Thirteen need a running server; fifty-one do not.
+Sixty-five suites, no framework. Thirteen need a running server; fifty-two do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -44,7 +44,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `scope.test.mjs` | no | 48 |
 | `carryforward.test.mjs` | no | 48 |
 | `review.test.mjs` | no | 34 |
-| `tablet.test.mjs` | no | 43 |
+| `tablet.test.mjs` | no | 42 |
 | `portals.test.mjs` | no | 32 |
 | `reset.test.mjs` | no | 21 |
 | `reset-sync.test.mjs` | no | 13 |
@@ -52,7 +52,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `completion.test.mjs` | no | 21 |
 | `location.test.mjs` | no | 51 |
 | `followup.test.mjs` | no | 62 |
-| `systems.test.mjs` | no | 98 |
+| `systems.test.mjs` | no | 101 |
 | `register-review.test.mjs` | no | 24 |
 | `reports.test.mjs` | no | 22 |
 | `ppe.test.mjs` | no | 53 |
@@ -63,6 +63,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `reviewfields.test.mjs` | no | 20 |
 | `evidencepending.test.mjs` | no | 30 |
 | `evidencestatus.test.mjs` | no | 23 |
+| `evidenceverdict.test.mjs` | no | 10 |
 | `photoview.test.mjs` | no | 25 |
 | `people.test.mjs` | no | 36 |
 | `saveall.test.mjs` | no | 5 |
@@ -72,7 +73,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `photos.test.mjs` | no | 113 |
 | `hazards.test.mjs` | no | 121 |
 | `erm-matrix.test.mjs` | no | 80 |
-| `sharepoint.test.mjs` | no | 291 |
+| `sharepoint.test.mjs` | no | 297 |
 | `activity.test.mjs` | no | 34 |
 | `assets.test.mjs` | no | 21 |
 | `checkscreen.test.mjs` | no | 52 |
@@ -104,7 +105,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**2,988 assertions in total**, every count above verified by running the suite,
+**3,006 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —

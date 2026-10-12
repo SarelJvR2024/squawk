@@ -170,6 +170,11 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
   targetDate: ["Target date", "Target Date", "Due date"],
   progress: ["Progress/Update", "Progress / Update", "Progress", "Update"],
   compliance: ["Compliance", "Result", "Outcome"],
+  /* THE EVIDENCE QUESTION, SEPARATE FROM THE CHECK'S OWN VERDICT. Replaced
+     the chip-picking "Evidence to request" tab (never synced) — see the
+     note at the checkpoints loop's values object in buildPlan(). */
+  evidenceProves: ["Evidence proves", "What evidence proves", "What the evidence proves"],
+  evidenceVerdict: ["Evidence verdict", "Evidence compliance", "Evidence outcome"],
   auditor: ["Auditor", "Assessed by", "Captured by"],
   assessedOn: ["Assessed on", "Date assessed", "Assessed"],
   reference: ["Reference", "Source"],
@@ -308,7 +313,8 @@ export const LIST_NAMES = {
 } as const;
 
 export const CHECK_FIELDS = [
-  "title", "discipline", "assetSystem", "compliance", "observation", "auditor", "assessedOn",
+  "title", "discipline", "assetSystem", "compliance", "observation",
+  "evidenceProves", "evidenceVerdict", "auditor", "assessedOn",
   "photos", "evidenceLink",
 ] as const;
 
@@ -1341,6 +1347,20 @@ export function buildPlan(
              check with nothing typed needs no sentence — the status is the
              whole statement. See NC_WITHOUT_DETAIL. */
           (r.compliance === "NC" ? NC_WITHOUT_DETAIL : ""),
+        /* WHAT THE EVIDENCE PROVES, AND THE VERDICT IT SUPPORTS — replacing
+           "Evidence to request" (never synced; it only ever existed as chips
+           on the check screen, never reached the portal) now that the
+           screen asks a different question. `evidenceVerdict` is written
+           raw ("C"/"NC"/"NV") the same way `compliance` above is — any
+           Choice column it lands on is matched through `portalChoice()`
+           exactly like compliance is, so Prince's column can offer
+           "Compliant"/"Non-compliant"/"Not Verified", "C - Compliant", or
+           the bare codes, and all three resolve the same way. `null` (not
+           yet judged) is sent through rather than coerced to an empty
+           string, so an unset verdict reads as unset on the portal too, not
+           as a blank that could be mistaken for "cleared". */
+        evidenceProves: r.evidenceProves?.trim() || null,
+        evidenceVerdict: r.evidenceVerdict,
         auditor: x.auditor,
         assessedOn: new Date().toISOString(),
       },

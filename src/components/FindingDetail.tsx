@@ -12,10 +12,19 @@
  *  system's evidence list rather than being deleted.
  *
  *  Everything in it is what it was: the same RecordActions block the hazard
- *  register renders, the same RootCauseAdvice the check screen renders, and the
- *  walk-item block that explains a finding raised from an ad-hoc observation.
- *  It is lifted, not rewritten, so nothing that was true of it stopped being
- *  true when the screen around it changed. */
+ *  register renders, the same RootCauseAdvice the check screen used to render,
+ *  and the walk-item block that explains a finding raised from an ad-hoc
+ *  observation. It is lifted, not rewritten, so nothing that was true of it
+ *  stopped being true when the screen around it changed.
+ *
+ *  HAZARD ADVICE MOVED HERE, 11 October 2026. It used to stand beside
+ *  RootCauseAdvice on the check screen's own "Issues found" tab — "the other
+ *  half of the same moment," named right after a finding was raised. That tab
+ *  is gone (Sarel: remove it), and this is the one place left where a finding
+ *  is still worked in full with its check and attachments in scope, so the
+ *  advice moved rather than being dropped — a finding raised without its
+ *  issue chips still deserves the same "what event does this expose?"
+ *  question, just asked here instead of at the moment it was raised. */
 
 import { useRouter } from "next/navigation";
 import { checksAt, useAdhoc, useEntityCode, useResponses, useStore } from "@/lib/store";
@@ -23,6 +32,7 @@ import { assist, findingContext } from "@/lib/assist";
 import { Pill } from "@/components/ui/primitives";
 import RecordActions from "@/components/RecordActions";
 import RootCauseAdvice from "@/components/RootCauseAdvice";
+import HazardAdvice from "@/components/HazardAdvice";
 import { AttachmentStrip } from "@/components/Capture";
 import type { Finding } from "@/lib/types";
 
@@ -152,6 +162,21 @@ export default function FindingDetail({
             onPick={(rc) => updateFinding(f.id, { rootCause: rc })}
           />
         }
+      />
+
+      {/* THE OTHER HALF OF THE SAME MOMENT: what event does this expose?
+          Named here, it gives the hazard register something a person wrote
+          to consolidate from. Same props shape as RootCauseAdvice above —
+          both read the finding's own check and attachments, both only
+          propose. */}
+      <HazardAdvice
+        finding={f}
+        check={f.checkId ? checksAt(entityCode).find((c) => c.id === f.checkId) : undefined}
+        attachments={f.checkId ? (responses[f.checkId]?.attachments ?? []) : []}
+        onAccept={(event) => {
+          updateFinding(f.id, { suggestedEvent: event });
+          say(`Hazard noted · ${event}`);
+        }}
       />
     </>
   );

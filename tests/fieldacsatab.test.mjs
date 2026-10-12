@@ -77,7 +77,7 @@ check(
 );
 
 check(
-  "opening a different check resets the tab to walkabout, same as issuesOpenFor resets per item",
+  "opening a different check resets the tab to walkabout",
   /onClick=\{\(\) => \{ setOpenItem\(c\.id\); setCheckTab\("walkabout"\); \}\}/.test(field),
   "a check opened to ACSA's wording must not leave the next one open to it too"
 );
@@ -102,14 +102,19 @@ check(
 );
 
 check(
-  "the walkabout note, answer library and capture controls are still there on the other tab",
+  "the walkabout note and capture controls are still there on the other tab",
   (() => {
     const start = field.indexOf('{checkTab === "acsa" ? (');
     const end = field.indexOf("</Sheet>", start);
     const slice = field.slice(start, end === -1 ? field.length : end);
+    /* The researched answer-option chips (setWalkabout) were removed from
+       this popup entirely, 11 October 2026 (Sarel: remove the answer
+       options from the popup screen) — not moved behind the ACSA tab, gone
+       from the popup altogether. OutcomeControl is what this slice still
+       commits. */
     return (
       /TPJV walkabout — physical check/.test(slice) &&
-      /setWalkabout\(c\.id, i, w\.sets\)/.test(slice) &&
+      /<OutcomeControl/.test(slice) &&
       /What you found · the observation on the record/.test(slice) &&
       /<AttachmentStrip/.test(slice)
     );

@@ -317,26 +317,22 @@ check(
 
 /* -------------------------- evidence leads the capture -------------------- */
 
-/* The five capture panels are now TABS, so "first in the column" means first in
-   the strip AND the one open before anybody taps anything. */
+/* "EVIDENCE TO REQUEST", "LIKELY ANSWERS" AND "ISSUES FOUND" ARE GONE, 11
+   October 2026 — Sarel: remove those three tabs. Their own history (both
+   reversals — "most important" opening default, then ACSA's requirement
+   taking that place instead) is no longer worth tracking here because
+   there is no tab left to order; what is worth a permanent guard is that
+   they do not quietly come back. `key: "evidence"`/`"answers"`/`"issues"`
+   were each a push onto the `panels` array — gone with the tabs, not just
+   relabelled, so a search for any one of them finding nothing is the
+   actual regression guard. */
 check(
-  "EVIDENCE TO REQUEST IS THE FIRST THING IN THE CAPTURE COLUMN",
-  at('key: "evidence"') < at('key: "answers"') && at('key: "evidence"') < at('key: "issues"'),
-  "Sarel: the most important there is to know what evidence to ask for"
+  "evidence to request, likely answers and issues found do not come back",
+  !/key: "evidence"/.test(codeOnly) &&
+    !/key: "answers"/.test(codeOnly) &&
+    !/key: "issues"/.test(codeOnly),
+  "chip-picking tabs, replaced by what the evidence proves — see EVIDENCE_VERDICTS"
 );
-
-/* A DECISION OF SAREL'S THAT HE LATER REVERSED, and both halves are recorded
-   because a test that quietly forgets the first one is a test that cannot
-   explain itself.
-     Then: "the most important there is to know what evidence to ask for", so
-     Evidence to request opened by default.
-     Now (10 Sep): "The first tab should be ACSA requirements/threshold —
-     exactly the requirement/threshold from the ACSA register."
-   Evidence to request is still first in the ANSWER LIBRARY, which is what the
-   assertion above guards. What changed is that ACSA's own requirement is no
-   longer behind five tabs of our material: it is its own group, rendered
-   first, and it is what the screen opens on. You read the requirement, then
-   you go and collect the evidence for it. */
 check(
   "ACSA's own requirement is the first tab in the strip",
   at('group: "acsa"') > 0 && /\(\["acsa", "do", "read"\] as const\)/.test(codeOnly),
@@ -348,18 +344,24 @@ check(
   "a default of anything else buries the thing he named as most important"
 );
 
-/* THE COUNTS ARE THE PRICE OF TABBING. One panel on screen means four off it,
-   and a tab that only said "Evidence to request" would hide that three were
-   picked. Without the badges this change trades scrolling for blindness. */
+/* WHAT REPLACED THEM: not a chip to tap, a verdict to judge and a sentence
+   to write — see EVIDENCE_VERDICTS and Response.evidenceProves/
+   evidenceVerdict in types.ts. Unconditional, like the status buttons
+   beside it, because the question applies whether or not researched
+   options ever existed for this check. */
 check(
-  "EVERY TAB CAN SAY WHAT HAS BEEN TAPPED IN IT",
-  /badge: `\$\{r\.evidencePicked\.length\}\/\$\{a\.EO\.length\}`/.test(codeOnly),
-  "evidence says picked-of-total, because both halves matter"
+  "the evidence status tab carries what the evidence proves and a verdict",
+  /value=\{r\.evidenceProves\}/.test(codeOnly) &&
+    /EVIDENCE_VERDICTS\.map/.test(codeOnly) &&
+    /evidenceVerdict: on \? null : v\.key/.test(codeOnly),
+  "Sarel: a text box for what the evidence proves, and Compliant/Non-compliant/Not Verified"
 );
 check(
-  "issues count only when there IS one",
-  /r\.issuesPicked\.length > 0 \? \{ badge: String\(r\.issuesPicked\.length\) \}/.test(codeOnly),
-  "a zero on every check is noise on the one thing that must stand out"
+  "the verdict buttons are exactly Compliant, Non-compliant and Not Verified — no N/A",
+  /key: "C", label: "Compliant"/.test(codeOnly) &&
+    /key: "NC", label: "Non-compliant"/.test(codeOnly) &&
+    /key: "NV", label: "Not Verified"/.test(codeOnly),
+  "evidence cannot answer whether a check applies at all, only what it shows once it does"
 );
 /* A DECISION OF SAREL'S THAT HE LATER REVERSED, recorded for the same
    reason the one above it is: "make all buttons fit in one row (the
@@ -422,10 +424,17 @@ for (const [field, what] of fields) {
    merge real rather than two strips drawn next to each other. The reference
    group shrank from four tabs to two (ACSA wording, and the 2025 prior
    finding where one exists) once "In plain English" and "External basis"
-   were removed — down from "at least 4", not a regression. */
+   were removed — down from "at least 4", not a regression.
+
+   DOWN AGAIN, 11 October 2026 (not a regression either): "Evidence to
+   request", "Likely answers" and "Issues found" removed (Sarel) took the
+   "do" group from 6 possible pushes (3 conditional-on-`a`, now 1 —
+   walkabout — plus evidenceStatus and improve, always pushed) to 3. Two of
+   those three ("do") are unconditional; walkabout still depends on the
+   Answer Library the same way the three removed ones did. */
 check(
   "the doing and the reading are tabs in the same list",
-  (codeOnly.match(/group: "do"/g) || []).length >= 5 &&
+  (codeOnly.match(/group: "do"/g) || []).length >= 3 &&
     (codeOnly.match(/group: "read"/g) || []).length >= 2,
   "capture panels and reference panels, in one strip"
 );

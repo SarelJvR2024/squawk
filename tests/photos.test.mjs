@@ -285,10 +285,17 @@ check(
 
 /* ------------------------- Part 4: root-cause advice, written once ---------- */
 
+/* 11 October 2026: CheckDetail.tsx's "Issues found" tab — the check
+   screen's own use of RootCauseAdvice — is gone (Sarel: remove it).
+   FindingDetail.tsx is now the only consumer; the invariant this check
+   guards ("written once") now reads as "not reimported into the file it
+   was just removed from", which matters for the same reason it always
+   did — a stray import renders nothing but tells the next reader this is
+   still a two-screen component when it is not. */
 check(
   "the advice lives in one component",
   /export default function RootCauseAdvice/.test(advice) &&
-    /import RootCauseAdvice from ".\/RootCauseAdvice"/.test(detail) &&
+    !/RootCauseAdvice/.test(detail) &&
     /import RootCauseAdvice from "@\/components\/RootCauseAdvice"/.test(findingPane),
   "the same advice written twice drifts apart"
 );

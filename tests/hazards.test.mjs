@@ -49,6 +49,7 @@ const actions = src("components", "RecordActions.tsx");
 const hazardsPage = src("app", "(app)", "hazards", "page.tsx");
 const findingsPage = src("app", "(app)", "findings", "page.tsx");
 const detail = src("components", "CheckDetail.tsx");
+const findingPane = src("components", "FindingDetail.tsx");
 const advice = src("components", "HazardAdvice.tsx");
 const exportsSrc = src("lib", "exports.ts");
 const panel = src("components", "ExportPanel.tsx");
@@ -366,13 +367,18 @@ check("RootCauseAdvice is used from the hazard register too", /<RootCauseAdvice/
 /* 2026-09-10: the per-finding pane moved out of findings/page.tsx into
    FindingDetail.tsx when the Findings screen became an asset-system assessment.
    The advice renders in exactly the same place in the same JSX — it is lifted,
-   not rewritten — so the assertion follows it to the file it now lives in. */
+   not rewritten — so the assertion follows it to the file it now lives in.
+
+   11 October 2026: and now ONLY from the finding pane. CheckDetail.tsx's
+   "Issues found" tab — the check screen half of "still from" — is gone
+   (Sarel: remove it); RootCauseAdvice's only remaining consumer is
+   FindingDetail.tsx. Checking it is GONE from detail is as load-bearing as
+   checking it is present in findingPane: a stray import left behind would
+   render nothing (nothing in CheckDetail.tsx calls it any more) but say
+   otherwise to the next reader. */
 check(
-  "and still from the check screen and the finding pane",
-  /<RootCauseAdvice/.test(detail) &&
-    /<RootCauseAdvice/.test(
-      src("components", "FindingDetail.tsx")
-    )
+  "RootCauseAdvice is gone from the check screen, and still in the finding pane",
+  !/RootCauseAdvice/.test(detail) && /<RootCauseAdvice/.test(findingPane)
 );
 
 /* ------------------------------- Part 7: the prompts, and the rules in them */
@@ -465,9 +471,11 @@ check(
   /counts nowhere until the group agrees a cell/.test(hazardsPage)
 );
 check("what leaves the device is stated on screen", /the images themselves are not/.test(hazardsPage));
+/* Moved from the check screen to the finding pane, 11 October 2026 — see the
+   note above RootCauseAdvice's own equivalent check. */
 check(
-  "the hazard advice on the check screen only writes suggestedEvent",
-  /suggestedEvent: event/.test(detail) && /onAccept/.test(advice)
+  "the hazard advice on the finding pane only writes suggestedEvent",
+  /suggestedEvent: event/.test(findingPane) && /onAccept/.test(advice)
 );
 check(
   "and it proposes, it does not rate",

@@ -3594,6 +3594,119 @@ check(
   })()
 );
 
+/* ------------- Part 1l: what the evidence proves, and the verdict it supports
+ *
+ * Replacing "Evidence to request" (never synced — it only ever lived as
+ * chips on the check screen, see checkscreen.test.mjs) with the question
+ * the check screen asks now instead: not what was asked for, but what the
+ * evidence actually shows and whether it supports Compliant, Non-compliant
+ * or Not Verified. Sarel, 11 October 2026: "add all these changes to the
+ * sharepoint sync." */
+
+check(
+  "evidenceProves and evidenceVerdict are in the check-point contract",
+  sp.CHECK_FIELDS.includes("evidenceProves") && sp.CHECK_FIELDS.includes("evidenceVerdict")
+);
+
+check(
+  "and the contract names columns a site-builder can create",
+  (() => {
+    const c = sp.columnContract(sp.CHECK_FIELDS).map((x) => x.create);
+    return c.includes("Evidence proves") && c.includes("Evidence verdict");
+  })()
+);
+
+check(
+  "what the evidence proves reaches the checkpoint row, trimmed",
+  (() => {
+    const v = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": {
+            compliance: "C",
+            observation: "Fine",
+            attachments: [],
+            evidenceProves: "  The maintenance log shows monthly inspections since January.  ",
+            evidenceVerdict: "C",
+          },
+        },
+      },
+      NOTHING
+    ).checkpoints[0].values;
+    return (
+      v.evidenceProves === "The maintenance log shows monthly inspections since January." &&
+      v.evidenceVerdict === "C"
+    );
+  })()
+);
+
+check(
+  "the verdict is written raw, the same way compliance itself is — portalChoice resolves either",
+  (() => {
+    const v = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": {
+            compliance: "NC",
+            observation: "Corroded",
+            attachments: [],
+            evidenceProves: "",
+            evidenceVerdict: "NV",
+          },
+        },
+      },
+      NOTHING
+    ).checkpoints[0].values;
+    /* Not "Not Verified" (the button's label) — the raw code, exactly like
+       `compliance: r.compliance` a few lines above it in buildPlan(). A
+       Choice column resolves "NV" to whatever its own options read through
+       portalChoice(), same as "C"/"NC"/"N/A" already do. */
+    return v.evidenceVerdict === "NV";
+  })()
+);
+
+check(
+  "no evidence proven yet writes null, not an empty string or undefined",
+  (() => {
+    const v = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": {
+            compliance: "C",
+            observation: "Fine",
+            attachments: [],
+            evidenceProves: "",
+            evidenceVerdict: null,
+          },
+        },
+      },
+      NOTHING
+    ).checkpoints[0].values;
+    return v.evidenceProves === null && v.evidenceVerdict === null;
+  })(),
+  "projectFields drops an empty string on update, never a literal null — null says unset, not cleared"
+);
+
+check(
+  "a response from before this field existed does not crash the sync",
+  (() => {
+    const v = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": { compliance: "C", observation: "Fine", attachments: [] },
+        },
+      },
+      NOTHING
+    ).checkpoints[0].values;
+    return v.evidenceProves === null && v.evidenceVerdict === undefined;
+  })(),
+  "a pre-migration fixture with neither field set — buildPlan must not throw reading them off undefined"
+);
+
 /* ------------------------------------------------------------------ result */
 
 console.log(failures === 0 ? "\nSHAREPOINT OK" : `\n${failures} FAILURE${failures > 1 ? "S" : ""}`);

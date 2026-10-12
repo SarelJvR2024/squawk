@@ -19,7 +19,7 @@ import {
 import { locationAxis } from "@/lib/programme";
 import { portalIdFor } from "@/lib/sites";
 import type { AdHocItem, Check } from "@/lib/types";
-import { Btn, Chip, Empty, Pill } from "@/components/ui/primitives";
+import { Btn, Empty, Pill } from "@/components/ui/primitives";
 import AddItemSheet from "@/components/AddItemSheet";
 import GroupRow from "@/components/ui/GroupRow";
 import Sheet from "@/components/ui/Sheet";
@@ -86,7 +86,6 @@ export default function FieldPage() {
   const auditor = useStore((s) => s.auditor);
   const setCompliance = useStore((s) => s.setCompliance);
   const patch = useStore((s) => s.patch);
-  const setWalkabout = useStore((s) => s.setWalkabout);
   const commit = useStore((s) => s.commit);
   const addAttachment = useStore((s) => s.addAttachment);
   const removeAttachment = useStore((s) => s.removeAttachment);
@@ -153,32 +152,10 @@ export default function FieldPage() {
      material on the one screen without reopening the question that removal
      answered — nothing here navigates anywhere.
 
-     Reset to "walkabout" whenever a different check opens, same as
-     issuesOpenFor resets per item — opening one check's ACSA wording must
-     not leave the next one open to it too. */
+     Reset to "walkabout" whenever a different check opens (see the open
+     button below) — opening one check's ACSA wording must not leave the
+     next one open to it too. */
   const [checkTab, setCheckTab] = useState<"walkabout" | "acsa">("walkabout");
-  /* THE ANSWER LIBRARY IS FOLDED ON A PHONE.
-     Sarel, from the apron: "when capturing findings on my phone, minimise the
-     list of issues, give the user an option to maximise the list when needed."
-
-     Eleven researched options are the most valuable content in the product and
-     they are never trimmed — but on a 390px screen they are also eleven rows
-     between the check and the camera, which is most of the screen before an
-     auditor can do the thing they came to do. Folded to the first few with the
-     rest one tap away: nothing is removed, it is just not all in the way.
-
-     Reset per check, deliberately — expanding for one item should not decide
-     the layout of the next. */
-  /* Which item's list is expanded, not a bare boolean — so opening a different
-     check reads as folded without an effect resetting it. Same shape as
-     useBlobUrl's `resolved.key`: carry the thing the state is ABOUT, and
-     staleness answers itself. */
-  const [issuesOpenFor, setIssuesOpenFor] = useState<string | null>(null);
-  const allIssues = !!openItem && issuesOpenFor === openItem;
-  const setAllIssues = (v: boolean | ((p: boolean) => boolean)) => {
-    const next = typeof v === "function" ? v(allIssues) : v;
-    setIssuesOpenFor(next ? openItem : null);
-  };
 
   /* WHERE A STICKY GROUP HEADER HAS TO STOP.
      The filter bar is sticky at top 0. A group header also sticky at top 0
@@ -412,8 +389,8 @@ export default function FieldPage() {
 
   return (
     <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <div className="mx-auto w-full max-w-[1180px] px-4 pt-4 pb-24 sm:px-6">
-        <div className="mb-2 sm:mb-3">
+      <div className="mx-auto w-full max-w-[1180px] px-4 pt-3 pb-24 sm:px-6">
+        <div className="mb-1.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
           {/* NAMED AS THE TAB NAMES IT. The navigation says "Inspection" and
               this heading said "Site walkabout" — an auditor told to go to
               Inspection landed on a screen called something else, which is the
@@ -421,7 +398,7 @@ export default function FieldPage() {
               The walkabout wording is kept as the subtitle, because it is what
               the audit method calls this session and it says what the screen
               is for in a way "Inspection" does not. */}
-          <h2 className="text-[16px] font-bold sm:text-[18px]">
+          <h2 className="text-[15px] font-bold">
             Inspection{" "}
             {/* The subtitle wrapped the heading onto a second line at 375px,
                 which is 22px of a 664px screen spent restating the tab name.
@@ -431,13 +408,14 @@ export default function FieldPage() {
             </span>
           </h2>
           {/* Prose that orients somebody the first time and costs them a
-              scroll every time after. On a 664px phone the preamble, the
-              toggle, the search box and the category note filled the whole
-              first screen and the first check-point sat below the fold — on
-              the screen whose entire job is the check-points. Kept from sm
-              upward, where the room exists. */}
-          <p className="mt-1 hidden max-w-[78ch] text-[12.5px] sm:block" style={{ color: "var(--ink-2)" }}>
-            Nothing here assumes an order. Group by discipline or by where you are standing,
+              scroll every time after. ON ITS OWN LINE, it was a second
+              stacked block above a bar that already explains itself (the
+              toggle's labels, the search placeholder) — folded onto the
+              title's own row instead, so it costs a few extra characters of
+              width rather than a whole line of height. Still sm-only; a
+              664px phone has room for neither version. */}
+          <p className="hidden text-[11.5px] sm:block" style={{ color: "var(--ink-2)" }}>
+            Nothing here assumes an order — group by discipline or by where you are standing,
             search anything, or capture first and assign it later.
           </p>
         </div>
@@ -452,7 +430,7 @@ export default function FieldPage() {
             changes what everything below it means. */}
         <div
           ref={barRef}
-          className="sticky top-0 z-10 -mx-4 mb-2 border-b px-4 py-[7px] sm:-mx-6 sm:px-6 sm:py-2.5"
+          className="sticky top-0 z-10 -mx-4 mb-2 border-b px-4 py-[5px] sm:-mx-6 sm:px-6 sm:py-[7px]"
           style={{ background: "var(--bg)", borderColor: "var(--line)" }}
         >
           <div className="mb-1.5 flex items-center gap-2">
@@ -1371,81 +1349,15 @@ export default function FieldPage() {
               </div>
             )}
 
-            {/* THE ANSWER LIBRARY. Researched per check and carrying a
-                suggested severity — the most valuable content in the product,
-                and still never TRIMMED: every option is reachable.
-
-                What changed is how many are in the way at once on a phone.
-                Below sm the list folds to the first four with a control that
-                opens the rest; from sm up every option renders as it always
-                has, because a tablet has the room. An option the auditor has
-                already picked is always rendered, so a folded list can never
-                hide the answer that is selected. */}
-            {wo.length > 0 && (() => {
-              const FOLD = 4;
-              const folds = wo.length > FOLD;
-              const hiddenHasPick = picked != null && picked >= FOLD;
-              return (
-              <div className="chip-row mb-3 flex flex-wrap gap-[5px]">
-                {wo.map((w, i) => (
-                  <span
-                    key={`w${i}`}
-                    /* Hidden only below sm, and only while folded — and never
-                       for the option that is currently picked. */
-                    className={
-                      folds && !allIssues && i >= FOLD && !(picked === i)
-                        ? "hidden sm:contents"
-                        : "contents"
-                    }
-                  >
-                  <Chip
-                    key={i}
-                    selected={r?.walkaboutPicked === i}
-                    onClick={() => {
-                      setWalkabout(c.id, i, w.sets);
-                      /* AND IT COMMITS. Tapping a researched option is the
-                         fast path on a walk — the whole point is that it is
-                         tapped rather than typed — and it credits the FIELD
-                         half, which is the one a tablet in front of the asset
-                         can actually answer. The sheet's Save & next is the
-                         visible commit for somebody who wants one; it is not a
-                         replacement for this. Dropping it here would have made
-                         every check cost an extra press, which is the opposite
-                         of the complaint that started this change. */
-                      saveField(c.id);
-                      say(
-                        w.photo && photos.length === 0
-                          ? `${portalIdFor(entityCode, c.id)} — ${w.label}. Photograph expected.`
-                          : `${portalIdFor(entityCode, c.id)} — ${w.label}`
-                      );
-                    }}
-                    title={w.photo ? "This observation expects a photograph" : undefined}
-                  >
-                    {w.label}
-                    {w.photo ? " 📷" : ""}
-                  </Chip>
-                  </span>
-                ))}
-                {folds && (
-                  <button
-                    type="button"
-                    onClick={() => setAllIssues((v) => !v)}
-                    aria-expanded={allIssues}
-                    className="min-h-[36px] rounded-[9px] border px-[11px] text-[11.5px] font-semibold sm:hidden"
-                    style={{
-                      background: "var(--panel)",
-                      borderColor: "var(--line-2)",
-                      color: "var(--ink-2)",
-                    }}
-                  >
-                    {allIssues
-                      ? "Show fewer"
-                      : `Show all ${wo.length}${hiddenHasPick ? "" : ` · ${wo.length - FOLD} more`}`}
-                  </button>
-                )}
-              </div>
-              );
-            })()}
+            {/* THE RESEARCHED ANSWER OPTIONS (Response.walkaboutPicked's
+                chips) ARE GONE FROM THIS POPUP, 11 October 2026 — Sarel:
+                remove the answer options from the popup screen. `wo`/
+                `picked` just above are still read for `needsPhoto` below —
+                whatever an earlier tap (or the desk screen's own Walkabout
+                tab, which still carries these chips) already set keeps
+                driving that warning; there is simply no longer a way to set
+                a NEW one from here. Outcome (Compliant/Non-compliant/N/A)
+                right below remains the one thing this popup commits. */}
 
             {needsPhoto && (
               <div

@@ -332,9 +332,23 @@ check(
 
 check(
   "the panels can shrink inside their grid track",
-  /className="min-w-0 rounded-\[13px\] border"/.test(page) &&
-    /className="min-w-0 rounded-\[15px\] border p-\[18px\]"/.test(page),
+  /className="min-w-0 rounded-\[13px\] border lg:min-h-0 lg:overflow-y-auto"/.test(page) &&
+    /className="min-w-0 rounded-\[15px\] border lg:flex lg:min-h-0 lg:flex-col lg:overflow-y-auto"/.test(
+      page
+    ),
   "a grid item's default min-width is auto, and the app shell is overflow:hidden — so an overflowing child is CLIPPED, not scrollable. At 375px the group count lost its last character."
+);
+
+check(
+  "and at lg the two panels scroll independently instead of the whole page",
+  /lg:overflow-hidden/.test(page) && /lg:min-h-0 lg:overflow-y-auto/.test(page),
+  "below lg the two panels stack and the page scrolls as one, unchanged; at lg and up each panel gets its own scroll so rating a system doesn't drag the tree along with it"
+);
+
+check(
+  "and the rated system's title, check count and severity/likelihood stay pinned while its evidence scrolls",
+  /lg:sticky lg:top-0 lg:z-10 lg:shrink-0 lg:border-b/.test(page),
+  "Sarel: the title/name/check and severity and likelihood should remain on top when the right panel scrolls"
 );
 
 /* ---- 4b · the flat register is still one press away --------------------- */
@@ -411,6 +425,20 @@ check(
   "and a blank status is NOT CAPTURED, never compliant",
   /: "NOT CAPTURED";/.test(pageCode),
   "a system read as compliant on checks nobody answered is a band agreed on evidence that does not exist"
+);
+
+/* WHAT THE EVIDENCE PROVES, READ ONTO THIS VIEW TOO — Sarel, 11 October
+ * 2026, in the same breath as removing the check screen's chip tabs: "this
+ * evidence status and notes should also be added to the asset assurance
+ * view of an asset system." A check can read COMPLIANT above while its own
+ * evidence verdict disagrees — the group hasn't reconciled them yet — and
+ * that gap is exactly what this panel exists to surface, not hide. */
+check(
+  "the evidence verdict and what it proves are read onto the asset-system check-points list",
+  /r\?\.evidenceVerdict/.test(pageCode) &&
+    /EVIDENCE_VERDICT_LABEL\[r\.evidenceVerdict\]/.test(pageCode) &&
+    /r\?\.evidenceProves/.test(pageCode),
+  "a check can read Compliant above while its own evidence verdict disagrees — this panel exists to show that gap, not hide it"
 );
 
 check(
