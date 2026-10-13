@@ -143,31 +143,31 @@ const EVIDENCE_STATUSES: {
 }[] = [
   {
     key: "noneAvailable",
-    label: "No evidence available",
-    hint: "nothing exists to collect for this check",
+    label: "No evidence",
+    hint: "No evidence available — nothing exists to collect for this check",
     Icon: IconDash,
     tone: "neu",
   },
   {
     key: "specificNotAvailable",
-    label: "Specific evidence not available",
-    hint: "something was asked for and could not be produced",
+    label: "Not produced",
+    hint: "Specific evidence not available — something was asked for and could not be produced",
     Icon: IconX,
     tone: "warn",
     note: "What is missing",
   },
   {
     key: "toBeProvided",
-    label: "Evidence Pending",
-    hint: "ACSA will produce it after the visit",
+    label: "Pending",
+    hint: "Evidence pending — ACSA will produce it after the visit",
     Icon: IconClock,
     tone: "acc",
     note: "What, and by when",
   },
   {
     key: "providedForReview",
-    label: "Evidence provided for review",
-    hint: "attach what was handed over",
+    label: "Provided",
+    hint: "Evidence provided for review — attach what was handed over",
     Icon: IconCheck,
     tone: "good",
   },
@@ -489,7 +489,7 @@ export default function CheckDetail({
     key: "evidenceStatus",
     label: "Evidence status",
     ...(r.evidenceStatus
-      ? { badge: EVIDENCE_STATUSES.find((s) => s.key === r.evidenceStatus)?.label.split(" ")[0] }
+      ? { badge: EVIDENCE_STATUSES.find((s) => s.key === r.evidenceStatus)?.label }
       : {}),
     group: "do",
     body: (
@@ -497,7 +497,7 @@ export default function CheckDetail({
         <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
           has the proof for this check actually been produced?
         </div>
-        <div className="grid grid-cols-2 gap-[6px]">
+        <div className="grid grid-cols-4 gap-[6px]">
           {EVIDENCE_STATUSES.map((es) => {
             const on = r.evidenceStatus === es.key;
             return (
@@ -507,7 +507,7 @@ export default function CheckDetail({
                 onClick={() => patch(check.id, { evidenceStatus: on ? null : es.key })}
                 aria-pressed={on}
                 title={es.hint}
-                className="flex min-h-[44px] items-center gap-[7px] rounded-[9px] border px-[10px] py-[7px] text-left text-[11px] font-semibold leading-tight transition-[var(--t)]"
+                className="flex min-h-[40px] flex-col items-center justify-center gap-[3px] rounded-[9px] border px-[6px] py-[6px] text-center text-[10.5px] font-semibold leading-tight transition-[var(--t)]"
                 style={toneStyle(es.tone, on)}
               >
                 <es.Icon width={14} height={14} className="shrink-0" />

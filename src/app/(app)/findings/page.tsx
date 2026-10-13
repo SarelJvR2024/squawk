@@ -913,7 +913,7 @@ export default function FindingsPage() {
                     and typing either by hand is how a register ends up with a Red
                     system whose strategy says "monitor". */}
                 <div
-                  className="mb-3.5 rounded-[12px] border px-3 py-2.5"
+                  className="mb-2 rounded-[11px] border px-3 py-[7px]"
                   style={{
                     /* The band's surface, off the tone tokens the whole app
                        shares. BAND_META carries a tone, not colours — the colours
