@@ -34,8 +34,9 @@ import {
   useTranscribeAvailable,
   useVisionOn,
 } from "@/lib/assist";
-import { useDictationEnabled, useEntityCode } from "@/lib/store";
+import { useDictationEnabled, useEntityCode, useStore } from "@/lib/store";
 import { useRecordStore } from "@/lib/sync";
+import { fullPhotoBlob } from "@/lib/recordimage";
 import type { Attachment } from "@/lib/types";
 import { IconCamera, IconDownload, IconMic, IconPaperclip, IconSpark, IconX } from "./ui/icons";
 import { Pill } from "./ui/primitives";
@@ -862,6 +863,8 @@ function PhotoRow({
   const aiOn = useAssistAvailable();
   const vision = useVisionOn();
   const recordStore = useRecordStore();
+  const entityCode = useEntityCode();
+  const visitId = useStore((s) => s.visit);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -873,13 +876,35 @@ function PhotoRow({
   const [details, setDetails] = useState(false);
   const filled = [a.location, a.assetName, a.assetRef].filter(Boolean).join(" · ");
 
+  /* THE RECORD COPY, NOT ONLY THE LOCAL BLOB — Sarel: "why do i get this
+     error" (The image for this photograph is no longer stored), asking to
+     Describe a photo this device never took. This used to read only
+     `getBlob(a.blobKey)`, which resolves on the capturing device and nowhere
+     else — the same gap /api/photos and useRecordImage already exist to
+     close on the Visual review screen, just never wired in here.
+     `fullPhotoBlob` tries the local blob first (instant, works with no
+     signal) and falls back to the record-store copy.
+
+     AND NOW THE THUMBNAIL, RATHER THAN FAILING — Sarel: "change the describe
+     button to also run on the thumbnail version, or if needed pull the full
+     blob." Full resolution is still tried first and is still what gets sent
+     when it exists — a 240px preview reads a label worse than a 1600px
+     photograph does — but where neither the local blob nor the record copy
+     exists (an offline capture that was never uploaded, say), the thumbnail
+     that rides inside the synced record is always there, and a caption
+     drafted off it beats no caption and an error at all. */
   async function describe() {
-    if (!a.blobKey || !onUpdate) return;
+    if (!onUpdate) return;
     setBusy(true);
     setError(null);
     try {
-      const blob = await getBlob(a.blobKey);
-      if (!blob) throw new Error("The image for this photograph is no longer stored.");
+      let blob: Blob;
+      try {
+        blob = await fullPhotoBlob(a, entityCode, visitId);
+      } catch (e) {
+        if (!a.thumbDataUrl) throw e;
+        blob = await (await fetch(a.thumbDataUrl)).blob();
+      }
       const raw = await assist("caption", captionContext(a), vision ? [blob] : []);
       const parsed = parseCaption(raw);
       if (!parsed) throw new Error("The assistant did not answer in the expected shape.");
