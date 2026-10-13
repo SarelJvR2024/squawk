@@ -59,6 +59,7 @@ import { MEDIUM_LABEL } from "./evidence";
 import { bandFor, BAND_META } from "./risk";
 import type {
   AdHocItem,
+  AnswerLibrary,
   Attachment,
   AttendanceRegister,
   Check,
@@ -175,6 +176,15 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
      note at the checkpoints loop's values object in buildPlan(). */
   evidenceProves: ["Evidence proves", "What evidence proves", "What the evidence proves"],
   evidenceVerdict: ["Evidence verdict", "Evidence compliance", "Evidence outcome"],
+  /* HAS THE PROOF BEEN PRODUCED — a different question again from
+     evidenceVerdict/evidenceProves above (what the evidence SAYS once it
+     exists) and from the older evidencePending flag (folded into
+     `observation`, below). Added 2 October 2026 alongside
+     Response.evidenceStatus and never synced before now. `evidenceStatusNote`
+     carries whichever of evidenceStatusNote/evidencePendingNote is the
+     active one for the current status — see the checkpoints loop. */
+  evidenceStatus: ["Evidence status", "Evidence Status", "Evidence availability"],
+  evidenceStatusNote: ["Evidence status note", "Evidence note", "What is outstanding"],
   auditor: ["Auditor", "Assessed by", "Captured by"],
   assessedOn: ["Assessed on", "Date assessed", "Assessed"],
   reference: ["Reference", "Source"],
@@ -314,8 +324,8 @@ export const LIST_NAMES = {
 
 export const CHECK_FIELDS = [
   "title", "discipline", "assetSystem", "compliance", "observation",
-  "evidenceProves", "evidenceVerdict", "auditor", "assessedOn",
-  "photos", "evidenceLink",
+  "evidenceProves", "evidenceVerdict", "evidenceStatus", "evidenceStatusNote",
+  "auditor", "assessedOn", "photos", "evidenceLink",
 ] as const;
 
 /** One row per PERSON — attendee or apology — not per register. Mirrors
@@ -713,6 +723,16 @@ export interface SyncInput {
   libraryUrl?: string;
   checks: Check[];
   responses: Record<string, Response>;
+  /** Keyed by CHECK ID, same as useAnswers() — not `library` above, which is
+   *  the SharePoint drive's display name; the two are unrelated things that
+   *  happen to share an English word. Resolves `Response.evidencePicked`,
+   *  `issuesPicked` and `walkaboutPicked` into the sentences the checkpoints
+   *  loop folds into `observation`, the same way CheckDetail's own "compose"
+   *  button would. Optional/nullable so the plan builder's own tests do not
+   *  have to load the 356 kB library, and so a pick made before the library
+   *  has finished loading still produces a plan — just one sync behind on
+   *  those sentences, never blocked on them. */
+  answerLibrary?: Record<string, AnswerLibrary> | null;
   /** The CONSOLIDATED view. The portal's Findings list receives hazards, not
    *  findings, and that is not a shortcut — see buildPlan. */
   hazards: Hazard[];
@@ -1146,6 +1166,36 @@ export function mintPortalId(
 export const NC_WITHOUT_DETAIL =
   "Non-compliant. No supporting evidence or observation was recorded during the audit — detail to follow from the audit team.";
 
+/** `Response.evidenceStatus`, spelled out — mirrors CheckDetail's own
+ *  EVIDENCE_STATUSES hints, stated as a fact about the record rather than as
+ *  an instruction to the auditor (CheckDetail's "attach what was handed
+ *  over" is guidance for the tablet, not something a portal reader needs).
+ *  Kept here rather than imported from the component, same as
+ *  NC_WITHOUT_DETAIL above: this file speaks for itself and does not reach
+ *  into React to do it. */
+const EVIDENCE_STATUS_TEXT: Record<string, string> = {
+  noneAvailable: "No evidence available — nothing exists to collect for this check.",
+  specificNotAvailable:
+    "Specific evidence not available — something was asked for and could not be produced.",
+  toBeProvided: "Evidence pending — to be provided by ACSA after the visit.",
+  providedForReview: "Evidence provided for review.",
+};
+
+/** Mirrors assist.ts's own private `lower()` — a walkabout option's label
+ *  reads as a mid-sentence clause ("On the walkabout: lights were off..."),
+ *  the same way composeObservation() folds it in. */
+function lowerFirst(s: string): string {
+  return s.charAt(0).toLowerCase() + s.slice(1);
+}
+
+/** Mirrors assist.ts's own private `list()` — "A, B and C" rather than a
+ *  bare comma join, so the resolved sentence reads the same whether it came
+ *  from Compose on the tablet or from this file at sync time. */
+function list(xs: string[]): string {
+  if (xs.length === 1) return xs[0];
+  return `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
+}
+
 /** The library columns for one photograph.
  *
  *  `captionSource` is spelled out rather than passed through as the stored
@@ -1314,6 +1364,33 @@ export function buildPlan(
     }
     const key = portalIdFor(x.entity, c.id);
     const itemId = existing.checkpoints.get(key);
+    /* THE THREE LIBRARY PICKS, ALL RESOLVED THE SAME WAY composeObservation()
+       DOES. `r.observation` may already contain these sentences — if the
+       auditor composed it before picking, or typed it by hand — or may not,
+       if a pick came after. Rather than guess which, each is resolved fresh
+       from the pick every sync, the same reasoning as evidencePending below:
+       a sync that depends on the free-text field happening to still agree
+       with the structured one is a sync with a silent failure mode. A
+       duplicated sentence in `observation` is visible and harmless; a
+       missing one is neither. */
+    const lib = x.answerLibrary?.[c.id] ?? null;
+    const evidenceNames = lib
+      ? r.evidencePicked.map((i) => lib.EO[i]?.label).filter((v): v is string => !!v)
+      : [];
+    const evidenceRequestedText = evidenceNames.length
+      ? `Evidence requested: ${list(evidenceNames)}.`
+      : "";
+    const issuesText = lib
+      ? r.issuesPicked
+          .map((i) => lib.IO[i]?.finding)
+          .filter((v): v is string => !!v)
+          .join(" ")
+      : "";
+    const walkaboutOption =
+      lib && r.walkaboutPicked !== null ? lib.WO[r.walkaboutPicked] : undefined;
+    const walkaboutText = walkaboutOption
+      ? `On the walkabout: ${lowerFirst(walkaboutOption.label)}.`
+      : "";
     /* Held rather than pushed inline, because the photograph walk below fills
        in its `photos` column once it knows what the references are. */
     const row: PlannedRow = {
@@ -1339,6 +1416,9 @@ export function buildPlan(
             r.evidencePending
               ? "EVIDENCE PENDING — compliant on the auditor's assessment; the record was not produced during the audit."
               : "",
+            evidenceRequestedText,
+            issuesText,
+            walkaboutText,
             r.observation?.trim() || "",
           ]
             .filter(Boolean)
@@ -1361,6 +1441,23 @@ export function buildPlan(
            as a blank that could be mistaken for "cleared". */
         evidenceProves: r.evidenceProves?.trim() || null,
         evidenceVerdict: r.evidenceVerdict,
+        /* HAS THE PROOF BEEN PRODUCED — see EVIDENCE_STATUS_TEXT. Spelled out
+           rather than sent as the stored camelCase token: unlike compliance
+           and evidenceVerdict, this field has no pre-existing ACSA
+           vocabulary to defer to (it is Squawk's own, 2 October 2026), so
+           there is no portal code for "noneAvailable" to resolve against —
+           writing the sentence is the only way it is legible on a Text
+           column, and it still matches cleanly if Prince ever builds a
+           Choice column whose options read the same way. The active note is
+           whichever of evidenceStatusNote/evidencePendingNote the current
+           status actually uses — see Response.evidenceStatusNote. */
+        evidenceStatus: r.evidenceStatus ? EVIDENCE_STATUS_TEXT[r.evidenceStatus] : null,
+        evidenceStatusNote:
+          (r.evidenceStatus === "specificNotAvailable"
+            ? r.evidenceStatusNote?.trim()
+            : r.evidenceStatus === "toBeProvided"
+              ? r.evidencePendingNote?.trim()
+              : "") || null,
         auditor: x.auditor,
         assessedOn: new Date().toISOString(),
       },
