@@ -610,11 +610,20 @@ export default function CheckDetail({
             each file." A photograph already carried a caption; a plain
             file never did — FileRow gained one here rather than the
             auditor having to go find the same attachment in the
-            observation panel's strip below to say what it is. */}
-        {r.attachments.length > 0 ? (
+            observation panel's strip below to say what it is.
+
+            PHOTOS EXCLUDED, 13 October 2026 — Sarel: "photos should not
+            come up in the evidence view... i still see the photo, they
+            should not be visible from there." The camera button above
+            still captures them into this same attachments array — the
+            Review screen (/review, "every photograph this visit
+            captured, per discipline") is the one place a photograph is
+            now shown and captioned, so a photo attached from here is
+            not lost, only not carded again in this tab. */}
+        {r.attachments.some((a) => a.kind !== "photo") ? (
           <div className="mt-2.5">
             <AttachmentStrip
-              attachments={r.attachments}
+              attachments={r.attachments.filter((a) => a.kind !== "photo")}
               thumbSize={40}
               onRemove={(id) => removeAttachment(check.id, id)}
               onUpdate={(id, p) => updateAttachment(check.id, id, p)}
