@@ -164,10 +164,15 @@ check(
   ""
 );
 
+/* REVERSED, 13 October 2026 — Sarel: "remove asset and location capture
+   options on the photo level." A photograph's location is still inherited
+   at capture (see the check above) and still carried on Attachment, but
+   there is no longer a box on the photo's own row to edit it — only a
+   read-only summary if a value is already there. */
 check(
-  "the photograph's own location is editable",
-  /onChange=\{\(e\) => onUpdate\(\{ location: e\.target\.value \}\)\}/.test(captureCode),
-  "inherited is a default, not a fact"
+  "the photograph's own location is no longer editable from its own row",
+  !/onChange=\{\(e\) => onUpdate\(\{ location: e\.target\.value \}\)\}/.test(captureCode),
+  "a per-photo input is a capture option; the field itself is untouched"
 );
 
 check(
@@ -190,21 +195,29 @@ check(
   "real zone names have not been supplied; forcing a wrong category is worse than a blank"
 );
 
-/* ---- 4 · the photograph card is not a wall of empty boxes ---------------- */
+/* ---- 4 · asset and location are no longer captured on a photo's own row -- */
+
+/* REVERSED, 13 October 2026 — Sarel: "remove asset and location capture
+   options on the photo level." There used to be a fold/unfold control
+   here (details/setDetails, a "+ asset & location" button) so three input
+   boxes were not a wall of furniture on every photograph. That control,
+   and the inputs behind it, are gone outright now — not reachable at all
+   from a photo, folded or not. */
 
 check(
-  "asset, reference and location are folded behind one control",
-  /const \[details, setDetails\] = useState\(false\);/.test(captureCode) &&
-    /details && \(\s*\n\s*<span className="flex flex-wrap gap-\[5px\]">/.test(captureCode),
-  "four fields per photograph, times several photographs, is a wall between the auditor and the next check"
+  "there is no capture control for asset or location left on a photo's own row",
+  !/const \[details, setDetails\] = useState\(false\);/.test(captureCode) &&
+    !/"\+ asset & location"/.test(captureCode) &&
+    !/placeholder="Asset \(optional\)"/.test(captureCode) &&
+    !/placeholder="No\. \/ ref"/.test(captureCode),
+  "a fold/unfold toggle is still a capture option, just one tap further away"
 );
 
 check(
-  "and a folded panel never hides a value",
-  /const filled = \[a\.location, a\.assetName, a\.assetRef\]\.filter\(Boolean\)\.join\(" · "\);/.test(
-    captureCode
-  ) && /\{filled \? filled : details \? "hide asset & location" : "\+ asset & location"\}/.test(captureCode),
-  "the summary reads the fields out, so shut is not the same as unknown"
+  "a value already on the photograph still reads out, read-only",
+  /a\.kind === "photo" && !dead && \(a\.location \|\| a\.assetName \|\| a\.assetRef\) \? \(/.test(captureCode) &&
+    /\{\[a\.location, a\.assetName, a\.assetRef\]\.filter\(Boolean\)\.join\(" · "\)\}/.test(captureCode),
+  "removing the capture option should not also erase what was already recorded"
 );
 
 /* ---- 5 · the camera and the microphone are out of the reading order ------ */

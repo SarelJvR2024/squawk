@@ -724,12 +724,15 @@ check(
   "a required asset on a trench photograph would be filled with something untrue"
 );
 
+/* REVERSED, 13 October 2026 — Sarel: "remove asset and location capture
+   options on the photo level" — see tests/location.test.mjs section 4.
+   assetName/assetRef stay in the type and still read out if a photograph
+   already carries them; there is just no longer an input for either on
+   the photo's own row. */
 check(
-  "the capture screen offers both, for a photograph",
-  /a\.kind === "photo" && !dead &&/.test(capture) &&
-    /placeholder="Asset \(optional\)"/.test(capture) &&
-    /placeholder="No\. \/ ref"/.test(capture),
-  "a field nobody can see is a field nobody fills"
+  "the capture screen no longer offers either, for a photograph",
+  !/placeholder="Asset \(optional\)"/.test(capture) && !/placeholder="No\. \/ ref"/.test(capture),
+  "a capture option, not the field itself, is what was removed"
 );
 
 check(

@@ -872,9 +872,6 @@ function PhotoRow({
   const caption = a.caption ?? "";
   const uncaptioned = !dead && !caption.trim();
   const size = compact ? 40 : 52;
-  /* Shut by default — see the comment on the panel itself. */
-  const [details, setDetails] = useState(false);
-  const filled = [a.location, a.assetName, a.assetRef].filter(Boolean).join(" · ");
 
   /* THE RECORD COPY, NOT ONLY THE LOCAL BLOB — Sarel: "why do i get this
      error" (The image for this photograph is no longer stored), asking to
@@ -985,77 +982,22 @@ function PhotoRow({
             </span>
           )}
 
-          {/* WHICH asset AND WHERE, for a photograph — FOLDED, and that is the
-              change. The caption says what is wrong; these say what it is wrong
-              with and where to go and find it, which together are what a
-              maintenance planner needs to raise a job card.
-
-              They used to render open, three inputs stacked under the caption
-              on every photograph. Sarel, looking at the phone: the boxes are
-              very busy. He is right — four fields per photograph, times the
-              several photographs one check-point carries, is a wall of empty
-              boxes standing between the auditor and the next check. They are
-              one tap away instead, and the summary line below says what is in
-              them, so nothing is hidden — a field with a value states it
-              without being opened.
-
-              All three are OPTIONAL and stay optional. Plenty of evidence has
-              no single asset behind it (a trench, a housekeeping shot, a
-              document on a desk), and a required field on those gets filled
-              with something untrue. Location is the exception in spirit — it is
-              filled for you from the inspection at the moment of capture, so
-              the common case costs nothing and the rare case is editable. */}
-          {a.kind === "photo" && !dead && (onUpdate ? (
-            details && (
-              <span className="flex flex-wrap gap-[5px]">
-                <input
-                  value={a.location ?? ""}
-                  onChange={(e) => onUpdate({ location: e.target.value })}
-                  list={LOCATION_LIST_ID}
-                  placeholder="Where it was taken"
-                  aria-label={`Where ${a.name} was taken`}
-                  className="min-w-[130px] flex-1 basis-[100%] rounded-[6px] border px-[7px] py-[5px] text-[10.5px] outline-none"
-                  style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
-                />
-                <input
-                  value={a.assetName ?? ""}
-                  onChange={(e) => onUpdate({ assetName: e.target.value })}
-                  placeholder="Asset (optional)"
-                  aria-label={`Asset name for ${a.name}`}
-                  className="min-w-[110px] flex-1 basis-[140px] rounded-[6px] border px-[7px] py-[5px] text-[10.5px] outline-none"
-                  style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
-                />
-                <input
-                  value={a.assetRef ?? ""}
-                  onChange={(e) => onUpdate({ assetRef: e.target.value })}
-                  placeholder="No. / ref"
-                  aria-label={`Asset number or reference for ${a.name}`}
-                  className="w-[104px] shrink-0 rounded-[6px] border px-[7px] py-[5px] font-mono text-[10.5px] outline-none"
-                  style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
-                />
-              </span>
-            )
-          ) : (a.location || a.assetName || a.assetRef) ? (
+          {/* ASSET AND LOCATION CAPTURE REMOVED FROM THE PHOTO LEVEL, 13
+              October 2026 — Sarel: "remove asset and location capture
+              options on the photo level." The fields themselves
+              (Attachment.location/assetName/assetRef) are untouched, and a
+              value already recorded on a photograph still reads out here —
+              there is just no longer a way to open or edit them from a
+              photo's own row. Location capture at the point of a walk item
+              is a separate thing (see field/page.tsx's own LocationOptions
+              use) and is unaffected. */}
+          {a.kind === "photo" && !dead && (a.location || a.assetName || a.assetRef) ? (
             <span className="text-[10.5px]" style={{ color: "var(--ink-3)" }}>
               {[a.location, a.assetName, a.assetRef].filter(Boolean).join(" · ")}
             </span>
-          ) : null)}
+          ) : null}
 
           <span className="flex flex-wrap items-center gap-[6px] font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-            {/* THE FOLD, and it says what is behind it. When the fields carry
-                values it reads them out, so a closed panel never hides a fact —
-                it just stops three empty boxes being furniture. */}
-            {a.kind === "photo" && !dead && onUpdate && (
-              <button
-                type="button"
-                onClick={() => setDetails((v) => !v)}
-                aria-expanded={details}
-                className="rounded-[5px] px-[5px] py-[3px] font-mono text-[9px] underline-offset-2 hover:underline"
-                style={{ color: filled ? "var(--ink-3)" : "var(--acc)" }}
-              >
-                {filled ? filled : details ? "hide asset & location" : "+ asset & location"}
-              </button>
-            )}
             {!onUpdate && a.location && <span>{a.location}</span>}
             {/* Where this one actually is. "On this device only" is the honest
                 state for most of an audit and is not an error — but an auditor
