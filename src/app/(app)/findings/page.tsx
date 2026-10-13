@@ -64,7 +64,8 @@ import RatingPicker from "@/components/RatingPicker";
 import FindingDetail from "@/components/FindingDetail";
 import SystemTreatment from "@/components/SystemTreatment";
 import { IconInbox, IconSearch } from "@/components/ui/icons";
-import type { Check, Finding, Tolerance } from "@/lib/types";
+import type { Check, Finding, Tolerance, Attachment, AdHocItem } from "@/lib/types";
+import { AttachmentStrip } from "@/components/Capture";
 
 /** Every value the band filter can take, in the order the chips render — the
  *  worst-first reading order an auditor scans a risk list in. */
@@ -397,6 +398,17 @@ export default function FindingsPage() {
     return m;
   }, [adhocItems]);
 
+  /* AN AD-HOC FINDING'S OWN NOTE AND PHOTOS LIVE ON THE OBSERVATION, NOT ON
+     THE FINDING — see the comment on FindingDetail's own lookup, which this
+     mirrors. Needed here too: Sarel, "show all findings and their photos and
+     notes in the right hand panel," and a finding raised off the walk has
+     nothing else to show. */
+  const adhocByFindingId = useMemo(() => {
+    const m = new Map<string, (typeof adhocItems)[number]>();
+    for (const it of adhocItems) if (it.findingId) m.set(it.findingId, it);
+    return m;
+  }, [adhocItems]);
+
   /* A plain lookup, not a memo. It is two array scans over a tree the search
      already narrowed, and wrapping it cost more than it saved — the React
      compiler refuses to optimise the surrounding component when a memo's body
@@ -433,7 +445,7 @@ export default function FindingsPage() {
             two panels below start noticeably higher without losing any of
             the three things this header actually says: what screen this is,
             how to rate, and the mode/search/filter controls. */}
-        <div className="mb-1.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+        <div className="mb-1 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
           {/* The site by the name the audit uses, not its ICAO code. `entityCode`
               is FALE; the masthead, the nav and every other heading say KSIA,
               and a screen that says FALE reads as a different airport. */}
@@ -446,10 +458,10 @@ export default function FindingsPage() {
 
         <div
           ref={barRef}
-          className="sticky top-0 z-10 -mx-4 mb-2 shrink-0 border-b px-4 py-[5px] sm:-mx-6 sm:px-6 sm:py-[7px]"
+          className="sticky top-0 z-10 -mx-4 mb-1.5 shrink-0 border-b px-4 py-[4px] sm:-mx-6 sm:px-6 sm:py-[6px]"
           style={{ background: "var(--bg)", borderColor: "var(--line)" }}
         >
-          <div className="mb-1.5 flex items-center gap-2">
+          <div className="mb-1 flex items-center gap-2">
             {/* THE TWO WAYS IN. Asset system is the default because it is what
                 the screen is for; the flat register is the one an auditor
                 rating what they raised this morning needs, and it is one press.
@@ -496,75 +508,85 @@ export default function FindingsPage() {
             </span>
           </div>
 
-          <div
-            className="flex min-w-0 items-center gap-2 rounded-[11px] border px-3 py-1 sm:py-2"
-            style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-          >
-            <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={mode === "systems" ? "Search an asset system…" : "Search a finding…"}
-              aria-label={mode === "systems" ? "Search an asset system" : "Search a finding"}
-              className="min-h-[40px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
-            />
-          </div>
-
-          {/* THE 2025 BAND, AS A FILTER — not just a colour on the row. Sarel:
-              "add filter for tolerable, unacceptable." Toggled, not
-              radio-picked, because "everything that is not fine" is exactly
-              Unacceptable + Tolerable together, and an auditor triaging what
-              needs attention first wants both checked at once. Nothing
-              checked reads as no filter, same rule the rest of this screen's
-              filters use. */}
-          {mode === "systems" && (
+          {/* SEARCH AND THE RATING FILTER, ONE ROW — Sarel: "move the filters
+              and search all in the same row." They used to stack (search
+              full-width, the filter pills on their own line beneath), which
+              on a wide screen left the filter row mostly empty air under a
+              search box with room to spare. The search box caps its width
+              from `sm` up so the pills have somewhere to sit beside it;
+              below `sm` it still goes full-width and the pills wrap under
+              it, same as before. */}
+          <div className="flex flex-wrap items-center gap-2">
             <div
-              role="group"
-              aria-label="Filter by the previous audit's rating"
-              className="mt-1.5 flex flex-wrap items-center gap-[5px]"
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-[11px] border px-3 py-1 sm:max-w-[280px] sm:flex-none"
+              style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             >
-              <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                2025 RATING
-              </span>
-              {BANDS.map((b) => {
-                const on = bandFilter.has(b);
-                const t = TONE_VARS[ratingTone(b)];
-                return (
-                  <button
-                    key={b}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() =>
-                      setBandFilter((cur) => {
-                        const next = new Set(cur);
-                        if (next.has(b)) next.delete(b);
-                        else next.add(b);
-                        return next;
-                      })
-                    }
-                    className="rounded-full border px-[9px] py-[4px] font-mono text-[10px] font-semibold transition-[var(--t)]"
-                    style={
-                      on
-                        ? { background: t.fg, borderColor: t.fg, color: "#fff" }
-                        : { background: t.bg, borderColor: t.line, color: t.fg }
-                    }
-                  >
-                    {b}
-                  </button>
-                );
-              })}
-              {bandFilter.size > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setBandFilter(new Set())}
-                  className="font-mono text-[9.5px] underline-offset-2 hover:underline"
-                  style={{ color: "var(--ink-3)" }}
-                >
-                  clear
-                </button>
-              )}
+              <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={mode === "systems" ? "Search an asset system…" : "Search a finding…"}
+                aria-label={mode === "systems" ? "Search an asset system" : "Search a finding"}
+                className="min-h-[36px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
+              />
             </div>
-          )}
+
+            {/* THE 2025 BAND, AS A FILTER — not just a colour on the row. Sarel:
+                "add filter for tolerable, unacceptable." Toggled, not
+                radio-picked, because "everything that is not fine" is exactly
+                Unacceptable + Tolerable together, and an auditor triaging what
+                needs attention first wants both checked at once. Nothing
+                checked reads as no filter, same rule the rest of this screen's
+                filters use. */}
+            {mode === "systems" && (
+              <div
+                role="group"
+                aria-label="Filter by the previous audit's rating"
+                className="flex flex-wrap items-center gap-[5px]"
+              >
+                <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                  2025 RATING
+                </span>
+                {BANDS.map((b) => {
+                  const on = bandFilter.has(b);
+                  const t = TONE_VARS[ratingTone(b)];
+                  return (
+                    <button
+                      key={b}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() =>
+                        setBandFilter((cur) => {
+                          const next = new Set(cur);
+                          if (next.has(b)) next.delete(b);
+                          else next.add(b);
+                          return next;
+                        })
+                      }
+                      className="rounded-full border px-[9px] py-[4px] font-mono text-[10px] font-semibold transition-[var(--t)]"
+                      style={
+                        on
+                          ? { background: t.fg, borderColor: t.fg, color: "#fff" }
+                          : { background: t.bg, borderColor: t.line, color: t.fg }
+                      }
+                    >
+                      {b}
+                    </button>
+                  );
+                })}
+                {bandFilter.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setBandFilter(new Set())}
+                    className="font-mono text-[9.5px] underline-offset-2 hover:underline"
+                    style={{ color: "var(--ink-3)" }}
+                  >
+                    clear
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="grid gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[340px_minmax(0,1fr)]">
@@ -1118,6 +1140,7 @@ export default function FindingsPage() {
                   raised={findingsBySystem.get(`${active.discipline}|${active.system}`) ?? []}
                   walk={walkBySystem.get(`${active.discipline}|${active.system}`) ?? []}
                   duplicateOf={duplicateOf}
+                  adhocByFindingId={adhocByFindingId}
                   onOpenFinding={setOpenFinding}
                 />
               </div>
@@ -1192,6 +1215,7 @@ function SystemEvidence({
   raised,
   walk,
   duplicateOf,
+  adhocByFindingId,
   onOpenFinding,
 }: {
   entityCode: string;
@@ -1205,6 +1229,7 @@ function SystemEvidence({
       observation?: string;
       evidenceVerdict?: string | null;
       evidenceProves?: string;
+      attachments?: Attachment[];
     } | undefined
   >;
   prior: { key: string; finding: string; originLabel: string; rating: string }[];
@@ -1212,6 +1237,10 @@ function SystemEvidence({
   walk: { id: string; description: string; outcome: string | null }[];
   /** Finding id → the other ids raised for the same issue on the same check. */
   duplicateOf: Map<string, string[]>;
+  /** An ad-hoc finding's note and photographs live on the observation it came
+   *  from, not on the finding itself — see the lookup this mirrors in
+   *  FindingDetail. */
+  adhocByFindingId: Map<string, AdHocItem>;
   onOpenFinding: (id: string) => void;
 }) {
   const seen = checks.filter((c) => fieldDone(responses[c.id] as never)).length;
@@ -1248,10 +1277,21 @@ function SystemEvidence({
       >
         {raised.map((f) => {
           const b = bandFor(f.severity, f.likelihood);
+          /* A FINDING'S OWN NOTE AND PHOTOS, READ IN THE ROW — Sarel: "show
+             all findings and their photos and notes in the right hand
+             panel." An ad-hoc finding carries nothing of its own; both live
+             on the walk observation it was raised from. A check-raised
+             finding reads them off its check's response instead — the
+             observation written there, and whatever was attached as
+             evidence. */
+          const from = adhocByFindingId.get(f.id);
+          const checkResponse = f.checkId ? responses[f.checkId] : undefined;
+          const note = from ? from.note : (checkResponse?.observation ?? "");
+          const attachments = from ? from.attachments : (checkResponse?.attachments ?? []);
           return (
-            <Row
+            <FindingRow
               key={f.id}
-              id={f.id}
+              f={f}
               tone={b && f.ratingConfirmed ? BAND_META[b].tone : "neutral"}
               right={
                 b
@@ -1264,21 +1304,23 @@ function SystemEvidence({
                     : "SUGGESTED"
                   : "NOT RATED"
               }
-              onClick={() => onOpenFinding(f.id)}
-            >
-              {f.description || f.title}
-              {/* IN THE ROW, not behind a panel: this is the one moment the two
-                  are side by side in a list, which is where a person can
-                  actually settle it. */}
-              {duplicateOf.has(f.id) && (
-                <span
-                  className="mt-[2px] block font-mono text-[9px] font-semibold"
-                  style={{ color: "var(--warn)" }}
-                >
-                  also raised as {duplicateOf.get(f.id)!.join(", ")} — same issue, same check
-                </span>
-              )}
-            </Row>
+              note={note}
+              attachments={attachments}
+              duplicateNote={
+                /* IN THE ROW, not behind a panel: this is the one moment the
+                   two are side by side in a list, which is where a person
+                   can actually settle it. */
+                duplicateOf.has(f.id) ? (
+                  <span
+                    className="mt-[2px] block font-mono text-[9px] font-semibold"
+                    style={{ color: "var(--warn)" }}
+                  >
+                    also raised as {duplicateOf.get(f.id)!.join(", ")} — same issue, same check
+                  </span>
+                ) : null
+              }
+              onOpen={() => onOpenFinding(f.id)}
+            />
           );
         })}
       </Section>
@@ -1334,6 +1376,18 @@ function SystemEvidence({
                     </span>
                   )}
                 </span>
+              )}
+              {/* THE EVIDENCE ITSELF, NOT JUST THE VERDICT ON IT — Sarel:
+                  "list all evidence." The photographs and files attached on
+                  the check screen are the proof the verdict above refers
+                  to; showing only the verdict and leaving the group to go
+                  find what it was based on defeats the point of surfacing
+                  it here at all. Read-only — no onRemove/onUpdate — this is
+                  a summary view, not a second place to manage attachments. */}
+              {(r?.attachments?.length ?? 0) > 0 && (
+                <div className="mt-[6px]">
+                  <AttachmentStrip attachments={r!.attachments!} thumbSize={32} />
+                </div>
               )}
             </Row>
           );
@@ -1440,6 +1494,63 @@ function Row({
       style={{ borderColor: "var(--line)" }}
     >
       {inner}
+    </div>
+  );
+}
+
+/** A FINDING ROW THAT CAN SHOW ITS OWN PHOTOS, NOT JUST `Row`'s SHAPE.
+ *
+ *  Why this is a separate component rather than `Row` with a couple of extra
+ *  props: `AttachmentStrip` renders its own `<button>` per photograph (to open
+ *  it full-size), and `Row`'s whole clickable area IS a `<button>` — nesting
+ *  one inside the other is invalid HTML and breaks the photo's own click
+ *  (the row's onClick would fire too, or the browser would refuse the nesting
+ *  outright). So only the title-and-band strip is the button here; the note
+ *  and the photos are siblings below it, in the same bordered row but outside
+ *  the button, where their own clicks are theirs alone. */
+function FindingRow({
+  f,
+  tone,
+  right,
+  note,
+  attachments,
+  duplicateNote,
+  onOpen,
+}: {
+  f: Finding;
+  tone: Tone;
+  right: string;
+  note: string;
+  attachments: Attachment[];
+  duplicateNote: React.ReactNode;
+  onOpen: () => void;
+}) {
+  return (
+    <div className="border-b px-3 py-2 last:border-b-0" style={{ borderColor: "var(--line)" }}>
+      <button onClick={onOpen} className="flex w-full items-start gap-2 text-left" style={{ minHeight: 44 }}>
+        <span className="min-w-0 flex-1">
+          <span className="block font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+            {f.id}
+          </span>
+          <span className="mt-[1px] block text-[11.5px] leading-[1.4]">{f.description || f.title}</span>
+          {duplicateNote}
+        </span>
+        <span className="mt-[2px] shrink-0">
+          <Pill tone={tone}>{right}</Pill>
+        </span>
+      </button>
+
+      {note.trim() && (
+        <div className="mt-[6px] text-[11px] leading-[1.4]" style={{ color: "var(--ink-3)" }}>
+          {note.trim()}
+        </div>
+      )}
+
+      {attachments.length > 0 && (
+        <div className="mt-[6px]">
+          <AttachmentStrip attachments={attachments} thumbSize={32} />
+        </div>
+      )}
     </div>
   );
 }
