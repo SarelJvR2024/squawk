@@ -458,10 +458,19 @@ export default function FindingsPage() {
 
         <div
           ref={barRef}
-          className="sticky top-0 z-10 -mx-4 mb-1.5 shrink-0 border-b px-4 py-[4px] sm:-mx-6 sm:px-6 sm:py-[6px]"
+          className="sticky top-0 z-10 -mx-4 mb-1.5 shrink-0 border-b px-4 py-[4px] sm:-mx-6 sm:px-6 sm:py-[5px]"
           style={{ background: "var(--bg)", borderColor: "var(--line)" }}
         >
-          <div className="mb-1 flex items-center gap-2">
+          {/* THE MODE SWITCH, THE SEARCH BOX AND THE RATING FILTER, ALL ONE ROW
+              NOW — Sarel: "move these buttons and search all into one row and
+              make thinner." These used to be two rows (the mode switch and the
+              rated count above, search and the filter pills below), each with
+              its own vertical padding — on a wide screen that was two mostly-
+              empty rows stacked on top of each other. One row, flex-wrapping
+              at narrow widths exactly as the search-and-filter pairing already
+              did, and every control a touch shorter (buttons and the search
+              box both lost a few px of min-height) for "thinner". */}
+          <div className="flex flex-wrap items-center gap-2">
             {/* THE TWO WAYS IN. Asset system is the default because it is what
                 the screen is for; the flat register is the one an auditor
                 rating what they raised this morning needs, and it is one press.
@@ -470,7 +479,7 @@ export default function FindingsPage() {
             <div
               role="radiogroup"
               aria-label="Arrange the work by"
-              className="flex min-w-0 flex-1 gap-[2px] rounded-[11px] p-[3px] sm:max-w-[420px] sm:flex-none"
+              className="flex min-w-0 gap-[2px] rounded-[10px] p-[2px] sm:max-w-[320px]"
               style={{ background: "var(--sunken)" }}
             >
               {(
@@ -484,7 +493,7 @@ export default function FindingsPage() {
                   role="radio"
                   aria-checked={mode === k}
                   onClick={() => setMode(k)}
-                  className="flex min-h-[38px] flex-1 items-center justify-center gap-[6px] rounded-[8px] px-3 font-display text-[11.5px] font-semibold transition-[var(--t)] sm:min-h-[40px]"
+                  className="flex min-h-[32px] items-center justify-center gap-[6px] rounded-[7px] px-3 font-display text-[11.5px] font-semibold transition-[var(--t)]"
                   style={{
                     background: mode === k ? "var(--panel)" : "transparent",
                     color: mode === k ? "var(--acc)" : "var(--ink-2)",
@@ -506,19 +515,9 @@ export default function FindingsPage() {
                 ? `${rated}/${totalSystems} rated`
                 : `${findings.filter((f) => f.ratingConfirmed).length}/${findings.length} rated`}
             </span>
-          </div>
 
-          {/* SEARCH AND THE RATING FILTER, ONE ROW — Sarel: "move the filters
-              and search all in the same row." They used to stack (search
-              full-width, the filter pills on their own line beneath), which
-              on a wide screen left the filter row mostly empty air under a
-              search box with room to spare. The search box caps its width
-              from `sm` up so the pills have somewhere to sit beside it;
-              below `sm` it still goes full-width and the pills wrap under
-              it, same as before. */}
-          <div className="flex flex-wrap items-center gap-2">
             <div
-              className="flex min-w-0 flex-1 items-center gap-2 rounded-[11px] border px-3 py-1 sm:max-w-[280px] sm:flex-none"
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-[10px] border px-3 py-[2px] sm:max-w-[240px] sm:flex-none"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             >
               <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
@@ -527,7 +526,7 @@ export default function FindingsPage() {
                 onChange={(e) => setQ(e.target.value)}
                 placeholder={mode === "systems" ? "Search an asset system…" : "Search a finding…"}
                 aria-label={mode === "systems" ? "Search an asset system" : "Search a finding"}
-                className="min-h-[36px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
+                className="min-h-[30px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
               />
             </div>
 
