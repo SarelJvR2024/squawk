@@ -1297,12 +1297,21 @@ export default function CheckDetail({
             </div>
           )}
 
-          {r.attachments.length > 0 && (
+          {r.attachments.some((a) => a.kind !== "photo") && (
             /* Bounded, because this bar is pinned: four photographs and a voice
-               note being written up must not grow until they own the screen. */
+               note being written up must not grow until they own the screen.
+
+               PHOTOS EXCLUDED — Sarel: "dont pull the photos into this
+               view." Upload and management already moved to the Evidence
+               status panel ("all photos and evidence will be uploaded in
+               the evidence section"); what belongs here is voice notes,
+               for the one thing this bar is actually for — writing a
+               recording up into the observation. The count above still
+               says how many photos are attached, so nothing about them is
+               hidden, only their cards. */
             <div className="mb-[7px] max-h-[34vh] overflow-y-auto">
               <AttachmentStrip
-                attachments={r.attachments}
+                attachments={r.attachments.filter((a) => a.kind !== "photo")}
                 onRemove={(id) => removeAttachment(check.id, id)}
                 onUpdate={(id, p) => updateAttachment(check.id, id, p)}
                 /* Only offered where a model is configured. Without one the

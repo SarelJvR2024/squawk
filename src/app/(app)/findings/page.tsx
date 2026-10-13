@@ -62,6 +62,7 @@ import GroupRow from "@/components/ui/GroupRow";
 import Sheet from "@/components/ui/Sheet";
 import RatingPicker from "@/components/RatingPicker";
 import FindingDetail from "@/components/FindingDetail";
+import CheckDetail from "@/components/CheckDetail";
 import SystemTreatment from "@/components/SystemTreatment";
 import { IconInbox, IconSearch } from "@/components/ui/icons";
 import type { Check, Finding, Tolerance, Attachment, AdHocItem } from "@/lib/types";
@@ -84,6 +85,22 @@ const EVIDENCE_VERDICT_LABEL: Record<string, string> = {
 };
 const evidenceVerdictTone = (v: string): Tone =>
   v === "C" ? "good" : v === "NC" ? "bad" : "warn";
+
+/** Same reasoning, for Response.evidenceStatus (CheckDetail.tsx's
+ *  EVIDENCE_STATUSES) — whether the proof has actually been produced, read
+ *  here even when nobody has written a verdict or a proves-sentence yet.
+ *  Sarel: "i see no notes is pulling through for the photos, bring back the
+ *  compliance" — a check can carry attached photos with a status set
+ *  (Provided, say) and nothing else, and this screen showed nothing for it
+ *  because the EVIDENCE pill below only fires on evidenceVerdict/Proves. */
+const EVIDENCE_STATUS_LABEL: Record<string, string> = {
+  noneAvailable: "No evidence",
+  specificNotAvailable: "Not produced",
+  toBeProvided: "Pending",
+  providedForReview: "Provided",
+};
+const evidenceStatusTone = (v: string): Tone =>
+  v === "providedForReview" ? "good" : v === "specificNotAvailable" ? "warn" : "accent";
 
 /** The 2025 audit's own three-level vocabulary, mapped to the app's tones. It
  *  is NOT B170 001M's — see BAND_AS_RATING in src/lib/risk.ts for why the two
@@ -221,6 +238,11 @@ export default function FindingsPage() {
   const [expanded, setExpanded] = useState<string[] | null>(null);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [openFinding, setOpenFinding] = useState<string | null>(null);
+  /** Which check-point's own capture popup is open — Sarel: "when clicking
+   *  on the row it should bring up the popup with the same view as when
+   *  capturing the inspection." Scoped to the asset system currently shown
+   *  (`active.checks`), which is also where prev/next step through. */
+  const [openCheckId, setOpenCheckId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const say = (m: string) => {
@@ -1141,6 +1163,7 @@ export default function FindingsPage() {
                   duplicateOf={duplicateOf}
                   adhocByFindingId={adhocByFindingId}
                   onOpenFinding={setOpenFinding}
+                  onOpenCheck={setOpenCheckId}
                 />
               </div>
             </div>
@@ -1175,6 +1198,51 @@ export default function FindingsPage() {
             }
           >
             <FindingDetail f={f} onToast={say} />
+          </Sheet>
+        );
+      })()}
+
+      {/* One check-point, in the same capture view as /capture and /field —
+          Sarel: "when clicking on the row it should bring up the popup with
+          the same view as when capturing the inspection." Scoped to the
+          asset system on screen: prev/next step through `active.checks`,
+          the same list the check-points section below just listed. */}
+      {(() => {
+        if (!openCheckId || !active) return null;
+        const i = active.checks.findIndex((x) => x.id === openCheckId);
+        const c = i >= 0 ? active.checks[i] : null;
+        if (!c) return null;
+        return (
+          <Sheet
+            open
+            wide
+            onClose={() => setOpenCheckId(null)}
+            badges={
+              <>
+                <span>{portalIdFor(entityCode, c.id)}</span>
+                <span>·</span>
+                <span>{active.system}</span>
+              </>
+            }
+            title={c.requirement || "This check-point carries no register text"}
+            subtitle="ACSA check-point · the same capture view as /capture and /field"
+            footer={
+              <Btn variant="primary" onClick={() => setOpenCheckId(null)}>
+                Close
+              </Btn>
+            }
+          >
+            <CheckDetail
+              key={c.id}
+              check={c}
+              onPrev={() => {
+                if (i > 0) setOpenCheckId(active.checks[i - 1].id);
+              }}
+              onNext={() => {
+                if (i < active.checks.length - 1) setOpenCheckId(active.checks[i + 1].id);
+              }}
+              onSaved={say}
+            />
           </Sheet>
         );
       })()}
@@ -1216,6 +1284,7 @@ function SystemEvidence({
   duplicateOf,
   adhocByFindingId,
   onOpenFinding,
+  onOpenCheck,
 }: {
   entityCode: string;
   discipline: string;
@@ -1226,6 +1295,7 @@ function SystemEvidence({
     {
       compliance?: string | null;
       observation?: string;
+      evidenceStatus?: string | null;
       evidenceVerdict?: string | null;
       evidenceProves?: string;
       attachments?: Attachment[];
@@ -1241,6 +1311,10 @@ function SystemEvidence({
    *  FindingDetail. */
   adhocByFindingId: Map<string, AdHocItem>;
   onOpenFinding: (id: string) => void;
+  /** Opens the same popup capturing uses, on this check-point — Sarel:
+   *  "when clicking on the row it should bring op the popup with the same
+   *  view as when caoturing the inspection." */
+  onOpenCheck: (id: string) => void;
 }) {
   const seen = checks.filter((c) => fieldDone(responses[c.id] as never)).length;
   const nc = checks.filter((c) => responses[c.id]?.compliance === "NC").length;
@@ -1350,45 +1424,50 @@ function SystemEvidence({
                 : r?.compliance === "NA"
                   ? "neutral"
                   : "warn";
-          return (
-            <Row key={c.id} id={portalIdFor(entityCode, c.id)} tone={tone} right={word}>
-              {c.requirement}
-              {/* WHAT THE EVIDENCE PROVES, read onto the asset-system view —
-                  Sarel: this should also be visible here, not only on the
-                  check screen that captured it. A check can read COMPLIANT
-                  above while its own evidence verdict disagrees (the group
-                  hasn't reconciled them yet), which is exactly the kind of
-                  gap this panel exists to surface, not hide. */}
-              {(r?.evidenceVerdict || r?.evidenceProves) && (
-                <span className="mt-[3px] flex flex-wrap items-start gap-[5px]">
-                  {r?.evidenceVerdict && (
-                    <Pill tone={evidenceVerdictTone(r.evidenceVerdict)}>
-                      EVIDENCE: {EVIDENCE_VERDICT_LABEL[r.evidenceVerdict] ?? r.evidenceVerdict}
-                    </Pill>
-                  )}
-                  {r?.evidenceProves && (
-                    <span
-                      className="min-w-0 flex-1 text-[10.5px] leading-[1.4]"
-                      style={{ color: "var(--ink-3)" }}
-                    >
-                      {r.evidenceProves}
-                    </span>
-                  )}
+          /* WHAT THE EVIDENCE PROVES, read onto the asset-system view —
+             Sarel: this should also be visible here, not only on the check
+             screen that captured it. A check can read COMPLIANT above while
+             its own evidence verdict disagrees (the group hasn't reconciled
+             them yet), which is exactly the kind of gap this panel exists
+             to surface, not hide.
+
+             FALLS BACK TO THE EVIDENCE STATUS — Sarel: "i see no notes is
+             pulling through for the photos, bring back the compliance." A
+             check can carry photographs and a status (Provided, say) with
+             nobody having written a verdict or a proves-sentence yet;
+             showing nothing for it read as the evidence having vanished
+             rather than as not yet judged. */
+          const evidence = (r?.evidenceVerdict || r?.evidenceProves || r?.evidenceStatus) && (
+            <span className="mt-[3px] flex flex-wrap items-start gap-[5px]">
+              {r?.evidenceVerdict ? (
+                <Pill tone={evidenceVerdictTone(r.evidenceVerdict)}>
+                  EVIDENCE: {EVIDENCE_VERDICT_LABEL[r.evidenceVerdict] ?? r.evidenceVerdict}
+                </Pill>
+              ) : (
+                r?.evidenceStatus && (
+                  <Pill tone={evidenceStatusTone(r.evidenceStatus)}>
+                    EVIDENCE: {EVIDENCE_STATUS_LABEL[r.evidenceStatus] ?? r.evidenceStatus}
+                  </Pill>
+                )
+              )}
+              {r?.evidenceProves && (
+                <span className="min-w-0 flex-1 text-[10.5px] leading-[1.4]" style={{ color: "var(--ink-3)" }}>
+                  {r.evidenceProves}
                 </span>
               )}
-              {/* THE EVIDENCE ITSELF, NOT JUST THE VERDICT ON IT — Sarel:
-                  "list all evidence." The photographs and files attached on
-                  the check screen are the proof the verdict above refers
-                  to; showing only the verdict and leaving the group to go
-                  find what it was based on defeats the point of surfacing
-                  it here at all. Read-only — no onRemove/onUpdate — this is
-                  a summary view, not a second place to manage attachments. */}
-              {(r?.attachments?.length ?? 0) > 0 && (
-                <div className="mt-[6px]">
-                  <AttachmentStrip attachments={r!.attachments!} thumbSize={32} />
-                </div>
-              )}
-            </Row>
+            </span>
+          );
+          return (
+            <CheckRow
+              key={c.id}
+              id={portalIdFor(entityCode, c.id)}
+              tone={tone}
+              right={word}
+              requirement={c.requirement}
+              evidence={evidence}
+              attachments={r?.attachments ?? []}
+              onOpen={() => onOpenCheck(c.id)}
+            />
           );
         })}
       </Section>
@@ -1544,6 +1623,53 @@ function FindingRow({
           {note.trim()}
         </div>
       )}
+
+      {attachments.length > 0 && (
+        <div className="mt-[6px]">
+          <AttachmentStrip attachments={attachments} thumbSize={32} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A CHECK-POINT ROW THAT OPENS THE SAME CAPTURE VIEW — Sarel: "when clicking
+ *  on the row it should bring op the popup with the same view as when
+ *  caoturing the inspection." Same button-outside-the-attachments shape as
+ *  FindingRow, and the same reason: AttachmentStrip's own per-photo button
+ *  cannot nest inside this row's clickable area. */
+function CheckRow({
+  id,
+  tone,
+  right,
+  requirement,
+  evidence,
+  attachments,
+  onOpen,
+}: {
+  id: string;
+  tone: Tone;
+  right: string;
+  requirement: string;
+  evidence: React.ReactNode;
+  attachments: Attachment[];
+  onOpen: () => void;
+}) {
+  return (
+    <div className="border-b px-3 py-2 last:border-b-0" style={{ borderColor: "var(--line)" }}>
+      <button onClick={onOpen} className="flex w-full items-start gap-2 text-left" style={{ minHeight: 44 }}>
+        <span className="min-w-0 flex-1">
+          <span className="block font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+            {id}
+          </span>
+          <span className="mt-[1px] block text-[11.5px] leading-[1.4]">{requirement}</span>
+        </span>
+        <span className="mt-[2px] shrink-0">
+          <Pill tone={tone}>{right}</Pill>
+        </span>
+      </button>
+
+      {evidence}
 
       {attachments.length > 0 && (
         <div className="mt-[6px]">
