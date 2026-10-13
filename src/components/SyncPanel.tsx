@@ -35,6 +35,7 @@ import {
 } from "@/lib/store";
 import { fullPhotoBlob } from "@/lib/recordimage";
 import { fullSignatureBlob } from "@/lib/signatureSync";
+import { useAnswerLibrary } from "@/lib/answers";
 import * as graph from "@/lib/graph";
 import {
   buildPlan,
@@ -117,6 +118,11 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   const attendanceRegisters = useVisitAttendanceRegisters();
   const evidenceItems = useEvidenceItems();
   const systems = useSystems();
+  /* Resolves Response.walkaboutPicked into the sentence buildPlan folds into
+     a check-point's synced observation — see SyncInput.answerLibrary. null
+     while still loading is fine: buildPlan treats it the same as "no pick
+     yet" rather than blocking the sync on a 356 kB fetch. */
+  const answerLibrary = useAnswerLibrary();
   const auditor = useStore((s) => s.auditor);
   const updateHazard = useStore((s) => s.updateHazard);
   const recordSyncRun = useStore((s) => s.recordSyncRun);
@@ -377,7 +383,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
           drive: drive?.name ?? null,
         },
       });
-      const input = { entity: entityCode, visit: visitId, visitLabel: visitId, library: drive?.name, siteFolder, libraryUrl: drive?.webUrl, checks, responses, hazards, prior, verifications, auditor, findings, adhoc, attendanceRegisters, evidenceItems, systems };
+      const input = { entity: entityCode, visit: visitId, visitLabel: visitId, library: drive?.name, siteFolder, libraryUrl: drive?.webUrl, checks, responses, hazards, prior, verifications, auditor, findings, adhoc, attendanceRegisters, evidenceItems, systems, answerLibrary };
       /* Frozen here, read by the discipline-toggle effect below — see
          lastPlanBase's own note. */
       lastPlanBase.current = { input, existing };

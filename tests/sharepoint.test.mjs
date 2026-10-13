@@ -1155,8 +1155,9 @@ check(
 
 check(
   "the writer is given the inspection items, not just the register",
-  /auditor, findings, adhoc, attendanceRegisters, evidenceItems, systems \}/.test(panel) &&
-    /const adhoc = useAdhoc\(\)/.test(panel)
+  /auditor, findings, adhoc, attendanceRegisters, evidenceItems, systems, answerLibrary \}/.test(
+    panel
+  ) && /const adhoc = useAdhoc\(\)/.test(panel)
 );
 
 check(
