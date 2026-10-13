@@ -273,6 +273,8 @@ export default function CheckDetail({
     evidencePendingNote: "",
     evidenceProves: "",
     evidenceVerdict: null,
+    combinedComment: "",
+    combinedCommentAt: null,
     issuesPicked: [],
     walkaboutPicked: null,
     attachments: [],

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  useStore,
   checksAt,
   priorFindingsAt,
   useResponses,
@@ -23,6 +24,7 @@ import {
   useVisitId,
 } from "@/lib/store";
 import { loadAnswers } from "@/lib/answers";
+import { assist, combineContext, useAssistAvailable } from "@/lib/assist";
 import { formatBytes, isStoragePersisted, photoBudget } from "@/lib/media";
 import { fullPhotoBlob } from "@/lib/recordimage";
 import { buildPhotoZip, photoFilename, type PhotoFile } from "@/lib/photos";
@@ -223,7 +225,10 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
     0
   );
   const visitId = useVisitId();
-  const [busy, setBusy] = useState<Kind | "images" | null>(null);
+  const patch = useStore((s) => s.patch);
+  const assistAvailable = useAssistAvailable();
+  const [busy, setBusy] = useState<Kind | "images" | "merge" | null>(null);
+  const [mergeProgress, setMergeProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   /* A partial result is not a failure and must not be dressed as one. The zip
      downloaded; some of it could not be read here. Red would say the export
@@ -321,6 +326,64 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
       setError(e instanceof Error ? e.message : "The images could not be zipped.");
     } finally {
       setBusy(null);
+    }
+  };
+
+  /* ONE COMBINED COMMENT, DRAFTED FOR EVERY CHECK AT THIS AIRPORT THAT HAS
+     SOMETHING TO MERGE. Manual, per entity — nothing here touches a check
+     until this button is pressed, same advisory-only rule as every other
+     assist task: the model drafts, the field stays a normal editable field
+     afterward, nobody has to trust it unread.
+
+     A check with only one source — almost always just the observation, since
+     evidenceProves and findings are still rare in practice — needs no model
+     call: the merge of one thing with nothing is that one thing, and paying
+     for a round trip to say so back would be waste, not care. The model is
+     asked for only where there is actually something to reconcile. */
+  const runAiMerge = async () => {
+    setBusy("merge");
+    setError(null);
+    setNote(null);
+    const targets = checksAt(entityCode)
+      .map((check) => {
+        const r = responses[check.id];
+        if (!r) return null;
+        const checkFindings = findings.filter((f) => f.checkId === check.id);
+        const sourceCount =
+          (r.observation?.trim() ? 1 : 0) +
+          (r.evidenceProves?.trim() ? 1 : 0) +
+          (checkFindings.length ? 1 : 0);
+        return sourceCount > 0 ? { check, r, checkFindings, sourceCount } : null;
+      })
+      .filter((t): t is NonNullable<typeof t> => t !== null);
+
+    setMergeProgress({ done: 0, total: targets.length });
+    let failed = 0;
+    let lastError = "";
+    for (let i = 0; i < targets.length; i++) {
+      const { check, r, checkFindings, sourceCount } = targets[i];
+      try {
+        const text =
+          sourceCount === 1 && r.observation?.trim()
+            ? r.observation.trim()
+            : await assist("combine", combineContext(check, r, checkFindings));
+        patch(check.id, { combinedComment: text, combinedCommentAt: Date.now() });
+      } catch (e) {
+        failed++;
+        lastError = e instanceof Error ? e.message : "The assistant is unavailable.";
+      }
+      setMergeProgress({ done: i + 1, total: targets.length });
+    }
+    setBusy(null);
+    setMergeProgress(null);
+    if (failed) {
+      setError(
+        `${targets.length - failed} of ${targets.length} combined comments drafted. ${failed} failed — ${lastError}`
+      );
+    } else {
+      setNote(
+        `${targets.length} combined comment${targets.length === 1 ? "" : "s"} drafted for ${entityCode}. Review them on each check — this wrote the draft, not a decision.`
+      );
     }
   };
 
@@ -484,6 +547,35 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
           </Btn>
         </div>
       </div>
+
+      {/* AI MERGE, entity-wide. Only shown where a model is actually
+          configured — assistAvailable mirrors the same probe every other
+          assist affordance in the app already gates on, so a deployment
+          with no ANTHROPIC_API_KEY sees nothing it cannot use. */}
+      {assistAvailable && (
+        <div
+          className="mb-3.5 flex flex-wrap items-start gap-3 rounded-[13px] border p-3"
+          style={{ borderColor: "var(--line)", background: "var(--sunken)" }}
+        >
+          <div className="min-w-[180px] flex-1">
+            <b className="block font-display text-[12.5px] font-semibold">AI merge</b>
+            <span className="mt-[3px] block text-[11.5px] leading-[1.5]" style={{ color: "var(--ink-2)" }}>
+              Draft one combined comment per check from its observation, what the evidence
+              proves and any findings raised — for every check at {entityCode}. A draft, not a
+              decision: review it on the check like anything else before it goes anywhere.
+            </span>
+          </div>
+          <div className="flex shrink-0 gap-[6px]">
+            <Btn disabled={busy !== null} onClick={runAiMerge}>
+              {busy === "merge"
+                ? mergeProgress
+                  ? `Drafting ${mergeProgress.done}/${mergeProgress.total}…`
+                  : "Starting…"
+                : "Run AI merge"}
+            </Btn>
+          </div>
+        </div>
+      )}
 
       <SharedPanel />
 

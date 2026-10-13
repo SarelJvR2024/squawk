@@ -917,6 +917,41 @@ export function evidenceRequestSheet(x: ExportInput): Sheet {
         when(r.capturedAt),
       ]);
     }
+
+    /* THE 2 OCTOBER REPLACEMENT, READ TOO — evidenceStatus is the current
+       evidence question (see tests/evidencestatus.test.mjs); evidencePending
+       above is the field it replaced on the check screen, kept working here
+       only for audits already captured with the old tag. A check answered
+       since the change carries evidenceStatus instead, and until now this
+       sheet never looked at it — every "Pending" or "Not produced" flagged
+       through the current UI produced no row here at all. Only the two
+       states that still owe ACSA something get a row: "No evidence" says
+       there is nothing to chase, and "Provided" says the chase is over. */
+    if (r.evidenceStatus === "toBeProvided") {
+      rows.push([
+        portalIdFor(x.entity, c.id),
+        c.discipline,
+        c.system,
+        r.evidencePendingNote || "Not named — flagged pending with no detail entered",
+        "",
+        docs(c),
+        "Pending — ACSA to produce after the visit",
+        r.capturedBy,
+        when(r.capturedAt),
+      ]);
+    } else if (r.evidenceStatus === "specificNotAvailable") {
+      rows.push([
+        portalIdFor(x.entity, c.id),
+        c.discipline,
+        c.system,
+        r.evidenceStatusNote || "Not named — flagged not produced with no detail entered",
+        "",
+        docs(c),
+        "Outstanding — specific evidence not produced",
+        r.capturedBy,
+        when(r.capturedAt),
+      ]);
+    }
   }
   return {
     name: "Evidence request",

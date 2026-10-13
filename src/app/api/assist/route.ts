@@ -85,6 +85,7 @@ interface Img {
 
 type Task =
   | "observation"      // turn tapped chips into one clean observation
+  | "combine"          // merge observation + evidence + findings into one comment
   | "finding"          // tidy a finding into one audit-grade sentence
   | "explain"          // plain-English reading of what this check requires
   | "rating"           // an opinion on severity and likelihood, with reasons
@@ -149,6 +150,8 @@ House rules, in order of importance:
 const TASK_PROMPT: Record<Task, string> = {
   observation:
     "Compose the observation for this check from the material below. One to three sentences, ready to paste into the audit record. Return the observation text alone, with no preamble, heading or quotation marks.",
+  combine:
+    "Below is up to three sources captured against one check: the audit observation, what the evidence itself proves, and any findings raised. They are labelled. Merge whichever of the three are present into one comment for the register's combined-comment column.\n\nRules:\n- Work only from the sources supplied. A source labelled as not captured is not captured — do not guess at it, do not mention that it is missing, and do not pad the comment to make up for it. A check with one source gets a comment built from that one source.\n- Do not repeat the same fact twice because two sources both said it. Say it once.\n- Where two sources disagree (the observation says compliant, a finding says otherwise), keep both positions rather than silently picking one — an auditor reading the merged comment has to be able to see the disagreement, not have it resolved for them.\n- Findings are stated as what was found, not as instructions to fix it.\n- Three to six sentences, factual, third person, past tense. No heading, no bullet points, no preamble.\nReturn the comment text alone.",
   finding:
     "Rewrite the finding below as a single audit-grade sentence stating what was found — not what should happen next. Return the sentence alone.",
   explain:
