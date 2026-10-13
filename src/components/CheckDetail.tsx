@@ -610,11 +610,20 @@ export default function CheckDetail({
             each file." A photograph already carried a caption; a plain
             file never did — FileRow gained one here rather than the
             auditor having to go find the same attachment in the
-            observation panel's strip below to say what it is. */}
-        {r.attachments.length > 0 ? (
+            observation panel's strip below to say what it is.
+
+            PHOTOS EXCLUDED, 13 October 2026 — Sarel: "photos should not
+            come up in the evidence view... i still see the photo, they
+            should not be visible from there." The camera button above
+            still captures them into this same attachments array — the
+            Review screen (/review, "every photograph this visit
+            captured, per discipline") is the one place a photograph is
+            now shown and captioned, so a photo attached from here is
+            not lost, only not carded again in this tab. */}
+        {r.attachments.some((a) => a.kind !== "photo") ? (
           <div className="mt-2.5">
             <AttachmentStrip
-              attachments={r.attachments}
+              attachments={r.attachments.filter((a) => a.kind !== "photo")}
               thumbSize={40}
               onRemove={(id) => removeAttachment(check.id, id)}
               onUpdate={(id, p) => updateAttachment(check.id, id, p)}
@@ -1250,7 +1259,7 @@ export default function CheckDetail({
         }}
       >
         <div
-          className="border-t px-5 pt-[9px] pb-[9px] lg:min-h-0 lg:flex-1 lg:overflow-y-auto"
+          className="border-t px-5 pt-[9px] pb-[9px] lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:flex lg:flex-col"
           style={{ borderColor: "var(--line)" }}
         >
           <div className="mb-[6px] hidden items-center justify-between gap-3 sm:flex">
@@ -1347,7 +1356,7 @@ export default function CheckDetail({
               Photo deliberately stays a full 44px labelled button in the bar.
               It is the one of the four used in gloves on an apron, and a 34px
               icon in a text field is the wrong target for that. */}
-          <div className="relative">
+          <div className="relative lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
             <textarea
               ref={obsRef}
               value={r.observation}
@@ -1359,11 +1368,21 @@ export default function CheckDetail({
                  left above it; one that pins a single line has nowhere to write.
                  It grows when there is something to write in it.
 
+                 FROM lg THE CAP COMES OFF. Below that the box shares the
+                 screen with the register panel above it and max-h-[26vh]
+                 is what keeps it from pushing that panel out of reach — but
+                 from lg the two sit side by side in their own columns (see
+                 the sticky wrapper's own note above), so the only thing
+                 bounding this box on a laptop was itself, not the register.
+                 lg:flex-1 lets it take whatever the column has left instead
+                 of stopping at a fraction of the viewport with the rest of
+                 the panel sitting empty beneath it.
+
                  pr-[124px] keeps the text clear of the icon cluster. The
                  padding is on the RIGHT rather than the bottom because the box
                  is 44px at rest — a bottom gutter would leave a single line of
                  writing nowhere to sit. */
-              className="max-h-[26vh] min-h-[44px] w-full resize-y rounded-[11px] border py-2 pr-[124px] pl-3 text-[12.5px] leading-[1.55] outline-none transition-[var(--t)] focus:min-h-[112px] focus:border-[var(--acc)] sm:min-h-[68px] sm:py-2.5"
+              className="max-h-[26vh] min-h-[44px] w-full resize-y rounded-[11px] border py-2 pr-[124px] pl-3 text-[12.5px] leading-[1.55] outline-none transition-[var(--t)] focus:min-h-[112px] focus:border-[var(--acc)] sm:min-h-[68px] sm:py-2.5 lg:max-h-none lg:min-h-0 lg:flex-1"
               style={{ background: "var(--focus-surface)", borderColor: "var(--line-2)" }}
             />
             {/* top-right, not centred: the box grows to 112px on focus and a

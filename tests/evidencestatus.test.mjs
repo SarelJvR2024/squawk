@@ -199,7 +199,13 @@ check(
    to say what it was until FileRow gained the same editable field (see
    src/components/Capture.tsx). This panel renders the strip right under
    the upload buttons so that description can be added the moment
-   something is attached, not only from the observation panel elsewhere. */
+   something is attached, not only from the observation panel elsewhere.
+
+   PHOTOS EXCLUDED, 13 October 2026 — Sarel: "photos should not come up in
+   the evidence view... i still see the photo, they should not be visible
+   from there." The camera button still writes a photo into this same
+   attachments array; this panel's own strip just no longer cards it back.
+   The Review screen (/review) is where a photo is shown and captioned now. */
 check(
   "uploaded evidence is shown right here, with its description editable",
   (() => {
@@ -208,7 +214,7 @@ check(
     const slice = codeOnly.slice(start, end === -1 ? start + 1800 : end);
     return (
       /<AttachmentStrip/.test(slice) &&
-      /attachments=\{r\.attachments\}/.test(slice) &&
+      /attachments=\{r\.attachments\.filter\(\(a\) => a\.kind !== "photo"\)\}/.test(slice) &&
       /onUpdate=\{\(id, p\) => updateAttachment\(check\.id, id, p\)\}/.test(slice)
     );
   })()
