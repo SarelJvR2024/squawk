@@ -517,85 +517,6 @@ export default function CheckDetail({
           })}
         </div>
 
-        {/* THE NOTE, ONLY WHERE IT MEANS SOMETHING, AND AS ITEMS NOT A PARAGRAPH.
-            "No evidence available" and "provided for review" are
-            self-explanatory; the other two are not useful without saying
-            what is missing, or what and when — so the field appears only
-            for those two, labelled for the question it is actually
-            answering.
-
-            Sarel: "this section should allow multiple evidence to be
-            recorded and not all in one text box." It was a single
-            textarea — "Doc 1\nDoc 2" typed as two lines of one blob, which
-            reads back as a paragraph to split apart rather than a list to
-            scan or export cell-by-cell. One row per item instead, add/remove
-            as needed. Still stored as a string joined on "\n" — same
-            export, the change is in how it's edited, not the shape it's
-            persisted in.
-
-            TWO SEPARATE LISTS, NOT ONE READ TWO WAYS. DECISION REVERSED —
-            Sarel: "the list of evidence for evidence pending and specific
-            evidence not availbale is two seperate lists, allow to keep
-            seperate lists." `evidenceStatusNote` used to carry both
-            statuses' items, so switching between them showed the same
-            list under a different heading and a note typed under one
-            looked like it belonged to the other the moment you tapped
-            back. specificNotAvailable keeps evidenceStatusNote;
-            toBeProvided gets its own field, evidencePendingNote — see the
-            note on both in types.ts. */}
-        {(() => {
-          const active = EVIDENCE_STATUSES.find((es) => es.key === r.evidenceStatus);
-          if (!active?.note) return null;
-          const field = active.key === "toBeProvided" ? "evidencePendingNote" : "evidenceStatusNote";
-          const items = r[field].split("\n");
-          const setItems = (next: string[]) => patch(check.id, { [field]: next.join("\n") });
-          const itemPlaceholder =
-            active.key === "specificNotAvailable"
-              ? "Which document or record ACSA could not produce"
-              : "What it is, and when it is expected";
-          return (
-            <div className="mt-2.5">
-              <div className="label-xs mb-1">{active.note}</div>
-              <div className="flex flex-col gap-[6px]">
-                {items.map((item, i) => (
-                  <div key={i} className="flex items-center gap-[6px]">
-                    <input
-                      value={item}
-                      onChange={(e) => {
-                        const next = [...items];
-                        next[i] = e.target.value;
-                        setItems(next);
-                      }}
-                      aria-label={`${active.note} — item ${i + 1}`}
-                      placeholder={itemPlaceholder}
-                      className="w-full rounded-[9px] border px-3 py-2 text-[12.5px]"
-                      style={{ background: "var(--bg)", borderColor: "var(--line-2)" }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setItems(items.length > 1 ? items.filter((_, j) => j !== i) : [""])}
-                      aria-label="Remove this item"
-                      className="shrink-0 rounded-[7px] p-1.5"
-                      style={{ color: "var(--ink-4)" }}
-                    >
-                      <IconX width={13} height={13} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={() => setItems([...items, ""])}
-                className="mt-1.5 flex items-center gap-[5px] rounded-[7px] px-[7px] py-1 text-[11px] font-semibold"
-                style={{ color: "var(--acc)" }}
-              >
-                <IconPlus width={12} height={12} />
-                Add another
-              </button>
-            </div>
-          );
-        })()}
-
         {/* WHAT THE EVIDENCE PROVES, AND THE VERDICT IT SUPPORTS.
             Replaces "Evidence to request" / "Likely answers" / "Issues
             found" — Sarel, 11 October 2026. Unconditional, like the status
@@ -605,8 +526,19 @@ export default function CheckDetail({
             buttons above (whether the proof exists) and of the check's own
             compliance verdict (the top-level STATUSES) — this is what the
             document itself says, in the auditor's words and the group's
-            read of it. */}
-        <div className="mt-3.5">
+            read of it.
+
+            MOVED RIGHT AFTER THE STATUS GRID, Sarel: "make sure the user
+            sees the compliance and attach files buttons all at the initial
+            view not needing to scroll." This and the attach-files row right
+            below it used to sit after the per-status missing-document list,
+            so picking "specific evidence not available" or "to be
+            provided" pushed both of them past the fold. That list (what's
+            missing, one row per item) now comes after attachments instead
+            — it is the one part of this panel that genuinely grows without
+            bound, so it is the part that should scroll, not the verdict or
+            the attach buttons. */}
+        <div className="mt-2.5">
           <label className="label-xs mb-1 block" style={{ color: "var(--ink-4)" }}>
             What the evidence proves
           </label>
@@ -687,6 +619,93 @@ export default function CheckDetail({
             />
           </div>
         ) : null}
+
+        {/* THE NOTE, ONLY WHERE IT MEANS SOMETHING, AND AS ITEMS NOT A PARAGRAPH.
+            "No evidence available" and "provided for review" are
+            self-explanatory; the other two are not useful without saying
+            what is missing, or what and when — so the field appears only
+            for those two, labelled for the question it is actually
+            answering.
+
+            Sarel: "this section should allow multiple evidence to be
+            recorded and not all in one text box." It was a single
+            textarea — "Doc 1\nDoc 2" typed as two lines of one blob, which
+            reads back as a paragraph to split apart rather than a list to
+            scan or export cell-by-cell. One row per item instead, add/remove
+            as needed. Still stored as a string joined on "\n" — same
+            export, the change is in how it's edited, not the shape it's
+            persisted in.
+
+            TWO SEPARATE LISTS, NOT ONE READ TWO WAYS. DECISION REVERSED —
+            Sarel: "the list of evidence for evidence pending and specific
+            evidence not availbale is two seperate lists, allow to keep
+            seperate lists." `evidenceStatusNote` used to carry both
+            statuses' items, so switching between them showed the same
+            list under a different heading and a note typed under one
+            looked like it belonged to the other the moment you tapped
+            back. specificNotAvailable keeps evidenceStatusNote;
+            toBeProvided gets its own field, evidencePendingNote — see the
+            note on both in types.ts.
+
+            MOVED BELOW THE VERDICT AND ATTACH BUTTONS, Sarel: "make sure
+            the user sees the compliance and attach files buttons all at
+            the initial view not needing to scroll." This list is the one
+            part of the panel that genuinely grows without bound (an
+            auditor can add as many missing-document rows as there are
+            documents), so it is the part that scrolls — not the verdict
+            or the attach buttons above it. */}
+        {(() => {
+          const active = EVIDENCE_STATUSES.find((es) => es.key === r.evidenceStatus);
+          if (!active?.note) return null;
+          const field = active.key === "toBeProvided" ? "evidencePendingNote" : "evidenceStatusNote";
+          const items = r[field].split("\n");
+          const setItems = (next: string[]) => patch(check.id, { [field]: next.join("\n") });
+          const itemPlaceholder =
+            active.key === "specificNotAvailable"
+              ? "Which document or record ACSA could not produce"
+              : "What it is, and when it is expected";
+          return (
+            <div className="mt-2.5">
+              <div className="label-xs mb-1">{active.note}</div>
+              <div className="flex flex-col gap-[6px]">
+                {items.map((item, i) => (
+                  <div key={i} className="flex items-center gap-[6px]">
+                    <input
+                      value={item}
+                      onChange={(e) => {
+                        const next = [...items];
+                        next[i] = e.target.value;
+                        setItems(next);
+                      }}
+                      aria-label={`${active.note} — item ${i + 1}`}
+                      placeholder={itemPlaceholder}
+                      className="w-full rounded-[9px] border px-3 py-2 text-[12.5px]"
+                      style={{ background: "var(--bg)", borderColor: "var(--line-2)" }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setItems(items.length > 1 ? items.filter((_, j) => j !== i) : [""])}
+                      aria-label="Remove this item"
+                      className="shrink-0 rounded-[7px] p-1.5"
+                      style={{ color: "var(--ink-4)" }}
+                    >
+                      <IconX width={13} height={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setItems([...items, ""])}
+                className="mt-1.5 flex items-center gap-[5px] rounded-[7px] px-[7px] py-1 text-[11px] font-semibold"
+                style={{ color: "var(--acc)" }}
+              >
+                <IconPlus width={12} height={12} />
+                Add another
+              </button>
+            </div>
+          );
+        })()}
 
         {/* A SPACER, not a design choice — this panel is the first in the
            "do" group routinely tall enough to expose a `position: sticky`

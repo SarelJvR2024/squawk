@@ -10,11 +10,23 @@
  *  Nothing in the product depends on this succeeding. It only decides whether
  *  the NEXT launch needs a network.
  *
- *  A waiting worker is NOT activated here. Swapping builds under a running
- *  session can leave the page asking the old build for chunks the new cache
- *  does not hold, and doing that to somebody mid-observation on a live audit is
- *  not a trade worth making for a faster rollout. The pre-flight screen offers
- *  the swap as a button instead, where the auditor decides. */
+ *  A WAITING WORKER IS ACTIVATED HERE NOW — Sarel, 13 October 2026: auto-update
+ *  the builds and apps, instantly, rather than leaving it to the pre-flight
+ *  screen's button. This reverses the earlier decision, recorded below for
+ *  why it no longer applies.
+ *
+ *  THE ORIGINAL WORRY — "swapping builds under a running session can leave the
+ *  page asking the old build for chunks the new cache does not hold" — is
+ *  already covered by sw.js's own `promote()`: a new shell is stored only once
+ *  every chunk it names has actually been fetched, so there is no build a
+ *  reload can land on whose own assets are not there to serve it. What
+ *  remains, and is real, is the interruption itself: a reload lands on
+ *  whatever screen is open, closed sheets included, the instant a new build
+ *  finishes installing, whether or not somebody is mid-check. No captured
+ *  work is at risk either way — every field already writes straight into the
+ *  persisted store on every keystroke, not only on Save — but a reload mid-tap
+ *  still breaks the auditor's flow. Accepted, at Sarel's instruction, in
+ *  exchange for a device that is never more than one load behind. */
 
 import { useEffect } from "react";
 import { loadAnswers } from "@/lib/answers";
@@ -24,9 +36,42 @@ export default function OfflineReady() {
   useEffect(() => {
     const register = () => {
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {
-          /* Nothing to say. The app is unchanged; only the next cold start with
-             no signal is affected, and the pre-flight screen reports it. */
+        navigator.serviceWorker
+          .register("/sw.js", { scope: "/" })
+          .then((reg) => {
+            /* ALREADY WAITING, e.g. this tab loaded after another tab's install
+               finished. Fires the same swap the pre-flight button used to. */
+            if (reg.waiting) reg.waiting.postMessage("squawk:activate-update");
+
+            reg.addEventListener("updatefound", () => {
+              const next = reg.installing;
+              if (!next) return;
+              next.addEventListener("statechange", () => {
+                /* `navigator.serviceWorker.controller` is set only once a worker
+                   has ALREADY taken a page — so its presence here means this
+                   install is an update, not the very first one. The first
+                   install has nothing running yet to disrupt and needs no
+                   message; it activates on its own once installed. */
+                if (next.state === "installed" && navigator.serviceWorker.controller) {
+                  next.postMessage("squawk:activate-update");
+                }
+              });
+            });
+          })
+          .catch(() => {
+            /* Nothing to say. The app is unchanged; only the next cold start with
+               no signal is affected, and the pre-flight screen reports it. */
+          });
+
+        /* THE SWAP ITSELF. `controllerchange` fires once per activation, but a
+           browser can fire it more than once across a session (another tab
+           updating, for one) — the guard keeps this tab from reloading twice
+           for the same build. */
+        let reloaded = false;
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          if (reloaded) return;
+          reloaded = true;
+          location.reload();
         });
       }
       warm();
