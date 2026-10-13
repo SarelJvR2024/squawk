@@ -261,6 +261,8 @@ function emptyResponse(checkId: string): Response {
     evidencePendingNote: "",
     evidenceProves: "",
     evidenceVerdict: null,
+    combinedComment: "",
+    combinedCommentAt: null,
     captured: false,
     capturedBy: "",
     capturedAt: null,
@@ -3413,7 +3415,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 33,
+      version: 34,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -4055,6 +4057,23 @@ export const useStore = create<State>()(
               const r = responses[checkId] as Partial<Response>;
               if (r.evidenceProves === undefined) r.evidenceProves = "";
               if (r.evidenceVerdict === undefined) r.evidenceVerdict = null;
+            }
+          }
+        }
+        if (from < 34 && st.byVisit) {
+          /* combinedComment/combinedCommentAt, for the "AI merge" action that
+             drafts one comment from observation, evidenceProves and any
+             findings against the check. Every response already on a tablet
+             predates both fields — same backfill shape as v27's evidenceStatus
+             and v33's evidenceProves, for the same reason: absent is a
+             different answer from "no merge has run yet." */
+          for (const key of Object.keys(st.byVisit)) {
+            const responses = st.byVisit[key]?.responses;
+            if (!responses) continue;
+            for (const checkId of Object.keys(responses)) {
+              const r = responses[checkId] as Partial<Response>;
+              if (r.combinedComment === undefined) r.combinedComment = "";
+              if (r.combinedCommentAt === undefined) r.combinedCommentAt = null;
             }
           }
         }

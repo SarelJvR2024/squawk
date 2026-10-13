@@ -185,6 +185,14 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
      active one for the current status — see the checkpoints loop. */
   evidenceStatus: ["Evidence status", "Evidence Status", "Evidence availability"],
   evidenceStatusNote: ["Evidence status note", "Evidence note", "What is outstanding"],
+  /* ONE READ, instead of the observation, evidenceProves and findings columns
+     above being three places a reader assembles the same picture by hand.
+     Written only by the "AI merge" action in ExportPanel — see
+     Response.combinedComment's own doc comment in types.ts for what feeds it
+     and why it is never auto-generated. A list with no column for this is no
+     different from one missing any other logical field here: reported in the
+     plan, simply not written. */
+  combinedComment: ["Combined comment", "Combined Comment", "Merged comment", "Summary"],
   auditor: ["Auditor", "Assessed by", "Captured by"],
   assessedOn: ["Assessed on", "Date assessed", "Assessed"],
   reference: ["Reference", "Source"],
@@ -1458,6 +1466,11 @@ export function buildPlan(
             : r.evidenceStatus === "toBeProvided"
               ? r.evidencePendingNote?.trim()
               : "") || null,
+        /* Sent only once a merge has actually run — see Response.combinedComment.
+           `null`, not "", for the same reason evidenceVerdict is sent as `null`
+           above: a check nobody has merged yet should read as un-merged on the
+           portal, not as a blank that could be mistaken for "nothing to say". */
+        combinedComment: r.combinedComment?.trim() || null,
         auditor: x.auditor,
         assessedOn: new Date().toISOString(),
       },

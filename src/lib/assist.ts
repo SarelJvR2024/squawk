@@ -69,6 +69,7 @@ function lower(s: string): string {
 
 export type AssistTask =
   | "observation"
+  | "combine"
   | "finding"
   | "explain"
   | "rating"
@@ -406,6 +407,23 @@ export function checkContext(check: Check, r?: Response, lib?: AnswerLibrary | n
     if (r.observation) l.push(`Auditor's note so far: ${r.observation}`);
   }
   return l.join("\n");
+}
+
+/** What goes with an "AI merge" run — the up-to-three sources captured
+ *  against one check, each labelled, each present only if it is actually
+ *  non-empty. A source this function leaves out is a source the model never
+ *  sees, which is what keeps it from commenting on something nobody captured
+ *  — see the `combine` task's own house rule in /api/assist. */
+export function combineContext(check: Check, r: Response, findings: Finding[]): string {
+  const sources = [
+    r.observation?.trim() && `AUDIT OBSERVATION:\n${r.observation.trim()}`,
+    r.evidenceProves?.trim() && `WHAT THE EVIDENCE PROVES:\n${r.evidenceProves.trim()}`,
+    findings.length &&
+      `FINDING${findings.length === 1 ? "" : "S"} RAISED (${findings.length}):\n${findings
+        .map((f) => `- ${f.description}`)
+        .join("\n")}`,
+  ].filter(Boolean) as string[];
+  return [`Check: ${check.id} — ${check.requirement}`, "", ...sources].join("\n");
 }
 
 /** What goes with a transcript when it is written up: the words that were
