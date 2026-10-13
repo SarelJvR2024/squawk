@@ -55,7 +55,7 @@ export default function RatingPicker({
     onChange({ severity: s, likelihood: l, ratingConfirmed: !!s && !!l });
 
   return (
-    <div className="grid gap-2.5 sm:grid-cols-2">
+    <div className="grid gap-2 sm:grid-cols-2">
       <Axis
         label="Severity"
         hint="ACSA B170 001M cl. 4.3.1"
@@ -99,13 +99,13 @@ function Axis({
 }) {
   return (
     <div>
-      <div className="mb-1 flex items-baseline justify-between gap-2">
+      <div className="mb-[3px] flex items-baseline justify-between gap-2">
         <b className="font-display text-[11px] font-semibold">{label}</b>
         <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
           {hint}
         </span>
       </div>
-      <div role="radiogroup" aria-label={label} className="flex gap-[5px]">
+      <div role="radiogroup" aria-label={label} className="flex gap-[4px]">
         {options.map((o) => {
           const on = value === o;
           return (
@@ -121,7 +121,7 @@ function Axis({
                  honest and a wrong C is not — and clearing one axis takes the
                  rating back to unconfirmed, which is what a half-set rating is. */
               onClick={() => onPick(on ? null : o)}
-              className="flex min-h-[44px] flex-1 items-center justify-center rounded-[9px] border-[1.5px] font-mono text-[13px] font-semibold transition-[var(--t)]"
+              className="flex min-h-[32px] flex-1 items-center justify-center rounded-[8px] border-[1.5px] font-mono text-[12px] font-semibold transition-[var(--t)]"
               style={
                 on
                   ? { background: "var(--acc)", borderColor: "var(--acc)", color: "#fff" }
@@ -141,7 +141,7 @@ function Axis({
           check, and the definition must not live only in a tooltip on a device
           that has no hover. */}
       <div
-        className="mt-1 text-[10.5px] leading-[1.45]"
+        className="mt-[3px] text-[10.5px] leading-[1.3]"
         style={{ color: value ? "var(--ink-2)" : "var(--ink-4)" }}
       >
         {value ?? `Not picked — ${options.length} to choose from`}

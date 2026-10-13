@@ -95,12 +95,10 @@ check(
 
 check(
   "EVIDENCE_STATUSES declares all four states, each with its own label",
-  /key: "noneAvailable",[\s\S]{0,120}label: "No evidence available"/.test(codeOnly) &&
-    /key: "specificNotAvailable",[\s\S]{0,120}label: "Specific evidence not available"/.test(
-      codeOnly
-    ) &&
-    /key: "toBeProvided",[\s\S]{0,120}label: "Evidence Pending"/.test(codeOnly) &&
-    /key: "providedForReview",[\s\S]{0,120}label: "Evidence provided for review"/.test(codeOnly)
+  /key: "noneAvailable",[\s\S]{0,120}label: "No evidence"/.test(codeOnly) &&
+    /key: "specificNotAvailable",[\s\S]{0,120}label: "Not produced"/.test(codeOnly) &&
+    /key: "toBeProvided",[\s\S]{0,120}label: "Pending"/.test(codeOnly) &&
+    /key: "providedForReview",[\s\S]{0,120}label: "Provided"/.test(codeOnly)
 );
 
 check(
@@ -220,7 +218,7 @@ check(
 
 check(
   "the tab carries a badge naming the chosen state once one is chosen",
-  /\.\.\.\(r\.evidenceStatus\s*\n\s*\? \{ badge: EVIDENCE_STATUSES\.find\(\(s\) => s\.key === r\.evidenceStatus\)\?\.label\.split\(" "\)\[0\] \}/.test(
+  /\.\.\.\(r\.evidenceStatus\s*\n\s*\? \{ badge: EVIDENCE_STATUSES\.find\(\(s\) => s\.key === r\.evidenceStatus\)\?\.label \}/.test(
     codeOnly
   )
 );
