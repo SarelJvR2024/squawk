@@ -131,9 +131,17 @@ ok(
     /import \{ PASS_KEY \} from "\.\/shared"/.test(hook) &&
     !/"squawk-team-passphrase"/.test(hook)
 );
+/* REVERSED, 13 October 2026 — Sarel asked for /review to become the
+   central editor for one audit check (see tests/review.test.mjs), which
+   replaced its own Photo/Lightbox pair with CheckDetail — the same
+   component Capture and Field use, which resolves a photograph through
+   AttachmentStrip's local blob/thumbnail chain (src/components/Capture.tsx),
+   not this hook. The hook itself, and the gate in front of it, are
+   unaffected and still proven by every assertion above and below this one;
+   Review is simply no longer a caller of it. */
 ok(
-  "Visual review uses it for both the tile and the lightbox",
-  (review.match(/useRecordImage\(/g) || []).length === 2
+  "Review no longer renders photographs itself — CheckDetail does that now",
+  !/useRecordImage/.test(review) && /CheckDetail/.test(review)
 );
 
 /* ---- and the thumbnail stays a thumbnail ------------------------------ */

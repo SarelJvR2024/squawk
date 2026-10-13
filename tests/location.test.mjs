@@ -397,26 +397,13 @@ check(
    text — `url ?? a.thumbDataUrl ?? a.dataUrl`. The chain grew a middle step and
    moved into a hook, so the letter changed while the property did not, and the
    property is the thing worth protecting: a photograph taken on one device is
-   visible on the other, in the tile AND the lightbox, and "missing" is only
-   said when it truly is.
+   visible on the other.
 
    What grew: the 240px thumbnail is no longer the best a second device can do.
    The full 1600px record copy is fetched from the blob store, and the thumbnail
    is the last resort rather than the only one — which is the whole point of
    src/lib/recordimage.ts. See tests/photoview.test.mjs for the gate in front of
    it. */
-check(
-  "Review resolves a photograph through the hook that can reach the record copy",
-  /import \{ useRecordImage \} from "@\/lib\/recordimage";/.test(review),
-  "a blobKey is a pointer into local IndexedDB and resolves on one device only"
-);
-
-check(
-  "in the lightbox as well as the tile",
-  (review.match(/useRecordImage\(/g) ?? []).length >= 2,
-  "a tile that paints and a lightbox that does not is a photograph you can see until you tap it"
-);
-
 check(
   "and the thumbnail is still the fallback underneath it, so an offline device shows SOMETHING",
   /url: full \?\? a\.thumbDataUrl \?\? a\.dataUrl \?\? null/.test(
@@ -425,18 +412,23 @@ check(
   ""
 );
 
+/* REVERSED, 13 October 2026 — Sarel asked for /review to become the central
+   editor for one audit check (see tests/review.test.mjs). It dropped its
+   own Photo/Lightbox pair and the `useRecordImage` hook behind them in
+   favour of CheckDetail — the same component Capture and Field already use
+   — which shows a photograph through AttachmentStrip's local blob/thumbnail
+   chain (src/components/Capture.tsx). "In the tile AND the lightbox" and
+   "the two reasons an image is not here are told apart" were about Review's
+   OWN rendering of a photograph; that rendering is gone with the screen it
+   was built for, so those three checks are replaced rather than chased
+   through a component that no longer exists. useRecordImage and the gate in
+   front of it (src/app/api/photos/route.ts) are unaffected — tested in full
+   in tests/photoview.test.mjs — they simply have one fewer caller. */
 check(
-  "and it is only called missing when it truly is",
-  /if \(a\.unavailable \|\| \(missing && !src\)\) \{/.test(review),
-  ""
-);
-
-check(
-  "the two reasons an image is not here are told apart",
-  /\{a\.unavailable\s*\n?\s*\? "no image stored — captured before this worked"\s*\n?\s*: "the image is on the device that took it"\}/.test(
-    review
-  ),
-  "telling an auditor their evidence is corrupt old data when it is one sync away is worse than telling them nothing"
+  "Review shows a photograph through CheckDetail, not a renderer of its own",
+  /import CheckDetail from "@\/components\/CheckDetail";/.test(review) &&
+    !/useRecordImage/.test(review),
+  "one place in the app that knows how to resolve a blobKey, not two that could disagree about a photo nobody uploaded from this device"
 );
 
 /* ---- 11 · and it reaches the workbook ----------------------------------- */

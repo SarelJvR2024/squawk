@@ -406,18 +406,25 @@ check(
  *
  *  /capture is the one deliberate exception: it is a two-pane layout, and the
  *  scroller lives on CheckDetail's own root (checked separately, just above),
- *  not on capture/page.tsx. */
+ *  not on capture/page.tsx.
+ *
+ *  UPDATED, 13 October 2026 — /review was rebuilt onto the same rail-plus-
+ *  CheckDetail shape (task: "the central place to review everything for an
+ *  audit check"; see tests/review.test.mjs), so it inherited the same
+ *  exception for the same reason: CheckDetail is what scrolls, and a second
+ *  `.app-scroll` wrapped around it here would be a second scroller for one
+ *  scrollable thing. */
 const appDir = path.join(here, "..", "src", "app", "(app)");
 const screenDirs = fs
   .readdirSync(appDir, { withFileTypes: true })
   .filter((d) => d.isDirectory() && fs.existsSync(path.join(appDir, d.name, "page.tsx")))
   .map((d) => d.name)
-  .filter((name) => name !== "capture");
+  .filter((name) => name !== "capture" && name !== "review");
 const missingScroller = screenDirs.filter(
   (name) => !/app-scroll/.test(src("app", "(app)", name, "page.tsx"))
 );
 check(
-  "every screen (bar capture's two-pane exception) has its own .app-scroll",
+  "every screen (bar capture's and review's two-pane exception) has its own .app-scroll",
   missingScroller.length === 0,
   `checked ${screenDirs.length} screens, missing on: ${missingScroller.join(", ")}`
 );
