@@ -29,6 +29,19 @@
  *  fields (observation, evidenceProves, note, and the like) — that is what
  *  this was built for.
  *
+ *  EVERY WRITE STAMPS payload.updatedAt, NOT JUST THE ROW'S updated_at
+ *  COLUMN. The two are different things read by different code: the row's
+ *  updated_at is squawk_push()'s own "only write if newer" guard, but
+ *  src/lib/merge.ts's device-side merge (what decides, on every tablet,
+ *  whether a pulled row or the device's own local copy wins) compares
+ *  payload.updatedAt — a field INSIDE the JSON, not the wrapping row. A write
+ *  here that only bumped the row would satisfy squawk_push and sail straight
+ *  past it, while every device quietly kept its own older local copy forever
+ *  — correct by the merge's own rules, since nothing ever told it this patch
+ *  was newer. Found the hard way, on a live FAOR audit: ninety-odd cleaned
+ *  observations sat correctly in Supabase for two hours while not one device
+ *  picked them up, because the payload's own timestamp was never touched.
+ *
  *  `batch-write` IS `write` FOR MANY RECORDS IN ONE PASS — the same guard,
  *  the same dry-run-first rule, the same single squawk_push() door, just
  *  driven from a file instead of four flags. Built for exactly the case a
@@ -118,14 +131,22 @@ function noMergeFields(patch) {
 
 /** Fetch the one existing record a patch applies to, and fold the patch into
  *  its payload. Throws rather than returning null on anything but exactly
- *  one match, so a caller never has to remember to check. */
+ *  one match, so a caller never has to remember to check.
+ *
+ *  STAMPS payload.updatedAt TO `now` UNLESS THE PATCH ALREADY SETS ONE —
+ *  see the module doc comment for why this is not optional. `now` is also
+ *  returned so the caller uses the exact same moment for the row's own
+ *  updated_at column; the two columns disagree by milliseconds otherwise,
+ *  which is harmless but needless. */
 async function loadForPatch(entity, visit, kind, id, patch) {
   const existing = await rest(`/rest/v1/squawk_records?${params({ entity, visit, kind, id })}`);
   if (existing.length !== 1) {
     throw new Error(`expected exactly one existing record, found ${existing.length}`);
   }
   const row = existing[0];
-  return { row, nextPayload: { ...row.payload, ...patch } };
+  const now = Date.now();
+  const nextPayload = { ...row.payload, ...patch, updatedAt: patch.updatedAt ?? now };
+  return { row, nextPayload, now };
 }
 
 function printDiff(label, row, patch) {
@@ -153,15 +174,15 @@ async function cmdWrite(args) {
     process.exit(1);
   }
 
-  let row, nextPayload;
+  let row, nextPayload, now;
   try {
-    ({ row, nextPayload } = await loadForPatch(entity, visit, kind, id, patch));
+    ({ row, nextPayload, now } = await loadForPatch(entity, visit, kind, id, patch));
   } catch (e) {
     console.error(e.message[0].toUpperCase() + e.message.slice(1) + ".");
     process.exit(1);
   }
 
-  printDiff(`${kind}/${id}`, row, patch);
+  printDiff(`${kind}/${id}`, row, { ...patch, updatedAt: nextPayload.updatedAt });
 
   if (!yes) {
     console.log("\nDry run only — nothing sent. Re-run with --yes to write.");
@@ -172,7 +193,7 @@ async function cmdWrite(args) {
     method: "POST",
     body: JSON.stringify({
       records: [
-        { entity, visit, kind, id, updated_at: Date.now(), payload: nextPayload },
+        { entity, visit, kind, id, updated_at: now, payload: nextPayload },
       ],
     }),
   });
@@ -214,17 +235,19 @@ async function cmdBatchWrite(args) {
       );
       process.exit(1);
     }
-    let row, nextPayload;
+    let row, nextPayload, now;
     try {
-      ({ row, nextPayload } = await loadForPatch(entity, visit, entry.kind, entry.id, entry.patch));
+      ({ row, nextPayload, now } = await loadForPatch(entity, visit, entry.kind, entry.id, entry.patch));
     } catch (e) {
       console.error(`Refusing the whole batch: ${where} — ${e.message}.`);
       process.exit(1);
     }
-    prepared.push({ kind: entry.kind, id: entry.id, patch: entry.patch, row, nextPayload });
+    prepared.push({ kind: entry.kind, id: entry.id, patch: entry.patch, row, nextPayload, now });
   }
 
-  for (const { kind, id, patch, row } of prepared) printDiff(`${kind}/${id}`, row, patch);
+  for (const { kind, id, patch, row, nextPayload } of prepared) {
+    printDiff(`${kind}/${id}`, row, { ...patch, updatedAt: nextPayload.updatedAt });
+  }
   console.log(`\n${prepared.length} record(s) ready.`);
 
   if (!yes) {
@@ -235,8 +258,8 @@ async function cmdBatchWrite(args) {
   const result = await rest(`/rest/v1/rpc/squawk_push`, {
     method: "POST",
     body: JSON.stringify({
-      records: prepared.map(({ kind, id, nextPayload }) => ({
-        entity, visit, kind, id, updated_at: Date.now(), payload: nextPayload,
+      records: prepared.map(({ kind, id, nextPayload, now }) => ({
+        entity, visit, kind, id, updated_at: now, payload: nextPayload,
       })),
     }),
   });
