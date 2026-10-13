@@ -725,13 +725,13 @@ export interface SyncInput {
   responses: Record<string, Response>;
   /** Keyed by CHECK ID, same as useAnswers() — not `library` above, which is
    *  the SharePoint drive's display name; the two are unrelated things that
-   *  happen to share an English word. Resolves `Response.walkaboutPicked`
-   *  into the sentence the checkpoints loop folds into `observation`, the
-   *  same way CheckDetail's own "compose" button would. Optional/nullable
-   *  so the plan builder's own tests do not have to load the 356 kB
-   *  library, and so a walkabout pick made before the library has finished
-   *  loading still produces a plan — just one sync behind on that sentence,
-   *  never blocked on it. */
+   *  happen to share an English word. Resolves `Response.evidencePicked`,
+   *  `issuesPicked` and `walkaboutPicked` into the sentences the checkpoints
+   *  loop folds into `observation`, the same way CheckDetail's own "compose"
+   *  button would. Optional/nullable so the plan builder's own tests do not
+   *  have to load the 356 kB library, and so a pick made before the library
+   *  has finished loading still produces a plan — just one sync behind on
+   *  those sentences, never blocked on them. */
   answerLibrary?: Record<string, AnswerLibrary> | null;
   /** The CONSOLIDATED view. The portal's Findings list receives hazards, not
    *  findings, and that is not a shortcut — see buildPlan. */
@@ -1188,6 +1188,14 @@ function lowerFirst(s: string): string {
   return s.charAt(0).toLowerCase() + s.slice(1);
 }
 
+/** Mirrors assist.ts's own private `list()` — "A, B and C" rather than a
+ *  bare comma join, so the resolved sentence reads the same whether it came
+ *  from Compose on the tablet or from this file at sync time. */
+function list(xs: string[]): string {
+  if (xs.length === 1) return xs[0];
+  return `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
+}
+
 /** The library columns for one photograph.
  *
  *  `captionSource` is spelled out rather than passed through as the stored
@@ -1356,16 +1364,28 @@ export function buildPlan(
     }
     const key = portalIdFor(x.entity, c.id);
     const itemId = existing.checkpoints.get(key);
-    /* THE WALKABOUT'S OWN PICK, RESOLVED THE SAME WAY composeObservation()
-       DOES. `r.observation` may already contain this sentence — if the
+    /* THE THREE LIBRARY PICKS, ALL RESOLVED THE SAME WAY composeObservation()
+       DOES. `r.observation` may already contain these sentences — if the
        auditor composed it before picking, or typed it by hand — or may not,
-       if the pick came after. Rather than guess which, it is resolved fresh
+       if a pick came after. Rather than guess which, each is resolved fresh
        from the pick every sync, the same reasoning as evidencePending below:
        a sync that depends on the free-text field happening to still agree
        with the structured one is a sync with a silent failure mode. A
        duplicated sentence in `observation` is visible and harmless; a
        missing one is neither. */
     const lib = x.answerLibrary?.[c.id] ?? null;
+    const evidenceNames = lib
+      ? r.evidencePicked.map((i) => lib.EO[i]?.label).filter((v): v is string => !!v)
+      : [];
+    const evidenceRequestedText = evidenceNames.length
+      ? `Evidence requested: ${list(evidenceNames)}.`
+      : "";
+    const issuesText = lib
+      ? r.issuesPicked
+          .map((i) => lib.IO[i]?.finding)
+          .filter((v): v is string => !!v)
+          .join(" ")
+      : "";
     const walkaboutOption =
       lib && r.walkaboutPicked !== null ? lib.WO[r.walkaboutPicked] : undefined;
     const walkaboutText = walkaboutOption
@@ -1396,6 +1416,8 @@ export function buildPlan(
             r.evidencePending
               ? "EVIDENCE PENDING — compliant on the auditor's assessment; the record was not produced during the audit."
               : "",
+            evidenceRequestedText,
+            issuesText,
             walkaboutText,
             r.observation?.trim() || "",
           ]
