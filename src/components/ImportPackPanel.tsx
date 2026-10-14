@@ -92,7 +92,7 @@ export default function ImportPackPanel() {
       setPlan(built);
     } catch {
       setError(
-        "That file could not be read as an observation pack. It needs the \"Ad-hoc items\", \"Findings\", \"Hazards\" and \"Check observations\" sheets, with their headers unchanged."
+        "That file could not be read as an observation pack. It needs an \"Ad-hoc items\" sheet, a \"Findings\" or \"Findings drafts\" sheet, a \"Hazards\" or \"Hazards drafts\" sheet, and a \"Check observations\" sheet, each with its own headers unchanged."
       );
     }
   };
