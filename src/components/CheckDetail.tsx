@@ -297,6 +297,8 @@ export default function CheckDetail({
   const removeAttachment = useStore((s) => s.removeAttachment);
   const updateAttachment = useStore((s) => s.updateAttachment);
   const commit = useStore((s) => s.commit);
+  const systemAssessment = useStore((s) => s.systemAssessment);
+  const patchSystem = useStore((s) => s.patchSystem);
 
   const aiOn = useAssistAvailable();
   const [draft, setDraft] = useState<string | null>(null);
@@ -817,6 +819,127 @@ export default function CheckDetail({
         </div>
       ),
     });
+
+  /* THE REVIEWER'S OWN SIGN-OFF — 13 October 2026. Sarel: "implement a
+     status in the review, for the reviewer to confirm that everything is
+     correct and can be shared with the client, or if changes are
+     required - per audit check." A separate question from compliance
+     (what the asset is) and from evidence status (whether proof exists):
+     this is whether the RECORD is done and fit to go in front of ACSA.
+     Two states, same toggle-then-note shape as Evidence status and Flag
+     for review — tapping the chosen one again clears it back to "not yet
+     reviewed" rather than forcing a third button for that. */
+  panels.push({
+    key: "reviewStatus",
+    label: "Review status",
+    ...(r.reviewStatus === "approved"
+      ? { badge: "✓ Approved" }
+      : r.reviewStatus === "changesRequired"
+        ? { badge: "Changes needed" }
+        : {}),
+    group: "do",
+    body: (
+      <>
+        <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+          is this check's record done, and fit to share with the client?
+        </div>
+        <div className="grid grid-cols-2 gap-[6px]">
+          {(
+            [
+              ["approved", "good", IconCheck, "Approved for client"],
+              ["changesRequired", "warn", IconFlag, "Changes required"],
+            ] as const
+          ).map(([key, tone, Icon, label]) => {
+            const on = r.reviewStatus === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() =>
+                  patch(check.id, {
+                    reviewStatus: on ? null : key,
+                    reviewStatusBy: on ? r.reviewStatusBy : auditor,
+                    reviewStatusAt: on ? r.reviewStatusAt : Date.now(),
+                  })
+                }
+                aria-pressed={on}
+                className="flex min-h-[44px] items-center justify-center gap-[7px] rounded-[9px] border text-[11px] font-semibold transition-[var(--t)]"
+                style={toneStyle(tone, on)}
+              >
+                <Icon width={14} height={14} />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        {r.reviewStatus === "changesRequired" && (
+          <div className="mt-2.5">
+            <div className="label-xs mb-1">What has to change before this is approved</div>
+            <textarea
+              value={r.reviewStatusNote ?? ""}
+              onChange={(e) => patch(check.id, { reviewStatusNote: e.target.value })}
+              rows={3}
+              aria-label="What has to change before this check is approved"
+              placeholder="e.g. the observation doesn't match the compliance verdict, evidence is still outstanding"
+              className="w-full rounded-[9px] border px-3 py-2 text-[12.5px]"
+              style={{ background: "var(--bg)", borderColor: "var(--line-2)" }}
+            />
+          </div>
+        )}
+
+        {r.reviewStatusBy && (
+          <div className="mt-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+            {r.reviewStatus === "approved" ? "Approved" : "Marked for changes"} by {r.reviewStatusBy}
+            {r.reviewStatusAt ? ` · ${new Date(r.reviewStatusAt).toLocaleString("en-ZA")}` : ""}
+          </div>
+        )}
+      </>
+    ),
+  });
+
+  /* AN INTERNAL NOTE ON THE ASSET SYSTEM — 13 October 2026. Sarel: "add a
+     field to add internal notes per asset system, clearly label this as
+     an internal note and this must never get synced to sharepoint or
+     reported to a client report." Scoped to discipline+system rather than
+     to this one check — the same SystemAssessment every check under this
+     system already shares (see the Asset Assurance screen's own rating
+     panel) — so a note typed from any check under "Markings" is the same
+     note read from every other check under it, not one copy per
+     check-point. See SystemAssessment.internalNote's own doc comment for
+     where this is (and is deliberately never) read. */
+  {
+    const sysA = systemAssessment(check.discipline, check.system);
+    panels.push({
+      key: "internalNote",
+      label: "Internal note",
+      ...(sysA.internalNote?.trim() ? { badge: "●" } : {}),
+      group: "do",
+      body: (
+        <>
+          <div
+            className="mb-2 flex items-center gap-[6px] rounded-[9px] border px-[10px] py-[7px] text-[10.5px] font-semibold"
+            style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}
+          >
+            <IconInfo width={13} height={13} className="shrink-0" />
+            INTERNAL ONLY — never synced to SharePoint, never in a client report
+          </div>
+          <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+            shared by every check under {check.system} — the team's own working note, not ACSA&apos;s
+          </div>
+          <textarea
+            value={sysA.internalNote ?? ""}
+            onChange={(e) => patchSystem(check.discipline, check.system, { internalNote: e.target.value })}
+            rows={4}
+            aria-label={`Internal note for ${check.system}`}
+            placeholder="A note for the team — a question to raise, something to chase, a doubt about the evidence"
+            className="w-full rounded-[9px] border px-3 py-2 text-[12.5px]"
+            style={{ background: "var(--bg)", borderColor: "var(--line-2)" }}
+          />
+        </>
+      ),
+    });
+  }
 
   /* -------------------------------------------------- what the auditor reads
      The standard, the site's override of it, and ACSA's own words for it, in

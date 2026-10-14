@@ -1473,6 +1473,11 @@ export function buildPlan(
         combinedComment: r.combinedComment?.trim() || null,
         auditor: x.auditor,
         assessedOn: new Date().toISOString(),
+        /* NEVER r.reviewStatus/reviewStatusNote HERE, same as improvementFlag/
+           improvementNote above them in types.ts are never here — a
+           reviewer's own sign-off and what needs to change before it is
+           approved are for the team, not for ACSA. See Response.reviewStatus's
+           own doc comment. */
       },
       summary: `${key} · ${c.discipline} · ${r.compliance}${r.evidencePending ? " (evidence pending)" : ""}`,
     };
@@ -1944,6 +1949,10 @@ export function buildPlan(
         auditor: a!.assessedBy ?? "",
         assessedOn: a!.assessedAt ? new Date(a!.assessedAt).toISOString() : null,
         notes: a!.note ?? "",
+        /* NEVER a!.internalNote HERE. It is the team's own working note on
+           this asset system — see the field's own doc comment in types.ts —
+           and this values object is what gets written to the live
+           SharePoint list. */
       },
       summary: agreed
         ? `${key} · ${band ? BAND_META[band].label : ""}`

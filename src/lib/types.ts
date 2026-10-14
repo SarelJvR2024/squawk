@@ -533,6 +533,29 @@ export interface Response {
    *  off, the same choice `evidenceStatusNote` makes: a note typed once
    *  is not worth losing to an accidental tap. */
   improvementNote?: string;
+  /** THE REVIEWER'S OWN SIGN-OFF, ON THIS CHECK — a separate question from
+   *  `compliance` (what the asset is) and from `evidenceStatus` (whether
+   *  proof exists). This is "is the RECORD itself done — right observation,
+   *  right compliance, right evidence, agreeing with each other — and fit
+   *  to go in front of the client", asked and answered on the Review
+   *  screen (src/app/(app)/review/page.tsx).
+   *
+   *  `null`/absent is "not yet reviewed", not a third verdict — there are
+   *  exactly two states a reviewer can land on, same two-state shape as
+   *  `evidencePending`'s own gate.
+   *
+   *  Optional, same shape as `location`/`improvementFlag` — a record
+   *  written before this existed simply has none, which reads correctly
+   *  as "nobody has reviewed it yet", so no persist version bump is
+   *  needed. */
+  reviewStatus?: "approved" | "changesRequired" | null;
+  /** Only meaningful while `reviewStatus` is `"changesRequired"` — what has
+   *  to change before this check can be approved. Left as typed rather
+   *  than cleared if the status changes, same choice `improvementNote`
+   *  makes. */
+  reviewStatusNote?: string;
+  reviewStatusBy?: string;
+  reviewStatusAt?: number | null;
   /** When this record last changed, on whichever device changed it.
    *
    *  THE FIELD THAT MAKES A MERGE POSSIBLE. Two auditors capture the same
@@ -1008,6 +1031,25 @@ export interface SystemAssessment {
   note: string;
   assessedBy: string;
   assessedAt: number | null;
+  /** AN INTERNAL NOTE ON THIS ASSET SYSTEM, FOR THE TEAM, NEVER FOR ACSA.
+   *
+   *  Sarel: "add a field to add internal notes per asset system, clearly
+   *  label this as an internal note and this must never get synced to
+   *  sharepoint or reported to a client report." Everything else on this
+   *  record — `note`, `ratingRationale`, root causes, actions, events — is
+   *  read by src/lib/sharepoint.ts's `buildPlan()` and by the client-facing
+   *  sheet in src/lib/exports.ts. This field is deliberately NOT: a
+   *  reviewer's own working note (a question for the group, a reminder to
+   *  chase something, a doubt about the evidence) that must never leave
+   *  this app. Same reasoning as Response.improvementFlag/improvementNote
+   *  — see there for the precedent.
+   *
+   *  IF YOU ARE ADDING A SYNC OR EXPORT OF SystemAssessment: do not read
+   *  this field. There is no allowlist enforcing that — this comment, and
+   *  the one beside every read site in sharepoint.ts/exports.ts, are it.
+   *
+   *  Optional, same shape as `updatedAt` — absent reads as no note. */
+  internalNote?: string;
   /** See Response.updatedAt — what lets two devices' work be combined. */
   updatedAt?: number;
 }
