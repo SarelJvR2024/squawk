@@ -79,7 +79,7 @@ const MODE_ICON: Record<string, typeof IconHelp> = {
  *  THE HOTKEY IS DECLARED, NOT THE POSITION IN THIS ARRAY — 1-3 keep
  *  exactly what they have always meant, so removing 4 and 5 could not
  *  silently reassign a shortcut an auditor already knows. */
-const STATUSES: {
+export const STATUSES: {
   key: Compliance;
   /** The number key that sets it. Declared, never positional — see above. */
   hotkey: string;
@@ -132,7 +132,7 @@ const isOn = (s: (typeof STATUSES)[number], compliance: Compliance | null) =>
  *  place of the "compliant, evidence pending" and "not available"
  *  compliance buttons (see the note on STATUSES), with room for what is
  *  actually missing or still to come rather than one overloaded flag. */
-const EVIDENCE_STATUSES: {
+export const EVIDENCE_STATUSES: {
   key: EvidenceStatus;
   label: string;
   hint: string;
@@ -185,7 +185,7 @@ const EVIDENCE_STATUSES: {
  *  Sarel, 11 October 2026, removing all three chip-picking tabs in favour of
  *  this: what the evidence actually proves, written and judged, not asked
  *  for and ticked off. */
-const EVIDENCE_VERDICTS: {
+export const EVIDENCE_VERDICTS: {
   key: Compliance;
   label: string;
   Icon: typeof IconCheck;
@@ -222,7 +222,7 @@ function RefText({ children }: { children: React.ReactNode }) {
  *  tone colours inverse in dark mode — `--good` is #157d51 in light and
  *  #4ecb8b in dark — and white on that would be unreadable. Both halves of
  *  this come from per-theme variables, so both themes stay correct. */
-const toneStyle = (tone: string, on: boolean, quiet = false): React.CSSProperties =>
+export const toneStyle = (tone: string, on: boolean, quiet = false): React.CSSProperties =>
   on
     ? {
         background: `var(--${tone}-bg)`,

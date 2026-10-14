@@ -172,7 +172,7 @@ ok(
 ok(
   "and the row is rendered by mapping STATUSES directly, so the keyboard and the screen cannot disagree",
   /STATUSES\.map\(\(st\) => \{/.test(detail) &&
-    (detail.match(/^const STATUSES/gm) ?? []).length === 1
+    (detail.match(/^export const STATUSES/gm) ?? []).length === 1
 );
 
 /* ---- the field screen must not silently drop it ----------------------- */
