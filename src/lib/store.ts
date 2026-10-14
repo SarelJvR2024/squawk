@@ -734,32 +734,12 @@ interface State {
    *  handle a null. Nothing is written to the store by reading. */
   systemAssessment: (discipline: string, system: string) => SystemAssessment;
   patchSystem: (discipline: string, system: string, p: Partial<SystemAssessment>) => void;
-  addRootCause: (discipline: string, system: string, cause: string, note?: string) => string;
-  patchRootCause: (
-    discipline: string,
-    system: string,
-    id: string,
-    p: Partial<RootCauseNote>
-  ) => void;
-  removeRootCause: (discipline: string, system: string, id: string) => void;
-  addMitigation: (discipline: string, system: string, action: string) => string;
-  patchMitigation: (
-    discipline: string,
-    system: string,
-    id: string,
-    p: Partial<MitigationAction>
-  ) => void;
-  removeMitigation: (discipline: string, system: string, id: string) => void;
   /** The hazardous events this asset system could lead to — same PossibleEvent
    *  shape as addPossibleEvent above, scoped to the system instead of a
-   *  carried finding. Returns the new id, or "" if the event was blank. */
-  addSystemEvent: (
-    discipline: string,
-    system: string,
-    event: string,
-    likelihood?: Likelihood | null,
-    note?: string
-  ) => string;
+   *  carried finding. No likelihood parameter: a system event is never rated
+   *  on its own — see PossibleEvent's own header. Returns the new id, or ""
+   *  if the event was blank. */
+  addSystemEvent: (discipline: string, system: string, event: string, note?: string) => string;
   patchSystemEvent: (
     discipline: string,
     system: string,
@@ -767,6 +747,67 @@ interface State {
     p: Partial<PossibleEvent>
   ) => void;
   removeSystemEvent: (discipline: string, system: string, id: string) => void;
+  /* ---- root causes and actions, scoped to ONE hazardous event — see
+     PossibleEvent's own header for why they moved off the shared system-level
+     pool. ---- */
+  addSystemEventRootCause: (
+    discipline: string,
+    system: string,
+    eventId: string,
+    cause: string,
+    note?: string
+  ) => string;
+  patchSystemEventRootCause: (
+    discipline: string,
+    system: string,
+    eventId: string,
+    id: string,
+    p: Partial<RootCauseNote>
+  ) => void;
+  removeSystemEventRootCause: (
+    discipline: string,
+    system: string,
+    eventId: string,
+    id: string
+  ) => void;
+  addSystemEventAction: (
+    discipline: string,
+    system: string,
+    eventId: string,
+    action: string
+  ) => string;
+  patchSystemEventAction: (
+    discipline: string,
+    system: string,
+    eventId: string,
+    id: string,
+    p: Partial<MitigationAction>
+  ) => void;
+  removeSystemEventAction: (
+    discipline: string,
+    system: string,
+    eventId: string,
+    id: string
+  ) => void;
+  /** MIGRATION LEFTOVERS ONLY — see SystemAssessment.unassignedRootCauses.
+   *  Moves one old entry onto the hazard it actually belongs to; the entry
+   *  itself is never edited by this, only relocated. */
+  assignUnassignedRootCause: (
+    discipline: string,
+    system: string,
+    causeId: string,
+    eventId: string
+  ) => void;
+  assignUnassignedAction: (
+    discipline: string,
+    system: string,
+    actionId: string,
+    eventId: string
+  ) => void;
+  /** Discards a migration leftover nobody wants filed onto a hazard —
+   *  a duplicate, or one that turned out not to apply. */
+  removeUnassignedRootCause: (discipline: string, system: string, causeId: string) => void;
+  removeUnassignedAction: (discipline: string, system: string, actionId: string) => void;
 
   addAttachment: (checkId: string, a: Omit<Attachment, "id" | "createdAt">) => void;
   /** Write a transcript, its provenance or a revision back onto a note that is
@@ -2885,8 +2926,6 @@ export const useStore = create<State>()(
               likelihood: null,
               ratingConfirmed: false,
               ratingRationale: "",
-              rootCauses: [],
-              actions: [],
               events: [],
               note: "",
               assessedBy: "",
@@ -2914,14 +2953,53 @@ export const useStore = create<State>()(
           set({ lastSavedAt: Date.now() });
         },
 
-        addRootCause: (discipline, system, cause, note) => {
+        addSystemEvent: (discipline, system, event, note) => {
+          const text = event.trim();
+          if (!text) return "";
+          const cur = get().systemAssessment(discipline, system);
+          const item: PossibleEvent = {
+            id: `EV-${uid().toUpperCase().slice(0, 5)}`,
+            event: text,
+            /* NEVER RATED ON ITS OWN — see PossibleEvent's own header. The
+               asset system's severity/likelihood is the rating of record. */
+            likelihood: null,
+            note: note?.trim() ?? "",
+            rootCauses: [],
+            actions: [],
+            createdAt: Date.now(),
+            createdBy: get().auditor,
+          };
+          get().patchSystem(discipline, system, { events: [...cur.events, item] });
+          return item.id;
+        },
+
+        patchSystemEvent: (discipline, system, id, p) => {
+          const cur = get().systemAssessment(discipline, system);
+          get().patchSystem(discipline, system, {
+            events: cur.events.map((e) =>
+              e.id === id ? { ...e, ...p, updatedAt: Date.now() } : e
+            ),
+          });
+        },
+
+        removeSystemEvent: (discipline, system, id) => {
+          const cur = get().systemAssessment(discipline, system);
+          get().patchSystem(discipline, system, {
+            events: cur.events.filter((e) => e.id !== id),
+          });
+        },
+
+        addSystemEventRootCause: (discipline, system, eventId, cause, note) => {
           const text = cause.trim();
           if (!text) return "";
           const cur = get().systemAssessment(discipline, system);
-          /* Recorded once. Pressing an ACSA cause that is already on the list
-             is a mis-tap, not a second cause, and two identical chips is a
-             list nobody can read. */
-          const already = cur.rootCauses.find((r) => r.cause === text);
+          const ev = cur.events.find((e) => e.id === eventId);
+          if (!ev) return "";
+          /* Recorded once per hazard. Pressing an ACSA cause that is already
+             on this event's own list is a mis-tap, not a second cause — the
+             same wording recurring on a DIFFERENT event is fine and expected,
+             see PossibleEvent's own header. */
+          const already = (ev.rootCauses ?? []).find((r) => r.cause === text);
           if (already) return already.id;
           const item: RootCauseNote = {
             id: `RC-${uid().toUpperCase().slice(0, 5)}`,
@@ -2930,28 +3008,36 @@ export const useStore = create<State>()(
             createdAt: Date.now(),
             createdBy: get().auditor,
           };
-          get().patchSystem(discipline, system, { rootCauses: [...cur.rootCauses, item] });
+          get().patchSystemEvent(discipline, system, eventId, {
+            rootCauses: [...(ev.rootCauses ?? []), item],
+          });
           return item.id;
         },
 
-        patchRootCause: (discipline, system, id, p) => {
+        patchSystemEventRootCause: (discipline, system, eventId, id, p) => {
           const cur = get().systemAssessment(discipline, system);
-          get().patchSystem(discipline, system, {
-            rootCauses: cur.rootCauses.map((r) => (r.id === id ? { ...r, ...p } : r)),
+          const ev = cur.events.find((e) => e.id === eventId);
+          if (!ev) return;
+          get().patchSystemEvent(discipline, system, eventId, {
+            rootCauses: (ev.rootCauses ?? []).map((r) => (r.id === id ? { ...r, ...p } : r)),
           });
         },
 
-        removeRootCause: (discipline, system, id) => {
+        removeSystemEventRootCause: (discipline, system, eventId, id) => {
           const cur = get().systemAssessment(discipline, system);
-          get().patchSystem(discipline, system, {
-            rootCauses: cur.rootCauses.filter((r) => r.id !== id),
+          const ev = cur.events.find((e) => e.id === eventId);
+          if (!ev) return;
+          get().patchSystemEvent(discipline, system, eventId, {
+            rootCauses: (ev.rootCauses ?? []).filter((r) => r.id !== id),
           });
         },
 
-        addMitigation: (discipline, system, action) => {
+        addSystemEventAction: (discipline, system, eventId, action) => {
           const text = action.trim();
           if (!text) return "";
           const cur = get().systemAssessment(discipline, system);
+          const ev = cur.events.find((e) => e.id === eventId);
+          if (!ev) return "";
           const item: MitigationAction = {
             id: `MA-${uid().toUpperCase().slice(0, 5)}`,
             action: text,
@@ -2965,53 +3051,73 @@ export const useStore = create<State>()(
             createdAt: Date.now(),
             createdBy: get().auditor,
           };
-          get().patchSystem(discipline, system, { actions: [...cur.actions, item] });
+          get().patchSystemEvent(discipline, system, eventId, {
+            actions: [...(ev.actions ?? []), item],
+          });
           return item.id;
         },
 
-        patchMitigation: (discipline, system, id, p) => {
+        patchSystemEventAction: (discipline, system, eventId, id, p) => {
           const cur = get().systemAssessment(discipline, system);
-          get().patchSystem(discipline, system, {
-            actions: cur.actions.map((a) =>
+          const ev = cur.events.find((e) => e.id === eventId);
+          if (!ev) return;
+          get().patchSystemEvent(discipline, system, eventId, {
+            actions: (ev.actions ?? []).map((a) =>
               a.id === id ? { ...a, ...p, updatedAt: Date.now() } : a
             ),
           });
         },
 
-        removeMitigation: (discipline, system, id) => {
+        removeSystemEventAction: (discipline, system, eventId, id) => {
           const cur = get().systemAssessment(discipline, system);
-          get().patchSystem(discipline, system, {
-            actions: cur.actions.filter((a) => a.id !== id),
+          const ev = cur.events.find((e) => e.id === eventId);
+          if (!ev) return;
+          get().patchSystemEvent(discipline, system, eventId, {
+            actions: (ev.actions ?? []).filter((a) => a.id !== id),
           });
         },
 
-        addSystemEvent: (discipline, system, event, likelihood, note) => {
-          const text = event.trim();
-          if (!text) return "";
+        assignUnassignedRootCause: (discipline, system, causeId, eventId) => {
           const cur = get().systemAssessment(discipline, system);
-          const item: PossibleEvent = {
-            id: `EV-${uid().toUpperCase().slice(0, 5)}`,
-            event: text,
-            likelihood: likelihood ?? null,
-            note: note?.trim() ?? "",
-            createdAt: Date.now(),
-            createdBy: get().auditor,
-          };
-          get().patchSystem(discipline, system, { events: [...cur.events, item] });
-          return item.id;
-        },
-
-        patchSystemEvent: (discipline, system, id, p) => {
-          const cur = get().systemAssessment(discipline, system);
+          const pool = cur.unassignedRootCauses ?? [];
+          const item = pool.find((r) => r.id === causeId);
+          const ev = cur.events.find((e) => e.id === eventId);
+          if (!item || !ev) return;
           get().patchSystem(discipline, system, {
-            events: cur.events.map((e) => (e.id === id ? { ...e, ...p } : e)),
+            unassignedRootCauses: pool.filter((r) => r.id !== causeId),
+          });
+          get().patchSystemEvent(discipline, system, eventId, {
+            rootCauses: [...(ev.rootCauses ?? []), item],
           });
         },
 
-        removeSystemEvent: (discipline, system, id) => {
+        assignUnassignedAction: (discipline, system, actionId, eventId) => {
+          const cur = get().systemAssessment(discipline, system);
+          const pool = cur.unassignedActions ?? [];
+          const item = pool.find((a) => a.id === actionId);
+          const ev = cur.events.find((e) => e.id === eventId);
+          if (!item || !ev) return;
+          get().patchSystem(discipline, system, {
+            unassignedActions: pool.filter((a) => a.id !== actionId),
+          });
+          get().patchSystemEvent(discipline, system, eventId, {
+            actions: [...(ev.actions ?? []), item],
+          });
+        },
+
+        removeUnassignedRootCause: (discipline, system, causeId) => {
           const cur = get().systemAssessment(discipline, system);
           get().patchSystem(discipline, system, {
-            events: cur.events.filter((e) => e.id !== id),
+            unassignedRootCauses: (cur.unassignedRootCauses ?? []).filter(
+              (r) => r.id !== causeId
+            ),
+          });
+        },
+
+        removeUnassignedAction: (discipline, system, actionId) => {
+          const cur = get().systemAssessment(discipline, system);
+          get().patchSystem(discipline, system, {
+            unassignedActions: (cur.unassignedActions ?? []).filter((a) => a.id !== actionId),
           });
         },
 
@@ -3415,7 +3521,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 34,
+      version: 35,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -4074,6 +4180,58 @@ export const useStore = create<State>()(
               const r = responses[checkId] as Partial<Response>;
               if (r.combinedComment === undefined) r.combinedComment = "";
               if (r.combinedCommentAt === undefined) r.combinedCommentAt = null;
+            }
+          }
+        }
+        if (from < 35 && st.byVisit) {
+          /* ROOT CAUSES AND MITIGATING ACTIONS MOVE OFF THE ASSET SYSTEM AND
+             ONTO THE HAZARD THEY ACTUALLY BELONG TO. Sarel: "dont rate the
+             hazard, rate the asset system severity and likelihood... capture
+             root causes and mitigating actions for the hazard" — a system's
+             rootCauses/actions used to be one shared pool across every
+             hazardous event it carried; now each event keeps its own.
+             UNAMBIGUOUS CASE: a system with exactly one event — its whole old
+             pool clearly belongs to that one hazard, so it moves there
+             automatically. ANY OTHER CASE (zero events, or more than one):
+             there is no safe way to guess which event an old cause or action
+             belonged to, so nothing is discarded and nothing is guessed —
+             the old pool waits in unassignedRootCauses/unassignedActions
+             until a person files each entry onto the right hazard (see
+             assignUnassignedRootCause/assignUnassignedAction in this file).
+             Same reasoning throughout this app: absent is honest, a wrong
+             guess is not. */
+          interface LegacySystem {
+            events?: PossibleEvent[];
+            rootCauses?: RootCauseNote[];
+            actions?: MitigationAction[];
+            unassignedRootCauses?: RootCauseNote[];
+            unassignedActions?: MitigationAction[];
+          }
+          for (const key of Object.keys(st.byVisit)) {
+            const systems = st.byVisit[key]?.systems as
+              | Record<string, LegacySystem>
+              | undefined;
+            if (!systems) continue;
+            for (const sk of Object.keys(systems)) {
+              const sys = systems[sk];
+              const legacyCauses = sys.rootCauses ?? [];
+              const legacyActions = sys.actions ?? [];
+              sys.events = (sys.events ?? []).map((e) => ({
+                ...e,
+                rootCauses: e.rootCauses ?? [],
+                actions: e.actions ?? [],
+              }));
+              if (legacyCauses.length || legacyActions.length) {
+                if (sys.events.length === 1) {
+                  sys.events[0].rootCauses = [...sys.events[0].rootCauses!, ...legacyCauses];
+                  sys.events[0].actions = [...sys.events[0].actions!, ...legacyActions];
+                } else {
+                  if (legacyCauses.length) sys.unassignedRootCauses = legacyCauses;
+                  if (legacyActions.length) sys.unassignedActions = legacyActions;
+                }
+              }
+              delete sys.rootCauses;
+              delete sys.actions;
             }
           }
         }

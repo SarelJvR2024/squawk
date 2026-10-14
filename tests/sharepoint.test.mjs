@@ -2113,7 +2113,7 @@ check(
 const SYS = (over = {}) => ({
   key: "Electrical|AGL", discipline: "Electrical", system: "AGL",
   severity: null, likelihood: null, ratingConfirmed: false, ratingRationale: "",
-  rootCauses: [], actions: [], events: [], note: "", assessedBy: "", assessedAt: null,
+  events: [], note: "", assessedBy: "", assessedAt: null,
   ...over,
 });
 
@@ -2153,7 +2153,10 @@ check(
         ratingConfirmed: false,
         severity: "A - Catastrophic",
         likelihood: "1 - Extremely Improbable",
-        rootCauses: [{ id: "r1", cause: "Corrosion", note: "" }],
+        /* A migration leftover nobody has filed onto a hazard yet — see
+           SystemAssessment.unassignedRootCauses — still has to reach the
+           portal while it waits, same as new capture would. */
+        unassignedRootCauses: [{ id: "r1", cause: "Corrosion", note: "" }],
       }),
     };
     const p = sp.buildPlan({ ...BASE_AR, systems: sys }, NOTHING_AR);
@@ -2172,11 +2175,17 @@ check(
 check(
   "root causes, actions and possible events all flatten onto their own fields",
   (() => {
+    /* Root causes/actions now live on the hazardous event that caused them
+       (see PossibleEvent's own header), not pooled at the system level —
+       Sarel: "the process is to capture a hazard and multiple root causes
+       for the hazard." */
     const sys = {
       "Electrical|AGL": SYS({
-        rootCauses: [{ id: "r1", cause: "Corrosion", note: "at the base" }],
-        actions: [{ id: "a1", discipline: "Electrical", action: "Replace fixing", owner: "J. Smith", dueDate: "2026-12-01", status: "Open" }],
-        events: [{ id: "e1", event: "AGL failure", likelihood: "3 - Occasional", note: "" }],
+        events: [{
+          id: "e1", event: "AGL failure", likelihood: "3 - Occasional", note: "",
+          rootCauses: [{ id: "r1", cause: "Corrosion", note: "at the base" }],
+          actions: [{ id: "a1", discipline: "Electrical", action: "Replace fixing", owner: "J. Smith", dueDate: "2026-12-01", status: "Open" }],
+        }],
       }),
     };
     const p = sp.buildPlan({ ...BASE_AR, systems: sys }, NOTHING_AR);

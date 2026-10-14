@@ -1460,15 +1460,37 @@ export function systemsSheet(x: ExportInput): Sheet {
       agreed && band ? BAND_META[band].strategy : "",
       agreed ? "Yes" : "No",
       a?.ratingRationale ?? "",
-      (a?.rootCauses ?? [])
-        .map((r: RootCauseNote) => (r.note ? `${r.cause} — ${r.note}` : r.cause))
-        .join("\n"),
-      (a?.actions ?? [])
-        .map(
+      /* ONE ROW PER SYSTEM, SEVERAL HAZARDS UNDER IT — root causes/actions now
+         live on each hazardous event (see PossibleEvent's own header), not
+         pooled at the system level, so each line is prefixed with which event
+         it belongs to rather than reading as one undifferentiated list.
+         Migration leftovers nobody has filed onto a hazard yet (see
+         SystemAssessment.unassignedRootCauses) are still counted here, marked
+         as such, so nothing a device already captured goes missing from the
+         export while it waits to be filed. */
+      [
+        ...(a?.events ?? []).flatMap((e: PossibleEvent) =>
+          (e.rootCauses ?? []).map(
+            (r: RootCauseNote) => `[${e.event}] ${r.note ? `${r.cause} — ${r.note}` : r.cause}`
+          )
+        ),
+        ...(a?.unassignedRootCauses ?? []).map(
+          (r: RootCauseNote) =>
+            `[NOT YET FILED TO A HAZARD] ${r.note ? `${r.cause} — ${r.note}` : r.cause}`
+        ),
+      ].join("\n"),
+      [
+        ...(a?.events ?? []).flatMap((e: PossibleEvent) =>
+          (e.actions ?? []).map(
+            (m: MitigationAction) =>
+              `[${e.event}] ${m.action} · ${m.owner || "NO OWNER"} · ${m.dueDate || "NO TARGET DATE"} · ${m.status}`
+          )
+        ),
+        ...(a?.unassignedActions ?? []).map(
           (m: MitigationAction) =>
-            `${m.action} · ${m.owner || "NO OWNER"} · ${m.dueDate || "NO TARGET DATE"} · ${m.status}`
-        )
-        .join("\n"),
+            `[NOT YET FILED TO A HAZARD] ${m.action} · ${m.owner || "NO OWNER"} · ${m.dueDate || "NO TARGET DATE"} · ${m.status}`
+        ),
+      ].join("\n"),
       (a?.events ?? [])
         .map((e: PossibleEvent) =>
           [e.event, e.likelihood, e.note].filter(Boolean).join(" · ")

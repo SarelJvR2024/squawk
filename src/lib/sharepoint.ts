@@ -1897,11 +1897,26 @@ export function buildPlan(
       continue;
     }
     const a = x.systems?.[pairKey];
+    /* ROOT CAUSES AND ACTIONS NOW LIVE ON EACH HAZARDOUS EVENT, NOT POOLED AT
+       THE SYSTEM LEVEL — see PossibleEvent's own header. Flattened across
+       every event (plus anything still waiting in unassignedRootCauses/
+       unassignedActions — a migration leftover nobody has filed onto a
+       hazard yet, see SystemAssessment's own header) so the portal keeps
+       seeing everything a device has captured, the same as before this
+       moved. */
+    const allRootCauses = [
+      ...(a?.events ?? []).flatMap((e) => e.rootCauses ?? []),
+      ...(a?.unassignedRootCauses ?? []),
+    ];
+    const allActions = [
+      ...(a?.events ?? []).flatMap((e) => e.actions ?? []),
+      ...(a?.unassignedActions ?? []),
+    ];
     const hasContent =
       !!a &&
       (a.ratingConfirmed ||
-        a.rootCauses.length > 0 ||
-        a.actions.length > 0 ||
+        allRootCauses.length > 0 ||
+        allActions.length > 0 ||
         a.events.length > 0 ||
         a.note.trim() !== "" ||
         a.ratingRationale.trim() !== "");
@@ -1932,12 +1947,12 @@ export function buildPlan(
         strategy: agreed && band ? BAND_META[band].strategy : null,
         ratingAgreed: agreed ? "Yes" : "No",
         rationale: a!.ratingRationale ?? "",
-        rootCause: a!.rootCauses
+        rootCause: allRootCauses
           .map((r) => (r.note ? `${r.cause} — ${r.note}` : r.cause))
           .join("\n"),
-        treatment: flattenActions(a!.actions),
-        owner: firstOwner(a!.actions),
-        targetDate: firstDueDate(a!.actions),
+        treatment: flattenActions(allActions),
+        owner: firstOwner(allActions),
+        targetDate: firstDueDate(allActions),
         events: a!.events
           .map((e) => [e.event, e.likelihood, e.note].filter(Boolean).join(" · "))
           .join("\n"),

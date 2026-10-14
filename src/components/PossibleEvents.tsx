@@ -32,11 +32,15 @@ import { LIKELIHOODS } from "@/lib/risk";
 import { Btn } from "@/components/ui/primitives";
 import { IconPlus, IconX } from "@/components/ui/icons";
 
-const summaryOf = (e: PossibleEvent): string => {
-  const bits = [e.likelihood ?? "unrated"];
+const summaryOf = (e: PossibleEvent, showLikelihood: boolean): string => {
+  const bits = showLikelihood ? [e.likelihood ?? "unrated"] : [];
   if (e.findingIds?.length) bits.push(`${e.findingIds.length} finding${e.findingIds.length === 1 ? "" : "s"}`);
   if (e.assetIds?.length) bits.push(`${e.assetIds.length} asset${e.assetIds.length === 1 ? "" : "s"}`);
-  return bits.join(" · ");
+  if (!showLikelihood) {
+    const causes = e.rootCauses?.length ?? 0;
+    if (causes) bits.push(`${causes} cause${causes === 1 ? "" : "s"}`);
+  }
+  return bits.join(" · ") || "nothing recorded yet";
 };
 
 export default function PossibleEvents({
@@ -58,6 +62,19 @@ export default function PossibleEvents({
    *  the one finding they were raised against and have nothing to link.
    *  Only the findings-screen caller passes this. */
   evidence,
+  /** False for an asset system's own events — Sarel: "dont rate the hazard,
+   *  rate the asset system severity and likelihood." The field still exists
+   *  on PossibleEvent (a carried finding's own events still use it), this
+   *  just hides the control and the "with a likelihood" count for the caller
+   *  that should not be rating hazards one at a time. Default true keeps the
+   *  closure screen's own usage exactly as it was. */
+  showLikelihood = true,
+  /** An asset system's own events render their root causes/actions here,
+   *  inline, once expanded — Sarel: "the process is to capture a hazard and
+   *  multiple root causes for the hazard." A render prop, same reasoning as
+   *  `evidence`: this component is also used for a carried finding's own
+   *  possible events, which do not have their own causes/actions at all. */
+  causesAndActions,
 }: {
   events: PossibleEvent[];
   onAdd: (event: string) => void;
@@ -65,6 +82,8 @@ export default function PossibleEvents({
   onRemove: (id: string) => void;
   suggestions?: string[];
   evidence?: (event: PossibleEvent) => ReactNode;
+  showLikelihood?: boolean;
+  causesAndActions?: (event: PossibleEvent) => ReactNode;
 }) {
   const [draft, setDraft] = useState("");
   const [suggestOpen, setSuggestOpen] = useState(false);
@@ -109,14 +128,28 @@ export default function PossibleEvents({
         <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
           {events.length === 0
             ? "none recorded"
-            : `${events.length} · ${events.filter((e) => e.likelihood).length} with a likelihood`}
+            : showLikelihood
+              ? `${events.length} · ${events.filter((e) => e.likelihood).length} with a likelihood`
+              : `${events.length}`}
         </span>
       </div>
       <p className="mb-2 text-[10.5px] leading-[1.5]" style={{ color: "var(--ink-4)" }}>
-        The event, not the paperwork — what actually goes wrong if this is not
-        fixed. Record each one separately; one finding usually has more than one.
-        The likelihood is B170 001M&rsquo;s 1&ndash;5. Severity is not asked here: that
-        is the group&rsquo;s, agreed on the matrix.
+        {showLikelihood ? (
+          <>
+            The event, not the paperwork — what actually goes wrong if this is not
+            fixed. Record each one separately; one finding usually has more than one.
+            The likelihood is B170 001M&rsquo;s 1&ndash;5. Severity is not asked here: that
+            is the group&rsquo;s, agreed on the matrix.
+          </>
+        ) : (
+          <>
+            The event, not the paperwork — what actually goes wrong if this asset
+            system is not fixed. Record each one separately; a system usually has
+            more than one. Not rated here — the asset system carries the one
+            severity/likelihood of record. Expand an event to give it its own
+            root causes and mitigating actions.
+          </>
+        )}
       </p>
 
       {events.map((e) => {
@@ -153,7 +186,7 @@ export default function PossibleEvents({
                   {e.event || "Untitled event"}
                 </span>
                 <span className="block font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
-                  {summaryOf(e)}
+                  {summaryOf(e, showLikelihood)}
                 </span>
               </button>
             ) : (
@@ -177,6 +210,8 @@ export default function PossibleEvents({
           </div>
 
           {!isCollapsed && (
+          <>
+          {showLikelihood && (
           <>
           {/* LIKELIHOOD, AND "NOT YET" IS ONE OF THE ANSWERS. Pressing the
               selected one again clears it — an auditor who tapped 4 by mistake
@@ -226,17 +261,24 @@ export default function PossibleEvents({
               {e.likelihood ?? "unrated"}
             </span>
           </div>
+          </>
+          )}
 
           <input
             value={e.note}
             onChange={(ev) => onPatch(e.id, { note: ev.target.value })}
-            placeholder="Why it is that likely — optional, and worth more than the number alone"
-            aria-label={`Why ${e.event || "this event"} is that likely`}
+            placeholder={
+              showLikelihood
+                ? "Why it is that likely — optional, and worth more than the number alone"
+                : "Why it happens — optional, and worth it before the causes below"
+            }
+            aria-label={`Why ${e.event || "this event"} happens`}
             className="mt-2 w-full rounded-[8px] border px-2.5 py-[7px] text-[11.5px] outline-none focus:border-[var(--acc)]"
             style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
           />
 
           {evidence?.(e)}
+          {causesAndActions?.(e)}
 
           <div className="mt-1.5 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
             {e.createdBy} · {new Date(e.createdAt).toLocaleDateString("en-ZA")}
