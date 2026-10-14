@@ -276,6 +276,21 @@ export const IconEyeOff = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+/** A pencil — editing a value in place, not IconPlus (adding a new one) or
+ *  IconDownload/IconUpload (moving a file). */
+export const IconEdit = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...s(p)}>
+    <path
+      d="M4 20l1-4.2L15.4 5.4a1.5 1.5 0 0 1 2.1 0l1.1 1.1a1.5 1.5 0 0 1 0 2.1L8.2 19 4 20z"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path d="M13.8 7 17 10.2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+  </svg>
+);
+
 /** A bulleted log — three dated lines, not a clock or a clipboard, which this
  *  file already uses for Safety and for the register. The Activity screen is
  *  a list of entries, one per thing that happened, and this is meant to read

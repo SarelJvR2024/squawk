@@ -42,6 +42,7 @@ import type {
   SafetyFinding,
   SiteAccessLog,
   SiteDay,
+  SystemAssessment,
   ToolboxTalk,
   Verification,
 } from "./types";
@@ -98,7 +99,8 @@ export interface SharedRow {
     | "siteAccessLog"
     | "toolboxTalk"
     | "incidentReport"
-    | "attendanceRegister";
+    | "attendanceRegister"
+    | "system";
   id: string;
   updated_at: number;
   payload: unknown;
@@ -162,6 +164,14 @@ export function rowsToPush(since: number): SharedRow[] {
 
   for (const [checkId, r] of Object.entries(d.responses)) add("response", checkId, when(r), r);
   for (const [pf, v] of Object.entries(d.verifications)) add("verification", pf, when(v), v);
+  /* ASSET-SYSTEM RATINGS — found missing 14 October 2026, after two devices
+     on the same passphrase showed different bands for the same asset system:
+     Sarel's Accessibility & Signage rating never left the device he rated it
+     on. This file pushed every captured record except this one; SystemAssessment
+     (the Asset Assurance screen) simply had no row kind of its own, so it only
+     ever travelled through "Share my captures"/"Merge a file" (see TeamMerge.tsx),
+     never through the shared record both devices were already joined to. */
+  for (const [key, sys] of Object.entries(d.systems ?? {})) add("system", key, when(sys), sys);
   for (const f of s.findings.filter(mine)) add("finding", f.id, when(f), f);
   for (const h of s.hazards.filter(mine)) add("hazard", h.id, when(h), h);
   /* HIRA aside, every Tier 1 form — flat across the entity like findings and
@@ -227,6 +237,7 @@ export async function pushReset(entity: string, visit: string): Promise<void> {
 export function bundleFromRows(entity: string, visit: string, rows: SharedRow[]): Bundle {
   const responses: Record<string, Response> = {};
   const verifications: Record<string, Verification> = {};
+  const systems: Record<string, SystemAssessment> = {};
   const feedback: Record<string, FeedbackNote[]> = {};
   const captures: Capture[] = [];
   const adhoc: AdHocItem[] = [];
@@ -245,6 +256,7 @@ export function bundleFromRows(entity: string, visit: string, rows: SharedRow[])
   for (const r of rows) {
     if (r.kind === "response") responses[r.id] = r.payload as Response;
     else if (r.kind === "verification") verifications[r.id] = r.payload as Verification;
+    else if (r.kind === "system") systems[r.id] = r.payload as SystemAssessment;
     else if (r.kind === "feedback") feedback[r.id] = (r.payload ?? []) as FeedbackNote[];
     else if (r.kind === "capture") captures.push(r.payload as Capture);
     else if (r.kind === "adhoc") adhoc.push(r.payload as AdHocItem);
@@ -288,7 +300,7 @@ export function bundleFromRows(entity: string, visit: string, rows: SharedRow[])
       },
       photographsNotUploaded,
     },
-    visit: { responses, verifications, captures, feedback, adhoc },
+    visit: { responses, verifications, captures, feedback, adhoc, systems },
     findings,
     hazards,
     safetyFindings,

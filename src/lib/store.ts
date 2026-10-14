@@ -61,6 +61,7 @@ import type {
   Verification,
 } from "./types";
 import {
+  type AuditDateOverride,
   CURRENT_ENTITY_CODE,
   CURRENT_VISIT_ID,
   ENTITIES,
@@ -354,6 +355,9 @@ interface State {
   byVisit: Record<string, VisitData>;
   /** Audits created in the app, on top of the six programme.json seeds. */
   customVisits: ProgrammeVisit[];
+  /** Corrections to a visit's own dates/label/note — see AuditDateOverride's
+   *  own doc comment in programme.ts. Keyed by scopeKey(entity, visitId). */
+  auditDateOverrides: Record<string, AuditDateOverride>;
   /** Flat across the whole programme — a finding carries its own entity and
    *  originVisit, which is what lets a later visit see what an earlier one
    *  left open. */
@@ -432,6 +436,16 @@ interface State {
   /** Delete an audit created in the app. Refused if it holds anything, and
    *  never applicable to the programme.json seeds. */
   removeVisit: (entityCode: string, visitId: string) => string | null;
+  /** Correct one visit's dates/label/note in place — see AuditDateOverride.
+   *  Merges: an omitted field keeps whatever the override (or the programme
+   *  file, if there is no override yet) already had. */
+  setAuditDateOverride: (
+    entityCode: string,
+    visitId: string,
+    p: Partial<Pick<AuditDateOverride, "auditFrom" | "auditTo" | "auditTbc" | "label" | "note">>
+  ) => void;
+  /** Revert a visit to exactly what the programme file says. */
+  clearAuditDateOverride: (entityCode: string, visitId: string) => void;
   openAudit: (entityCode: string, visitId: string) => void;
 
   visitData: () => VisitData;
@@ -948,6 +962,7 @@ export const useStore = create<State>()(
         visit: CURRENT_VISIT_ID,
         byVisit: {},
         customVisits: [],
+        auditDateOverrides: {},
         findings: [],
         hazards: [],
         syncRuns: [],
@@ -1029,6 +1044,30 @@ export const useStore = create<State>()(
             ),
           }));
           return null;
+        },
+
+        setAuditDateOverride: (entityCode, visitId, p) => {
+          const key = scopeKey(entityCode, visitId);
+          set((s) => ({
+            auditDateOverrides: {
+              ...s.auditDateOverrides,
+              [key]: {
+                ...s.auditDateOverrides[key],
+                ...p,
+                updatedAt: Date.now(),
+                updatedBy: get().auditor,
+              },
+            },
+          }));
+        },
+
+        clearAuditDateOverride: (entityCode, visitId) => {
+          const key = scopeKey(entityCode, visitId);
+          set((s) => {
+            const next = { ...s.auditDateOverrides };
+            delete next[key];
+            return { auditDateOverrides: next };
+          });
         },
 
         openAudit: (entityCode, visitId) => set({ entity: entityCode, visit: visitId }),
@@ -3521,7 +3560,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 36,
+      version: 37,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -3543,6 +3582,7 @@ export const useStore = create<State>()(
           byVisit?: Record<string, VisitData>;
           entity?: string;
           visit?: string;
+          auditDateOverrides?: Record<string, AuditDateOverride>;
         } | null;
         if (!st) return st;
         if (from < 2 && Array.isArray(st.findings)) {
@@ -4245,6 +4285,13 @@ export const useStore = create<State>()(
              version number to carry forward in case a later migration ever
              needs to tell "before this existed" apart from "after." */
         }
+        if (from < 37 && !st.auditDateOverrides) {
+          /* auditDateOverrides — Sarel: "build an option where a user can
+             edit the audit dates." A tablet that predates this simply has
+             none, same backfill shape as customVisits: absent-means-none is
+             honest here, not a gap to guess at. */
+          st.auditDateOverrides = {};
+        }
         return st;
       },
       partialize: (s: State) => ({
@@ -4255,6 +4302,7 @@ export const useStore = create<State>()(
         visit: s.visit,
         byVisit: s.byVisit,
         customVisits: s.customVisits,
+        auditDateOverrides: s.auditDateOverrides,
         findings: s.findings,
         hazards: s.hazards,
         syncRuns: s.syncRuns,
