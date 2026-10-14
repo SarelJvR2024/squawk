@@ -28,17 +28,20 @@
  *  mapped onto the nearest member, which would quietly report a cause nobody
  *  chose.
  *
- *  AN ACTION WITH NO OWNER OR NO DATE IS FLAGGED, NOT DEFAULTED. Defaulting the
- *  owner to whoever typed it puts a name against a job that person never
- *  accepted; defaulting the date invents a commitment. Both are shown as
- *  missing, because the out-brief is where they get filled and the screen's job
- *  is to make the gap visible in that meeting. */
+ *  NO OWNER, DATE OR STATUS CAPTURED HERE. Sarel: "no other fields like
+ *  ownership needed" — this panel is the risk session's own working list of
+ *  what is wrong and what has to happen about it, not the place that assigns
+ *  and tracks the work. `MitigationAction` still carries `owner`/`dueDate`/
+ *  `status` (Finding and Hazard, which reuse the type, still need them), so
+ *  a seeded or hand-typed action here simply keeps them at their defaults
+ *  ("", "", "Open") until the action is carried further — nothing here reads
+ *  or shows them. */
 
 import { useState } from "react";
 import { ROOT_CAUSES } from "@/lib/store";
-import { Btn, Chip, Pill } from "@/components/ui/primitives";
+import { Btn, Chip } from "@/components/ui/primitives";
 import { IconPlus, IconX } from "@/components/ui/icons";
-import type { ActionStatus, MitigationAction, RootCauseNote } from "@/lib/types";
+import type { MitigationAction, RootCauseNote } from "@/lib/types";
 
 export default function SystemTreatment({
   rootCauses,
@@ -163,11 +166,7 @@ export default function SystemTreatment({
       <div className="mt-4 mb-1 flex flex-wrap items-baseline justify-between gap-2">
         <b className="font-display text-[11px] font-semibold">Mitigation actions</b>
         <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-          {actions.length === 0
-            ? "none recorded"
-            : `${actions.length} · ${
-                actions.filter((a) => a.owner && a.dueDate).length
-              } with an owner and a date`}
+          {actions.length === 0 ? "none recorded" : `${actions.length} recorded`}
         </span>
       </div>
 
@@ -194,75 +193,6 @@ export default function SystemTreatment({
             >
               <IconX width={13} height={13} />
             </button>
-          </div>
-
-          <div className="mt-2 grid gap-2 sm:grid-cols-3">
-            <label className="block">
-              <span className="label-xs">Owner</span>
-              <input
-                value={act.owner}
-                onChange={(e) => onPatchAction(act.id, { owner: e.target.value })}
-                placeholder="Who accepted it"
-                aria-label="Owner of this action"
-                className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[11.5px] outline-none focus:border-[var(--acc)]"
-                style={{
-                  background: "var(--panel)",
-                  borderColor: act.owner ? "var(--line-2)" : "var(--warn-line)",
-                }}
-              />
-            </label>
-            <label className="block">
-              <span className="label-xs">Target date</span>
-              <input
-                type="date"
-                value={act.dueDate}
-                onChange={(e) => onPatchAction(act.id, { dueDate: e.target.value })}
-                aria-label="Target date for this action"
-                className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[11.5px] outline-none focus:border-[var(--acc)]"
-                style={{
-                  background: "var(--panel)",
-                  borderColor: act.dueDate ? "var(--line-2)" : "var(--warn-line)",
-                }}
-              />
-            </label>
-            <label className="block">
-              <span className="label-xs">Status</span>
-              <select
-                value={act.status}
-                onChange={(e) =>
-                  onPatchAction(act.id, { status: e.target.value as ActionStatus })
-                }
-                aria-label="Status of this action"
-                className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[11.5px]"
-                style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-              >
-                {(["Open", "In progress", "Closed"] as ActionStatus[]).map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          {/* SAID IN WORDS, not carried by a border colour alone. The out-brief
-              is where owners and dates get agreed, and this is the line that
-              makes the gap arguable in that meeting. */}
-          {(!act.owner || !act.dueDate) && (
-            <div className="mt-1.5 font-mono text-[9.5px]" style={{ color: "var(--warn)" }}>
-              {!act.owner && !act.dueDate
-                ? "no owner and no target date"
-                : !act.owner
-                  ? "no owner"
-                  : "no target date"}{" "}
-              — agree it at the out-brief
-            </div>
-          )}
-          <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-            <Pill tone={act.status === "Closed" ? "good" : act.status === "In progress" ? "warn" : "neutral"}>
-              {act.status.toUpperCase()}
-            </Pill>
-            <span>
-              {act.createdBy} · {new Date(act.createdAt).toLocaleDateString("en-ZA")}
-            </span>
           </div>
         </div>
       ))}

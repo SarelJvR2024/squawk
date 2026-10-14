@@ -529,12 +529,6 @@ check(
   "defaulting the owner puts a name against a job nobody accepted; defaulting the date invents a commitment"
 );
 
-check(
-  "a missing owner or date is said in words, not only as a border colour",
-  /agree it at the out-brief/.test(treat),
-  ""
-);
-
 /* ---- 6b · multiple hazardous events, pulled through to the HIRA screen --- */
 
 const hazardsPage = read("src", "app", "(app)", "hazards", "page.tsx");

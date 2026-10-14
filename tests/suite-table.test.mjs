@@ -140,6 +140,7 @@ const WORDS = {
   "fifty-one": 51, "fifty-two": 52, "fifty-three": 53, "fifty-four": 54, "fifty-five": 55,
   "fifty-six": 56, "fifty-seven": 57, "fifty-eight": 58, "fifty-nine": 59, sixty: 60, "sixty-one": 61,
   "sixty-two": 62, "sixty-three": 63, "sixty-four": 64, "sixty-five": 65, "sixty-six": 66,
+  "sixty-seven": 67,
   "thirty-seven": 37,
   "twenty-four": 24, "twenty-five": 25, "twenty-six": 26,
   "twenty-seven": 27, "twenty-eight": 28, "twenty-nine": 29,
