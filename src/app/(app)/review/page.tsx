@@ -44,7 +44,7 @@
  *      going back over a finished visit wants non-compliances, raised
  *      findings, flagged checks and evidence still outstanding. */
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   checksOf,
   disciplinesAt,
@@ -55,7 +55,7 @@ import {
   useVisitFindings,
 } from "@/lib/store";
 import { portalIdFor } from "@/lib/sites";
-import CheckDetail from "@/components/CheckDetail";
+import ReviewDetail from "@/components/ReviewDetail";
 import { Dot, Empty, Pill } from "@/components/ui/primitives";
 import { IconInbox } from "@/components/ui/icons";
 import type { Check, Response } from "@/lib/types";
@@ -90,7 +90,6 @@ export default function ReviewPage() {
   const [expanded, setExpanded] = useState<string[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
 
   /* Every register check in this discipline — no `needsDesk`. That filter
      exists to keep a tablet from offering a question with nothing to answer
@@ -128,12 +127,6 @@ export default function ReviewPage() {
     setAutoOpened(active.system);
     if (!expanded.includes(active.system)) setExpanded([...expanded, active.system]);
   }
-
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 2600);
-    return () => clearTimeout(t);
-  }, [toast]);
 
   const move = (delta: number) => {
     if (!active) return;
@@ -336,16 +329,18 @@ export default function ReviewPage() {
         )}
       </div>
 
-      {/* detail — the same CheckDetail Capture and Field use: observation,
-          compliance, evidence status and its upload, findings raised against
-          this check, the ACSA wording, all of it, all editable here. */}
+      {/* detail — Sarel, after trying the full CheckDetail workspace here:
+          "this section is confusing... i dont need all the policy
+          references etc." ReviewDetail is a trimmed, review-specific view:
+          observation, evidence and its verdict, and every photo/voice note
+          with its caption — see ReviewDetail's own header for what it
+          deliberately leaves out and why. */}
       {active ? (
-        <CheckDetail
+        <ReviewDetail
           key={active.id}
           check={active}
           onPrev={() => move(-1)}
           onNext={() => move(1)}
-          onSaved={setToast}
         />
       ) : (
         <div className="flex flex-1 items-center justify-center">
@@ -353,15 +348,6 @@ export default function ReviewPage() {
             <IconInbox width={26} height={26} />
             <div>Select a check.</div>
           </Empty>
-        </div>
-      )}
-
-      {toast && (
-        <div
-          className="toast-bottom fixed left-1/2 z-[100] flex -translate-x-1/2 items-center gap-2 rounded-[11px] px-[15px] py-2.5 text-[12px] font-medium"
-          style={{ background: "var(--ink)", color: "var(--bg)", boxShadow: "var(--e3)" }}
-        >
-          {toast}
         </div>
       )}
     </>

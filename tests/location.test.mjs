@@ -425,8 +425,8 @@ check(
    front of it (src/app/api/photos/route.ts) are unaffected — tested in full
    in tests/photoview.test.mjs — they simply have one fewer caller. */
 check(
-  "Review shows a photograph through CheckDetail, not a renderer of its own",
-  /import CheckDetail from "@\/components\/CheckDetail";/.test(review) &&
+  "Review shows a photograph through ReviewDetail, not a renderer of its own",
+  /import ReviewDetail from "@\/components\/ReviewDetail";/.test(review) &&
     !/useRecordImage/.test(review),
   "one place in the app that knows how to resolve a blobKey, not two that could disagree about a photo nobody uploaded from this device"
 );

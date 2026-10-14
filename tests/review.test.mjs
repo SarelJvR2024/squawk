@@ -151,27 +151,32 @@ check(
   "committing a desk answer is Capture's job; reviewing and editing a record that already exists needs no commit step of its own"
 );
 
-/* ------------------------------------------ Part 4: the detail is CheckDetail */
+/* ------------------------------------------ Part 4: the detail is ReviewDetail
+   REVERSED, 14 October 2026. Sarel, after trying the CheckDetail reuse this
+   screen had since 13 October: "this section is confusing... i dont need all
+   the policy references etc." ReviewDetail (src/components/ReviewDetail.tsx)
+   is a trimmed, review-specific view — observation, evidence and its
+   verdict, every photo/voice note with its caption — not the full editing
+   workspace Capture and Field still share. */
 
 check(
-  "the selected check opens in CheckDetail, the same component Capture and Field use",
-  /import CheckDetail from "@\/components\/CheckDetail";/.test(review) &&
-    /<CheckDetail\s*\n\s*key=\{active\.id\}\s*\n\s*check=\{active\}/.test(review),
-  "one editor for a check, not a second one this screen has to keep in step with Capture's"
+  "the selected check opens in ReviewDetail, not the full CheckDetail workspace",
+  /import ReviewDetail from "@\/components\/ReviewDetail";/.test(review) &&
+    /<ReviewDetail\s*\n\s*key=\{active\.id\}\s*\n\s*check=\{active\}/.test(review),
+  "a reviewer's own trimmed view — observation, evidence, photos — not the policy references and full edit workspace Capture and Field use"
 );
 
 check(
-  "prev/next and the save toast are wired the same way Capture wires them",
+  "prev/next are wired the same way Capture wires them",
   /onPrev=\{\(\) => move\(-1\)\}/.test(review) &&
-    /onNext=\{\(\) => move\(1\)\}/.test(review) &&
-    /onSaved=\{setToast\}/.test(review),
+    /onNext=\{\(\) => move\(1\)\}/.test(review),
   ""
 );
 
 check(
-  "this screen itself writes nothing to the store — every edit goes through CheckDetail",
+  "this screen itself writes nothing to the store — every edit goes through ReviewDetail",
   !/useStore\(\(s\) => s\.patch\)/.test(review) && !/useStore\(\(s\) => s\.commit\)/.test(review),
-  "a second place reaching for patch() would be a second place that could disagree with CheckDetail about what a field means"
+  "a second place reaching for patch() would be a second place that could disagree with ReviewDetail about what a field means"
 );
 
 /* No Photo/Lightbox pair of its own any more, and no useRecordImage either —

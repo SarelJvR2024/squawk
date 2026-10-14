@@ -193,7 +193,7 @@ check(
 
 check(
   "the row comes from ONE list, so the keyboard and the screen cannot disagree",
-  (codeOnly.match(/^const STATUSES/gm) || []).length === 1 &&
+  (codeOnly.match(/^export const STATUSES/gm) || []).length === 1 &&
     /\{STATUSES\.map\(\(st\) => \{/.test(codeOnly),
   "a second array would let key 3 mean one thing to the hand and another to the eye"
 );
@@ -385,7 +385,7 @@ check(
    questions, not two copies of one. */
 check(
   "there is exactly ONE definition of the compliance buttons in the file",
-  (codeOnly.match(/^const STATUSES/gm) || []).length === 1 &&
+  (codeOnly.match(/^export const STATUSES/gm) || []).length === 1 &&
     (codeOnly.match(/(?<!EVIDENCE_)STATUSES\.map\(/g) || []).length === 1,
   "one array, mapped once — a second copy would be a second thing to keep in step"
 );
