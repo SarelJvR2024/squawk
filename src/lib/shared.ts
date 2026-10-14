@@ -569,7 +569,15 @@ export function useSharedRecord(): SharedRecord {
   }, [lastSavedAt, available, unlocked, sync]);
 
   /* The loop, plus a sync the moment signal comes back — an auditor walking out
-     of a substation should not wait half a minute to see the team's work. */
+     of a substation should not wait half a minute to see the team's work.
+     PLUS a sync the moment this tab comes back into view — found 14 October
+     2026, after a rating pushed from one browser still had not shown up on
+     another: a background tab's setInterval is throttled by the browser (a
+     minute or more is common once it has been backgrounded a while), so a
+     second browser sitting behind another window could be well past the
+     30-second interval before its next tick actually ran. Switching to it is
+     exactly when somebody is about to look at whether the other one's work
+     arrived, so that is also exactly when it should check. */
   useEffect(() => {
     if (!available || !unlocked) return;
     /* The first sync is scheduled rather than called: it lets the screen paint
@@ -578,11 +586,16 @@ export function useSharedRecord(): SharedRecord {
     const first = setTimeout(() => void sync(), 0);
     const t = setInterval(() => void sync(), EVERY_MS);
     const onOnline = () => void sync();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void sync();
+    };
     addEventListener("online", onOnline);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       clearTimeout(first);
       clearInterval(t);
       removeEventListener("online", onOnline);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [available, unlocked, sync]);
 

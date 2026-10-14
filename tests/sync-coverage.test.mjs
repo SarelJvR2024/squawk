@@ -104,6 +104,49 @@ check(
   JSON.stringify(got)
 );
 
+/* ---- 2b · the SAME round trip through the real store action, not just the
+   pure merge function — found 14 October 2026, a THIRD report of "still not
+   syncing" after both the missing row-kind and the stuck-watermark fixes
+   had shipped: everything above proved mergeBundle() itself is correct, but
+   nothing had exercised useStore's own importBundle action, which is what
+   src/lib/shared.ts's sync() actually calls. It turned out to be correct
+   too — this pins that down so the next regression (if there is one) shows
+   up here instead of needing a live, two-browser repro to find again. */
+useStore.setState((s) => ({
+  entity: "FAOR",
+  visit: "2026-09",
+  byVisit: { ...s.byVisit, "FAOR/2026-09": undefined },
+}));
+const importReport = useStore.getState().importBundle(bundle);
+const gotViaStore = useStore.getState().visitData().systems["Building & Facilities|Accessibility & Signage"];
+check(
+  "the real importBundle store action — what sync() actually calls — applies the same rating",
+  typeof importReport !== "string" &&
+    gotViaStore?.severity === "D - Minor" &&
+    gotViaStore?.likelihood === "2 - Improbable" &&
+    gotViaStore?.ratingConfirmed === true,
+  typeof importReport === "string" ? importReport : JSON.stringify(gotViaStore)
+);
+
+/* ---- 2c · a stale, already-advanced local watermark does not block a
+   fresh resync-version check from re-sending an old rating ---------------- */
+check(
+  "an unseen RESYNC_VERSION is checked against a per-entity-and-visit key, not a single global flag",
+  /const pushResyncKey = \(entity: string, visit: string\)/.test(shared),
+  "a global flag would only self-heal whichever audit happened to sync first, never the rest"
+);
+
+/* ---- 2d · a backgrounded browser catches up the moment it is looked at,
+   not only every 30 seconds — the actual mechanism behind the third report:
+   two browsers side by side, one of them not in the foreground, whose
+   setInterval the browser itself was throttling. ------------------------- */
+check(
+  "coming back to a tab triggers a sync immediately, not only the interval",
+  /document\.addEventListener\("visibilitychange", onVisible\)/.test(shared) &&
+    /document\.visibilityState === "visible"/.test(shared),
+  "a background tab's 30-second interval is throttled by the browser; switching to the tab is exactly when its work should be checked"
+);
+
 /* ---- 3 · every record carrying its own photographs is in the upload
    queue, not just check-points and the walk ------------------------------ */
 
