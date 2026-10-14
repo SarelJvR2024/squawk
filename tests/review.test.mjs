@@ -42,6 +42,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8");
 
 const review = src("app", "(app)", "review", "page.tsx");
+const reviewDetail = src("components", "ReviewDetail.tsx");
 const types = src("lib", "types.ts");
 const shell = src("components", "AppShell.tsx");
 
@@ -137,6 +138,25 @@ check(
   ""
 );
 
+/* Sarel: "implement a status in the review, for the reviewer to confirm
+   that everything is correct and can be shared with the client, or if
+   changes are required - per audit check." The reviewer's own queue, not
+   the same thing "open" already covers — a check can be fully answered
+   and still not have had a reviewer's own pass over it. */
+check(
+  "checks nobody has signed off on yet can be isolated",
+  /\["unsigned", "Not signed off"\]/.test(review) &&
+    /if \(filter === "unsigned"\) list = list\.filter\(\(c\) => !responses\[c\.id\]\?\.reviewStatus\)/.test(review),
+  "a desk can finish a check and a reviewer can still not have looked at it — those are two different queues"
+);
+
+check(
+  "the rail shows a check's sign-off state, not just its compliance",
+  /signOff === "approved" && <Pill tone="good">✓<\/Pill>/.test(review) &&
+    /signOff === "changesRequired" && <Pill tone="warn">⚠<\/Pill>/.test(review),
+  "a reviewer working the rail needs to see at a glance what they have already signed off, without opening every row"
+);
+
 check(
   "the discipline select shows reviewed/total, not desk-done/total",
   !/deskDone/.test(reviewCode) && !/deskAnswered/.test(reviewCode) && /reviewed\(/.test(reviewCode),
@@ -189,6 +209,28 @@ check(
   "there is no gallery-specific Photo or Lightbox component left on this screen",
   !/function Photo\(/.test(review) && !/function Lightbox/.test(review),
   "a photograph is rendered once, by CheckDetail, not reinvented per screen"
+);
+
+/* The reviewer's own sign-off lives on ReviewDetail — a review-time
+   question ("is this fit to share with the client"), not a capture-time
+   one, so it is not on CheckDetail (Capture, Field) at all. Two states,
+   tapping the chosen one again clears back to "not yet reviewed", same
+   shape as the Evidence status buttons right above it on the same
+   screen — see tests/sharepoint.test.mjs for the functional proof that
+   neither field it writes ever reaches the portal. */
+check(
+  "the detail pane carries the reviewer's own sign-off, not CheckDetail",
+  /patch\(check\.id, \{\s*\n\s*reviewStatus: on \? null : key,/.test(reviewDetail) &&
+    /\["approved", "good", IconCheck, "Approved for client"\]/.test(reviewDetail) &&
+    /\["changesRequired", "warn", IconFlag, "Changes required"\]/.test(reviewDetail),
+  "fit to share with the client is asked where the client-facing review happens, not on the capture workspace"
+);
+
+check(
+  "a note is only asked for while changes are required, and who/when is shown once set",
+  /r\.reviewStatus === "changesRequired" &&[\s\S]{0,300}reviewStatusNote/.test(reviewDetail) &&
+    /r\.reviewStatusBy &&/.test(reviewDetail),
+  "a note nobody can read because approval needed none is a field asked for no reason"
 );
 
 /* ----------------------------------------- Part 5: ids are the site's own */

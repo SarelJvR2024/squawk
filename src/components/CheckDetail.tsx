@@ -297,6 +297,8 @@ export default function CheckDetail({
   const removeAttachment = useStore((s) => s.removeAttachment);
   const updateAttachment = useStore((s) => s.updateAttachment);
   const commit = useStore((s) => s.commit);
+  const systemAssessment = useStore((s) => s.systemAssessment);
+  const patchSystem = useStore((s) => s.patchSystem);
 
   const aiOn = useAssistAvailable();
   const [draft, setDraft] = useState<string | null>(null);
@@ -817,6 +819,49 @@ export default function CheckDetail({
         </div>
       ),
     });
+
+  /* AN INTERNAL NOTE ON THE ASSET SYSTEM — 13 October 2026. Sarel: "add a
+     field to add internal notes per asset system, clearly label this as
+     an internal note and this must never get synced to sharepoint or
+     reported to a client report." Scoped to discipline+system rather than
+     to this one check — the same SystemAssessment every check under this
+     system already shares (see the Asset Assurance screen's own rating
+     panel) — so a note typed from any check under "Markings" is the same
+     note read from every other check under it, not one copy per
+     check-point. See SystemAssessment.internalNote's own doc comment for
+     where this is (and is deliberately never) read. */
+  {
+    const sysA = systemAssessment(check.discipline, check.system);
+    panels.push({
+      key: "internalNote",
+      label: "Internal note",
+      ...(sysA.internalNote?.trim() ? { badge: "●" } : {}),
+      group: "do",
+      body: (
+        <>
+          <div
+            className="mb-2 flex items-center gap-[6px] rounded-[9px] border px-[10px] py-[7px] text-[10.5px] font-semibold"
+            style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}
+          >
+            <IconInfo width={13} height={13} className="shrink-0" />
+            INTERNAL ONLY — never synced to SharePoint, never in a client report
+          </div>
+          <div className="mb-2 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+            shared by every check under {check.system} — the team&apos;s own working note, not ACSA&apos;s
+          </div>
+          <textarea
+            value={sysA.internalNote ?? ""}
+            onChange={(e) => patchSystem(check.discipline, check.system, { internalNote: e.target.value })}
+            rows={4}
+            aria-label={`Internal note for ${check.system}`}
+            placeholder="A note for the team — a question to raise, something to chase, a doubt about the evidence"
+            className="w-full rounded-[9px] border px-3 py-2 text-[12.5px]"
+            style={{ background: "var(--bg)", borderColor: "var(--line-2)" }}
+          />
+        </>
+      ),
+    });
+  }
 
   /* -------------------------------------------------- what the auditor reads
      The standard, the site's override of it, and ACSA's own words for it, in

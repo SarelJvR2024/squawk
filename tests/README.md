@@ -46,7 +46,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `crosswalk.test.mjs` | no | 13 |
 | `faor-import.test.mjs` | no | 22 |
 | `sync-coverage.test.mjs` | no | 22 |
-| `review.test.mjs` | no | 20 |
+| `review.test.mjs` | no | 24 |
 | `tablet.test.mjs` | no | 42 |
 | `portals.test.mjs` | no | 32 |
 | `reset.test.mjs` | no | 21 |
@@ -76,10 +76,10 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `photos.test.mjs` | no | 113 |
 | `hazards.test.mjs` | no | 121 |
 | `erm-matrix.test.mjs` | no | 80 |
-| `sharepoint.test.mjs` | no | 297 |
+| `sharepoint.test.mjs` | no | 300 |
 | `activity.test.mjs` | no | 34 |
 | `assets.test.mjs` | no | 21 |
-| `checkscreen.test.mjs` | no | 52 |
+| `checkscreen.test.mjs` | no | 54 |
 | `checksfilter.test.mjs` | no | 3 |
 | `dataloss.test.mjs` | no | 17 |
 | `merge.test.mjs` | no | 55 |
@@ -109,7 +109,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,106 assertions in total**, every count above verified by running the suite,
+**3,115 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —

@@ -3717,6 +3717,77 @@ check(
   "a pre-migration fixture with neither field set — buildPlan must not throw reading them off undefined"
 );
 
+/* ------------- Part 1k: the reviewer's own fields never reach the portal --
+ *
+ * Sarel: "implement a status in the review... also add a field to add
+ * internal notes per asset system... this must never get synced to
+ * sharepoint or reported to a client report." Response.reviewStatus/
+ * reviewStatusNote and SystemAssessment.internalNote exist for exactly this
+ * reason — same precedent as improvementFlag/improvementNote above. Run
+ * through the real buildPlan() with both fields set, not just read for
+ * their absence in the source, so a future edit that starts reading them
+ * fails here instead of only in a client's hands. */
+
+check(
+  "a check's reviewer sign-off and its note never appear in the checkpoint row sent to the portal",
+  (() => {
+    const v = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": {
+            compliance: "NC",
+            observation: "Busbar corroded",
+            attachments: [],
+            reviewStatus: "changesRequired",
+            reviewStatusNote: "the observation does not match the compliance verdict",
+            reviewStatusBy: "Sarel",
+            reviewStatusAt: Date.now(),
+          },
+        },
+      },
+      NOTHING
+    ).checkpoints[0].values;
+    return (
+      !("reviewStatus" in v) &&
+      !("reviewStatusNote" in v) &&
+      !("reviewStatusBy" in v) &&
+      !("reviewStatusAt" in v) &&
+      !Object.values(v).some((x) => x === "changesRequired" || x === "the observation does not match the compliance verdict")
+    );
+  })(),
+  "a reviewer's own sign-off and what needs to change before it is approved are for the team, not for ACSA"
+);
+
+check(
+  "an asset system's internal note never appears in the Asset Risk row sent to the portal",
+  (() => {
+    const sys = {
+      "Electrical|AGL": SYS({
+        ratingConfirmed: true,
+        severity: "A - Catastrophic",
+        likelihood: "1 - Extremely Improbable",
+        internalNote: "ask Prince whether this was ever actually tested",
+      }),
+    };
+    const v = sp.buildPlan({ ...BASE_AR, systems: sys }, NOTHING_AR).assetRisk[0].values;
+    return (
+      !("internalNote" in v) &&
+      !Object.values(v).some((x) => x === "ask Prince whether this was ever actually tested")
+    );
+  })(),
+  "the team's own working note on an asset system must never reach the live SharePoint list"
+);
+check(
+  "an internal note alone, with nothing else recorded, does not even count as content worth a row",
+  (() => {
+    const sys = { "Electrical|AGL": SYS({ internalNote: "just a question for the group" }) };
+    const p = sp.buildPlan({ ...BASE_AR, systems: sys }, NOTHING_AR);
+    return p.assetRisk.length === 0;
+  })(),
+  "a note the team must never see leaving this app should not even be the reason a row gets created"
+);
+
 /* ------------------------------------------------------------------ result */
 
 console.log(failures === 0 ? "\nSHAREPOINT OK" : `\n${failures} FAILURE${failures > 1 ? "S" : ""}`);
