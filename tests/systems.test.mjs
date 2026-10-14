@@ -562,15 +562,6 @@ check(
 );
 
 check(
-  "and offers this system's own findings and an asset picker to link as evidence",
-  /import AssetPicker from "@\/components\/AssetPicker";/.test(page) &&
-    /evidence=\{\(e\) => \{/.test(pageCode) &&
-    /findingsBySystem\.get\(`\$\{active\.discipline\}\|\$\{active\.system\}`\)/.test(pageCode) &&
-    /<AssetPicker/.test(pageCode),
-  "picking from evidence already on screen, not typing a finding id from memory"
-);
-
-check(
   "PossibleEvents renders whatever evidence the caller supplies, but does not know what a finding or an asset is",
   /evidence\?: \(event: PossibleEvent\) => ReactNode;/.test(codeOnly(possibleEvents)),
   "the closure screen's own possible events have nothing to link — they are already tied to the one finding they were raised against"

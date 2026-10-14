@@ -264,25 +264,25 @@ export default function PossibleEvents({
           </>
           )}
 
-          <input
-            value={e.note}
-            onChange={(ev) => onPatch(e.id, { note: ev.target.value })}
-            placeholder={
-              showLikelihood
-                ? "Why it is that likely — optional, and worth more than the number alone"
-                : "Why it happens — optional, and worth it before the causes below"
-            }
-            aria-label={`Why ${e.event || "this event"} happens`}
-            className="mt-2 w-full rounded-[8px] border px-2.5 py-[7px] text-[11.5px] outline-none focus:border-[var(--acc)]"
-            style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
-          />
+          {showLikelihood && (
+            <input
+              value={e.note}
+              onChange={(ev) => onPatch(e.id, { note: ev.target.value })}
+              placeholder="Why it is that likely — optional, and worth more than the number alone"
+              aria-label={`Why ${e.event || "this event"} happens`}
+              className="mt-2 w-full rounded-[8px] border px-2.5 py-[7px] text-[11.5px] outline-none focus:border-[var(--acc)]"
+              style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+            />
+          )}
 
           {evidence?.(e)}
           {causesAndActions?.(e)}
 
-          <div className="mt-1.5 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-            {e.createdBy} · {new Date(e.createdAt).toLocaleDateString("en-ZA")}
-          </div>
+          {showLikelihood && (
+            <div className="mt-1.5 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+              {e.createdBy} · {new Date(e.createdAt).toLocaleDateString("en-ZA")}
+            </div>
+          )}
           </>
           )}
         </div>

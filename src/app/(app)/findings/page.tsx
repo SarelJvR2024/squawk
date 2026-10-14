@@ -52,7 +52,6 @@ import {
 } from "@/lib/store";
 import { useOutstanding, carriesWork, useKnownHazardousEvents } from "@/lib/carryforward";
 import PossibleEvents from "@/components/PossibleEvents";
-import AssetPicker from "@/components/AssetPicker";
 import { portalIdFor } from "@/lib/sites";
 import { BAND_META, bandFor, cellCode } from "@/lib/risk";
 import { duplicateFindings } from "@/lib/merge";
@@ -1202,77 +1201,6 @@ export default function FindingsPage() {
                     </div>
                   )}
                   suggestions={knownEvents}
-                  /* THE HIERARCHY — Sarel: "the risk event is linked to the
-                     failure of an asset system or a specific finding... a
-                     hierarchy or linked evidence of non-compliance and
-                     findings all contributing to the risk, giving the full
-                     picture. Multiple assets and findings can contribute to
-                     the same hazardous event." Findings offered are this
-                     system's own — the same list SystemEvidence shows below —
-                     so linking one is picking from evidence already on screen,
-                     not typing an id from memory. */
-                  evidence={(e) => {
-                    const systemFindings =
-                      findingsBySystem.get(`${active.discipline}|${active.system}`) ?? [];
-                    return (
-                      <div className="mt-2">
-                        {systemFindings.length > 0 && (
-                          <div className="mb-1.5">
-                            <div className="label-xs mb-1" style={{ color: "var(--ink-4)" }}>
-                              Findings contributing to this event
-                            </div>
-                            <div className="flex flex-wrap gap-[5px]">
-                              {systemFindings.map((f) => {
-                                const linked = (e.findingIds ?? []).includes(f.id);
-                                return (
-                                  <button
-                                    key={f.id}
-                                    type="button"
-                                    onClick={() => {
-                                      const cur = e.findingIds ?? [];
-                                      const next = linked
-                                        ? cur.filter((id) => id !== f.id)
-                                        : [...cur, f.id];
-                                      useStore
-                                        .getState()
-                                        .patchSystemEvent(active.discipline, active.system, e.id, {
-                                          findingIds: next,
-                                        });
-                                    }}
-                                    aria-pressed={linked}
-                                    title={f.title || f.description}
-                                    className="rounded-full border px-[8px] py-[3px] text-[10.5px] transition-[var(--t)]"
-                                    style={
-                                      linked
-                                        ? {
-                                            background: "var(--acc-soft)",
-                                            borderColor: "var(--acc-line)",
-                                            color: "var(--acc)",
-                                          }
-                                        : { borderColor: "var(--line-2)", color: "var(--ink-3)" }
-                                    }
-                                  >
-                                    {f.id}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                        <AssetPicker
-                          entityCode={entityCode}
-                          discipline={active.discipline}
-                          system={active.system}
-                          value={e.assetIds}
-                          onChange={(assetIds) =>
-                            useStore
-                              .getState()
-                              .patchSystemEvent(active.discipline, active.system, e.id, { assetIds })
-                          }
-                        />
-                      </div>
-                    );
-                  }}
                 />
 
                 {/* ---------------------------------- the full view of the system */}
