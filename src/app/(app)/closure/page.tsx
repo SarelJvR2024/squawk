@@ -29,6 +29,7 @@ import GroupRow from "@/components/ui/GroupRow";
 import { PROGRAMME_VISITS } from "@/lib/programme";
 import { portalIdFor } from "@/lib/sites";
 import { movement } from "@/lib/risk";
+import { worstRating } from "@/lib/crosswalk";
 import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconClock, IconDash, IconX } from "@/components/ui/icons";
 import type { VerificationOutcome } from "@/lib/types";
@@ -109,6 +110,12 @@ export default function ClosurePage() {
       findings.filter((f) => f.discipline === discipline && f.system === system),
       responses
     );
+  /** Compared through the crosswalk, not by name text. A split 2025 system is
+   *  compared with the worst of its current systems. */
+  const ratingOfItem = (p: Outstanding) =>
+    worstRating(p.currentSystems.map((s) => currentRating(p.discipline, s)));
+  const checksOfItem = (p: Outstanding) =>
+    p.currentSystems.flatMap((s) => checksOf(entityCode, p.discipline, s));
 
   const list = useMemo(() => {
     let l = outstanding;
@@ -286,8 +293,7 @@ export default function ClosurePage() {
     repeat: outstanding.filter((p) => verifications[p.key]?.outcome === "Open - repeat").length,
     unverified: outstanding.filter((p) => !verifications[p.key]?.outcome).length,
     carried: outstanding.filter((p) => p.source === "carried").length,
-    nocover: outstanding.filter((p) => checksOf(entityCode, p.discipline, p.system).length === 0)
-      .length,
+    nocover: outstanding.filter((p) => checksOfItem(p).length === 0).length,
   };
 
   const isDefault = discipline === "all" && filter === "all";
@@ -295,9 +301,9 @@ export default function ClosurePage() {
     ? "everything that carries work"
     : [discipline !== "all" ? discipline : null, FILTER_LABEL[filter]].filter(Boolean).join(" · ");
 
-  const linked = active ? checksOf(entityCode, active.discipline, active.system) : [];
+  const linked = active ? checksOfItem(active) : [];
   const linkedNC = linked.filter((c) => responses[c.id]?.compliance === "NC").length;
-  const cur = active ? currentRating(active.discipline, active.system) : "";
+  const cur = active ? ratingOfItem(active) : "";
   const move = active ? movement(active.rating, cur) : null;
 
   return (
