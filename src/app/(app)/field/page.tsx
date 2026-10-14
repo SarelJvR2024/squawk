@@ -858,6 +858,14 @@ export default function FieldPage() {
                                     {it.id}
                                   </span>
                                   {it.findingId && <Pill tone="warn">{it.findingId}</Pill>}
+                                  {it.importKey && (
+                                    <Pill
+                                      tone="accent"
+                                      title="Written by Import observation pack — not typed on the walk"
+                                    >
+                                      IMPORTED, TPJV-PROPOSED
+                                    </Pill>
+                                  )}
                                 </span>
                                 <span
                                   className="block text-[12.5px] leading-[1.4] font-semibold"

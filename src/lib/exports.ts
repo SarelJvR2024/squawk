@@ -347,7 +347,11 @@ export function findingsSheet(x: ExportInput): Sheet {
         .join("\n"),
       f.priorRating ?? "",
       move ?? "",
-      f.adHoc ? "Ad-hoc (raised in the field)" : "From a check-point",
+      f.importKey
+        ? "Imported, TPJV-proposed (observation pack)"
+        : f.adHoc
+          ? "Ad-hoc (raised in the field)"
+          : "From a check-point",
       /* Where this finding ended up on the hazard register, and the event
          somebody named for it at the check. Without these a reader holding the
          Findings sheet cannot tell whether a finding was consolidated or
@@ -556,7 +560,7 @@ export function photographsSheet(x: ExportInput): Sheet {
 export function walkSheet(x: ExportInput): Sheet {
   const rows = (x.adhoc ?? []).map((a) => [
     a.id,
-    ORIGIN_TEXT[a.origin],
+    a.importKey ? `${ORIGIN_TEXT[a.origin]} — Imported, TPJV-proposed` : ORIGIN_TEXT[a.origin],
     /* Blank is a real answer on all three. An observation nobody could
        attribute to a discipline is a normal state on a walk, and forcing one
        would put a guess in a client deliverable. */
@@ -645,7 +649,7 @@ export function hazardsSheet(x: ExportInput): Sheet {
       h.disciplines.length,
       h.findingIds.join(" · "),
       h.findingIds.length,
-      ORIGIN_TEXT[h.origin],
+      h.importKey ? `${ORIGIN_TEXT[h.origin]} — Imported, TPJV-proposed` : ORIGIN_TEXT[h.origin],
       h.immediate ? "Yes — end-of-week critical review" : "",
       /* ACSA's occurrence history. Four of B170's five likelihood levels are
          defined by whether the event has happened and how often, so a

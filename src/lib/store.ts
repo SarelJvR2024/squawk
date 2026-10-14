@@ -469,6 +469,14 @@ interface State {
   updateFinding: (id: string, p: Partial<Finding>) => void;
   /** Appends a dated, attributed entry to a finding's remediation log. */
   addFindingProgress: (id: string, note: string) => void;
+  /** By id, flat across the programme like the array itself — nothing a
+   *  manual screen has needed before now (an issue-button finding withdraws
+   *  through removeFindingsForIssue, and there has been no "delete this one
+   *  finding" button anywhere), but "Import observation pack"'s undo needs
+   *  to remove exactly the findings it created, and mutating `findings`
+   *  from outside the store would bypass whatever else this file ever
+   *  decides a removal should do — same reasoning as removeHazard. */
+  removeFinding: (id: string) => void;
 
   /** Hazards, flat across the programme like findings, each carrying its own
    *  entity and originVisit. Same reason: a hazard raised in September is what
@@ -1257,6 +1265,9 @@ export const useStore = create<State>()(
               f.id === id ? { ...f, ...p, updatedAt: Date.now() } : f
             ),
           })),
+
+        removeFinding: (id) =>
+          set((s) => ({ findings: s.findings.filter((f) => f.id !== id) })),
 
         addHazard: (h) => {
           const id = `HZ-${uid().toUpperCase().slice(0, 5)}`;

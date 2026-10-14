@@ -61,6 +61,11 @@ export default function FindingDetail({
         <span>{f.system}</span>
         {f.priorRating && <Pill tone="bad">REPEAT — MAR 2025 {f.priorRating.toUpperCase()}</Pill>}
         {f.adHoc && <Pill tone="accent">AD-HOC</Pill>}
+        {f.importKey && (
+          <Pill tone="accent" title="Written by Import observation pack, not typed by an auditor">
+            IMPORTED, TPJV-PROPOSED
+          </Pill>
+        )}
         {f.checkId && (
           <button
             onClick={() => router.push(`/capture?check=${f.checkId}`)}

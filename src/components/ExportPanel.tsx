@@ -56,6 +56,7 @@ import { downloadBytes, downloadText, downloadWorkbook, toCsv, type Sheet } from
 import { Btn } from "@/components/ui/primitives";
 import SharedPanel from "@/components/SharedPanel";
 import TeamMerge from "@/components/TeamMerge";
+import ImportPackPanel from "@/components/ImportPackPanel";
 import { IconDownload, IconX } from "@/components/ui/icons";
 
 type Kind =
@@ -580,6 +581,8 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
       <SharedPanel />
 
       <TeamMerge />
+
+      <ImportPackPanel />
 
       {error && (
           <div

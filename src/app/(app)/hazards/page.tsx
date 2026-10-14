@@ -820,6 +820,11 @@ export default function HazardsPage() {
                   {active.disciplines.length > 0 && <span>{active.disciplines.join(" · ")}</span>}
                   {active.systems.length > 0 && <span>{active.systems.join(" · ")}</span>}
                   {active.immediate && <Pill tone="bad">IMMEDIATE</Pill>}
+                  {active.importKey && (
+                    <Pill tone="accent" title="Written by Import observation pack, not raised on the audit">
+                      IMPORTED, TPJV-PROPOSED
+                    </Pill>
+                  )}
                 </div>
 
                 <label className="mb-2 block">

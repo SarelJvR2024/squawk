@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Btn } from "@/components/ui/primitives";
+import { Btn, Pill } from "@/components/ui/primitives";
 import { AttachmentStrip, PhotoButton, VoiceNoteButton, forgetMedia } from "@/components/Capture";
 import OutcomeControl from "@/components/OutcomeControl";
 import { areasAt, disciplinesAt, systemsOf, useAdhoc, useEntityCode, useStore } from "@/lib/store";
@@ -255,8 +255,9 @@ export default function AddItemSheet({
           style={{ borderColor: "var(--line)" }}
         >
           <div>
-            <h3 className="text-[14px] font-bold">
+            <h3 className="flex items-center gap-1.5 text-[14px] font-bold">
               {item ? item.id : "Add an inspection item"}
+              {item?.importKey && <Pill tone="accent">IMPORTED, TPJV-PROPOSED</Pill>}
             </h3>
             <p className="mt-[2px] text-[11px]" style={{ color: "var(--ink-3)" }}>
               Something on site the 324 check-points do not cover. It is recorded as

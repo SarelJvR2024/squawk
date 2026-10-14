@@ -43,7 +43,7 @@ row() { rows="${rows}$(printf '%-22s %6s\n' "$1" "$2")
 echo "== source suites"
 for f in tests/*.test.mjs; do
   case "$f" in
-    *sharepoint*|*merge*|*figures*|*attendance*|*isf*|*toolbox*|*incident*|*sync-coverage*) args="--import ./tests/alias.mjs" ;;
+    *sharepoint*|*merge*|*figures*|*attendance*|*isf*|*toolbox*|*incident*|*sync-coverage*|*import-pack*) args="--import ./tests/alias.mjs" ;;
     *) args="" ;;
   esac
   out=$(node $args "$f" 2>&1)
