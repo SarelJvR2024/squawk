@@ -18,6 +18,20 @@ import { fileURLToPath } from "node:url";
  *  so the photograph stayed on whichever tablet took it even though the
  *  record and its 240px thumbnail reached every device.
  *
+ *  SAME DAY, SECOND LAYER — the fix above was not enough on its own. Sarel's
+ *  rating still would not reach his other browser even after it shipped,
+ *  because the push watermark (pushedKey) only ever advances to the newest
+ *  `updated_at` among rows actually IN a push batch. His rating predated
+ *  "system" existing as a push-able kind at all; by the time the fix
+ *  shipped, other, later-timestamped rows had already pushed the watermark
+ *  past his rating's own timestamp, and rowsToPush's `at > since` gate
+ *  excludes it forever from that point on — the fix above was correct but
+ *  could never reach data that was already stuck behind an advanced
+ *  watermark. The second fix is a one-time, versioned watermark rewind so
+ *  every device resends its full backlog exactly once; safe, because
+ *  squawk_push only ever accepts a row newer than what the server already
+ *  has, so resending unchanged rows is a no-op.
+ *
  *  This suite pins both fixes against regressing, plus a live round trip of
  *  the shared-record fix through the real merge code — not a looser
  *  source-text stand-in for it. */
@@ -113,6 +127,27 @@ check(
 check(
   "the render-time count and the actual upload loop share one collector — can't drift apart again",
   (sync.match(/collectOutstanding\(/g) ?? []).length >= 3
+);
+
+/* ---- 4 · a stuck push watermark self-heals once, per device ------------ */
+
+check(
+  "the resync flag is its own key, separate from the watermark it rewinds",
+  /const pushResyncKey = \(entity: string, visit: string\) => `squawk-push-resync:\$\{entity\}\/\$\{visit\}`;/.test(shared)
+);
+check(
+  "a resync version exists to re-trigger this again in future, without a new key name",
+  /const RESYNC_VERSION = "[^"]+";/.test(shared)
+);
+check(
+  "an unseen RESYNC_VERSION rewinds the watermark to zero before rowsToPush runs, not after",
+  /if \(local\.get\(pushResyncKey\(entity, visit\)\) !== RESYNC_VERSION\) \{\s*\n\s*local\.del\(pushedKey\(entity, visit\)\);\s*\n\s*local\.set\(pushResyncKey\(entity, visit\), RESYNC_VERSION\);\s*\n\s*\}\s*\n\s*const since = Number\(local\.get\(pushedKey\(entity, visit\)\) \?\? 0\);\s*\n\s*const records = rowsToPush\(since\);/.test(shared),
+  "rewinding after `since` is read would do nothing — this sync would still use the stale watermark"
+);
+check(
+  "the rewind runs at most once per device: the flag is set in the same breath it rewinds",
+  /local\.del\(pushedKey\(entity, visit\)\);\s*\n\s*local\.set\(pushResyncKey\(entity, visit\), RESYNC_VERSION\);/.test(shared),
+  "setting the flag anywhere else risks a device that rewinds on every sync, re-sending its whole backlog forever"
 );
 
 process.exit(failures ? 1 : 0);

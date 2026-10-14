@@ -72,6 +72,24 @@ const pushedKey = (entity: string, visit: string) => `squawk-pushed:${entity}/${
  *  reset row seen but not yet acted on (a sync that crashed between the two)
  *  must still wipe the device on the very next try. */
 const resetBoundaryKey = (entity: string, visit: string) => `squawk-reset-boundary:${entity}/${visit}`;
+/** Has this device already run the one-time push-watermark rewind for
+ *  RESYNC_VERSION, for this entity/visit?
+ *
+ *  The watermark below only ever advances to the latest `updated_at` among
+ *  rows that were ACTUALLY in a push batch. Before 14 October 2026 "system"
+ *  (Asset Assurance ratings) was not a push-able row kind at all, so a
+ *  device that rated a system and then pushed OTHER, later-timestamped
+ *  rows advanced its watermark past that rating's own timestamp — and once
+ *  past it, rowsToPush's `at > since` gate excludes it forever, even after
+ *  the kind existed. Sarel saw this as a rating that still would not reach
+ *  his other browser after the fix had already shipped. Bump
+ *  RESYNC_VERSION to force every device to rewind its watermark to 0 once
+ *  and resend its full backlog — safe, because the server only ever
+ *  accepts a row if it is newer than what it already has (squawk_push's
+ *  `where excluded.updated_at > t.updated_at`), so re-sending unchanged
+ *  rows is a no-op. */
+const pushResyncKey = (entity: string, visit: string) => `squawk-push-resync:${entity}/${visit}`;
+const RESYNC_VERSION = "2026-10-14a";
 
 /** Rows are what travels: one per record, with the device clock that stamped it. */
 export interface SharedRow {
@@ -416,6 +434,10 @@ export function useSharedRecord(): SharedRecord {
     running.current = true;
     setSyncState("syncing");
     try {
+      if (local.get(pushResyncKey(entity, visit)) !== RESYNC_VERSION) {
+        local.del(pushedKey(entity, visit));
+        local.set(pushResyncKey(entity, visit), RESYNC_VERSION);
+      }
       const since = Number(local.get(pushedKey(entity, visit)) ?? 0);
       const records = rowsToPush(since);
       const cursor = local.get(cursorKey(entity, visit));
