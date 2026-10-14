@@ -508,6 +508,35 @@ check(
     /Show the full wording/.test(codeOnly)
 );
 
+/* ------------------- an internal note, never synced, per asset system ----- */
+
+/* Sarel: "add a field to add internal notes per asset system, clearly label
+   this as an internal note and this must never get synced to sharepoint or
+   reported to a client report." See tests/sharepoint.test.mjs's own
+   "the reviewer's own fields never reach the portal" section for the
+   functional proof against the real sync code; this file checks the panel
+   itself exists, warns on its face, and is keyed to the system, not the
+   check. */
+
+check(
+  "the internal note is read and written through the asset system's own record, not the check's",
+  /const sysA = systemAssessment\(check\.discipline, check\.system\);/.test(detail) &&
+    /patchSystem\(check\.discipline, check\.system, \{ internalNote: e\.target\.value \}\)/.test(detail),
+  "every check under one asset system shares the same note, not a copy per check-point"
+);
+
+check(
+  "the internal-only banner is on the panel's face, not only in a code comment",
+  /INTERNAL ONLY — never synced to SharePoint, never in a client report/.test(detail),
+  "a label a reviewer can see is what stops a working note being mistaken for something client-facing"
+);
+
+/* --------------------------------------------------------------------------
+   the reviewer's own sign-off moved to ReviewDetail.tsx, not here — see
+   tests/review.test.mjs's own section on it. CheckDetail (Capture, Field)
+   is a capture-time workspace; "fit to share with the client" is a
+   review-time question, asked on /review's own detail pane now. */
+
 /* ------------------------------------------------------------------ result */
 
 console.log(failures === 0 ? "\nCHECK SCREEN OK" : `\n${failures} FAILURE${failures > 1 ? "S" : ""}`);

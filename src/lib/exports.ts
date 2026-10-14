@@ -236,6 +236,9 @@ export function registerSheet(x: ExportInput): Sheet {
       r?.captured ? "Yes" : "No",
       r?.capturedBy ?? "",
       when(r?.capturedAt),
+      /* NEVER r?.reviewStatus/reviewStatusNote/improvementFlag/improvementNote
+         HERE. This is the client-facing register sheet — see
+         Response.reviewStatus's own doc comment in types.ts. */
     ];
   });
 
@@ -1525,6 +1528,8 @@ export function systemsSheet(x: ExportInput): Sheet {
       when(a?.assessedAt),
       a?.note ?? "",
       a?.directionOfRisk ?? "",
+      /* NEVER a?.internalNote HERE. This sheet is the client-facing export —
+         see the field's own doc comment in types.ts for why. */
     ]);
   }
   rows.sort((a, b) => String(a[0]).localeCompare(String(b[0])) || String(a[1]).localeCompare(String(b[1])));

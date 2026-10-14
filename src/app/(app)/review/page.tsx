@@ -60,7 +60,7 @@ import { Dot, Empty, Pill } from "@/components/ui/primitives";
 import { IconInbox } from "@/components/ui/icons";
 import type { Check, Response } from "@/lib/types";
 
-type Filter = "all" | "nc" | "findings" | "flagged" | "evidence";
+type Filter = "all" | "nc" | "findings" | "flagged" | "evidence" | "unsigned";
 
 const RATING_TONE = {
   Unacceptable: "bad",
@@ -113,6 +113,11 @@ export default function ReviewPage() {
         const status = responses[c.id]?.evidenceStatus;
         return status === "toBeProvided" || status === "specificNotAvailable";
       });
+    /* THE REVIEWER'S OWN QUEUE — Sarel's sign-off status (see ReviewDetail's
+       "Review status" section). Not the same as "open" above: a check can
+       be fully answered and still not have had a reviewer's own pass
+       over it. */
+    if (filter === "unsigned") list = list.filter((c) => !responses[c.id]?.reviewStatus);
     return list;
   }, [disciplineChecks, filter, responses, findings]);
 
@@ -183,6 +188,7 @@ export default function ReviewPage() {
                 ["findings", "Findings"],
                 ["flagged", "Flagged"],
                 ["evidence", "Evidence"],
+                ["unsigned", "Not signed off"],
               ] as [Filter, string][]
             ).map(([k, label]) => (
               <button
@@ -295,6 +301,7 @@ export default function ReviewPage() {
                   checks.map((c) => {
                     const on = c.id === active?.id;
                     const nFindings = findingsOn(c.id).length;
+                    const signOff = responses[c.id]?.reviewStatus;
                     return (
                       <button
                         key={c.id}
@@ -320,6 +327,8 @@ export default function ReviewPage() {
                           <span className="mt-[1px] block truncate text-[11.5px]">{c.requirement}</span>
                         </span>
                         {nFindings > 0 && <Pill tone="warn">{nFindings}</Pill>}
+                        {signOff === "approved" && <Pill tone="good">✓</Pill>}
+                        {signOff === "changesRequired" && <Pill tone="warn">⚠</Pill>}
                       </button>
                     );
                   })}
