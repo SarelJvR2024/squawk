@@ -30,6 +30,7 @@ import { BAND_AS_RATING, BAND_META, bandFor, cellCode, movement } from "./risk";
 import { entity as entityOf, PROGRAMME_VISITS } from "./programme";
 import { portalIdFor } from "./sites";
 import { priorFor } from "./register";
+import { mappingFor } from "./crosswalk";
 import * as erm from "./erm";
 
 /** Who raised the hazard, spelled out for a reader of the workbook. */
@@ -779,9 +780,10 @@ export function closureSheet(x: ExportInput): Sheet {
     /* An unallocated finding names a building rather than a register asset
        system, so nothing covers it by definition and the column says so
        instead of reading as a coverage failure. */
-    const covering = p.assetSystem
-      ? x.checks.filter((c) => c.discipline === p.discipline && c.system === p.assetSystem)
-      : [];
+    const map = mappingFor(p);
+    const covering = x.checks.filter(
+      (c) => c.discipline === p.discipline && map.systems.includes(c.system)
+    );
     const nc = covering.filter((c) => x.responses[c.id]?.compliance === "NC").length;
     return [
       p.portalId,
@@ -821,13 +823,19 @@ export function closureSheet(x: ExportInput): Sheet {
       covering.length,
       covering.length
         ? covering.map((c) => portalIdFor(x.entity, c.id)).join(", ")
-        : p.assetSystem
-          ? "No check covers this"
-          : "Unallocated — discipline lead assigns in the field",
+        : map.type === "unmapped"
+          ? "Unallocated — discipline lead assigns in the field"
+          : map.type === "2025-only"
+            ? "2025 only — not on this visit's checklist"
+            : "No check covers this",
       nc,
       /* The coverage guard, carried into the export: closure cannot be evidenced
          against a check that is not being done. */
-      covering.length === 0 && p.assetSystem ? "NOT COVERED THIS VISIT" : "",
+      covering.length === 0 && map.type !== "unmapped" ? "NOT COVERED THIS VISIT" : "",
+      /* The crosswalk, as two columns at the far right so nothing that reads
+         the sheet by position moves. */
+      map.systems.join("; "),
+      map.type,
     ];
   });
 
@@ -851,6 +859,8 @@ export function closureSheet(x: ExportInput): Sheet {
       { header: "Which checks", width: 40, wrap: true },
       { header: "Of those, non-compliant", width: 20 },
       { header: "Coverage guard", width: 22 },
+      { header: "Current asset system (mapped)", width: 30 },
+      { header: "Mapping type", width: 14 },
     ],
     rows,
   };
@@ -1483,7 +1493,7 @@ export function systemsSheet(x: ExportInput): Sheet {
       rs.filter((r) => !r?.compliance).length,
       findings.length,
       x.prior.filter(
-        (p) => p.discipline === c.discipline && (p.assetSystem ?? p.assetSystemRecorded) === system
+        (p) => p.discipline === c.discipline && mappingFor(p).systems.includes(system)
       ).length,
       a?.assessedBy ?? "",
       when(a?.assessedAt),

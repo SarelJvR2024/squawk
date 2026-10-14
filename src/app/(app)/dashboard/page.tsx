@@ -31,6 +31,7 @@ import { isOutstanding } from "@/lib/evidence";
 import { auditWindow, ENTITIES, PROGRAMME_VISITS } from "@/lib/programme";
 import { LIKELIHOODS, SEVERITIES, bandFor, movement } from "@/lib/risk";
 import { currentRatingOf } from "@/lib/carryforward";
+import { mappingFor, worstRating } from "@/lib/crosswalk";
 import { Panel, Pill, Track } from "@/components/ui/primitives";
 import {
   IconCheck,
@@ -155,17 +156,22 @@ export default function DashboardPage() {
      nothing to compare it against and it is left out of the movement counts
      rather than counted as unchanged. */
   const moves = priorScope
-    .filter((p) => p.assetSystem)
-    .map((p) => movement(p.tolerance, currentRating(p.discipline, p.assetSystem!)))
+    .map((p) => {
+      const sys = mappingFor(p).systems;
+      if (sys.length === 0) return null;
+      return movement(p.tolerance, worstRating(sys.map((s) => currentRating(p.discipline, s))));
+    })
     .filter(Boolean);
   const improved = moves.filter((m) => m === "Improved").length;
   const unchanged = moves.filter((m) => m === "Unchanged").length;
   const worsened = moves.filter((m) => m === "Worsened").length;
 
   /* coverage guard: prior findings whose asset system has no check in scope */
-  const noCoverage = priorScope.filter(
-    (p) => p.assetSystem && checksOf(entityCode, p.discipline, p.assetSystem).length === 0
-  ).length;
+  const noCoverage = priorScope.filter((p) => {
+    const m = mappingFor(p);
+    if (m.type === "unmapped") return false;
+    return m.systems.flatMap((s) => checksOf(entityCode, p.discipline, s)).length === 0;
+  }).length;
 
   const kpi = (label: string, value: string | number, tone?: "good" | "bad" | "warn" | "acc") => (
     <div
