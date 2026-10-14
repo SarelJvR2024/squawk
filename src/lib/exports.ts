@@ -1520,6 +1520,7 @@ export function systemsSheet(x: ExportInput): Sheet {
       a?.assessedBy ?? "",
       when(a?.assessedAt),
       a?.note ?? "",
+      a?.directionOfRisk ?? "",
     ]);
   }
   rows.sort((a, b) => String(a[0]).localeCompare(String(b[0])) || String(a[1]).localeCompare(String(b[1])));
@@ -1548,6 +1549,7 @@ export function systemsSheet(x: ExportInput): Sheet {
       { header: "Assessed by", width: 22 },
       { header: "Assessed on", width: 13 },
       { header: "Assessor's note", width: 60, wrap: true },
+      { header: "Direction of risk", width: 56, wrap: true },
     ],
     rows,
   };

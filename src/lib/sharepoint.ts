@@ -298,6 +298,10 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
   ratingAgreed: ["Rating agreed", "Agreed"],
   rationale: ["Why that cell", "Rationale", "Why", "Justification"],
   events: ["Possible hazardous events", "Possible events", "Hazardous events"],
+  /* Added 14 October 2026 for the FAOR hazard-mapping import, which carries
+     this per asset system (SystemAssessment.directionOfRisk) and had no
+     portal column to land on until now. */
+  directionOfRisk: ["Direction of risk", "Direction of risk (inspection and maintenance)"],
 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -1919,7 +1923,8 @@ export function buildPlan(
         allActions.length > 0 ||
         a.events.length > 0 ||
         a.note.trim() !== "" ||
-        a.ratingRationale.trim() !== "");
+        a.ratingRationale.trim() !== "" ||
+        !!a.directionOfRisk?.trim());
     if (!hasContent) {
       emptyPairs++;
       continue;
@@ -1959,6 +1964,7 @@ export function buildPlan(
         auditor: a!.assessedBy ?? "",
         assessedOn: a!.assessedAt ? new Date(a!.assessedAt).toISOString() : null,
         notes: a!.note ?? "",
+        directionOfRisk: a!.directionOfRisk ?? "",
       },
       summary: agreed
         ? `${key} · ${band ? BAND_META[band].label : ""}`

@@ -50,6 +50,24 @@ export interface Visit {
   note: string;
 }
 
+/** A correction to one visit's dates, typed in the app rather than requiring
+ *  a code change and a redeploy every time ACSA moves a date. Sarel: "build
+ *  an option where a user can edit the audit dates." Keyed by
+ *  `scopeKey(entity, visitId)` — see store.ts — so it is unambiguous which
+ *  round it corrects even where an entity has several visits. Every field is
+ *  optional and absent means "use the programme file's own value", so a
+ *  correction can touch only what was wrong (just the dates, say) and leave
+ *  everything else exactly as seeded. */
+export interface AuditDateOverride {
+  auditFrom?: string;
+  auditTo?: string;
+  auditTbc?: boolean;
+  label?: string;
+  note?: string;
+  updatedAt: number;
+  updatedBy: string;
+}
+
 export const CYCLE = programme.cycle;
 export const ENTITIES = programme.entities as Entity[];
 export const PROGRAMME_VISITS = programme.visits as Visit[];

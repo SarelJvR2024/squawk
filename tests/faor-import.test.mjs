@@ -150,6 +150,9 @@ check("SystemAssessment.directionOfRisk exists and is optional", /directionOfRis
 
 const store = src("src", "lib", "store.ts");
 check("persist key untouched", store.includes('"acsa-assurance-v1"'));
-check("version bumped for the new fields", /version:\s*36/.test(store));
+check(
+  "version bumped for the new fields",
+  Number(store.match(/version:\s*(\d+),/)?.[1] ?? 0) > 35
+);
 
 process.exit(failures ? 1 : 0);

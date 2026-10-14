@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Sixty-seven suites, no framework. Thirteen need a running server; fifty-four do not.
+Sixty-eight suites, no framework. Thirteen need a running server; fifty-five do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -45,6 +45,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `carryforward.test.mjs` | no | 48 |
 | `crosswalk.test.mjs` | no | 13 |
 | `faor-import.test.mjs` | no | 22 |
+| `sync-coverage.test.mjs` | no | 15 |
 | `review.test.mjs` | no | 20 |
 | `tablet.test.mjs` | no | 42 |
 | `portals.test.mjs` | no | 32 |
@@ -107,7 +108,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,021 assertions in total**, every count above verified by running the suite,
+**3,036 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
