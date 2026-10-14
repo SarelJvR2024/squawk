@@ -214,6 +214,21 @@ export const IconPlus = (p: SVGProps<SVGSVGElement>) => (
     <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
   </svg>
 );
+/** A trash can — deliberately not IconX, which this app already uses for
+ *  "close/cancel/dismiss" everywhere else. Removing a row for good reads
+ *  differently from backing out of a panel, and the two should not share
+ *  one glyph. */
+export const IconTrash = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...s(p)}>
+    <path
+      d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 0 .9 12.1A2 2 0 0 0 7.9 21h8.2a2 2 0 0 0 2-1.9L19 7M10 11v6M14 11v6"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
 
 /** A paperclip — attaching a file, not taking a photograph or a document
  *  written by hand. Deliberately not the clipboard used for "evidence
