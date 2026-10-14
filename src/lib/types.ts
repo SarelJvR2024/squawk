@@ -931,6 +931,13 @@ export interface PossibleEvent {
    *  what lets the merge tell which side's scalar fields are newer. Optional:
    *  an event recorded before this existed has no edits to date. */
   updatedAt?: number;
+  /** True only for an event seeded by a desktop import (e.g. a pre-visit
+   *  hazard-mapping spreadsheet) rather than typed by someone on the audit.
+   *  Absent means field-captured, same as everywhere else absent means no —
+   *  this is provenance only and gates nothing: `likelihood`/`rootCauses`/
+   *  `actions` here are still suggestions until an auditor on this system
+   *  works them, same as any other event. */
+  seeded?: boolean;
 }
 
 /* ---------- the asset system's own assessment ----------
@@ -965,6 +972,11 @@ export interface RootCauseNote {
   note: string;
   createdAt: number;
   createdBy: string;
+  /** See PossibleEvent.seeded — same provenance-only marker, carried on the
+   *  cause itself rather than only on its parent event, because a cause can
+   *  later be reassigned onto a different event (assignUnassignedRootCause)
+   *  and should keep saying where it came from after that move. */
+  seeded?: boolean;
 }
 
 /** One mitigation action, of several. Each carries its own owner, date and
@@ -997,6 +1009,9 @@ export interface MitigationAction {
   createdAt: number;
   createdBy: string;
   updatedAt?: number;
+  /** See PossibleEvent.seeded — same provenance-only marker, carried on the
+   *  action itself for the same reassignment reason as RootCauseNote.seeded. */
+  seeded?: boolean;
 }
 
 export interface SystemAssessment {
@@ -1015,6 +1030,13 @@ export interface SystemAssessment {
    *  reasoning is the thing ACSA sends back — but blank is allowed, because
    *  forcing prose produces prose nobody means. */
   ratingRationale: string;
+  /** Whether the inspection and maintenance regime in place is holding,
+   *  improving or worsening this system's risk — the assessor's own
+   *  judgement call, in their words, same register as `ratingRationale`.
+   *  Not derived from anything: `movement()` in risk.ts compares a rating
+   *  across visits, which is a different question from whether today's
+   *  upkeep is enough to hold the line. */
+  directionOfRisk?: string;
   /** THE HAZARDOUS EVENTS THIS ASSET SYSTEM COULD LEAD TO, same shape and same
    *  reasoning as a carried finding's PossibleEvent (see PossibleEvents.tsx):
    *  one asset system regularly has several distinct futures, and recording
@@ -1047,6 +1069,12 @@ export interface SystemAssessment {
   assessedAt: number | null;
   /** See Response.updatedAt — what lets two devices' work be combined. */
   updatedAt?: number;
+  /** See PossibleEvent.seeded — true only while this system's severity/
+   *  likelihood/rationale/directionOfRisk are still exactly what a desktop
+   *  import suggested, with nobody on the audit having worked them yet.
+   *  Informational only: `ratingConfirmed` is still the one gate every
+   *  count, dashboard and export honours. */
+  seeded?: boolean;
 }
 
 export interface Verification {

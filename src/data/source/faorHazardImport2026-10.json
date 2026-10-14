@@ -1,0 +1,649 @@
+[
+  {
+    "discipline": "Building & Facilities",
+    "assetSystem": "Accessibility & Signage",
+    "severity": "D - Minor",
+    "likelihood": "2 - Improbable",
+    "ratingRationale": "Severity D: a person with limited mobility is hurt, or an exit is hard to find. Likelihood 2: the one check is compliant by interview, but no accessibility audit was seen. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Holding. Signs and exits are checked monthly and three-monthly, which keeps the risk level.",
+    "events": [
+      {
+        "event": "Delay or crowding in an emergency evacuation because exit signs are missing, unlit or blocked.",
+        "rootCause": "Exit signs and routes checked only three-monthly; damaged signs left in place.",
+        "action": "Check exit signs and routes monthly; replace failed signs the same week; keep routes clear."
+      },
+      {
+        "event": "Fall or injury to a person with limited mobility.",
+        "rootCause": "Ramps and ablutions not audited for access.",
+        "action": "Audit ramps and ablutions; repair non-compliant items."
+      }
+    ],
+    "spreadsheetRating": "Green"
+  },
+  {
+    "discipline": "Building & Facilities",
+    "assetSystem": "Building Drainage",
+    "severity": "D - Minor",
+    "likelihood": "3 - Remote",
+    "ratingRationale": "Severity D: a sewer backup or odour exposes people to infection or discomfort. Likelihood 3: 3 of 7 checks are compliant by interview and the others were referred to Process Safety and Environmental, so ownership of effluent control is unclear. The 2025 audit rated this Tolerable. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Holding. Planned cleaning is in place, but unclear ownership of effluent and odour control stops the risk from falling.",
+    "events": [
+      {
+        "event": "Sewage backing up into occupied areas, exposing people to infection.",
+        "rootCause": "Blocked lines or full tanks; cleaning dates not seen; design drawings held only at head office.",
+        "action": "Clean lines and tanks on schedule; keep drawings for each building on site; respond to blockages within the work order limit."
+      },
+      {
+        "event": "Objectionable discharge reaching the environment.",
+        "rootCause": "Ownership of effluent control unclear between Buildings and Facilities, Process Safety and Environmental.",
+        "action": "Name one owner for discharge control; inspect effluent installations."
+      },
+      {
+        "event": "Odour and gas build-up in ablutions.",
+        "rootCause": "Ventilation or odour control not reinstated (2025 finding).",
+        "action": "Reinstate the odour control routine; check extractors."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Building & Facilities",
+    "assetSystem": "Building Maintenance",
+    "severity": "D - Minor",
+    "likelihood": "3 - Remote",
+    "ratingRationale": "Severity D: unclosed building defects can build up. Likelihood 3: all 3 checks are compliant by interview, but the 14-day and 7-day work order limits in D060 016M are not evidenced and no completion rate was seen. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Not determined. The completion rate and open work order age have not been seen, so the direction cannot be judged.",
+    "events": [
+      {
+        "event": "Several building defects go unrepaired, and a safety-critical failure follows.",
+        "rootCause": "Work orders not closed within 14 or 7 days (D060 016M); defects assigned to Civil without follow-up.",
+        "action": "Review open work orders older than 14 days each week; escalate safety items."
+      },
+      {
+        "event": "Planned maintenance missed on fire and exit routes.",
+        "rootCause": "Plan not linked to completion rates.",
+        "action": "Report the completion rate each month and the overdue work orders."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Building & Facilities",
+    "assetSystem": "Certificates",
+    "severity": "C - Major",
+    "likelihood": "3 - Remote",
+    "ratingRationale": "Severity C: a building without a valid occupancy, fire or electrical certificate may not protect people in a fire. Likelihood 3: all 6 checks are compliant by interview that certificates are kept centrally, but no register or expiry dates were seen. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Not determined. No register has been seen, so it is not known whether certificates are being renewed on time.",
+    "events": [
+      {
+        "event": "A building is occupied without a valid occupancy, fire or electrical certificate, so it fails when needed and ACSA is exposed to enforcement.",
+        "rootCause": "No single register of certificates; some held at head office; expiry dates not tracked.",
+        "action": "Build one register with expiry dates; renew certificates expiring within 90 days; keep copies on site."
+      },
+      {
+        "event": "Fire systems or lifts operate without a valid inspection.",
+        "rootCause": "Fire and lift certificates held by different teams.",
+        "action": "Include fire and lift certificates in the same register."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Building & Facilities",
+    "assetSystem": "Concrete Structures",
+    "severity": "C - Major",
+    "likelihood": "2 - Improbable",
+    "ratingRationale": "Severity C: spalling concrete or structural movement can injure people. Likelihood 2: all 3 checks are compliant by interview and inspections are done and logged, but the inspection sheets were not seen. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Holding. Daily to yearly inspections are reported and logged, which keeps the risk level.",
+    "events": [
+      {
+        "event": "Concrete falls from a ceiling or beam and injures a person.",
+        "rootCause": "Cracking and spalling not found; steel reinforcement corroding.",
+        "action": "Do the three-monthly visual inspection and the yearly structural inspection; repair spalling at once."
+      },
+      {
+        "event": "Structural collapse of a building element.",
+        "rootCause": "Settlement or overload not assessed by a competent person.",
+        "action": "Appoint a competent person and act on the yearly report."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Building & Facilities",
+    "assetSystem": "Corrosion",
+    "severity": "C - Major",
+    "likelihood": "3 - Remote",
+    "ratingRationale": "Severity C: a corroded structural member, such as the viewing deck, can fail with people on it. Likelihood 3: the one check is compliant by interview, but the walk recorded corrosion on the viewing deck and the photos show rust on steel at the perimeter wall. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Increasing. Corrosion progresses, and no repainting programme was seen. Rust is visible on the deck and the wall, so the defects are growing faster than they are being treated.",
+    "events": [
+      {
+        "event": "Failure of a corroded structural member (for example the viewing deck) with people on it.",
+        "rootCause": "Rust on steel not treated; repainting programme under subcontract not seen.",
+        "action": "Close or restrict the viewing deck until an engineer inspects it; treat and repaint steel on a programme."
+      },
+      {
+        "event": "Corroded fixings fall from a canopy or gantry.",
+        "rootCause": "Fixings not inspected.",
+        "action": "Inspect fixings each quarter and replace corroded ones."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Building & Facilities",
+    "assetSystem": "Façades & Glazing",
+    "severity": "D - Minor",
+    "likelihood": "2 - Improbable",
+    "ratingRationale": "Severity D: a cracked glass panel could fall, but the exposure is limited. Likelihood 2: the one check is compliant by interview with monthly and three-monthly checks. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Holding. Monthly and three-monthly checks keep the risk level.",
+    "events": [
+      {
+        "event": "A glass panel breaks and falls onto people.",
+        "rootCause": "Cracked glass and loose fixings not found between inspections.",
+        "action": "Check glazing monthly and three-monthly; replace cracked panels at once; cordon the area below."
+      },
+      {
+        "event": "Water enters through a failed seal and damages equipment.",
+        "rootCause": "Sealants and frames not inspected.",
+        "action": "Inspect seals each quarter and repair."
+      }
+    ],
+    "spreadsheetRating": "Green"
+  },
+  {
+    "discipline": "Building & Facilities",
+    "assetSystem": "Movement Joints",
+    "severity": "D - Minor",
+    "likelihood": "2 - Improbable",
+    "ratingRationale": "Severity D: a worn joint is a trip or vehicle damage hazard. Likelihood 2: the one check is compliant by interview. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Holding. Inspection through the subcontractor keeps the risk level.",
+    "events": [
+      {
+        "event": "Trip or vehicle damage at a failed joint in a walkway or parkade.",
+        "rootCause": "Joint material worn and not replaced; inspections only through the subcontractor.",
+        "action": "Inspect joints each quarter; replace worn joint material; mark the hazard until repaired."
+      },
+      {
+        "event": "Water ingress and cracking at the joint.",
+        "rootCause": "Sealant failure.",
+        "action": "Reseal joints on the work order list."
+      }
+    ],
+    "spreadsheetRating": "Green"
+  },
+  {
+    "discipline": "Building & Facilities",
+    "assetSystem": "Refuse Disposal",
+    "severity": "C - Major",
+    "likelihood": "3 - Remote",
+    "ratingRationale": "Severity C: a fire in a waste store, or disease from pests. Likelihood 3: 4 of 6 checks are compliant by interview and one is non-compliant, there is currently no pest control contract, storage access is controlled only in some cases, and the walk recorded the waste storage. The 2025 audit rated the waste facility Unacceptable. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Increasing. With no pest control contract, the monthly pest check and the fumigation register cannot be done, and access to stores is only partly controlled, so the controls are weaker than the policy requires.",
+    "events": [
+      {
+        "event": "Fire in a waste store or skip.",
+        "rootCause": "Stored waste and uncontrolled access; collection too infrequent for the fill rate.",
+        "action": "Fix the collection frequency to the fill rate; keep fire extinguishers and clear access at each store."
+      },
+      {
+        "event": "Pest infestation and disease spread.",
+        "rootCause": "No pest control contract at present; monthly pest schedule check cannot be done.",
+        "action": "Appoint a pest control contractor; restart the fumigation register."
+      },
+      {
+        "event": "Odour and leachate exposure.",
+        "rootCause": "Storage areas not cleaned; odour testing interval not stated by ACSA.",
+        "action": "Clean stores on a schedule; agree an odour check interval."
+      },
+      {
+        "event": "Unauthorised access or dumping.",
+        "rootCause": "Storage areas access-controlled only in some cases.",
+        "action": "Control access to all stores through site security."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Building & Facilities",
+    "assetSystem": "Roofs & Waterproofing",
+    "severity": "C - Major",
+    "likelihood": "3 - Remote",
+    "ratingRationale": "Severity C: water entering through the roof can reach electrical equipment and cause a fire or outage. Likelihood 3: the one check is compliant by interview, but the 2025 audit rated gutter and waterproofing failure Unacceptable. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Decreasing. Roof waterproofing started in 2025 and the downpipe project is in progress, so the failure is being repaired.",
+    "events": [
+      {
+        "event": "Water enters through the roof and reaches electrical equipment, causing a fire or an outage.",
+        "rootCause": "Gutter and waterproofing failure at the terminal (2025 Unacceptable); downpipe project in progress.",
+        "action": "Finish the waterproofing and downpipe works; clear gutters before the rainy season; cover electrical equipment below known leaks until repaired."
+      },
+      {
+        "event": "Gutter or downpipe failure floods the area.",
+        "rootCause": "Blockages and damaged gutters.",
+        "action": "Clean gutters each quarter; replace damaged sections."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Building & Facilities",
+    "assetSystem": "Stormwater Disposal",
+    "severity": "C - Major",
+    "likelihood": "3 - Remote",
+    "ratingRationale": "Severity C: flooding of the basement loading area and building. Likelihood 3: 3 of 5 checks are compliant by interview, ownership of stormwater control is unclear between Environmental, Process Safety and Civil, and the 2025 audit rated stormwater disposal Unacceptable. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Holding. Pre-season maintenance is planned and gutters are checked, but unclear ownership stops the risk from falling.",
+    "events": [
+      {
+        "event": "Flooding of the basement loading area and building.",
+        "rootCause": "Ownership of stormwater control unclear (Environmental, Process Safety or Civil); inlets and grids not checked after rain.",
+        "action": "Name one owner; check inlets and grids after every heavy rain; clean before the rainy season."
+      },
+      {
+        "event": "Erosion or collapse around channels and access points.",
+        "rootCause": "Covers and grids missing or damaged.",
+        "action": "Replace damaged covers and grids; inspect access points each quarter."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Building & Facilities",
+    "assetSystem": "Terminal Finishes",
+    "severity": "D - Minor",
+    "likelihood": "3 - Remote",
+    "ratingRationale": "Severity D: slips, trips or falling ceiling parts injure a person. Likelihood 3: the one check is compliant by interview, but the walk recorded a damaged building corner and wall repairs at the basement loading area. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Holding. Monthly inspection is in place, but the damage seen on the walk is still open.",
+    "events": [
+      {
+        "event": "A person slips, trips or is struck by a falling ceiling, door or fitting.",
+        "rootCause": "Damaged finishes not found between monthly inspections; walk finding of a damaged building corner and wall repairs at the basement loading area.",
+        "action": "Repair damaged finishes under work orders; barricade hazards until repaired; do the monthly inspection."
+      },
+      {
+        "event": "Injury from a damaged handrail or door.",
+        "rootCause": "Handrails and doors not inspected.",
+        "action": "Include handrails and doors in the monthly inspection."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Building & Facilities",
+    "assetSystem": "Water & Plumbing",
+    "severity": "C - Major",
+    "likelihood": "2 - Improbable",
+    "ratingRationale": "Severity C: unsafe water or Legionella can make people ill. Likelihood 2: neither check has a compliant answer, and ownership is split between the municipality, Rand Water, Environmental and Quality. No water quality test is set for O R Tambo International Airport in the documents read. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Not determined. Neither check was answered, so the direction cannot be judged.",
+    "events": [
+      {
+        "event": "People exposed to unsafe water or Legionella from stagnant or warm water systems.",
+        "rootCause": "Water quality checks split between the municipality, Rand Water and Environmental; no ACSA water quality test set for O R Tambo International Airport.",
+        "action": "Name one owner; test water quality on a set schedule; flush little-used outlets."
+      },
+      {
+        "event": "A burst or leak damages equipment or floors.",
+        "rootCause": "Fixtures and pipes not checked on the plumbing audit sheets.",
+        "action": "Complete the plumbing audit sheets each week and repair leaks the same week."
+      },
+      {
+        "event": "Scalding or backflow contamination.",
+        "rootCause": "Hot-water temperature and backflow tests not seen.",
+        "action": "Test hot-water temperature and backflow devices each year."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Civil",
+    "assetSystem": "Airside Service Roads & Perimeter",
+    "severity": "C - Major",
+    "likelihood": "3 - Remote",
+    "ratingRationale": "Severity C: the credible worst case is a vehicle collision or an intruder reaching the movement area, not an aircraft accident. Likelihood 3: the one check is compliant by interview, but the perimeter wall shows rust and only some coil sections have been replaced, so the control is only partly effective. The capital road and fence repair contracts have not yet delivered. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Holding. Monthly inspection and a maintenance contract are in place, but repair depends on capital contracts still at tender, so the defects are not being closed faster than they appear.",
+    "events": [
+      {
+        "event": "Vehicle collision or loss of control on an airside service road.",
+        "rootCause": "Potholes and edge breaks left unrepaired while the service road capital contract is awaited; faded road markings.",
+        "action": "Patch potholes and edge breaks on the sections in use now, with speed limit signs and cones at defects, until the capital contract starts; repaint faded markings at junctions and crossings."
+      },
+      {
+        "event": "Unauthorised person or vehicle reaches the movement area through a damaged or low perimeter wall.",
+        "rootCause": "Corroded razor wire coils and steel brackets; only some sections replaced; fence repair tender not yet awarded; trees standing close behind the wall.",
+        "action": "Replace the most corroded coil sections first; add patrols on the unrepaired stretches; cut back trees that give climbing access."
+      },
+      {
+        "event": "Injury to a person or damage to a vehicle from loose or detached corroded wall-top brackets and coils.",
+        "rootCause": "Rust attacking the brackets and wall top, with no treatment programme between replacements.",
+        "action": "Remove or secure detached brackets and coils at the time of each inspection; treat rust on sections not yet scheduled for replacement."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Civil",
+    "assetSystem": "Aprons",
+    "severity": "C - Major",
+    "likelihood": "3 - Remote",
+    "ratingRationale": "Severity C: the worst credible event is damage to an aircraft or ground equipment, or a fuel or oil spill on a stand. Likelihood 3: all 7 checks are compliant by interview, yet the walk found an open apron crack, an uneven surface at A1, oil leaking from a parked aircraft and fuel, and the joint sealant project is not finished. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Holding. Apron audits and a maintenance contract are in place, but defects seen on the walk stay open, so inspection is finding defects faster than repairs close them.",
+    "events": [
+      {
+        "event": "Aircraft or ground equipment damage from loose pavement material or an open crack.",
+        "rootCause": "Cracks left unsealed (crack seen at the apron inspection); joint sealant failing; uneven surface recorded at A1.",
+        "action": "Seal open cracks and repair the uneven surface at A1 under work orders with close-out dates; sweep stands before aircraft arrive; add the sealing to the joint sealant project."
+      },
+      {
+        "event": "Fuel or oil spill spreading across a stand, causing fire or reaching the stormwater drains.",
+        "rootCause": "Aircraft oil leaks and fuel on the apron recorded on the walk; small leaks cleared only by the foreign object debris team; oil separators cleaned once a year.",
+        "action": "Keep spill kits and absorbent at every stand; contain any spill within the two hours set by D060 012M clause 4.5; increase oil separator cleaning if sludge readings are high; record each spill with its location and source."
+      },
+      {
+        "event": "Pavement failure under an aircraft heavier than the stand can carry.",
+        "rootCause": "Apron strength values only interim until the pavement classification rating is completed; no overload approval procedure.",
+        "action": "Allocate stands only within the published strength values until the evaluation is finished; set up an overload approval procedure with an engineer's sign-off."
+      },
+      {
+        "event": "Staff slip, fall or equipment overturn on a damaged surface.",
+        "rootCause": "Uneven surfaces and potholes not marked or barricaded; repair waiting for capital projects.",
+        "action": "Barricade and mark defects the same day; repair before the next inspection."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Civil",
+    "assetSystem": "Drainage",
+    "severity": "C - Major",
+    "likelihood": "3 - Remote",
+    "ratingRationale": "Severity C: blocked drains can leave standing water on movement areas or flood the apron and buildings. Likelihood 3: both checks are compliant by interview, but ACSA documents differ on drain inspection frequency, oil separators are cleaned only once a year, and the 2025 audit rated airside drainage Tolerable. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Holding. Planned inspection and a drain cleaning contract exist and the capital upgrades are planned, but the frequency conflict means the actual interval is not confirmed.",
+    "events": [
+      {
+        "event": "Standing water on a runway, taxiway or apron causing aquaplaning or loss of braking.",
+        "rootCause": "Blocked inlets and grids; sludge above the 25% limit in D060 012M clause 4.5; inspections after heavy rain missed.",
+        "action": "Clean inlets and channels before the rainy season; check after every heavy rain; clear blocked inlets within two hours as D060 012M clause 4.5 requires, with a work order for each."
+      },
+      {
+        "event": "Flooding of the apron, basement or buildings.",
+        "rootCause": "Undersized or silted drains; drain frequency differs between D060 012M clause 4.1.2 and the task clauses, so intervals are set unevenly.",
+        "action": "Agree one inspection frequency for each drain type with ACSA; prioritise the drains that serve buildings and the basement; add the capital drainage upgrades to the rainy-season plan."
+      },
+      {
+        "event": "Contaminated runoff leaving the site.",
+        "rootCause": "Oil separators cleaned only annually; no spill containment at drains near stands.",
+        "action": "Test separator efficiency and sludge depth; fit baysavers or inlet covers at stands; keep disposal manifests."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Civil",
+    "assetSystem": "FOD Management",
+    "severity": "C - Major",
+    "likelihood": "3 - Remote",
+    "ratingRationale": "Severity C: debris can cut a tyre or damage an engine. Likelihood 3: the one check was not captured, the walk recorded grass at the runway band edge causing foreign object debris, and sweeping on the manoeuvring area is on request only under D060 007M. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Holding. Daily sweeping teams are reported, but the cause on the walk (grass at the runway band) is not controlled, so the risk is not falling.",
+    "events": [
+      {
+        "event": "Engine ingestion or tyre cut from debris on a runway, taxiway or stand.",
+        "rootCause": "Sweeping on the manoeuvring area is on request only (D060 007M); debris from broken pavement and vegetation; the check could not be confirmed on site.",
+        "action": "Schedule sweeping of the runway and taxiways before the main flight banks, not only on request; clear grass and broken edge material at source; empty and inspect the foreign object debris bins at the set times."
+      },
+      {
+        "event": "Debris from grass and loose material at the runway band edge.",
+        "rootCause": "Grass growing at the edge of the runway band and breaking up the edge (walk finding).",
+        "action": "Cut the runway band grass to the two-weekly cycle in D060 005M clause 4.6.5; spray herbicide at the edge; add the area to the daily inspection."
+      },
+      {
+        "event": "Foreign object debris not trended, so repeat sources continue.",
+        "rootCause": "No analysis of the sweeping and recovery records.",
+        "action": "Record where each item is found and its source; review the trend each month and act on the main source."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Civil",
+    "assetSystem": "Friction Measurement & Corrective Maintenance",
+    "severity": "B - Hazardous",
+    "likelihood": "3 - Remote",
+    "ratingRationale": "Severity B: a runway excursion or overrun on a wet runway is a serious accident. Likelihood 3: friction testing is reported as twice a year, while D060 010M clause 4.6.3 and 4.6.4 set more frequent testing (and conflict with each other), so the control is likely below the policy frequency. The 4 checks show compliant by interview, so this depends on the testing frequency being confirmed. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Increasing. Testing at twice a year is less often than the policy frequency, so a drop in friction could go unnoticed between tests. Confirm the frequency and the test dates to change this.",
+    "events": [
+      {
+        "event": "Runway excursion or overrun on a wet runway because friction has fallen below the minimum.",
+        "rootCause": "Friction testing reported as twice a year, while D060 010M clause 4.6.3 and 4.6.4 set a more frequent schedule and also conflict with each other; rubber build-up not found in time.",
+        "action": "Apply the Table A testing frequency from the movement data and confirm which clause governs with ACSA; test after heavy rubber build-up; issue a notice to airmen when a result is at or below the minimum level."
+      },
+      {
+        "event": "Corrective maintenance late after a low result.",
+        "rootCause": "Results not signed off within two weeks (D060 010M clause 4.6.18); no link from the result to a rubber removal work order.",
+        "action": "Raise a rubber removal work order automatically when a result is at or below the planning level; sign results within two weeks."
+      },
+      {
+        "event": "A result relied on from a device that is out of calibration.",
+        "rootCause": "Calibration certificate not seen on site; device compartments open on the photos but no label visible.",
+        "action": "Keep the calibration certificate with each report; calibrate before each test campaign."
+      }
+    ],
+    "spreadsheetRating": "Red"
+  },
+  {
+    "discipline": "Civil",
+    "assetSystem": "Inspections",
+    "severity": "C - Major",
+    "likelihood": "2 - Improbable",
+    "ratingRationale": "Severity C: a missed defect on the movement area could cause an incident. Likelihood 2: inspections are reported three times a week, daily and three times a day, and 3 of 3 checks are compliant. The documents give different frequencies. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Holding. Inspection is frequent and recorded, but the programme and the defect close-out are not yet in one agreed form.",
+    "events": [
+      {
+        "event": "A defect on the movement area goes unseen and causes an aircraft or vehicle incident.",
+        "rootCause": "Inspection frequencies differ across documents (three a week, daily, three times a day); night inspections not possible during the audit.",
+        "action": "Fix one inspection programme with a roster and sign-off; include a night inspection; use the customised inspection sheet each time."
+      },
+      {
+        "event": "A defect is found but not repaired in time.",
+        "rootCause": "Defects assigned between teams without a tracked close-out; wildlife defects owned by Environmental.",
+        "action": "Track each defect on a register with owner and date; review open defects at the weekly meeting."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Civil",
+    "assetSystem": "Markings",
+    "severity": "C - Major",
+    "likelihood": "3 - Remote",
+    "ratingRationale": "Severity C: faded holding position or centreline markings can lead to a runway incursion or wrong-surface entry. Likelihood 3: 7 of 7 checks are compliant by interview, but the walk recorded red paint issues on the apron as Non-compliant and photos show patches with faded paint. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Decreasing. Monthly inspection and planned maintenance are in place, and a repainting crew was seen working at night. This is bringing the markings back to standard.",
+    "events": [
+      {
+        "event": "Runway incursion or entry onto the wrong surface because holding position or centreline markings have faded.",
+        "rootCause": "Faded paint (patches seen at the repainting work and red paint issues on the apron); repainting depends on contractor windows; rubber build-up covers markings.",
+        "action": "Repaint holding position and centreline markings first; schedule repainting after rubber removal; inspect markings at night."
+      },
+      {
+        "event": "Aircraft misjudges its position on a wet or dark surface.",
+        "rootCause": "Reflectivity not measured; no stated ACSA limit for visibility.",
+        "action": "Take reflectivity readings on a sample of markings; set a repaint trigger with ACSA."
+      },
+      {
+        "event": "Markings not matching the as-built layout after changes.",
+        "rootCause": "Dimensions and spacing not checked against as-built drawings; only checked at licence renewal.",
+        "action": "Check dimensions after every repaint and record the result."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Civil",
+    "assetSystem": "Pavement Strength",
+    "severity": "C - Major",
+    "likelihood": "2 - Improbable",
+    "ratingRationale": "Severity C: an aircraft heavier than the pavement can carry can damage the pavement and the aircraft. Likelihood 2: both checks are compliant by interview, but the strength values are interim while the pavement classification rating is completed, and there is no overload approval procedure. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Holding. Evaluation after rehabilitation is in place and the new rating is in progress, so the risk will stay level until the new values are published.",
+    "events": [
+      {
+        "event": "Pavement damage or collapse under an aircraft heavier than the pavement can carry.",
+        "rootCause": "Published strength values out of date after rehabilitation; the pavement classification number and rating are being replaced; no overload approval procedure.",
+        "action": "Restrict operations to the published values until re-evaluated; re-evaluate after each rehabilitation; require an engineer's approval for any overload."
+      },
+      {
+        "event": "Wrong strength published, so an aircraft is accepted that the pavement cannot carry.",
+        "rootCause": "Evaluation report not linked to the published figure.",
+        "action": "Check each published strength against its evaluation report and date."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Civil",
+    "assetSystem": "Perimeter / Security Fence",
+    "severity": "B - Hazardous",
+    "likelihood": "4 - Occasional",
+    "ratingRationale": "Severity B: unauthorised entry to the airside is a serious safety and security event. Likelihood 4: the 2025 audit rated this Unacceptable and it is a repeat finding. The photos show rust on the brackets and wall top, and the repair tender is not yet awarded. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Holding. Some sections have been replaced and the capital project is going to award, so work has started, but corrosion continues on the rest of the wall.",
+    "events": [
+      {
+        "event": "Unauthorised person, vehicle or animal enters the airside.",
+        "rootCause": "Corroding razor coils; fence remains at an Unacceptable level from the 2025 audit; repair project awaiting award; long grass along the fence line (20 cm limit in D060 005M clause 4.6.18).",
+        "action": "Repair the highest-risk gaps now; cut vegetation along the fence line; patrol more often on the unrepaired stretches."
+      },
+      {
+        "event": "Animal strike on a runway from animals entering through the fence.",
+        "rootCause": "Gaps and damaged sections; wildlife owned by Environmental.",
+        "action": "Close gaps and share the wildlife records between Civil and Environmental."
+      },
+      {
+        "event": "Injury from corroded razor wire.",
+        "rootCause": "Rust and loose coils.",
+        "action": "Remove or secure loose coils during inspections."
+      }
+    ],
+    "spreadsheetRating": "Red"
+  },
+  {
+    "discipline": "Civil",
+    "assetSystem": "Rubber Removal & Contaminants",
+    "severity": "C - Major",
+    "likelihood": "2 - Improbable",
+    "ratingRationale": "Severity C: rubber build-up cuts runway friction and contributes to an overrun. Likelihood 2: the one check is compliant by interview, rubber removal and weekly sweeping are in place on runway 21L, and the 2025 audit rated this Tolerable. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Holding. Rubber removal is planned and triggered by friction results, but friction testing frequency is unconfirmed (see Friction Measurement).",
+    "events": [
+      {
+        "event": "Low friction on the runway from rubber build-up, causing overrun or loss of directional control.",
+        "rootCause": "Rubber removal not triggered by friction results; weekly sweeping and removal reported only for runway 21L.",
+        "action": "Trigger rubber removal from friction results as well as the calendar; record post-treatment friction."
+      },
+      {
+        "event": "Contaminant (oil, fuel, loose rubber) reduces braking or grip.",
+        "rootCause": "Contaminants not found early; clean-up by different teams.",
+        "action": "Clean contaminants as soon as they are found; record each clean-up."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Civil",
+    "assetSystem": "Runway",
+    "severity": "B - Hazardous",
+    "likelihood": "2 - Improbable",
+    "ratingRationale": "Severity B: a runway excursion or surface failure is a serious accident. Likelihood 2: 12 of 13 checks are compliant by interview, inspections are three times a week and the 2025 audit rated runways Tolerable. One check was not captured, and the joint sealant project and the pavement tender are not finished. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Holding. Inspection and maintenance are in place and the capital tender is going to market, so the risk is stable until the pavement work is delivered.",
+    "events": [
+      {
+        "event": "Runway excursion or overrun from ponding, surface defects or low friction.",
+        "rootCause": "Surface wear, cracking and loose aggregate; ponding after rain; inspections three times a week.",
+        "action": "Repair defects within the response time; clear drains before rain; apply the friction actions in this report."
+      },
+      {
+        "event": "Tyre damage from pavement break-up, loose aggregate or edge breaks.",
+        "rootCause": "Edge breaks and shoulder drop-offs; vegetation in cracks; joint sealant project not finished.",
+        "action": "Repair edges and shoulders; spray herbicide on pavement edges; finish joint sealing."
+      },
+      {
+        "event": "Collision with an object or vegetation in the runway strip or end safety area.",
+        "rootCause": "Grass and weeds growing against light bases (photos); strip grass not cut to 10 cm; objects within the strip not recorded.",
+        "action": "Cut the strip grass on its two-weekly cycle; keep frangible lights clear of vegetation; survey objects in the strip each year."
+      },
+      {
+        "event": "Pavement failure under heavy aircraft.",
+        "rootCause": "Strength evaluation interim; pavement tender still going to market.",
+        "action": "Keep within the published strength; complete the evaluation."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Civil",
+    "assetSystem": "Taxiways & Taxilanes",
+    "severity": "C - Major",
+    "likelihood": "3 - Remote",
+    "ratingRationale": "Severity C: loose material or grass breaking through the pavement can damage an aircraft, and edge drop-offs can cause a taxi excursion. Likelihood 3: 9 of 9 checks are compliant by interview, but the walk found grass growing out of the taxiway pavement. The 2025 audit improved this from Unacceptable to Tolerable. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Decreasing. Monthly inspection, a maintenance contract and a refurbishment programme are in place, and the rating improved in 2025.",
+    "events": [
+      {
+        "event": "Wheel or engine damage from loose material or grass breaking through the taxiway pavement.",
+        "rootCause": "Grass out of the pavement on the taxiway (walk finding); herbicide spraying not recorded.",
+        "action": "Spray herbicide and cut grass at pavement edges; sweep before use."
+      },
+      {
+        "event": "Aircraft leaves the taxiway edge.",
+        "rootCause": "Edge breaks and drop-offs; faded edge markings.",
+        "action": "Repair edges; repaint edge markings."
+      },
+      {
+        "event": "Collision at an intersection or holding position.",
+        "rootCause": "Faded markings and signs; sign inspection interval conflicts (daily or monthly).",
+        "action": "Repaint holding positions; confirm the sign inspection interval with ACSA."
+      },
+      {
+        "event": "Taxiway failure under heavy aircraft.",
+        "rootCause": "Pavement classification rating not yet covering taxiways; the CIV-032 interview answer not confirmed.",
+        "action": "Finish the evaluation; confirm the CIV-032 answer."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Civil",
+    "assetSystem": "Visual Aids",
+    "severity": "B - Hazardous",
+    "likelihood": "2 - Improbable",
+    "ratingRationale": "Severity B: failed signs, lights or approach path indicators can lead to a wrong path or misjudged approach in low visibility. Likelihood 2: 2 of 4 checks are compliant by interview, the other two (signs and obstacles) have no answer recorded, and the 2025 audit rated this Tolerable. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Not determined. Two of four checks have no answer, so the direction cannot be judged until the sign and obstacle checks are answered.",
+    "events": [
+      {
+        "event": "Aircraft takes a wrong path or misjudges the approach in low visibility.",
+        "rootCause": "Signs, lights or the precision approach path indicator failing between checks; sign inspection interval conflicts between documents.",
+        "action": "Check signs and lights on the daily cycle; keep spare lamps; calibrate the approach path indicator each year."
+      },
+      {
+        "event": "Collision with an unlit or unseen obstacle.",
+        "rootCause": "Obstacle survey not current; obstruction lights not checked daily; grass around lights.",
+        "action": "Update the obstacle survey; check obstruction lights daily; cut vegetation around lights."
+      }
+    ],
+    "spreadsheetRating": "Amber"
+  },
+  {
+    "discipline": "Civil",
+    "assetSystem": "Wind Direction Indicator",
+    "severity": "D - Minor",
+    "likelihood": "2 - Improbable",
+    "ratingRationale": "Severity D: a misjudged wind has limited effect because pilots have other wind information. Likelihood 2: the one check is compliant by interview and the photo shows an intact windsock. The 2025 audit rated this Tolerable. Suggested by TPJV for the rating session; not agreed with ACSA.",
+    "directionOfRisk": "Holding. The windsock is intact and checked, so the risk stays low. The night lighting check is still open.",
+    "events": [
+      {
+        "event": "Pilot misjudges the wind during take-off or landing.",
+        "rootCause": "Windsock torn, faded or unlit; daily check missed.",
+        "action": "Check each windsock daily for colour, condition and light; keep spare windsocks and lamps."
+      },
+      {
+        "event": "Windsock hidden by vegetation or unreadable at night.",
+        "rootCause": "Grass at the base and no night check.",
+        "action": "Cut the grass at the base; include the night check."
+      }
+    ],
+    "spreadsheetRating": "Green"
+  }
+]

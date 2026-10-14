@@ -3521,7 +3521,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 35,
+      version: 36,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -4234,6 +4234,16 @@ export const useStore = create<State>()(
               delete sys.actions;
             }
           }
+        }
+        if (from < 36) {
+          /* seeded (PossibleEvent, RootCauseNote, MitigationAction,
+             SystemAssessment) and SystemAssessment.directionOfRisk, for the
+             FAOR hazard-mapping spreadsheet import. Both are purely additive
+             and nothing already on a tablet needs converting: absent already
+             means exactly what it should — field-captured, no direction-of-
+             risk note on file — so there is nothing here to migrate, only a
+             version number to carry forward in case a later migration ever
+             needs to tell "before this existed" apart from "after." */
         }
         return st;
       },
