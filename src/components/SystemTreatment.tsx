@@ -1,18 +1,26 @@
 "use client";
 
-/** SEVERAL ROOT CAUSES AND SEVERAL MITIGATION ACTIONS, for one asset system.
+/** SEVERAL ROOT CAUSES AND SEVERAL MITIGATION ACTIONS, for one hazardous event.
  *
  *  Sarel: "we also need to be able to capture multiple root causes, multiple
- *  mitigation actions."
+ *  mitigation actions" — and, later: "the process is to capture a hazard and
+ *  multiple root causes for the hazard... dont rate the hazard, rate the
+ *  asset system severity and likelihood." So this renders inside one
+ *  PossibleEvent (see PossibleEvents.tsx), not the asset system as a whole —
+ *  a system's rating is one cell, agreed once, but it is rarely failing for
+ *  only one reason, and each of its several hazardous events usually has its
+ *  own distinct causes and its own distinct remediation, not a pool shared
+ *  with every other event the system carries.
  *
  *  A finding takes one of each, and that is right for a finding — one defect,
- *  one reason, one fix. An asset system is not one defect. Switchgear rated
- *  Unacceptable is regularly failing for two reasons at once (no maintenance
- *  budget AND nobody competent appointed), and closing it out is three jobs
- *  owned by three people on three timelines. Forcing one of each means the
- *  second reason and the other two jobs get written into a comment where
- *  nothing tracks them, nothing carries them to the next audit, and nothing
- *  chases them.
+ *  one reason, one fix. A hazardous event is not one defect, any more than
+ *  the asset system it belongs to is. Switchgear rated Unacceptable is
+ *  regularly failing for two reasons at once (no maintenance budget AND
+ *  nobody competent appointed), and closing it out is three jobs owned by
+ *  three people on three timelines. Forcing one of each means the second
+ *  reason and the other two jobs get written into a comment where nothing
+ *  tracks them, nothing carries them to the next audit, and nothing chases
+ *  them.
  *
  *  THE CAUSE VOCABULARY IS ACSA'S. `ROOT_CAUSES` is a closed list from their own
  *  framework and this is not the place to extend it, so the chips are the list
@@ -30,15 +38,11 @@ import { useState } from "react";
 import { ROOT_CAUSES } from "@/lib/store";
 import { Btn, Chip, Pill } from "@/components/ui/primitives";
 import { IconPlus, IconX } from "@/components/ui/icons";
-import type {
-  ActionStatus,
-  MitigationAction,
-  RootCauseNote,
-  SystemAssessment,
-} from "@/lib/types";
+import type { ActionStatus, MitigationAction, RootCauseNote } from "@/lib/types";
 
 export default function SystemTreatment({
-  assessment,
+  rootCauses,
+  actions,
   onAddCause,
   onPatchCause,
   onRemoveCause,
@@ -46,7 +50,8 @@ export default function SystemTreatment({
   onPatchAction,
   onRemoveAction,
 }: {
-  assessment: SystemAssessment;
+  rootCauses: RootCauseNote[];
+  actions: MitigationAction[];
   onAddCause: (cause: string) => void;
   onPatchCause: (id: string, p: Partial<RootCauseNote>) => void;
   onRemoveCause: (id: string) => void;
@@ -56,7 +61,7 @@ export default function SystemTreatment({
 }) {
   const [otherCause, setOtherCause] = useState("");
   const [draftAction, setDraftAction] = useState("");
-  const chosen = new Set(assessment.rootCauses.map((r) => r.cause));
+  const chosen = new Set(rootCauses.map((r) => r.cause));
 
   const addAction = () => {
     if (!draftAction.trim()) return;
@@ -70,9 +75,9 @@ export default function SystemTreatment({
       <div className="mt-4 mb-1 flex flex-wrap items-baseline justify-between gap-2">
         <b className="font-display text-[11px] font-semibold">Root causes</b>
         <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-          {assessment.rootCauses.length === 0
+          {rootCauses.length === 0
             ? "none recorded"
-            : `${assessment.rootCauses.length} recorded`}
+            : `${rootCauses.length} recorded`}
         </span>
       </div>
       <p className="mb-2 text-[10.5px] leading-[1.5]" style={{ color: "var(--ink-4)" }}>
@@ -88,7 +93,7 @@ export default function SystemTreatment({
             onClick={() => {
               /* Tapping a chosen cause takes it off. The list is built by
                  tapping, so it has to be un-buildable the same way. */
-              const existing = assessment.rootCauses.find((r) => r.cause === rc);
+              const existing = rootCauses.find((r) => r.cause === rc);
               if (existing) onRemoveCause(existing.id);
               else onAddCause(rc);
             }}
@@ -125,7 +130,7 @@ export default function SystemTreatment({
         </Btn>
       </div>
 
-      {assessment.rootCauses.map((r) => (
+      {rootCauses.map((r) => (
         <div
           key={r.id}
           className="mt-1.5 rounded-[11px] border px-3 py-2.5"
@@ -158,15 +163,15 @@ export default function SystemTreatment({
       <div className="mt-4 mb-1 flex flex-wrap items-baseline justify-between gap-2">
         <b className="font-display text-[11px] font-semibold">Mitigation actions</b>
         <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-          {assessment.actions.length === 0
+          {actions.length === 0
             ? "none recorded"
-            : `${assessment.actions.length} · ${
-                assessment.actions.filter((a) => a.owner && a.dueDate).length
+            : `${actions.length} · ${
+                actions.filter((a) => a.owner && a.dueDate).length
               } with an owner and a date`}
         </span>
       </div>
 
-      {assessment.actions.map((act) => (
+      {actions.map((act) => (
         <div
           key={act.id}
           className="mb-1.5 rounded-[11px] border px-3 py-2.5"

@@ -257,6 +257,31 @@ function unionEvents(mine: PossibleEvent[] = [], theirs: PossibleEvent[] = []): 
   );
 }
 
+/** Same union-by-id as unionEvents, for an asset system's own hazardous
+ *  events — but an event now carries its own rootCauses/actions, so an id
+ *  both devices have cannot just keep one side's copy wholesale the way
+ *  unionEvents does: that would silently drop whichever side's causes or
+ *  actions were not on the kept copy. Where an id exists on both sides, its
+ *  causes/actions union (same reasoning as the system's own, see below) and
+ *  the event's own scalar fields (event text, note) take whichever side is
+ *  newer — the same "lists union, the cell is newer-wins" rule the asset
+ *  system itself follows. */
+function mergeSystemEvents(mine: PossibleEvent[] = [], theirs: PossibleEvent[] = []): PossibleEvent[] {
+  const theirsById = new Map(theirs.map((e) => [e.id, e]));
+  const mineIds = new Set(mine.map((e) => e.id));
+  const merged = mine.map((m) => {
+    const t = theirsById.get(m.id);
+    if (!t) return m;
+    const rootCauses = unionById(m.rootCauses ?? [], t.rootCauses ?? []);
+    const actions = unionById(m.actions ?? [], t.actions ?? []);
+    const newer = when(t) > when(m) ? t : m;
+    return { ...newer, rootCauses, actions };
+  });
+  return [...merged, ...theirs.filter((e) => !mineIds.has(e.id))].sort(
+    (a, b) => a.createdAt - b.createdAt
+  );
+}
+
 /** Union by id, theirs appended where this device has never seen it. The
  *  generic form of unionAttachments, for the lists an asset-system assessment
  *  carries: two auditors add root causes and mitigation actions independently
@@ -416,10 +441,15 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
   /* THE RATING IS LAST-WRITER-WINS; THE LISTS UNDER IT ARE NOT.
      A band is one decision the group made, so the later of two devices' copies
      is the one to keep — the same rule every other rated record here follows.
-     Root causes and mitigation actions are lists two people add to
-     independently at the same out-brief, and last-writer-wins on the arrays
-     would drop one auditor's whole list with nothing on screen to say so. Both
-     carry ids, so both union. */
+     Root causes and mitigation actions now live on each hazardous event
+     rather than the system itself (see PossibleEvent's own header), so they
+     union per-event — mergeSystemEvents does that, the same "lists union, a
+     later edit to an event's own fields wins" rule this comment already
+     describes. Anything still waiting in unassignedRootCauses/
+     unassignedActions (a migration leftover, never written to by new
+     capture — see SystemAssessment's own header) unions by id too: a person
+     on one device filing an old entry onto a hazard must not make it
+     reappear because the other device never saw that happen. */
   const assessedSystems: Record<string, SystemAssessment> = { ...(mine.visitData.systems ?? {}) };
   for (const [key, t] of Object.entries(theirs.visit.systems ?? {})) {
     const m = assessedSystems[key];
@@ -427,11 +457,24 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
       assessedSystems[key] = t;
       continue;
     }
-    const rootCauses = unionById(m.rootCauses ?? [], t.rootCauses ?? []);
-    const actions = unionById(m.actions ?? [], t.actions ?? []);
-    const events = unionById(m.events ?? [], t.events ?? []);
+    const events = mergeSystemEvents(m.events ?? [], t.events ?? []);
+    /* A cause/action one device already filed onto a hazard must not come
+       back from the other device's stale copy of the unassigned pile just
+       because that device has not synced the filing yet — so anything now
+       sitting on some event is excluded from the union, not merely unioned
+       alongside it. */
+    const assignedCauseIds = new Set(events.flatMap((e) => (e.rootCauses ?? []).map((r) => r.id)));
+    const assignedActionIds = new Set(events.flatMap((e) => (e.actions ?? []).map((a) => a.id)));
+    const unassignedRootCauses = unionById(
+      m.unassignedRootCauses ?? [],
+      t.unassignedRootCauses ?? []
+    ).filter((r) => !assignedCauseIds.has(r.id));
+    const unassignedActions = unionById(
+      m.unassignedActions ?? [],
+      t.unassignedActions ?? []
+    ).filter((a) => !assignedActionIds.has(a.id));
     const newer = when(t) > when(m) ? t : m;
-    assessedSystems[key] = { ...newer, rootCauses, actions, events };
+    assessedSystems[key] = { ...newer, events, unassignedRootCauses, unassignedActions };
   }
 
   /* --------------------------------------------------- captures, notes --- */

@@ -64,7 +64,7 @@ import RatingPicker from "@/components/RatingPicker";
 import FindingDetail from "@/components/FindingDetail";
 import CheckDetail from "@/components/CheckDetail";
 import SystemTreatment from "@/components/SystemTreatment";
-import { IconInbox, IconSearch } from "@/components/ui/icons";
+import { IconInbox, IconSearch, IconX } from "@/components/ui/icons";
 import type { Check, Finding, Tolerance, Attachment, AdHocItem } from "@/lib/types";
 import { AttachmentStrip } from "@/components/Capture";
 
@@ -1031,41 +1031,126 @@ export default function FindingsPage() {
                   />
                 </label>
 
-                {/* Several root causes and several mitigation actions. */}
-                <SystemTreatment
-                  assessment={a}
-                  onAddCause={(c) => {
-                    useStore.getState().addRootCause(active.discipline, active.system, c);
-                    say("Root cause recorded");
-                  }}
-                  onPatchCause={(id, p) =>
-                    useStore.getState().patchRootCause(active.discipline, active.system, id, p)
-                  }
-                  onRemoveCause={(id) =>
-                    useStore.getState().removeRootCause(active.discipline, active.system, id)
-                  }
-                  onAddAction={(t) => {
-                    useStore.getState().addMitigation(active.discipline, active.system, t);
-                    say("Action recorded — it needs an owner and a date");
-                  }}
-                  onPatchAction={(id, p) =>
-                    useStore.getState().patchMitigation(active.discipline, active.system, id, p)
-                  }
-                  onRemoveAction={(id) =>
-                    useStore.getState().removeMitigation(active.discipline, active.system, id)
-                  }
-                />
+                {/* MIGRATION LEFTOVERS ONLY — see SystemAssessment.unassignedRootCauses.
+                    A system with no single event to put its old shared causes/
+                    actions on unambiguously; each waits here until filed onto
+                    the hazard it actually belongs to. Never shown once both
+                    lists are empty, and nothing new is ever added here. */}
+                {((a.unassignedRootCauses?.length ?? 0) > 0 ||
+                  (a.unassignedActions?.length ?? 0) > 0) && (
+                  <div
+                    className="mt-3 rounded-[11px] border px-3 py-2.5"
+                    style={{ background: "var(--warn-soft)", borderColor: "var(--warn-line)" }}
+                  >
+                    <div className="mb-1 text-[11px] font-semibold" style={{ color: "var(--warn)" }}>
+                      From before causes and actions moved onto each hazard — file
+                      these onto the right one below
+                    </div>
+                    {(a.unassignedRootCauses ?? []).map((r) => (
+                      <div key={r.id} className="mt-1 flex items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate text-[11.5px]">{r.cause}</span>
+                        <select
+                          aria-label={`File ${r.cause} onto a hazard`}
+                          defaultValue=""
+                          onChange={(e) => {
+                            if (!e.target.value) return;
+                            useStore
+                              .getState()
+                              .assignUnassignedRootCause(
+                                active.discipline,
+                                active.system,
+                                r.id,
+                                e.target.value
+                              );
+                          }}
+                          className="rounded-[8px] border px-2 py-1 text-[11px]"
+                          style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                        >
+                          <option value="" disabled>
+                            File onto…
+                          </option>
+                          {a.events.map((ev) => (
+                            <option key={ev.id} value={ev.id}>
+                              {ev.event || "Untitled event"}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            useStore
+                              .getState()
+                              .removeUnassignedRootCause(active.discipline, active.system, r.id)
+                          }
+                          aria-label={`Discard ${r.cause}`}
+                          className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[7px] border"
+                          style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+                        >
+                          <IconX width={12} height={12} />
+                        </button>
+                      </div>
+                    ))}
+                    {(a.unassignedActions ?? []).map((act) => (
+                      <div key={act.id} className="mt-1 flex items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate text-[11.5px]">{act.action}</span>
+                        <select
+                          aria-label={`File this action onto a hazard`}
+                          defaultValue=""
+                          onChange={(e) => {
+                            if (!e.target.value) return;
+                            useStore
+                              .getState()
+                              .assignUnassignedAction(
+                                active.discipline,
+                                active.system,
+                                act.id,
+                                e.target.value
+                              );
+                          }}
+                          className="rounded-[8px] border px-2 py-1 text-[11px]"
+                          style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                        >
+                          <option value="" disabled>
+                            File onto…
+                          </option>
+                          {a.events.map((ev) => (
+                            <option key={ev.id} value={ev.id}>
+                              {ev.event || "Untitled event"}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            useStore
+                              .getState()
+                              .removeUnassignedAction(active.discipline, active.system, act.id)
+                          }
+                          aria-label="Discard this action"
+                          className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[7px] border"
+                          style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+                        >
+                          <IconX width={12} height={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Sarel: "also allow to add multiple hazardous events per asset
-                    system which must pull through to the hira view." Same
-                    component the closure screen uses for a carried finding's
-                    possible events — the asset-system panel is where the group
-                    is already looking at the system as a whole, so naming the
-                    events it could lead to belongs here too. Unlike the closure
-                    screen's, these are meant to be promoted — see the "From
-                    asset assurance" section on /hazards. */}
+                    system which must pull through to the hira view" — and later,
+                    "dont rate the hazard, rate the asset system severity and
+                    likelihood... capture root causes and mitigating actions for
+                    the hazard." Same component the closure screen uses for a
+                    carried finding's possible events, with likelihood hidden
+                    (the asset system above carries the one rating of record) and
+                    each event's own root causes/actions expanding inline — see
+                    SystemTreatment. Unlike the closure screen's, these are meant
+                    to be promoted — see the "From asset assurance" section on
+                    /hazards. */}
                 <PossibleEvents
                   events={a.events}
+                  showLikelihood={false}
                   onAdd={(event) => {
                     useStore.getState().addSystemEvent(active.discipline, active.system, event);
                     say("Hazardous event recorded — pull it through on the HIRA screen");
@@ -1076,6 +1161,46 @@ export default function FindingsPage() {
                   onRemove={(id) =>
                     useStore.getState().removeSystemEvent(active.discipline, active.system, id)
                   }
+                  causesAndActions={(e) => (
+                    <div className="mt-2">
+                      <SystemTreatment
+                        rootCauses={e.rootCauses ?? []}
+                        actions={e.actions ?? []}
+                        onAddCause={(c) => {
+                          useStore
+                            .getState()
+                            .addSystemEventRootCause(active.discipline, active.system, e.id, c);
+                          say("Root cause recorded");
+                        }}
+                        onPatchCause={(id, p) =>
+                          useStore
+                            .getState()
+                            .patchSystemEventRootCause(active.discipline, active.system, e.id, id, p)
+                        }
+                        onRemoveCause={(id) =>
+                          useStore
+                            .getState()
+                            .removeSystemEventRootCause(active.discipline, active.system, e.id, id)
+                        }
+                        onAddAction={(t) => {
+                          useStore
+                            .getState()
+                            .addSystemEventAction(active.discipline, active.system, e.id, t);
+                          say("Action recorded — it needs an owner and a date");
+                        }}
+                        onPatchAction={(id, p) =>
+                          useStore
+                            .getState()
+                            .patchSystemEventAction(active.discipline, active.system, e.id, id, p)
+                        }
+                        onRemoveAction={(id) =>
+                          useStore
+                            .getState()
+                            .removeSystemEventAction(active.discipline, active.system, e.id, id)
+                        }
+                      />
+                    </div>
+                  )}
                   suggestions={knownEvents}
                   /* THE HIERARCHY — Sarel: "the risk event is linked to the
                      failure of an asset system or a specific finding... a

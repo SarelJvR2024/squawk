@@ -70,11 +70,27 @@ for (const f of [
   "likelihood: Likelihood | null;",
   "ratingConfirmed: boolean;",
   "ratingRationale: string;",
-  "rootCauses: RootCauseNote[];",
-  "actions: MitigationAction[];",
 ]) {
   check(`it carries ${f.split(":")[0]}`, types.includes(f), "");
 }
+
+/* Root causes and mitigation actions moved off the asset system and onto
+ * each hazardous event — Sarel: "dont rate the hazard, rate the asset
+ * system severity and likelihood... capture root causes and mitigating
+ * actions for the hazard." SystemAssessment keeps only a landing spot for
+ * what the migration could not place unambiguously. */
+check(
+  "PossibleEvent carries its own rootCauses and actions, not the asset system",
+  /rootCauses\?: RootCauseNote\[\];/.test(types) && /actions\?: MitigationAction\[\];/.test(types),
+  "a system with three hazardous events regularly has three different stories behind them; a pool shared across all three could not say which cause belonged to which"
+);
+
+check(
+  "unfiled migration leftovers wait on the system, never written to by new capture",
+  /unassignedRootCauses\?: RootCauseNote\[\];/.test(types) &&
+    /unassignedActions\?: MitigationAction\[\];/.test(types),
+  "a system with zero or several events at migration time could not be guessed at safely, so its old shared pool waits here until a person files each entry onto the hazard it belongs to"
+);
 
 check(
   "the key is the discipline and the system, not the system alone",
@@ -487,9 +503,9 @@ check(
 );
 
 check(
-  "the same cause cannot be recorded twice",
-  /const already = cur\.rootCauses\.find\(\(r\) => r\.cause === text\);/.test(storeCode),
-  "pressing a chip that is already on is a mis-tap, not a second cause"
+  "the same cause cannot be recorded twice on the same hazard",
+  /const already = \(ev\.rootCauses \?\? \[\]\)\.find\(\(r\) => r\.cause === text\);/.test(storeCode),
+  "pressing a chip that is already on this event is a mis-tap, not a second cause"
 );
 
 check(
@@ -540,7 +556,7 @@ check(
 
 check(
   "a blank assessment starts with none, not undefined",
-  /rootCauses: \[\],\s*\n\s*actions: \[\],\s*\n\s*events: \[\],/.test(storeCode),
+  /ratingRationale: "",\s*\n\s*events: \[\],/.test(storeCode),
   "undefined.filter is how a half-captured audit becomes a white screen"
 );
 
@@ -583,10 +599,16 @@ check(
 );
 check(
   "collapsing still leaves the likelihood and any findings/assets linked visible, as a summary",
-  /const summaryOf = \(e: PossibleEvent\): string => \{/.test(possibleEvents) &&
+  /const summaryOf = \(e: PossibleEvent, showLikelihood: boolean\): string => \{/.test(possibleEvents) &&
     /bits\.push\(`\$\{e\.findingIds\.length\} finding/.test(possibleEvents) &&
     /bits\.push\(`\$\{e\.assetIds\.length\} asset/.test(possibleEvents),
   "folding an event away must not hide whether it has a likelihood or linked evidence, only the editing controls"
+);
+
+check(
+  "an asset system's own events summarize their root causes instead, since they carry no likelihood",
+  /const causes = e\.rootCauses\?\.length \?\? 0;/.test(possibleEvents),
+  "dont rate the hazard, rate the asset system severity and likelihood"
 );
 check(
   "removing an event does not require expanding it first",
@@ -634,9 +656,13 @@ check(
 );
 
 check(
-  "the merge unions events by id, same as root causes and actions",
-  /const events = unionById\(m\.events \?\? \[\], t\.events \?\? \[\]\);/.test(merge),
-  ""
+  "the merge unions an asset system's events by id, and unions causes/actions within a matched event too",
+  /function mergeSystemEvents\(mine: PossibleEvent\[\] = \[\], theirs: PossibleEvent\[\] = \[\]\): PossibleEvent\[\] \{/.test(
+    merge
+  ) &&
+    /const rootCauses = unionById\(m\.rootCauses \?\? \[\], t\.rootCauses \?\? \[\]\);/.test(merge) &&
+    /const actions = unionById\(m\.actions \?\? \[\], t\.actions \?\? \[\]\);/.test(merge),
+  "an id both devices have cannot just keep one side's copy wholesale now that the event carries its own causes/actions — that would silently drop whichever side's were not on the kept copy"
 );
 
 check(
@@ -680,16 +706,25 @@ check(
 
 check(
   "while the band itself is last-writer-wins",
-  /const newer = when\(t\) > when\(m\) \? t : m;\s*\n\s*assessedSystems\[key\] = \{ \.\.\.newer, rootCauses, actions, events \};/.test(
+  /const newer = when\(t\) > when\(m\) \? t : m;\s*\n\s*assessedSystems\[key\] = \{ \.\.\.newer, events, unassignedRootCauses, unassignedActions \};/.test(
     merge
   ),
   "a band is one decision the group made, so the later copy is the one to keep"
 );
 
 check(
-  "and the possible events union the same way as root causes and actions",
-  /const events = unionById\(m\.events \?\? \[\], t\.events \?\? \[\]\);/.test(merge),
+  "and the possible events union the same way, by id, going through mergeSystemEvents",
+  /const events = mergeSystemEvents\(m\.events \?\? \[\], t\.events \?\? \[\]\);/.test(merge),
   "two auditors naming different futures for the same system at the same out-brief; last-writer-wins would drop one of their lists"
+);
+
+check(
+  "a cause/action already filed onto a hazard cannot reappear from the other device's stale unassigned pile",
+  /const assignedCauseIds = new Set\(events\.flatMap\(\(e\) => \(e\.rootCauses \?\? \[\]\)\.map\(\(r\) => r\.id\)\)\);/.test(
+    merge
+  ) &&
+    /\.filter\(\(r\) => !assignedCauseIds\.has\(r\.id\)\);/.test(merge),
+  "one device filing an old entry onto a hazard must not make it reappear because the other device has not synced that filing yet"
 );
 
 check(

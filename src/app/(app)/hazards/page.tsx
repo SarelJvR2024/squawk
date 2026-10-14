@@ -169,11 +169,26 @@ export default function HazardsPage() {
        is not lost just because the event itself never named it directly. */
     const linkedFindingIds = event.findingIds ?? [];
     const linkedFindings = findings.filter((f) => linkedFindingIds.includes(f.id));
+    /* THE EVENT'S OWN ROOT CAUSES AND ACTIONS, CARRIED ACROSS TOO — Sarel:
+       "the process is to capture a hazard and multiple root causes for the
+       hazard." Before this, a promoted hazard started blank even when the
+       asset-system panel already had its causes and actions recorded; they
+       would otherwise have to be retyped from scratch on the hazard register.
+       Hazard.rootCause is ACSA's single free-text field, not a list, so the
+       event's several causes join into one — same flattening sharepoint.ts's
+       asset-risk sync already uses for the same shape. Hazard.actions is
+       already MitigationAction[], the same type the event's own actions are,
+       so those carry over as-is. */
+    const rootCause = (event.rootCauses ?? [])
+      .map((r) => (r.note ? `${r.cause} — ${r.note}` : r.cause))
+      .join("\n");
     const id = addHazard(
       blank({
         event: event.event,
         likelihood: event.likelihood,
         note: event.note,
+        rootCause,
+        actions: event.actions ?? [],
         findingIds: linkedFindingIds,
         assetIds: [
           ...new Set([

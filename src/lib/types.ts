@@ -873,10 +873,25 @@ export interface ProgressNote {
  *  and must never be derived from one another; see the header of src/lib/erm.ts.
  *
  *  Severity is deliberately NOT on this record. A hazard's severity is agreed
- *  by the group on the matrix and lives on the Hazard, which is where a rating
- *  of record belongs; this is the walk-up list that feeds that conversation.
- *  Adding a severity here would create a second, un-agreed rating for the same
- *  event, which is exactly the drift ratingConfirmed exists to stop.
+ *  by the group on the matrix and lives on the Hazard (or, for a SystemAssessment's
+ *  own events, on the SystemAssessment itself — Sarel: "dont rate the hazard,
+ *  rate the asset system severity and likelihood"). Adding a severity here
+ *  would create a second, un-agreed rating for the same event, which is
+ *  exactly the drift ratingConfirmed exists to stop.
+ *
+ *  `rootCauses`/`actions` ARE ONLY MEANINGFUL FOR A SYSTEMASSESSMENT'S EVENTS —
+ *  same rule as `findingIds`/`assetIds` just below. Sarel: "the process is to
+ *  capture a hazard and multiple root causes for the hazard" — each
+ *  hazardous event an asset system carries gets its own causes and actions
+ *  rather than sharing SystemAssessment's old single pool, because a system
+ *  with three events regularly has three different stories behind them and a
+ *  shared pool could not say which cause belonged to which. The same cause
+ *  recurring in wording across different events, or different asset systems,
+ *  is expected and not itself a link between them — each list is its own
+ *  record. A carried finding's own possible events (closure screen) leave
+ *  both empty, same as they already do with `findingIds`/`assetIds`, and the
+ *  SystemAssessment itself still carries the asset system's own likelihood-free
+ *  B170 001M severity/likelihood rating — see SystemAssessment below.
  *
  *  Optional on its holder and absent-means-empty, so no persist version has to
  *  move: an item recorded before this existed has no possible events, and that
@@ -890,6 +905,12 @@ export interface PossibleEvent {
   /** Why it is that likely, in the auditor's own words. Optional, and worth
    *  more than the number on its own when the group argues the rating. */
   note: string;
+  /** THIS EVENT'S OWN ROOT CAUSES — see the header above. Only a
+   *  SystemAssessment's own events populate this; a carried finding's
+   *  possible events (closure screen) leave it empty. */
+  rootCauses?: RootCauseNote[];
+  /** THIS EVENT'S OWN MITIGATING ACTIONS — same scoping as rootCauses above. */
+  actions?: MitigationAction[];
   /** THE EVIDENCE BEHIND THE EVENT — Sarel: "the risk event is linked to the
    *  failure of an asset system or a specific finding... a hierarchy or
    *  linked evidence of non-compliance and findings all contributing to the
@@ -905,6 +926,11 @@ export interface PossibleEvent {
   assetIds?: string[];
   createdAt: number;
   createdBy: string;
+  /** See Response.updatedAt — now that an event carries its own rootCauses/
+   *  actions, two devices can edit the same event independently, and this is
+   *  what lets the merge tell which side's scalar fields are newer. Optional:
+   *  an event recorded before this existed has no edits to date. */
+  updatedAt?: number;
 }
 
 /* ---------- the asset system's own assessment ----------
@@ -989,12 +1015,11 @@ export interface SystemAssessment {
    *  reasoning is the thing ACSA sends back — but blank is allowed, because
    *  forcing prose produces prose nobody means. */
   ratingRationale: string;
-  rootCauses: RootCauseNote[];
-  actions: MitigationAction[];
   /** THE HAZARDOUS EVENTS THIS ASSET SYSTEM COULD LEAD TO, same shape and same
    *  reasoning as a carried finding's PossibleEvent (see PossibleEvents.tsx):
-   *  one asset system regularly has several distinct futures, each with its
-   *  own likelihood, and recording only the worst over-rates the common case.
+   *  one asset system regularly has several distinct futures, and recording
+   *  only the worst over-rates the common case. Each event now carries its
+   *  own `rootCauses`/`actions` — see PossibleEvent's own header for why.
    *
    *  UNLIKE a carried finding's possible events, these are meant to be
    *  promoted — Sarel: "allow to add multiple hazardous events per asset
@@ -1004,6 +1029,18 @@ export interface SystemAssessment {
    *  Hazard.sourceSystemEventIds) is a shorter path than waiting for a
    *  finding to exist to consolidate from. */
   events: PossibleEvent[];
+  /** FROM BEFORE ROOT CAUSES AND ACTIONS MOVED ONTO INDIVIDUAL EVENTS, AND ONLY
+   *  EVER WRITTEN BY THE MIGRATION. A system with exactly one event at
+   *  migration time had its old shared causes/actions moved straight onto
+   *  that event, unambiguously — nothing lands here from that case. A system
+   *  with zero or several events could not be guessed at safely, so its old
+   *  entries wait here instead, each still exactly what was captured, until
+   *  somebody files it onto the hazard it actually belongs to (see
+   *  assignUnassignedRootCause/assignUnassignedAction in store.ts). Never
+   *  written to by new capture — once assigned, or once empty, a system never
+   *  gets a new entry here again. */
+  unassignedRootCauses?: RootCauseNote[];
+  unassignedActions?: MitigationAction[];
   /** The assessor's summary of the asset system as a whole. */
   note: string;
   assessedBy: string;
