@@ -1,0 +1,30 @@
+[
+ {
+  "discipline": "Civil",
+  "recorded": "Taxiways, Taxi-lanes & Service Road Surfaces",
+  "current": ["Taxiways & Taxilanes", "Airside Service Roads & Perimeter"],
+  "type": "split",
+  "note": "One 2025 system covers two current ones. The 2025 rating is compared with the worst of the two."
+ },
+ {
+  "discipline": "Civil",
+  "recorded": "Service Road Markings",
+  "current": ["Markings"],
+  "type": "to-confirm",
+  "note": "Proposed mapping, not yet confirmed by the audit lead."
+ },
+ {
+  "discipline": "Civil",
+  "recorded": "Landside Roads & Markings",
+  "current": [],
+  "type": "2025-only",
+  "note": "Landside is not on the airside checklist; not covered this visit."
+ },
+ {
+  "discipline": "Civil",
+  "recorded": "Landside Road Surfaces",
+  "current": [],
+  "type": "2025-only",
+  "note": "Landside is not on the airside checklist; not covered this visit."
+ }
+]

@@ -290,7 +290,7 @@ check(
 check(
   "an unallocated finding is not reported as a coverage failure",
   /Unallocated — discipline lead assigns in the field/.test(exportsSrc) &&
-    /covering\.length === 0 && p\.assetSystem \? "NOT COVERED THIS VISIT" : ""/.test(exportsSrc),
+    /covering\.length === 0 && map\.type !== "unmapped" \? "NOT COVERED THIS VISIT" : ""/.test(exportsSrc),
   "nothing covers a Cargo Building finding by definition — that is not the audit failing to cover it"
 );
 

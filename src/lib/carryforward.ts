@@ -28,6 +28,7 @@
 import { useMemo } from "react";
 import { BAND_AS_RATING, bandFor } from "./risk";
 import { PROGRAMME_VISITS } from "./programme";
+import { mappingFor, type MappingType } from "./crosswalk";
 import type { VisitData } from "./store";
 import {
   priorFindingsAt,
@@ -68,6 +69,12 @@ export interface Outstanding {
   source: OutstandingSource;
   discipline: string;
   system: string;
+  /** The register asset systems this item is compared with this visit, from
+   *  the crosswalk (src/lib/crosswalk.ts). One for an exact match, several for
+   *  a split, none for a 2025-only or unmapped system. Never derive this by
+   *  comparing `system` text — the 2025 wording is ACSA's own. */
+  currentSystems: string[];
+  mappingType: MappingType;
   /** What was found, in the words of whoever found it. */
   finding: string;
   /** How it was rated when raised, in the prior-finding vocabulary so seeded
@@ -101,6 +108,7 @@ const visitLabel = (id: string) =>
 
 function fromSeeded(p: PriorFinding): Outstanding {
   const originVisit = seededVisitOf(p);
+  const m = mappingFor(p);
   return {
     /* The portal's own id. It is the sync key, so a verification recorded here
        resolves to the right item in ACSA's Findings list. */
@@ -113,6 +121,8 @@ function fromSeeded(p: PriorFinding): Outstanding {
        lead allocates them in the field. Dropping them for not joining to a
        check would lose real open findings. */
     system: p.assetSystem ?? p.assetSystemRecorded,
+    currentSystems: m.systems,
+    mappingType: m.type,
     finding: p.observation,
     rating: p.tolerance,
     originVisit,
@@ -130,6 +140,8 @@ function fromCarried(f: Finding): Outstanding {
     source: "carried",
     discipline: f.discipline,
     system: f.system,
+    currentSystems: [f.system],
+    mappingType: "exact",
     finding: f.description || f.title,
     /* A rating the group never agreed is not a rating. An unconfirmed finding
        carries forward as "Not audited" rather than lending a suggestion the
