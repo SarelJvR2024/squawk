@@ -734,6 +734,10 @@ export interface Hazard {
   /** When this record last changed. See the note on Response.updatedAt — it is
    *  what lets two devices' work be combined without guessing. */
   updatedAt?: number;
+  /** See AdHocItem.importKey — same key, same two jobs (idempotency and
+   *  provenance/undo), for a hazard created by "Import observation pack".
+   *  Absent means not from an import. */
+  importKey?: string;
 }
 
 /** One sync attempt to SharePoint — created once, on the write itself, and
@@ -832,6 +836,10 @@ export interface Finding {
   /** When this record last changed. See the note on Response.updatedAt — it is
    *  what lets two devices' work be combined without guessing. */
   updatedAt?: number;
+  /** See AdHocItem.importKey — same key, same two jobs (idempotency and
+   *  provenance/undo), for a finding created by "Import observation pack".
+   *  Absent means not from an import. */
+  importKey?: string;
 }
 
 /** One dated entry in a record's history.
@@ -1242,6 +1250,23 @@ export interface AdHocItem {
   createdAt: number;
   createdBy: string;
   updatedAt?: number;
+  /** Set only by "Import observation pack" (src/lib/importPack.ts) — a stable
+   *  key over (the source file's bytes, the sheet name, the row's own Ref),
+   *  carried on the record itself rather than a side table so it survives
+   *  sync/merge, which keys everything by id alone (see merge.ts).
+   *
+   *  TWO JOBS. First, idempotency: importing the same file twice must create
+   *  nothing new, and comparing this key against what the current entity/
+   *  visit already holds is how a second run recognises a row it already
+   *  wrote. Second, provenance and undo together — every screen that shows
+   *  this record marks it "Imported, TPJV-proposed" when this is set, and
+   *  "remove everything imported from this file" finds exactly the records
+   *  whose key matches and nothing else.
+   *
+   *  Absent means not from an import, which is every record before this
+   *  existed and every one typed on the walk — no persist version needs to
+   *  move for that to read correctly. */
+  importKey?: string;
 }
 
 /** How the ACSA site representative was told. SWP-07 says "verbally at once",
