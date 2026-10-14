@@ -8,7 +8,7 @@ import {
   priorFindingsAt,
   usePortfolio,
   checksOf,
-  priorFor,
+  useAdhoc,
   useAttendanceRegisters,
   useContacts,
   useEvidenceItems,
@@ -16,6 +16,7 @@ import {
   useInterviewDays,
   usePpeChecks,
   useSiteAccessLogs,
+  useSystems,
   useToolboxTalks,
   useResponses,
   useSafetyFindings,
@@ -28,12 +29,15 @@ import {
   useVisitId,
 } from "@/lib/store";
 import { isOutstanding } from "@/lib/evidence";
+import { portalIdFor } from "@/lib/sites";
 import { auditWindow, ENTITIES, PROGRAMME_VISITS } from "@/lib/programme";
-import { LIKELIHOODS, SEVERITIES, bandFor, movement } from "@/lib/risk";
+import { BAND_AS_RATING, BAND_META, LIKELIHOODS, SEVERITIES, bandFor, movement, worstBand } from "@/lib/risk";
 import { currentRatingOf } from "@/lib/carryforward";
 import { mappingFor, worstRating } from "@/lib/crosswalk";
-import { Panel, Pill, Track } from "@/components/ui/primitives";
+import { AttachmentStrip } from "@/components/Capture";
+import { Panel, Pill, type Tone } from "@/components/ui/primitives";
 import {
+  IconCamera,
   IconCheck,
   IconClipboard,
   IconClock,
@@ -52,7 +56,7 @@ import {
    a code change. Only the live entity carries captured data; the rest are shown
    honestly as not yet audited rather than padded with invented figures. */
 
-type Level = "airport" | "discipline" | "portfolio";
+type Level = "airport" | "portfolio";
 
 /* 1 of 324 must not read as 0% — an auditor reads that as "nothing started". */
 function pct(n: number, total: number) {
@@ -60,6 +64,10 @@ function pct(n: number, total: number) {
   const p = (n / total) * 100;
   if (n > 0 && p < 1) return "<1%";
   return `${Math.round(p)}%`;
+}
+
+function complianceTone(v: string | null | undefined): Tone {
+  return v === "C" ? "good" : v === "NC" ? "bad" : v === "NV" ? "warn" : "neutral";
 }
 
 export default function DashboardPage() {
@@ -97,6 +105,14 @@ export default function DashboardPage() {
   const verifications = useVerifications();
   const role = useStore((s) => s.role);
   const portfolio = usePortfolio();
+  /* The Asset Assurance rating per (discipline, system) pair — the same
+     source src/lib/sharepoint.ts's Asset Risk sync and src/lib/exports.ts's
+     systemsSheet() already read, not the finding-level heat map this screen
+     used to build its risk profile from. Keeping one source means this
+     screen, the SharePoint Asset Risk list and the workbook export can never
+     disagree about what a system's rating is. */
+  const systems = useSystems();
+  const adhoc = useAdhoc();
 
   const [level, setLevel] = useState<Level>("airport");
   /* Every number on this page is for the entity in view. The register is 324
@@ -105,9 +121,14 @@ export default function DashboardPage() {
   const disciplines = useMemo(() => disciplinesAt(entityCode), [entityCode]);
   const checks = useMemo(() => checksAt(entityCode), [entityCode]);
   const prior = useMemo(() => priorFindingsAt(entityCode), [entityCode]);
-  const [discipline, setDiscipline] = useState(disciplines[0]);
+  /* "all disciplines allow filter per discipline or all" — Sarel, replacing
+     the ACSA SharePoint check-points register this screen now mirrors. "all"
+     is the default so the screen opens showing the whole visit, same as the
+     register itself before anyone narrows it. */
+  const [disciplineFilter, setDisciplineFilter] = useState<string>("all");
+  const disciplinesInScope = disciplineFilter === "all" ? disciplines : [disciplineFilter];
 
-  const scope = level === "discipline" ? checksOf(entityCode, discipline) : checks;
+  const scope = disciplineFilter === "all" ? checks : checksOf(entityCode, disciplineFilter);
 
   const stats = useMemo(() => {
     const captured = scope.filter((c) => responses[c.id]?.captured);
@@ -124,8 +145,11 @@ export default function DashboardPage() {
   }, [scope, responses]);
 
   const scopedFindings = useMemo(
-    () => (level === "discipline" ? findings.filter((f) => f.discipline === discipline) : findings),
-    [findings, level, discipline]
+    () =>
+      disciplineFilter === "all"
+        ? findings
+        : findings.filter((f) => f.discipline === disciplineFilter),
+    [findings, disciplineFilter]
   );
 
   /* Only ratings the group has agreed on. A severity seeded by an issue button
@@ -133,9 +157,63 @@ export default function DashboardPage() {
   const rated = scopedFindings.filter((f) => f.ratingConfirmed && f.severity && f.likelihood);
   const bandCount = (b: string) => rated.filter((f) => bandFor(f.severity, f.likelihood) === b).length;
 
+  /* Every (discipline, system) pair in scope, in the same order and from the
+     same grouping systemsSheet()'s workbook export and sharepoint.ts's Asset
+     Risk sync already use — see the note on `systems` above. */
+  const systemPairs = useMemo(() => {
+    const seen = new Set<string>();
+    const pairs: { discipline: string; system: string; key: string }[] = [];
+    for (const c of scope) {
+      const system = c.system?.trim() || "No asset system recorded";
+      const key = `${c.discipline}|${system}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      pairs.push({ discipline: c.discipline, system, key });
+    }
+    return pairs.sort(
+      (a, b) => a.discipline.localeCompare(b.discipline) || a.system.localeCompare(b.system)
+    );
+  }, [scope]);
+
+  /* The one overall rating this round has produced so far — the worst of every
+     AGREED system rating in scope. "Not yet rated" until at least one is, same
+     as the register's own column: a dash here must never read as "Acceptable". */
+  const overallBand = worstBand(
+    systemPairs
+      .map((p) => systems[p.key])
+      .filter((a) => a?.ratingConfirmed)
+      .map((a) => bandFor(a!.severity, a!.likelihood))
+  );
+
+  /* "DISTRIBUTION OF RATINGS" — asset systems by discipline, by the tolerance
+     the group has agreed for them this round. One row per discipline in
+     scope, same shape as the register's own table of that name. */
+  const distribution = disciplinesInScope.map((d) => {
+    const pairs = systemPairs.filter((p) => p.discipline === d);
+    let acceptable = 0;
+    let tolerable = 0;
+    let unacceptable = 0;
+    let notYetRated = 0;
+    for (const p of pairs) {
+      const a = systems[p.key];
+      const band = a?.ratingConfirmed ? bandFor(a.severity, a.likelihood) : null;
+      if (!band) {
+        notYetRated++;
+        continue;
+      }
+      const rating = BAND_AS_RATING[band];
+      if (rating === "Acceptable") acceptable++;
+      else if (rating === "Tolerable") tolerable++;
+      else unacceptable++;
+    }
+    const priorD = prior.filter((p) => p.discipline === d);
+    const closedD = priorD.filter((p) => verifications[p.portalId]?.outcome === "Closed").length;
+    return { discipline: d, acceptable, tolerable, unacceptable, notYetRated, closed: closedD };
+  });
+
   /* prior-finding closure and movement */
   const priorScope =
-    level === "discipline" ? prior.filter((p) => p.discipline === discipline) : prior;
+    disciplineFilter === "all" ? prior : prior.filter((p) => p.discipline === disciplineFilter);
   const verified = priorScope.filter((p) => verifications[p.portalId]?.outcome).length;
   const closed = priorScope.filter((p) => verifications[p.portalId]?.outcome === "Closed").length;
   const repeat = priorScope.filter(
@@ -203,9 +281,9 @@ export default function DashboardPage() {
             <h2 className="text-[18px] font-bold">
               {level === "portfolio"
                 ? "ACSA network — cycle 2025–2027"
-                : level === "discipline"
-                  ? `${discipline} — ${entity.name}`
-                  : `${entity.name} — ${visitLabel}`}
+                : disciplineFilter === "all"
+                  ? `${entity.name} — ${visitLabel}`
+                  : `${disciplineFilter} — ${entity.name}`}
             </h2>
             <p className="mt-1 max-w-[78ch] text-[12.5px]" style={{ color: "var(--ink-2)" }}>
               {role === "acsa"
@@ -215,7 +293,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex gap-[2px] rounded-[11px] p-[3px]" style={{ background: "var(--sunken)" }}>
-              {(["airport", "discipline", "portfolio"] as Level[]).map((l) => (
+              {(["airport", "portfolio"] as Level[]).map((l) => (
                 <button
                   key={l}
                   onClick={() => setLevel(l)}
@@ -230,15 +308,18 @@ export default function DashboardPage() {
                 </button>
               ))}
             </div>
-            {level === "discipline" && (
+            {level === "airport" && (
               <select
-                value={discipline}
-                onChange={(e) => setDiscipline(e.target.value)}
+                value={disciplineFilter}
+                onChange={(e) => setDisciplineFilter(e.target.value)}
                 className="rounded-[9px] border px-2.5 py-[7px] text-[12px]"
                 style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
               >
+                <option value="all">All disciplines</option>
                 {disciplines.map((d) => (
-                  <option key={d}>{d}</option>
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
                 ))}
               </select>
             )}
@@ -320,25 +401,49 @@ export default function DashboardPage() {
           </>
         ) : (
           <>
-            <div className="mb-3.5 grid grid-cols-2 gap-[9px] md:grid-cols-5">
-              {kpi(`Captured · ${stats.captured}/${stats.total}`, pct(stats.captured, stats.total), "acc")}
+            {/* The five tiles the ACSA check-points register itself opens with —
+                Oct 2026 rating, check-points assessed, demonstrated compliance,
+                open findings, prior findings closed. Same numbers the register
+                prints, read straight off the record rather than retyped. */}
+            <div className="mb-[9px] grid grid-cols-2 gap-[9px] md:grid-cols-5">
+              {kpi(`${visitLabel} rating`, overallBand ? BAND_AS_RATING[overallBand] : "Not yet rated", overallBand ? BAND_META[overallBand].tone : undefined)}
+              {kpi("Check-points assessed", `${stats.captured}/${stats.total}`, "acc")}
+              {kpi("Demonstrated compliance", pct(stats.C, stats.C + stats.NC + stats.NV), stats.NC ? "warn" : "good")}
+              {kpi("Open findings", scopedFindings.length, scopedFindings.length ? "bad" : "good")}
+              {kpi(
+                "Prior findings closed",
+                `${closed}/${priorScope.length}`,
+                priorScope.length && closed === priorScope.length ? "good" : "acc"
+              )}
+            </div>
+            <div className="mb-3.5 grid grid-cols-2 gap-[9px] md:grid-cols-4">
               {kpi("Compliant", stats.C, "good")}
               {kpi("Non-compliant", stats.NC, "bad")}
               {kpi("Awaiting evidence", stats.NV, "warn")}
-              {kpi("Findings raised", scopedFindings.length, "bad")}
+              {kpi("Not applicable", stats.NA)}
             </div>
 
             <div className="mb-3.5 grid gap-3.5 lg:grid-cols-[1.4fr_1fr]">
-              {/* discipline / asset-system table */}
+              {/* "ASSET SYSTEMS: RISK TO OPERATIONS" — the register's own table,
+                  same name, same source (SystemAssessment) as the Asset Risk
+                  SharePoint list and the workbook export's "Asset systems"
+                  sheet. Severity/likelihood/tolerance are blank, not guessed,
+                  until the group has agreed them — see `agreed` below, same
+                  gate systemsSheet() and sharepoint.ts's assetRisk push use. */}
               <div className="rounded-[15px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
-                <h3 className="mb-3 text-[12.5px] font-bold">
-                  {level === "discipline" ? "By asset system" : "By discipline"}
-                </h3>
+                <h3 className="mb-3 text-[12.5px] font-bold">Asset systems: risk to operations</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-[12px]">
                     <thead>
                       <tr>
-                        {[level === "discipline" ? "Asset system" : "Discipline", "Progress", "Captured", "NC", "Mar 2025"].map((h) => (
+                        {[
+                          ...(disciplineFilter === "all" ? ["Discipline"] : []),
+                          "Asset system",
+                          "Assessed",
+                          "Severity",
+                          "Likelihood",
+                          "Tolerance",
+                        ].map((h) => (
                           <th
                             key={h}
                             className="border-b px-2.5 py-2 text-left font-mono text-[8.5px] tracking-[0.09em] uppercase"
@@ -350,51 +455,55 @@ export default function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(level === "discipline"
-                        ? Array.from(
-                            new Set(checksOf(entityCode, discipline).map((c) => c.system))
-                          ).map((sys) => ({
-                            key: sys,
-                            cs: checksOf(entityCode, discipline, sys),
-                            pf: priorFor(entityCode, discipline, sys),
-                          }))
-                        : disciplines.map((d) => ({
-                            key: d,
-                            cs: checksOf(entityCode, d),
-                            pf: null,
-                          }))
-                      ).map(({ key, cs, pf }) => {
+                      {systemPairs.map((p) => {
+                        const cs = checksOf(entityCode, p.discipline, p.system);
                         const done = cs.filter((c) => responses[c.id]?.captured).length;
-                        const nc = cs.filter((c) => responses[c.id]?.compliance === "NC").length;
+                        const a = systems[p.key];
+                        const agreed = a?.ratingConfirmed === true;
+                        const band = agreed ? bandFor(a!.severity, a!.likelihood) : null;
                         return (
-                          <tr key={key}>
+                          <tr key={p.key}>
+                            {disciplineFilter === "all" && (
+                              <td
+                                className="border-b px-2.5 py-2.5"
+                                style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}
+                              >
+                                {p.discipline}
+                              </td>
+                            )}
                             <td className="border-b px-2.5 py-2.5 font-medium" style={{ borderColor: "var(--line)" }}>
-                              {key}
-                            </td>
-                            <td className="w-[110px] border-b px-2.5 py-2.5" style={{ borderColor: "var(--line)" }}>
-                              <Track pct={cs.length ? (done / cs.length) * 100 : 0} />
+                              {p.system}
                             </td>
                             <td className="border-b px-2.5 py-2.5 text-right font-mono tnum" style={{ borderColor: "var(--line)" }}>
                               {done}/{cs.length}
                             </td>
-                            <td
-                              className="border-b px-2.5 py-2.5 text-right font-mono tnum"
-                              style={{ borderColor: "var(--line)", color: nc ? "var(--bad)" : "var(--ink-4)" }}
-                            >
-                              {nc || "—"}
+                            <td className="border-b px-2.5 py-2.5" style={{ borderColor: "var(--line)" }}>
+                              {agreed ? a!.severity : <span style={{ color: "var(--ink-4)" }}>—</span>}
                             </td>
                             <td className="border-b px-2.5 py-2.5" style={{ borderColor: "var(--line)" }}>
-                              {pf ? (
-                                <Pill tone={pf.rating === "Unacceptable" ? "bad" : pf.rating === "Tolerable" ? "warn" : "good"}>
-                                  {pf.key}
-                                </Pill>
+                              {agreed ? a!.likelihood : <span style={{ color: "var(--ink-4)" }}>—</span>}
+                            </td>
+                            <td className="border-b px-2.5 py-2.5" style={{ borderColor: "var(--line)" }}>
+                              {agreed && band ? (
+                                <Pill tone={BAND_META[band].tone}>{BAND_AS_RATING[band]}</Pill>
                               ) : (
-                                <span style={{ color: "var(--ink-4)" }}>—</span>
+                                <Pill tone="neutral">Not yet rated</Pill>
                               )}
                             </td>
                           </tr>
                         );
                       })}
+                      {systemPairs.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan={disciplineFilter === "all" ? 6 : 5}
+                            className="px-2.5 py-3 text-center"
+                            style={{ color: "var(--ink-4)" }}
+                          >
+                            No asset systems in scope.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -484,6 +593,65 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+
+            {/* "DISTRIBUTION OF RATINGS" — asset systems by discipline, by the
+                tolerance the group has agreed for them this round, same
+                table the register itself prints under this name. */}
+            <div className="mb-3.5 rounded-[15px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
+              <h3 className="mb-3 text-[12.5px] font-bold">Distribution of ratings</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-[12px]">
+                  <thead>
+                    <tr>
+                      {["Audit area", "Acceptable", "Tolerable", "Unacceptable", "Not yet rated", "Closed"].map(
+                        (h) => (
+                          <th
+                            key={h}
+                            className="border-b px-2.5 py-2 text-left font-mono text-[8.5px] tracking-[0.09em] uppercase"
+                            style={{ borderColor: "var(--line)", color: "var(--ink-4)" }}
+                          >
+                            {h}
+                          </th>
+                        )
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {distribution.map((row) => (
+                      <tr key={row.discipline}>
+                        <td className="border-b px-2.5 py-2.5 font-medium" style={{ borderColor: "var(--line)" }}>
+                          {row.discipline}
+                        </td>
+                        <td
+                          className="border-b px-2.5 py-2.5 text-right font-mono tnum"
+                          style={{ borderColor: "var(--line)", color: row.acceptable ? "var(--good)" : "var(--ink-4)" }}
+                        >
+                          {row.acceptable || "0"}
+                        </td>
+                        <td
+                          className="border-b px-2.5 py-2.5 text-right font-mono tnum"
+                          style={{ borderColor: "var(--line)", color: row.tolerable ? "var(--warn)" : "var(--ink-4)" }}
+                        >
+                          {row.tolerable || "0"}
+                        </td>
+                        <td
+                          className="border-b px-2.5 py-2.5 text-right font-mono tnum"
+                          style={{ borderColor: "var(--line)", color: row.unacceptable ? "var(--bad)" : "var(--ink-4)" }}
+                        >
+                          {row.unacceptable || "0"}
+                        </td>
+                        <td className="border-b px-2.5 py-2.5 text-right font-mono tnum" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
+                          {row.notYetRated || "0"}
+                        </td>
+                        <td className="border-b px-2.5 py-2.5 text-right font-mono tnum" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
+                          {row.closed || "0"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
 
@@ -657,6 +825,107 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
+
+            {/* "CHECK-POINTS" — every check in scope, grouped by asset system,
+                same grouping the register prints under this name. Collapsed
+                by default (native <details>, no extra state) — the register
+                runs to hundreds of rows and nobody reads all of them at once. */}
+            <div className="mt-3.5 rounded-[15px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
+              <h3 className="mb-3 text-[12.5px] font-bold">Check-points</h3>
+              <div className="flex flex-col gap-2">
+                {systemPairs.map((p) => {
+                  const cs = checksOf(entityCode, p.discipline, p.system);
+                  const done = cs.filter((c) => responses[c.id]?.captured).length;
+                  return (
+                    <details
+                      key={p.key}
+                      className="rounded-[11px] border px-3 py-2"
+                      style={{ borderColor: "var(--line)" }}
+                    >
+                      <summary className="cursor-pointer text-[12px] font-semibold">
+                        {disciplineFilter === "all" ? `${p.discipline} · ` : ""}
+                        {p.system}{" "}
+                        <span className="font-mono text-[10.5px] font-normal" style={{ color: "var(--ink-3)" }}>
+                          {done}/{cs.length} assessed
+                        </span>
+                      </summary>
+                      <div className="mt-2 flex flex-col gap-2.5 border-t pt-2.5" style={{ borderColor: "var(--line)" }}>
+                        {cs.map((c) => {
+                          const r = responses[c.id];
+                          const photos = (r?.attachments ?? []).filter((a) => a.kind === "photo");
+                          return (
+                            <div key={c.id} className="rounded-[9px] px-2.5 py-2" style={{ background: "var(--sunken)" }}>
+                              <div className="flex flex-wrap items-center justify-between gap-1.5">
+                                <span className="font-mono text-[10.5px] font-semibold" style={{ color: "var(--ink-2)" }}>
+                                  {portalIdFor(entityCode, c.id)}
+                                </span>
+                                <Pill tone={complianceTone(r?.compliance)}>{r?.compliance ?? "Not captured"}</Pill>
+                              </div>
+                              <p className="mt-1 text-[11.5px]" style={{ color: "var(--ink)" }}>
+                                {c.requirement}
+                              </p>
+                              {r?.observation && (
+                                <p className="mt-1 text-[11px]" style={{ color: "var(--ink-2)" }}>
+                                  {r.observation}
+                                </p>
+                              )}
+                              {photos.length > 0 && (
+                                <div className="mt-1.5">
+                                  <AttachmentStrip attachments={photos} thumbSize={40} />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </details>
+                  );
+                })}
+                {systemPairs.length === 0 && (
+                  <p className="text-[11.5px]" style={{ color: "var(--ink-4)" }}>
+                    No check-points in scope.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* The register's own end-of-report photograph gallery, for this
+                screen the walkabout's own observations — not tied to a
+                check-point, so they do not appear in "Check-points" above. */}
+            {(() => {
+              const walkItems = adhoc.filter(
+                (w) => disciplineFilter === "all" || w.discipline === disciplineFilter
+              );
+              const withPhotos = walkItems.filter((w) => w.attachments.some((a) => a.kind === "photo"));
+              if (withPhotos.length === 0) return null;
+              return (
+                <div className="mt-3.5 rounded-[15px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
+                  <h3 className="mb-3 flex items-center gap-2 text-[12.5px] font-bold">
+                    <IconCamera width={14} height={14} style={{ color: "var(--acc)" }} />
+                    Site walkabout photographs
+                  </h3>
+                  <div className="flex flex-col gap-3">
+                    {withPhotos.map((w) => (
+                      <div key={w.id} className="rounded-[9px] px-2.5 py-2" style={{ background: "var(--sunken)" }}>
+                        <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10.5px] font-semibold" style={{ color: "var(--ink-2)" }}>
+                          {w.id}
+                          {w.discipline && <Pill tone="neutral">{w.discipline}</Pill>}
+                        </div>
+                        <p className="mt-1 text-[11.5px]" style={{ color: "var(--ink)" }}>
+                          {w.description} — {w.area}
+                        </p>
+                        <div className="mt-1.5">
+                          <AttachmentStrip
+                            attachments={w.attachments.filter((a) => a.kind === "photo")}
+                            thumbSize={40}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </>
         )}
       </div>
