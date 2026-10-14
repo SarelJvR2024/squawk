@@ -12,36 +12,78 @@
  *  own distinct causes and its own distinct remediation, not a pool shared
  *  with every other event the system carries.
  *
- *  A finding takes one of each, and that is right for a finding — one defect,
- *  one reason, one fix. A hazardous event is not one defect, any more than
- *  the asset system it belongs to is. Switchgear rated Unacceptable is
- *  regularly failing for two reasons at once (no maintenance budget AND
- *  nobody competent appointed), and closing it out is three jobs owned by
- *  three people on three timelines. Forcing one of each means the second
- *  reason and the other two jobs get written into a comment where nothing
- *  tracks them, nothing carries them to the next audit, and nothing chases
- *  them.
+ *  AS CONDENSED AS THIS GETS, 14 October 2026. Sarel: "this is still too big,
+ *  must be much more condense, less notes, no suggested root causes, only
+ *  when clicking the + should a text box be added to capture in." So: no
+ *  ACSA chip list (still a free-text `cause`, exactly as `RootCauseNote`
+ *  always allowed — "from ROOT_CAUSES where it fits, free text where it does
+ *  not" never required the chips, just offered them), no explanatory
+ *  paragraph, no per-cause note field, and no input box sits on screen
+ *  un-asked-for — tapping "+" is what reveals one, for exactly as long as it
+ *  takes to type one line.
  *
- *  THE CAUSE VOCABULARY IS ACSA'S. `ROOT_CAUSES` is a closed list from their own
- *  framework and this is not the place to extend it, so the chips are the list
- *  and anything genuinely outside it is typed and recorded as written — never
- *  mapped onto the nearest member, which would quietly report a cause nobody
- *  chose.
- *
- *  NO OWNER, DATE OR STATUS CAPTURED HERE. Sarel: "no other fields like
- *  ownership needed" — this panel is the risk session's own working list of
- *  what is wrong and what has to happen about it, not the place that assigns
- *  and tracks the work. `MitigationAction` still carries `owner`/`dueDate`/
- *  `status` (Finding and Hazard, which reuse the type, still need them), so
- *  a seeded or hand-typed action here simply keeps them at their defaults
- *  ("", "", "Open") until the action is carried further — nothing here reads
- *  or shows them. */
+ *  NO OWNER, DATE OR STATUS CAPTURED HERE either — Sarel, earlier the same
+ *  day: "no other fields like ownership needed." `MitigationAction` still
+ *  carries `owner`/`dueDate`/`status` (Finding and Hazard, which reuse the
+ *  type, still need them), so a seeded or hand-typed action here simply
+ *  keeps them at their defaults ("", "", "Open") until carried further. */
 
-import { useState } from "react";
-import { ROOT_CAUSES } from "@/lib/store";
-import { Btn, Chip } from "@/components/ui/primitives";
+import { useRef, useState } from "react";
 import { IconPlus, IconX } from "@/components/ui/icons";
 import type { MitigationAction, RootCauseNote } from "@/lib/types";
+
+function AddRow({
+  label,
+  onAdd,
+}: {
+  label: string;
+  onAdd: (text: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+  const ref = useRef<HTMLInputElement>(null);
+
+  const submit = () => {
+    if (draft.trim()) onAdd(draft.trim());
+    setDraft("");
+    setOpen(false);
+  };
+
+  if (!open)
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(true);
+          requestAnimationFrame(() => ref.current?.focus());
+        }}
+        aria-label={label}
+        className="mt-1 flex h-[30px] w-[30px] items-center justify-center rounded-[8px] border"
+        style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+      >
+        <IconPlus width={14} height={14} />
+      </button>
+    );
+
+  return (
+    <input
+      ref={ref}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") submit();
+        if (e.key === "Escape") {
+          setDraft("");
+          setOpen(false);
+        }
+      }}
+      onBlur={submit}
+      aria-label={label}
+      className="mt-1 w-full rounded-[8px] border px-2.5 py-[6px] text-[12px] outline-none focus:border-[var(--acc)]"
+      style={{ background: "var(--panel)", borderColor: "var(--acc)" }}
+    />
+  );
+}
 
 export default function SystemTreatment({
   rootCauses,
@@ -62,158 +104,69 @@ export default function SystemTreatment({
   onPatchAction: (id: string, p: Partial<MitigationAction>) => void;
   onRemoveAction: (id: string) => void;
 }) {
-  const [otherCause, setOtherCause] = useState("");
-  const [draftAction, setDraftAction] = useState("");
-  const chosen = new Set(rootCauses.map((r) => r.cause));
-
-  const addAction = () => {
-    if (!draftAction.trim()) return;
-    onAddAction(draftAction.trim());
-    setDraftAction("");
-  };
-
   return (
     <>
       {/* --------------------------------------------------- root causes */}
-      <div className="mt-4 mb-1 flex flex-wrap items-baseline justify-between gap-2">
-        <b className="font-display text-[11px] font-semibold">Root causes</b>
+      <div className="mt-2.5 mb-1 flex items-center justify-between gap-2">
+        <b className="font-display text-[10.5px] font-semibold">Root causes</b>
         <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-          {rootCauses.length === 0
-            ? "none recorded"
-            : `${rootCauses.length} recorded`}
+          {rootCauses.length || ""}
         </span>
-      </div>
-      <p className="mb-2 text-[10.5px] leading-[1.5]" style={{ color: "var(--ink-4)" }}>
-        More than one is normal — an asset system usually fails for two reasons at once. Tap
-        ACSA&rsquo;s causes; anything outside their list goes in the box underneath, as written.
-      </p>
-
-      <div className="flex flex-wrap gap-[5px]">
-        {ROOT_CAUSES.map((rc) => (
-          <Chip
-            key={rc}
-            selected={chosen.has(rc)}
-            onClick={() => {
-              /* Tapping a chosen cause takes it off. The list is built by
-                 tapping, so it has to be un-buildable the same way. */
-              const existing = rootCauses.find((r) => r.cause === rc);
-              if (existing) onRemoveCause(existing.id);
-              else onAddCause(rc);
-            }}
-          >
-            {rc}
-          </Chip>
-        ))}
-      </div>
-
-      <div className="mt-2 flex flex-wrap gap-2">
-        <input
-          value={otherCause}
-          onChange={(e) => setOtherCause(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && otherCause.trim()) {
-              onAddCause(otherCause.trim());
-              setOtherCause("");
-            }
-          }}
-          placeholder="A cause ACSA's list does not carry…"
-          aria-label="A root cause outside ACSA's list"
-          className="min-w-0 flex-1 rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
-          style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-        />
-        <Btn
-          disabled={!otherCause.trim()}
-          onClick={() => {
-            onAddCause(otherCause.trim());
-            setOtherCause("");
-          }}
-        >
-          <IconPlus width={14} height={14} />
-          Add cause
-        </Btn>
       </div>
 
       {rootCauses.map((r) => (
-        <div
-          key={r.id}
-          className="mt-1.5 rounded-[11px] border px-3 py-2.5"
-          style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
-        >
-          <div className="flex items-start gap-2">
-            <span className="min-w-0 flex-1 text-[12px] font-semibold">{r.cause}</span>
-            <button
-              type="button"
-              onClick={() => onRemoveCause(r.id)}
-              aria-label={`Remove ${r.cause}`}
-              className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[8px] border"
-              style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
-            >
-              <IconX width={13} height={13} />
-            </button>
-          </div>
+        <div key={r.id} className="mb-1 flex items-center gap-2">
           <input
-            value={r.note}
-            onChange={(e) => onPatchCause(r.id, { note: e.target.value })}
-            placeholder="How it shows up here — optional"
-            aria-label={`How ${r.cause} shows up here`}
-            className="mt-1.5 w-full rounded-[8px] border px-2.5 py-[7px] text-[11.5px] outline-none focus:border-[var(--acc)]"
-            style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+            value={r.cause}
+            onChange={(e) => onPatchCause(r.id, { cause: e.target.value })}
+            aria-label="Root cause"
+            className="min-w-0 flex-1 rounded-[8px] border px-2.5 py-[6px] text-[12px] outline-none focus:border-[var(--acc)]"
+            style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
           />
+          <button
+            type="button"
+            onClick={() => onRemoveCause(r.id)}
+            aria-label={`Remove ${r.cause}`}
+            className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] border"
+            style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+          >
+            <IconX width={12} height={12} />
+          </button>
         </div>
       ))}
 
+      <AddRow label="Add a root cause" onAdd={onAddCause} />
+
       {/* ---------------------------------------------- mitigation actions */}
-      <div className="mt-4 mb-1 flex flex-wrap items-baseline justify-between gap-2">
-        <b className="font-display text-[11px] font-semibold">Mitigation actions</b>
+      <div className="mt-3 mb-1 flex items-center justify-between gap-2">
+        <b className="font-display text-[10.5px] font-semibold">Mitigation actions</b>
         <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-          {actions.length === 0 ? "none recorded" : `${actions.length} recorded`}
+          {actions.length || ""}
         </span>
       </div>
 
       {actions.map((act) => (
-        <div
-          key={act.id}
-          className="mb-1.5 rounded-[11px] border px-3 py-2.5"
-          style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-        >
-          <div className="flex items-start gap-2">
-            <textarea
-              value={act.action}
-              onChange={(e) => onPatchAction(act.id, { action: e.target.value })}
-              aria-label="Mitigation action"
-              className="min-h-[46px] min-w-0 flex-1 resize-y rounded-[8px] border px-2.5 py-[7px] text-[12px] outline-none focus:border-[var(--acc)]"
-              style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
-            />
-            <button
-              type="button"
-              onClick={() => onRemoveAction(act.id)}
-              aria-label="Remove this action"
-              className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[8px] border"
-              style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
-            >
-              <IconX width={13} height={13} />
-            </button>
-          </div>
+        <div key={act.id} className="mb-1 flex items-center gap-2">
+          <input
+            value={act.action}
+            onChange={(e) => onPatchAction(act.id, { action: e.target.value })}
+            aria-label="Mitigation action"
+            className="min-w-0 flex-1 rounded-[8px] border px-2.5 py-[6px] text-[12px] outline-none focus:border-[var(--acc)]"
+            style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+          />
+          <button
+            type="button"
+            onClick={() => onRemoveAction(act.id)}
+            aria-label="Remove this action"
+            className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] border"
+            style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+          >
+            <IconX width={12} height={12} />
+          </button>
         </div>
       ))}
 
-      <div className="flex flex-wrap gap-2">
-        <input
-          value={draftAction}
-          onChange={(e) => setDraftAction(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") addAction();
-          }}
-          placeholder="What has to be done…"
-          aria-label="Add a mitigation action"
-          className="min-w-0 flex-1 rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
-          style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-        />
-        <Btn disabled={!draftAction.trim()} onClick={addAction}>
-          <IconPlus width={14} height={14} />
-          Add action
-        </Btn>
-      </div>
+      <AddRow label="Add a mitigation action" onAdd={onAddAction} />
     </>
   );
 }

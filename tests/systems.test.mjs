@@ -491,27 +491,9 @@ check(
 /* ---- 6 · several root causes, several mitigation actions ---------------- */
 
 check(
-  "the cause vocabulary is ACSA's, taken from the store rather than retyped",
-  /import \{ ROOT_CAUSES \} from "@\/lib\/store";/.test(treat),
-  "a second copy of a closed list is how a screen comes to offer a cause ACSA does not have"
-);
-
-check(
-  "a cause outside their list is recorded as written",
-  /A cause ACSA's list does not carry/.test(treat),
-  "mapping it onto the nearest member would report a cause nobody chose"
-);
-
-check(
   "the same cause cannot be recorded twice on the same hazard",
   /const already = \(ev\.rootCauses \?\? \[\]\)\.find\(\(r\) => r\.cause === text\);/.test(storeCode),
   "pressing a chip that is already on this event is a mis-tap, not a second cause"
-);
-
-check(
-  "tapping a chosen cause takes it off again",
-  /if \(existing\) onRemoveCause\(existing\.id\);\s*\n\s*else onAddCause\(rc\);/.test(treatCode),
-  "a list built by tapping has to be un-buildable the same way"
 );
 
 check(
