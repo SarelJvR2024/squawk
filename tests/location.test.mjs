@@ -164,10 +164,15 @@ check(
   ""
 );
 
+/* REVERSED, 13 October 2026 — Sarel: "remove asset and location capture
+   options on the photo level." A photograph's location is still inherited
+   at capture (see the check above) and still carried on Attachment, but
+   there is no longer a box on the photo's own row to edit it — only a
+   read-only summary if a value is already there. */
 check(
-  "the photograph's own location is editable",
-  /onChange=\{\(e\) => onUpdate\(\{ location: e\.target\.value \}\)\}/.test(captureCode),
-  "inherited is a default, not a fact"
+  "the photograph's own location is no longer editable from its own row",
+  !/onChange=\{\(e\) => onUpdate\(\{ location: e\.target\.value \}\)\}/.test(captureCode),
+  "a per-photo input is a capture option; the field itself is untouched"
 );
 
 check(
@@ -190,21 +195,29 @@ check(
   "real zone names have not been supplied; forcing a wrong category is worse than a blank"
 );
 
-/* ---- 4 · the photograph card is not a wall of empty boxes ---------------- */
+/* ---- 4 · asset and location are no longer captured on a photo's own row -- */
+
+/* REVERSED, 13 October 2026 — Sarel: "remove asset and location capture
+   options on the photo level." There used to be a fold/unfold control
+   here (details/setDetails, a "+ asset & location" button) so three input
+   boxes were not a wall of furniture on every photograph. That control,
+   and the inputs behind it, are gone outright now — not reachable at all
+   from a photo, folded or not. */
 
 check(
-  "asset, reference and location are folded behind one control",
-  /const \[details, setDetails\] = useState\(false\);/.test(captureCode) &&
-    /details && \(\s*\n\s*<span className="flex flex-wrap gap-\[5px\]">/.test(captureCode),
-  "four fields per photograph, times several photographs, is a wall between the auditor and the next check"
+  "there is no capture control for asset or location left on a photo's own row",
+  !/const \[details, setDetails\] = useState\(false\);/.test(captureCode) &&
+    !/"\+ asset & location"/.test(captureCode) &&
+    !/placeholder="Asset \(optional\)"/.test(captureCode) &&
+    !/placeholder="No\. \/ ref"/.test(captureCode),
+  "a fold/unfold toggle is still a capture option, just one tap further away"
 );
 
 check(
-  "and a folded panel never hides a value",
-  /const filled = \[a\.location, a\.assetName, a\.assetRef\]\.filter\(Boolean\)\.join\(" · "\);/.test(
-    captureCode
-  ) && /\{filled \? filled : details \? "hide asset & location" : "\+ asset & location"\}/.test(captureCode),
-  "the summary reads the fields out, so shut is not the same as unknown"
+  "a value already on the photograph still reads out, read-only",
+  /a\.kind === "photo" && !dead && \(a\.location \|\| a\.assetName \|\| a\.assetRef\) \? \(/.test(captureCode) &&
+    /\{\[a\.location, a\.assetName, a\.assetRef\]\.filter\(Boolean\)\.join\(" · "\)\}/.test(captureCode),
+  "removing the capture option should not also erase what was already recorded"
 );
 
 /* ---- 5 · the camera and the microphone are out of the reading order ------ */
@@ -384,26 +397,13 @@ check(
    text — `url ?? a.thumbDataUrl ?? a.dataUrl`. The chain grew a middle step and
    moved into a hook, so the letter changed while the property did not, and the
    property is the thing worth protecting: a photograph taken on one device is
-   visible on the other, in the tile AND the lightbox, and "missing" is only
-   said when it truly is.
+   visible on the other.
 
    What grew: the 240px thumbnail is no longer the best a second device can do.
    The full 1600px record copy is fetched from the blob store, and the thumbnail
    is the last resort rather than the only one — which is the whole point of
    src/lib/recordimage.ts. See tests/photoview.test.mjs for the gate in front of
    it. */
-check(
-  "Review resolves a photograph through the hook that can reach the record copy",
-  /import \{ useRecordImage \} from "@\/lib\/recordimage";/.test(review),
-  "a blobKey is a pointer into local IndexedDB and resolves on one device only"
-);
-
-check(
-  "in the lightbox as well as the tile",
-  (review.match(/useRecordImage\(/g) ?? []).length >= 2,
-  "a tile that paints and a lightbox that does not is a photograph you can see until you tap it"
-);
-
 check(
   "and the thumbnail is still the fallback underneath it, so an offline device shows SOMETHING",
   /url: full \?\? a\.thumbDataUrl \?\? a\.dataUrl \?\? null/.test(
@@ -412,18 +412,23 @@ check(
   ""
 );
 
+/* REVERSED, 13 October 2026 — Sarel asked for /review to become the central
+   editor for one audit check (see tests/review.test.mjs). It dropped its
+   own Photo/Lightbox pair and the `useRecordImage` hook behind them in
+   favour of CheckDetail — the same component Capture and Field already use
+   — which shows a photograph through AttachmentStrip's local blob/thumbnail
+   chain (src/components/Capture.tsx). "In the tile AND the lightbox" and
+   "the two reasons an image is not here are told apart" were about Review's
+   OWN rendering of a photograph; that rendering is gone with the screen it
+   was built for, so those three checks are replaced rather than chased
+   through a component that no longer exists. useRecordImage and the gate in
+   front of it (src/app/api/photos/route.ts) are unaffected — tested in full
+   in tests/photoview.test.mjs — they simply have one fewer caller. */
 check(
-  "and it is only called missing when it truly is",
-  /if \(a\.unavailable \|\| \(missing && !src\)\) \{/.test(review),
-  ""
-);
-
-check(
-  "the two reasons an image is not here are told apart",
-  /\{a\.unavailable\s*\n?\s*\? "no image stored — captured before this worked"\s*\n?\s*: "the image is on the device that took it"\}/.test(
-    review
-  ),
-  "telling an auditor their evidence is corrupt old data when it is one sync away is worse than telling them nothing"
+  "Review shows a photograph through CheckDetail, not a renderer of its own",
+  /import CheckDetail from "@\/components\/CheckDetail";/.test(review) &&
+    !/useRecordImage/.test(review),
+  "one place in the app that knows how to resolve a blobKey, not two that could disagree about a photo nobody uploaded from this device"
 );
 
 /* ---- 11 · and it reaches the workbook ----------------------------------- */

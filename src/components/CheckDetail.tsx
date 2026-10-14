@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Check, Compliance, EvidenceStatus } from "@/lib/types";
-import { priorFor, useEntityCode, useResponses, useStore } from "@/lib/store";
+import { priorFor, useEntityCode, useResponses, useStore, useVisitFindings } from "@/lib/store";
 import { portalIdFor } from "@/lib/sites";
 import { useAnswers } from "@/lib/answers";
 import {
@@ -15,6 +15,7 @@ import {
 import { modeLabels, needsField } from "@/lib/verification";
 import { AttachmentStrip, FileButton, PhotoButton, VoiceNoteButton } from "./Capture";
 import AcsaRequirementPanel from "./AcsaRequirementPanel";
+import FindingDetail from "./FindingDetail";
 import {
   IconCheck,
   IconClipboard,
@@ -327,6 +328,9 @@ export default function CheckDetail({
   const obsRef = useRef<HTMLTextAreaElement>(null);
   const a = useAnswers(check.id);
   const entityCode = useEntityCode();
+  /* Findings already raised against this check, in full — not a link out to
+     the Asset Assurance screen. See the "Findings" panel below for why. */
+  const checkFindings = useVisitFindings().filter((f) => f.checkId === check.id);
   /* The id an auditor reads out and the portal syncs on is the SITE's id.
      ORTIA-ELE-001 and KSIA-ELE-001 are the same requirement at two airports;
      showing the King Shaka number at O.R. Tambo would be quoting the wrong
@@ -781,6 +785,38 @@ export default function CheckDetail({
       </>
     ),
   });
+
+  /* FINDINGS, IN FULL, ON THE CHECK THAT RAISED THEM — 13 October 2026.
+     Sarel wanted one screen that carries "all evidence requests, evidence
+     notes, compliance, observations, findings, photos ... everything you
+     have in the system for that audit check", editable in place.
+
+     A finding already raised against this check is read and worked HERE —
+     the exact FindingDetail pane the Asset Assurance screen opens in a
+     sheet, lifted in rather than re-rewritten, so its rating, root cause,
+     treatment and hazard advice stay the one true place they are edited.
+     There is still no way to RAISE a new finding from a check — that was
+     deliberately removed 11 October 2026 (Sarel: remove "Issues found")
+     and this panel does not reopen it; it only surfaces what Asset
+     Assurance already has for this check id. A check with none gets no
+     tab at all, same as every other conditional panel here. */
+  if (checkFindings.length > 0)
+    panels.push({
+      key: "findings",
+      label: "Findings",
+      badge: String(checkFindings.length),
+      group: "do",
+      body: (
+        <div className="flex flex-col gap-[18px]">
+          {checkFindings.map((f, i) => (
+            <div key={f.id}>
+              {i > 0 && <div className="mb-[18px] border-t" style={{ borderColor: "var(--line)" }} />}
+              <FindingDetail f={f} onToast={onSaved} />
+            </div>
+          ))}
+        </div>
+      ),
+    });
 
   /* -------------------------------------------------- what the auditor reads
      The standard, the site's override of it, and ACSA's own words for it, in

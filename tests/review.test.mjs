@@ -2,20 +2,39 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-/* Visual review, and the one rule it exists to protect.
+/* The central place to review one audit check, and what it replaced.
  *
- *  The people who can tell whether a photograph shows the right panel are
- *  mostly not the people holding the tablet. Before this screen, visual
- *  evidence was reachable only by opening the single check that carried it —
- *  a discipline lead reviewing electrical evidence had to already know which
- *  of 324 checks to open. Nobody does that, so nobody reviewed.
+ *  REVERSED, 13 October 2026 — Sarel: "i want us to update the review page.
+ *  this should be a page where you have the audit checks on the left per
+ *  discipline and on the right panel have all evidence requests, evidence
+ *  notes, compliance, observations, findings, photos all in one place
+ *  everything you have in the system for that audit check. this should be
+ *  the central place to review everything for an audit check and all
+ *  compliance statuses and allow the editing and updating of all fields."
+ *  Confirmed with him directly: this REPLACES the old screen, not alongside
+ *  it.
  *
- *  The rule: a review comment is a conversation ABOUT the evidence. It is never
- *  merged into `Response.observation`, which is the auditor's record of what
- *  they found, nor into `Finding.description`, which is what reaches ACSA and
- *  the SACAA. An engineer who thinks their aside might be quoted in an audit
- *  report writes a different, more careful, less useful comment — and a report
- *  that quietly absorbed one would be misattributing a finding.
+ *  Every assertion below this comment up to "the walk is evidence too" used
+ *  to guard the OLD /review — a flat gallery of every photograph and voice
+ *  note this visit captured, with Photo/Lightbox components of its own,
+ *  walk items and unassigned captures folded in as rows, and a feedback
+ *  thread deliberately kept OUT of the record for an engineer who was never
+ *  on site. None of that exists on the page any more: it is gone outright,
+ *  not hidden behind a flag, and this file stops asserting it rather than
+ *  rewriting the same shape of test around machinery that is no longer
+ *  there. (`FeedbackNote` itself, and the store's `addFeedback` /
+ *  `toggleFeedbackResolved` / `removeFeedback` / `useFeedback`, are untouched
+ *  — src/lib/shared.ts's sync layer still carries a "feedback" row kind, so
+ *  that infrastructure stays; it simply has no screen writing to it any
+ *  more.)
+ *
+ *  What replaced it is the same left-rail-plus-detail shape as Capture
+ *  (src/app/(app)/capture/page.tsx): a discipline `<select>`, its asset
+ *  systems collapsible, checks nested under them, and CheckDetail — the
+ *  exact component Capture and Field use to edit a check in full — on the
+ *  right. Reviewing a check and editing it are the same action on the same
+ *  screen now, which is the whole point: everything the system holds for
+ *  that check, in one place, editable.
  *
  *  Source-read, like the other offline suites. */
 
@@ -23,9 +42,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8");
 
 const review = src("app", "(app)", "review", "page.tsx");
-const store = src("lib", "store.ts");
 const types = src("lib", "types.ts");
 const shell = src("components", "AppShell.tsx");
+
+/* Comments discuss what this screen deliberately does NOT do (needsDesk,
+   deskDone) by name, same as tests/location.test.mjs's own codeOnly — the
+   CODE is what has to be right, not whether the word appears at all. */
+const codeOnly = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+const reviewCode = codeOnly(review);
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -36,247 +60,151 @@ const check = (name, cond, detail = "") => {
   }
 };
 
-/* ------------------------------- Part 1: feedback never becomes the record */
+/* ------------------------------------------- Part 1: the tree is the register */
 
-/* REWRITTEN 2026-09-10 (task #67). This used to read
-     !/appendObservation|observation:/.test(review)
-   which tested for a STRING, not for the rule. The moment the screen grew a
-   view model with an `observation` field on it — a READ, for display, of what
-   the auditor already wrote — the assertion failed while the rule it protects
-   was never in danger. A test that fires on the wrong thing gets edited to
-   pass, and then it is guarding nothing.
+check(
+  "the rail is built from the register, per discipline",
+  /disciplinesAt\(entityCode\)/.test(review) &&
+    /checksOf\(\s*entityCode,\s*discipline\s*\)/.test(review),
+  "the left rail is the audit checks, not a derived gallery of what happened to have photos"
+);
 
-   The rule is about WRITES. This screen may mutate exactly three things, all of
-   them feedback, and anything else reaching the store from here would be the
-   real violation. */
-const STORE_WRITERS_ALLOWED = ["addFeedback", "toggleFeedbackResolved", "removeFeedback"];
-const writersUsed = [...review.matchAll(/useStore\(\(s\) => s\.(\w+)\)/g)].map((m) => m[1]);
-const forbidden = writersUsed.filter(
-  (w) => !STORE_WRITERS_ALLOWED.includes(w) && !["role"].includes(w)
+/* The one real behavioural difference from Capture's own rail: Capture
+   filters to `needsDesk` because a check with no question and no evidence to
+   gather has nothing for a desk to progress. A reviewer needs the opposite —
+   a physical-only check can still carry an observation, an attachment, or a
+   finding worth a second look, and hiding it here would be the one place in
+   the app nobody could go back and check that. */
+check(
+  "every check is listed, not only the ones a desk can answer",
+  /checksOf\(\s*entityCode,\s*discipline\s*\)/.test(reviewCode) && !/needsDesk/.test(reviewCode),
+  "needsDesk exists to keep a tablet from offering a dead question — it says nothing about whether there is something to review"
 );
 
 check(
-  "the review screen writes nothing but feedback",
-  forbidden.length === 0,
-  `reaches the store for: ${forbidden.join(", ")} — a comment about a photograph is not the auditor's record of what they found`
+  "no ad-hoc walk item reaches this screen",
+  !/useAdhoc/.test(review) && !/AdHocItem/.test(review),
+  "'audit checks... per discipline' is the register; a hand-added observation with no register id is reviewed where it was raised"
 );
 
 check(
-  "and never touches the observation or the finding text",
-  !/\bpatch\(|appendObservation|setObservation|patchFinding|addFinding/.test(review),
+  "and no loose capture is folded in as a row either",
+  !/useCaptures\(\)/.test(review) && !/captureAsAttachment/.test(review),
+  "the gallery's three row sources (checks, walk items, unassigned captures) collapse to one: the register"
+);
+
+/* --------------------------------------------- Part 2: review-shaped filters */
+
+/* Capture's chips are a DESK WORKFLOW over the register — what is still open,
+   what needs asking, what carries last year's finding. A reviewer going back
+   over a finished visit is not working the desk a second time; they want
+   whatever still needs a second look. REVERSED from the old file's own
+   assertion here, which checked that discipline was a chip row rather than a
+   dropdown — this screen deliberately takes Capture's rail shape instead,
+   `<select>` included, because it is reviewing the same register the same
+   way Capture captures it. */
+check(
+  "the filters are a reviewer's, not the desk's capture workflow",
+  /\["all", "All"\]/.test(review) &&
+    /"nc", "NC"/.test(review) &&
+    /"findings", "Findings"/.test(review) &&
+    !/"q", "Ask"/.test(review) &&
+    !/"pf", "2025"/.test(review),
+  "open/ask/2025 are about what is left to capture; non-compliant/findings/flagged/evidence are about what needs a second look"
+);
+
+check(
+  "non-compliant checks can be isolated",
+  /responses\[c\.id\]\?\.compliance === "NC"/.test(review),
   ""
 );
 
 check(
-  "the review screen never writes a finding",
-  !/addFinding|updateFinding/.test(review),
-  "a comment must not become what reaches ACSA"
+  "checks with a finding raised against them can be isolated",
+  /useVisitFindings\(\)/.test(review) && /findingsOn\(c\.id\)\.length > 0/.test(review),
+  "a finding living only on the Asset Assurance screen is a finding the reviewer of the check it came from has to go hunting for"
 );
 
 check(
-  "feedback is its own type, not a field on Response or Finding",
+  "flagged checks can be isolated",
+  /responses\[c\.id\]\?\.improvementFlag/.test(review),
+  "the same flag CheckDetail's own 'Flag for review' panel sets — one flag, read the same way everywhere"
+);
+
+check(
+  "checks with evidence still outstanding can be isolated",
+  /status === "toBeProvided" \|\| status === "specificNotAvailable"/.test(review),
+  ""
+);
+
+check(
+  "the discipline select shows reviewed/total, not desk-done/total",
+  !/deskDone/.test(reviewCode) && !/deskAnswered/.test(reviewCode) && /reviewed\(/.test(reviewCode),
+  "a desk commit flag is a capture-workflow concept; this screen reads straight off whatever is on the record"
+);
+
+/* ----------------------------------------- Part 3: no desk-commit machinery */
+
+check(
+  "there is no 'save all' — nothing here is a desk answer to commit",
+  !/[Ss]ave all/.test(review) && !/useStore\(\(s\) => s\.commit\)/.test(review),
+  "committing a desk answer is Capture's job; reviewing and editing a record that already exists needs no commit step of its own"
+);
+
+/* ------------------------------------------ Part 4: the detail is CheckDetail */
+
+check(
+  "the selected check opens in CheckDetail, the same component Capture and Field use",
+  /import CheckDetail from "@\/components\/CheckDetail";/.test(review) &&
+    /<CheckDetail\s*\n\s*key=\{active\.id\}\s*\n\s*check=\{active\}/.test(review),
+  "one editor for a check, not a second one this screen has to keep in step with Capture's"
+);
+
+check(
+  "prev/next and the save toast are wired the same way Capture wires them",
+  /onPrev=\{\(\) => move\(-1\)\}/.test(review) &&
+    /onNext=\{\(\) => move\(1\)\}/.test(review) &&
+    /onSaved=\{setToast\}/.test(review),
+  ""
+);
+
+check(
+  "this screen itself writes nothing to the store — every edit goes through CheckDetail",
+  !/useStore\(\(s\) => s\.patch\)/.test(review) && !/useStore\(\(s\) => s\.commit\)/.test(review),
+  "a second place reaching for patch() would be a second place that could disagree with CheckDetail about what a field means"
+);
+
+/* No Photo/Lightbox pair of its own any more, and no useRecordImage either —
+   see tests/location.test.mjs and tests/photoview.test.mjs for what replaced
+   it: a photograph on a check is viewed and captioned through CheckDetail's
+   own AttachmentStrip (src/components/Capture.tsx), the same strip Capture
+   and Field already use, so there is exactly one place in the app that
+   knows how to render an attachment. */
+check(
+  "there is no gallery-specific Photo or Lightbox component left on this screen",
+  !/function Photo\(/.test(review) && !/function Lightbox/.test(review),
+  "a photograph is rendered once, by CheckDetail, not reinvented per screen"
+);
+
+/* ----------------------------------------- Part 5: ids are the site's own */
+
+check(
+  "the display id on a row is the site's own portal id, same as every other screen",
+  /portalIdFor\(entityCode, c\.id\)/.test(review),
+  "KSIA-ELE-001 and ORTIA-ELE-001 are one requirement at two airports"
+);
+
+check(
+  "the screen is scoped to the site in view, not the whole register",
+  /useEntityCode\(\)/.test(review) && !/\bCHECKS\.(length|filter|map|find)\b/.test(review),
+  "the register is shared by ten sites; reading it unscoped puts the wrong checklist in front of a reviewer"
+);
+
+check(
+  "feedback is its own type, untouched by this rewrite",
   /export interface FeedbackNote \{/.test(types) &&
     !/feedback[?]?: (string|FeedbackNote\[\])[;,][\s\S]{0,200}?export interface Finding/.test(types),
-  ""
-);
-
-check(
-  "the screen says so on the face of it",
-  /not written into the record/.test(review),
-  "an engineer needs to know their aside will not be quoted at them"
-);
-
-/* ------------------------------------ Part 2: feedback belongs to one audit */
-
-check(
-  "feedback lives inside the visit's own data",
-  /interface VisitData \{[\s\S]*?feedback\?: Record<string, FeedbackNote\[\]>;[\s\S]*?\}/.test(
-    store
-  ),
-  "a comment on September's photograph is not a comment on March's"
-);
-
-check(
-  "feedback is written through the scoped helper",
-  /addFeedback: \(checkId, text\) => \{[\s\S]*?writeScope\(/.test(store),
-  ""
-);
-
-check(
-  "the review screen reads feedback through the scoped hook",
-  /useFeedback\(\)/.test(review) &&
-    !/useStore\(\(s\) => s\.(feedback|byVisit)\)/.test(review),
-  ""
-);
-
-check(
-  "adding the field needed no migration",
-  /feedback\?: Record/.test(store) && /absent-means-empty/.test(store),
-  "an optional field reads correctly on an older persisted visit"
-);
-
-/* ----------------------------------------- Part 3: who said it is recorded */
-
-check(
-  "every note carries its author and side",
-  /author: string;/.test(types) && /role: Role;/.test(types) &&
-    /author: get\(\)\.auditor,/.test(store) && /role: get\(\)\.role,/.test(store),
-  "an engineer's read of a photograph and an auditor's are both worth telling apart"
-);
-
-check(
-  "the side is shown on the note",
-  /n\.role === "acsa" \? "ACSA" : "TPJV"/.test(review),
-  ""
-);
-
-check(
-  "an empty comment is not posted",
-  /const body = text\.trim\(\);\s*\n\s*if \(!body\) return;/.test(store),
-  ""
-);
-
-/* ------------------------------------ Part 4: a resolved thread is not erased */
-
-check(
-  "marking a comment dealt with keeps it",
-  /resolvedAt: n\.resolvedAt \? null : Date\.now\(\)/.test(store),
-  "a thread that erases itself is no use at the next visit"
-);
-
-check(
-  "resolving is reversible",
-  /toggleFeedbackResolved/.test(store) && /Reopen this comment/.test(review),
-  "a mis-tap must not bury a comment"
-);
-
-/* --------------------------------------- Part 5: it is actually reviewable */
-
-check(
-  "discipline is the first control, not a dropdown",
-  /\["All", \.\.\.disciplinesAt\(entityCode\)\.filter/.test(review),
-  "an engineer reads their own discipline and no other"
-);
-
-check(
-  "the screen is scoped to the entity and visit in view",
-  /useEntity\(\)/.test(review) && /useVisitId\(\)/.test(review),
-  "per discipline per airport is the whole request"
-);
-
-check(
-  "only rows that actually carry evidence are listed",
-  /if \(!r \|\| r\.attachments\.length === 0\) continue;/.test(review) &&
-    /if \(w\.attachments\.length === 0\) continue;/.test(review),
-  "what was skipped is the dashboard's job, not this screen's — and it holds for a walk item as much as a check"
-);
-
-/* ---- task #67 · the walk is evidence too --------------------------------- */
-
-/* An auditor photographs something ACSA's list does not cover. Until this, the
-   photograph existed on the tablet and was invisible to the engineer reviewing
-   evidence — and those are disproportionately the ones worth a second opinion,
-   because nobody wrote a check for them and there is no threshold to fall back
-   on. */
-check(
-  "walk items reach the review screen",
-  /const adhoc = useAdhoc\(\);/.test(review) && /for \(const w of adhoc\)/.test(review),
-  ""
-);
-
-check(
-  "and are marked as hand-added rather than passed off as register checks",
-  /isWalk: true,/.test(review) && /\{it\.isWalk && \(/.test(review) &&
-    /ADDED ON THE WALK/.test(review),
-  "'this was not on ACSA's list' is the single most useful thing a reviewer can know about the row"
-);
-
-check(
-  "an unattributed walk item gets a named bucket, not a blank one",
-  /const NO_SYSTEM = "No asset system recorded";/.test(review) &&
-    /const NO_DISCIPLINE = "No discipline recorded";/.test(review) &&
-    /w\.discipline \?\? NO_DISCIPLINE/.test(review),
-  "discipline is nullable on a walk item and null is honest — but a blank in a filter list reads as a bug and silently hides the row"
-);
-
-check(
-  "a walk item is opened where it was recorded, not on a check screen it has no id for",
-  /active\.isWalk \? "\/field" : `\/capture\?check=\$\{active\.key\}`/.test(review) &&
-    /Open on the walk/.test(review),
-  ""
-);
-
-check(
-  "comments key off the row's own id, so a walk item can carry a thread",
-  /addFeedback\(active\.key, draft\)/.test(review) &&
-    /toggleFeedbackResolved\(active\.key, n\.id\)/.test(review) &&
-    /removeFeedback\(active\.key, n\.id\)/.test(review),
-  "the feedback map is keyed by string, so a WALK id needs no schema change"
-);
-
-/* The tray is the third source, and the one most worth a second opinion: a
-   capture is a photograph nobody has yet said what it is OF. */
-check(
-  "the fields a capture already carried are declared, without a store migration",
-  /thumbDataUrl\?: string;\n  caption\?: string;/.test(types) &&
-    /DECLARING WHAT WAS ALREADY BEING WRITTEN/.test(types),
-  "the walk bar spreads PhotoButton's whole payload into addCapture, so these have been on disk all along — correcting the type changes no stored data and needs no version bump"
-);
-
-check(
-  "unassigned captures reach the review screen too",
-  /const captures = useCaptures\(\);/.test(review) && /for \(const cap of captures\)/.test(review),
-  "a loose photograph is the one a discipline lead can settle in five seconds and an auditor can wonder about all week"
-);
-
-check(
-  "and each is its own row with its own thread",
-  /key: cap\.id,/.test(review) && /feedback\[cap\.id\]/.test(review),
-  "a pile with one comment box is a pile nobody triages"
-);
-
-check(
-  "a capture is adapted to an Attachment rather than the media components learning a second shape",
-  /function captureAsAttachment\(c: Capture\): Attachment/.test(review) &&
-    /thumbDataUrl: c\.thumbDataUrl,/.test(review),
-  "one renderer, one set of fallbacks, one placeholder wording"
-);
-
-check(
-  "an unassigned capture says it is unassigned rather than reading as uncaptured",
-  /NOT ASSIGNED TO A CHECK/.test(review) && /Assign it on the walk/.test(review),
-  ""
-);
-
-check(
-  "the list sorts on one clock, whichever kind of row it is",
-  /rows\.sort\(\(a, b\) => b\.capturedAt - a\.capturedAt\)/.test(review),
-  "a check's capturedAt and a walk item's createdAt are both flattened onto the row, so the newest evidence leads regardless of where it came from"
-);
-
-check(
-  "unavailable media is labelled rather than rendered blank",
-  /no image stored — captured before this worked/.test(review) &&
-    /no audio stored/.test(review),
-  ""
-);
-
-check(
-  "a photograph can be opened full size",
-  /function Lightbox/.test(review) && /cursor-zoom-in/.test(review),
-  "a 4:3 thumbnail does not settle whether that is the right panel"
-);
-
-check(
-  "voice transcripts are shown to the reviewer",
-  /a\.transcript &&/.test(review),
-  ""
-);
-
-check(
-  "object URLs go through the shared hook, so they are revoked",
-  /useBlobUrl/.test(review) && !/URL\.createObjectURL/.test(review),
-  "a reviewer scrolling a day of photographs would leak megabytes otherwise"
+  "the sync layer still carries a feedback row kind; removing the type would be removing infrastructure this change never asked for"
 );
 
 /* --------------------------------------------- Part 6: engineers can reach it */
@@ -284,7 +212,9 @@ check(
 /* THEN: Review was its own entry in the nav bar.
    NOW (30 Sep): Sarel — "move safety and review menu items out of the main
    menu bar." It moved to the More menu; OFF_NAV keeps the page's own
-   heading saying "Review" now that NAV no longer does. */
+   heading saying "Review" now that NAV no longer does. Unaffected by this
+   rewrite — the route and its place in the menu did not change, only what
+   is behind it. */
 check(
   "Review is reachable from the More menu",
   /label="Review"/.test(shell) && /"\/review": "Review"/.test(shell),
@@ -292,9 +222,9 @@ check(
 );
 
 check(
-  "ACSA can reach Visual review despite being read-only elsewhere",
+  "ACSA can reach Review despite being read-only elsewhere",
   /n\.href !== "\/dashboard" && n\.href !== "\/review"/.test(shell),
-  "their engineers answering a photograph is the point of the screen"
+  "reviewing and editing a check is the point of the screen, for both sides of the audit"
 );
 
 /* ------------------------------------------------------------------ result */
