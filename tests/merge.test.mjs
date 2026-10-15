@@ -535,8 +535,8 @@ check(
 );
 check(
   "and the refusal is said rather than swallowed",
-  /setLastError\(refused\)/.test(sharedLib) &&
-    /setSyncState\(refused \? "error" : "synced"\)/.test(sharedLib),
+  /setLastError\(\s*refused \?\?/.test(sharedLib) &&
+    /setSyncState\(refused \|\| pushIncomplete \? "error" : "synced"\)/.test(sharedLib),
   "a sync that quietly did nothing reads exactly like one that worked"
 );
 

@@ -26,6 +26,7 @@ import { createContext, createElement, useCallback, useContext, useEffect, useRe
 import { useStore } from "./store";
 import type { Bundle } from "./merge";
 import { BUNDLE_KIND, BUNDLE_VERSION } from "./merge";
+import { nextPushWatermark, type ConfirmedRow } from "./syncWatermark";
 import type {
   AdHocItem,
   Attachment,
@@ -452,6 +453,7 @@ export function useSharedRecord(): SharedRecord {
         cursor?: string | null;
         written?: number;
         pulled?: number;
+        confirmed?: ConfirmedRow[];
       };
       if (!res.ok) {
         /* A wrong passphrase is the one failure that should stop trying: the
@@ -537,20 +539,25 @@ export function useSharedRecord(): SharedRecord {
          would mean this device never pulls them again, and another auditor's
          afternoon would simply never appear on it. */
       if (json.cursor && !refused) local.set(cursorKey(entity, visit), json.cursor);
-      /* Only move the push watermark once the write is acknowledged. A failed
-         sync must re-send, not skip. */
-      if (records.length) {
-        local.set(
-          pushedKey(entity, visit),
-          String(records.reduce((n, r) => Math.max(n, r.updated_at), since))
-        );
-      }
+      /* Only move the push watermark as far as squawk_push actually CONFIRMS
+         — see nextPushWatermark's own header for why a 200 response is not
+         enough on its own. A record this round could not confirm stays
+         below the watermark, so the very next sync sends it again rather
+         than silently never sending it again. */
+      const watermark = nextPushWatermark(records, json.confirmed ?? [], since);
+      const pushIncomplete = records.length > 0 && watermark === since;
+      if (records.length) local.set(pushedKey(entity, visit), String(watermark));
       setMoved({ pushed: json.written ?? 0, pulled: changed });
       setLastSyncAt(Date.now());
       /* Said, not swallowed. The next sync will fetch the same rows again and
          apply them once the device is back on the audit they belong to. */
-      setLastError(refused);
-      setSyncState(refused ? "error" : "synced");
+      setLastError(
+        refused ??
+          (pushIncomplete
+            ? "Some of this device's captures could not be confirmed as shared. Nothing is lost — they stay queued and this device will keep trying."
+            : null)
+      );
+      setSyncState(refused || pushIncomplete ? "error" : "synced");
     } catch {
       setLastError("Could not reach the shared record.");
       setSyncState("error");

@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { createHash, timingSafeEqual } from "node:crypto";
+import type { ConfirmedRow } from "@/lib/syncWatermark";
 
 /* The shared audit record — the only door to it, and it opens from the server.
  *
@@ -214,6 +215,7 @@ export async function POST(req: NextRequest) {
        each pull before either has pushed and neither sees the other. */
     const records = Array.isArray(body.records) ? body.records : [];
     let written = 0;
+    let confirmed: ConfirmedRow[] = [];
     if (records.length) {
       /* Every row is re-stamped with the audit from the request. A client
          cannot write into another airport's visit by putting a different
@@ -241,7 +243,12 @@ export async function POST(req: NextRequest) {
           { status: 502 }
         );
       }
-      written = Number(await res.json()) || 0;
+      /* One row per key the client sent, naming what the record store holds
+         for it NOW — see squawk_push's own header for why a bare count
+         cannot be trusted. `confirmed` travels back whole so the client can
+         check every key it sent, not just count them. */
+      confirmed = (await res.json()) as ConfirmedRow[];
+      written = confirmed.length;
     }
 
     /* PULL: everything in this audit the caller has not seen. The cursor is the
@@ -295,6 +302,7 @@ export async function POST(req: NextRequest) {
       cursor: newest ? rewind(newest) : since,
       written,
       pulled: rows.length,
+      confirmed,
     });
   } catch (e) {
     console.error("sync", e);

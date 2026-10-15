@@ -66,15 +66,29 @@ alter table public.squawk_records enable row level security;
 -- src/lib/merge.ts, tested against the real module. The client pulls, merges
 -- with those rules, then pushes the merged result. One set of rules, in one
 -- place, rather than a second implementation in SQL that could disagree.
-create or replace function public.squawk_push(records jsonb)
-returns integer
+--
+-- RETURNS THE CONFIRMED STATE OF EVERY SUBMITTED KEY, not a bare count —
+-- found 15 October 2026, on a live audit, after a device merged 48 asset
+-- systems, the app reported every sync "Shared" with no error, and two
+-- syncs later the shared record still held only 2 of them. A plain written
+-- count cannot tell a device WHICH of its records actually landed: a lower
+-- count than submitted is routine and harmless (somebody else's newer value
+-- already won for some of those keys), so a device had no way to tell that
+-- apart from the one failure mode that matters — a record it sent simply
+-- never reaching the table. squawk_push now answers the only question a
+-- device actually needs answered: for each key I just sent, what does the
+-- record store hold for it right now? src/lib/shared.ts's sync() checks
+-- every key it sent against this before it is allowed to stop re-sending
+-- it.
+drop function if exists public.squawk_push(jsonb);
+create function public.squawk_push(records jsonb)
+returns table(kind text, id text, updated_at bigint)
 language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-  written integer;
 begin
+  return query
   with incoming as (
     select
       r ->> 'entity'                as entity,
@@ -91,6 +105,16 @@ begin
     from incoming
     order by entity, visit, kind, id, updated_at desc
   ),
+  -- What each submitted key held BEFORE this call — the ordinary MVCC
+  -- snapshot every other CTE here also reads, untouched by the insert
+  -- below. A key the upsert skips because a newer value already stood is
+  -- still confirmed through this, not lost from the answer.
+  existing as (
+    select t.entity, t.visit, t.kind, t.id, t.updated_at
+    from public.squawk_records t
+    join deduped d
+      on t.entity = d.entity and t.visit = d.visit and t.kind = d.kind and t.id = d.id
+  ),
   upserted as (
     insert into public.squawk_records as t
       (entity, visit, kind, id, updated_at, payload)
@@ -100,9 +124,17 @@ begin
           payload    = excluded.payload,
           server_at  = now()
       where excluded.updated_at > t.updated_at
-    returning 1
+    returning t.entity, t.visit, t.kind, t.id, t.updated_at
   )
-  select count(*) into written from upserted;
-  return written;
+  -- One row per submitted key: the value now on record for it, whichever
+  -- of the two CTEs above actually holds it. Both absent — the safety net
+  -- this whole function exists for — comes back with updated_at null, which
+  -- the caller reads as "not confirmed, send it again."
+  select d.kind, d.id, coalesce(u.updated_at, e.updated_at)
+  from deduped d
+  left join upserted u
+    on u.entity = d.entity and u.visit = d.visit and u.kind = d.kind and u.id = d.id
+  left join existing e
+    on e.entity = d.entity and e.visit = d.visit and e.kind = d.kind and e.id = d.id;
 end;
 $$;
