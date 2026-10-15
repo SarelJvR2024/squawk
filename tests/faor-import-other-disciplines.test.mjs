@@ -1,5 +1,7 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 /* The SECOND wave of TPJV's hazard-mapping import — Electrical, Mechanical,
@@ -21,7 +23,19 @@ import { fileURLToPath } from "node:url";
  *  forgotten one: linkedChecks is exactly the register's own checks for
  *  that discipline+system pair (verified below, not assumed), and
  *  ratingBasis is a short tag for a sentence ratingRationale already says
- *  in full prose on every row. */
+ *  in full prose on every row.
+ *
+ *  ONE DELIBERATE DIFFERENCE FROM THE FIRST WAVE, on Sarel's own explicit
+ *  instruction (15 Oct 2026): this import writes `ratingConfirmed: true` —
+ *  THE FINAL SUBMISSION, not a suggestion — and strips the pack's own
+ *  "not agreed with ACSA" / "Provisional, suggested by TPJV for the rating
+ *  session" / "Re-set it against the ORTIA capture" / "re-assess it
+ *  against the 2026 capture" clauses out of the stored ratingRationale, so
+ *  the record does not say "final" in one field and "not yet agreed" in
+ *  the next. What survives stripping is checked below by actually RUNNING
+ *  the importer and reading its output — not just by reading the script's
+ *  own text — because this is the one invariant worth proving against the
+ *  real bundle. */
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "..");
@@ -114,7 +128,10 @@ const script = src("scripts", "import-faor-hazards-other-disciplines.mjs");
 check("the importer never writes the workbook's own Cell or Band text", !script.includes("row.cell") && !script.includes("row.band") && !script.includes("row.Cell"));
 check("the importer never writes linkedChecks or ratingBasis — confirmed redundant above, not forgotten", !script.includes("row.linkedChecks") && !script.includes("row.ratingBasis"));
 check("every seeded record is marked seeded: true", /seeded:\s*true/.test(script));
-check("ratingConfirmed is always false on import — a suggestion, never agreed", /ratingConfirmed:\s*false/.test(script));
+check(
+  "ratingConfirmed is always true on import — the final submission, not a suggestion left for later",
+  /ratingConfirmed:\s*true/.test(script) && !/ratingConfirmed:\s*false/.test(script)
+);
 check("imported actions get no owner or due date by default", /owner:\s*""/.test(script) && /dueDate:\s*""/.test(script));
 check("the bundle targets FAOR's 2026-09 visit", script.includes('ENTITY = "FAOR"') && script.includes('VISIT = "2026-09"'));
 check("built as the app's own capture-bundle format, not a direct store write", script.includes('kind: "squawk-capture-bundle"'));
@@ -122,6 +139,48 @@ check(
   "each event's hazard-library 'source' (HZ-xx or TPJV draft) is carried as plain text on the root cause's own note, never invented or validated",
   script.includes("e.source") && script.includes("`Source: ${e.source}`")
 );
+
+/* THE REAL PROOF: run the importer against the real source file and read its
+   actual output, not just the script's own text — a stripping regex that
+   silently fails to match leaves the "not agreed" language right there in
+   the bundle, and only running it catches that. */
+const outPath = path.join(os.tmpdir(), `faor-other-disciplines-test-${process.pid}.squawk.json`);
+try {
+  execFileSync(process.execPath, [path.join(root, "scripts", "import-faor-hazards-other-disciplines.mjs"), "--out", outPath]);
+  const bundle = JSON.parse(fs.readFileSync(outPath, "utf8"));
+  const systems = Object.values(bundle.visit.systems);
+
+  check("the real output has all 48 systems", systems.length === 48, String(systems.length));
+  check(
+    "every written SystemAssessment has ratingConfirmed: true — not a suggestion",
+    systems.every((s) => s.ratingConfirmed === true)
+  );
+  check(
+    "no written ratingRationale says 'not agreed', 'Provisional', 'rating session', 'Re-set it' or 're-assess it against the 2026 capture' — this is the final submission, said once, not twice",
+    systems.every(
+      (s) =>
+        !/not agreed|Provisional|rating session|Re-set it|re-assess it against the 2026/.test(s.ratingRationale)
+    ),
+    JSON.stringify(
+      systems
+        .filter((s) =>
+          /not agreed|Provisional|rating session|Re-set it|re-assess it against the 2026/.test(s.ratingRationale)
+        )
+        .map((s) => s.key)
+    )
+  );
+  check(
+    "no ratingRationale was emptied by the stripping — the actual reasoning for the number survives",
+    systems.every((s) => s.ratingRationale.trim().length > 0)
+  );
+  check(
+    "every written record is still marked seeded: true — provenance is unchanged by the final-submission decision",
+    systems.every((s) => s.seeded === true) &&
+      systems.every((s) => s.events.every((e) => e.seeded === true))
+  );
+} finally {
+  fs.rmSync(outPath, { force: true });
+}
 
 const types = src("src", "lib", "types.ts");
 check("PossibleEvent.seeded exists and is optional", /seeded\?:\s*boolean/.test(types));

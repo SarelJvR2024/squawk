@@ -45,7 +45,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `carryforward.test.mjs` | no | 48 |
 | `crosswalk.test.mjs` | no | 13 |
 | `faor-import.test.mjs` | no | 22 |
-| `faor-import-other-disciplines.test.mjs` | no | 21 |
+| `faor-import-other-disciplines.test.mjs` | no | 26 |
 | `sync-coverage.test.mjs` | no | 22 |
 | `review.test.mjs` | no | 24 |
 | `tablet.test.mjs` | no | 42 |
@@ -111,7 +111,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,220 assertions in total**, every count above verified by running the suite,
+**3,225 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
