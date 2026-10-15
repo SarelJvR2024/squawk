@@ -1,0 +1,1360 @@
+[
+ {
+  "discipline": "Electrical",
+  "assetSystem": "AGL",
+  "severity": "B - Hazardous",
+  "likelihood": "4 - Occasional",
+  "ratingRationale": "Carried from ACSA's own May 2025 OR Tambo report (ORTIA-ELE-P01): severity B, likelihood 4. Letter and number are kept, the wording follows B170 001M. This is the 2025 position, not a 2026 finding: re-assess it against the 2026 capture. Suggested by TPJV for the rating session; not agreed with ACSA.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Earthing or CoC failure causing shock or ignition",
+    "rootCause": "Typical, not confirmed at OR Tambo: CoC not accounted for; earth resistance not tested ORTIA field note: ACSA policy and central record of certificates of compliance not confirmed (OBS-ORT-03).",
+    "action": "Test earth resistance on schedule and keep one central record of certificates of compliance, owned by ACSA.",
+    "source": "HZ-16"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-ELE-001",
+   "KSIA-ELE-002",
+   "KSIA-ELE-003",
+   "KSIA-ELE-004",
+   "KSIA-ELE-005",
+   "KSIA-ELE-006",
+   "KSIA-ELE-007",
+   "KSIA-ELE-008",
+   "KSIA-ELE-009"
+  ],
+  "ratingBasis": "ACSA 2025 carried"
+ },
+ {
+  "discipline": "Electrical",
+  "assetSystem": "AWOS",
+  "severity": "C - Major",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity C. ACSA's own 2025 reports gave this system likelihood KSIA 2, CTIA 3 at other airports; the highest is used. OR Tambo has no 2025 rating for it. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Pilots or air traffic control act on wrong or missing weather data",
+    "rootCause": "To confirm in the room. Typical: Sensors not calibrated; no backup power",
+    "action": "Calibrate sensors on schedule and test backup power.",
+    "source": "TPJV draft (not in the hazard library)"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-ELE-039"
+  ],
+  "ratingBasis": "ACSA 2025 other site (highest)"
+ },
+ {
+  "discipline": "Electrical",
+  "assetSystem": "Earthing & Lightning Protection",
+  "severity": "B - Hazardous",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity B. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Electrical sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Earthing or CoC failure causing shock or ignition",
+    "rootCause": "Typical, not confirmed at OR Tambo: CoC not accounted for; earth resistance not tested ORTIA field note: ACSA policy and central record of certificates of compliance not confirmed (OBS-ORT-03).",
+    "action": "Test earth resistance on schedule and keep one central record of certificates of compliance, owned by ACSA.",
+    "source": "HZ-16"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-ELE-045"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Electrical",
+  "assetSystem": "Electrically Driven Machinery",
+  "severity": "C - Major",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity C. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Electrical sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Machine starts or runs while a person is working on it",
+    "rootCause": "To confirm in the room. Typical: Isolation and guarding not maintained",
+    "action": "Keep guards and isolation points in place and test them.",
+    "source": "TPJV draft (not in the hazard library)"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-ELE-053",
+   "KSIA-ELE-054"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Electrical",
+  "assetSystem": "Electricity Distribution System",
+  "severity": "B - Hazardous",
+  "likelihood": "4 - Occasional",
+  "ratingRationale": "Carried from ACSA's own May 2025 OR Tambo report (ORTIA-ELE-P02): severity B, likelihood 4. Letter and number are kept, the wording follows B170 001M. This is the 2025 position, not a 2026 finding: re-assess it against the 2026 capture. Suggested by TPJV for the rating session; not agreed with ACSA.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Protection fails to clear a fault, so damage escalates",
+    "rootCause": "Typical, not confirmed at OR Tambo: Relays not calibrated or tested; settings not to design; maintenance records missing",
+    "action": "Calibrate and test protection relays on schedule and keep the settings and maintenance records.",
+    "source": "HZ-14"
+   },
+   {
+    "event": "Energised work after failed isolation",
+    "rootCause": "Typical, not confirmed at OR Tambo: Lock-out kits missing; drawings not at the substation; procedures out of date",
+    "action": "Keep lock-out kits and current drawings at the substation, and update isolation procedures.",
+    "source": "HZ-25"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-ELE-010",
+   "KSIA-ELE-011",
+   "KSIA-ELE-012",
+   "KSIA-ELE-013"
+  ],
+  "ratingBasis": "ACSA 2025 carried"
+ },
+ {
+  "discipline": "Electrical",
+  "assetSystem": "Emergency Lighting",
+  "severity": "C - Major",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity C. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Electrical sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "People cannot evacuate safely in the dark when power fails",
+    "rootCause": "To confirm in the room. Typical: Battery duration and function not tested",
+    "action": "Do monthly function tests and a yearly duration test; record results.",
+    "source": "TPJV draft (not in the hazard library)"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-ELE-042"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Electrical",
+  "assetSystem": "FDS & Gaseous Suppression",
+  "severity": "B - Hazardous",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Carried from ACSA's own May 2025 OR Tambo report (ORTIA-ELE-P06): severity B, likelihood 3. Letter and number are kept, the wording follows B170 001M. This is the 2025 position, not a 2026 finding: re-assess it against the 2026 capture. Suggested by TPJV for the rating session; not agreed with ACSA.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Fire in a switch, comms or server room undetected, or suppression fails to discharge",
+    "rootCause": "Typical, not confirmed at OR Tambo: Detection panel faults; gas suppression cylinders or room integrity untested ORTIA field note: Procedure for managing detection and suppression when people enter protected rooms not confirmed (OBS-ORT-01).",
+    "action": "Service the detection panel, test gas suppression and room integrity, and write a procedure for entering protected rooms.",
+    "source": "HZ-15"
+   },
+   {
+    "event": "Fire detection or alarm fails to warn",
+    "rootCause": "Typical, not confirmed at OR Tambo: Panel faults; sensors not cleaned and tested; no PA/voice alarm layer ORTIA field note: Procedure for managing detection and suppression when people enter protected rooms not confirmed (OBS-ORT-01).",
+    "action": "Clean and test detectors on schedule, clear panel faults, and add a voice alarm layer where missing.",
+    "source": "HZ-18"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-ELE-043"
+  ],
+  "ratingBasis": "ACSA 2025 carried"
+ },
+ {
+  "discipline": "Electrical",
+  "assetSystem": "General Electrical Installation",
+  "severity": "B - Hazardous",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity B. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Electrical sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Internal arc or arc flash injuring staff",
+    "rootCause": "Typical, not confirmed at OR Tambo: Switching without current authorisation list or lock-out; ageing breakers; no PPE or interlocks",
+    "action": "Keep a current authorised-switching list, lock-out procedure and interlocks, and replace ageing breakers.",
+    "source": "HZ-13"
+   },
+   {
+    "event": "Energised work after failed isolation",
+    "rootCause": "Typical, not confirmed at OR Tambo: Lock-out kits missing; drawings not at the substation; procedures out of date",
+    "action": "Keep lock-out kits and current drawings at the substation, and update isolation procedures.",
+    "source": "HZ-25"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-ELE-046",
+   "KSIA-ELE-047",
+   "KSIA-ELE-048",
+   "KSIA-ELE-049",
+   "KSIA-ELE-050",
+   "KSIA-ELE-051",
+   "KSIA-ELE-052"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Electrical",
+  "assetSystem": "Generators",
+  "severity": "B - Hazardous",
+  "likelihood": "4 - Occasional",
+  "ratingRationale": "Severity B. ACSA's own 2025 reports gave this system likelihood KSIA 4, CTIA 4 at other airports; the highest is used. OR Tambo has no 2025 rating for it. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Diesel fire at generator",
+    "rootCause": "Typical, not confirmed at OR Tambo: No fuel cut-out fuse or fire cut-out; fuel line shut-off not tested; fuel leaks not noticed",
+    "action": "Fit and test fuel cut-out and fire cut-out devices and check fuel lines for leaks on each service.",
+    "source": "HZ-08"
+   },
+   {
+    "event": "Generator fails to carry load when mains fails, taking safety systems down with it",
+    "rootCause": "Typical, not confirmed at OR Tambo: On-load tests missed; no measured change-over time; battery or fuel quality faults",
+    "action": "Run on-load tests on schedule, record change-over time, and test batteries and fuel quality.",
+    "source": "HZ-10"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-ELE-025",
+   "KSIA-ELE-026",
+   "KSIA-ELE-027",
+   "KSIA-ELE-028",
+   "KSIA-ELE-029",
+   "KSIA-ELE-030",
+   "KSIA-ELE-031",
+   "KSIA-ELE-032",
+   "KSIA-ELE-033"
+  ],
+  "ratingBasis": "ACSA 2025 other site (highest)"
+ },
+ {
+  "discipline": "Electrical",
+  "assetSystem": "ILS",
+  "severity": "B - Hazardous",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity B. ACSA's own 2025 reports gave this system likelihood KSIA 2, CTIA 3 at other airports; the highest is used. OR Tambo has no 2025 rating for it. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Pilots lose approach guidance",
+    "rootCause": "To confirm in the room. Typical: Equipment faults not caught; no tested backup power",
+    "action": "Test equipment and backup power on schedule and flag faults the same day.",
+    "source": "TPJV draft (not in the hazard library)"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-ELE-037",
+   "KSIA-ELE-038"
+  ],
+  "ratingBasis": "ACSA 2025 other site (highest)"
+ },
+ {
+  "discipline": "Electrical",
+  "assetSystem": "Lighting",
+  "severity": "C - Major",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Carried from ACSA's own May 2025 OR Tambo report (ORTIA-ELE-P05): severity C, likelihood 3. Letter and number are kept, the wording follows B170 001M. This is the 2025 position, not a 2026 finding: re-assess it against the 2026 capture. Suggested by TPJV for the rating session; not agreed with ACSA.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "A fall, collision or missed hazard because lighting is poor",
+    "rootCause": "To confirm in the room. Typical: Failed lamps not replaced; light levels not measured",
+    "action": "Measure light levels on schedule and replace failed lamps within an agreed time.",
+    "source": "TPJV draft (not in the hazard library)"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-ELE-040",
+   "KSIA-ELE-041"
+  ],
+  "ratingBasis": "ACSA 2025 carried"
+ },
+ {
+  "discipline": "Electrical",
+  "assetSystem": "Substations",
+  "severity": "B - Hazardous",
+  "likelihood": "2 - Improbable",
+  "ratingRationale": "Carried from ACSA's own May 2025 OR Tambo report (ORTIA-ELE-P03): severity B, likelihood 2. Letter and number are kept, the wording follows B170 001M. This is the 2025 position, not a 2026 finding: re-assess it against the 2026 capture. Suggested by TPJV for the rating session; not agreed with ACSA.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Substation or transformer fire or explosion",
+    "rootCause": "Typical, not confirmed at OR Tambo: Root cause not on record for OR Tambo. Typical: oil not tested; protection not tested; no separation or fire-rated barriers between bays; fire detection absent ORTIA field note: Procedure for managing fire detection and suppression when people enter protected zones such as substations not confirmed (OBS-ORT-01).",
+    "action": "Test transformer oil and protection on schedule, fit fire-rated barriers, and write a procedure for entering protected substations.",
+    "source": "HZ-12"
+   },
+   {
+    "event": "Emergency plan or drill ineffective",
+    "rootCause": "Typical, not confirmed at OR Tambo: Plan not current; drills not held or recorded; no coordinators designated",
+    "action": "Keep the emergency plan current, hold and record drills, and name coordinators.",
+    "source": "HZ-20"
+   },
+   {
+    "event": "Energised work after failed isolation",
+    "rootCause": "Typical, not confirmed at OR Tambo: Lock-out kits missing; drawings not at the substation; procedures out of date",
+    "action": "Keep lock-out kits and current drawings at the substation, and update isolation procedures.",
+    "source": "HZ-25"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-ELE-018",
+   "KSIA-ELE-019",
+   "KSIA-ELE-020",
+   "KSIA-ELE-021",
+   "KSIA-ELE-022",
+   "KSIA-ELE-023",
+   "KSIA-ELE-024"
+  ],
+  "ratingBasis": "ACSA 2025 carried"
+ },
+ {
+  "discipline": "Electrical",
+  "assetSystem": "Switchgear",
+  "severity": "B - Hazardous",
+  "likelihood": "4 - Occasional",
+  "ratingRationale": "Severity B. ACSA's own 2025 reports gave this system likelihood KSIA 4, CTIA 4 at other airports; the highest is used. OR Tambo has no 2025 rating for it. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Internal arc or arc flash injuring staff",
+    "rootCause": "Typical, not confirmed at OR Tambo: Switching without current authorisation list or lock-out; ageing breakers; no PPE or interlocks",
+    "action": "Keep a current authorised-switching list, lock-out procedure and interlocks, and replace ageing breakers.",
+    "source": "HZ-13"
+   },
+   {
+    "event": "Protection fails to clear a fault, so damage escalates",
+    "rootCause": "Typical, not confirmed at OR Tambo: Relays not calibrated or tested; settings not to design; maintenance records missing",
+    "action": "Calibrate and test protection relays on schedule and keep the settings and maintenance records.",
+    "source": "HZ-14"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-ELE-014",
+   "KSIA-ELE-015",
+   "KSIA-ELE-016",
+   "KSIA-ELE-017"
+  ],
+  "ratingBasis": "ACSA 2025 other site (highest)"
+ },
+ {
+  "discipline": "Electrical",
+  "assetSystem": "Transformers",
+  "severity": "B - Hazardous",
+  "likelihood": "2 - Improbable",
+  "ratingRationale": "Severity B. ACSA's own 2025 reports gave this system likelihood KSIA 2, CTIA 2 at other airports; the highest is used. OR Tambo has no 2025 rating for it. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Substation or transformer fire or explosion",
+    "rootCause": "Typical, not confirmed at OR Tambo: Root cause not on record for OR Tambo. Typical: oil not tested; protection not tested; no separation or fire-rated barriers between bays; fire detection absent ORTIA field note: Procedure for managing fire detection and suppression when people enter protected zones such as substations not confirmed (OBS-ORT-01).",
+    "action": "Test transformer oil and protection on schedule, fit fire-rated barriers, and write a procedure for entering protected substations.",
+    "source": "HZ-12"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-ELE-034",
+   "KSIA-ELE-035"
+  ],
+  "ratingBasis": "ACSA 2025 other site (highest)"
+ },
+ {
+  "discipline": "Electrical",
+  "assetSystem": "UPS",
+  "severity": "B - Hazardous",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Carried from ACSA's own May 2025 OR Tambo report (ORTIA-ELE-P04): severity B, likelihood 3. Letter and number are kept, the wording follows B170 001M. This is the 2025 position, not a 2026 finding: re-assess it against the 2026 capture. Suggested by TPJV for the rating session; not agreed with ACSA.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "UPS or battery room fire, or hydrogen build-up",
+    "rootCause": "Typical, not confirmed at OR Tambo: Battery room not ventilated; end-of-life batteries; no discharge test",
+    "action": "Ventilate battery rooms, replace batteries at end of life and run discharge tests.",
+    "source": "HZ-11"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-ELE-036"
+  ],
+  "ratingBasis": "ACSA 2025 carried"
+ },
+ {
+  "discipline": "Electrical",
+  "assetSystem": "X-Ray Machines",
+  "severity": "B - Hazardous",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Carried from ACSA's own May 2025 OR Tambo report (ORTIA-ELE-P07): severity B, likelihood 3. Letter and number are kept, the wording follows B170 001M. This is the 2025 position, not a 2026 finding: re-assess it against the 2026 capture. Suggested by TPJV for the rating session; not agreed with ACSA.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Staff or public exposed to radiation",
+    "rootCause": "To confirm in the room. Typical: Shielding or interlocks fail; no radiation protection officer or licence check",
+    "action": "Keep the radiation licence and officer current, and test shielding and interlocks.",
+    "source": "TPJV draft (not in the hazard library)"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-ELE-044"
+  ],
+  "ratingBasis": "ACSA 2025 carried"
+ },
+ {
+  "discipline": "Mechanical",
+  "assetSystem": "BHS",
+  "severity": "C - Major",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Carried from ACSA's own May 2025 OR Tambo report (ORTIA-MEC-P04): severity C, likelihood 3. Letter and number are kept, the wording follows B170 001M. This is the 2025 position, not a 2026 finding: re-assess it against the 2026 capture. Suggested by TPJV for the rating session; not agreed with ACSA.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Baggage-sorter entrapment, guard failure or fire",
+    "rootCause": "Typical, not confirmed at OR Tambo: E-stops and safeties untested; guards off",
+    "action": "Test emergency stops and safety devices on schedule and keep guards fitted.",
+    "source": "HZ-34"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-MEC-057",
+   "KSIA-MEC-058",
+   "KSIA-MEC-059",
+   "KSIA-MEC-060",
+   "KSIA-MEC-061",
+   "KSIA-MEC-062",
+   "KSIA-MEC-063",
+   "KSIA-MEC-064",
+   "KSIA-MEC-065"
+  ],
+  "ratingBasis": "ACSA 2025 carried"
+ },
+ {
+  "discipline": "Mechanical",
+  "assetSystem": "Façade Access & Lifting Equipment",
+  "severity": "B - Hazardous",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity B. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Mechanical sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Lifting equipment or gondola failure, dropped load",
+    "rootCause": "Typical, not confirmed at OR Tambo: Load test or statutory inspection missed; register not updated",
+    "action": "Keep load tests and statutory inspections current and update the lifting-equipment register.",
+    "source": "HZ-33"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-MEC-107",
+   "KSIA-MEC-108",
+   "KSIA-MEC-109",
+   "KSIA-MEC-110",
+   "KSIA-MEC-111",
+   "KSIA-MEC-112",
+   "KSIA-MEC-113"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Mechanical",
+  "assetSystem": "Fire Protection - Fire Extinguishers",
+  "severity": "C - Major",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity C. ACSA's own 2025 reports gave this system likelihood CTIA 3 at other airports; the highest is used. OR Tambo has no 2025 rating for it. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Extinguishers, hose reels or hydrants unserviceable",
+    "rootCause": "Typical, not confirmed at OR Tambo: Inspection and pressure-test records missing ORTIA field note: Check of service providers' work and parts against specification before acceptance not confirmed (OBS-ORT-02).",
+    "action": "Inspect and pressure-test extinguishers, hose reels and hydrants on schedule, and check service providers' work against specification.",
+    "source": "HZ-19"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-MEC-066",
+   "KSIA-MEC-067",
+   "KSIA-MEC-068"
+  ],
+  "ratingBasis": "ACSA 2025 other site (highest)"
+ },
+ {
+  "discipline": "Mechanical",
+  "assetSystem": "Fire Protection - Fire Water pump station",
+  "severity": "B - Hazardous",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity B. ACSA's own 2025 reports gave this system likelihood CTIA 3 at other airports; the highest is used. OR Tambo has no 2025 rating for it. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Fire water supply fails or is inadequate",
+    "rootCause": "Typical, not confirmed at OR Tambo: Pumps not test-run (6 h quarterly); diesel and battery faults; auto-switch-over untested; storage too small",
+    "action": "Run fire pumps on the test cycle, test auto changeover, and confirm storage meets the design need.",
+    "source": "HZ-17"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-MEC-078",
+   "KSIA-MEC-079",
+   "KSIA-MEC-080",
+   "KSIA-MEC-081",
+   "KSIA-MEC-082",
+   "KSIA-MEC-083",
+   "KSIA-MEC-084",
+   "KSIA-MEC-085"
+  ],
+  "ratingBasis": "ACSA 2025 other site (highest)"
+ },
+ {
+  "discipline": "Mechanical",
+  "assetSystem": "Fire Protection - Hose reels and fire hydrants",
+  "severity": "C - Major",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity C. ACSA's own 2025 reports gave this system likelihood CTIA 3 at other airports; the highest is used. OR Tambo has no 2025 rating for it. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Extinguishers, hose reels or hydrants unserviceable",
+    "rootCause": "Typical, not confirmed at OR Tambo: Inspection and pressure-test records missing ORTIA field note: Check of service providers' work and parts against specification before acceptance not confirmed (OBS-ORT-02).",
+    "action": "Inspect and pressure-test extinguishers, hose reels and hydrants on schedule, and check service providers' work against specification.",
+    "source": "HZ-19"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-MEC-069",
+   "KSIA-MEC-070",
+   "KSIA-MEC-071",
+   "KSIA-MEC-072",
+   "KSIA-MEC-073",
+   "KSIA-MEC-074",
+   "KSIA-MEC-075",
+   "KSIA-MEC-076",
+   "KSIA-MEC-077"
+  ],
+  "ratingBasis": "ACSA 2025 other site (highest)"
+ },
+ {
+  "discipline": "Mechanical",
+  "assetSystem": "Fuel System",
+  "severity": "A - Catastrophic",
+  "likelihood": "2 - Improbable",
+  "ratingRationale": "Severity A. ACSA rated this system Tolerable at OR Tambo in 2025 without a likelihood; on the B170 001M matrix a severity A rating is Tolerable only at likelihood 1, 2, so 2 is used. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Loss of containment from tank, bund or pipework (spill, fire, contamination)",
+    "rootCause": "Typical, not confirmed at OR Tambo: Corrosion and deferred repair; bund integrity not tested; tightness control system leak rate noted but no limit stated (D060 021M 4.17.11)",
+    "action": "Test bund and tank integrity on a schedule, set a leak-rate limit, and repair corrosion within an agreed time.",
+    "source": "HZ-01"
+   },
+   {
+    "event": "Ignition of fuel vapour at fuel farm, hydrant pits or generator rooms",
+    "rootCause": "Typical, not confirmed at OR Tambo: No hazardous-area classification drawings (PSR-005, no ACSA document requires them); Ex equipment not inspected; hot work without permit",
+    "action": "Draw up hazardous-area classification drawings, inspect Ex equipment on a schedule, and enforce hot-work permits.",
+    "source": "HZ-02"
+   },
+   {
+    "event": "Hydrant pit failure: water ingress, fuel–water contamination, release at pit",
+    "rootCause": "Typical, not confirmed at OR Tambo: Worn pit-coupler seals; damaged or missing lids; hinge and valve wear",
+    "action": "Replace worn pit-coupler seals and damaged lids on a schedule and inspect every pit on a fixed cycle.",
+    "source": "HZ-04"
+   },
+   {
+    "event": "Overfill or uncontrolled release because emergency shutdown fails",
+    "rootCause": "Typical, not confirmed at OR Tambo: ESD not function-tested (6M task); interlock bypassed; no independent high-level protection",
+    "action": "Function-test emergency shutdown on its due date, control interlock bypasses, and add independent high-level protection.",
+    "source": "HZ-05"
+   },
+   {
+    "event": "Groundwater or soil contamination from leaks nobody is monitoring",
+    "rootCause": "Typical, not confirmed at OR Tambo: No monitoring or NEMWA Part 8 position in the register; fuel-on-water-table test is a FALE weekly task and other sites' tables differ",
+    "action": "Set up leak and groundwater monitoring and record ACSA's position under NEMWA Part 8.",
+    "source": "HZ-06"
+   },
+   {
+    "event": "Major hazard installation status unmanaged",
+    "rootCause": "Typical, not confirmed at OR Tambo: No MHI notification or classification record; the risk assessment (5-yearly) is missing or old; emergency plan untested (ACSA D060 021M 4.11(b): at least every 12 months, whereas register check MEC-036 says 3-yearly, so the two disagree)",
+    "action": "Hold the major hazard installation notification and risk assessment on file, and test the emergency plan every 12 months.",
+    "source": "HZ-07"
+   },
+   {
+    "event": "Pressure vessel or hydrant line rupture",
+    "rootCause": "Typical, not confirmed at OR Tambo: Statutory pressure test missed (ACSA D060 021M 4.17.5: yearly for the FALE hydrant line; register check MEC-037 says 3-yearly, so the two disagree); records missing",
+    "action": "Keep statutory pressure tests current and file the records.",
+    "source": "HZ-31"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-MEC-035",
+   "KSIA-MEC-036",
+   "KSIA-MEC-037",
+   "KSIA-MEC-038",
+   "KSIA-MEC-039",
+   "KSIA-MEC-040",
+   "KSIA-MEC-041",
+   "KSIA-MEC-042",
+   "KSIA-MEC-043",
+   "KSIA-MEC-044",
+   "KSIA-MEC-045",
+   "KSIA-MEC-046",
+   "KSIA-MEC-047",
+   "KSIA-MEC-048",
+   "KSIA-MEC-049",
+   "KSIA-MEC-050",
+   "KSIA-MEC-051",
+   "KSIA-MEC-052",
+   "KSIA-MEC-053",
+   "KSIA-MEC-054",
+   "KSIA-MEC-055",
+   "KSIA-MEC-056"
+  ],
+  "ratingBasis": "ACSA 2025 ORTIA tolerance (inferred)"
+ },
+ {
+  "discipline": "Mechanical",
+  "assetSystem": "Gas Hot Water Facility",
+  "severity": "B - Hazardous",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity B. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Mechanical sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Gas leak, fire or explosion at the gas-fired hot water plant",
+    "rootCause": "To confirm in the room. Typical: Gas installation certificate missing; leak checks not done; poor ventilation",
+    "action": "Hold the gas installation certificate, test for leaks and keep ventilation clear.",
+    "source": "TPJV draft (not in the hazard library)"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-MEC-091",
+   "KSIA-MEC-092",
+   "KSIA-MEC-093",
+   "KSIA-MEC-094",
+   "KSIA-MEC-095"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Mechanical",
+  "assetSystem": "HVAC",
+  "severity": "A - Catastrophic",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Carried from ACSA's own May 2025 OR Tambo report (ORTIA-MEC-P01): severity A, likelihood 3. Letter and number are kept, the wording follows B170 001M. This is the 2025 position, not a 2026 finding: re-assess it against the 2026 capture. Suggested by TPJV for the rating session; not agreed with ACSA.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Refrigerant leak in a plant room",
+    "rootCause": "Typical, not confirmed at OR Tambo: Leak checks missed; no ventilation or detection",
+    "action": "Check for refrigerant leaks on schedule and fit ventilation and detection in plant rooms.",
+    "source": "HZ-30"
+   },
+   {
+    "event": "Fire or smoke spread through HVAC",
+    "rootCause": "Typical, not confirmed at OR Tambo: Smoke extraction fans not flow-tested; HVAC and fire-detection interface untested; auxiliary-system activation untested (3-monthly)",
+    "action": "Flow-test smoke extraction fans and test the fire-detection interface to HVAC every three months.",
+    "source": "HZ-35"
+   },
+   {
+    "event": "Legionella from cooling towers or water systems",
+    "rootCause": "Typical, not confirmed at OR Tambo: Water sampling gaps; towers not cleaned",
+    "action": "Sample water on schedule and clean cooling towers.",
+    "source": "HZ-36"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-MEC-001",
+   "KSIA-MEC-002",
+   "KSIA-MEC-003",
+   "KSIA-MEC-004",
+   "KSIA-MEC-005",
+   "KSIA-MEC-006",
+   "KSIA-MEC-007",
+   "KSIA-MEC-008",
+   "KSIA-MEC-009",
+   "KSIA-MEC-010",
+   "KSIA-MEC-011",
+   "KSIA-MEC-012",
+   "KSIA-MEC-013",
+   "KSIA-MEC-014",
+   "KSIA-MEC-015",
+   "KSIA-MEC-016",
+   "KSIA-MEC-017",
+   "KSIA-MEC-018"
+  ],
+  "ratingBasis": "ACSA 2025 carried"
+ },
+ {
+  "discipline": "Mechanical",
+  "assetSystem": "Passenger Boarding Bridges (PLBs)",
+  "severity": "B - Hazardous",
+  "likelihood": "2 - Improbable",
+  "ratingRationale": "Severity B. ACSA's own 2025 reports gave this system likelihood KSIA 2 at other airports; the highest is used. OR Tambo has no 2025 rating for it. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Lift, escalator or people-mover failure injuring several people",
+    "rootCause": "Typical, not confirmed at OR Tambo: Rope or safety-gear inspections out of date; logbook not kept. The 2025 King Shaka People Movers finding concerned BHS conduit",
+    "action": "Keep rope and safety-gear inspections current and the logbook up to date.",
+    "source": "HZ-32"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-MEC-030",
+   "KSIA-MEC-031",
+   "KSIA-MEC-032",
+   "KSIA-MEC-033",
+   "KSIA-MEC-034"
+  ],
+  "ratingBasis": "ACSA 2025 other site (highest)"
+ },
+ {
+  "discipline": "Mechanical",
+  "assetSystem": "People Movers",
+  "severity": "B - Hazardous",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity B. ACSA's own 2025 reports gave this system likelihood KSIA 3, CTIA 3 at other airports; the highest is used. OR Tambo has no 2025 rating for it. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Lift, escalator or people-mover failure injuring several people",
+    "rootCause": "Typical, not confirmed at OR Tambo: Rope or safety-gear inspections out of date; logbook not kept. The 2025 King Shaka People Movers finding concerned BHS conduit",
+    "action": "Keep rope and safety-gear inspections current and the logbook up to date.",
+    "source": "HZ-32"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-MEC-019",
+   "KSIA-MEC-020",
+   "KSIA-MEC-021",
+   "KSIA-MEC-022",
+   "KSIA-MEC-023",
+   "KSIA-MEC-024",
+   "KSIA-MEC-025",
+   "KSIA-MEC-026",
+   "KSIA-MEC-027",
+   "KSIA-MEC-028",
+   "KSIA-MEC-029"
+  ],
+  "ratingBasis": "ACSA 2025 other site (highest)"
+ },
+ {
+  "discipline": "Mechanical",
+  "assetSystem": "Sewer, Potable & Stormwater Pumps",
+  "severity": "D - Minor",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity D. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Mechanical sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Sewage or stormwater overflow, flooding, or loss of potable water",
+    "rootCause": "To confirm in the room. Typical: Pump failure not noticed; no standby pump or alarm",
+    "action": "Test duty and standby pumps and level alarms on schedule.",
+    "source": "TPJV draft (not in the hazard library)"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-MEC-086",
+   "KSIA-MEC-087",
+   "KSIA-MEC-088",
+   "KSIA-MEC-089",
+   "KSIA-MEC-090"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Mechanical",
+  "assetSystem": "Water Treatment Plant",
+  "severity": "C - Major",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity C. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Mechanical sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Hazardous chemical release or incompatible storage",
+    "rootCause": "Typical, not confirmed at OR Tambo: Inventory and SDS not held; storage not segregated; no eyewash",
+    "action": "Keep a chemical inventory and safety data sheets, segregate storage and fit eyewash stations.",
+    "source": "HZ-27"
+   },
+   {
+    "event": "Legionella from cooling towers or water systems",
+    "rootCause": "Typical, not confirmed at OR Tambo: Water sampling gaps; towers not cleaned",
+    "action": "Sample water on schedule and clean cooling towers.",
+    "source": "HZ-36"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-MEC-096",
+   "KSIA-MEC-097",
+   "KSIA-MEC-098",
+   "KSIA-MEC-099",
+   "KSIA-MEC-100",
+   "KSIA-MEC-101",
+   "KSIA-MEC-102",
+   "KSIA-MEC-103",
+   "KSIA-MEC-104",
+   "KSIA-MEC-105",
+   "KSIA-MEC-106"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Energy & Demand Management",
+  "assetSystem": "BMS & Controls",
+  "severity": "D - Minor",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity D. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Energy & Demand Management sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Plant runs outside safe limits because controls or alarms fail unnoticed",
+    "rootCause": "To confirm in the room. Typical: Alarm points not tested; settings changed without record",
+    "action": "Test alarms on schedule and control changes to settings.",
+    "source": "TPJV draft (not in the hazard library)"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-EDM-021"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Energy & Demand Management",
+  "assetSystem": "Emissions",
+  "severity": "D - Minor",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity D. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Energy & Demand Management sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Breach of an emissions permit or reporting duty",
+    "rootCause": "To confirm in the room. Typical: Emissions not measured or reported on time",
+    "action": "Keep a measurement and reporting calendar with an owner.",
+    "source": "TPJV draft (not in the hazard library)"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-EDM-025",
+   "KSIA-EDM-026"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Energy & Demand Management",
+  "assetSystem": "Energy Consumption",
+  "severity": "C - Major",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Carried from ACSA's own May 2025 OR Tambo report (ORTIA-EDM-P02): severity C, likelihood 3. Letter and number are kept, the wording follows B170 001M. This is the 2025 position, not a 2026 finding: re-assess it against the 2026 capture. Suggested by TPJV for the rating session; not agreed with ACSA.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Excess energy use goes unnoticed and costs rise",
+    "rootCause": "To confirm in the room. Typical: No baseline or targets; data not reviewed",
+    "action": "Set a baseline and review consumption monthly against it.",
+    "source": "TPJV draft (not in the hazard library)"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-EDM-008",
+   "KSIA-EDM-009",
+   "KSIA-EDM-010",
+   "KSIA-EDM-011"
+  ],
+  "ratingBasis": "ACSA 2025 carried"
+ },
+ {
+  "discipline": "Energy & Demand Management",
+  "assetSystem": "Energy Distribution",
+  "severity": "C - Major",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity C. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Energy & Demand Management sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Unplanned loss of energy distribution to a terminal or facility",
+    "rootCause": "To confirm in the room. Typical: Distribution network not mapped; faults not trended",
+    "action": "Keep the distribution network mapped and trend faults.",
+    "source": "TPJV draft (not in the hazard library)"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-EDM-001",
+   "KSIA-EDM-002"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Energy & Demand Management",
+  "assetSystem": "Energy Storage",
+  "severity": "B - Hazardous",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity B. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Energy & Demand Management sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Solar PV or battery storage fire",
+    "rootCause": "Typical, not confirmed at OR Tambo: DC arc faults; module condition test has no ACSA parameter; thermal runaway",
+    "action": "Test DC circuits and module condition, fit fire detection, and set an ACSA parameter for module condition.",
+    "source": "HZ-38"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-EDM-019",
+   "KSIA-EDM-020"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Energy & Demand Management",
+  "assetSystem": "Green Buildings",
+  "severity": "E - Negligible",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity E. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Energy & Demand Management sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Building misses its green rating and planned savings are lost",
+    "rootCause": "To confirm in the room. Typical: Design measures not maintained after handover",
+    "action": "Check green-rating measures at each maintenance review.",
+    "source": "TPJV draft (not in the hazard library)"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-EDM-022"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Energy & Demand Management",
+  "assetSystem": "Metering",
+  "severity": "C - Major",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Carried from ACSA's own May 2025 OR Tambo report (ORTIA-EDM-P01): severity C, likelihood 3. Letter and number are kept, the wording follows B170 001M. This is the 2025 position, not a 2026 finding: re-assess it against the 2026 capture. Suggested by TPJV for the rating session; not agreed with ACSA.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Wrong billing and wrong energy data from faulty or unread meters",
+    "rootCause": "To confirm in the room. Typical: Meters not calibrated or read; no reconciliation",
+    "action": "Calibrate meters on schedule and reconcile readings with bills.",
+    "source": "TPJV draft (not in the hazard library)"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-EDM-003",
+   "KSIA-EDM-004",
+   "KSIA-EDM-005",
+   "KSIA-EDM-006"
+  ],
+  "ratingBasis": "ACSA 2025 carried"
+ },
+ {
+  "discipline": "Energy & Demand Management",
+  "assetSystem": "NMD",
+  "severity": "D - Minor",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity D. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Energy & Demand Management sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Notified maximum demand exceeded, with penalty charges",
+    "rootCause": "To confirm in the room. Typical: Peak demand not monitored; no load management",
+    "action": "Monitor peak demand and manage load against the notified level.",
+    "source": "TPJV draft (not in the hazard library)"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-EDM-012",
+   "KSIA-EDM-013"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Energy & Demand Management",
+  "assetSystem": "Solar PV Plant",
+  "severity": "C - Major",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity C. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Energy & Demand Management sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Solar PV or battery storage fire",
+    "rootCause": "Typical, not confirmed at OR Tambo: DC arc faults; module condition test has no ACSA parameter; thermal runaway",
+    "action": "Test DC circuits and module condition, fit fire detection, and set an ACSA parameter for module condition.",
+    "source": "HZ-38"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-EDM-014",
+   "KSIA-EDM-015",
+   "KSIA-EDM-016",
+   "KSIA-EDM-017",
+   "KSIA-EDM-018"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Energy & Demand Management",
+  "assetSystem": "Tariffs & Billing",
+  "severity": "D - Minor",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity D. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Energy & Demand Management sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Over-billing or a wrong tariff goes undetected",
+    "rootCause": "To confirm in the room. Typical: Bills not checked against tariff",
+    "action": "Check each bill against the applicable tariff and query differences.",
+    "source": "TPJV draft (not in the hazard library)"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-EDM-007"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Energy & Demand Management",
+  "assetSystem": "Water",
+  "severity": "D - Minor",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity D. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Energy & Demand Management sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Undetected leaks, water loss or supply interruption",
+    "rootCause": "To confirm in the room. Typical: No sub-metering or leak testing",
+    "action": "Sub-meter key areas and test for leaks on schedule.",
+    "source": "TPJV draft (not in the hazard library)"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-EDM-023",
+   "KSIA-EDM-024"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Process Safety & Risk",
+  "assetSystem": "Contractor & Permit Management",
+  "severity": "C - Major",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity C. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Process Safety & Risk sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Contractor work without agreed controls",
+    "rootCause": "Typical, not confirmed at OR Tambo: No s37(2) agreement; SHE file late (14 days); permit lapsed ORTIA field note: Quality check of contractor work and goods against specification not confirmed (OBS-ORT-02).",
+    "action": "Hold the section 37(2) agreement and safety file before work starts, and check contractor work against specification.",
+    "source": "HZ-24"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-PSR-036"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Process Safety & Risk",
+  "assetSystem": "Emergency Preparedness",
+  "severity": "B - Hazardous",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity B. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Process Safety & Risk sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Emergency plan or drill ineffective",
+    "rootCause": "Typical, not confirmed at OR Tambo: Plan not current; drills not held or recorded; no coordinators designated",
+    "action": "Keep the emergency plan current, hold and record drills, and name coordinators.",
+    "source": "HZ-20"
+   },
+   {
+    "event": "Underground fire pump station: injury or fatality during entry or emergency access",
+    "rootCause": "Typical, not confirmed at OR Tambo: Heavy grating lifted by hand, no ladder, poor lighting; ACSA rated it Acceptable in 2024 (looks lenient against GSR 5 on confined spaces, project view)",
+    "action": "Fit safe access and lighting, treat the station as a confined space, and re-rate the entry risk.",
+    "source": "HZ-21"
+   },
+   {
+    "event": "Hazardous chemical release or incompatible storage",
+    "rootCause": "Typical, not confirmed at OR Tambo: Inventory and SDS not held; storage not segregated; no eyewash",
+    "action": "Keep a chemical inventory and safety data sheets, segregate storage and fit eyewash stations.",
+    "source": "HZ-27"
+   },
+   {
+    "event": "Incidents and near misses not investigated or fed back",
+    "rootCause": "Typical, not confirmed at OR Tambo: Reports late (24 h / 72 h); investigation over 1 month; no link to HIRA",
+    "action": "Report incidents on time, investigate within a month and feed results back into the risk assessment.",
+    "source": "HZ-42"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-PSR-009",
+   "KSIA-PSR-010",
+   "KSIA-PSR-011"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Process Safety & Risk",
+  "assetSystem": "Fire Safety Management",
+  "severity": "B - Hazardous",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity B. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Process Safety & Risk sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Ignition of fuel vapour at fuel farm, hydrant pits or generator rooms",
+    "rootCause": "Typical, not confirmed at OR Tambo: No hazardous-area classification drawings (PSR-005, no ACSA document requires them); Ex equipment not inspected; hot work without permit",
+    "action": "Draw up hazardous-area classification drawings, inspect Ex equipment on a schedule, and enforce hot-work permits.",
+    "source": "HZ-02"
+   },
+   {
+    "event": "Substation or transformer fire or explosion",
+    "rootCause": "Typical, not confirmed at OR Tambo: Root cause not on record for OR Tambo. Typical: oil not tested; protection not tested; no separation or fire-rated barriers between bays; fire detection absent ORTIA field note: Procedure for managing fire detection and suppression when people enter protected zones such as substations not confirmed (OBS-ORT-01).",
+    "action": "Test transformer oil and protection on schedule, fit fire-rated barriers, and write a procedure for entering protected substations.",
+    "source": "HZ-12"
+   },
+   {
+    "event": "Fire in a switch, comms or server room undetected, or suppression fails to discharge",
+    "rootCause": "Typical, not confirmed at OR Tambo: Detection panel faults; gas suppression cylinders or room integrity untested ORTIA field note: Procedure for managing detection and suppression when people enter protected rooms not confirmed (OBS-ORT-01).",
+    "action": "Service the detection panel, test gas suppression and room integrity, and write a procedure for entering protected rooms.",
+    "source": "HZ-15"
+   },
+   {
+    "event": "Fire water supply fails or is inadequate",
+    "rootCause": "Typical, not confirmed at OR Tambo: Pumps not test-run (6 h quarterly); diesel and battery faults; auto-switch-over untested; storage too small",
+    "action": "Run fire pumps on the test cycle, test auto changeover, and confirm storage meets the design need.",
+    "source": "HZ-17"
+   },
+   {
+    "event": "Fire detection or alarm fails to warn",
+    "rootCause": "Typical, not confirmed at OR Tambo: Panel faults; sensors not cleaned and tested; no PA/voice alarm layer ORTIA field note: Procedure for managing detection and suppression when people enter protected rooms not confirmed (OBS-ORT-01).",
+    "action": "Clean and test detectors on schedule, clear panel faults, and add a voice alarm layer where missing.",
+    "source": "HZ-18"
+   },
+   {
+    "event": "Confined-space asphyxiation, toxic atmosphere or engulfment (sumps, tanks, manholes, pump pits, trenches)",
+    "rootCause": "Typical, not confirmed at OR Tambo: No atmosphere testing; no standby person; unsafe access; no register of confined spaces",
+    "action": "Keep a confined-space register, test the atmosphere before entry and use a standby person.",
+    "source": "HZ-22"
+   },
+   {
+    "event": "Hot-work ignition",
+    "rootCause": "Typical, not confirmed at OR Tambo: Permit not issued; fire watch not kept (30 min or 1 h per S010 002WI, which conflict)",
+    "action": "Issue hot-work permits and keep a fire watch for the period ACSA sets.",
+    "source": "HZ-23"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-PSR-012",
+   "KSIA-PSR-013",
+   "KSIA-PSR-014"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Process Safety & Risk",
+  "assetSystem": "Fuel Farm & Hydrant (MHI)",
+  "severity": "A - Catastrophic",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity A. ACSA's own 2025 reports gave this system likelihood KSIA 3 at other airports; the highest is used. OR Tambo has no 2025 rating for it. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Loss of containment from tank, bund or pipework (spill, fire, contamination)",
+    "rootCause": "Typical, not confirmed at OR Tambo: Corrosion and deferred repair; bund integrity not tested; tightness control system leak rate noted but no limit stated (D060 021M 4.17.11)",
+    "action": "Test bund and tank integrity on a schedule, set a leak-rate limit, and repair corrosion within an agreed time.",
+    "source": "HZ-01"
+   },
+   {
+    "event": "Ignition of fuel vapour at fuel farm, hydrant pits or generator rooms",
+    "rootCause": "Typical, not confirmed at OR Tambo: No hazardous-area classification drawings (PSR-005, no ACSA document requires them); Ex equipment not inspected; hot work without permit",
+    "action": "Draw up hazardous-area classification drawings, inspect Ex equipment on a schedule, and enforce hot-work permits.",
+    "source": "HZ-02"
+   },
+   {
+    "event": "Major hazard installation status unmanaged",
+    "rootCause": "Typical, not confirmed at OR Tambo: No MHI notification or classification record; the risk assessment (5-yearly) is missing or old; emergency plan untested (ACSA D060 021M 4.11(b): at least every 12 months, whereas register check MEC-036 says 3-yearly, so the two disagree)",
+    "action": "Hold the major hazard installation notification and risk assessment on file, and test the emergency plan every 12 months.",
+    "source": "HZ-07"
+   },
+   {
+    "event": "Hydrocarbon release to stormwater or sewer",
+    "rootCause": "Typical, not confirmed at OR Tambo: Oil separators and baysavers not inspected or tested; spill kits absent",
+    "action": "Inspect and test oil separators and baysavers on schedule and keep spill kits stocked.",
+    "source": "HZ-28"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-PSR-004",
+   "KSIA-PSR-005",
+   "KSIA-PSR-006"
+  ],
+  "ratingBasis": "ACSA 2025 other site (highest)"
+ },
+ {
+  "discipline": "Process Safety & Risk",
+  "assetSystem": "Hazard Identification & Risk Assessment",
+  "severity": "C - Major",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity C. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Process Safety & Risk sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Site HIRA not run, or not re-run when it must be",
+    "rootCause": "Typical, not confirmed at OR Tambo: B170 001M sets five formal-HIRA triggers and no annual interval, so \"reviewed annually\" cannot be evidenced as written ORTIA field note: Link between the insurer's risk assessment and the maintenance plan or the risk level of maintenance items not confirmed (OBS-ORT-06).",
+    "action": "Run the formal hazard identification at the five B170 001M triggers and link the insurer's risk assessment to the maintenance plan.",
+    "source": "HZ-39"
+   },
+   {
+    "event": "Change made without assessment",
+    "rootCause": "Typical, not confirmed at OR Tambo: No management-of-change step before a change to plant, procedure or configuration",
+    "action": "Add a management-of-change step before any change to plant, procedure or configuration.",
+    "source": "HZ-40"
+   },
+   {
+    "event": "Safety-critical controls unowned or untested",
+    "rootCause": "Typical, not confirmed at OR Tambo: No control owner; self-assessment not done (quarterly under J050 001FW 4.2.5) ORTIA field note: Risk that controls are assumed to work instead of being inspected with recorded results (OBS-ORT-05).",
+    "action": "Name an owner for each safety-critical control and do the quarterly self-assessment with recorded inspection results.",
+    "source": "HZ-41"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-PSR-001",
+   "KSIA-PSR-002",
+   "KSIA-PSR-003"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Process Safety & Risk",
+  "assetSystem": "Hazardous Substances & Gas",
+  "severity": "B - Hazardous",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity B. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Process Safety & Risk sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "LPG release and fire or explosion",
+    "rootCause": "Typical, not confirmed at OR Tambo: Cylinders unsecured, unventilated or not segregated; no installation CoC; ACSA has no LPG storage rule, so there is nothing to test against ORTIA field note: Central record of installation certificates not confirmed (OBS-ORT-03).",
+    "action": "Secure, ventilate and segregate gas cylinders, and keep installation certificates of compliance in one record.",
+    "source": "HZ-26"
+   },
+   {
+    "event": "Hazardous chemical release or incompatible storage",
+    "rootCause": "Typical, not confirmed at OR Tambo: Inventory and SDS not held; storage not segregated; no eyewash",
+    "action": "Keep a chemical inventory and safety data sheets, segregate storage and fit eyewash stations.",
+    "source": "HZ-27"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-PSR-015",
+   "KSIA-PSR-016"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Process Safety & Risk",
+  "assetSystem": "Incident Management",
+  "severity": "D - Minor",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity D. No 2025 rating exists for this system at any airport. ACSA's own 2025 OR Tambo findings in Process Safety & Risk sat at a median likelihood of 3, which is used here. Lowest confidence. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Incidents and near misses not investigated or fed back",
+    "rootCause": "Typical, not confirmed at OR Tambo: Reports late (24 h / 72 h); investigation over 1 month; no link to HIRA",
+    "action": "Report incidents on time, investigate within a month and feed results back into the risk assessment.",
+    "source": "HZ-42"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-PSR-037"
+  ],
+  "ratingBasis": "ORTIA discipline pattern (low confidence)"
+ },
+ {
+  "discipline": "Process Safety & Risk",
+  "assetSystem": "Standby Power Safety",
+  "severity": "D - Minor",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Carried from ACSA's own May 2025 OR Tambo report (ORTIA-PSR-P03): severity D, likelihood 3. Letter and number are kept, the wording follows B170 001M. This is the 2025 position, not a 2026 finding: re-assess it against the 2026 capture. Suggested by TPJV for the rating session; not agreed with ACSA.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Diesel fire at generator",
+    "rootCause": "Typical, not confirmed at OR Tambo: No fuel cut-out fuse or fire cut-out; fuel line shut-off not tested; fuel leaks not noticed",
+    "action": "Fit and test fuel cut-out and fire cut-out devices and check fuel lines for leaks on each service.",
+    "source": "HZ-08"
+   },
+   {
+    "event": "Bulk or day-tank diesel loss of containment or fire spread to generator room",
+    "rootCause": "Typical, not confirmed at OR Tambo: Bunding, tank certification or fire separation lacking",
+    "action": "Certify tanks, check bunding and keep the generator room fire-separated.",
+    "source": "HZ-09"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-PSR-007",
+   "KSIA-PSR-008"
+  ],
+  "ratingBasis": "ACSA 2025 carried"
+ },
+ {
+  "discipline": "Process Safety & Risk",
+  "assetSystem": "Statutory Appointments & Competencies",
+  "severity": "D - Minor",
+  "likelihood": "3 - Remote",
+  "ratingRationale": "Severity D. ACSA rated this system Tolerable at OR Tambo in 2025 without a likelihood; on the B170 001M matrix a severity D rating is Tolerable only at likelihood 3, 4, 5, so 3 is used. Provisional, suggested by TPJV for the rating session; not agreed with ACSA. Re-set it against the ORTIA capture and ACSA's incident history.",
+  "directionOfRisk": "Not determined (no 2026 capture).",
+  "events": [
+   {
+    "event": "Substation or transformer fire or explosion",
+    "rootCause": "Typical, not confirmed at OR Tambo: Root cause not on record for OR Tambo. Typical: oil not tested; protection not tested; no separation or fire-rated barriers between bays; fire detection absent ORTIA field note: Procedure for managing fire detection and suppression when people enter protected zones such as substations not confirmed (OBS-ORT-01).",
+    "action": "Test transformer oil and protection on schedule, fit fire-rated barriers, and write a procedure for entering protected substations.",
+    "source": "HZ-12"
+   },
+   {
+    "event": "Fire in a switch, comms or server room undetected, or suppression fails to discharge",
+    "rootCause": "Typical, not confirmed at OR Tambo: Detection panel faults; gas suppression cylinders or room integrity untested ORTIA field note: Procedure for managing detection and suppression when people enter protected rooms not confirmed (OBS-ORT-01).",
+    "action": "Service the detection panel, test gas suppression and room integrity, and write a procedure for entering protected rooms.",
+    "source": "HZ-15"
+   },
+   {
+    "event": "Earthing or CoC failure causing shock or ignition",
+    "rootCause": "Typical, not confirmed at OR Tambo: CoC not accounted for; earth resistance not tested ORTIA field note: ACSA policy and central record of certificates of compliance not confirmed (OBS-ORT-03).",
+    "action": "Test earth resistance on schedule and keep one central record of certificates of compliance, owned by ACSA.",
+    "source": "HZ-16"
+   },
+   {
+    "event": "Fire detection or alarm fails to warn",
+    "rootCause": "Typical, not confirmed at OR Tambo: Panel faults; sensors not cleaned and tested; no PA/voice alarm layer ORTIA field note: Procedure for managing detection and suppression when people enter protected rooms not confirmed (OBS-ORT-01).",
+    "action": "Clean and test detectors on schedule, clear panel faults, and add a voice alarm layer where missing.",
+    "source": "HZ-18"
+   },
+   {
+    "event": "Competence or appointment lapsed",
+    "rootCause": "Typical, not confirmed at OR Tambo: GMR 2(1) appointment past 3 years; DoEL notification late; training matrix gaps",
+    "action": "Renew appointments before three years, notify the Department on time and keep the training matrix current.",
+    "source": "HZ-43"
+   }
+  ],
+  "linkedChecks": [
+   "KSIA-PSR-017",
+   "KSIA-PSR-018",
+   "KSIA-PSR-019",
+   "KSIA-PSR-020",
+   "KSIA-PSR-021",
+   "KSIA-PSR-022",
+   "KSIA-PSR-023",
+   "KSIA-PSR-024",
+   "KSIA-PSR-025",
+   "KSIA-PSR-026",
+   "KSIA-PSR-027",
+   "KSIA-PSR-028",
+   "KSIA-PSR-029",
+   "KSIA-PSR-030",
+   "KSIA-PSR-031",
+   "KSIA-PSR-032",
+   "KSIA-PSR-033",
+   "KSIA-PSR-034",
+   "KSIA-PSR-035"
+  ],
+  "ratingBasis": "ACSA 2025 ORTIA tolerance (inferred)"
+ }
+]
