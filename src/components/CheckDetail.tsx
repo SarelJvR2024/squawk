@@ -274,6 +274,7 @@ export default function CheckDetail({
     evidencePendingNote: "",
     evidenceProves: "",
     evidenceVerdict: null,
+    siteInspection: null,
     combinedComment: "",
     combinedCommentAt: null,
     issuesPicked: [],

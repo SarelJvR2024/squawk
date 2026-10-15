@@ -233,6 +233,73 @@ check(
   "a note nobody can read because approval needed none is a field asked for no reason"
 );
 
+/* ------------------------------- Part 4b: pinned header, 15 October 2026 —
+   Sarel: "keep the audit check description on top even when i scroll. also
+   have the 3 compliance checks on top even when scrolling for (audit
+   check, evidence, site inspection) and then a combined compliance of the
+   3." */
+
+check(
+  "the check's own requirement wording sits inside a sticky header, not the scrolling body",
+  /className="sticky top-0[^"]*"[\s\S]{0,1000}<h2[^>]*>\{check\.requirement\}<\/h2>/.test(reviewDetail),
+  "pinned so a reviewer never loses sight of which check this is while scrolling the evidence below it"
+);
+
+check(
+  "the sticky header carries all four compliance cells — audit check, evidence, site inspection, and the combined reading",
+  /label="Audit check"/.test(reviewDetail) &&
+    /label="Evidence"/.test(reviewDetail) &&
+    /label="Site inspection"/.test(reviewDetail) &&
+    /label="Combined"/.test(reviewDetail),
+  "three axes the user named plus the derived combined one — all four, not a subset"
+);
+
+check(
+  "the combined cell is DERIVED from the other three, never a fifth stored field",
+  /reviewCombinedCompliance\(r\.compliance, r\.evidenceVerdict, r\.siteInspection\)/.test(reviewDetail) &&
+    /import \{ reviewCombinedCompliance \} from "@\/lib\/review";/.test(reviewDetail),
+  "a stored combined value is the one that goes stale the first time one of the three it copies changes"
+);
+
+check(
+  "the combined cell is marked when the review is still incomplete, so a clean-looking verdict is never mistaken for a finished one",
+  /combinedPartial/.test(reviewDetail) &&
+    /\.some\(\(v\) => v === null\)/.test(reviewDetail)
+);
+
+/* ---------------------------- Part 4c: the new third compliance axis --- */
+
+check(
+  "Response.siteInspection exists, reuses Compliance, and is independent of compliance/evidenceVerdict",
+  /siteInspection: Compliance \| null;/.test(types)
+);
+
+check(
+  "siteInspection is editable on ReviewDetail, with the same three-way shape as the evidence verdict (no N/A)",
+  /patch\(check\.id, \{ siteInspection: on \? null : v\.key \}\)/.test(reviewDetail) &&
+    /EVIDENCE_VERDICTS\.map\(\(v\) => \{[\s\S]{0,200}r\.siteInspection === v\.key/.test(reviewDetail)
+);
+
+/* ------------------------- Part 4d: evidence requested vs received ----- */
+
+check(
+  "what evidence the register asks for is shown, not only what was received",
+  /Evidence requested/.test(reviewDetail) &&
+    /check\.evidenceExpected \|\| \(check\.acsaEvidence\.length > 0/.test(reviewDetail),
+  "the register's own evidenceExpected/acsaEvidence, already read by CheckDetail, was never surfaced here before"
+);
+
+check(
+  "what was actually uploaded is labelled 'evidence received' and counted, not just rendered as an unlabelled photo strip",
+  /Evidence received/.test(reviewDetail) &&
+    /r\.attachments\.length > 0 &&[\s\S]{0,120}· \{r\.attachments\.length\}/.test(reviewDetail)
+);
+
+check(
+  "the inspection notes (the observation text) sit immediately above the evidence they explain, not in a separate, distant section",
+  /Inspection notes[\s\S]{0,600}label-xs mb-1\.5">Evidence</.test(reviewDetail)
+);
+
 /* ----------------------------------------- Part 5: ids are the site's own */
 
 check(

@@ -449,6 +449,23 @@ export interface Response {
    *  visible rather than silently overwritten by whichever was answered
    *  second. */
   evidenceVerdict: Compliance | null;
+  /** THE THIRD COMPLIANCE AXIS, alongside `compliance` (the check as a whole)
+   *  and `evidenceVerdict` (what the evidence itself shows): whether the
+   *  PHYSICAL SITE, as actually seen on the walk, matches what was captured.
+   *  Same reuse of `Compliance`, same three offered values as
+   *  `evidenceVerdict` (no "N/A" — a site either was or was not looked at,
+   *  and if it was, this question is answerable), same independence: the
+   *  auditor sets this, `compliance` and `evidenceVerdict` separately, and
+   *  they are expected to usually agree, but a disagreement here is a real
+   *  finding about the review itself, not something to silently merge away.
+   *  `null` is "not yet reviewed," same as the other two.
+   *
+   *  See `reviewCombinedCompliance` in src/lib/review.ts for how this
+   *  combines with `compliance`/`evidenceVerdict` into one worst-of-three
+   *  reading — that combination is DERIVED, never stored, same reasoning as
+   *  bandFor() in risk.ts: three fields disagreeing with a fourth, stored
+   *  one is how the fourth goes stale. */
+  siteInspection: Compliance | null;
   /** ONE COMMENT, FROM UP TO THREE SOURCES THAT TODAY LIVE IN THREE PLACES — the
    *  check's own `observation`, what the evidence itself says (`evidenceProves`),
    *  and any `Finding`s raised against this check. An auditor reading the
