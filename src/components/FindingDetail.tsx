@@ -91,9 +91,21 @@ export default function FindingDetail({
           behind it. The observation is looked up rather than stored as
           a second link, because AdHocItem.findingId already holds the
           relation and a second copy of it is a second thing to keep
-          true. */}
+          true.
+
+          TWO WAYS A FINDING ENDS UP POINTING BACK AT A WALK ITEM, same
+          block either way. Raised live, on the walk: the item's own
+          findingId names this finding (the lookup below's first arm).
+          Written up from an import pack's "From item" column: THIS
+          finding's own fromItemId names the item instead (see
+          importPack.ts's applyImportPlan) — the item's findingId stays
+          null, because nothing in the live flow ever set it. Either
+          direction means the same thing to an auditor reading this
+          pane, so either resolves to the same "seen on the walk" block. */}
       {(() => {
-        const from = adhocItems.find((a) => a.findingId === f.id);
+        const from = f.fromItemId
+          ? adhocItems.find((a) => a.id === f.fromItemId)
+          : adhocItems.find((a) => a.findingId === f.id);
         if (!from) return null;
         return (
           <div

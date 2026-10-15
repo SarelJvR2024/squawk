@@ -295,6 +295,16 @@ export default function ImportPackPanel() {
             </div>
           )}
 
+          {plan.findings.some((f) => f.fromItemDangling) && (
+            <div
+              className="mt-2 rounded-[8px] border px-[9px] py-[6px] text-[11.5px] leading-[1.5]"
+              style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}
+            >
+              Some findings name a &ldquo;From item&rdquo; Ref the Ad-hoc items sheet does not have
+              — the link is dropped, the rest of the finding is still imported.
+            </div>
+          )}
+
           <button
             onClick={() => setShowRows((v) => !v)}
             className="mt-2 text-[11px] underline"

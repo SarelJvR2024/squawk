@@ -863,6 +863,15 @@ export interface Finding {
    *  provenance/undo), for a finding created by "Import observation pack".
    *  Absent means not from an import. */
   importKey?: string;
+  /** The AdHocItem this finding was written up from, when an import pack says
+   *  so (its "From item" column) — same convention as AdHocItem.findingId,
+   *  just pointed the other way, and same nullable-id-reference pattern as
+   *  Hazard.findingIds: a real id into the ad-hoc list, resolved once at
+   *  import time, never a free-text Ref a screen has to look up itself.
+   *  null when the pack named no "From item", or named one this import
+   *  could not resolve against its own Ad-hoc items sheet — see
+   *  PlannedFinding.fromItemDangling in importPack.ts for which. */
+  fromItemId?: string | null;
 }
 
 /** One dated entry in a record's history.
@@ -1283,6 +1292,21 @@ export interface AdHocItem {
   /** Same four values as a check's, so the control and the vocabulary are the
    *  same everywhere. Usually NC. Not forced. */
   outcome: Compliance | null;
+  /** A short label for the item, where one exists — an import pack is the
+   *  only source that carries one today, so this is near-always absent on an
+   *  item typed on the walk. Optional; `description` is still the one field
+   *  that cannot be blank. */
+  title?: string;
+  /** Who actually saw or wrote this up — SAME SPLIT as ImmediateSafetyFinding's
+   *  raisedBy/recordedBy (see that type's own comment): `createdBy` is
+   *  whoever is holding the device and capturing the record right now (the
+   *  auditor picker, src/lib/store.ts's AUDITORS), `raisedBy` is who the
+   *  source actually attributes it to when that is a different, named
+   *  person — an import pack naming Adrian Barnes is `raisedBy: "Adrian
+   *  Barnes"` even though the Squawk operator who ran the import is whoever
+   *  `createdBy` says. Absent means the two are the same person, which is
+   *  the normal, on-the-walk case. */
+  raisedBy?: string;
   note: string;
   attachments: Attachment[];
   /** Set when somebody raises a finding from this item, so the observation and

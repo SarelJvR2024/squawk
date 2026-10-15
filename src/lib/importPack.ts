@@ -536,29 +536,28 @@ function resolveAdhocOrigin(raw: string | null, whoseNote: string | null): Adhoc
 }
 
 /** The note AdHocItem actually stores — "Imported from observation pack …"
- *  plus, when the pack carries them, this row's Title and who wrote it up
- *  (see `displayWhoseNote`), ahead of the sheet's own Note text verbatim.
- *  AdHocItem has no `title` field of its own (see AdhocPackRow.title's own
- *  comment) and no field for who originally raised a note beyond the three-
- *  way `origin` enum, so both live here rather than being dropped — this is
- *  additive wrapper text the import writes, never a change to what Adrian
- *  Barnes or Sarel actually wrote, which is the `note.row` text appended at
- *  the end, untouched. */
+ *  ahead of the sheet's own Note text verbatim. Title and "who wrote it up"
+ *  are real fields now (AdHocItem.title / AdHocItem.raisedBy — see
+ *  buildImportPlan/applyImportPlan), not folded into this text; this stays
+ *  responsible only for the sheet's own Note column, untouched. */
 function buildAdhocNote(pack: ObservationPack, row: AdhocPackRow): string {
-  const lead = [`Imported from observation pack ${pack.fileName}, ref ${row.ref}.`];
-  if (row.title) lead.push(`Title: ${row.title}.`);
-  if (row.whoseNote) lead.push(`Raised by ${displayWhoseNote(row.whoseNote)}.`);
-  return row.note ? `${lead.join(" ")} ${row.note}` : lead.join(" ");
+  const lead = `Imported from observation pack ${pack.fileName}, ref ${row.ref}.`;
+  return row.note ? `${lead} ${row.note}` : lead;
 }
 
 /** The description Finding actually stores — the sheet's own Description
- *  verbatim, then the sheet's own "Linked checks" and "From item" text as
- *  plain, unstructured lines (never turned into a resolved link — see
- *  FindingPackRow.fromItem's own comment), in that order. */
+ *  verbatim, then the sheet's own "Linked checks" text as a plain,
+ *  unstructured line (nothing here resolves a check code to a real id — see
+ *  resolveCheckId, which only runs for Check observations, not Findings).
+ *  "From item" is NOT folded in here any more — see Finding.fromItemId and
+ *  PlannedFinding.fromItemDangling — because unlike "Linked checks" (free
+ *  text by design, several codes in one cell) it names exactly one AdHocItem
+ *  this same pack also writes, and this app's own convention for "one record
+ *  names another" is a real id field (Hazard.findingIds, AdHocItem.findingId),
+ *  not a sentence a screen has to re-parse. */
 function buildFindingDescription(row: FindingPackRow): string {
   const parts = [row.description];
   if (row.linkedChecks) parts.push(`Linked checks: ${row.linkedChecks}`);
-  if (row.fromItem) parts.push(`From item: ${row.fromItem}`);
   return parts.join("\n\n");
 }
 
@@ -586,6 +585,11 @@ export interface PlannedAdhoc {
   alreadyImported: boolean;
   origin: AdhocOrigin;
   note: string;
+  /** Set when `alreadyImported` is true — the id of the AdHocItem this file
+   *  already created, same reason as PlannedFinding.existingId: a Finding
+   *  whose "From item" column names this row can still be linked correctly
+   *  on a second import even though this row itself is not written again. */
+  existingId: string | null;
 }
 
 export interface PlannedFinding {
@@ -614,6 +618,14 @@ export interface PlannedFinding {
    *  agree in every row this shipped against; this field is what lets a
    *  pack where they stop agreeing be caught rather than assumed. */
   hazardRefDangling: boolean;
+  /** This finding's "From item" column, checked against THIS SAME PACK's own
+   *  Ad-hoc items sheet (not against anything stored, same reasoning as
+   *  hazardRefDangling) — true when the pack names a "From item" Ref its own
+   *  Ad-hoc items sheet does not have. Resolving the Ref to a real AdHocItem
+   *  id happens in applyImportPlan, once ad-hoc items have actually been
+   *  written (see Finding.fromItemId); this flag is set here, at plan time,
+   *  purely from the two sheets' own Refs. */
+  fromItemDangling: boolean;
 }
 
 export interface PlannedHazard {
@@ -714,6 +726,7 @@ export function buildImportPlan(
   const findingKeys = new Set(ctx.existingFindings.map((f) => f.importKey).filter(Boolean));
   const hazardKeys = new Set(ctx.existingHazards.map((h) => h.importKey).filter(Boolean));
 
+  const existingAdhocById = new Map(ctx.existingAdhoc.map((a) => [a.importKey, a.id]));
   const adhoc: PlannedAdhoc[] = pack.adhoc.map((row) => {
     const importKey = key(SHEET_ADHOC, row.ref);
     return {
@@ -722,11 +735,13 @@ export function buildImportPlan(
       alreadyImported: adhocKeys.has(importKey),
       origin: resolveAdhocOrigin(row.originRaw, row.whoseNote),
       note: buildAdhocNote(pack, row),
+      existingId: existingAdhocById.get(importKey) ?? null,
     };
   });
 
   const existingFindingById = new Map(ctx.existingFindings.map((f) => [f.importKey, f.id]));
   const hazardRefSet = new Set(pack.hazards.map((h) => h.ref));
+  const adhocRefSet = new Set(pack.adhoc.map((a) => a.ref));
   const findings: PlannedFinding[] = pack.findings.map((row) => {
     const importKey = key(SHEET_FINDINGS, row.ref);
     const actions: MitigationAction[] = row.mitigation
@@ -752,6 +767,7 @@ export function buildImportPlan(
       actions,
       existingId: existingFindingById.get(importKey) ?? null,
       hazardRefDangling: !!row.hazardRef && !hazardRefSet.has(row.hazardRef),
+      fromItemDangling: !!row.fromItem && !adhocRefSet.has(row.fromItem),
     };
   });
 
@@ -876,21 +892,28 @@ export function applyImportPlan(plan: ImportPlan, actions: ImportActions): Apply
   };
   if (plan.blockedReason) return result;
 
+  const adhocIdByRef = new Map<string, string>();
   for (const a of plan.adhoc) {
-    if (a.alreadyImported) continue;
-    actions.addAdhoc({
+    if (a.alreadyImported) {
+      if (a.existingId) adhocIdByRef.set(a.row.ref, a.existingId);
+      continue;
+    }
+    const id = actions.addAdhoc({
       origin: a.origin,
       description: a.row.description,
       discipline: a.row.discipline,
       system: a.row.system,
       area: a.row.area,
       outcome: null,
+      title: a.row.title ?? undefined,
+      raisedBy: a.row.whoseNote ? displayWhoseNote(a.row.whoseNote) : undefined,
       note: a.note,
       attachments: [],
       findingId: null,
       createdBy: actions.auditor,
       importKey: a.importKey,
     });
+    adhocIdByRef.set(a.row.ref, id);
     result.adhocWritten++;
   }
 
@@ -921,6 +944,7 @@ export function applyImportPlan(plan: ImportPlan, actions: ImportActions): Apply
       adHoc: true,
       createdBy: actions.auditor,
       importKey: f.importKey,
+      fromItemId: f.row.fromItem ? adhocIdByRef.get(f.row.fromItem) ?? null : null,
     });
     findingIdByRef.set(f.row.ref, id);
     result.findingsWritten++;

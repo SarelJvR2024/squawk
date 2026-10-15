@@ -318,28 +318,45 @@ check(
   !!fd10Finding && fd10Finding.severity === null && fd10Finding.likelihood === null && fd10Finding.ratingConfirmed === false
 );
 
-/* -------------------------------------- 8 · attribution and title survive */
+/* -------------------------------------- 8 · attribution, title and the From
+   item link are REAL FIELDS, not sentences folded into the note/description.
+   See AdHocItem.raisedBy/title and Finding.fromItemId in types.ts — this is
+   the "link this to the person doing the capturing" design: raisedBy is who
+   the pack says actually saw/wrote it up (Sarel or Adrian Barnes), separate
+   from createdBy, which stays whoever's auditor picker ran the import. */
 
+const w1Written = adhocNow().find((a) => a.importKey === plan1.adhoc.find((p) => p.row.ref === "W1").importKey);
+check("W1's AdHocItem.raisedBy is \"Sarel\", a real field, not note text", w1Written?.raisedBy === "Sarel", w1Written?.raisedBy);
 check(
-  "W1's stored note says it was raised by Sarel, and carries its Title",
-  !!w1 &&
-    adhocNow().find((a) => a.importKey === plan1.adhoc.find((p) => p.row.ref === "W1").importKey)?.note.includes("Raised by Sarel.") &&
-    adhocNow().find((a) => a.importKey === plan1.adhoc.find((p) => p.row.ref === "W1").importKey)?.note.includes("Title: Civil engineer-on-nights")
+  "W1's AdHocItem.title is the sheet's own Title verbatim, a real field",
+  w1Written?.title === "Civil engineer-on-nights doing supervisor or technician work",
+  w1Written?.title
 );
+check(
+  "W1's note carries ONLY the pack's own lead line and the sheet's Note text — no folded Title/Raised-by sentences",
+  !w1Written?.note.includes("Title:") && !w1Written?.note.includes("Raised by")
+);
+
 const w5Written = adhocNow().find((a) => a.importKey === plan1.adhoc.find((p) => p.row.ref === "W5").importKey);
 check(
-  "W5's stored note says it was raised by Adrian Barnes (spelled out, not the bare first name)",
-  w5Written?.note.includes("Raised by Adrian Barnes.")
+  "W5's AdHocItem.raisedBy is spelled out to \"Adrian Barnes\" (not the bare \"Adrian\" the sheet wrote)",
+  w5Written?.raisedBy === "Adrian Barnes",
+  w5Written?.raisedBy
 );
 check(
-  "W5's stored note still carries the sheet's own verbatim Note text, untouched, after the added attribution",
+  "W5's stored note still carries the sheet's own verbatim Note text, untouched",
   w5Written?.note.includes("Not evidenced; not yet verified")
 );
 
 const fd1Written = findingsNow().find((f) => f.importKey === plan1.findings.find((p) => p.row.ref === "FD1").importKey);
 check(
-  "FD1's description carries the sheet's From item traceability line",
-  fd1Written?.description.includes("From item: W1")
+  "FD1's Finding.fromItemId resolves to the real AdHocItem this same import wrote for W1 — a real id, not a text sentence",
+  fd1Written?.fromItemId === w1Written?.id,
+  `${fd1Written?.fromItemId} vs ${w1Written?.id}`
+);
+check(
+  "FD1's description carries no 'From item' text line any more — the link lives in fromItemId instead",
+  !fd1Written?.description.includes("From item:")
 );
 
 /* ---------------------------------------- 9 · hazard -> finding link, and the template references */
