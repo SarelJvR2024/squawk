@@ -92,7 +92,7 @@ export default function ImportPackPanel() {
       setPlan(built);
     } catch {
       setError(
-        "That file could not be read as an observation pack. It needs the \"Ad-hoc items\", \"Findings\", \"Hazards\" and \"Check observations\" sheets, with their headers unchanged."
+        "That file could not be read as an observation pack. It needs an \"Ad-hoc items\" sheet, a \"Findings\" or \"Findings drafts\" sheet, a \"Hazards\" or \"Hazards drafts\" sheet, and a \"Check observations\" sheet, each with its own headers unchanged."
       );
     }
   };
@@ -292,6 +292,16 @@ export default function ImportPackPanel() {
             >
               Some hazards name a Finding Ref the Findings sheet does not have — that link is
               dropped, the rest of the hazard is still imported.
+            </div>
+          )}
+
+          {plan.findings.some((f) => f.fromItemDangling) && (
+            <div
+              className="mt-2 rounded-[8px] border px-[9px] py-[6px] text-[11.5px] leading-[1.5]"
+              style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}
+            >
+              Some findings name a &ldquo;From item&rdquo; Ref the Ad-hoc items sheet does not have
+              — the link is dropped, the rest of the finding is still imported.
             </div>
           )}
 

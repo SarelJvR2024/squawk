@@ -867,6 +867,14 @@ export default function FieldPage() {
                                     </Pill>
                                   )}
                                 </span>
+                                {it.title && (
+                                  <span
+                                    className="mb-[1px] block text-[10px] font-semibold uppercase tracking-wide"
+                                    style={{ color: "var(--ink-3)" }}
+                                  >
+                                    {it.title}
+                                  </span>
+                                )}
                                 <span
                                   className="block text-[12.5px] leading-[1.4] font-semibold"
                                   style={{
@@ -883,6 +891,7 @@ export default function FieldPage() {
                                   style={{ color: "var(--ink-4)" }}
                                 >
                                   {it.area && <span>{it.area}</span>}
+                                  {it.raisedBy && <span>raised by {it.raisedBy}</span>}
                                   {photos > 0 && <span>{photos}📷</span>}
                                   {voices > 0 && <span>{voices}🎙</span>}
                                   {photos === 0 && voices === 0 && (

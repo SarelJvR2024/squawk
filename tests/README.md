@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Sixty-nine suites, no framework. Thirteen need a running server; fifty-six do not.
+Seventy suites, no framework. Thirteen need a running server; fifty-seven do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -95,6 +95,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `toolbox.test.mjs` | no | 35 |
 | `incident.test.mjs` | no | 41 |
 | `import-pack.test.mjs` | no | 63 |
+| `ortia-v3-pack.test.mjs` | no | 84 |
 | `e2e.js` | yes | 24 |
 | `robustness.js` | yes | 53 |
 | `exports.js` | yes | 32 |
@@ -109,7 +110,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,115 assertions in total**, every count above verified by running the suite,
+**3,199 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —

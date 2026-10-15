@@ -1,4 +1,4 @@
-/** "Import observation pack" — reading ACSA's pre-visit observation workbook
+/** "Import observation pack" — reading one of TPJV's observation workbooks
  *  into the currently selected entity and visit as ad-hoc items, draft
  *  findings, draft hazards and check observations.
  *
@@ -9,21 +9,43 @@
  *  the actual writes — happen in `applyImportPlan`, through the callbacks it
  *  is handed, never by mutating anything directly.
  *
- *  THE WORKBOOK'S OWN SHAPE, exact sheet names and headers (see the task this
- *  shipped against):
+ *  THE WORKBOOK'S SHAPE. This reads by HEADER NAME, not column position (see
+ *  `headerMap`/`col` below), because two packs have shipped against this one
+ *  parser with different columns and that is expected to keep happening:
  *
- *    "Ad-hoc items"       Ref, Origin, Description (what you found),
- *                          Discipline, Asset system, Area, Outcome, Note
- *    "Findings"            Ref, Title, Discipline, Asset system,
- *                          Linked checks, Description,
- *                          Root cause (to confirm),
- *                          Mitigation ACSA could adopt (TPJV-proposed), Hazard
- *    "Hazards"              Ref, Event (under 15 words), Description,
- *                          Why (control and what it protects), Disciplines,
- *                          Systems, Findings, Template links
- *    "Check observations"   Check, Discipline, Observation to record,
- *                          What to ask or verify
- *    "Read me"               ignored
+ *    ACSA's pre-visit pack (PR #138, Oct 2026):
+ *      "Ad-hoc items"       Ref, Origin, Description (what you found),
+ *                            Discipline, Asset system, Area, Outcome, Note
+ *      "Findings"            Ref, Title, Discipline, Asset system,
+ *                            Linked checks, Description,
+ *                            Root cause (to confirm),
+ *                            Mitigation ACSA could adopt (TPJV-proposed), Hazard
+ *      "Hazards"              Ref, Event (under 15 words), Description,
+ *                            Why (control and what it protects), Disciplines,
+ *                            Systems, Findings, Template links
+ *      "Check observations"   Check, Discipline, Observation to record,
+ *                            What to ask or verify
+ *
+ *    TPJV's own site-observations pack ("v3", 14 Oct 2026 — ORTIA round),
+ *    sheets named "Findings drafts"/"Hazards drafts" rather than bare
+ *    "Findings"/"Hazards" (tried as a fallback — see `SHEET_FINDINGS`/
+ *    `SHEET_HAZARDS`), with these columns ADDED on top of the above:
+ *      "Ad-hoc items"        + Whose note (who raised it — "Sarel" or
+ *                              "Adrian", not the field/acsa/tpjv vocabulary;
+ *                              see `resolveAdhocOrigin`), + Title
+ *      "Findings drafts"     + From item (the Ad-hoc Ref this was written up
+ *                              from, kept for traceability only — nothing
+ *                              resolves or validates it)
+ *      "Check observations"  + From item (same, between Discipline and
+ *                              Observation to record)
+ *
+ *    "Read me" is ignored in both.
+ *
+ *  Any column neither pack's reader recognises by name is simply not read —
+ *  nothing here guesses at a header it was not told about. A SHEET it does
+ *  not recognise by name produces an empty list for that sheet rather than
+ *  throwing, which is what lets one pack lack "Hazards drafts" (say) without
+ *  failing the whole import.
  *
  *  Cells reading literally "(none)" or "(decide in the room)" mean empty, not
  *  literal text — see `blankAware`.
@@ -35,6 +57,22 @@
  *  outcome or compliance value, and nothing here touches the persist key, a
  *  migration, or the register itself. A check observation only ever APPENDS
  *  to the existing note.
+ *
+ *  PROVENANCE ("marked as seeded", in Sarel's own words for this task). This
+ *  app already has a `seeded?: boolean` convention — PossibleEvent,
+ *  RootCauseNote, MitigationAction, SystemAssessment — but that is the OTHER
+ *  import pathway's vocabulary (the one-off FAOR hazard-mapping desktop
+ *  script, scripts/import-faor-hazards.mjs, which writes a merge bundle for
+ *  a completely different record family and is not wired to any screen's
+ *  pill or export column). AdHocItem/Finding/Hazard — the family this module
+ *  writes — have never had a `seeded` field; their own, already-shipped
+ *  provenance marker is `importKey` below, which is what drives the
+ *  "Imported, TPJV-proposed" pill everywhere one of these records is shown
+ *  (FindingDetail, the hazards screen, the field screen) and the "Imported,
+ *  TPJV-proposed" annotation in exports.ts's walk/findings/hazards sheets.
+ *  Reusing `importKey` for this pack rather than bolting a second, different-
+ *  looking provenance flag onto these three types is the deliberate choice
+ *  here — see the task this shipped against for the full reasoning.
  *
  *  IDEMPOTENCY. Each row gets a stable key — see `computeImportKey` — carried
  *  on the record it produces (AdHocItem.importKey / Finding.importKey /
@@ -232,6 +270,18 @@ function splitList(v: string | undefined): string[] {
 export interface AdhocPackRow {
   ref: string;
   originRaw: string | null;
+  /** The "Whose note" column — a person's name ("Sarel", "Adrian"), not the
+   *  field/acsa/tpjv vocabulary `originRaw` carries. Present only in a pack
+   *  that has that column at all (absent means the pack never had it, same
+   *  as every other optional column here — not the same as the column
+   *  existing but this one cell being blank, which `blankAware` already
+   *  reads as null either way). See `resolveAdhocOrigin`. */
+  whoseNote: string | null;
+  /** The "Title" column — ad-hoc items had no title before the pack that
+   *  added this, and AdHocItem itself still has none (see the note in
+   *  `buildAdhocNote`): folded into the generated note, never into
+   *  `description`, so the source "what you found" text stays untouched. */
+  title: string | null;
   description: string;
   discipline: string | null;
   system: string | null;
@@ -242,6 +292,11 @@ export interface AdhocPackRow {
 
 export interface FindingPackRow {
   ref: string;
+  /** The "From item" column — which Ad-hoc Ref this was written up from.
+   *  Kept for traceability only (folded into the generated description —
+   *  see `buildFindingDescription`); nothing here resolves or validates it
+   *  against the Ad-hoc sheet, the way `linkedChecks`/`hazardRef` are. */
+  fromItem: string | null;
   title: string;
   discipline: string;
   system: string | null;
@@ -260,6 +315,13 @@ export interface HazardPackRow {
   disciplines: string[];
   systems: string[];
   findingRefs: string[];
+  /** HZ-/RC- references into the Hazard Screening Template Rev 02. Carried
+   *  as plain reference text onto the Hazard this becomes (see
+   *  `buildHazardNote`) — never as a validated link to anything, because
+   *  this app holds no structured template data to validate against (see
+   *  the task this shipped against). Reported, not invented: a reference
+   *  this import could not check is still imported, as text, flagged as
+   *  unverified in the same note it is written into. */
   templateLinks: string | null;
 }
 
@@ -269,6 +331,9 @@ export interface CheckObsPackRow {
    *  id is the one thing every row in it genuinely has to itself. */
   checkCode: string;
   discipline: string;
+  /** The "From item" column — see FindingPackRow.fromItem. Folded into the
+   *  appended note text; not resolved against anything. */
+  fromItem: string | null;
   observation: string;
   askOrVerify: string;
 }
@@ -282,8 +347,18 @@ export interface ObservationPack {
 }
 
 const SHEET_ADHOC = "Ad-hoc items";
+/** The CANONICAL names used only for the idempotency key below — fixed,
+ *  regardless of which of `SHEET_FINDINGS_NAMES`/`SHEET_HAZARDS_NAMES` the
+ *  workbook actually used, so the key a row gets does not depend on which
+ *  pack version it came from, only on the file's own bytes and its Ref. */
 const SHEET_FINDINGS = "Findings";
 const SHEET_HAZARDS = "Hazards";
+/** Tried in order — "Findings"/"Hazards" (ACSA's pre-visit pack) first, then
+ *  "Findings drafts"/"Hazards drafts" (TPJV's own site-observations pack):
+ *  the two sheets whose rows are still drafts to be agreed, named to say so.
+ *  See the header comment above. */
+const SHEET_FINDINGS_NAMES = [SHEET_FINDINGS, "Findings drafts"];
+const SHEET_HAZARDS_NAMES = [SHEET_HAZARDS, "Hazards drafts"];
 const SHEET_CHECK_OBS = "Check observations";
 
 /** A row with nothing at all in any column — the odd trailing blank row a
@@ -291,54 +366,92 @@ const SHEET_CHECK_OBS = "Check observations";
  *  unmapped row either. */
 const isBlankRow = (r: string[]) => r.every((c) => trimmed(c) === "");
 
+/** Maps a sheet's own header row (trimmed, as written) to its column index,
+ *  so every row-builder below reads BY NAME rather than by position. This is
+ *  what lets one parser serve two packs whose columns differ, in whichever
+ *  order either pack's author happened to put them in, without either pack
+ *  silently reading the other's columns into the wrong field. */
+type HeaderMap = Map<string, number>;
+
+function headerMap(header: string[]): HeaderMap {
+  const m: HeaderMap = new Map();
+  header.forEach((h, i) => {
+    const t = trimmed(h);
+    if (t && !m.has(t)) m.set(t, i);
+  });
+  return m;
+}
+
+/** The named column's cell, or "" if this sheet has no column by that name —
+ *  same as a blank cell, which is the honest reading for an optional column
+ *  (Title, Whose note, From item) a given pack simply does not carry. */
+function col(h: HeaderMap, row: string[], name: string): string | undefined {
+  const i = h.get(name);
+  return i === undefined ? undefined : row[i];
+}
+
 export function parseObservationPack(bytes: Uint8Array, fileName: string): ObservationPack {
   const sheets = readWorkbook(bytes);
   const byName = new Map(sheets.map((s) => [s.name, s]));
-  const dataRows = (name: string): string[][] => {
-    const s = byName.get(name);
-    if (!s) return [];
-    return s.rows.slice(1).filter((r) => !isBlankRow(r));
+  const findSheet = (names: string[]) => {
+    for (const n of names) {
+      const s = byName.get(n);
+      if (s) return s;
+    }
+    return undefined;
+  };
+  const sheetRows = (s: { rows: string[][] } | undefined): { header: HeaderMap; rows: string[][] } => {
+    if (!s || s.rows.length === 0) return { header: new Map(), rows: [] };
+    return { header: headerMap(s.rows[0]), rows: s.rows.slice(1).filter((r) => !isBlankRow(r)) };
   };
 
-  const adhoc: AdhocPackRow[] = dataRows(SHEET_ADHOC).map((r) => ({
-    ref: trimmed(r[0]),
-    originRaw: blankAware(r[1]),
-    description: trimmed(r[2]),
-    discipline: blankAware(r[3]),
-    system: blankAware(r[4]),
-    area: trimmed(r[5]),
-    outcomeRaw: blankAware(r[6]),
-    note: trimmed(r[7]),
+  const adhocSheet = sheetRows(byName.get(SHEET_ADHOC));
+  const adhoc: AdhocPackRow[] = adhocSheet.rows.map((r) => ({
+    ref: trimmed(col(adhocSheet.header, r, "Ref")),
+    originRaw: blankAware(col(adhocSheet.header, r, "Origin")),
+    whoseNote: blankAware(col(adhocSheet.header, r, "Whose note")),
+    title: blankAware(col(adhocSheet.header, r, "Title")),
+    description: trimmed(col(adhocSheet.header, r, "Description (what you found)")),
+    discipline: blankAware(col(adhocSheet.header, r, "Discipline")),
+    system: blankAware(col(adhocSheet.header, r, "Asset system")),
+    area: trimmed(col(adhocSheet.header, r, "Area")),
+    outcomeRaw: blankAware(col(adhocSheet.header, r, "Outcome")),
+    note: trimmed(col(adhocSheet.header, r, "Note")),
   }));
 
-  const findings: FindingPackRow[] = dataRows(SHEET_FINDINGS).map((r) => ({
-    ref: trimmed(r[0]),
-    title: trimmed(r[1]),
-    discipline: trimmed(r[2]),
-    system: blankAware(r[3]),
-    linkedChecks: blankAware(r[4]),
-    description: trimmed(r[5]),
-    rootCause: trimmed(r[6]),
-    mitigation: trimmed(r[7]),
-    hazardRef: blankAware(r[8]),
+  const findingsSheet = sheetRows(findSheet(SHEET_FINDINGS_NAMES));
+  const findings: FindingPackRow[] = findingsSheet.rows.map((r) => ({
+    ref: trimmed(col(findingsSheet.header, r, "Ref")),
+    fromItem: blankAware(col(findingsSheet.header, r, "From item")),
+    title: trimmed(col(findingsSheet.header, r, "Title")),
+    discipline: trimmed(col(findingsSheet.header, r, "Discipline")),
+    system: blankAware(col(findingsSheet.header, r, "Asset system")),
+    linkedChecks: blankAware(col(findingsSheet.header, r, "Linked checks")),
+    description: trimmed(col(findingsSheet.header, r, "Description")),
+    rootCause: trimmed(col(findingsSheet.header, r, "Root cause (to confirm)")),
+    mitigation: trimmed(col(findingsSheet.header, r, "Mitigation ACSA could adopt (TPJV-proposed)")),
+    hazardRef: blankAware(col(findingsSheet.header, r, "Hazard")),
   }));
 
-  const hazards: HazardPackRow[] = dataRows(SHEET_HAZARDS).map((r) => ({
-    ref: trimmed(r[0]),
-    event: trimmed(r[1]),
-    description: trimmed(r[2]),
-    why: trimmed(r[3]),
-    disciplines: splitList(r[4]),
-    systems: splitList(r[5]),
-    findingRefs: splitList(r[6]),
-    templateLinks: blankAware(r[7]),
+  const hazardsSheet = sheetRows(findSheet(SHEET_HAZARDS_NAMES));
+  const hazards: HazardPackRow[] = hazardsSheet.rows.map((r) => ({
+    ref: trimmed(col(hazardsSheet.header, r, "Ref")),
+    event: trimmed(col(hazardsSheet.header, r, "Event (under 15 words)")),
+    description: trimmed(col(hazardsSheet.header, r, "Description")),
+    why: trimmed(col(hazardsSheet.header, r, "Why (control and what it protects)")),
+    disciplines: splitList(col(hazardsSheet.header, r, "Disciplines")),
+    systems: splitList(col(hazardsSheet.header, r, "Systems")),
+    findingRefs: splitList(col(hazardsSheet.header, r, "Findings")),
+    templateLinks: blankAware(col(hazardsSheet.header, r, "Template links")),
   }));
 
-  const checkObservations: CheckObsPackRow[] = dataRows(SHEET_CHECK_OBS).map((r) => ({
-    checkCode: trimmed(r[0]),
-    discipline: trimmed(r[1]),
-    observation: trimmed(r[2]),
-    askOrVerify: trimmed(r[3]),
+  const checkObsSheet = sheetRows(byName.get(SHEET_CHECK_OBS));
+  const checkObservations: CheckObsPackRow[] = checkObsSheet.rows.map((r) => ({
+    checkCode: trimmed(col(checkObsSheet.header, r, "Check")),
+    discipline: trimmed(col(checkObsSheet.header, r, "Discipline")),
+    fromItem: blankAware(col(checkObsSheet.header, r, "From item")),
+    observation: trimmed(col(checkObsSheet.header, r, "Observation to record")),
+    askOrVerify: trimmed(col(checkObsSheet.header, r, "What to ask or verify")),
   }));
 
   return { fileName, adhoc, findings, hazards, checkObservations };
@@ -377,7 +490,8 @@ export function buildCheckObsNote(pack: ObservationPack, row: CheckObsPackRow, k
   const body = row.askOrVerify
     ? `${row.observation} What to ask/verify: ${row.askOrVerify}`
     : row.observation;
-  return `Imported from observation pack ${pack.fileName}, ref ${row.checkCode} ${checkObsMarker(key)}: ${body}`;
+  const from = row.fromItem ? ` From item: ${row.fromItem}.` : "";
+  return `Imported from observation pack ${pack.fileName}, ref ${row.checkCode} ${checkObsMarker(key)}:${from} ${body}`;
 }
 
 /* ------------------------------------------------------------ the plan */
@@ -386,9 +500,83 @@ export type AdhocOrigin = AdHocItem["origin"];
 
 const ADHOC_ORIGINS: ReadonlySet<string> = new Set(["field", "acsa", "tpjv"]);
 
-function resolveAdhocOrigin(raw: string | null): AdhocOrigin {
+/** "Sarel"/"Adrian" (the "Whose note" column) spelled out the way the source
+ *  text elsewhere in the same pack already spells them — "Adrian Barnes" is
+ *  verbatim from the pack's own Note column; "Sarel" has no surname anywhere
+ *  in the pack, so none is invented here. Anything else in "Whose note" this
+ *  app has not been told about is carried through exactly as written rather
+ *  than guessed at — same principle as `resolveAdhocOrigin`. */
+const WHOSE_NOTE_NAMES: Record<string, string> = {
+  adrian: "Adrian Barnes",
+  sarel: "Sarel",
+};
+
+function displayWhoseNote(whoseNote: string): string {
+  return WHOSE_NOTE_NAMES[whoseNote.toLowerCase()] ?? whoseNote;
+}
+
+/** `originRaw` is this app's own three-way vocabulary ("field"/"acsa"/
+ *  "tpjv" — ACSA's pre-visit pack states it explicitly per row) and is tried
+ *  first so that pack's behaviour is exactly unchanged. `whoseNote` is a
+ *  DIFFERENT kind of signal — a person's name, from a pack that records who
+ *  wrote the note up rather than which of the app's three origin buckets it
+ *  belongs in. Both named people in this pack (Sarel, Adrian Barnes) are
+ *  TPJV's own auditors — the Read me sheet says so in both cases — so a row
+ *  with a "Whose note" value and no recognised `originRaw` resolves to
+ *  "tpjv" ("Raised by TPJV"), never the default below, which stays "field"
+ *  only for a row with NEITHER signal — unchanged from the behaviour
+ *  tests/import-pack.test.mjs already pins for ACSA's pack (a blank Origin,
+ *  or one this app does not recognise, still defaults to "field" there,
+ *  because that pack never carries a "Whose note" column at all). */
+function resolveAdhocOrigin(raw: string | null, whoseNote: string | null): AdhocOrigin {
   const v = (raw ?? "").toLowerCase();
-  return ADHOC_ORIGINS.has(v) ? (v as AdhocOrigin) : "field";
+  if (ADHOC_ORIGINS.has(v)) return v as AdhocOrigin;
+  if (whoseNote) return "tpjv";
+  return "field";
+}
+
+/** The note AdHocItem actually stores — "Imported from observation pack …"
+ *  ahead of the sheet's own Note text verbatim. Title and "who wrote it up"
+ *  are real fields now (AdHocItem.title / AdHocItem.raisedBy — see
+ *  buildImportPlan/applyImportPlan), not folded into this text; this stays
+ *  responsible only for the sheet's own Note column, untouched. */
+function buildAdhocNote(pack: ObservationPack, row: AdhocPackRow): string {
+  const lead = `Imported from observation pack ${pack.fileName}, ref ${row.ref}.`;
+  return row.note ? `${lead} ${row.note}` : lead;
+}
+
+/** The description Finding actually stores — the sheet's own Description
+ *  verbatim, then the sheet's own "Linked checks" text as a plain,
+ *  unstructured line (nothing here resolves a check code to a real id — see
+ *  resolveCheckId, which only runs for Check observations, not Findings).
+ *  "From item" is NOT folded in here any more — see Finding.fromItemId and
+ *  PlannedFinding.fromItemDangling — because unlike "Linked checks" (free
+ *  text by design, several codes in one cell) it names exactly one AdHocItem
+ *  this same pack also writes, and this app's own convention for "one record
+ *  names another" is a real id field (Hazard.findingIds, AdHocItem.findingId),
+ *  not a sentence a screen has to re-parse. */
+function buildFindingDescription(row: FindingPackRow): string {
+  const parts = [row.description];
+  if (row.linkedChecks) parts.push(`Linked checks: ${row.linkedChecks}`);
+  return parts.join("\n\n");
+}
+
+/** The note Hazard actually stores for an imported hazard — "" for ACSA's
+ *  pre-visit pack (it never carried Template links, and applyImportPlan used
+ *  to hard-code "" here, which this preserves when there is nothing to add)
+ *  plus, when the pack names HZ-/RC- references, that text verbatim with an
+ *  explicit caveat: this app holds no structured Hazard Screening Template
+ *  data to check them against (see the task this shipped against and
+ *  HazardPackRow.templateLinks's own comment), so they are carried as plain
+ *  reference text, flagged as unverified, rather than as a validated link to
+ *  anything or silently dropped. */
+function buildHazardNote(pack: ObservationPack, row: HazardPackRow): string {
+  if (!row.templateLinks) return "";
+  return (
+    `Imported from observation pack ${pack.fileName}, ref ${row.ref}. ` +
+    `Template links (Hazard Screening Template Rev 02): ${row.templateLinks} — ` +
+    `not verified against template data; this app holds no structured copy of that template to check them against.`
+  );
 }
 
 export interface PlannedAdhoc {
@@ -397,6 +585,11 @@ export interface PlannedAdhoc {
   alreadyImported: boolean;
   origin: AdhocOrigin;
   note: string;
+  /** Set when `alreadyImported` is true — the id of the AdHocItem this file
+   *  already created, same reason as PlannedFinding.existingId: a Finding
+   *  whose "From item" column names this row can still be linked correctly
+   *  on a second import even though this row itself is not written again. */
+  existingId: string | null;
 }
 
 export interface PlannedFinding {
@@ -410,6 +603,29 @@ export interface PlannedFinding {
    *  can still be linked correctly on a second import even though this row
    *  itself is not written again. */
   existingId: string | null;
+  /** This finding's own "Hazard" column (row.hazardRef), checked against
+   *  THIS SAME PACK's own Hazards sheet — never against anything stored,
+   *  because a hazard raised from this row does not exist yet on a first
+   *  import. Exactly one of three shapes, by design (see
+   *  tests/ortia-v3-pack.test.mjs): `row.hazardRef` naming a Ref the
+   *  Hazards sheet actually has, `null` (the sheet wrote "(none)" or left
+   *  it blank), or a Ref the Hazards sheet does NOT have — reported as
+   *  dangling rather than written as if it resolved. Informational only:
+   *  nothing here changes which Finding gets written, or which Hazard's
+   *  `findingIds` includes it — that is still driven by the Hazards
+   *  sheet's OWN "Findings" column (`PlannedHazard.resolvedFindingRefs`),
+   *  the direction applyImportPlan actually writes in. The two columns
+   *  agree in every row this shipped against; this field is what lets a
+   *  pack where they stop agreeing be caught rather than assumed. */
+  hazardRefDangling: boolean;
+  /** This finding's "From item" column, checked against THIS SAME PACK's own
+   *  Ad-hoc items sheet (not against anything stored, same reasoning as
+   *  hazardRefDangling) — true when the pack names a "From item" Ref its own
+   *  Ad-hoc items sheet does not have. Resolving the Ref to a real AdHocItem
+   *  id happens in applyImportPlan, once ad-hoc items have actually been
+   *  written (see Finding.fromItemId); this flag is set here, at plan time,
+   *  purely from the two sheets' own Refs. */
+  fromItemDangling: boolean;
 }
 
 export interface PlannedHazard {
@@ -424,6 +640,8 @@ export interface PlannedHazard {
    *  reasoning as an unmapped check id. */
   resolvedFindingRefs: string[];
   unresolvedFindingRefs: string[];
+  /** See `buildHazardNote` — "" when the sheet named no Template links. */
+  note: string;
 }
 
 export interface PlannedCheckObs {
@@ -508,25 +726,24 @@ export function buildImportPlan(
   const findingKeys = new Set(ctx.existingFindings.map((f) => f.importKey).filter(Boolean));
   const hazardKeys = new Set(ctx.existingHazards.map((h) => h.importKey).filter(Boolean));
 
+  const existingAdhocById = new Map(ctx.existingAdhoc.map((a) => [a.importKey, a.id]));
   const adhoc: PlannedAdhoc[] = pack.adhoc.map((row) => {
     const importKey = key(SHEET_ADHOC, row.ref);
-    const note = row.note
-      ? `Imported from observation pack ${pack.fileName}, ref ${row.ref}. ${row.note}`
-      : `Imported from observation pack ${pack.fileName}, ref ${row.ref}.`;
     return {
       row,
       importKey,
       alreadyImported: adhocKeys.has(importKey),
-      origin: resolveAdhocOrigin(row.originRaw),
-      note,
+      origin: resolveAdhocOrigin(row.originRaw, row.whoseNote),
+      note: buildAdhocNote(pack, row),
+      existingId: existingAdhocById.get(importKey) ?? null,
     };
   });
 
   const existingFindingById = new Map(ctx.existingFindings.map((f) => [f.importKey, f.id]));
+  const hazardRefSet = new Set(pack.hazards.map((h) => h.ref));
+  const adhocRefSet = new Set(pack.adhoc.map((a) => a.ref));
   const findings: PlannedFinding[] = pack.findings.map((row) => {
     const importKey = key(SHEET_FINDINGS, row.ref);
-    const descriptionParts = [row.description];
-    if (row.linkedChecks) descriptionParts.push(`Linked checks: ${row.linkedChecks}`);
     const actions: MitigationAction[] = row.mitigation
       ? [
           {
@@ -546,9 +763,11 @@ export function buildImportPlan(
       row,
       importKey,
       alreadyImported: findingKeys.has(importKey),
-      description: descriptionParts.join("\n\n"),
+      description: buildFindingDescription(row),
       actions,
       existingId: existingFindingById.get(importKey) ?? null,
+      hazardRefDangling: !!row.hazardRef && !hazardRefSet.has(row.hazardRef),
+      fromItemDangling: !!row.fromItem && !adhocRefSet.has(row.fromItem),
     };
   });
 
@@ -563,11 +782,31 @@ export function buildImportPlan(
       alreadyImported: hazardKeys.has(importKey),
       resolvedFindingRefs,
       unresolvedFindingRefs,
+      note: buildHazardNote(pack, row),
     };
   });
 
   const checkObservations: PlannedCheckObs[] = pack.checkObservations.map((row) => {
-    const importKey = key(SHEET_CHECK_OBS, row.checkCode);
+    /* ACSA's pre-visit pack never repeated a Check code — one row per check,
+     *  so the Check code alone was a safe, unique ref for the idempotency
+     *  key. TPJV's own pack genuinely does repeat one: BFM-004 carries three
+     *  SEPARATE observations here (from W5/OBS-ORT-01, W6/OBS-ORT-02, W7/
+     *  OBS-ORT-03), each real text a person needs to see, not a duplicate of
+     *  the others — 24 distinct Check codes across these 35 rows, 8 of them
+     *  repeated. Keying on the Check code alone would give those three rows
+     *  the SAME key and the SAME marker, so "already imported" could no
+     *  longer tell them apart: `already` is one `.includes(marker)` test
+     *  against the check's single note, so once ANY ONE of the three is
+     *  written, all three would read as already-imported, even one whose
+     *  own text a person had since edited or removed by hand — this app's
+     *  own "nothing a human typed gets silently skipped" guarantee failing
+     *  silently in exactly the case it exists for. "From item" (present
+     *  only on a pack new enough to repeat a Check at all) disambiguates
+     *  them, one key and one marker per row; a pack with no "From item"
+     *  column computes exactly the ref it always did, so an importKey
+     *  already written from ACSA's pack is untouched by this. */
+    const ref = row.fromItem ? `${row.checkCode}|${row.fromItem}` : row.checkCode;
+    const importKey = key(SHEET_CHECK_OBS, ref);
     const resolvedCheckId = resolveCheckId(row.checkCode, ctx.checks);
     const note = buildCheckObsNote(pack, row, importKey);
     const already =
@@ -653,21 +892,28 @@ export function applyImportPlan(plan: ImportPlan, actions: ImportActions): Apply
   };
   if (plan.blockedReason) return result;
 
+  const adhocIdByRef = new Map<string, string>();
   for (const a of plan.adhoc) {
-    if (a.alreadyImported) continue;
-    actions.addAdhoc({
+    if (a.alreadyImported) {
+      if (a.existingId) adhocIdByRef.set(a.row.ref, a.existingId);
+      continue;
+    }
+    const id = actions.addAdhoc({
       origin: a.origin,
       description: a.row.description,
       discipline: a.row.discipline,
       system: a.row.system,
       area: a.row.area,
       outcome: null,
+      title: a.row.title ?? undefined,
+      raisedBy: a.row.whoseNote ? displayWhoseNote(a.row.whoseNote) : undefined,
       note: a.note,
       attachments: [],
       findingId: null,
       createdBy: actions.auditor,
       importKey: a.importKey,
     });
+    adhocIdByRef.set(a.row.ref, id);
     result.adhocWritten++;
   }
 
@@ -698,6 +944,7 @@ export function applyImportPlan(plan: ImportPlan, actions: ImportActions): Apply
       adHoc: true,
       createdBy: actions.auditor,
       importKey: f.importKey,
+      fromItemId: f.row.fromItem ? adhocIdByRef.get(f.row.fromItem) ?? null : null,
     });
     findingIdByRef.set(f.row.ref, id);
     result.findingsWritten++;
@@ -726,7 +973,7 @@ export function applyImportPlan(plan: ImportPlan, actions: ImportActions): Apply
       ermConfirmed: false,
       ermLikelihoodAssumed: false,
       origin: "tpjv",
-      note: "",
+      note: h.note,
       occurrence: "",
       ratingRationale: "",
       progress: [],
