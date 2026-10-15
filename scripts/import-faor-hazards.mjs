@@ -11,12 +11,22 @@
  *  (27 asset systems, Civil and Building & Facilities, every asset-system
  *  name already verified against the FAOR register — see the PR body).
  *
- *  WHAT THIS WRITES, per asset system: severity, likelihood and a rationale
- *  as a SUGGESTION ONLY — `ratingConfirmed: false`, exactly like every other
- *  rating in this app until a person agrees it on the matrix. Every
- *  hazardous event, root cause and mitigating action is marked
- *  `seeded: true` so it reads as distinct from something an auditor typed in
- *  the field — see PossibleEvent.seeded's own doc comment in types.ts.
+ *  WHAT THIS WRITES, per asset system — ON SAREL'S OWN EXPLICIT INSTRUCTION
+ *  (15 Oct 2026, given for the second hazard-mapping wave and applied here
+ *  too for the same reason: these 27 ratings are no more a draft than that
+ *  wave's 48 were): severity, likelihood and a rationale as THE FINAL
+ *  SUBMISSION, not a suggestion — `ratingConfirmed: true`. Every hazardous
+ *  event, root cause and mitigating action is still marked `seeded: true` —
+ *  that is provenance (it genuinely came from a desktop import, not someone
+ *  typing on the walk), a separate fact from whether the rating is agreed,
+ *  unaffected by this. The spreadsheet's own ratingRationale text says
+ *  "Suggested by TPJV for the rating session; not agreed with ACSA." on
+ *  every row, because it was written before that instruction — see
+ *  `finalizeRationale` below, which strips exactly that one sentence (and
+ *  only that; the actual reasoning for each number stays) so the stored
+ *  rationale reads as a final position, not a draft one next to a flag that
+ *  says it is final. See scripts/import-faor-hazards-other-disciplines.mjs
+ *  for the identical correction on the second wave.
  *
  *  WHAT THIS DOES NOT WRITE: the spreadsheet's own Cell/Rating text. This
  *  app never stores a band — every screen derives it from severity and
@@ -53,6 +63,18 @@ function flag(args, name, fallback) {
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10).toUpperCase().slice(0, 5);
+
+/** Strips exactly the one clause this spreadsheet's own ratingRationale text
+ *  uses to say "this is not yet agreed" — nothing else. Verified against all
+ *  27 rows before this was written: every row ends with this exact sentence,
+ *  stripping leaves no "not agreed"/"Suggested" fragment behind, and no row
+ *  is emptied. A row that stops matching exactly (the source file changes)
+ *  is left with its own text unstripped rather than partially mangled. */
+function finalizeRationale(text) {
+  return text
+    .replace(/\s*Suggested by TPJV for the rating session; not agreed with ACSA\.\s*$/, "")
+    .trim();
+}
 
 function buildSystemAssessment(row, now) {
   const key = `${row.discipline}|${row.assetSystem}`;
@@ -107,8 +129,8 @@ function buildSystemAssessment(row, now) {
       system: row.assetSystem,
       severity: row.severity,
       likelihood: row.likelihood,
-      ratingConfirmed: false,
-      ratingRationale: row.ratingRationale ?? "",
+      ratingConfirmed: true,
+      ratingRationale: row.ratingRationale ? finalizeRationale(row.ratingRationale) : "",
       directionOfRisk: row.directionOfRisk ?? "",
       events,
       note: "",
