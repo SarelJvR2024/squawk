@@ -262,6 +262,7 @@ function emptyResponse(checkId: string): Response {
     evidencePendingNote: "",
     evidenceProves: "",
     evidenceVerdict: null,
+    siteInspection: null,
     combinedComment: "",
     combinedCommentAt: null,
     captured: false,
