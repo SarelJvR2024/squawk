@@ -88,9 +88,21 @@ const resetBoundaryKey = (entity: string, visit: string) => `squawk-reset-bounda
  *  and resend its full backlog — safe, because the server only ever
  *  accepts a row if it is newer than what it already has (squawk_push's
  *  `where excluded.updated_at > t.updated_at`), so re-sending unchanged
- *  rows is a no-op. */
+ *  rows is a no-op.
+ *
+ *  BUMPED AGAIN 16 October 2026, same reasoning, a different road there:
+ *  before nextPushWatermark existed (syncWatermark.ts), sync() advanced the
+ *  watermark to cover every record it SENT on a bare 200 OK, never checking
+ *  the record store actually confirmed holding it. A device that pushed a
+ *  large batch where only some records were confirmed had its watermark
+ *  advance past the unconfirmed ones anyway — exactly the asset-system
+ *  import that prompted that fix, stuck at 2 of 48 systems confirmed. That
+ *  fix stops it happening again; it does not repair a watermark a device
+ *  had already advanced wrongly before the fix shipped. Bumping here, same
+ *  as before, rewinds every device once so the backlog it's been silently
+ *  failing to resend finally goes out. */
 const pushResyncKey = (entity: string, visit: string) => `squawk-push-resync:${entity}/${visit}`;
-const RESYNC_VERSION = "2026-10-14a";
+const RESYNC_VERSION = "2026-10-16a";
 
 /** Rows are what travels: one per record, with the device clock that stamped it. */
 export interface SharedRow {
