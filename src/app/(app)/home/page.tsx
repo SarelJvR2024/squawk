@@ -56,7 +56,7 @@ import {
 } from "@/lib/programme";
 import { needsDesk, needsField } from "@/lib/verification";
 import { portalIdFor } from "@/lib/sites";
-import { Btn, Dot, Empty, Panel, Pill, Track } from "@/components/ui/primitives";
+import { Btn, Dot, Empty, Pill, Track } from "@/components/ui/primitives";
 import {
   IconCamera,
   IconClipboard,
@@ -398,9 +398,19 @@ export default function HomePage() {
                 </b>
               </div>
               <Track pct={checks.length ? (complete / checks.length) * 100 : 0} />
-              <p className="mt-2 text-[11px]" style={{ color: "var(--ink-3)" }}>
-                Complete means every mode the register declares for a check has been answered — a
-                document read <em>and</em> the asset seen, where it asks for both.
+              {/* THE FULL EXPLANATION MOVED TO A TOOLTIP, not off the page —
+                  Sarel: "the whole app is very busy... review what is
+                  actually necessary to display." What a document-and-site
+                  check means is real information, worth having, and not
+                  something read twice a visit: it is a definition, which is
+                  exactly what a title attribute is for. The short form stays
+                  on the page because "complete" is ambiguous without it. */}
+              <p
+                className="mt-2 cursor-help text-[11px] underline decoration-dotted underline-offset-2"
+                style={{ color: "var(--ink-3)" }}
+                title="Complete means every mode the register declares for a check has been answered — a document read and the asset seen, where it asks for both."
+              >
+                Document and site evidence, where the check asks for both
               </p>
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -563,7 +573,16 @@ export default function HomePage() {
             <h2 id="home-year" className="text-[12.5px] font-bold">
               Round 1 — the audit calendar
             </h2>
-            <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+            {/* "Started" explained once, on hover, rather than as a standing
+                paragraph under the strip every time the page loads — Sarel:
+                "review that to see what is actually necessary to display to
+                the user." The fact itself (started = holds captured work,
+                not a flag) is still here for anyone who wants it. */}
+            <span
+              className="cursor-help font-mono text-[9px]"
+              style={{ color: "var(--ink-4)" }}
+              title="Started means an audit at that site holds captured work — not a flag anybody has to remember to set."
+            >
               {calendar.length} SITES ·{" "}
               {auditWindow(calendar[0].auditFrom, calendar[calendar.length - 1].auditTo)} ·{" "}
               {startedEntities.size} STARTED
@@ -654,60 +673,62 @@ export default function HomePage() {
               </span>
             )}
           </div>
-          <p className="mt-2.5 text-[11px]" style={{ color: "var(--ink-3)" }}>
-            Started means an audit at that site holds captured work — not a flag anybody has to
-            remember to set. Windows and sites are data: they come from the programme file, so the
-            eleventh airport is a data change.
-          </p>
         </section>
 
-        {/* ----------------------------------------------------- the flow */}
+        {/* ----------------------------------------------------- the flow
+
+            ONE ROW, NOT EIGHT CARDS — Sarel: "the whole app is very busy...
+            review what is actually necessary to display." This used to
+            restate the entire top navigation as a grid of cards, each with
+            its own paragraph and its own printed route — the same seven
+            destinations the masthead already shows, in the same order,
+            explained a second time on every visit to this screen. The
+            masthead is permanent furniture; this was a page section doing
+            the same job in more words.
+
+            What survives is the one thing the nav bar cannot say: the
+            ORDER. A numbered strip of plain links does that in a line
+            anybody can read in a glance, and every description that used to
+            be a paragraph is still here — on hover/long-press, where it is
+            worth having without costing a page's worth of space. Pre-flight
+            keeps its place at the end, same as before. */}
         <section aria-labelledby="home-flow" className={card} style={cardStyle}>
-          <h2 id="home-flow" className="mb-[3px] text-[12.5px] font-bold">
+          <h2 id="home-flow" className="mb-[9px] text-[12.5px] font-bold">
             How the work flows
           </h2>
-          <p className="mb-3 text-[11px]" style={{ color: "var(--ink-3)" }}>
-            Seven screens, in the order an audit uses them. Every one of them works offline.
-          </p>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="flex flex-wrap items-center gap-[6px]">
             {FLOW.map((s, i) => {
               const Icon = s.icon;
               return (
-                <Link
-                  key={s.href}
-                  href={s.href}
-                  className="flex flex-col gap-[6px] rounded-[11px] border px-[12px] py-[11px] no-underline transition-[var(--t)] hover:-translate-y-[1px]"
-                  style={{ background: "var(--sunken)", borderColor: "var(--line)", color: "var(--ink)" }}
-                >
-                  <span className="flex items-center gap-2">
-                    <span
-                      className="tnum font-mono text-[9px] font-semibold"
-                      style={{ color: "var(--ink-4)" }}
-                    >
+                <span key={s.href} className="flex items-center gap-[6px]">
+                  <Link
+                    href={s.href}
+                    title={s.line}
+                    className="flex items-center gap-[6px] rounded-full border px-[11px] py-[7px] no-underline transition-[var(--t)] hover:-translate-y-[1px]"
+                    style={{ background: "var(--sunken)", borderColor: "var(--line)", color: "var(--ink)" }}
+                  >
+                    <span className="tnum font-mono text-[9px] font-semibold" style={{ color: "var(--ink-4)" }}>
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <Icon width={13} height={13} style={{ color: "var(--acc)" }} />
-                    <b className="font-display text-[12px] font-semibold">{s.label}</b>
-                  </span>
-                  <span className="text-[10.5px] leading-[1.45]" style={{ color: "var(--ink-2)" }}>
-                    {s.line}
-                  </span>
-                  <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                    {s.href}
-                  </span>
-                </Link>
+                    <b className="font-display text-[11.5px] font-semibold">{s.label}</b>
+                  </Link>
+                  {i < FLOW.length - 1 && (
+                    <IconRight width={11} height={11} aria-hidden style={{ color: "var(--ink-4)" }} />
+                  )}
+                </span>
               );
             })}
-            <Panel className="flex flex-col justify-center gap-[5px]">
-              <span className="label-xs">Before you go</span>
-              <Link href="/preflight" className="font-display text-[12px] font-semibold no-underline" style={{ color: "var(--acc)" }}>
-                Pre-flight →
-              </Link>
-              <span className="text-[10.5px] leading-[1.45]" style={{ color: "var(--ink-2)" }}>
-                Microphone, camera, storage and the offline cache, checked on this device before
-                anyone walks onto an apron.
-              </span>
-            </Panel>
+            <span className="mx-[2px] h-[20px] w-px shrink-0" style={{ background: "var(--line-2)" }} aria-hidden />
+            <Link
+              href="/preflight"
+              title="Microphone, camera, storage and the offline cache, checked on this device before anyone walks onto an apron."
+              className="flex items-center gap-[6px] rounded-full border px-[11px] py-[7px] no-underline transition-[var(--t)] hover:-translate-y-[1px]"
+              style={{ background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }}
+            >
+              <b className="font-display text-[11.5px] font-semibold">Pre-flight</b>
+              <span className="text-[10px]" style={{ color: "var(--acc)" }}>before you go</span>
+            </Link>
           </div>
         </section>
       </div>
