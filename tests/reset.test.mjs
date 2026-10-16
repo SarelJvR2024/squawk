@@ -51,9 +51,15 @@ check(
   ""
 );
 
+/* THE FRAGMENT WRAPPER IS GONE, not the gate — the More menu's grouping
+   pass (Sarel: "when you click on more, that list is very long") gave
+   Reset its own named MoreGroup instead of a bare <> holding a rule and a
+   MoreItem, so the single MoreGroup child needs no fragment any more. The
+   role-and-flag condition guarding it is unchanged; only what it renders
+   changed shape. */
 check(
   "ACSA cannot reset the audit",
-  /\{role !== "acsa" && RESET_ENABLED && \(\s*\n?\s*<>[\s\S]{0,900}?setResetting\(true\)/.test(shell),
+  /\{role !== "acsa" && RESET_ENABLED && \([\s\S]{0,900}?setResetting\(true\)/.test(shell),
   "their role is read-only everywhere else"
 );
 
