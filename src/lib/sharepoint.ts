@@ -707,6 +707,20 @@ export function belongsToSite(title: string, siteCode: string): boolean {
   return title.toLowerCase().startsWith(`${siteCode}-`.toLowerCase());
 }
 
+/** AN "INTERNAL WORKING AREA" ITEM NEVER SYNCS TO THE PORTAL — see
+ *  AdHocItem.internal's own note in types.ts. Same rule, same name, as
+ *  exports.ts's own externallyVisible — kept as a small duplicate here
+ *  rather than a shared import because the two files do not otherwise
+ *  import from each other and a single boolean is not worth starting to.
+ *
+ *  ONCE PROMOTED (`findingId` set) IT STOPS BEING EXCLUDED: hazardPhotoRefs
+ *  below already walks `adhoc` by `findingId` regardless of this flag, and a
+ *  promoted internal item's evidence has to keep reaching the portal through
+ *  it exactly the way a promoted (non-internal) walk item's always has. */
+function externallyVisible(a: AdHocItem): boolean {
+  return !a.internal || !!a.findingId;
+}
+
 /* --------------------------------------------------------------- the plan */
 
 export interface SyncInput {
@@ -1581,6 +1595,11 @@ export function buildPlan(
    *  hazard. */
   let excludedWalkPhotos = 0;
   for (const item of x.adhoc ?? []) {
+    /* NOT VISIBLE EXTERNALLY, so not uploaded here at all — see
+       externallyVisible's own note just above. Skipped ahead of the
+       discipline hold-back check below: an internal item's photographs are
+       not "held back this run", they are simply never part of this sync. */
+    if (!externallyVisible(item)) continue;
     /* HELD BACK, NOT LOST. See SyncInput.excludedDisciplines — the same rule
        the register path applies. This loop was never checking it at all: a
        walk item in a discipline the auditor held back from this run still
