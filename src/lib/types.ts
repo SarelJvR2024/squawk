@@ -1156,10 +1156,24 @@ export interface SystemAssessment {
 export interface Verification {
   pf: string;
   outcome: VerificationOutcome | null;
+  /** EVIDENCE RECEIVED — what was actually produced to support closure. The
+   *  name is kept even though a second field exists now, because every export
+   *  and every earlier record already reads this as "what proves it was
+   *  fixed"; renaming it would be a migration for no gain. */
   evidence: string;
   attachments: Attachment[];
   verifiedBy: string;
   verifiedAt: number | null;
+  /** EVIDENCE REQUESTED — the other half of the same question, asked but not
+   *  yet answered. Sarel: "'is evidence of closure' — where do you put in
+   *  the evidence which you specifically request for closure? Both sections
+   *  required." `evidence` above is what has been received; this is what was
+   *  asked for, so the two read as a pair — what's outstanding against what's
+   *  in hand — rather than one box doing both jobs.
+   *
+   *  Optional and absent-means-empty, same as `action`/`nextStep` below — a
+   *  record written before this existed simply has none asked for yet. */
+  evidenceRequested?: string;
   /** What must still happen, when the outcome is anything but Closed.
    *
    *  Recorded against the CARRIED finding rather than raised as a new one, so
@@ -1169,6 +1183,20 @@ export interface Verification {
   /** Progress at this visit. The timeline across visits is assembled by
    *  historyFor() in carryforward.ts, which reads every visit's copy. */
   progress?: ProgressNote[];
+  /** THE ACSA DISCUSSION LOG — a SEPARATE dated, append-only log from
+   *  `progress`, for the conversation itself rather than what moved.
+   *
+   *  Sarel: "can a section be included to capture 'ACSA discussion log_with
+   *  date'… to park discussion notes so it is not lost? I put a note in the
+   *  'next step' section and it doesn't make sense there." `nextStep` is a
+   *  single current answer that gets overwritten; a discussion with ACSA is a
+   *  series of dated remarks nobody should have to choose one of to keep.
+   *
+   *  Exact same shape as `progress` — ProgressNote — rather than a new type,
+   *  so the mechanism (addDiscussionNote, mirroring addProgress) and the
+   *  merge (unionProgress, the same append-only-log union) are both already
+   *  proven correct for this. Absent-means-empty, same as `progress`. */
+  discussionLog?: ProgressNote[];
   /** WHAT HAPPENS NEXT, as distinct from `action`.
    *
    *  `action` is the remediation — what has to be done to fix the thing. This
@@ -1180,6 +1208,23 @@ export interface Verification {
    *
    *  Optional and absent-means-empty — no persist version has to move. */
   nextStep?: string;
+  /** EVIDENCE FOR REVIEW/CLOSURE — PENDING, on the Follow-up item itself.
+   *
+   *  Sarel: "under 'Verification'… can we have a block 'Evidence For
+   *  Review/Closure_Pending'. Cannot use the 'Evidence pending' tab under the
+   *  'Checks' workflow as it will relate to present 'Checks' and not 'Follow
+   *  Up'." DELIBERATELY SEPARATE from Response.evidencePending — that flag is
+   *  about THIS visit's own check-point answer and is gated to `compliance
+   *  === "C"` by setCompliance; this one is about whether the proof a CARRIED
+   *  finding is waiting on has arrived, which is a different question asked
+   *  on a different screen about a different record. Written through
+   *  patchVerification like every other field here — never through
+   *  setCompliance — so the two can never collide.
+   *
+   *  Optional and absent-means-false, same shape as every other flag on this
+   *  record: a verification recorded before this existed simply has not been
+   *  marked pending. */
+  evidencePending?: boolean;
   /** The hazardous events this finding could lead to, each with its own
    *  likelihood. See PossibleEvent. Absent-means-empty. */
   possibleEvents?: PossibleEvent[];

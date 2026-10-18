@@ -46,7 +46,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `crosswalk.test.mjs` | no | 13 |
 | `faor-import.test.mjs` | no | 28 |
 | `faor-import-other-disciplines.test.mjs` | no | 26 |
-| `sync-coverage.test.mjs` | no | 22 |
+| `sync-coverage.test.mjs` | no | 24 |
 | `review.test.mjs` | no | 33 |
 | `reviewcompliance.test.mjs` | no | 7 |
 | `syncwatermark.test.mjs` | no | 14 |
@@ -57,7 +57,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `formssync.test.mjs` | no | 16 |
 | `completion.test.mjs` | no | 21 |
 | `location.test.mjs` | no | 48 |
-| `followup.test.mjs` | no | 62 |
+| `followup.test.mjs` | no | 71 |
 | `systems.test.mjs` | no | 98 |
 | `register-review.test.mjs` | no | 24 |
 | `reports.test.mjs` | no | 22 |
@@ -85,7 +85,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `checkscreen.test.mjs` | no | 54 |
 | `checksfilter.test.mjs` | no | 3 |
 | `dataloss.test.mjs` | no | 17 |
-| `merge.test.mjs` | no | 55 |
+| `merge.test.mjs` | no | 58 |
 | `figures.test.mjs` | no | 7 |
 | `fieldacsatab.test.mjs` | no | 15 |
 | `home.test.mjs` | no | 58 |
@@ -113,7 +113,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,262 assertions in total**, every count above verified by running the suite,
+**3,276 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —

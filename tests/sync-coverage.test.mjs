@@ -159,13 +159,24 @@ const CARRIERS = [
   ["a site day's diary-entry attachments", "updateDiaryEntryAttachment"],
   ["evidence-log attachments", "updateEvidenceAttachment"],
   ["incident-report attachments", "updateIncidentAttachment"],
+  ["a Verification's own attachments", "updateVerificationAttachment"],
 ];
 for (const [label, fn] of CARRIERS) {
   check(`the upload queue scans ${label}`, sync.includes(fn));
 }
+/* 18 October 2026: the Follow-up screen now writes Verification.attachments
+   (Sarel: "upload 'verification' photo's or information for closure"), so
+   this is the eighth carrier in the loop rather than the one deliberately
+   left out — pinned here so the next person reads the history rather than
+   assuming it is still unwired. */
 check(
-  "Verification.attachments is left out deliberately, not forgotten",
-  /nothing in the app ever writes/.test(sync)
+  "the comment says WHEN Verification joined the loop, not that it never would",
+  /The Follow-up screen[\s\S]{0,12}now does/.test(sync),
+  "the eighth-carrier history has to be readable from the comment, not just from git blame"
+);
+check(
+  "verifications are scanned by pf, same shape as the walk's own items by id",
+  /for \(const \[pf, v\] of Object\.entries\(d\?\.verifications \?\? \{\}\)\)/.test(sync)
 );
 check(
   "the render-time count and the actual upload loop share one collector — can't drift apart again",
