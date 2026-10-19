@@ -514,6 +514,7 @@ check(
 /* ---- 6b · multiple hazardous events, pulled through to the HIRA screen --- */
 
 const hazardsPage = read("src", "app", "(app)", "hazards", "page.tsx");
+const hazardPromotion = read("src", "lib", "hazardPromotion.ts");
 const carryforward = read("src", "lib", "carryforward.ts");
 
 check(
@@ -606,19 +607,29 @@ check(
   "an auditor who has recorded an event but raised no finding and no hazard yet must still see it, not a screen that only offers \"Go to capture\"/\"Go to the walk\" with no mention of what they just typed"
 );
 
+/* promoteSystemEvent used to be one function on this page; it is now
+   promoteSystemEvents(group) here delegating to buildPromotedHazardPatch in
+   hazardPromotion.ts, which is what tests/hazardpromotion.test.mjs runs for
+   real (state in, state out) rather than reading as source. These two checks
+   stay as a source-reading guard that the wiring between the two files still
+   exists, same spirit as before the extraction — see "ONE CARD PER RISK, NOT
+   PER ASSET SYSTEM" in hazardPromotion.ts for why a single event's promotion
+   became a group's. */
 check(
   "and promoting one raises a hazard pre-filled from it, unrated",
-  /function promoteSystemEvent\(discipline: string, system: string, event: PossibleEvent\) \{[\s\S]{0,900}?sourceSystemEventIds: \[event\.id\],/.test(
+  /function promoteSystemEvents\(group: SystemEventCandidate\[\]\) \{\s*\n\s*const id = addHazard\(blank\(\{ \.\.\.buildPromotedHazardPatch\(group, findings\), origin: "field" \}\)\);/.test(
     codeOnly(hazardsPage)
-  ),
+  ) && /sourceSystemEventIds: group\.map\(\(\{ event \}\) => event\.id\),/.test(codeOnly(hazardPromotion)),
   "severity and likelihood stay the group's to agree on the matrix, same as every other route to a hazard"
 );
 
 check(
   "and the findings and assets the event was linked to carry across too",
-  /const linkedFindingIds = event\.findingIds \?\? \[\];/.test(codeOnly(hazardsPage)) &&
-    /findingIds: linkedFindingIds,/.test(codeOnly(hazardsPage)) &&
-    /\.\.\.\(event\.assetIds \?\? \[\]\),/.test(codeOnly(hazardsPage)),
+  /const linkedFindingIds = \[\.\.\.new Set\(group\.flatMap\(\(\{ event \}\) => event\.findingIds \?\? \[\]\)\)\];/.test(
+    codeOnly(hazardPromotion)
+  ) &&
+    /findingIds: linkedFindingIds,/.test(codeOnly(hazardPromotion)) &&
+    /\.\.\.group\.flatMap\(\(\{ event \}\) => event\.assetIds \?\? \[\]\),/.test(codeOnly(hazardPromotion)),
   "Sarel: \"a hierarchy or linked evidence of non-compliance and findings all contributing to the risk, giving the full picture\" — losing that chain on promotion would throw the picture away at exactly the moment it becomes a rated hazard"
 );
 

@@ -53,8 +53,14 @@ import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
 import RecordActions from "@/components/RecordActions";
 import StickyActions from "@/components/StickyActions";
 import RootCauseAdvice from "@/components/RootCauseAdvice";
-import { IconCheck, IconInbox, IconLeft, IconSpark, IconX } from "@/components/ui/icons";
-import type { Attachment, Hazard, PossibleEvent } from "@/lib/types";
+import { IconCheck, IconInbox, IconLeft, IconRight, IconSpark, IconX } from "@/components/ui/icons";
+import {
+  buildPromotedHazardPatch,
+  eventKey,
+  groupSystemEventCandidates,
+  type SystemEventCandidate,
+} from "@/lib/hazardPromotion";
+import type { Attachment, Hazard } from "@/lib/types";
 
 /** Vision sends at most eight images per request and the route refuses a ninth
  *  rather than dropping it silently. Consolidation would happily send forty, so
@@ -94,6 +100,23 @@ export default function HazardsPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [otherImpactDraft, setOtherImpactDraft] = useState("");
+  /* WHICH HAZARDS ARE EXPANDED IN THE REGISTER LIST — Sarel: "detail out, or
+   *  expand for each of these hazards, what are the asset types that
+   *  contribute to that risk, and also what is the root causes and
+   *  mitigating actions." Expanding is reading, not editing: it shows the
+   *  same systems/rootCause/actions fields the rating panel on the right
+   *  already edits, inline in the list, so a reviewer can scan every hazard's
+   *  contributing factors without opening each one in turn. Selecting a row
+   *  (for rating) and expanding it (for reading) are separate and both can be
+   *  true at once. */
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const toggleExpanded = (id: string) =>
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const [proposals, setProposals] = useState<HazardProposal[] | null>(null);
   const [grouping, setGrouping] = useState(false);
@@ -149,7 +172,7 @@ export default function HazardsPage() {
     () => new Set(hazards.flatMap((h) => h.sourceSystemEventIds ?? [])),
     [hazards]
   );
-  const systemEventCandidates = useMemo(
+  const systemEventCandidates: SystemEventCandidate[] = useMemo(
     () =>
       Object.values(systems).flatMap((a) =>
         a.events
@@ -159,51 +182,32 @@ export default function HazardsPage() {
     [systems, promotedEventIds]
   );
 
-  function promoteSystemEvent(discipline: string, system: string, event: PossibleEvent) {
-    /* THE EVIDENCE CHAIN, CARRIED ACROSS — Sarel: "a hierarchy or linked
-       evidence of non-compliance and findings all contributing to the risk,
-       giving the full picture." event.findingIds is what the auditor already
-       tagged on the asset-system panel as contributing to this event; those
-       findings' own assetIds are unioned in too, the same way accept() does
-       it for a consolidated hazard, so an asset tagged only on the finding
-       is not lost just because the event itself never named it directly. */
-    const linkedFindingIds = event.findingIds ?? [];
-    const linkedFindings = findings.filter((f) => linkedFindingIds.includes(f.id));
-    /* THE EVENT'S OWN ROOT CAUSES AND ACTIONS, CARRIED ACROSS TOO — Sarel:
-       "the process is to capture a hazard and multiple root causes for the
-       hazard." Before this, a promoted hazard started blank even when the
-       asset-system panel already had its causes and actions recorded; they
-       would otherwise have to be retyped from scratch on the hazard register.
-       Hazard.rootCause is ACSA's single free-text field, not a list, so the
-       event's several causes join into one — same flattening sharepoint.ts's
-       asset-risk sync already uses for the same shape. Hazard.actions is
-       already MitigationAction[], the same type the event's own actions are,
-       so those carry over as-is. */
-    const rootCause = (event.rootCauses ?? [])
-      .map((r) => (r.note ? `${r.cause} — ${r.note}` : r.cause))
-      .join("\n");
-    const id = addHazard(
-      blank({
-        event: event.event,
-        likelihood: event.likelihood,
-        note: event.note,
-        rootCause,
-        actions: event.actions ?? [],
-        findingIds: linkedFindingIds,
-        assetIds: [
-          ...new Set([
-            ...(event.assetIds ?? []),
-            ...linkedFindings.flatMap((f) => f.assetIds ?? []),
-          ]),
-        ],
-        disciplines: [...new Set([discipline, ...linkedFindings.map((f) => f.discipline)])],
-        systems: [system],
-        origin: "field",
-        sourceSystemEventIds: [event.id],
-      })
-    );
+  /** ONE CARD PER RISK, NOT PER ASSET SYSTEM — Sarel: "multiple assets and
+   *  findings can contribute to the same hazardous event." An asset-system
+   *  panel names its events one system at a time, so the same risk regularly
+   *  shows up several times over — "Substation or transformer fire or
+   *  explosion" named independently against Substations, Transformers, Fire
+   *  Safety Management and Statutory Appointments & Competencies, each with
+   *  its own root cause and action. Grouped (see hazardPromotion.ts), this is
+   *  what the register below reads it as: one card, every contributing
+   *  system named on it, and one "Create hazard" that promotes the whole
+   *  group into a single consolidated Hazard rather than four lookalike
+   *  ones. A single occurrence is still its own one-item group, so the
+   *  common case (an event named on only one system) behaves exactly as
+   *  before. */
+  const candidateGroups = useMemo(
+    () => groupSystemEventCandidates(systemEventCandidates),
+    [systemEventCandidates]
+  );
+
+  function promoteSystemEvents(group: SystemEventCandidate[]) {
+    const id = addHazard(blank({ ...buildPromotedHazardPatch(group, findings), origin: "field" }));
     setActiveId(id);
-    say(`${id} raised · rate it on the matrix`);
+    say(
+      group.length > 1
+        ? `${id} raised from ${group.length} asset systems · rate it on the matrix`
+        : `${id} raised · rate it on the matrix`
+    );
   }
 
   const list = useMemo(() => {
@@ -707,47 +711,90 @@ export default function HazardsPage() {
             <div className="flex flex-wrap items-center gap-2.5">
               <b className="font-display text-[12.5px] font-semibold">From asset assurance</b>
               <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>
-                {systemEventCandidates.length} possible event
-                {systemEventCandidates.length === 1 ? "" : "s"} named on the asset-system panel,
-                not yet a hazard.
+                {candidateGroups.length} distinct hazardous event
+                {candidateGroups.length === 1 ? "" : "s"} named on the asset-system panel
+                {systemEventCandidates.length !== candidateGroups.length
+                  ? ` (${systemEventCandidates.length} asset-system records — some named on more than one system)`
+                  : ""}
+                , not yet a hazard.
               </span>
             </div>
-            {systemEventCandidates.map(({ discipline, system, event }) => (
-              <div
-                key={event.id}
-                className="mt-2.5 flex flex-wrap items-center gap-2.5 rounded-[11px] border px-[11px] py-[10px]"
-                style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
-              >
-                <div className="min-w-0 flex-1">
-                  <b className="text-[12.5px]">{event.event}</b>
-                  <div className="mt-[2px] font-mono text-[9px] tracking-[.04em] uppercase" style={{ color: "var(--ink-4)" }}>
-                    {discipline} · {system}
-                    {event.likelihood ? ` · likelihood ${event.likelihood}` : ""}
+            {candidateGroups.map((group) => {
+              const first = group[0];
+              const multi = group.length > 1;
+              const findingTotal = new Set(group.flatMap((c) => c.event.findingIds ?? [])).size;
+              const assetTotal = new Set(group.flatMap((c) => c.event.assetIds ?? [])).size;
+              return (
+                <div
+                  key={multi ? eventKey(first.event.event) : first.event.id}
+                  className="mt-2.5 flex flex-wrap items-center gap-2.5 rounded-[11px] border px-[11px] py-[10px]"
+                  style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-[6px]">
+                      <b className="text-[12.5px]">{first.event.event || "(unnamed event)"}</b>
+                      {multi && (
+                        <Pill tone="accent" title="Named independently on more than one asset system">
+                          {group.length} ASSET SYSTEMS
+                        </Pill>
+                      )}
+                    </div>
+                    {/* Every contributing asset type, together — exactly what
+                        Sarel asked the promoted hazard to carry, shown before
+                        it is even created so the auditor knows what "Create
+                        hazard" is about to consolidate. */}
+                    <div className="mt-[3px] flex flex-wrap gap-[4px]">
+                      {group.map(({ discipline, system, event }) => (
+                        <span
+                          key={event.id}
+                          className="rounded-full border px-[7px] py-[2px] font-mono text-[9px] tracking-[.03em] uppercase"
+                          style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+                        >
+                          {discipline} · {system}
+                        </span>
+                      ))}
+                    </div>
+                    {/* Every root cause named behind it, system-labelled once
+                        there is more than one — the same summary the
+                        promoted hazard's rootCause field will hold. */}
+                    {group.some(({ event }) => (event.rootCauses ?? []).length > 0) && (
+                      <div className="mt-1.5 text-[11px] leading-[1.45]" style={{ color: "var(--ink-3)" }}>
+                        <b style={{ color: "var(--ink-2)" }}>Root cause{multi ? "s" : ""}: </b>
+                        {group
+                          .flatMap(({ system, event }) =>
+                            (event.rootCauses ?? []).map((r) =>
+                              multi ? `[${system}] ${r.cause}` : r.cause
+                            )
+                          )
+                          .join(" · ")}
+                      </div>
+                    )}
+                    {group.some(({ event }) => (event.actions ?? []).length > 0) && (
+                      <div className="mt-1 text-[11px] leading-[1.45]" style={{ color: "var(--ink-3)" }}>
+                        <b style={{ color: "var(--ink-2)" }}>
+                          Mitigating action{multi ? "s" : ""}:{" "}
+                        </b>
+                        {group
+                          .flatMap(({ event }) => (event.actions ?? []).map((a) => a.action))
+                          .join(" · ")}
+                      </div>
+                    )}
+                    {(findingTotal > 0 || assetTotal > 0) && (
+                      <div className="mt-1 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                        {findingTotal ? `${findingTotal} finding${findingTotal === 1 ? "" : "s"}` : ""}
+                        {findingTotal && assetTotal ? " · " : ""}
+                        {assetTotal ? `${assetTotal} asset${assetTotal === 1 ? "" : "s"}` : ""}
+                        {" "}linked as evidence
+                      </div>
+                    )}
                   </div>
-                  {event.note && (
-                    <div className="mt-1 text-[11px] leading-[1.4]" style={{ color: "var(--ink-3)" }}>
-                      {event.note}
-                    </div>
-                  )}
-                  {((event.findingIds?.length ?? 0) > 0 || (event.assetIds?.length ?? 0) > 0) && (
-                    <div className="mt-1 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                      {event.findingIds?.length
-                        ? `${event.findingIds.length} finding${event.findingIds.length === 1 ? "" : "s"}`
-                        : ""}
-                      {event.findingIds?.length && event.assetIds?.length ? " · " : ""}
-                      {event.assetIds?.length
-                        ? `${event.assetIds.length} asset${event.assetIds.length === 1 ? "" : "s"}`
-                        : ""}
-                      {" "}linked as evidence
-                    </div>
-                  )}
+                  <Btn variant="primary" onClick={() => promoteSystemEvents(group)}>
+                    <IconCheck width={13} height={13} />
+                    {multi ? `Create one hazard from ${group.length}` : "Create hazard"}
+                  </Btn>
                 </div>
-                <Btn variant="primary" onClick={() => promoteSystemEvent(discipline, system, event)}>
-                  <IconCheck width={13} height={13} />
-                  Create hazard
-                </Btn>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -759,7 +806,7 @@ export default function HazardsPage() {
             </div>
           </Panel>
         ) : (
-          <div className="grid gap-3 lg:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="grid gap-3 lg:grid-cols-[440px_minmax(0,1fr)]">
             <div
               className="overflow-hidden rounded-[15px] border"
               style={{ background: "var(--panel)", borderColor: "var(--line)" }}
@@ -769,39 +816,133 @@ export default function HazardsPage() {
               ) : (
                 list.map((h) => {
                   const band = bandFor(h.severity, h.likelihood);
+                  const expanded = expandedIds.has(h.id);
                   return (
-                    <button
+                    <div
                       key={h.id}
-                      onClick={() => setActiveId(h.id)}
-                      className="flex w-full flex-col gap-[3px] border-b px-3 py-2.5 text-left transition-[var(--t)]"
+                      className="border-b"
                       style={{
                         borderColor: "var(--line)",
                         background: active?.id === h.id ? "var(--sunken)" : "transparent",
                       }}
                     >
-                      <span className="flex items-center gap-[6px]">
-                        <Dot
-                          tone={h.ratingConfirmed && band ? BAND_META[band].tone : "pending"}
-                          label={h.ratingConfirmed && band ? `${band} — ${BAND_META[band].label}` : "Not rated"}
-                        />
-                        <span className="font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>
-                          {h.id}
-                        </span>
-                        {h.ratingConfirmed && band && (
-                          <span className="font-mono text-[9.5px]" style={{ color: `var(--${BAND_META[band].tone})` }}>
-                            {cellCode(h.severity, h.likelihood)}
+                      <div className="flex items-stretch">
+                        <button
+                          onClick={() => setActiveId(h.id)}
+                          className="flex min-w-0 flex-1 flex-col gap-[3px] px-3 py-2.5 text-left transition-[var(--t)]"
+                        >
+                          <span className="flex items-center gap-[6px]">
+                            <Dot
+                              tone={h.ratingConfirmed && band ? BAND_META[band].tone : "pending"}
+                              label={h.ratingConfirmed && band ? `${band} — ${BAND_META[band].label}` : "Not rated"}
+                            />
+                            <span className="font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>
+                              {h.id}
+                            </span>
+                            {h.ratingConfirmed && band && (
+                              <span className="font-mono text-[9.5px]" style={{ color: `var(--${BAND_META[band].tone})` }}>
+                                {cellCode(h.severity, h.likelihood)}
+                              </span>
+                            )}
+                            {!h.ratingConfirmed && <Pill tone="warn">UNRATED</Pill>}
                           </span>
-                        )}
-                        {!h.ratingConfirmed && <Pill tone="warn">UNRATED</Pill>}
-                      </span>
-                      <span className="text-[12px] leading-[1.35] font-semibold">
-                        {h.event || "(unnamed hazard)"}
-                      </span>
-                      <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                        {h.findingIds.length} finding{h.findingIds.length === 1 ? "" : "s"}
-                        {h.reassessedAt ? " · re-read after the walk" : ""}
-                      </span>
-                    </button>
+                          <span className="text-[12px] leading-[1.35] font-semibold">
+                            {h.event || "(unnamed hazard)"}
+                          </span>
+                          <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                            {h.findingIds.length} finding{h.findingIds.length === 1 ? "" : "s"}
+                            {h.systems.length
+                              ? ` · ${h.systems.length} asset type${h.systems.length === 1 ? "" : "s"}`
+                              : ""}
+                            {h.reassessedAt ? " · re-read after the walk" : ""}
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => toggleExpanded(h.id)}
+                          aria-label={expanded ? `Collapse ${h.id}` : `Expand ${h.id}`}
+                          aria-expanded={expanded}
+                          className="flex w-9 flex-none items-center justify-center transition-[var(--t)]"
+                          style={{ color: "var(--ink-3)" }}
+                        >
+                          <IconRight
+                            width={13}
+                            height={13}
+                            style={{
+                              transform: expanded ? "rotate(90deg)" : "rotate(0deg)",
+                              transition: "transform var(--t)",
+                            }}
+                          />
+                        </button>
+                      </div>
+
+                      {/* THE GROUPED, EXPANDABLE DETAIL Sarel asked for — the
+                          contributing asset types, the root cause(s) and the
+                          mitigating action(s), together, without switching to
+                          the rating panel. Same fields that panel edits, read
+                          here rather than duplicated: this hazard record IS
+                          the consolidated hazardous event, so there is
+                          nothing to assemble that is not already on it. */}
+                      {expanded && (
+                        <div
+                          className="px-3 pb-2.5 text-[11px] leading-[1.5]"
+                          style={{ color: "var(--ink-2)" }}
+                        >
+                          <div className="mb-1.5">
+                            <div className="label-xs mb-[3px]">
+                              Asset types contributing ({h.systems.length})
+                            </div>
+                            {h.systems.length ? (
+                              <div className="flex flex-wrap gap-[4px]">
+                                {h.systems.map((s) => (
+                                  <span
+                                    key={s}
+                                    className="rounded-full border px-[7px] py-[2px] font-mono text-[9px] tracking-[.03em] uppercase"
+                                    style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+                                  >
+                                    {s}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span style={{ color: "var(--ink-4)" }}>None linked yet.</span>
+                            )}
+                          </div>
+
+                          <div className="mb-1.5">
+                            <div className="label-xs mb-[3px]">Root cause</div>
+                            {h.rootCause ? (
+                              <div className="whitespace-pre-line">{h.rootCause}</div>
+                            ) : (
+                              <span style={{ color: "var(--ink-4)" }}>Not recorded yet.</span>
+                            )}
+                          </div>
+
+                          <div>
+                            <div className="label-xs mb-[3px]">
+                              Mitigating actions ({h.actions.length})
+                            </div>
+                            {h.actions.length ? (
+                              <ul className="space-y-[3px]">
+                                {h.actions.map((a) => (
+                                  <li key={a.id}>
+                                    {a.action}
+                                    <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                                      {a.owner ? ` · ${a.owner}` : ""} · {a.status}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <span style={{ color: "var(--ink-4)" }}>None recorded yet.</span>
+                            )}
+                          </div>
+
+                          <Btn className="mt-2" onClick={() => setActiveId(h.id)}>
+                            Rate &amp; edit this hazard
+                          </Btn>
+                        </div>
+                      )}
+                    </div>
                   );
                 })
               )}
