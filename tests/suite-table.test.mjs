@@ -53,6 +53,7 @@ const NEEDS_ALIAS = new Set([
   "sync-coverage.test.mjs",
   "import-pack.test.mjs",
   "ortia-v3-pack.test.mjs",
+  "carryforward.test.mjs",
 ]);
 const SELF = "suite-table.test.mjs";
 

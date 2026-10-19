@@ -63,7 +63,8 @@ import RatingPicker from "@/components/RatingPicker";
 import FindingDetail from "@/components/FindingDetail";
 import CheckDetail from "@/components/CheckDetail";
 import SystemTreatment from "@/components/SystemTreatment";
-import { IconInbox, IconSearch, IconX } from "@/components/ui/icons";
+import RaiseFindingSheet from "@/components/RaiseFindingSheet";
+import { IconInbox, IconPlus, IconSearch, IconX } from "@/components/ui/icons";
 import type { Check, Finding, Tolerance, Attachment, AdHocItem } from "@/lib/types";
 import { AttachmentStrip } from "@/components/Capture";
 
@@ -243,6 +244,12 @@ export default function FindingsPage() {
    *  (`active.checks`), which is also where prev/next step through. */
   const [openCheckId, setOpenCheckId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  /* THE GAP THIS SHEET CLOSES — see RaiseFindingSheet.tsx's own header. This
+     screen reviews findings that already exist; nothing on it let an auditor
+     raise one that is not tied to a check, so a non-compliance picked up
+     outside the register (or at consolidation, reviewing several checks at
+     once) had nowhere to go but the walk screen's ad-hoc flow. */
+  const [raiseOpen, setRaiseOpen] = useState(false);
 
   const say = (m: string) => {
     setToast(m);
@@ -606,6 +613,21 @@ export default function FindingsPage() {
                 )}
               </div>
             )}
+
+            {/* THE ENTRY POINT THIS SCREEN DID NOT HAVE — Sarel: "make sure
+                there's an easy way to capture findings". Always here, in
+                either mode, because a non-compliance that is not tied to a
+                check does not know or care whether the auditor was arranging
+                by asset system or by the flat register when they noticed
+                it. */}
+            <Btn
+              variant="primary"
+              className="ml-auto shrink-0"
+              onClick={() => setRaiseOpen(true)}
+            >
+              <IconPlus width={14} height={14} />
+              Raise a finding
+            </Btn>
           </div>
         </div>
 
@@ -1299,6 +1321,22 @@ export default function FindingsPage() {
           </Sheet>
         );
       })()}
+
+      <RaiseFindingSheet
+        open={raiseOpen}
+        onClose={() => setRaiseOpen(false)}
+        onSaved={(id, message) => {
+          say(message);
+          setRaiseOpen(false);
+          /* Land where the new finding can actually be seen without hunting
+             for it — the flat register, on the row just raised. It appears
+             there (and in its asset system's own "Raised at this audit" list,
+             if one was picked) with no special-casing: addFinding() put it in
+             the same `findings` list this screen already reads. */
+          setMode("findings");
+          setActiveFindingId(id);
+        }}
+      />
 
       {toast && (
         <div
