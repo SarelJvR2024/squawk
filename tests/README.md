@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Seventy-six suites, no framework. Thirteen need a running server; sixty-three do not.
+Seventy-seven suites, no framework. Thirteen need a running server; sixty-four do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -57,7 +57,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `formssync.test.mjs` | no | 16 |
 | `completion.test.mjs` | no | 21 |
 | `location.test.mjs` | no | 48 |
-| `followup.test.mjs` | no | 71 |
+| `followup.test.mjs` | no | 74 |
 | `systems.test.mjs` | no | 98 |
 | `register-review.test.mjs` | no | 24 |
 | `reports.test.mjs` | no | 22 |
@@ -80,6 +80,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `hazards.test.mjs` | no | 121 |
 | `hazardpromotion.test.mjs` | no | 25 |
 | `auditdates.test.mjs` | no | 15 |
+| `relinkphoto.test.mjs` | no | 16 |
 | `erm-matrix.test.mjs` | no | 80 |
 | `sharepoint.test.mjs` | no | 300 |
 | `activity.test.mjs` | no | 34 |
@@ -116,7 +117,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,352 assertions in total**, every count above verified by running the suite,
+**3,371 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —

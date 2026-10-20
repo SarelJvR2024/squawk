@@ -32,7 +32,7 @@ import { movement } from "@/lib/risk";
 import { worstRating } from "@/lib/crosswalk";
 import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconClock, IconDash, IconX } from "@/components/ui/icons";
-import { AttachmentStrip, PhotoButton, VoiceNoteButton } from "@/components/Capture";
+import { AttachmentStrip, FileButton, PhotoButton, VoiceNoteButton } from "@/components/Capture";
 import type { VerificationOutcome } from "@/lib/types";
 
 const OUTCOMES: { key: VerificationOutcome; label: string; Icon: typeof IconCheck; tone: string }[] = [
@@ -1042,16 +1042,30 @@ export default function ClosurePage() {
                 </Btn>
               </div>
 
-              {/* VERIFICATION'S OWN PHOTOGRAPHS AND VOICE NOTES. Sarel: "can
-                  a section be included to upload 'verification' photo's or
-                  information for closure? Have some at present and doesn't
-                  make sense to keep them under 'inspection'."
+              {/* VERIFICATION'S OWN PHOTOGRAPHS, VOICE NOTES AND DOCUMENTS.
+                  Sarel: "can a section be included to upload 'verification'
+                  photo's or information for closure? Have some at present
+                  and doesn't make sense to keep them under 'inspection'."
                   Verification.attachments already existed in the type —
                   this is the first UI that ever writes to it, same
                   camera/mic + AttachmentStrip pattern as every other capture
-                  screen in this app. */}
+                  screen in this app.
+
+                  FileButton added here 20 Oct 2026 — Sarel, again on this
+                  same section: "record what evidence was provided, and also
+                  an option to capture photos, multiple photos, or upload
+                  multiple documents as evidence that the finding can be
+                  closed." Photo and voice were already here; a closure is as
+                  often proved by a certificate, a work order or a report as
+                  by a photograph, and there was no way to attach one without
+                  misfiling it as a "photo". Same FileButton CheckDetail.tsx's
+                  own Evidence status panel already uses — any format, picked
+                  several at once (the input's own `multiple`), nothing
+                  re-encoded, same single attachments array and strip every
+                  other evidence control on this card already writes to and
+                  renders from. */}
               <div className="mt-4 mb-2 font-display text-[11px] font-semibold">
-                Verification photographs &amp; voice notes
+                Verification photographs, voice notes &amp; documents
               </div>
               <div className="flex justify-end gap-2">
                 <PhotoButton
@@ -1061,6 +1075,12 @@ export default function ClosurePage() {
                   }
                 />
                 <VoiceNoteButton
+                  compact
+                  onCaptured={(m) =>
+                    addVerificationAttachment(active.key, { ...m, createdBy: auditor })
+                  }
+                />
+                <FileButton
                   compact
                   onCaptured={(m) =>
                     addVerificationAttachment(active.key, { ...m, createdBy: auditor })

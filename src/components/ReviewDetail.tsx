@@ -49,10 +49,12 @@
  *  this audit actually attached, same AttachmentStrip as before, relabelled
  *  and counted so the two sit side by side rather than one being implicit. */
 
+import { useState } from "react";
 import { useResponses, useStore } from "@/lib/store";
 import { portalIdFor } from "@/lib/sites";
 import { reviewCombinedCompliance } from "@/lib/review";
 import { AttachmentStrip } from "@/components/Capture";
+import RelinkPhotoSheet from "@/components/RelinkPhotoSheet";
 import {
   EVIDENCE_STATUSES,
   EVIDENCE_VERDICTS,
@@ -61,7 +63,7 @@ import {
 } from "@/components/CheckDetail";
 import { Btn, Empty, Pill, type Tone } from "@/components/ui/primitives";
 import { IconCheck, IconFlag, IconLeft, IconRight } from "@/components/ui/icons";
-import type { Check, Compliance } from "@/lib/types";
+import type { Attachment, Check, Compliance } from "@/lib/types";
 
 /** Same mapping CheckDetail's own pinned header uses for `compliance`
  *  (CheckDetail.tsx) — kept here rather than imported so this file's three
@@ -183,6 +185,13 @@ export default function ReviewDetail({
   const setCompliance = useStore((s) => s.setCompliance);
   const updateAttachment = useStore((s) => s.updateAttachment);
   const removeAttachment = useStore((s) => s.removeAttachment);
+  const moveAttachment = useStore((s) => s.moveAttachment);
+
+  /* The photo currently open in the "move it to a different check" sheet —
+   *  Review is the one screen a mis-filed photo is actually spotted on
+   *  (every check's evidence sits side by side here), so this is the one
+   *  screen that offers it. See RelinkPhotoSheet's own doc comment. */
+  const [movingPhoto, setMovingPhoto] = useState<Attachment | null>(null);
 
   const combined = r ? reviewCombinedCompliance(r.compliance, r.evidenceVerdict, r.siteInspection) : null;
   const combinedPartial = !!r && [r.compliance, r.evidenceVerdict, r.siteInspection].some((v) => v === null);
@@ -307,6 +316,9 @@ export default function ReviewDetail({
                     attachments={r.attachments}
                     onRemove={(id) => removeAttachment(check.id, id)}
                     onUpdate={(id, p) => updateAttachment(check.id, id, p)}
+                    onMove={(id) =>
+                      setMovingPhoto(r.attachments.find((a) => a.id === id) ?? null)
+                    }
                   />
                 )}
               </div>
@@ -438,6 +450,16 @@ export default function ReviewDetail({
           </div>
         )}
       </div>
+
+      <RelinkPhotoSheet
+        open={!!movingPhoto}
+        onClose={() => setMovingPhoto(null)}
+        photo={movingPhoto}
+        fromCheckId={check.id}
+        onConfirm={(toCheckId) => {
+          if (movingPhoto) moveAttachment(check.id, movingPhoto.id, toCheckId);
+        }}
+      />
     </div>
   );
 }
