@@ -54,6 +54,7 @@ const NEEDS_ALIAS = new Set([
   "import-pack.test.mjs",
   "ortia-v3-pack.test.mjs",
   "hazardpromotion.test.mjs",
+  "carryforward.test.mjs",
 ]);
 const SELF = "suite-table.test.mjs";
 

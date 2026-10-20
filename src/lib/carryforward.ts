@@ -133,7 +133,11 @@ function fromSeeded(p: PriorFinding): Outstanding {
   };
 }
 
-function fromCarried(f: Finding): Outstanding {
+/** Exported so a test can prove the carry-forward of an app-raised finding
+ *  directly, against the real function outstandingFor() below calls, rather
+ *  than only by inspection — see tests/carryforward.test.mjs's "a non-check
+ *  finding carries forward" section. */
+export function fromCarried(f: Finding): Outstanding {
   const band = bandFor(f.severity, f.likelihood);
   return {
     key: f.id,

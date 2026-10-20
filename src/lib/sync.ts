@@ -60,9 +60,14 @@ function wantsUpload(a: Attachment): boolean {
  *  carries: "the record and its 240px thumbnail reached the shared record;
  *  the image did not." Four more record types carry their own photographs
  *  and were never in this loop at all: SafetyFinding (ISF), SiteDay (and its
- *  own diary entries), EvidenceItem and IncidentReport. `Verification` also
- *  declares `attachments: Attachment[]` but nothing in the app ever writes
- *  one — grepped, confirmed, left out rather than built for nothing. */
+ *  own diary entries), EvidenceItem and IncidentReport.
+ *
+ *  `Verification` ALSO declared `attachments: Attachment[]` from the start,
+ *  and until 18 October 2026 nothing in the app ever wrote one — grepped,
+ *  confirmed, left out rather than built for nothing. The Follow-up screen
+ *  now does (Sarel: "upload 'verification' photo's or information for
+ *  closure… doesn't make sense to keep them under 'inspection'"), so it is
+ *  the eighth record in this loop, same pattern as the seven before it. */
 interface AttachmentActions {
   updateAttachment: (checkId: string, attachmentId: string, p: Partial<Attachment>) => void;
   updateAdhocAttachment: (id: string, attachmentId: string, p: Partial<Attachment>) => void;
@@ -76,6 +81,7 @@ interface AttachmentActions {
   ) => void;
   updateEvidenceAttachment: (id: string, attachmentId: string, p: Partial<Attachment>) => void;
   updateIncidentAttachment: (id: string, attachmentId: string, p: Partial<Attachment>) => void;
+  updateVerificationAttachment: (pf: string, attachmentId: string, p: Partial<Attachment>) => void;
 }
 
 function collectOutstanding(
@@ -98,6 +104,11 @@ function collectOutstanding(
   for (const item of d?.adhoc ?? []) {
     for (const a of item.attachments) {
       if (wantsUpload(a)) out.push({ checkId: item.id, a, write: (p) => actions.updateAdhocAttachment(item.id, a.id, p) });
+    }
+  }
+  for (const [pf, v] of Object.entries(d?.verifications ?? {})) {
+    for (const a of v.attachments ?? []) {
+      if (wantsUpload(a)) out.push({ checkId: pf, a, write: (p) => actions.updateVerificationAttachment(pf, a.id, p) });
     }
   }
   for (const x of safetyFindings.filter(mine)) {
@@ -195,6 +206,7 @@ export function usePhotoSync(): SyncState {
   const updateDiaryEntryAttachment = useStore((s) => s.updateDiaryEntryAttachment);
   const updateEvidenceAttachment = useStore((s) => s.updateEvidenceAttachment);
   const updateIncidentAttachment = useStore((s) => s.updateIncidentAttachment);
+  const updateVerificationAttachment = useStore((s) => s.updateVerificationAttachment);
 
   const [uploading, setUploading] = useState(false);
   const [online, setOnline] = useState(true);
@@ -221,6 +233,7 @@ export function usePhotoSync(): SyncState {
     updateDiaryEntryAttachment,
     updateEvidenceAttachment,
     updateIncidentAttachment,
+    updateVerificationAttachment,
   };
   const outstanding = collectOutstanding(
     entity,

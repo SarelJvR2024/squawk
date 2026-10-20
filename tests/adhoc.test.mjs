@@ -146,8 +146,15 @@ const portfolio = storeCode.slice(
 check("usePortfolio never reads adhoc", !/adhoc/.test(portfolio));
 check(
   "the walk count is stated SEPARATELY on the inspection screen",
-  /\+\{adhocItems\.length\} seen on the walk/.test(field),
+  /\+\{walkCandidates\.length\} seen on the walk/.test(field),
   "two numbers, never one — a denominator that grows as you work is not a denominator"
+);
+check(
+  "and that count excludes a parked, not-yet-promoted Internal Working Area item",
+  /const walkCandidates = useMemo\(\s*\n\s*\(\) => adhocItems\.filter\(\(it\) => !it\.internal \|\| it\.findingId\),/.test(
+    field
+  ),
+  "an internal item is not visible externally, including in this screen's own 'seen on the walk' count, until it is promoted"
 );
 check(
   "and the progress bar's denominator is still the register's",

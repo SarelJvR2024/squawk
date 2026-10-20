@@ -39,6 +39,7 @@ const stream = read("src", "components", "ItemStream.tsx");
 const events = read("src", "components", "PossibleEvents.tsx");
 const merge = read("src", "lib", "merge.ts");
 const exports_ = read("src", "lib", "exports.ts");
+const sync = read("src", "lib", "sync.ts");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -339,7 +340,7 @@ check(
 
 check(
   "and the merged verification carries the union",
-  /verifications\[pf\] = \{ \.\.\.newer, attachments, progress, possibleEvents \};/.test(merge),
+  /verifications\[pf\] = \{ \.\.\.newer, attachments, progress, discussionLog, possibleEvents \};/.test(merge),
   ""
 );
 
@@ -456,6 +457,75 @@ check(
   "grid-cols-1 specifically, not grid-cols-[1fr] or omitted — it is the minmax(0,...) floor that matters",
   !/className="grid gap-3 lg:grid-cols-\[380px_minmax\(0,1fr\)\]"/.test(closure),
   "Tailwind's grid-cols-1 compiles to repeat(1, minmax(0, 1fr)) — the explicit 0 minimum is what lets the column shrink below its content"
+);
+
+/* ---- 9 · FOUR THINGS SAREL ASKED FOR ON THIS SCREEN, 18 October 2026 ----- */
+
+check(
+  "evidence requested and evidence received are two fields, read as a pair",
+  /evidenceRequested\?: string;/.test(types) &&
+    /value=\{v\?\.evidenceRequested \?\? ""\}/.test(closureCode) &&
+    /onChange=\{\(e\) => patchVerification\(active\.key, \{ evidenceRequested: e\.target\.value \}\)\}/.test(
+      closureCode
+    ),
+  "'is evidence of closure' is what was received; there was nowhere to say what was asked for"
+);
+check(
+  "and the received field is still there, unrenamed",
+  /value=\{v\?\.evidence \?\? ""\}/.test(closureCode),
+  "every earlier record and export already reads `evidence` as received — renaming it would be a migration for no gain"
+);
+
+check(
+  "the ACSA discussion log is its own field, its own action, its own section",
+  /discussionLog\?: ProgressNote\[\];/.test(types) &&
+    /addDiscussionNote: \(pf, note\) => \{/.test(store) &&
+    /ACSA discussion log/.test(closureCode),
+  "Sarel: a discussion note typed into 'next step' doesn't make sense there"
+);
+check(
+  "addDiscussionNote mirrors addProgress — same entry shape, same append, never an overwrite",
+  /discussionLog: \[\.\.\.\(cur\.discussionLog \?\? \[\]\), entry\]/.test(store)
+);
+check(
+  "it is not inside the Next step section",
+  (() => {
+    const nextStepIdx = closureCode.indexOf("Next step — what happens next");
+    const logIdx = closureCode.indexOf("ACSA discussion log");
+    const nextTextareaEnd = closureCode.indexOf("/>", nextStepIdx);
+    return nextStepIdx > -1 && nextTextareaEnd > nextStepIdx && logIdx > nextTextareaEnd;
+  })(),
+  "it has to read as a distinct section, not a sub-part of the next-step box"
+);
+
+check(
+  "Evidence for review/closure is its own Verification flag, never Response.evidencePending",
+  /evidencePending\?: boolean;[\s\S]{0,220}possibleEvents\?: PossibleEvent\[\];/.test(
+    types.slice(types.indexOf("export interface Verification"))
+  ) &&
+    /patchVerification\(active\.key, \{ evidencePending: !v\?\.evidencePending \}\)/.test(closureCode),
+  "Sarel: 'cannot use the Evidence pending tab under the Checks workflow as it will relate to present Checks and not Follow Up' — the two flags must never collide"
+);
+
+check(
+  "Verification's own attachments finally have a writer — addVerificationAttachment, update, remove",
+  /addVerificationAttachment: \(pf, a\) => \{/.test(store) &&
+    /updateVerificationAttachment: \(pf, attachmentId, patch\) => \{/.test(store) &&
+    /removeVerificationAttachment: \(pf, attachmentId\) => \{/.test(store),
+  "Verification.attachments existed in the type from the start but nothing wrote one until the Follow-up screen needed it"
+);
+check(
+  "the closure page wires the camera and microphone to them, same pattern as every other capture screen",
+  /addVerificationAttachment\(active\.key, \{ \.\.\.m, createdBy: auditor \}\)/.test(closureCode) &&
+    /<AttachmentStrip[\s\S]{0,200}onRemove=\{\(id\) => removeVerificationAttachment\(active\.key, id\)\}/.test(
+      closureCode
+    )
+);
+check(
+  "and the photo-upload queue now scans Verification's own attachments too",
+  /for \(const \[pf, v\] of Object\.entries\(d\?\.verifications \?\? \{\}\)\)/.test(sync) &&
+    /actions\.updateVerificationAttachment\(pf, a\.id, p\)/.test(sync),
+  "src/lib/sync.ts's collectOutstanding has to know about an eighth attachment-carrying record, same as the other seven"
 );
 
 console.log(failures === 0 ? "\nFOLLOW-UP OK" : `\n${failures} FAILURES`);

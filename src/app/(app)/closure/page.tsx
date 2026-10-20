@@ -32,6 +32,7 @@ import { movement } from "@/lib/risk";
 import { worstRating } from "@/lib/crosswalk";
 import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconClock, IconDash, IconX } from "@/components/ui/icons";
+import { AttachmentStrip, PhotoButton, VoiceNoteButton } from "@/components/Capture";
 import type { VerificationOutcome } from "@/lib/types";
 
 const OUTCOMES: { key: VerificationOutcome; label: string; Icon: typeof IconCheck; tone: string }[] = [
@@ -63,6 +64,12 @@ export default function ClosurePage() {
   const verifications = useVerifications();
   const patchVerification = useStore((s) => s.patchVerification);
   const addProgress = useStore((s) => s.addProgress);
+  /* The ACSA discussion log — same mechanism as addProgress, a separate log.
+     See Verification.discussionLog's own note. */
+  const addDiscussionNote = useStore((s) => s.addDiscussionNote);
+  const addVerificationAttachment = useStore((s) => s.addVerificationAttachment);
+  const removeVerificationAttachment = useStore((s) => s.removeVerificationAttachment);
+  const updateVerificationAttachment = useStore((s) => s.updateVerificationAttachment);
   const addPossibleEvent = useStore((s) => s.addPossibleEvent);
   const patchPossibleEvent = useStore((s) => s.patchPossibleEvent);
   const removePossibleEvent = useStore((s) => s.removePossibleEvent);
@@ -72,6 +79,7 @@ export default function ClosurePage() {
   const auditor = useStore((s) => s.auditor);
   const knownEvents = useKnownHazardousEvents();
   const [progressText, setProgressText] = useState("");
+  const [discussionText, setDiscussionText] = useState("");
   const updateFinding = useStore((s) => s.updateFinding);
   const entity = useEntity();
   const entityCode = useEntityCode();
@@ -834,7 +842,27 @@ export default function ClosurePage() {
                 })}
               </div>
 
-              <div className="mt-4 mb-2 font-display text-[11px] font-semibold">Evidence of closure</div>
+              {/* TWO SECTIONS, ONE PAIR — what was asked for against what has
+                  actually come in. Sarel: "'is evidence of closure' assume
+                  it is the evidence received/captured which is used to
+                  support the closure? Where do you put in the evidence
+                  which you specifically request for closure? Both sections
+                  required." `evidence` below already was the received half;
+                  this is the other one, read together as a pair rather than
+                  one box asked to do both jobs. */}
+              <div className="mt-4 mb-2 font-display text-[11px] font-semibold">
+                Evidence requested for closure
+              </div>
+              <textarea
+                value={v?.evidenceRequested ?? ""}
+                onChange={(e) => patchVerification(active.key, { evidenceRequested: e.target.value })}
+                placeholder="What's still needed to close this out…"
+                aria-label="Evidence requested for closure"
+                className="min-h-[54px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+              />
+
+              <div className="mt-3 mb-2 font-display text-[11px] font-semibold">Evidence of closure</div>
               <textarea
                 value={v?.evidence ?? ""}
                 onChange={(e) => patchVerification(active.key, { evidence: e.target.value })}
@@ -843,6 +871,33 @@ export default function ClosurePage() {
                 className="min-h-[70px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
                 style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
               />
+
+              {/* EVIDENCE FOR REVIEW/CLOSURE — PENDING, on this Follow-up
+                  item. Sarel: "can we have a block 'Evidence For
+                  Review/Closure_Pending'. Cannot use the 'Evidence pending'
+                  tab under the 'Checks' workflow as it will relate to
+                  present 'Checks' and not 'Follow Up'." DELIBERATELY its own
+                  flag — Verification.evidencePending, not
+                  Response.evidencePending — toggled through
+                  patchVerification like every other field on this card, so
+                  the two can never collide. Same small-pill shape as the
+                  "photograph expected" warning on the Inspection screen,
+                  the nearest existing use of this tone. */}
+              <button
+                onClick={() =>
+                  patchVerification(active.key, { evidencePending: !v?.evidencePending })
+                }
+                aria-pressed={!!v?.evidencePending}
+                className="mt-3 flex w-full items-center gap-2 rounded-[9px] border px-[10px] py-[7px] text-left text-[11px] transition-[var(--t)]"
+                style={
+                  v?.evidencePending
+                    ? { background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }
+                    : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-3)" }
+                }
+              >
+                <IconClock width={13} height={13} />
+                Evidence for review/closure — pending
+              </button>
 
               {/* TWO FIELDS, TWO QUESTIONS, and they used to be one that only
                   appeared when the outcome was not Closed.
@@ -929,6 +984,99 @@ export default function ClosurePage() {
                   Add to the log
                 </Btn>
               </div>
+
+              {/* THE ACSA DISCUSSION LOG — its OWN section, distinct from
+                  Progress above. Sarel: "can a section be included to
+                  capture 'ACSA discussion log_with date'… to park
+                  discussion notes so it is not lost? I put a note in the
+                  'next step' section and it doesn't make sense there."
+                  Same append-only mechanism and shape as Progress — same
+                  ProgressNote, same one-line-input-plus-button pattern —
+                  because that log is already proven correct for exactly
+                  this; it is simply a separate list for a separate
+                  question (what was discussed, not what moved). */}
+              <div className="mt-4 mb-2 font-display text-[11px] font-semibold">
+                ACSA discussion log
+              </div>
+              {(v?.discussionLog?.length ?? 0) > 0 && (
+                <div className="mb-2 flex flex-col gap-1.5">
+                  {v!.discussionLog!.map((n, i) => (
+                    <div
+                      key={i}
+                      className="rounded-[9px] border px-3 py-2 text-[11.5px] leading-[1.45]"
+                      style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
+                    >
+                      <div className="mb-[2px] font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                        {new Date(n.at).toLocaleDateString()} · {n.by}
+                      </div>
+                      {n.note}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <input
+                  value={discussionText}
+                  onChange={(e) => setDiscussionText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && discussionText.trim()) {
+                      addDiscussionNote(active.key, discussionText);
+                      setDiscussionText("");
+                      say("Discussion note recorded");
+                    }
+                  }}
+                  placeholder="What ACSA said, in one line…"
+                  aria-label="ACSA discussion note"
+                  className="min-w-0 flex-1 rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                />
+                <Btn
+                  disabled={!discussionText.trim()}
+                  onClick={() => {
+                    addDiscussionNote(active.key, discussionText);
+                    setDiscussionText("");
+                    say("Discussion note recorded");
+                  }}
+                >
+                  Add to the log
+                </Btn>
+              </div>
+
+              {/* VERIFICATION'S OWN PHOTOGRAPHS AND VOICE NOTES. Sarel: "can
+                  a section be included to upload 'verification' photo's or
+                  information for closure? Have some at present and doesn't
+                  make sense to keep them under 'inspection'."
+                  Verification.attachments already existed in the type —
+                  this is the first UI that ever writes to it, same
+                  camera/mic + AttachmentStrip pattern as every other capture
+                  screen in this app. */}
+              <div className="mt-4 mb-2 font-display text-[11px] font-semibold">
+                Verification photographs &amp; voice notes
+              </div>
+              <div className="flex justify-end gap-2">
+                <PhotoButton
+                  compact
+                  onCaptured={(m) =>
+                    addVerificationAttachment(active.key, { ...m, createdBy: auditor })
+                  }
+                />
+                <VoiceNoteButton
+                  compact
+                  onCaptured={(m) =>
+                    addVerificationAttachment(active.key, { ...m, createdBy: auditor })
+                  }
+                />
+              </div>
+              {(v?.attachments?.length ?? 0) > 0 && (
+                <div className="mt-2">
+                  <AttachmentStrip
+                    attachments={v!.attachments}
+                    thumbSize={40}
+                    onRemove={(id) => removeVerificationAttachment(active.key, id)}
+                    onUpdate={(id, pa) => updateVerificationAttachment(active.key, id, pa)}
+                  />
+                </div>
+              )}
 
               {/* The hazardous events this finding could lead to, each with its
                   own likelihood. See the component — plural is the point. */}

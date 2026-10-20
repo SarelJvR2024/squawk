@@ -568,6 +568,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 key={n.href}
                 href={disabled ? "#" : n.href}
                 aria-disabled={disabled}
+                /* The hover/long-press name for the icon-only state between sm
+                   and xl — the label is still on screen for a screen reader via
+                   the link's own text content, this is for a sighted pointer
+                   user who wants to confirm an icon before tapping it. */
+                title={active ? undefined : n.label}
                 onClick={(e) => disabled && e.preventDefault()}
                 /* 44px, because this is a tablet held on an apron.
                    Measured: the nav links were 29px while every other tappable
@@ -600,8 +605,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     rest were a swipe nobody would think to make. The ACTIVE one
                     keeps its label so you always know where you are; the others
                     are their icon and their count, which is what a bottom bar
-                    has always been. Full labels return at sm. */}
-                <span className={active ? "" : "hidden sm:inline"}>{n.label}</span>
+                    has always been. Full labels return at sm.
+
+                    FULL LABELS FOR EVERY ITEM DO NOT RETURN UNTIL xl (1280px).
+                    Sarel, wide desktop and tablet both: "you shouldn't have to
+                    scroll, you should see all the menu options there." Six
+                    full labels plus the fixed-width brand, search and account
+                    cluster measured at 680px of nav alone — more than fits
+                    in the ~464px a 1024px tablet or a windowed 1152px laptop
+                    actually leaves it, which is exactly the overflow that was
+                    scrolling. Between sm and xl every inactive item is its
+                    icon and its count, same as the bottom bar — still names
+                    every destination, still fits every one on screen at once,
+                    no swipe required. */}
+                <span className={active ? "" : "hidden xl:inline"}>{n.label}</span>
                 {badge !== "" && badge !== 0 && (
                   /* NOTHING DONE YET IS NOT NEWS. A "0/315" badge is exactly as
                      loud as a "312/315" one, in the same accent colour, and at
@@ -756,161 +773,164 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <div
                   role="menu"
                   aria-label="More"
-                  className="absolute right-0 top-[calc(100%+7px)] z-[75] w-[268px] overflow-hidden rounded-[13px] border p-[5px]"
+                  /* 300px not 268 — wide enough that a group label and a
+                     shortened hint no longer force a second line on every
+                     row, which was most of what made the old flat list of
+                     eleven read as long. A max-height + scroll so the menu
+                     itself never pushes off the bottom of a short viewport;
+                     the groups inside still scroll as one list. */
+                  className="absolute right-0 top-[calc(100%+7px)] z-[75] max-h-[min(72vh,620px)] w-[300px] overflow-y-auto rounded-[13px] border p-[5px]"
                   style={{
                     background: "var(--menu-bg)",
                     borderColor: "var(--menu-line)",
                     boxShadow: "var(--e3)",
                   }}
                 >
-                  {/* ACSA is read-only across the audit: the portal is where
-                      their copy comes FROM, and there is nothing for them to
-                      export or start again. The menu is then the shortcuts
-                      sheet alone, which is still worth a menu — it is the only
-                      place that says the keys exist. */}
-                  {/* FIRST, because on a phone it is the ONLY route to another
-                      site or another audit — the strip that used to carry them
-                      is desk-only now. The hint names what is live, so the menu
-                      answers "which audit am I in" as well as changing it. */}
-                  <MoreItem
-                    icon={<IconGrid width={14} height={14} />}
-                    label="All audits"
-                    hint={`Switch site or audit — ${entityOf(entityCode).short} ${visitLabel} now`}
-                    onClick={() => { setMore(false); setAudits(true); }}
-                  />
-                  {/* SAFETY AND REVIEW, MOVED HERE from the nav bar (Sarel, 30
-                      Sep): "move safety and review menu items out of the main
-                      menu bar." Safety kept the nav slot it has through two
-                      presses of urgency before this — SWP-07's VERBALLY AT
-                      ONCE timer starts on reaching the screen, not on reaching
-                      the menu that opens it — but that is now his call to make,
-                      not this file's to re-argue. */}
-                  <MoreItem
-                    icon={<IconClock width={14} height={14} />}
-                    label="Safety"
-                    hint="Immediate Safety Findings — SWP-07"
-                    selected={pathname === "/isf"}
-                    onClick={() => { setMore(false); router.push("/isf"); }}
-                  />
-                  <MoreItem
-                    icon={<IconCamera width={14} height={14} />}
-                    label="Review"
-                    hint="Where an engineer reads back what came in"
-                    selected={pathname === "/review"}
-                    onClick={() => { setMore(false); router.push("/review"); }}
-                  />
-                  {/* PRE-FLIGHT, added to this group a moment later than Safety
-                      and Review — Sarel, on the same screenshot: "move review,
-                      safety, preflight into the more menu." Its own dot (the
-                      shared record needs a person, or the last sync failed)
-                      moved to the More button itself; the hint below still
-                      says so in words for anyone who opens the menu without
-                      having noticed the dot. */}
-                  <MoreItem
-                    icon={<IconGauge width={14} height={14} />}
-                    label="Pre-flight"
-                    hint={
-                      sharedNeedsYou
-                        ? "The shared record needs you — check this before the walk"
-                        : "Prove the device works before the apron"
-                    }
-                    selected={pathname === "/preflight"}
-                    onClick={() => { setMore(false); router.push("/preflight"); }}
-                  />
-                  {/* A DESTINATION IN A MENU OF ACTIONS, and it is here rather
-                      than in the nav bar for one reason: the nav is full.
-                      Beside All audits because both are "go somewhere".
-
-                      THE ONE ENTRY POINT for every TK-003 form and register
-                      (Sarel, 2 October 2026: "remove the individual forms
-                      from the menu, they can all be accessed from the all
-                      forms screen") — nine separate MoreItems used to sit
-                      here, one per form, each pulling its own store
-                      selector just to print a count in its hint. The Forms
-                      hub already lists and filters all of them; a second,
-                      longer way to reach the same ten screens was the thing
-                      actually costing menu space, not buying anything a
-                      shorter menu couldn't. Safety (ISF) stays above this,
-                      for the SWP-07 urgency reason its own comment gives —
-                      being a form does not outrank that clock. People
-                      directory keeps its own entry below, because it is the
-                      one register the Forms hub does not list. */}
-                  {role !== "acsa" && (
+                  {/* CURATED, NOT DUMPED — Sarel: "when you click on more,
+                      that list is very long." It was one flat list of eleven
+                      rows; nothing here is cut (every destination and action
+                      below is exactly the one that used to be a bare
+                      MoreItem), but three named groups now say what kind of
+                      thing each row is before you read its hint, and the
+                      hints themselves are shorter — the full explanation that
+                      used to be the second line of six different rows mostly
+                      repeated "this leaves the device" or "this is a screen
+                      you go to", which the group label now says once. */}
+                  <MoreGroup label="Go to">
+                    {/* FIRST, because on a phone it is the ONLY route to
+                        another site or another audit — the strip that used to
+                        carry them is desk-only now. */}
                     <MoreItem
                       icon={<IconGrid width={14} height={14} />}
-                      label="All forms"
-                      hint="Every form and register, one card list"
-                      selected={pathname === "/forms"}
-                      onClick={() => { setMore(false); router.push("/forms"); }}
+                      label="All audits"
+                      hint={`${entityOf(entityCode).short} ${visitLabel} now`}
+                      onClick={() => { setMore(false); setAudits(true); }}
                     />
-                  )}
-                  {role !== "acsa" && (
+                    {/* SAFETY AND REVIEW, MOVED HERE from the nav bar (Sarel,
+                        30 Sep): "move safety and review menu items out of the
+                        main menu bar." Safety kept the nav slot it has
+                        through two presses of urgency before this — SWP-07's
+                        VERBALLY AT ONCE timer starts on reaching the screen,
+                        not on reaching the menu that opens it — but that is
+                        now his call to make, not this file's to re-argue. */}
+                    <MoreItem
+                      icon={<IconClock width={14} height={14} />}
+                      label="Safety"
+                      hint="Immediate Safety Findings — SWP-07"
+                      selected={pathname === "/isf"}
+                      onClick={() => { setMore(false); router.push("/isf"); }}
+                    />
+                    <MoreItem
+                      icon={<IconCamera width={14} height={14} />}
+                      label="Review"
+                      hint="Where an engineer reads back what came in"
+                      selected={pathname === "/review"}
+                      onClick={() => { setMore(false); router.push("/review"); }}
+                    />
+                    {/* PRE-FLIGHT, added to this group a moment later than
+                        Safety and Review — Sarel, on the same screenshot:
+                        "move review, safety, preflight into the more menu."
+                        Its own dot (the shared record needs a person, or the
+                        last sync failed) moved to the More button itself;
+                        the hint below still says so for anyone who opens the
+                        menu without having noticed the dot. */}
+                    <MoreItem
+                      icon={<IconGauge width={14} height={14} />}
+                      label="Pre-flight"
+                      hint={
+                        sharedNeedsYou
+                          ? "The shared record needs you, before the walk"
+                          : "Prove the device works before the apron"
+                      }
+                      selected={pathname === "/preflight"}
+                      onClick={() => { setMore(false); router.push("/preflight"); }}
+                    />
+                    {/* THE ONE ENTRY POINT for every TK-003 form and register
+                        (Sarel, 2 October 2026: "remove the individual forms
+                        from the menu, they can all be accessed from the all
+                        forms screen") — nine separate MoreItems used to sit
+                        here, one per form. The Forms hub already lists and
+                        filters all of them. People directory keeps its own
+                        entry, because it is the one register the Forms hub
+                        does not list. */}
+                    {role !== "acsa" && (
+                      <MoreItem
+                        icon={<IconGrid width={14} height={14} />}
+                        label="All forms"
+                        hint="Every form and register, one list"
+                        selected={pathname === "/forms"}
+                        onClick={() => { setMore(false); router.push("/forms"); }}
+                      />
+                    )}
+                    {role !== "acsa" && (
+                      <MoreItem
+                        icon={<IconTeam width={14} height={14} />}
+                        label="People directory"
+                        hint={
+                          contactsHere
+                            ? `${contactsHere} contact${contactsHere === 1 ? "" : "s"} at ${entityOf(entityCode).short}`
+                            : "TPJV and ACSA contacts, per site"
+                        }
+                        selected={pathname === "/people"}
+                        onClick={() => { setMore(false); router.push("/people"); }}
+                      />
+                    )}
+                  </MoreGroup>
+
+                  <MoreGroup label="Your work, off this device">
+                    {role !== "acsa" && (
+                      <MoreItem
+                        icon={<IconCloudUp width={14} height={14} />}
+                        label="Sync to the portal"
+                        hint="Send this visit to SharePoint, as you"
+                        onClick={() => { setMore(false); setSyncing(true); }}
+                      />
+                    )}
+                    {/* Next to Sync, not next to Export: both answer "is my
+                        work leaving this device", and they are the two that
+                        fail silently. */}
                     <MoreItem
                       icon={<IconTeam width={14} height={14} />}
-                      label="People directory"
-                      hint={
-                        contactsHere
-                          ? `${contactsHere} contact${contactsHere === 1 ? "" : "s"} on file at ${entityOf(entityCode).short}`
-                          : "TPJV and ACSA contacts, per site and Corporate"
-                      }
-                      selected={pathname === "/people"}
-                      onClick={() => { setMore(false); router.push("/people"); }}
+                      label="Shared record"
+                      hint={sharedHint}
+                      onClick={() => { setMore(false); setSharedOpen(true); }}
                     />
-                  )}
-                  <div className="my-[4px] h-px" style={{ background: "var(--menu-line)" }} />
-                  {role !== "acsa" && (
+                    {role !== "acsa" && (
+                      <MoreItem
+                        icon={<IconDownload width={14} height={14} />}
+                        label="Export the workbook"
+                        hint="Register, findings, hazards, photographs"
+                        onClick={() => { setMore(false); setExporting(true); }}
+                      />
+                    )}
+                    {/* WHAT WAS CAPTURED AND SYNCED, BY WHOM, EACH DAY —
+                        Sarel, after a sync bug let held-back data through:
+                        "Build an audit log for me to keep track of all sync
+                        and captures to see what was done everyday by whom." */}
+                    {role !== "acsa" && (
+                      <MoreItem
+                        icon={<IconActivity width={14} height={14} />}
+                        label="Activity"
+                        hint="Captured and synced, by whom, each day"
+                        onClick={() => { setMore(false); setActivityOpen(true); }}
+                      />
+                    )}
+                  </MoreGroup>
+
+                  <MoreGroup label="Help" last={!(role !== "acsa" && RESET_ENABLED)}>
                     <MoreItem
-                      icon={<IconCloudUp width={14} height={14} />}
-                      label="Sync to the portal"
-                      hint="Send this visit to SharePoint, as you"
-                      onClick={() => { setMore(false); setSyncing(true); }}
+                      icon={<IconHelp width={14} height={14} />}
+                      label="Keyboard shortcuts"
+                      hint="What the keys do, on a device that has them"
+                      onClick={() => { setMore(false); setHelp(true); }}
                     />
-                  )}
-                  {/* AT THIS LEVEL, because it was two presses and a scroll
-                      down the export sheet before — see SharedSheet. Next to
-                      Sync, not next to Export: both answer "is my work leaving
-                      this device", and they are the two that fail silently. */}
-                  <MoreItem
-                    icon={<IconTeam width={14} height={14} />}
-                    label="Shared record"
-                    hint={sharedHint}
-                    onClick={() => { setMore(false); setSharedOpen(true); }}
-                  />
-                  {role !== "acsa" && (
-                    <MoreItem
-                      icon={<IconDownload width={14} height={14} />}
-                      label="Export the workbook"
-                      hint="The register, findings, hazards and photographs"
-                      onClick={() => { setMore(false); setExporting(true); }}
-                    />
-                  )}
-                  {/* WHAT WAS CAPTURED AND SYNCED, BY WHOM, EACH DAY — Sarel,
-                      after a sync bug let held-back data through: "Build an
-                      audit log for me to keep track of all sync and
-                      captures to see what was done everyday by whom."
-                      Next to Export and Sync for the same reason Shared
-                      record is: all of them answer "where did my work go
-                      and can I prove it". */}
-                  {role !== "acsa" && (
-                    <MoreItem
-                      icon={<IconActivity width={14} height={14} />}
-                      label="Activity"
-                      hint="What was captured and synced, by whom, each day"
-                      onClick={() => { setMore(false); setActivityOpen(true); }}
-                    />
-                  )}
-                  <MoreItem
-                    icon={<IconHelp width={14} height={14} />}
-                    label="Keyboard shortcuts"
-                    hint="What the keys do, on a device that has them"
-                    onClick={() => { setMore(false); setHelp(true); }}
-                  />
+                  </MoreGroup>
+
                   {role !== "acsa" && RESET_ENABLED && (
-                    <>
-                      <div className="my-[4px] h-px" style={{ background: "var(--menu-line)" }} />
-                      {/* Last, under a rule, and named for what it does rather
-                          than for the word Reset — this one clears captured
-                          work, and it is in the same menu as Export. */}
+                    /* Last, its own group under a rule, and named for what it
+                       does rather than for the word Reset — this one clears
+                       captured work. */
+                    <MoreGroup label="Dry run" tone="warn" last>
                       <MoreItem
                         icon={<IconLoop width={14} height={14} />}
                         label="Start again"
@@ -918,7 +938,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                         tone="warn"
                         onClick={() => { setMore(false); setResetting(true); }}
                       />
-                    </>
+                    </MoreGroup>
                   )}
                 </div>
               </>
@@ -1442,6 +1462,38 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           ACSA view — dashboard only. Capture is TPJV.
         </div>
       )}
+    </div>
+  );
+}
+
+/** A named section of the More menu — Sarel: "when you click on more, that
+ *  list is very long." The items inside did not change, only how they read:
+ *  a small caption says what kind of thing the rows below it are (somewhere
+ *  to go, work leaving the device, help), so the menu reads as a handful of
+ *  short, curated groups rather than one long list to scan top to bottom.
+ *  `last` drops the trailing rule for whichever group ends the menu, since
+ *  the panel's own bottom edge already closes it off. */
+function MoreGroup({
+  label,
+  tone,
+  last = false,
+  children,
+}: {
+  label: string;
+  tone?: "warn";
+  last?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div
+        className="px-[9px] pt-[7px] pb-[3px] font-mono text-[9px] font-semibold tracking-[0.08em] uppercase"
+        style={{ color: tone === "warn" ? "var(--menu-warn)" : "var(--menu-ink-2)" }}
+      >
+        {label}
+      </div>
+      {children}
+      {!last && <div className="my-[4px] h-px" style={{ background: "var(--menu-line)" }} />}
     </div>
   );
 }
