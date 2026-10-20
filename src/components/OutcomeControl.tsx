@@ -13,6 +13,16 @@ import { IconCheck, IconClock, IconDash, IconX } from "@/components/ui/icons";
  *  answering the same check as a desk answer must read as the same verdict,
  *  not a different-sounding one depending on which screen gave it.
  *
+ *  THE WORDING STAYS SHARED; THE STORAGE NO LONGER IS, 20 Oct 2026. Sarel:
+ *  "the compliances on the inspections page is a seperate compliance field
+ *  th[a]n what is on the checks page... should not pull through to the
+ *  other page. But they remain linked to the specific audit check." This
+ *  control now writes `Response.fieldCompliance`
+ *  (`src/app/(app)/field/page.tsx`), not the `compliance` CheckDetail's own
+ *  buttons set — two independent verdicts on the same check, same reason
+ *  the note above still holds: whichever screen answers, the word on the
+ *  button must mean the same thing.
+ *
  *  AN OUTCOME IS NOT A RATING, and the palette is where that gets taught
  *  wrongly. `--bad` (#B93338) and `--warn` (#946511) mean Unacceptable and
  *  Tolerable — they are band colours, in the report, on the dashboard and on

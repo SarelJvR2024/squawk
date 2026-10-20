@@ -84,7 +84,7 @@ export default function FieldPage() {
   const entity = useEntity();
   const entityCode = useEntityCode();
   const auditor = useStore((s) => s.auditor);
-  const setCompliance = useStore((s) => s.setCompliance);
+  const setFieldCompliance = useStore((s) => s.setFieldCompliance);
   const patch = useStore((s) => s.patch);
   const commit = useStore((s) => s.commit);
   const addAttachment = useStore((s) => s.addAttachment);
@@ -732,7 +732,7 @@ export default function FieldPage() {
                            coming back to a list with nothing highlighted loses
                            your place. */
                         const itemOpen = openItem === c.id;
-                        const outcome = OUTCOMES.find((o) => o.key === r?.compliance);
+                        const outcome = OUTCOMES.find((o) => o.key === r?.fieldCompliance);
                         const raised = findingsHere.get(c.id) ?? 0;
                         return (
                           <div
@@ -1450,20 +1450,14 @@ export default function FieldPage() {
               Outcome
             </div>
             <OutcomeControl
-              value={r?.compliance ?? null}
+              value={r?.fieldCompliance ?? null}
               onChange={(nextOutcome) => {
-                /* CARRY THE EVIDENCE-PENDING TAG, do not silently drop it.
-                   setCompliance clears the flag on any answer that is not "C",
-                   which is the right invariant — but a desk answer of
-                   "compliant, evidence pending" followed by the field half
-                   confirming compliance is the same verdict, and losing the
-                   tag there would quietly take a row off the RFI list nobody
-                   asked to remove. Any other outcome supersedes it. */
-                setCompliance(
-                  c.id,
-                  nextOutcome,
-                  nextOutcome === "C" ? !!r?.evidencePending : false
-                );
+                /* Response.fieldCompliance — this screen's own verdict, kept
+                   apart from the desk's `compliance` (see that field's own
+                   doc comment in types.ts). No evidence-pending flag to carry
+                   here: that is a Checks-screen RFI concept with nothing on
+                   this axis for it to agree or disagree with. */
+                setFieldCompliance(c.id, nextOutcome);
                 if (nextOutcome) {
                   saveField(c.id);
                   say(`${portalIdFor(entityCode, c.id)} — ${OUTCOMES.find((o) => o.key === nextOutcome)?.label}`);
