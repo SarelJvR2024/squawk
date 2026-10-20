@@ -348,8 +348,12 @@ check(
 
 check(
   "the panels can shrink inside their grid track",
-  /className="min-w-0 rounded-\[13px\] border lg:min-h-0 lg:overflow-y-auto"/.test(page) &&
-    /className="min-w-0 rounded-\[15px\] border lg:flex lg:min-h-0 lg:flex-col lg:overflow-y-auto"/.test(
+  /* UX-audit P1's mechanical border-radius pass moved these two ad-hoc
+     values (13px, 15px) onto the shared 3-tier scale — 11px and 16px, the
+     nearest tier to each. min-w-0 and the overflow behaviour this actually
+     protects are untouched. */
+  /className="min-w-0 rounded-\[11px\] border lg:min-h-0 lg:overflow-y-auto"/.test(page) &&
+    /className="min-w-0 rounded-\[16px\] border lg:flex lg:min-h-0 lg:flex-col lg:overflow-y-auto"/.test(
       page
     ),
   "a grid item's default min-width is auto, and the app shell is overflow:hidden — so an overflowing child is CLIPPED, not scrollable. At 375px the group count lost its last character."

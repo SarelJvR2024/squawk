@@ -109,7 +109,7 @@ export default function FindingDetail({
         if (!from) return null;
         return (
           <div
-            className="mb-3.5 rounded-[12px] border p-3"
+            className="mb-3.5 rounded-[11px] border p-3"
             style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
           >
             <div className="mb-1.5 flex flex-wrap items-center gap-2">

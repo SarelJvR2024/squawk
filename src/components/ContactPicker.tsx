@@ -168,13 +168,13 @@ export default function ContactPicker({
         disabled={disabled}
         aria-label="Add a person — search the directory or type a new name"
         placeholder={placeholder ?? "Search the people directory, or type a new name"}
-        className="min-h-[44px] w-full rounded-[9px] border px-3 text-[13px] outline-none disabled:opacity-50"
+        className="min-h-[44px] w-full rounded-[8px] border px-3 text-[13px] outline-none disabled:opacity-50"
         style={{ background: "var(--bg)", borderColor: "var(--line)" }}
       />
 
       {open && !disabled && q.trim() ? (
         <div
-          className="absolute z-10 mt-1 max-h-[260px] w-full overflow-y-auto rounded-[9px] border shadow-lg"
+          className="absolute z-10 mt-1 max-h-[260px] w-full overflow-y-auto rounded-[8px] border shadow-lg"
           style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
         >
           {matches.map((c) => (

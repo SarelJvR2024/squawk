@@ -74,7 +74,7 @@ function isTpjv(c: Contact): boolean {
   return c.company.toLowerCase().includes("tpjv");
 }
 
-const inputCls = "min-h-[44px] w-full rounded-[9px] border px-3 py-2 text-[13px]";
+const inputCls = "min-h-[44px] w-full rounded-[8px] border px-3 py-2 text-[13px]";
 const inputStyle = { background: "var(--bg)", borderColor: "var(--line)" } as const;
 
 /* A FIELD WITHOUT Field's OVERHEAD — the same trick src/app/(app)/attendance
@@ -273,7 +273,7 @@ function DiaryDayBody({
       {entries.map((e) => (
         <div
           key={e.id}
-          className="mb-2 rounded-[9px] border p-2"
+          className="mb-2 rounded-[8px] border p-2"
           style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
         >
           <div className="flex items-center gap-[6px]">

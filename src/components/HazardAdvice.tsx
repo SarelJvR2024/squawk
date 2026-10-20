@@ -115,7 +115,7 @@ export default function HazardAdvice({
       {proposals?.map((h, i) => (
         <div
           key={`${h.event}-${i}`}
-          className="flex flex-col gap-[5px] rounded-[9px] border px-[9px] py-[8px]"
+          className="flex flex-col gap-[5px] rounded-[8px] border px-[9px] py-[8px]"
           style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
         >
           <div className="flex flex-wrap items-center gap-[7px]">

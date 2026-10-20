@@ -365,7 +365,11 @@ check(
 );
 check(
   "safety findings are persisted",
-  /partialize[\s\S]{0,400}safetyFindings:\s*s\.safetyFindings/.test(store)
+  /* UX-audit P1 added disciplineFilterByEntity ahead of byVisit in
+     partialize (src/lib/store.ts) — widened from 400 for that one new
+     line, same reasoning as attendance.test.mjs's "site days are
+     persisted". */
+  /partialize[\s\S]{0,500}safetyFindings:\s*s\.safetyFindings/.test(store)
 );
 check(
   "the persisted shape was versioned when the slice was added",

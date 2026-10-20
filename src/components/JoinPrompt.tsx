@@ -133,7 +133,7 @@ export default function JoinPrompt() {
                "Team passphrase" is a coin toss for anyone navigating by label. */
             aria-label="Team passphrase to join the audit"
             autoComplete="off"
-            className="min-h-[44px] w-full rounded-[9px] border py-0 pl-[11px] pr-[38px] text-[12.5px] outline-none focus:border-[var(--acc)]"
+            className="min-h-[44px] w-full rounded-[8px] border py-0 pl-[11px] pr-[38px] text-[12.5px] outline-none focus:border-[var(--acc)]"
             style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
           />
           {/* See the matching note in SharedPanel.tsx — masked by default,
@@ -166,7 +166,7 @@ export default function JoinPrompt() {
           type="button"
           onClick={dismiss}
           title="It is under More → Shared record whenever you have it"
-          className="flex min-h-[44px] shrink-0 items-center gap-[5px] rounded-[9px] border px-[10px] text-[11.5px]"
+          className="flex min-h-[44px] shrink-0 items-center gap-[5px] rounded-[8px] border px-[10px] text-[11.5px]"
           style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-3)" }}
         >
           <IconX width={11} height={11} />

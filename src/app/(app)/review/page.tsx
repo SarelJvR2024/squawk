@@ -50,8 +50,10 @@ import {
   disciplinesAt,
   priorFor,
   systemsOf,
+  useDisciplineFilter,
   useEntityCode,
   useResponses,
+  useStore,
   useVisitFindings,
 } from "@/lib/store";
 import { portalIdFor } from "@/lib/sites";
@@ -96,7 +98,10 @@ export default function ReviewPage() {
   const entityCode = useEntityCode();
   const disciplines = useMemo(() => disciplinesAt(entityCode), [entityCode]);
 
-  const [picked, setDiscipline] = useState<string>(disciplines[0]);
+  /* Shared with Capture, Field and HIRA — see useDisciplineFilter's own
+     note in src/lib/store.ts. */
+  const picked = useDisciplineFilter();
+  const setDiscipline = useStore((s) => s.setDisciplineFilter);
   const discipline = disciplines.includes(picked) ? picked : disciplines[0];
   const [expanded, setExpanded] = useState<string[]>([]);
   const [filter, setFilter] = useState<Filter>("all");

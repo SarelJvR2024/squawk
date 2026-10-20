@@ -206,7 +206,7 @@ export function SignaturePad({
 
   return (
     <div
-      className="rounded-[9px] border p-2.5"
+      className="rounded-[8px] border p-2.5"
       style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
     >
       <label
@@ -219,7 +219,7 @@ export function SignaturePad({
           onChange={(e) => setTyped(e.target.value)}
           aria-label="Name of the person signing"
           placeholder="Full name"
-          className="mt-1 w-full rounded-[9px] border px-3 py-2 text-[13px]"
+          className="mt-1 w-full rounded-[8px] border px-3 py-2 text-[13px]"
           style={{ background: "var(--bg)", borderColor: "var(--line)" }}
         />
       </label>
@@ -232,7 +232,7 @@ export function SignaturePad({
         onPointerCancel={up}
         aria-label="Sign here with your finger"
         role="img"
-        className="h-[132px] w-full touch-none rounded-[9px] border"
+        className="h-[132px] w-full touch-none rounded-[8px] border"
         style={{ background: "var(--bg)", borderColor: "var(--line-2)" }}
       />
       <p className="mt-1 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>

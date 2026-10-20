@@ -340,8 +340,14 @@ check(
    was expected and absent. */
 check(
   "the inspection tree does not clip its own sticky group headers",
-  /className="rounded-\[13px\] border"/.test(field) &&
-    !/overflow-hidden rounded-\[13px\]/.test(field),
+  /* UX-audit P1's mechanical border-radius pass (src/components/ui/
+     primitives.tsx) moved this ad-hoc 13px value to the shared scale's
+     11px tier — nearest of {8, 11, 16} — along with every other rounded-
+     [13px] in the app. The radius number is incidental to what this
+     assertion protects (that this wrapper is never combined with
+     overflow-hidden); it is updated here to track that move. */
+  /className="rounded-\[11px\] border"/.test(field) &&
+    !/overflow-hidden rounded-\[11px\]/.test(field),
   "the square corner where the first group row meets the border is the price of a header that works"
 );
 check(

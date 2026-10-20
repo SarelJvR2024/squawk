@@ -9,6 +9,7 @@ import {
   checksOf,
   priorFor,
   systemsOf,
+  useDisciplineFilter,
   useEntityCode,
   useResponses,
   useStore,
@@ -49,10 +50,16 @@ function CaptureInner() {
      work at all — offering the tab would be offering an empty audit. */
   const disciplines = useMemo(() => disciplinesAt(entityCode), [entityCode]);
 
-  const [picked, setDiscipline] = useState<string>(disciplines[0]);
+  /* Shared with Review, Field and HIRA — see useDisciplineFilter's own note
+     in src/lib/store.ts. Picking "Electrical" here is still "Electrical" on
+     those screens too, scoped to this entity. */
+  const picked = useDisciplineFilter();
+  const setDiscipline = useStore((s) => s.setDisciplineFilter);
   /* Derived, not corrected in an effect: switching to a site that does not have
      the discipline in view falls back on the same render rather than painting a
-     rail tab with nothing behind it and fixing it a render later. */
+     rail tab with nothing behind it and fixing it a render later. Also what
+     covers "" (nothing picked yet, or HIRA/Field's own "All disciplines") —
+     Capture has no "every discipline" state, so it falls back the same way. */
   const discipline = disciplines.includes(picked) ? picked : disciplines[0];
   /* The asset systems and the checks under them used to be two columns —
      a 210px rail of systems that FILTERED a 298px list of checks. That is a

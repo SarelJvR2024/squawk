@@ -124,7 +124,7 @@ export default function RootCauseAdvice({
       {candidates?.map((c, i) => (
         <div
           key={`${c.cause}-${i}`}
-          className="flex flex-col gap-[5px] rounded-[9px] border px-[9px] py-[8px]"
+          className="flex flex-col gap-[5px] rounded-[8px] border px-[9px] py-[8px]"
           style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
         >
           <div className="flex flex-wrap items-center gap-[7px]">
@@ -155,7 +155,7 @@ export default function RootCauseAdvice({
               question is the thing an auditor can actually use in the room. */}
           {c.askInstead && (
             <div
-              className="rounded-[7px] border px-[8px] py-[6px]"
+              className="rounded-[8px] border px-[8px] py-[6px]"
               style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)" }}
             >
               <div

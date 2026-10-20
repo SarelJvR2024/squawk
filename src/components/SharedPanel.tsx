@@ -64,7 +64,7 @@ export default function SharedPanel() {
 
   return (
     <div
-      className="mb-3.5 rounded-[13px] border p-3"
+      className="mb-3.5 rounded-[11px] border p-3"
       style={{ borderColor: "var(--line)", background: "var(--sunken)" }}
     >
       <div className="flex flex-wrap items-start gap-3">
@@ -140,7 +140,7 @@ export default function SharedPanel() {
               placeholder="Team passphrase"
               aria-label="Team passphrase"
               autoComplete="off"
-              className="min-h-[44px] w-full rounded-[9px] border py-0 pl-[11px] pr-[38px] text-[12.5px] outline-none"
+              className="min-h-[44px] w-full rounded-[8px] border py-0 pl-[11px] pr-[38px] text-[12.5px] outline-none"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             />
             {/* Typed once, on a tablet, often by someone reading it off a
@@ -166,7 +166,7 @@ export default function SharedPanel() {
       )}
       {err && (
         <div
-          className="mt-2 rounded-[9px] border px-[11px] py-[8px] text-[11.5px] leading-[1.5]"
+          className="mt-2 rounded-[8px] border px-[11px] py-[8px] text-[11.5px] leading-[1.5]"
           style={{ borderColor: "var(--bad)", background: "var(--bad-bg)", color: "var(--bad)" }}
         >
           {err}

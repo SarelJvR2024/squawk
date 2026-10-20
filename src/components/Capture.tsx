@@ -84,7 +84,7 @@ const TAP =
  *  controls an auditor reaches for in gloves on an apron — Photo, and the
  *  compliance answer — keep their 44px in the bar below. */
 const TAP_INLINE =
-  "inline-flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border text-[12px] font-semibold transition-[var(--t)] active:translate-y-[1px] disabled:opacity-40 disabled:cursor-not-allowed";
+  "inline-flex h-[34px] w-[34px] items-center justify-center rounded-[8px] border text-[12px] font-semibold transition-[var(--t)] active:translate-y-[1px] disabled:opacity-40 disabled:cursor-not-allowed";
 
 /** What to say when this device cannot store a capture.
  *
@@ -541,7 +541,7 @@ export function PhotoThumb({ a, size = 44 }: { a: ThumbSource; size?: number }) 
   if (a.unavailable || (missing && !a.dataUrl)) {
     return (
       <span
-        className="flex shrink-0 items-center justify-center rounded-[7px] border text-[8px]"
+        className="flex shrink-0 items-center justify-center rounded-[8px] border text-[8px]"
         style={{
           width: size,
           height: size,
@@ -558,7 +558,7 @@ export function PhotoThumb({ a, size = 44 }: { a: ThumbSource; size?: number }) 
   if (!src) {
     return (
       <span
-        className="shrink-0 rounded-[7px] border"
+        className="shrink-0 rounded-[8px] border"
         style={{ width: size, height: size, background: "var(--sunken)", borderColor: "var(--line-2)" }}
       />
     );
@@ -568,7 +568,7 @@ export function PhotoThumb({ a, size = 44 }: { a: ThumbSource; size?: number }) 
     <img
       src={src}
       alt={a.name}
-      className="shrink-0 rounded-[7px] border object-cover"
+      className="shrink-0 rounded-[8px] border object-cover"
       style={{ width: size, height: size, borderColor: "var(--line-2)" }}
     />
   );
@@ -669,7 +669,7 @@ function VoiceRow({
 
   return (
     <div
-      className="flex flex-col gap-[7px] rounded-[9px] border px-[9px] py-[7px]"
+      className="flex flex-col gap-[7px] rounded-[8px] border px-[9px] py-[7px]"
       style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -731,7 +731,7 @@ function VoiceRow({
             type="button"
             onClick={onRemove}
             aria-label="Remove this voice note"
-            className="ml-auto flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[7px] border"
+            className="ml-auto flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[8px] border"
             style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
           >
             <IconX width={12} height={12} />
@@ -765,7 +765,7 @@ function VoiceRow({
 
       {a.revised && (
         <div
-          className="flex flex-col gap-[5px] rounded-[7px] border px-[8px] py-[6px]"
+          className="flex flex-col gap-[5px] rounded-[8px] border px-[8px] py-[6px]"
           style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
         >
           <span
@@ -923,7 +923,7 @@ function PhotoRow({
 
   return (
     <div
-      className="flex flex-col gap-[6px] rounded-[9px] border px-[9px] py-[7px]"
+      className="flex flex-col gap-[6px] rounded-[8px] border px-[9px] py-[7px]"
       style={{
         background: "var(--panel)",
         borderColor: uncaptioned ? "var(--warn-line)" : "var(--line-2)",
@@ -936,7 +936,7 @@ function PhotoRow({
       <div className="flex flex-wrap items-start gap-2">
         {dead ? (
           <span
-            className="flex shrink-0 items-center justify-center rounded-[7px] border text-[8px]"
+            className="flex shrink-0 items-center justify-center rounded-[8px] border text-[8px]"
             style={{ width: size, height: size, background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-4)" }}
             title="No image stored — this record predates real capture."
           >
@@ -947,7 +947,7 @@ function PhotoRow({
             type="button"
             onClick={() => setOpen(true)}
             aria-label={`Open ${a.name}`}
-            className="shrink-0 rounded-[7px] border"
+            className="shrink-0 rounded-[8px] border"
             style={{ borderColor: "var(--line-2)", padding: 0, lineHeight: 0 }}
           >
             {src ? (
@@ -955,11 +955,11 @@ function PhotoRow({
               <img
                 src={a.thumbDataUrl ?? src}
                 alt={caption || a.name}
-                className="rounded-[6px] object-cover"
+                className="rounded-[8px] object-cover"
                 style={{ width: size, height: size }}
               />
             ) : (
-              <span className="block rounded-[6px]" style={{ width: size, height: size, background: "var(--sunken)" }} />
+              <span className="block rounded-[8px]" style={{ width: size, height: size, background: "var(--sunken)" }} />
             )}
           </button>
         )}
@@ -974,7 +974,7 @@ function PhotoRow({
               }
               placeholder="What does this photograph show?"
               aria-label={`Caption for ${a.name}`}
-              className="w-full rounded-[7px] border px-[8px] py-[6px] text-[11.5px] outline-none"
+              className="w-full rounded-[8px] border px-[8px] py-[6px] text-[11.5px] outline-none"
               style={{
                 background: uncaptioned ? "var(--warn-bg)" : "var(--sunken)",
                 borderColor: uncaptioned ? "var(--warn-line)" : "var(--line-2)",
@@ -1082,7 +1082,7 @@ function PhotoRow({
               type="button"
               onClick={onRemove}
               aria-label={`Remove ${a.name}`}
-              className="flex h-[28px] w-[28px] items-center justify-center rounded-[7px] border"
+              className="flex h-[28px] w-[28px] items-center justify-center rounded-[8px] border"
               style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
             >
               <IconX width={12} height={12} />
@@ -1107,7 +1107,7 @@ function PhotoRow({
           <img
             src={src}
             alt={caption || a.name}
-            className="max-h-full max-w-full rounded-[12px]"
+            className="max-h-full max-w-full rounded-[11px]"
             onClick={(e) => e.stopPropagation()}
           />
         </div>
@@ -1139,12 +1139,12 @@ function FileRow({
 
   return (
     <div
-      className="flex flex-col gap-[6px] rounded-[9px] border px-[9px] py-[7px]"
+      className="flex flex-col gap-[6px] rounded-[8px] border px-[9px] py-[7px]"
       style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
     >
       <div className="flex items-center gap-[9px]">
         <span
-          className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[7px]"
+          className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[8px]"
           style={{ background: "var(--sunken)", color: "var(--ink-3)" }}
         >
           <IconPaperclip width={15} height={15} />
@@ -1171,7 +1171,7 @@ function FileRow({
             download={a.name}
             aria-label={`Open ${a.name}`}
             title="Open or save this file"
-            className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[7px] border"
+            className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[8px] border"
             style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
           >
             <IconDownload width={13} height={13} />
@@ -1182,7 +1182,7 @@ function FileRow({
             type="button"
             onClick={onRemove}
             aria-label={`Remove ${a.name}`}
-            className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[7px] border"
+            className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[8px] border"
             style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
           >
             <IconX width={12} height={12} />
@@ -1195,7 +1195,7 @@ function FileRow({
           onChange={(e) => onUpdate({ caption: e.target.value })}
           aria-label={`Description of ${a.name}`}
           placeholder="What this file is"
-          className="w-full rounded-[7px] border px-[9px] py-[5px] text-[11px]"
+          className="w-full rounded-[8px] border px-[9px] py-[5px] text-[11px]"
           style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-1)" }}
         />
       )}

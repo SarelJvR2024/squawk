@@ -469,7 +469,7 @@ export default function CheckDetail({
               would read it. */}
           {check.walkabout && (
             <div
-              className="mb-2.5 rounded-[9px] border px-[10px] py-[8px]"
+              className="mb-2.5 rounded-[8px] border px-[10px] py-[8px]"
               style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
             >
               <div className="label-xs">What the register says to look at</div>
@@ -566,7 +566,7 @@ export default function CheckDetail({
             onChange={(e) => patch(check.id, { evidenceProves: e.target.value })}
             placeholder="What the document or record actually shows, in your own words"
             aria-label="What the evidence proves"
-            className="min-h-[64px] w-full resize-y rounded-[9px] border px-3 py-2 text-[12.5px] outline-none focus:border-[var(--acc)]"
+            className="min-h-[64px] w-full resize-y rounded-[8px] border px-3 py-2 text-[12.5px] outline-none focus:border-[var(--acc)]"
             style={{ background: "var(--bg)", borderColor: "var(--line-2)" }}
           />
           <div className="mt-2 grid grid-cols-3 gap-[6px]">
@@ -707,14 +707,14 @@ export default function CheckDetail({
                       }}
                       aria-label={`${active.note} — item ${i + 1}`}
                       placeholder={itemPlaceholder}
-                      className="w-full rounded-[9px] border px-3 py-2 text-[12.5px]"
+                      className="w-full rounded-[8px] border px-3 py-2 text-[12.5px]"
                       style={{ background: "var(--bg)", borderColor: "var(--line-2)" }}
                     />
                     <button
                       type="button"
                       onClick={() => setItems(items.length > 1 ? items.filter((_, j) => j !== i) : [""])}
                       aria-label="Remove this item"
-                      className="shrink-0 rounded-[7px] p-1.5"
+                      className="shrink-0 rounded-[8px] p-1.5"
                       style={{ color: "var(--ink-4)" }}
                     >
                       <IconX width={13} height={13} />
@@ -725,7 +725,7 @@ export default function CheckDetail({
               <button
                 type="button"
                 onClick={() => setItems([...items, ""])}
-                className="mt-1.5 flex items-center gap-[5px] rounded-[7px] px-[7px] py-1 text-[11px] font-semibold"
+                className="mt-1.5 flex items-center gap-[5px] rounded-[8px] px-[7px] py-1 text-[11px] font-semibold"
                 style={{ color: "var(--acc)" }}
               >
                 <IconPlus width={12} height={12} />
@@ -790,7 +790,7 @@ export default function CheckDetail({
               rows={3}
               aria-label="How to improve this check"
               placeholder="e.g. the wording is ambiguous, the evidence list is missing something, the threshold looks outdated"
-              className="w-full rounded-[9px] border px-3 py-2 text-[12.5px]"
+              className="w-full rounded-[8px] border px-3 py-2 text-[12.5px]"
               style={{ background: "var(--bg)", borderColor: "var(--line-2)" }}
             />
           </div>
@@ -851,7 +851,7 @@ export default function CheckDetail({
       body: (
         <>
           <div
-            className="mb-2 flex items-center gap-[6px] rounded-[9px] border px-[10px] py-[7px] text-[10.5px] font-semibold"
+            className="mb-2 flex items-center gap-[6px] rounded-[8px] border px-[10px] py-[7px] text-[10.5px] font-semibold"
             style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}
           >
             <IconInfo width={13} height={13} className="shrink-0" />
@@ -866,7 +866,7 @@ export default function CheckDetail({
             rows={4}
             aria-label={`Internal note for ${check.system}`}
             placeholder="A note for the team — a question to raise, something to chase, a doubt about the evidence"
-            className="w-full rounded-[9px] border px-3 py-2 text-[12.5px]"
+            className="w-full rounded-[8px] border px-3 py-2 text-[12.5px]"
             style={{ background: "var(--bg)", borderColor: "var(--line-2)" }}
           />
         </>
@@ -1113,7 +1113,7 @@ export default function CheckDetail({
           <button
             onClick={() => setTitleOpen((v) => !v)}
             aria-expanded={titleOpen}
-            className="mt-[3px] rounded-[5px] font-mono text-[9.5px] tracking-[.04em] uppercase"
+            className="mt-[3px] rounded-[8px] font-mono text-[9.5px] tracking-[.04em] uppercase"
             style={{ color: "var(--acc)" }}
           >
             {titleOpen ? "Show less" : "Show the full wording"}
@@ -1490,7 +1490,7 @@ export default function CheckDetail({
                 }}
                 aria-label="Compose from taps"
                 title="Compose from taps — builds a sentence from the buttons you have tapped. Works offline, no model needed."
-                className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border transition-[var(--t)] active:translate-y-[1px]"
+                className="flex h-[34px] w-[34px] items-center justify-center rounded-[8px] border transition-[var(--t)] active:translate-y-[1px]"
                 style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
               >
                 <IconWand width={14} height={14} />
@@ -1511,7 +1511,7 @@ export default function CheckDetail({
                   }}
                   aria-label={thinking === "observation" ? "Drafting…" : "Draft with AI"}
                   title="Draft with AI — drafts the observation from this check's own material. Advisory, you decide."
-                  className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border transition-[var(--t)] active:translate-y-[1px] disabled:opacity-40"
+                  className="flex h-[34px] w-[34px] items-center justify-center rounded-[8px] border transition-[var(--t)] active:translate-y-[1px] disabled:opacity-40"
                   style={
                     thinking === "observation"
                       ? { background: "var(--acc-bg)", borderColor: "var(--acc)", color: "var(--acc)" }

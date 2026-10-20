@@ -21,7 +21,7 @@ import { Btn, Chip, Empty, Field, Panel, Pill } from "@/components/ui/primitives
 import { IconCheck, IconX } from "@/components/ui/icons";
 import type { ActionStatus, IncidentReport, MitigationAction } from "@/lib/types";
 
-const inputCls = "w-full rounded-[9px] border px-3 py-2 text-[13px]";
+const inputCls = "w-full rounded-[8px] border px-3 py-2 text-[13px]";
 const inputStyle = { background: "var(--bg)", borderColor: "var(--line)" } as const;
 const uid = () => Math.random().toString(36).slice(2, 10);
 const STATUSES: ActionStatus[] = ["Open", "In progress", "Closed"];
@@ -380,7 +380,7 @@ export default function IncidentPage() {
                     {r.actions.map((a) => (
                       <div
                         key={a.id}
-                        className="mb-2 rounded-[9px] border p-2.5"
+                        className="mb-2 rounded-[8px] border p-2.5"
                         style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
                       >
                         <div className="mb-2 flex items-start justify-between gap-2">

@@ -188,7 +188,7 @@ export default function ActivityPanel({ onClose }: { onClose: () => void }) {
       onClick={onClose}
     >
       <div
-        className="h-fit w-[min(720px,92vw)] rounded-[20px] border p-[22px]"
+        className="h-fit w-[min(720px,92vw)] rounded-[16px] border p-[22px]"
         style={{ background: "var(--panel)", borderColor: "var(--line-2)", boxShadow: "var(--e3)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -209,7 +209,7 @@ export default function ActivityPanel({ onClose }: { onClose: () => void }) {
             time. This log inherits that weakness from the rest of the app
             rather than hiding it; see AUDITORS/setAuditor in store.ts. */}
         <div
-          className="mb-4 rounded-[10px] border px-[10px] py-[8px] text-[11px] leading-[1.5]"
+          className="mb-4 rounded-[11px] border px-[10px] py-[8px] text-[11px] leading-[1.5]"
           style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-3)" }}
         >
           Every &ldquo;by&rdquo; below is whoever the auditor picker said at that moment — self-reported,
@@ -218,7 +218,7 @@ export default function ActivityPanel({ onClose }: { onClose: () => void }) {
         </div>
 
         {empty && (
-          <p className="rounded-[10px] border px-[12px] py-[18px] text-center text-[12px]" style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-3)" }}>
+          <p className="rounded-[11px] border px-[12px] py-[18px] text-center text-[12px]" style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-3)" }}>
             No activity yet — nothing captured, and no sync has run.
           </p>
         )}
@@ -253,7 +253,7 @@ export default function ActivityPanel({ onClose }: { onClose: () => void }) {
                     return (
                       <div
                         key={person}
-                        className="rounded-[10px] border px-[10px] py-[8px]"
+                        className="rounded-[11px] border px-[10px] py-[8px]"
                         style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
                       >
                         <div className="mb-1 text-[12px] font-semibold">{person}</div>
@@ -311,7 +311,7 @@ function SyncRunCard({ run }: { run: SyncRun }) {
   const tone = bad ? "bad" : warn ? "warn" : "good";
   return (
     <div
-      className="mb-2 rounded-[10px] border px-[10px] py-[8px] text-[11.5px]"
+      className="mb-2 rounded-[11px] border px-[10px] py-[8px] text-[11.5px]"
       style={{
         background: `var(--${tone}-bg)`,
         borderColor: tone === "good" ? "var(--line-2)" : `var(--${tone}-line)`,

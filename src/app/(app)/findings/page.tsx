@@ -151,7 +151,7 @@ function Marks({
   const box = (v: string | null, title: string) => (
     <span
       title={title}
-      className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-[5px] border font-mono text-[10px] font-semibold"
+      className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-[8px] border font-mono text-[10px] font-semibold"
       style={{
         borderColor: v ? "var(--line-2)" : "var(--line)",
         borderStyle: v ? "solid" : "dashed",
@@ -507,7 +507,7 @@ export default function FindingsPage() {
             <div
               role="radiogroup"
               aria-label="Arrange the work by"
-              className="flex min-w-0 gap-[2px] rounded-[10px] p-[2px] sm:max-w-[320px]"
+              className="flex min-w-0 gap-[2px] rounded-[11px] p-[2px] sm:max-w-[320px]"
               style={{ background: "var(--sunken)" }}
             >
               {(
@@ -521,7 +521,7 @@ export default function FindingsPage() {
                   role="radio"
                   aria-checked={mode === k}
                   onClick={() => setMode(k)}
-                  className="flex min-h-[32px] items-center justify-center gap-[6px] rounded-[7px] px-3 font-display text-[11.5px] font-semibold transition-[var(--t)]"
+                  className="flex min-h-[32px] items-center justify-center gap-[6px] rounded-[8px] px-3 font-display text-[11.5px] font-semibold transition-[var(--t)]"
                   style={{
                     background: mode === k ? "var(--panel)" : "transparent",
                     color: mode === k ? "var(--acc)" : "var(--ink-2)",
@@ -545,7 +545,7 @@ export default function FindingsPage() {
             </span>
 
             <div
-              className="flex min-w-0 flex-1 items-center gap-2 rounded-[10px] border px-3 py-[2px] sm:max-w-[240px] sm:flex-none"
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-[11px] border px-3 py-[2px] sm:max-w-[240px] sm:flex-none"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             >
               <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
@@ -654,7 +654,7 @@ export default function FindingsPage() {
                is `overflow: hidden`, the overflow is CLIPPED rather than
                scrollable. Measured at 375px: the group row's "0/13" count lost
                its last character off the right edge, silently. */
-            className="min-w-0 rounded-[13px] border lg:min-h-0 lg:overflow-y-auto"
+            className="min-w-0 rounded-[11px] border lg:min-h-0 lg:overflow-y-auto"
             style={{ background: "var(--panel)", borderColor: "var(--line)" }}
           >
             {mode === "findings" ? (
@@ -889,7 +889,7 @@ export default function FindingsPage() {
           {mode === "findings" ? (
             shownFinding ? (
               <div
-                className="min-w-0 rounded-[15px] border p-[18px] lg:min-h-0 lg:overflow-y-auto"
+                className="min-w-0 rounded-[16px] border p-[18px] lg:min-h-0 lg:overflow-y-auto"
                 style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "var(--e2)" }}
               >
                 {/* THE SAME PANE, INLINE. It opens in a sheet from an asset
@@ -901,7 +901,7 @@ export default function FindingsPage() {
               </div>
             ) : (
               <div
-                className="flex min-w-0 items-center justify-center rounded-[15px] border p-8 text-center text-[12.5px] lg:min-h-0"
+                className="flex min-w-0 items-center justify-center rounded-[16px] border p-8 text-center text-[12.5px] lg:min-h-0"
                 style={{ background: "var(--panel)", borderColor: "var(--line)", color: "var(--ink-3)" }}
               >
                 {findings.length === 0
@@ -911,7 +911,7 @@ export default function FindingsPage() {
             )
           ) : !active || !a ? (
             <div
-              className="flex min-w-0 items-center justify-center rounded-[15px] border p-8 text-center text-[12.5px] lg:min-h-0"
+              className="flex min-w-0 items-center justify-center rounded-[16px] border p-8 text-center text-[12.5px] lg:min-h-0"
               style={{ background: "var(--panel)", borderColor: "var(--line)", color: "var(--ink-3)" }}
             >
               Pick an asset system to rate it and read everything this audit knows about it.
@@ -928,11 +928,11 @@ export default function FindingsPage() {
                  root causes, mitigations, possible events and the full evidence
                  list below — scrolls underneath them. That block is the sticky
                  header right below; everything after it is the scrolling body. */
-              className="min-w-0 rounded-[15px] border lg:flex lg:min-h-0 lg:flex-col lg:overflow-y-auto"
+              className="min-w-0 rounded-[16px] border lg:flex lg:min-h-0 lg:flex-col lg:overflow-y-auto"
               style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "var(--e2)" }}
             >
               <div
-                className="rounded-t-[15px] px-[18px] pt-[18px] pb-3 lg:sticky lg:top-0 lg:z-10 lg:shrink-0 lg:border-b"
+                className="rounded-t-[16px] px-[18px] pt-[18px] pb-3 lg:sticky lg:top-0 lg:z-10 lg:shrink-0 lg:border-b"
                 style={{ background: "var(--panel)", borderColor: "var(--line)" }}
               >
                 <div
@@ -1104,7 +1104,7 @@ export default function FindingsPage() {
                               .removeUnassignedRootCause(active.discipline, active.system, r.id)
                           }
                           aria-label={`Discard ${r.cause}`}
-                          className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[7px] border"
+                          className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[8px] border"
                           style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
                         >
                           <IconX width={12} height={12} />
@@ -1148,7 +1148,7 @@ export default function FindingsPage() {
                               .removeUnassignedAction(active.discipline, active.system, act.id)
                           }
                           aria-label="Discard this action"
-                          className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[7px] border"
+                          className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[8px] border"
                           style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
                         >
                           <IconX width={12} height={12} />

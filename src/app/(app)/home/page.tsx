@@ -305,11 +305,11 @@ export default function HomePage() {
     return out.sort((a, b) => b.at - a.at).slice(0, 7);
   }, [responses, findings, hazards, verifications, captures, entityCode]);
 
-  const card = "rounded-[15px] border p-[17px]";
+  const card = "rounded-[16px] border p-[17px]";
   const cardStyle = { background: "var(--panel)", borderColor: "var(--line)" };
 
   const stat = (label: string, value: string, sub: string, pct: number | null, tone: string) => (
-    <div key={label} className="relative overflow-hidden rounded-[15px] border px-[15px] py-[13px]" style={cardStyle}>
+    <div key={label} className="relative overflow-hidden rounded-[16px] border px-[15px] py-[13px]" style={cardStyle}>
       <span className="absolute inset-x-0 top-0 h-[2.5px]" style={{ background: `var(--${tone})` }} />
       <span className="label-xs block">{label}</span>
       <b

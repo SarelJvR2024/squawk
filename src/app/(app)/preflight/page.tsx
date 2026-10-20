@@ -516,7 +516,7 @@ export default function PreflightPage() {
             return (
               <li
                 key={r.id}
-                className="flex flex-wrap items-start gap-3 rounded-[13px] border p-3"
+                className="flex flex-wrap items-start gap-3 rounded-[11px] border p-3"
                 style={{ background: t.bg, borderColor: t.line }}
               >
                 <span className="mt-[2px] shrink-0" style={{ color: t.fg }}>

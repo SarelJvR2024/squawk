@@ -124,7 +124,7 @@ export default function ItemTimeline({
               )}
               {h.action && (
                 <div
-                  className="mt-[5px] rounded-[7px] border px-[8px] py-[5px] text-[11px] leading-[1.5]"
+                  className="mt-[5px] rounded-[8px] border px-[8px] py-[5px] text-[11px] leading-[1.5]"
                   style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}
                 >
                   <span className="font-mono text-[8.5px] tracking-[.06em] uppercase">

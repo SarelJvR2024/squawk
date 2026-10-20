@@ -311,7 +311,7 @@ export default function RaiseFindingSheet({
               />
             </div>
             {checkQuery.trim() && (
-              <div className="no-scrollbar mt-1.5 max-h-[160px] overflow-y-auto rounded-[10px] border" style={{ borderColor: "var(--line)" }}>
+              <div className="no-scrollbar mt-1.5 max-h-[160px] overflow-y-auto rounded-[11px] border" style={{ borderColor: "var(--line)" }}>
                 {checkResults.length === 0 ? (
                   <div className="px-3 py-3 text-center text-[11.5px]" style={{ color: "var(--ink-3)" }}>
                     Nothing matches.

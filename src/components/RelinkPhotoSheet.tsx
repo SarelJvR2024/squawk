@@ -143,11 +143,11 @@ export default function RelinkPhotoSheet({
             <img
               src={photo.thumbDataUrl}
               alt={photo.caption || photo.name}
-              className="h-[44px] w-[44px] shrink-0 rounded-[7px] object-cover"
+              className="h-[44px] w-[44px] shrink-0 rounded-[8px] object-cover"
             />
           ) : (
             <span
-              className="block h-[44px] w-[44px] shrink-0 rounded-[7px]"
+              className="block h-[44px] w-[44px] shrink-0 rounded-[8px]"
               style={{ background: "var(--sunken)" }}
             />
           )}
@@ -269,7 +269,7 @@ export default function RelinkPhotoSheet({
                 className="min-h-[44px] w-full border-none bg-transparent text-[13px] outline-none"
               />
             </div>
-            <div className="no-scrollbar mt-1.5 max-h-[220px] overflow-y-auto rounded-[10px] border" style={{ borderColor: "var(--line)" }}>
+            <div className="no-scrollbar mt-1.5 max-h-[220px] overflow-y-auto rounded-[11px] border" style={{ borderColor: "var(--line)" }}>
               {checkResults.length === 0 ? (
                 <div className="px-3 py-3 text-center text-[11.5px]" style={{ color: "var(--ink-3)" }}>
                   {checkQuery.trim() ? "Nothing matches." : "Type to search, or narrow by discipline/asset system above."}

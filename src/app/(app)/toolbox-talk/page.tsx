@@ -19,7 +19,7 @@ import { SignaturePad } from "@/components/SignaturePad";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconLeft, IconX } from "@/components/ui/icons";
 
-const inputCls = "min-h-[44px] w-full rounded-[9px] border px-3 py-2 text-[13px]";
+const inputCls = "min-h-[44px] w-full rounded-[8px] border px-3 py-2 text-[13px]";
 const inputStyle = { background: "var(--bg)", borderColor: "var(--line)" } as const;
 
 function hhmm(t: number): string {
@@ -165,7 +165,7 @@ export default function ToolboxTalkPage() {
               return (
                 <div
                   key={a.id}
-                  className="mb-2 mt-2 rounded-[9px] border p-2"
+                  className="mb-2 mt-2 rounded-[8px] border p-2"
                   style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
                 >
                   <div className="flex items-center gap-[6px]">
@@ -251,7 +251,7 @@ export default function ToolboxTalkPage() {
                           onChange={(ev) => patchAttendee(t.id, a.id, { role: ev.target.value })}
                           aria-label={`Role of attendee ${a.id}`}
                           placeholder="Role (optional)"
-                          className="min-h-[44px] flex-1 min-w-[140px] rounded-[9px] border px-3 text-[13px]"
+                          className="min-h-[44px] flex-1 min-w-[140px] rounded-[8px] border px-3 text-[13px]"
                           style={inputStyle}
                         />
                         <input
@@ -259,7 +259,7 @@ export default function ToolboxTalkPage() {
                           onChange={(ev) => patchAttendee(t.id, a.id, { organisation: ev.target.value })}
                           aria-label={`Organisation of attendee ${a.id}`}
                           placeholder="Organisation (optional)"
-                          className="min-h-[44px] flex-1 min-w-[160px] rounded-[9px] border px-3 text-[13px]"
+                          className="min-h-[44px] flex-1 min-w-[160px] rounded-[8px] border px-3 text-[13px]"
                           style={inputStyle}
                         />
                       </div>

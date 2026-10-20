@@ -208,7 +208,11 @@ check(
   /openAttendanceRegister: \(seed\) => \{/.test(store),
   "no draftDate.trim() or similar guard before the id is minted"
 );
-check("attendance registers are persisted", /partialize[\s\S]{0,700}attendanceRegisters: s\.attendanceRegisters/.test(store));
+/* UX-audit P1 added disciplineFilterByEntity ahead of byVisit in
+   partialize (src/lib/store.ts) — widened from 700 for that one new
+   line, same reasoning as attendance.test.mjs's "site days are
+   persisted". */
+check("attendance registers are persisted", /partialize[\s\S]{0,800}attendanceRegisters: s\.attendanceRegisters/.test(store));
 check(
   "the persisted shape was versioned to carry the new slice",
   Number(/version: (\d+),/.exec(store)?.[1] ?? 0) >= 28

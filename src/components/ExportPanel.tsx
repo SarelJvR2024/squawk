@@ -483,7 +483,7 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
       onClick={onClose}
     >
       <div
-        className="h-fit w-[min(680px,92vw)] rounded-[20px] border p-[22px]"
+        className="h-fit w-[min(680px,92vw)] rounded-[16px] border p-[22px]"
         style={{
           background: "var(--panel)",
           borderColor: "var(--line-2)",
@@ -508,7 +508,7 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
             full quota is opaque, arrives while somebody is standing on an
             apron, and looks like the app simply refusing to save. */}
         <div
-          className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[10px] border px-[10px] py-[8px] text-[11.5px]"
+          className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[11px] border px-[10px] py-[8px] text-[11.5px]"
           style={{
             background: budget.bytes > WARN_BYTES ? "var(--warn-bg)" : "var(--sunken)",
             borderColor: budget.bytes > WARN_BYTES ? "var(--warn-line)" : "var(--line-2)",
@@ -584,7 +584,7 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
           attached, and fetch the images when somebody asks. The filenames match
           the File column of the Photographs sheet exactly. */}
       <div
-        className="mb-3.5 flex flex-wrap items-start gap-3 rounded-[13px] border p-3"
+        className="mb-3.5 flex flex-wrap items-start gap-3 rounded-[11px] border p-3"
         style={{ borderColor: "var(--line)", background: "var(--sunken)" }}
       >
         <div className="min-w-[180px] flex-1">
@@ -609,7 +609,7 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
           with no ANTHROPIC_API_KEY sees nothing it cannot use. */}
       {assistAvailable && (
         <div
-          className="mb-3.5 flex flex-wrap items-start gap-3 rounded-[13px] border p-3"
+          className="mb-3.5 flex flex-wrap items-start gap-3 rounded-[11px] border p-3"
           style={{ borderColor: "var(--line)", background: "var(--sunken)" }}
         >
           <div className="min-w-[180px] flex-1">
@@ -668,7 +668,7 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
           {OPTIONS.map((o) => (
             <div
               key={o.kind}
-              className="flex flex-wrap items-start gap-3 rounded-[13px] border p-3"
+              className="flex flex-wrap items-start gap-3 rounded-[11px] border p-3"
               style={{ borderColor: "var(--line)", background: "var(--sunken)" }}
             >
               <div className="min-w-[180px] flex-1">

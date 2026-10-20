@@ -492,7 +492,12 @@ check("KSIA-BFM-004's note no longer carries any of this file's imported blocks"
 
 const storeSrc = fs.readFileSync(path.join(root, "src", "lib", "store.ts"), "utf8");
 check('the persist key "acsa-assurance-v1" is unchanged', /name: "acsa-assurance-v1"/.test(storeSrc));
-check("the migration version is unchanged — this import adds no new stored field", /version: 37,/.test(storeSrc));
+/* UX-audit P1 added disciplineFilterByEntity (src/lib/store.ts), an
+   unrelated persisted field, and bumped the version 37 -> 38 for it.
+   This assertion's own point — that this import pack adds no new
+   stored field of its own — still holds; re-pinned to the version that
+   change actually landed on. */
+check("the migration version is unchanged — this import adds no new stored field", /version: 38,/.test(storeSrc));
 
 console.log(failures === 0 ? "\nORTIA V3 PACK OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);
