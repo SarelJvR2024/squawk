@@ -43,6 +43,20 @@ const ORIGIN_TEXT: Record<Hazard["origin"], string> = {
 import { photoFilename } from "./photos";
 import type { CellValue, Sheet } from "./xlsx";
 
+/** AN "INTERNAL WORKING AREA" ITEM IS NOT IN ANY EXPORT — see
+ *  AdHocItem.internal's own note. "Not visible externally" was explicit, so
+ *  every sheet that lists ad-hoc items filters through this rather than
+ *  reading `a.internal` itself, the same way every other deliberate
+ *  exclusion in this file is named once rather than repeated as a raw
+ *  condition at each call site.
+ *
+ *  ONCE PROMOTED (`findingId` set) IT STOPS BEING EXCLUDED — at that point it
+ *  is a real Finding and its evidence is meant to reach a report exactly the
+ *  way a promoted (non-internal) walk item's always has; see
+ *  hazardPhotoRefs in sharepoint.ts, which already walks `adhoc` by
+ *  `findingId` regardless of this flag and must keep finding it. */
+const externallyVisible = (a: AdHocItem): boolean => !a.internal || !!a.findingId;
+
 /* The exports.
  *
  *  Two audiences. ACSA gets the register in the shape it already knows — the
@@ -486,6 +500,7 @@ export function photographsSheet(x: ExportInput): Sheet {
      reader looking for an image should not have to know which of two places it
      was captured from — and the last column says which it was. */
   for (const item of x.adhoc ?? []) {
+    if (!externallyVisible(item)) continue;
     for (const a of item.attachments) {
       if (a.kind !== "photo") continue;
       rows.push([
@@ -561,7 +576,7 @@ export function photographsSheet(x: ExportInput): Sheet {
  *  about the airport. Nothing computes that yet; the data is kept clean enough
  *  that it can be asked later. */
 export function walkSheet(x: ExportInput): Sheet {
-  const rows = (x.adhoc ?? []).map((a) => [
+  const rows = (x.adhoc ?? []).filter(externallyVisible).map((a) => [
     a.id,
     a.importKey ? `${ORIGIN_TEXT[a.origin]} — Imported, TPJV-proposed` : ORIGIN_TEXT[a.origin],
     /* Blank is a real answer on all three. An observation nobody could
@@ -1589,7 +1604,7 @@ export function summarySheet(x: ExportInput): Sheet {
        the denominator is ACSA's list and the numerator has to be answers to it.
        Shown alongside so both numbers are readable at once, which is the whole
        ask: what we were sent to look at, and what we found anyway. */
-    const walk = (x.adhoc ?? []).filter((a) => a.discipline === d);
+    const walk = (x.adhoc ?? []).filter((a) => a.discipline === d && externallyVisible(a));
     return [
       d,
       cs.length,
@@ -1683,7 +1698,7 @@ export function aboutSheet(x: ExportInput): Sheet {
       ["2025 findings verified", `${verified} of ${x.prior.length}`],
       [
         "Seen on the walk (NOT part of the check-points in scope)",
-        (x.adhoc ?? []).length,
+        (x.adhoc ?? []).filter(externallyVisible).length,
       ],
       ["", ""],
       [

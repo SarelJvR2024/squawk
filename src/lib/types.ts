@@ -1156,10 +1156,24 @@ export interface SystemAssessment {
 export interface Verification {
   pf: string;
   outcome: VerificationOutcome | null;
+  /** EVIDENCE RECEIVED — what was actually produced to support closure. The
+   *  name is kept even though a second field exists now, because every export
+   *  and every earlier record already reads this as "what proves it was
+   *  fixed"; renaming it would be a migration for no gain. */
   evidence: string;
   attachments: Attachment[];
   verifiedBy: string;
   verifiedAt: number | null;
+  /** EVIDENCE REQUESTED — the other half of the same question, asked but not
+   *  yet answered. Sarel: "'is evidence of closure' — where do you put in
+   *  the evidence which you specifically request for closure? Both sections
+   *  required." `evidence` above is what has been received; this is what was
+   *  asked for, so the two read as a pair — what's outstanding against what's
+   *  in hand — rather than one box doing both jobs.
+   *
+   *  Optional and absent-means-empty, same as `action`/`nextStep` below — a
+   *  record written before this existed simply has none asked for yet. */
+  evidenceRequested?: string;
   /** What must still happen, when the outcome is anything but Closed.
    *
    *  Recorded against the CARRIED finding rather than raised as a new one, so
@@ -1169,6 +1183,20 @@ export interface Verification {
   /** Progress at this visit. The timeline across visits is assembled by
    *  historyFor() in carryforward.ts, which reads every visit's copy. */
   progress?: ProgressNote[];
+  /** THE ACSA DISCUSSION LOG — a SEPARATE dated, append-only log from
+   *  `progress`, for the conversation itself rather than what moved.
+   *
+   *  Sarel: "can a section be included to capture 'ACSA discussion log_with
+   *  date'… to park discussion notes so it is not lost? I put a note in the
+   *  'next step' section and it doesn't make sense there." `nextStep` is a
+   *  single current answer that gets overwritten; a discussion with ACSA is a
+   *  series of dated remarks nobody should have to choose one of to keep.
+   *
+   *  Exact same shape as `progress` — ProgressNote — rather than a new type,
+   *  so the mechanism (addDiscussionNote, mirroring addProgress) and the
+   *  merge (unionProgress, the same append-only-log union) are both already
+   *  proven correct for this. Absent-means-empty, same as `progress`. */
+  discussionLog?: ProgressNote[];
   /** WHAT HAPPENS NEXT, as distinct from `action`.
    *
    *  `action` is the remediation — what has to be done to fix the thing. This
@@ -1180,6 +1208,23 @@ export interface Verification {
    *
    *  Optional and absent-means-empty — no persist version has to move. */
   nextStep?: string;
+  /** EVIDENCE FOR REVIEW/CLOSURE — PENDING, on the Follow-up item itself.
+   *
+   *  Sarel: "under 'Verification'… can we have a block 'Evidence For
+   *  Review/Closure_Pending'. Cannot use the 'Evidence pending' tab under the
+   *  'Checks' workflow as it will relate to present 'Checks' and not 'Follow
+   *  Up'." DELIBERATELY SEPARATE from Response.evidencePending — that flag is
+   *  about THIS visit's own check-point answer and is gated to `compliance
+   *  === "C"` by setCompliance; this one is about whether the proof a CARRIED
+   *  finding is waiting on has arrived, which is a different question asked
+   *  on a different screen about a different record. Written through
+   *  patchVerification like every other field here — never through
+   *  setCompliance — so the two can never collide.
+   *
+   *  Optional and absent-means-false, same shape as every other flag on this
+   *  record: a verification recorded before this existed simply has not been
+   *  marked pending. */
+  evidencePending?: boolean;
   /** The hazardous events this finding could lead to, each with its own
    *  likelihood. See PossibleEvent. Absent-means-empty. */
   possibleEvents?: PossibleEvent[];
@@ -1350,6 +1395,60 @@ export interface AdHocItem {
    *  existed and every one typed on the walk — no persist version needs to
    *  move for that to read correctly. */
   importKey?: string;
+  /** THE CHECK-POINT THIS WAS CAPTURED AGAINST, where one exists.
+   *
+   *  An ad-hoc item has never needed a check behind it — that is the whole
+   *  point of AdHocItem, see the header above — but the Internal Working Area
+   *  (below) is captured FROM INSIDE a specific check's own inspection sheet,
+   *  and the item has to come back out again on the same check rather than
+   *  float free in the general walk list. Absent/null for every item this
+   *  app already has (the standalone "seen on the walk" items, typed with no
+   *  check open) and for internal items too until this existed — no persist
+   *  version needs to move for that to read correctly. */
+  checkId?: string | null;
+  /** TRUE FOR AN "INTERNAL WORKING AREA" ITEM — a parked note, document to
+   *  chase or question to raise that is NOT YET a finding and must never be
+   *  mistaken for one. Sarel: field auditors need "a dedicated capture area"
+   *  on the walk for exactly this — further assessment, a document to check,
+   *  something to raise with ACSA later — that costs the desk team extra
+   *  photo-filtering time today because it has nowhere to live but a mental
+   *  note.
+   *
+   *  REUSES AdHocItem RATHER THAN A NEW RECORD KIND, deliberately — see
+   *  ARCHITECTURE_REVIEW.md and ARCHITECTURE_REVIEW_2.md on hand-duplicated
+   *  record kinds being this codebase's single biggest structural risk. An
+   *  internal item IS an ad-hoc item in every other respect: its own id
+   *  series, its own merge (union by id, see merge.ts), the exact same
+   *  promote-to-finding mechanism (`findingId`) the walk already has. This
+   *  flag is the only thing that makes it behave differently, and it makes
+   *  it behave LESS visibly, never more:
+   *
+   *    · excluded from the per-asset-system walk list on the Inspection
+   *      screen (src/app/(app)/field/page.tsx's `walkVisible`) — it is not
+   *      one of the things "added on the walk" that a register reader sees;
+   *    · excluded from every export that lists ad-hoc items (walkSheet and
+   *      the Photographs sheet in src/lib/exports.ts, the evidence-upload
+   *      loop in src/lib/sharepoint.ts) — "not visible externally" was
+   *      explicit;
+   *    · excluded from the Internal Working Area's OWN list again once
+   *      `findingId` is set — see that field's own note. The exclusions
+   *      above stop applying at that same moment: once promoted it is a real
+   *      Finding and behaves exactly as a promoted walk item always has,
+   *      which is the one way its evidence is meant to reach a report.
+   *
+   *  Absent means false, same as every other flag here — no persist version
+   *  needs to move. */
+  internal?: boolean;
+  /** Tag: this internal item needs an engineer's review. Independent of
+   *  `flagAuditScopeReview` below — one item can carry either, both or
+   *  neither; they are two different desks that might need to look at the
+   *  same parked observation. Absent means false. */
+  flagEngineerReview?: boolean;
+  /** Tag: this internal item needs a review of whether it belongs in the
+   *  audit's scope at all — e.g. a document or regulation to check before it
+   *  is clear this is TPJV's to raise. Independent of `flagEngineerReview`
+   *  above. Absent means false. */
+  flagAuditScopeReview?: boolean;
 }
 
 /** How the ACSA site representative was told. SWP-07 says "verbally at once",

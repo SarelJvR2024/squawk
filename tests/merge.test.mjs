@@ -230,6 +230,49 @@ check("the right audit is not refused", refuse(bundle(), HERE) === null);
   );
 }
 
+/* --- the same append-only rule for Verification's OWN discussion log,
+   a separate log from Finding.progress above — see Verification.discussionLog
+   in types.ts for why it is not folded into `progress`. */
+{
+  const shared = { at: T, by: "Prince", visit: "2026-09", outcome: null, note: "ACSA asked for the test certificate" };
+  const v = (over) => ({
+    pf: "F-7",
+    outcome: null,
+    evidence: "",
+    attachments: [],
+    verifiedBy: "",
+    verifiedAt: null,
+    ...over,
+  });
+  const out = mergeBundle(
+    mine({
+      visitData: {
+        verifications: {
+          "F-7": v({ updatedAt: T, discussionLog: [shared, { ...shared, at: T + 10, note: "Mine only" }] }),
+        },
+      },
+    }),
+    bundle({
+      visit: {
+        verifications: {
+          "F-7": v({ updatedAt: T + 1, discussionLog: [shared, { ...shared, at: T + 20, note: "Theirs only" }] }),
+        },
+      },
+    })
+  );
+  const notes = out.visitData.verifications["F-7"].discussionLog.map((n) => n.note);
+  check(
+    "the ACSA discussion log unions across a merge, same as progress",
+    notes.includes("Mine only") && notes.includes("Theirs only"),
+    notes.join(" | ")
+  );
+  check(
+    "and a note both devices already had is not doubled",
+    notes.filter((n) => n === "ACSA asked for the test certificate").length === 1,
+    notes.join(" | ")
+  );
+}
+
 /* ------------------------- one defect, raised twice ----------------------- */
 
 /* Two auditors both open KSIA-ELE-014 and both tap "no annual maintenance
@@ -510,6 +553,7 @@ for (const [fn, why] of [
   ["addHazard", "a hazard consolidated on one device"],
   ["updateHazard", "a hazard's wording"],
   ["patchVerification", "a carried-forward item verified"],
+  ["addDiscussionNote", "an ACSA discussion note added to a carried-forward item"],
 ]) {
   /* The LAST occurrence, not the first: every action is declared in the State
      interface before it is implemented, and the declaration has no body. */

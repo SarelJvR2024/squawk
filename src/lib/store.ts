@@ -735,7 +735,25 @@ interface State {
   verification: (pf: string) => Verification;
   /** Appends a dated, attributed entry to a carried item's progress log. */
   addProgress: (pf: string, note: string) => void;
+  /** Same mechanism as addProgress, parallel log — the ACSA discussion log.
+   *  See Verification.discussionLog for why it is a separate log rather than
+   *  folded into progress or into `nextStep`. */
+  addDiscussionNote: (pf: string, note: string) => void;
   patchVerification: (pf: string, p: Partial<Verification>) => void;
+  /** THE VERIFICATION TWIN of addIsfAttachment/addDayAttachment/etc. —
+   *  Verification already declared `attachments: Attachment[]` but nothing
+   *  wrote one; see src/lib/sync.ts's upload-queue comment, which this
+   *  updates. Same shape as every other attachment-carrying record's own
+   *  triple: the id is minted here, a photograph's reference is prefixed
+   *  with the verification's own key (`pf`), and the three strip the same
+   *  identifying fields a caller must never be allowed to rename. */
+  addVerificationAttachment: (pf: string, a: Omit<Attachment, "id" | "createdAt">) => void;
+  updateVerificationAttachment: (
+    pf: string,
+    attachmentId: string,
+    patch: Partial<Attachment>
+  ) => void;
+  removeVerificationAttachment: (pf: string, attachmentId: string) => void;
   /** The hazardous events one carried finding could lead to, each with its own
    *  likelihood. Recorded per visit, so the timeline says which audit thought
    *  of which. See PossibleEvent. Returns the new id, or "" if the event was
@@ -2900,6 +2918,81 @@ export const useStore = create<State>()(
           };
           writeScope((d) => ({ verifications: { ...d.verifications, [pf]: next } }));
           set({ lastSavedAt: Date.now() });
+        },
+
+        /* THE ACSA DISCUSSION LOG — same append-only mechanism as addProgress
+           just above, deliberately a separate log rather than folded into it.
+           Sarel: a discussion note typed into "next step" "doesn't make sense
+           there" — `nextStep` is a single current answer, this is a dated
+           series nobody should have to overwrite to keep. */
+        addDiscussionNote: (pf, note) => {
+          const text = note.trim();
+          if (!text) return;
+          const cur = get().verification(pf);
+          const entry: ProgressNote = {
+            at: Date.now(),
+            by: get().auditor,
+            visit: get().visit,
+            outcome: cur.outcome,
+            note: text,
+          };
+          const next: Verification = {
+            ...cur,
+            discussionLog: [...(cur.discussionLog ?? []), entry],
+            verifiedBy: get().auditor,
+            updatedAt: Date.now(),
+          };
+          writeScope((d) => ({ verifications: { ...d.verifications, [pf]: next } }));
+          set({ lastSavedAt: Date.now() });
+        },
+
+        /* THE VERIFICATION'S OWN ATTACHMENTS — same triple every other
+           attachment-carrying record gets (see addIsfAttachment/
+           addDayAttachment/addEvidenceAttachment and their own update/remove),
+           written against `patchVerification` rather than a bespoke setter so
+           it stamps `verifiedBy`/`updatedAt` the same way every other write to
+           this record already does. */
+        addVerificationAttachment: (pf, a) => {
+          const v = get().verification(pf);
+          get().patchVerification(pf, {
+            attachments: [
+              ...v.attachments,
+              {
+                ...a,
+                id: uid(),
+                /* The finding reference is the prefix, same as a walk item's
+                   own id — a verification photograph reads F-7K2P9_P01 (or
+                   the carried-forward key's own form) and names exactly which
+                   follow-up it is evidence for. */
+                ...(a.kind === "photo" ? { ref: nextPhotoRef(pf, v.attachments) } : {}),
+                createdAt: Date.now(),
+              },
+            ],
+          });
+        },
+
+        updateVerificationAttachment: (pf, attachmentId, patch) => {
+          const v = get().verification(pf);
+          /* Same stripping as updateAttachment: these three identify the
+             photograph and point at its bytes. */
+          const { id: _i, blobKey: _b, createdAt: _c, ...safe } = patch;
+          void _i; void _b; void _c;
+          get().patchVerification(pf, {
+            attachments: v.attachments.map((x) =>
+              x.id === attachmentId ? { ...x, ...safe } : x
+            ),
+          });
+        },
+
+        removeVerificationAttachment: (pf, attachmentId) => {
+          const v = get().verification(pf);
+          const gone = v.attachments.find((a) => a.id === attachmentId);
+          get().patchVerification(pf, {
+            attachments: v.attachments.filter((a) => a.id !== attachmentId),
+          });
+          /* The bytes go with it — the same rule every other
+             removeXAttachment follows. */
+          if (gone?.blobKey) void delBlob(gone.blobKey);
         },
 
         /* THE HAZARDOUS EVENTS ONE FINDING COULD LEAD TO — see PossibleEvent.
