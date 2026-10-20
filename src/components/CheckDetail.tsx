@@ -228,7 +228,17 @@ export const toneStyle = (tone: string, on: boolean, quiet = false): React.CSSPr
         background: `var(--${tone}-bg)`,
         borderColor: `var(--${tone})`,
         color: `var(--${tone})`,
-        boxShadow: `inset 0 0 0 1px var(--${tone})`,
+        /* The lift (--e1) is new, 20 Oct 2026 — "make them look more modern and
+           consistent throughout the app." Stacked after the existing inset
+           ring rather than replacing it, so the selected state keeps the ring
+           AND gains the same subtle elevation every other selected surface in
+           the app already uses. Deliberately --e1, not OutcomeControl's
+           stronger --e2 — OutcomeControl's four-segment trough is a different,
+           bolder pattern by design (see its own doc comment on why it never
+           takes a tone colour); these flatter tone-tinted grids get the
+           lighter lift so the two stay visually distinct, not identical. */
+        boxShadow: `inset 0 0 0 1px var(--${tone}), var(--e1)`,
+        fontWeight: 700,
         /* An inline style, not a Tailwind class, because it has to beat
            globals.css's site-wide `:focus-visible { outline: 2px solid
            var(--acc); outline-offset: 2px }` — that rule sits outside any
@@ -516,7 +526,7 @@ export default function CheckDetail({
                 onClick={() => patch(check.id, { evidenceStatus: on ? null : es.key })}
                 aria-pressed={on}
                 title={es.hint}
-                className="flex min-h-[40px] flex-col items-center justify-center gap-[3px] rounded-[9px] border px-[6px] py-[6px] text-center text-[10.5px] font-semibold leading-tight transition-[var(--t)]"
+                className="flex min-h-[40px] flex-col items-center justify-center gap-[3px] rounded-[9px] border px-[6px] py-[6px] text-center text-[10.5px] font-semibold leading-tight transition-[var(--t)] active:translate-y-[1px]"
                 style={toneStyle(es.tone, on)}
               >
                 <es.Icon width={14} height={14} className="shrink-0" />
@@ -568,7 +578,7 @@ export default function CheckDetail({
                   type="button"
                   onClick={() => patch(check.id, { evidenceVerdict: on ? null : v.key })}
                   aria-pressed={on}
-                  className="flex min-h-[40px] items-center justify-center gap-[6px] rounded-[9px] border text-[11px] font-semibold transition-[var(--t)]"
+                  className="flex min-h-[40px] items-center justify-center gap-[6px] rounded-[9px] border text-[11px] font-semibold transition-[var(--t)] active:translate-y-[1px]"
                   style={toneStyle(v.tone, on)}
                 >
                   <v.Icon width={13} height={13} />
@@ -1616,7 +1626,7 @@ export default function CheckDetail({
                      tap, and reads as one oversized box. The selected
                      state itself (background, border, tone, aria-pressed)
                      is already the affordance. */
-                  className={`flex min-h-[44px] min-w-0 items-center justify-center gap-[4px] rounded-[9px] px-[4px] py-1 text-center font-display text-[10px] leading-tight font-semibold outline-none transition-[var(--t)] sm:px-[6px] sm:text-[10.5px] ${quiet ? "border" : "border-[1.5px]"}`}
+                  className={`flex min-h-[44px] min-w-0 items-center justify-center gap-[4px] rounded-[9px] px-[4px] py-1 text-center font-display text-[10px] leading-tight font-semibold outline-none transition-[var(--t)] active:translate-y-[1px] sm:px-[6px] sm:text-[10.5px] ${quiet ? "border" : "border-[1.5px]"}`}
                   style={toneStyle(st.tone, on, quiet)}
                 >
                   <st.Icon width={12} height={12} className="shrink-0" />
