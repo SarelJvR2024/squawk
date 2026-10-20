@@ -140,7 +140,7 @@ function ComplianceCell({
           aria-label={label}
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value === "" ? null : (e.target.value as Compliance))}
-          className="min-h-[30px] w-full rounded-full border px-1.5 py-[2px] text-center font-mono text-[9.5px] font-semibold outline-none"
+          className="min-h-[30px] w-full rounded-full border px-1.5 py-[2px] text-center font-mono text-[9.5px] font-semibold outline-none transition-[var(--t)]"
           style={selectStyle(value)}
         >
           <option value="">— not yet</option>
@@ -290,7 +290,7 @@ export default function ReviewDetail({
                       onClick={() => patch(check.id, { evidenceStatus: on ? null : es.key })}
                       aria-pressed={on}
                       title={es.hint}
-                      className="flex min-h-[40px] flex-col items-center justify-center gap-[3px] rounded-[9px] border px-[6px] py-[6px] text-center text-[10.5px] font-semibold leading-tight transition-[var(--t)]"
+                      className="flex min-h-[40px] flex-col items-center justify-center gap-[3px] rounded-[9px] border px-[6px] py-[6px] text-center text-[10.5px] font-semibold leading-tight transition-[var(--t)] active:translate-y-[1px]"
                       style={toneStyle(es.tone, on)}
                     >
                       <es.Icon width={14} height={14} className="shrink-0" />
@@ -344,7 +344,7 @@ export default function ReviewDetail({
                       type="button"
                       onClick={() => patch(check.id, { evidenceVerdict: on ? null : v.key })}
                       aria-pressed={on}
-                      className="flex min-h-[40px] items-center justify-center gap-[6px] rounded-[9px] border text-[11.5px] font-semibold transition-[var(--t)]"
+                      className="flex min-h-[40px] items-center justify-center gap-[6px] rounded-[9px] border text-[11.5px] font-semibold transition-[var(--t)] active:translate-y-[1px]"
                       style={toneStyle(v.tone, on)}
                     >
                       <v.Icon width={13} height={13} />
@@ -374,7 +374,7 @@ export default function ReviewDetail({
                       type="button"
                       onClick={() => patch(check.id, { siteInspection: on ? null : v.key })}
                       aria-pressed={on}
-                      className="flex min-h-[40px] items-center justify-center gap-[6px] rounded-[9px] border text-[11.5px] font-semibold transition-[var(--t)]"
+                      className="flex min-h-[40px] items-center justify-center gap-[6px] rounded-[9px] border text-[11.5px] font-semibold transition-[var(--t)] active:translate-y-[1px]"
                       style={toneStyle(v.tone, on)}
                     >
                       <v.Icon width={13} height={13} />
@@ -415,7 +415,7 @@ export default function ReviewDetail({
                         })
                       }
                       aria-pressed={on}
-                      className="flex min-h-[40px] items-center justify-center gap-[6px] rounded-[9px] border text-[11.5px] font-semibold transition-[var(--t)]"
+                      className="flex min-h-[40px] items-center justify-center gap-[6px] rounded-[9px] border text-[11.5px] font-semibold transition-[var(--t)] active:translate-y-[1px]"
                       style={toneStyle(tone, on)}
                     >
                       <Icon width={14} height={14} />

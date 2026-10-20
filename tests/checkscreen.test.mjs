@@ -216,7 +216,7 @@ check(
 
 check(
   "the chosen answer carries a ring, not just a tint — it is read in daylight",
-  /boxShadow: `inset 0 0 0 1px var\(--\$\{tone\}\)`/.test(codeOnly) &&
+  /boxShadow: `inset 0 0 0 1px var\(--\$\{tone\}\)/.test(codeOnly) &&
     /aria-pressed=\{on\}/.test(codeOnly),
   "tinted background plus a coloured border washes out on a tablet at midday"
 );
