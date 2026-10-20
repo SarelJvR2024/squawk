@@ -905,13 +905,26 @@ export function flattenProgress(notes: ProgressNote[] | undefined): string {
 
 /** A hazard (or finding) can carry several mitigating actions now, each with
  *  its own discipline, owner and date — the portal's `treatment` field is
- *  still one text cell, so this flattens the same way flattenProgress does. */
+ *  still one text cell, so this flattens the same way flattenProgress does.
+ *
+ *  THE SYSTEM TAG. `MitigationAction.system` (hazardPromotion.ts, the
+ *  hazard-auto-merge feature) names which asset system an action was copied
+ *  in from, for exactly the case `discipline` already exists to disambiguate:
+ *  a hazard consolidated from 2+ asset systems. It was written correctly and
+ *  shown correctly in the app's own hazard-register UI, but this flatten —
+ *  the one ACSA's portal actually reads — never read it, so the portal (and
+ *  the exported workbook's matching cell, exports.ts's Finding/Hazard sheets,
+ *  which must stay byte-for-byte identical to this one — see their own
+ *  comments) silently dropped which system each multi-system action belonged
+ *  to. Same `[System]` convention `buildPromotedHazardPatch` already uses
+ *  for the root-cause text it builds alongside these actions, prepended
+ *  ahead of the discipline segment. */
 export function flattenActions(actions: MitigationAction[] | undefined): string {
   if (!actions?.length) return "";
   return actions
     .map(
       (m) =>
-        `${m.discipline ? `${m.discipline} — ` : ""}${m.action} · ${m.owner || "NO OWNER"} · ${m.dueDate || "NO TARGET DATE"} · ${m.status}`
+        `${m.system ? `[${m.system}] ` : ""}${m.discipline ? `${m.discipline} — ` : ""}${m.action} · ${m.owner || "NO OWNER"} · ${m.dueDate || "NO TARGET DATE"} · ${m.status}`
     )
     .join("\n");
 }

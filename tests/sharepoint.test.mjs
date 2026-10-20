@@ -258,6 +258,39 @@ check(
   JSON.stringify(sp.buildPlan({ ...BASE, hazards: [HAZARD()] }, NOTHING).findings[0]?.values)
 );
 
+/* MitigationAction.system (hazardPromotion.ts's hazard-auto-merge) names
+ *  which asset system an action was copied in from, for a hazard consolidated
+ *  from 2+ systems — exactly the case `discipline` already disambiguates.
+ *  It was written and shown correctly in the app's own hazard-register UI
+ *  but never read by flattenActions, the one function that decides what
+ *  ACSA's portal actually sees in the Treatment cell — so a multi-system
+ *  action reached the portal with no way to tell which system it was for. */
+check(
+  "A MULTI-SYSTEM HAZARD'S ACTIONS REACH THE PORTAL TAGGED BY SYSTEM",
+  (() => {
+    const actions = [
+      { id: "a1", action: "Install LOTO signage", owner: "J. Smith", dueDate: "2026-11-01", status: "Open", system: "Switchgear", discipline: "Electrical" },
+      { id: "a2", action: "Replace worn seals", owner: "T. Naidoo", dueDate: "2026-11-15", status: "Open", system: "Fuel farm" },
+    ];
+    const p = sp.buildPlan({ ...BASE, hazards: [HAZARD({ systems: ["Switchgear", "Fuel farm"], actions })] }, NOTHING);
+    const treatment = p.findings[0].values.treatment;
+    return treatment.includes("[Switchgear]") && treatment.includes("[Fuel farm]");
+  })(),
+  JSON.stringify(sp.buildPlan({ ...BASE, hazards: [HAZARD({ actions: [{ id: "a1", action: "x", owner: "", dueDate: "", status: "Open", system: "Switchgear" }] })] }, NOTHING).findings[0]?.values.treatment)
+);
+
+check(
+  "and flattenActions itself produces the exact line, system before discipline",
+  sp.flattenActions([{ id: "a1", action: "Install LOTO signage", owner: "J. Smith", dueDate: "2026-11-01", status: "Open", system: "Switchgear", discipline: "Electrical" }]) ===
+    "[Switchgear] Electrical — Install LOTO signage · J. Smith · 2026-11-01 · Open"
+);
+
+check(
+  "an action with no system (the common case) is unaffected — no stray tag",
+  sp.flattenActions([{ id: "a1", action: "Fix it", owner: "", dueDate: "", status: "Open" }]) ===
+    "Fix it · NO OWNER · NO TARGET DATE · Open"
+);
+
 check(
   "A RATING NOBODY AGREED DOES NOT — the hazard goes across, the rating is null",
   (() => {
