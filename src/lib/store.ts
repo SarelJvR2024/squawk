@@ -867,6 +867,10 @@ interface State {
     patch: Partial<Attachment>
   ) => void;
   removeAttachment: (checkId: string, attachmentId: string) => void;
+  /** Re-link an attachment — most often a photograph — from the check it is
+   *  currently filed under to a different one. See the implementation's own
+   *  doc comment for why this is a move rather than a field patch. */
+  moveAttachment: (fromCheckId: string, attachmentId: string, toCheckId: string) => void;
 
   feedbackFor: (checkId: string) => FeedbackNote[];
   addFeedback: (checkId: string, text: string) => void;
@@ -1223,6 +1227,42 @@ export const useStore = create<State>()(
           if (a?.blobKey) void delBlob(a.blobKey);
           get().patch(checkId, {
             attachments: r.attachments.filter((x) => x.id !== attachmentId),
+          });
+        },
+
+        /* Sarel, 20 Oct 2026, on the Review screen: "I see some photos might
+           not be linked to the correct asset system or to the correct audit
+           check... we must have a function there where we can change the
+           asset type and/or audit question that it is linked to."
+           An Attachment carries no checkId of its own (see its own doc
+           comment in types.ts) — which check it belongs to is entirely
+           which Response.attachments array it lives in. So moving one is
+           remove-then-add, not a field patch: out of `from`'s array, into
+           `to`'s, with a FRESH photo ref under the destination check (the
+           same rule addAttachment already uses) so the reference a reader
+           sees — on screen, in the workbook's Photographs sheet, on a
+           finding's own evidence list — names the check this is actually
+           evidence for, not the one it was filed under by mistake.
+           Everything else about the attachment (caption, the blob itself,
+           cloudUrl) travels unchanged; an already-uploaded blob keeps its
+           old object path — renaming it would mean downloading and
+           re-uploading bytes this function has no reason to touch, and the
+           new ref is still right for every reader of it from here on. */
+        moveAttachment: (fromCheckId, attachmentId, toCheckId) => {
+          if (fromCheckId === toCheckId) return;
+          const from = get().response(fromCheckId);
+          const a = from.attachments.find((x) => x.id === attachmentId);
+          if (!a) return;
+          const to = get().response(toCheckId);
+          const moved: Attachment =
+            a.kind === "photo"
+              ? { ...a, ref: nextPhotoRef(portalIdFor(get().entity, toCheckId), to.attachments) }
+              : a;
+          get().patch(fromCheckId, {
+            attachments: from.attachments.filter((x) => x.id !== attachmentId),
+          });
+          get().patch(toCheckId, {
+            attachments: [...to.attachments, moved],
           });
         },
 

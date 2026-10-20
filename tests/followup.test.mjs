@@ -40,6 +40,7 @@ const events = read("src", "components", "PossibleEvents.tsx");
 const merge = read("src", "lib", "merge.ts");
 const exports_ = read("src", "lib", "exports.ts");
 const sync = read("src", "lib", "sync.ts");
+const capture = read("src", "components", "Capture.tsx");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -526,6 +527,29 @@ check(
   /for \(const \[pf, v\] of Object\.entries\(d\?\.verifications \?\? \{\}\)\)/.test(sync) &&
     /actions\.updateVerificationAttachment\(pf, a\.id, p\)/.test(sync),
   "src/lib/sync.ts's collectOutstanding has to know about an eighth attachment-carrying record, same as the other seven"
+);
+
+/* ---- Sarel, 20 Oct 2026, same section: "record what evidence was
+   provided, and also an option to capture photos, multiple photos, or
+   upload multiple documents as evidence that the finding can be closed." ---- */
+check(
+  "the closure page also offers FileButton, not only the camera and microphone",
+  /import \{ AttachmentStrip, FileButton, PhotoButton, VoiceNoteButton \} from "@\/components\/Capture";/.test(
+    closure
+  ) && /<FileButton[\s\S]{0,120}addVerificationAttachment\(active\.key, \{ \.\.\.m, createdBy: auditor \}\)/.test(
+    closureCode
+  ),
+  "a closure is as often proved by a certificate or a work order as by a photograph — FileButton is CheckDetail.tsx's own any-format, multi-file picker, not a reimplementation"
+);
+check(
+  "FileButton's own input takes several files in one pick, so 'multiple documents' is one action, not one per file",
+  /type="file"[\s\S]{0,40}multiple/.test(capture)
+);
+check(
+  "all three — photo, voice, file — write into the SAME Verification.attachments array and render through the one AttachmentStrip",
+  /<PhotoButton[\s\S]{0,400}<VoiceNoteButton[\s\S]{0,400}<FileButton/.test(closureCode) &&
+    (closureCode.match(/addVerificationAttachment\(active\.key, \{ \.\.\.m, createdBy: auditor \}\)/g) ?? [])
+      .length === 3
 );
 
 console.log(failures === 0 ? "\nFOLLOW-UP OK" : `\n${failures} FAILURES`);

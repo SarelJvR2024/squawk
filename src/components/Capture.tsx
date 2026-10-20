@@ -38,7 +38,7 @@ import { useDictationEnabled, useEntityCode, useStore } from "@/lib/store";
 import { useRecordStore } from "@/lib/sync";
 import { fullPhotoBlob } from "@/lib/recordimage";
 import type { Attachment } from "@/lib/types";
-import { IconCamera, IconDownload, IconMic, IconPaperclip, IconSpark, IconX } from "./ui/icons";
+import { IconCamera, IconDownload, IconEdit, IconMic, IconPaperclip, IconSpark, IconX } from "./ui/icons";
 import { Pill } from "./ui/primitives";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -850,11 +850,15 @@ function PhotoRow({
   a,
   onRemove,
   onUpdate,
+  onMove,
   compact = false,
 }: {
   a: Attachment;
   onRemove?: () => void;
   onUpdate?: (patch: Partial<Attachment>) => void;
+  /** See AttachmentStrip's own doc comment on `onMove` — re-links this
+   *  photograph to a different check. */
+  onMove?: () => void;
   compact?: boolean;
 }) {
   const { url, missing } = useBlobUrl(a.blobKey);
@@ -1061,6 +1065,18 @@ function PhotoRow({
               {busy ? "Looking…" : "Describe"}
             </button>
           )}
+          {onMove && !dead && (
+            <button
+              type="button"
+              onClick={onMove}
+              className={MINI}
+              style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+              title="This photograph is in the wrong place — re-link it to a different check-point"
+            >
+              <IconEdit width={12} height={12} />
+              Move
+            </button>
+          )}
           {onRemove && (
             <button
               type="button"
@@ -1191,6 +1207,7 @@ export function AttachmentStrip({
   attachments,
   onRemove,
   onUpdate,
+  onMove,
   writeUp,
   onAccept,
   thumbSize = 44,
@@ -1200,6 +1217,17 @@ export function AttachmentStrip({
   /** Persist a change to one note — a transcript coming back, a rewrite being
    *  produced or discarded. Omit it and a note is read-only. */
   onUpdate?: (id: string, patch: Partial<Attachment>) => void;
+  /** Re-link a PHOTOGRAPH to a different check — Sarel, on the Review screen:
+   *  "some photos might not be linked to the correct asset system or to the
+   *  correct audit check... we must have a function there where we can
+   *  change the asset type and/or audit question that it is linked to."
+   *  Omit it and no "Move" button is offered — the caller decides whether
+   *  re-linking makes sense on its screen (it does on Review, where photos
+   *  from every check sit side by side for comparison; it would be a
+   *  confusing thing to offer on, say, an ad-hoc walk item's own gallery,
+   *  which has no checkId to move FROM in the first place). Voice notes and
+   *  files are not offered this — the ask was specifically about photos. */
+  onMove?: (id: string) => void;
   /** Turn a verbatim transcript into the written observation. Supplied by the
    *  caller because only the caller knows which check the note belongs to;
    *  omit it and the rewrite step is not offered. */
@@ -1229,6 +1257,7 @@ export function AttachmentStrip({
           compact={thumbSize < 44}
           onRemove={onRemove ? () => onRemove(a.id) : undefined}
           onUpdate={onUpdate ? (patch) => onUpdate(a.id, patch) : undefined}
+          onMove={onMove ? () => onMove(a.id) : undefined}
         />
       ))}
       {voices.map((a) => (
