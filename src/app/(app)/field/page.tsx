@@ -76,11 +76,23 @@ const NO_DISCIPLINE = "No discipline recorded";
 
 /** ONE LINKAGE AXIS, AS A THREE-WAY TOGGLE WITH ITS OWN COUNTS ON ITS FACE.
  *
- *  "All / Linked / Unlinked", each button showing how many PHOTOGRAPHS fall
- *  into it — see walkLinkage's own comment in FieldPage for why photos
- *  rather than items. Reused for both axes (check and asset system) rather
- *  than written twice, since the two rows are identical in shape and differ
- *  only in their label and their counts. */
+ *  "All / N linked / N unlinked", each number counting PHOTOGRAPHS — see
+ *  walkLinkage's own comment in FieldPage for why photos rather than items.
+ *  Reused for both axes (check and asset system) rather than written twice,
+ *  since the two rows are identical in shape and differ only in their
+ *  label and their counts.
+ *
+ *  REVISED, 20 October 2026 — Sarel, relayed via another session after a
+ *  screenshot: "check the numbers in these filter they are either wrong or
+ *  confusing. also improve the look of this filter setup." Checked: the
+ *  counts were correct, but nothing on the button said what they were
+ *  counting, sitting one row below a header chip that counts something
+ *  else entirely (check-points, not photographs) in the same bare-number
+ *  shape. `label` now carries the unit ("Photos linked to…") so a reader
+ *  never has to guess, the camera icon gives the same answer at a glance,
+ *  and each button leads with its own number ("0 linked") rather than
+ *  trailing it in parentheses, which is both the clearer reading order and
+ *  what the header chip itself already does ("+16"). */
 function LinkageFilter({
   label,
   value,
@@ -96,12 +108,15 @@ function LinkageFilter({
 }) {
   const options: { key: "all" | "linked" | "unlinked"; label: string }[] = [
     { key: "all", label: "All" },
-    { key: "linked", label: `Linked (${linked})` },
-    { key: "unlinked", label: `Unlinked (${unlinked})` },
+    { key: "linked", label: `${linked} linked` },
+    { key: "unlinked", label: `${unlinked} unlinked` },
   ];
   return (
     <div>
-      <div className="label-xs mb-1">{label}</div>
+      <div className="mb-1 flex items-center gap-[5px]">
+        <IconCamera width={11} height={11} style={{ color: "var(--ink-4)" }} />
+        <div className="label-xs">{label}</div>
+      </div>
       <div role="radiogroup" aria-label={label} className="flex gap-[2px] rounded-[11px] p-[3px]" style={{ background: "var(--sunken)" }}>
         {options.map((o) => (
           <button
@@ -109,6 +124,7 @@ function LinkageFilter({
             role="radio"
             aria-checked={value === o.key}
             onClick={() => onChange(o.key)}
+            title={o.key === "all" ? "Every walk photo, linked or not" : `${o.label} — of walk photos`}
             className="flex min-h-[34px] flex-1 items-center justify-center rounded-[8px] px-2 font-mono text-[10px] font-semibold transition-[var(--t)]"
             style={{
               background: value === o.key ? "var(--panel)" : "transparent",
@@ -718,20 +734,32 @@ export default function FieldPage() {
                 </div>
               )}
 
+              {/* A SEPARATE GROUP, SAID SO. The axis switch, the discipline/
+                  location select and the search above all answer "where" —
+                  this answers "linked to what", a different question about
+                  the same walk items. A rule and a small heading keep a
+                  reader from reading five controls as one list and
+                  wondering why the last two look like they repeat the
+                  first three. */}
+              <div className="-mx-[14px] border-t" style={{ borderColor: "var(--line)" }} />
+              <div className="-mt-1 text-[9.5px] font-semibold tracking-wide uppercase" style={{ color: "var(--ink-4)" }}>
+                Walk photos — linked to the register, or not
+              </div>
+
               {/* LINKED, OR NOT — in photographs, not items. See walkLinkage's
                   own comment above for why. Each row is independent: a walk
                   item can be linked to a check, to a system, to both or to
                   neither, so "Linked"/"Unlinked" on one row says nothing
                   about the other. */}
               <LinkageFilter
-                label="Linked to a check"
+                label="Photos linked to a check"
                 value={checkLinkFilter}
                 onChange={setCheckLinkFilter}
                 linked={walkLinkage.checkLinked}
                 unlinked={walkLinkage.checkUnlinked}
               />
               <LinkageFilter
-                label="Linked to an asset system"
+                label="Photos linked to an asset system"
                 value={systemLinkFilter}
                 onChange={setSystemLinkFilter}
                 linked={walkLinkage.systemLinked}
@@ -741,16 +769,25 @@ export default function FieldPage() {
             {/* Progress beside the Filters button, not under it. Two numbers
                 on one 24px line instead of a whole row of its own. */}
             <span className="flex shrink-0 items-center gap-1.5 font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
-              <span>
+              {/* A DIFFERENT UNIT FROM THE POPOVER'S OWN COUNTS, SAID ON
+                  HOVER. Sarel, relayed via another session: "check the
+                  numbers in these filter they are either wrong or
+                  confusing." This chip counts CHECK-POINTS done/total; the
+                  popover's own counts, one tap away, count PHOTOGRAPHS —
+                  both correct, nothing in either label said so. A title
+                  attribute is the cheap half of the fix on a chip this
+                  tight for space; see LinkageFilter's own fix for the half
+                  that needed more room. */}
+              <span title={`${doneCount} of ${visible.length} register check-points field-done`}>
                 {doneCount}/{visible.length}
               </span>
-              {/* FIXED, 20 October 2026 — this read the GLOBAL walk-item
-                  count regardless of the active discipline/location filter,
-                  so "Process Safety & Risk" could show "+65" while every one
-                  of the 65 belonged to some other discipline. walkVisible is
-                  the filtered count the tree itself actually shows. */}
               {walkVisible.length > 0 && (
-                <span style={{ color: "var(--acc)" }}>+{walkVisible.length}</span>
+                <span
+                  style={{ color: "var(--acc)" }}
+                  title={`${walkVisible.length} walk item${walkVisible.length === 1 ? "" : "s"} seen, outside the 324-point register`}
+                >
+                  +{walkVisible.length}
+                </span>
               )}
             </span>
           </div>
