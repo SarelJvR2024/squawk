@@ -29,11 +29,19 @@
  *  evidence shows — already existed) and the new `siteInspection` (what was
  *  physically seen on site — see its own doc comment in types.ts). The
  *  combined cell is DERIVED (reviewCombinedCompliance in src/lib/review.ts),
- *  worst of the three, never stored. All four cells here are READ-ONLY
- *  mirrors of state set by the editable controls further down this same
- *  screen (evidence verdict, site inspection) or elsewhere (the check's own
- *  compliance, set on Capture/Field) — one place to look, one place to
- *  change, same split the old top-of-screen compliance Pill already used.
+ *  worst of the three, never stored, and stays a read-only Pill.
+ *
+ *  THE THREE AXES BECAME EDITABLE RIGHT HERE, 20 Oct 2026. Sarel: "the user
+ *  must be able to change them on that screen on the top to make it easy to
+ *  review and update." Until now these three were read-only mirrors of
+ *  controls elsewhere — evidence verdict and site inspection further down
+ *  this same screen, the check's own compliance only on Capture/Field — so
+ *  changing any of them while reviewing meant either a long scroll or
+ *  leaving this screen entirely. Each cell is now a `<select>` in place of
+ *  the old Pill, writing through the exact same actions its matching
+ *  section further down already uses (`setCompliance` for the audit check,
+ *  `patch` for the other two) — one more place to change from, not a second
+ *  copy of the decision.
  *
  *  EVIDENCE REQUESTED / RECEIVED, same date. Requested is the register's own
  *  `check.evidenceExpected`/`acsaEvidence` (CheckDetail already shows this as
@@ -48,6 +56,7 @@ import { AttachmentStrip } from "@/components/Capture";
 import {
   EVIDENCE_STATUSES,
   EVIDENCE_VERDICTS,
+  STATUSES,
   toneStyle,
 } from "@/components/CheckDetail";
 import { Btn, Empty, Pill, type Tone } from "@/components/ui/primitives";
@@ -60,19 +69,45 @@ import type { Check, Compliance } from "@/lib/types";
 const complianceTone = (v: Compliance | null): Tone =>
   v === "NC" ? "bad" : v === "C" ? "good" : v === "NV" ? "warn" : "neutral";
 
-/** One cell of the sticky strip — a label and a read-only Pill mirroring
- *  whatever the editable controls further down this screen (or, for
- *  `compliance`, Capture/Field) last set. `partial` marks the combined cell
- *  when not all three axes have been answered yet, so a clean-looking "C"
- *  is never mistaken for a finished review. */
+/** The three editable cells' own option lists, trimmed to what a `<select>`
+ *  needs — the full `STATUSES`/`EVIDENCE_VERDICTS` entries also carry an
+ *  icon, a hotkey and a short code the button grids further down the screen
+ *  need and a dropdown option does not. */
+const COMPLIANCE_OPTIONS = STATUSES.map((s) => ({ key: s.key, label: s.label }));
+const VERDICT_OPTIONS = EVIDENCE_VERDICTS.map((v) => ({ key: v.key, label: v.label }));
+
+/** Same CSS-variable tones `toneStyle` (CheckDetail.tsx) takes, not the
+ *  `Tone` union `Pill` takes — "neu"/"acc" rather than "neutral"/"accent" —
+ *  so a cell's `<select>` reads in exactly the colour its own section
+ *  further down the screen already shows for the same value. `null` keeps
+ *  the cell's own sunken, unanswered look rather than any tone at all. */
+function selectStyle(value: Compliance | null): React.CSSProperties {
+  if (!value) return { background: "var(--sunken)", borderColor: "var(--line)", color: "var(--ink-2)" };
+  const tone = value === "NC" ? "bad" : value === "C" ? "good" : value === "NV" ? "warn" : "neu";
+  return toneStyle(tone, true);
+}
+
+/** One cell of the sticky strip. Three of the four — audit check, evidence,
+ *  site inspection — take `options`/`onChange` and render a `<select>` that
+ *  writes straight through to the same action its own section further down
+ *  this screen (or, for the audit check, Capture/Field) already calls, so
+ *  there is no second copy of the value to keep in sync. The fourth,
+ *  Combined, is derived and never passes them, so it stays the plain
+ *  read-only Pill it always was. `partial` marks that one when not every
+ *  axis has been answered yet, so a clean-looking "C" is never mistaken for
+ *  a finished review. */
 function ComplianceCell({
   label,
   value,
   partial,
+  options,
+  onChange,
 }: {
   label: string;
   value: Compliance | null;
   partial?: boolean;
+  options?: { key: Compliance; label: string }[];
+  onChange?: (next: Compliance | null) => void;
 }) {
   return (
     <div
@@ -82,10 +117,27 @@ function ComplianceCell({
       <span className="label-xs leading-tight" style={{ color: "var(--ink-4)" }}>
         {label}
       </span>
-      <Pill tone={complianceTone(value)} title={partial ? "Not every axis has been reviewed yet" : undefined}>
-        {value ?? "—"}
-        {partial ? " ·" : ""}
-      </Pill>
+      {options && onChange ? (
+        <select
+          aria-label={label}
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value === "" ? null : (e.target.value as Compliance))}
+          className="min-h-[30px] w-full rounded-full border px-1.5 py-[2px] text-center font-mono text-[9.5px] font-semibold outline-none"
+          style={selectStyle(value)}
+        >
+          <option value="">— not yet</option>
+          {options.map((o) => (
+            <option key={o.key} value={o.key}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <Pill tone={complianceTone(value)} title={partial ? "Not every axis has been reviewed yet" : undefined}>
+          {value ?? "—"}
+          {partial ? " ·" : ""}
+        </Pill>
+      )}
     </div>
   );
 }
@@ -103,6 +155,7 @@ export default function ReviewDetail({
   const entityCode = useStore((s) => s.entity);
   const auditor = useStore((s) => s.auditor);
   const patch = useStore((s) => s.patch);
+  const setCompliance = useStore((s) => s.setCompliance);
   const updateAttachment = useStore((s) => s.updateAttachment);
   const removeAttachment = useStore((s) => s.removeAttachment);
 
@@ -137,9 +190,24 @@ export default function ReviewDetail({
           <h2 className="mb-2.5 text-[15.5px] font-bold leading-snug">{check.requirement}</h2>
           {r && (
             <div className="grid grid-cols-4 gap-[6px]">
-              <ComplianceCell label="Audit check" value={r.compliance} />
-              <ComplianceCell label="Evidence" value={r.evidenceVerdict} />
-              <ComplianceCell label="Site inspection" value={r.siteInspection} />
+              <ComplianceCell
+                label="Audit check"
+                value={r.compliance}
+                options={COMPLIANCE_OPTIONS}
+                onChange={(v) => setCompliance(check.id, v)}
+              />
+              <ComplianceCell
+                label="Evidence"
+                value={r.evidenceVerdict}
+                options={VERDICT_OPTIONS}
+                onChange={(v) => patch(check.id, { evidenceVerdict: v })}
+              />
+              <ComplianceCell
+                label="Site inspection"
+                value={r.siteInspection}
+                options={VERDICT_OPTIONS}
+                onChange={(v) => patch(check.id, { siteInspection: v })}
+              />
               <ComplianceCell label="Combined" value={combined} partial={combinedPartial} />
             </div>
           )}
