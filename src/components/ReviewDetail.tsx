@@ -120,12 +120,23 @@ function ComplianceCell({
   partial,
   options,
   onChange,
+  emptyLabel = "— not yet",
 }: {
   label: string;
   value: Compliance | null;
   partial?: boolean;
   options?: { key: Compliance; label: string }[];
   onChange?: (next: Compliance | null) => void;
+  /** What the unanswered state reads as, in the `<select>` itself — Sarel:
+   *  "not yet should be not verified." Evidence and Site inspection pass
+   *  "Not Verified" here: on those two axes, "nobody has looked at this yet"
+   *  and "this could not be verified" are the same practical fact, so this
+   *  cell should not use two different words for it. The underlying stored
+   *  value stays `null` either way — only the label changes — so the
+   *  combined cell's own "partial" check (which looks for `null`) and
+   *  everything downstream of it is unaffected. The Audit check cell has no
+   *  `NV` value at all (see STATUSES), so it keeps the plain default. */
+  emptyLabel?: string;
 }) {
   return (
     <div
@@ -143,7 +154,7 @@ function ComplianceCell({
           className="min-h-[30px] w-full rounded-full border px-1.5 py-[2px] text-center font-mono text-[9.5px] font-semibold outline-none transition-[var(--t)]"
           style={selectStyle(value)}
         >
-          <option value="">— not yet</option>
+          <option value="">{emptyLabel}</option>
           {options.map((o) => (
             <option key={o.key} value={o.key}>
               {o.label}
@@ -302,12 +313,14 @@ export default function ReviewDetail({
                 value={r.evidenceVerdict}
                 options={VERDICT_OPTIONS}
                 onChange={(v) => patch(check.id, { evidenceVerdict: v })}
+                emptyLabel="Not Verified"
               />
               <ComplianceCell
                 label="Site inspection"
                 value={r.siteInspection}
                 options={VERDICT_OPTIONS}
                 onChange={(v) => patch(check.id, { siteInspection: v })}
+                emptyLabel="Not Verified"
               />
               <ComplianceCell label="Combined" value={combined} partial={combinedPartial} />
             </div>
@@ -443,7 +456,7 @@ export default function ReviewDetail({
                 />
               </div>
 
-              <div className="mt-2 grid grid-cols-3 gap-[6px]">
+              <div className="mt-2 grid grid-cols-4 gap-[6px]">
                 {EVIDENCE_VERDICTS.map((v) => {
                   const on = r.evidenceVerdict === v.key;
                   return (
@@ -452,10 +465,11 @@ export default function ReviewDetail({
                       type="button"
                       onClick={() => patch(check.id, { evidenceVerdict: on ? null : v.key })}
                       aria-pressed={on}
-                      className="flex min-h-[40px] items-center justify-center gap-[6px] rounded-[9px] border text-[11.5px] font-semibold transition-[var(--t)] active:translate-y-[1px]"
+                      title={v.label}
+                      className="flex min-h-[40px] min-w-0 items-center justify-center gap-[4px] rounded-[9px] border px-[2px] text-center text-[10px] font-semibold leading-tight transition-[var(--t)] active:translate-y-[1px]"
                       style={toneStyle(v.tone, on)}
                     >
-                      <v.Icon width={13} height={13} />
+                      <v.Icon width={12} height={12} className="shrink-0" />
                       {v.label}
                     </button>
                   );
@@ -473,7 +487,7 @@ export default function ReviewDetail({
               <div className="mb-1.5 text-[11.5px]" style={{ color: "var(--ink-3)" }}>
                 Does what was physically seen on site match what was captured?
               </div>
-              <div className="grid grid-cols-3 gap-[6px]">
+              <div className="grid grid-cols-4 gap-[6px]">
                 {EVIDENCE_VERDICTS.map((v) => {
                   const on = r.siteInspection === v.key;
                   return (
@@ -482,10 +496,11 @@ export default function ReviewDetail({
                       type="button"
                       onClick={() => patch(check.id, { siteInspection: on ? null : v.key })}
                       aria-pressed={on}
-                      className="flex min-h-[40px] items-center justify-center gap-[6px] rounded-[9px] border text-[11.5px] font-semibold transition-[var(--t)] active:translate-y-[1px]"
+                      title={v.label}
+                      className="flex min-h-[40px] min-w-0 items-center justify-center gap-[4px] rounded-[9px] border px-[2px] text-center text-[10px] font-semibold leading-tight transition-[var(--t)] active:translate-y-[1px]"
                       style={toneStyle(v.tone, on)}
                     >
-                      <v.Icon width={13} height={13} />
+                      <v.Icon width={12} height={12} className="shrink-0" />
                       {v.label}
                     </button>
                   );

@@ -43,6 +43,7 @@ const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8"
 
 const review = src("app", "(app)", "review", "page.tsx");
 const reviewDetail = src("components", "ReviewDetail.tsx");
+const checkDetail = src("components", "CheckDetail.tsx");
 const types = src("lib", "types.ts");
 const shell = src("components", "AppShell.tsx");
 
@@ -275,9 +276,22 @@ check(
 );
 
 check(
-  "siteInspection is editable on ReviewDetail, with the same three-way shape as the evidence verdict (no N/A)",
+  "siteInspection is editable on ReviewDetail, reusing EVIDENCE_VERDICTS (now all four Compliance values) rather than a parallel set",
   /patch\(check\.id, \{ siteInspection: on \? null : v\.key \}\)/.test(reviewDetail) &&
     /EVIDENCE_VERDICTS\.map\(\(v\) => \{[\s\S]{0,200}r\.siteInspection === v\.key/.test(reviewDetail)
+);
+
+check(
+  "EVIDENCE_VERDICTS carries all four Compliance values, not three — Compliant, Non-compliant, Not Verified, Not Applicable",
+  /\{ key: "C", label: "Compliant"/.test(checkDetail) &&
+    /\{ key: "NC", label: "Non-compliant"/.test(checkDetail) &&
+    /\{ key: "NV", label: "Not Verified"/.test(checkDetail) &&
+    /\{ key: "N\/A", label: "Not Applicable"/.test(checkDetail)
+);
+
+check(
+  "the unanswered placeholder on Evidence and Site inspection reads 'Not Verified', not '— not yet' — the two meant the same thing",
+  (reviewDetail.match(/emptyLabel="Not Verified"/g) ?? []).length === 2
 );
 
 /* ------------------------- Part 4d: evidence requested vs received ----- */
