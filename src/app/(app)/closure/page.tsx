@@ -31,6 +31,7 @@ import { portalIdFor } from "@/lib/sites";
 import { movement } from "@/lib/risk";
 import { worstRating } from "@/lib/crosswalk";
 import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
+import { FilterBar } from "@/components/ui/FilterBar";
 import { IconCheck, IconClock, IconDash, IconX } from "@/components/ui/icons";
 import { AttachmentStrip, FileButton, PhotoButton, VoiceNoteButton } from "@/components/Capture";
 import type { VerificationOutcome } from "@/lib/types";
@@ -402,48 +403,31 @@ export default function ClosurePage() {
             stays open for the rest of this page visit. The summary line
             always says what's showing, so a filtered list is never silently
             unexplained. */}
-        <details className="group mb-3">
-          <summary
-            className="flex min-h-[44px] w-full cursor-pointer list-none items-start gap-2 rounded-[9px] border px-3 py-[9px] text-[11.5px] transition-[var(--t)]"
-            style={
-              isDefault
-                ? { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
-                : { background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }
-            }
-          >
-            <span aria-hidden className="mt-[1px] shrink-0 font-mono text-[9px] transition-transform group-open:rotate-90">
-              ›
-            </span>
-            <span className="min-w-0 flex-1">
-              Showing: <b>{filterSummary}</b>
-            </span>
-          </summary>
-
-          <div className="mt-2">
-            {disciplines.length > 1 && (
-              <div className="mb-2 flex flex-wrap items-center gap-[6px]">
-                <span className="label-xs" style={{ color: "var(--ink-3)" }}>
-                  Discipline
-                </span>
-                {["all", ...disciplines].map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => setDiscipline(d)}
-                    className="min-h-[44px] rounded-full border px-[11px] py-[5px] text-[11.5px] transition-[var(--t)]"
-                    style={
-                      discipline === d
-                        ? { background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }
-                        : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
-                    }
-                  >
-                    {d === "all" ? `All ${carries.length}` : `${d} (${carries.filter((p) => p.discipline === d).length})`}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-[6px]">
-              {(
+        <FilterBar
+          className="mb-3"
+          summary={<>Showing: <b>{filterSummary}</b></>}
+          active={!isDefault}
+          groups={[
+            ...(disciplines.length > 1
+              ? [
+                  {
+                    label: "Discipline",
+                    variant: "soft" as const,
+                    chipClassName: "min-h-[44px]",
+                    options: ["all", ...disciplines].map((d) => ({
+                      key: d,
+                      label:
+                        d === "all"
+                          ? `All ${carries.length}`
+                          : `${d} (${carries.filter((p) => p.discipline === d).length})`,
+                    })),
+                    value: discipline,
+                    onChange: setDiscipline,
+                  },
+                ]
+              : []),
+            {
+              options: (
                 [
                   ["all", `Carries work (${carries.length})`],
                   ["priority", "Was Unacceptable / Tolerable"],
@@ -455,23 +439,12 @@ export default function ClosurePage() {
                     ? ([["context", `Context only (${context.length})`]] as [Filter, string][])
                     : []),
                 ] as [Filter, string][]
-              ).map(([k, label]) => (
-                <button
-                  key={k}
-                  onClick={() => setFilter(k)}
-                  className="rounded-full border px-[11px] py-[5px] text-[11.5px] transition-[var(--t)]"
-                  style={
-                    filter === k
-                      ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
-                      : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
-                  }
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </details>
+              ).map(([key, label]) => ({ key, label })),
+              value: filter,
+              onChange: (k) => setFilter(k as Filter),
+            },
+          ]}
+        />
 
         {/* THE LEGEND WENT WITH THE STRIP IT EXPLAINED.
             It was six little cells and their words, above the list, teaching a

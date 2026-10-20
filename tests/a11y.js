@@ -121,7 +121,18 @@ const CONTRAST = `(() => {
       await page.goto(B + path, { waitUntil: "networkidle" });
       await page.waitForTimeout(1600);
       const r = await page.evaluate(() => {
-        const vis = (e) => e.offsetParent !== null || getComputedStyle(e).position === "fixed";
+        /* `offsetParent !== null` is not a reliable "is this really on screen
+           and reachable" test for a closed `<details>` — its hidden content
+           keeps a non-null offsetParent in this engine even though nothing
+           is painted and it is unreachable by tab or a screen reader (see
+           the UX-audit P0 FilterBar primitive, src/components/ui/FilterBar.tsx,
+           which Closure's own filter disclosure already used before it).
+           `checkVisibility()` asks the browser directly rather than
+           approximating, and is what actually decides whether a control is
+           in front of a real auditor right now. */
+        const vis = (e) =>
+          (typeof e.checkVisibility === "function" ? e.checkVisibility() : e.offsetParent !== null) ||
+          getComputedStyle(e).position === "fixed";
         const named = (e) =>
           (e.getAttribute("aria-label") || e.getAttribute("title") || e.innerText || e.value || "").trim();
         const controls = [...document.querySelectorAll("button,a[href],select,input,textarea")].filter(vis);

@@ -34,6 +34,7 @@ import TabGuard from "@/components/TabGuard";
 import { SyncPanel } from "@/components/SyncPanel";
 import ResetPanel from "@/components/ResetPanel";
 import AuditsPanel from "@/components/AuditsPanel";
+import { FlowStepper, FLOW_STEPS } from "@/components/ui/FlowStepper";
 import SharedSheet from "@/components/SharedSheet";
 import {
   IconActivity,
@@ -1239,6 +1240,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         ))}
       </div>
 
+      {/* WHERE THIS SCREEN SITS IN THE SEVEN-STEP FLOW — Home's "How the work
+          flows" section (src/app/(app)/home/page.tsx) is the only place that
+          sequence was ever visible; leave Home and every other screen read as
+          its own silo. One central render here, keyed off the route, reaches
+          all seven destinations without six near-identical edits, and
+          `FlowStepper` itself returns null off the sequence (More menu,
+          Pre-flight, the individual forms) so nothing appears where it
+          wouldn't make sense. */}
+      {FLOW_STEPS.some((s) => s.href === pathname) && (
+        <div className="shrink-0 border-b px-3.5 py-[5px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
+          <FlowStepper current={pathname} />
+        </div>
+      )}
+
       {/* A landmark, and the one heading each screen was missing.
 
           Every screen started at an h2 — the check's own title on Capture, a
@@ -1421,7 +1436,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               )}
             </p>
 
-            <h3 className="mt-5 mb-2 text-[14px] font-bold">AI assistance</h3>
+            <h3 className="mt-5 mb-2 text-[14px] font-bold">Drafting &amp; transcription</h3>
             <p className="text-[12px] leading-[1.6]" style={{ color: "var(--ink-2)" }}>
               {aiOn ? (
                 <>
