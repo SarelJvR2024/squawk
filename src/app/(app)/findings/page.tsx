@@ -1542,7 +1542,7 @@ function SystemEvidence({
                 )
               )}
               {r?.evidenceProves && (
-                <span className="min-w-0 flex-1 text-[10.5px] leading-[1.4]" style={{ color: "var(--ink-3)" }}>
+                <span className="min-w-0 flex-1 text-[15px] leading-[1.4]" style={{ color: "var(--ink-3)" }}>
                   {r.evidenceProves}
                 </span>
               )}
@@ -1574,7 +1574,7 @@ function SystemEvidence({
         ))}
       </Section>
 
-      <div className="mt-2 text-[10.5px] leading-[1.5]" style={{ color: "var(--ink-4)" }}>
+      <div className="mt-2 text-[15px] leading-[1.5]" style={{ color: "var(--ink-4)" }}>
         None of this computes the band. It is what the group reads before agreeing the cell —
         three Amber findings on one asset system is not an Amber system, and a system with no
         findings is not automatically Green.

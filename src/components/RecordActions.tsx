@@ -301,7 +301,7 @@ export default function RecordActions({
               <span className="transition-transform group-open:rotate-90">›</span>
               Why this is a second instrument, not a second opinion
             </summary>
-            <div className="mt-1 text-[10.5px] leading-[1.5]" style={{ color: "var(--ink-3)" }}>
+            <div className="mt-1 text-[15px] leading-[1.5]" style={{ color: "var(--ink-3)" }}>
               Impact runs 5 to 1, the opposite direction to B170 001M&rsquo;s A to E, and this
               likelihood is a <b>probability</b> where B170&rsquo;s is occurrence history. The two
               instruments disagree on five cells by design. Nothing here is derived from the rating

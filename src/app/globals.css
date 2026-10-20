@@ -117,7 +117,13 @@
   --ink: #f3f1fa;
   --ink-2: #b9b2d2;
   --ink-3: #8b83a8;
-  --ink-4: #6b6488;
+  /* Was #6b6488 — 3.23:1 on --panel, below WCAG AA for body text and a step
+     this explicit-dark-theme block never got when the media-query block
+     above was fixed for the identical problem. Matched to that block's
+     #857fa1 (4.5:1+ on every dark surface token) so a device with
+     data-theme="dark" set explicitly reads the same as one following the
+     OS preference, instead of carrying the regression the other one fixed. */
+  --ink-4: #857fa1;
   --acc: #a78beb;
   --acc-2: #bca5f2;
   --acc-soft: #251e3f;
