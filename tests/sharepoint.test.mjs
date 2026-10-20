@@ -248,6 +248,51 @@ check(
   })()
 );
 
+/* Response.fieldCompliance — the Inspection screen's OWN, separate verdict
+ *  on a check (OutcomeControl, on the walk), distinct from Response.compliance
+ *  (the Checks screen's verdict, set on Capture). It was captured and shown
+ *  correctly in the app's own Inspection UI but sharepoint.ts never read it —
+ *  zero matches for `fieldCompliance` anywhere in this file — so the portal
+ *  only ever saw `compliance`, never knew the walk's own answer existed. */
+check(
+  "A CHECK'S fieldCompliance REACHES THE PORTAL, INDEPENDENTLY OF compliance",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": {
+            compliance: "C",
+            fieldCompliance: "NC",
+            observation: "Fine on the desk",
+            attachments: [],
+          },
+        },
+      },
+      NOTHING
+    );
+    return p.checkpoints[0].values.compliance === "C" && p.checkpoints[0].values.fieldCompliance === "NC";
+  })(),
+  JSON.stringify(
+    sp.buildPlan(
+      { ...BASE, responses: { "KSIA-ELE-001": { compliance: "C", fieldCompliance: "NC", observation: "", attachments: [] } } },
+      NOTHING
+    ).checkpoints[0]?.values
+  )
+);
+
+check(
+  "a check with no fieldCompliance answered yet sends null, not a copy of compliance",
+  sp.buildPlan(
+    {
+      ...BASE,
+      responses: { "KSIA-ELE-001": { compliance: "C", fieldCompliance: null, observation: "Fine", attachments: [] } },
+    },
+    NOTHING
+  ).checkpoints[0].values.fieldCompliance === null,
+  "a regression check: the two fields must never be folded into one on the way to the portal either"
+);
+
 check(
   "an AGREED ERM cell reaches the portal, in the portal's own words",
   (() => {

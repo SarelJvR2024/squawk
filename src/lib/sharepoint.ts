@@ -171,6 +171,17 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
   targetDate: ["Target date", "Target Date", "Due date"],
   progress: ["Progress/Update", "Progress / Update", "Progress", "Update"],
   compliance: ["Compliance", "Result", "Outcome"],
+  /* THE INSPECTION SCREEN'S OWN VERDICT, SEPARATE FROM `compliance` ABOVE.
+     See Response.fieldCompliance's own doc comment in types.ts — this is the
+     walk's own OutcomeControl answer, a second independent axis on the same
+     check, deliberately never pulled through to or from the Checks screen's
+     own verdict. It never had a column at all until now, so a portal reader
+     saw only `compliance` (the desk half) and had no way to tell the two
+     apart even once this exists — hence aliases that read unambiguously as
+     the OTHER column, not a rename of it. `null` (not yet answered on the
+     walk) is sent through as-is, same as `evidenceVerdict` below — a
+     genuinely unset verdict must not be mistaken for a cleared one. */
+  fieldCompliance: ["Field compliance", "Field Compliance", "Inspection compliance", "Site verdict"],
   /* THE EVIDENCE QUESTION, SEPARATE FROM THE CHECK'S OWN VERDICT. Replaced
      the chip-picking "Evidence to request" tab (never synced) — see the
      note at the checkpoints loop's values object in buildPlan(). */
@@ -1441,6 +1452,14 @@ export function buildPlan(
         discipline: c.discipline,
         assetSystem: c.system,
         compliance: r.compliance,
+        /* THE INSPECTION SCREEN'S OWN, SEPARATE VERDICT — see
+           Response.fieldCompliance's doc comment and the fieldCompliance
+           entry in FIELD_CANDIDATES above. Sent through as `null` when the
+           walk has not answered this check, same reasoning as
+           evidenceVerdict below: an unset verdict must read as unset on the
+           portal, not fold into (or get confused with) `compliance` above,
+           which is a different question answered on a different screen. */
+        fieldCompliance: r.fieldCompliance,
         /* EVIDENCE PENDING GOES ACROSS, IN THE OBSERVATION.
            The portal's compliance column has four values and "Compliant,
            evidence pending" is not one of them — it is a C with a flag on it,
