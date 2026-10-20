@@ -676,28 +676,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </div>
 
-        <button
-          onClick={() => setPalette(true)}
-          aria-label="Jump to check"
-          /* lg:min-w-[130px], not 150 — one of several small cuts across the
-             fixed-width controls to the right of the nav, made together
-             with the nav's own tightening above. Each fixed control here is
-             shrink-0, so every pixel any of them saves is a pixel the nav
-             gets back; none alone closes the gap, together they measurably
-             narrow it. */
-          className="hidden min-h-[44px] shrink-0 items-center gap-[7px] rounded-[11px] border border-transparent px-[10px] py-[6px] text-[11.5px] transition-[var(--t)] sm:flex lg:min-w-[130px]"
-          style={{ background: "var(--sunken)", color: "var(--ink-3)" }}
-        >
-          <IconSearch width={13} height={13} />
-          <span className="hidden lg:inline">Jump to check</span>
-          <kbd
-            className="ml-auto hidden rounded-[4px] border px-[5px] font-mono text-[8.5px] lg:inline"
-            style={{ background: "var(--panel)", borderColor: "var(--line)" }}
-          >
-            ⌘K
-          </kbd>
-        </button>
-
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {/* FIVE CONTROLS BECAME ONE BUTTON AND A PILL.
               Sync, Export, Reset and the shortcuts sheet stood in the masthead
@@ -797,9 +775,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       repeated "this leaves the device" or "this is a screen
                       you go to", which the group label now says once. */}
                   <MoreGroup label="Go to">
-                    {/* FIRST, because on a phone it is the ONLY route to
-                        another site or another audit — the strip that used to
-                        carry them is desk-only now. */}
+                    {/* MOVED HERE FROM THE MASTHEAD, 20 Oct 2026 — Sarel: "move
+                        the menu item jump to check to the more menu." It was a
+                        standalone button at every width from sm up, one of the
+                        fixed-width controls the file's own header note
+                        describes fighting the nav bar for room; ⌘K still opens
+                        the same palette directly (see the keydown handler
+                        above), this is only the pointer/touch route to it now.
+                        FIRST in this group, same reasoning "All audits" was
+                        given it for — the thing reached for constantly. */}
+                    <MoreItem
+                      icon={<IconSearch width={14} height={14} />}
+                      label="Jump to check"
+                      hint="Search by ID, wording, system or ACSA figure — ⌘K"
+                      onClick={() => { setMore(false); setPalette(true); }}
+                    />
+                    {/* on a phone it is the ONLY route to another site or
+                        another audit — the strip that used to carry them is
+                        desk-only now. */}
                     <MoreItem
                       icon={<IconGrid width={14} height={14} />}
                       label="All audits"
