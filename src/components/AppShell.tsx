@@ -756,8 +756,26 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                      row, which was most of what made the old flat list of
                      eleven read as long. A max-height + scroll so the menu
                      itself never pushes off the bottom of a short viewport;
-                     the groups inside still scroll as one list. */
-                  className="absolute right-0 top-[calc(100%+7px)] z-[75] max-h-[min(72vh,620px)] w-[300px] overflow-y-auto rounded-[13px] border p-[5px]"
+                     the groups inside still scroll as one list.
+
+                     FIXED AND INSET BELOW sm, 20 Oct 2026 — found by the
+                     scheduled mobile-UI review: `right-0` here anchors to
+                     this button's own narrow `relative` wrapper, not to the
+                     header's actual right edge — and on a phone, several
+                     more controls (role pill, sync status, the avatar)
+                     still sit to the right of "More" in the same row, so
+                     that wrapper's right edge can be well short of the
+                     screen's own right edge. A 300px-wide panel anchored
+                     there ran off the LEFT side of a 375–414px screen
+                     entirely, every row's text clipped and unreadable —
+                     still tappable, just not readable, which is worse than
+                     either failing loudly or working. `fixed` with
+                     `inset-x-3` makes it viewport-relative and fluid-width
+                     below `sm`, so it can never run past either edge
+                     whatever sits beside the button; `sm:` and up keeps the
+                     exact anchored-to-the-button behaviour this always had,
+                     since nothing there was broken. */
+                  className="fixed inset-x-3 top-[58px] z-[75] max-h-[min(72vh,620px)] overflow-y-auto rounded-[13px] border p-[5px] sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+7px)] sm:w-[300px]"
                   style={{
                     background: "var(--menu-bg)",
                     borderColor: "var(--menu-line)",
