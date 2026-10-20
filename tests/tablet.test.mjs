@@ -429,9 +429,18 @@ check(
   `checked ${screenDirs.length} screens, missing on: ${missingScroller.join(", ")}`
 );
 
+/* THE BREAKPOINT MOVED FROM sm TO xl (Sarel, wide desktop and tablet both:
+   "you shouldn't have to scroll, you should see all the menu options
+   there") — six full labels plus the fixed-width brand, search and account
+   cluster measured at 680px of nav alone, more than an 1024px tablet or a
+   windowed 1152px laptop actually leaves it once sm admits every label
+   back in. The phone's own reason for icon-only inactive items is
+   unchanged; it now simply holds all the way to xl (1280px) instead of
+   handing back to full labels at 640px, which is exactly what was
+   scrolling on everything narrower than that. */
 check(
   "the active destination keeps its label, the others give up theirs",
-  /className=\{active \? "" : "hidden sm:inline"\}>\{n\.label\}/.test(shell),
+  /className=\{active \? "" : "hidden xl:inline"\}>\{n\.label\}/.test(shell),
   "seven full labels needed 485px of a 390px bar; three fitted and the rest were a swipe nobody would make"
 );
 

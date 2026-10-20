@@ -419,11 +419,15 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
     }
     const attachments = unionAttachments(m.attachments ?? [], t.attachments ?? []);
     const progress = unionProgress(m.progress, t.progress);
+    /* Same append-only-log reasoning as `progress`, for the ACSA discussion
+       log — two auditors can each add a note between visits and neither must
+       lose to the other on a plain newer-wins merge. */
+    const discussionLog = unionProgress(m.discussionLog, t.discussionLog);
     const possibleEvents = unionEvents(m.possibleEvents, t.possibleEvents);
     report.attachmentsAdded += attachments.length - (m.attachments?.length ?? 0);
     report.progressAdded += progress.length - (m.progress?.length ?? 0);
     const newer = when(t) > when(m) ? t : m;
-    verifications[pf] = { ...newer, attachments, progress, possibleEvents };
+    verifications[pf] = { ...newer, attachments, progress, discussionLog, possibleEvents };
     if (when(t) > when(m)) report.verifications.updated.push(pf);
     else report.verifications.kept.push(pf);
     if (when(m) > 0 && when(t) > 0 && when(m) !== when(t)) {

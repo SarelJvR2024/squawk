@@ -53,6 +53,7 @@ import {
   type ExportInput,
 } from "@/lib/exports";
 import { downloadBytes, downloadText, downloadWorkbook, toCsv, type Sheet } from "@/lib/xlsx";
+import { useShared } from "@/lib/shared";
 import { Btn } from "@/components/ui/primitives";
 import SharedPanel from "@/components/SharedPanel";
 import TeamMerge from "@/components/TeamMerge";
@@ -210,6 +211,23 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
   const attendanceRegisters = useAttendanceRegisters();
   const evidenceItems = useEvidenceItems();
   const entityCode = useEntityCode();
+  /* TWO TABS, NOT ONE LONG SCROLL — Sarel: "the exporting, the sharing...
+     all of those pages is very busy." This dialog used to run Images, AI
+     merge, the shared-record status, team captures, the import pack AND
+     all eighteen workbook sheets down one scrolling column — everything
+     the auditor might ever want from "Export", whether or not it was what
+     they opened it for. Splitting it in two puts "what do I download" and
+     "what moves between devices and people" where each is reachable
+     without scrolling past the other — the same split the More menu
+     already makes between "Go to" and "Your work, off this device".
+     Nothing moved out of this component or lost a control; everything
+     below is exactly the row it already was. */
+  const [tab, setTab] = useState<"download" | "team">("download");
+  /* Same test the masthead's own More button already uses for this dot
+     (AppShell.tsx) — locked or errored is something a person has to act
+     on; every other state is not news worth a dot on a closed tab. */
+  const shared = useShared();
+  const sharedNeedsAttention = shared?.state === "locked" || shared?.state === "error";
   const [budget, setBudget] = useState({ count: 0, bytes: 0 });
   const [persisted, setPersisted] = useState<boolean | null>(null);
   useEffect(() => {
@@ -524,6 +542,42 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
+        {/* THE TWO TABS. role="tablist" and the pill shape match the group
+            switch CheckDetail.tsx already uses for the same job — one
+            pattern for "pick which set of controls I want", not a second
+            one invented here. */}
+        <div role="tablist" aria-label="Export" className="mb-3.5 flex gap-[5px]">
+          {(
+            [
+              { key: "download", label: "Download" },
+              { key: "team", label: "Team & shared" },
+            ] as const
+          ).map((t) => {
+            const on = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                role="tab"
+                aria-selected={on}
+                onClick={() => setTab(t.key)}
+                className="flex items-center gap-[5px] rounded-full border px-[13px] py-[7px] font-display text-[11.5px] font-semibold transition-[var(--t)]"
+                style={
+                  on
+                    ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
+                    : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
+                }
+              >
+                {t.label}
+                {t.key === "team" && sharedNeedsAttention && (
+                  <span aria-hidden className="h-[6px] w-[6px] rounded-full" style={{ background: "var(--warn)" }} />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {tab === "download" && (
+          <>
         {/* The images themselves, separately from the workbook. Separate because
           the index is a few kilobytes and the evidence is not: an auditor can
           send the workbook to a discipline lead without a hundred megabytes
@@ -577,12 +631,18 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
           </div>
         </div>
       )}
+          </>
+        )}
 
+        {tab === "team" && (
+          <>
       <SharedPanel />
 
       <TeamMerge />
 
       <ImportPackPanel />
+          </>
+        )}
 
       {error && (
           <div
@@ -602,6 +662,8 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
+        {tab === "download" && (
+          <>
         <div className="flex flex-col gap-[7px]">
           {OPTIONS.map((o) => (
             <div
@@ -636,6 +698,8 @@ export default function ExportPanel({ onClose }: { onClose: () => void }) {
           voice notes are counted in the register but stay on the device; the evidence pack that
           carries them out is part of that same phase.
         </p>
+          </>
+        )}
       </div>
     </div>
   );

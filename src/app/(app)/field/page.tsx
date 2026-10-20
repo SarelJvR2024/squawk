@@ -96,6 +96,17 @@ export default function FieldPage() {
   const assignCapture = useStore((s) => s.assignCapture);
   const discardCapture = useStore((s) => s.discardCapture);
   const addHazard = useStore((s) => s.addHazard);
+  /* The Internal Working Area, directly on a check — see the section inside
+     the Inspection sheet below. Same AdHocItem mechanism as the general walk
+     items above; addFinding/updateAdhoc are the exact raise-a-finding pair
+     AddItemSheet already uses, reused rather than duplicated. */
+  const addAdhoc = useStore((s) => s.addAdhoc);
+  const updateAdhoc = useStore((s) => s.updateAdhoc);
+  const removeAdhoc = useStore((s) => s.removeAdhoc);
+  const addAdhocAttachment = useStore((s) => s.addAdhocAttachment);
+  const removeAdhocAttachment = useStore((s) => s.removeAdhocAttachment);
+  const updateAdhocAttachment = useStore((s) => s.updateAdhocAttachment);
+  const addFinding = useStore((s) => s.addFinding);
 
   const [q, setQ] = useState("");
   /* THE AXIS. Discipline is the default and location is the flip.
@@ -213,6 +224,40 @@ export default function FieldPage() {
     commit(id, "field");
   };
 
+  /* AN INTERNAL WORKING AREA ITEM BECOMES A FINDING EXACTLY THE WAY AN
+     ORDINARY WALK ITEM DOES — see AddItemSheet's own raiseFinding, which this
+     mirrors field for field rather than inventing a second mechanism. The
+     link is kept both ways, same reason: the observation and the finding
+     stay one thing rather than becoming two accounts of it, and the item
+     drops out of the Internal Working Area list the moment findingId is
+     set — see that filter inside the check Sheet below. */
+  const raiseInternalFinding = (item: AdHocItem) => {
+    if (item.findingId) return;
+    const id = addFinding({
+      checkId: null,
+      discipline: item.discipline ?? "",
+      system: item.system ?? "",
+      area: item.area,
+      title: "Seen on the walk",
+      description: item.description,
+      issueIndex: null,
+      severity: null,
+      likelihood: null,
+      ratingConfirmed: false,
+      rootCause: "",
+      actions: [],
+      actionStatus: "Open",
+      originVisit: visitId,
+      priorRating: null,
+      suggestedEvent: "",
+      progress: [],
+      adHoc: true,
+      createdBy: auditor,
+    });
+    updateAdhoc(item.id, { findingId: id });
+    say(`${id} raised from ${item.id}`);
+  };
+
   /* WHAT THE LOCATION BOXES SUGGEST — the inspection's and every photograph's,
      from one list. Places this walk has already named come FIRST, because on a
      walk the next location is nearly always one of the last few; the site's
@@ -287,6 +332,17 @@ export default function FieldPage() {
     return list;
   }, [entityCode, q, activeFilter, topOf]);
 
+  /* NOT ONE OF THE 324, AND NOT ONE OF THESE EITHER while it is still parked.
+     An Internal Working Area item (AdHocItem.internal) is captured from
+     inside a check's own Inspection popup and lives there, never under its
+     asset system in this list — "not visible externally" was explicit. Once
+     it is promoted (findingId set) it is a real finding and rejoins this
+     list exactly as any other promoted walk item always has. */
+  const walkCandidates = useMemo(
+    () => adhocItems.filter((it) => !it.internal || it.findingId),
+    [adhocItems]
+  );
+
   /* The walk items the current filter and search should show. Same two rules as
      the register list, plus one of its own: an item with no discipline and no
      location is NEVER hidden by a filter on either — a filter that hides an
@@ -295,18 +351,18 @@ export default function FieldPage() {
   const walkVisible = useMemo(() => {
     const q2 = q.trim().toLowerCase();
     if (q2) {
-      return adhocItems.filter((it) =>
+      return walkCandidates.filter((it) =>
         `${it.id} ${it.description} ${it.note} ${it.area} ${it.discipline ?? ""} ${it.system ?? ""}`
           .toLowerCase()
           .includes(q2)
       );
     }
-    if (!activeFilter) return adhocItems;
-    return adhocItems.filter((it) => {
+    if (!activeFilter) return walkCandidates;
+    return walkCandidates.filter((it) => {
       const own = (groupBy === "area" ? it.area : it.discipline)?.trim();
       return !own || own === activeFilter;
     });
-  }, [adhocItems, q, activeFilter, groupBy]);
+  }, [walkCandidates, q, activeFilter, groupBy]);
 
   /* THE TREE, NOW ONE LEVEL DEEP: asset system → the work under it.
 
@@ -479,8 +535,8 @@ export default function FieldPage() {
               <span>
                 {doneCount}/{visible.length}
               </span>
-              {adhocItems.length > 0 && (
-                <span style={{ color: "var(--acc)" }}>+{adhocItems.length}</span>
+              {walkCandidates.length > 0 && (
+                <span style={{ color: "var(--acc)" }}>+{walkCandidates.length}</span>
               )}
             </span>
           </div>
@@ -590,9 +646,9 @@ export default function FieldPage() {
             <span className="track flex-1">
               <i style={{ width: `${visible.length ? (doneCount / visible.length) * 100 : 0}%`, background: "var(--acc)" }} />
             </span>
-            {adhocItems.length > 0 && (
+            {walkCandidates.length > 0 && (
               <span className="shrink-0 font-mono text-[9.5px]" style={{ color: "var(--acc)" }}>
-                +{adhocItems.length} seen on the walk
+                +{walkCandidates.length} seen on the walk
               </span>
             )}
           </div>
@@ -1478,6 +1534,196 @@ export default function FieldPage() {
                 />
               </div>
             )}
+
+            {/* INTERNAL WORKING AREA — parked notes that are not yet a
+                finding and not yet visible outside this tool. Sarel: field
+                auditors need somewhere for "needs further assessment, a
+                document to check, something to raise with ACSA later" that
+                currently has nowhere to live except being mentally parked,
+                which costs the desk team photo-filtering time afterwards.
+
+                REUSES AdHocItem, see its own `internal` field for the full
+                reasoning — this is deliberately not a new record kind.
+                MULTIPLE items per check, each independently flaggable and
+                independently promotable — confirmed design, not a single
+                scratch box. Mirrors the Walkabout section just above it:
+                same location pattern, same textarea-plus-capture shape, same
+                card styling as the rest of this screen — dashed border and
+                the accent tint so it reads as its own thing without a new
+                modal pattern (see UX_REVIEW.md on "repeatable item" already
+                being built three different ways). */}
+            {(() => {
+              const internalItems = adhocItems.filter(
+                (a) => a.checkId === c.id && a.internal && !a.findingId
+              );
+              return (
+                <div
+                  className="mt-5 rounded-[12px] border border-dashed p-3"
+                  style={{ borderColor: "var(--acc-line)", background: "var(--acc-soft)" }}
+                >
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <span
+                      className="font-display text-[11px] font-semibold"
+                      style={{ color: "var(--acc)" }}
+                    >
+                      Internal Working Area
+                    </span>
+                    <Btn
+                      variant="ghost"
+                      className="min-h-[32px] px-2 py-1 text-[10.5px]"
+                      onClick={() =>
+                        addAdhoc({
+                          origin: "field",
+                          description: "",
+                          discipline: c.discipline?.trim() || null,
+                          system: c.system?.trim() || null,
+                          area: r?.location?.trim() ?? "",
+                          outcome: null,
+                          note: "",
+                          attachments: [],
+                          findingId: null,
+                          createdBy: auditor,
+                          checkId: c.id,
+                          internal: true,
+                        })
+                      }
+                    >
+                      <IconPlus width={11} height={11} />
+                      Add item
+                    </Btn>
+                  </div>
+                  <p className="mb-2.5 text-[10.5px] leading-[1.4]" style={{ color: "var(--ink-3)" }}>
+                    Not visible externally and not linked to any report — a place to park what
+                    you are not ready to call a finding yet.
+                  </p>
+
+                  {internalItems.length === 0 ? (
+                    <p className="text-[10.5px]" style={{ color: "var(--ink-4)" }}>
+                      Nothing parked here yet.
+                    </p>
+                  ) : (
+                    <div className="flex flex-col gap-2.5">
+                      {internalItems.map((it) => (
+                        <div
+                          key={it.id}
+                          className="rounded-[10px] border p-2.5"
+                          style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                        >
+                          <div className="mb-1.5 flex items-center justify-between gap-2">
+                            <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                              {it.id}
+                            </span>
+                            <button
+                              onClick={() => removeAdhoc(it.id)}
+                              aria-label="Remove this parked item"
+                              className="flex h-[26px] w-[26px] items-center justify-center rounded-[7px]"
+                              style={{ color: "var(--ink-3)" }}
+                            >
+                              <IconX width={12} height={12} />
+                            </button>
+                          </div>
+
+                          <label className="block">
+                            <span className="label-xs" style={{ color: "var(--ink-4)" }}>
+                              Where you are standing
+                            </span>
+                            <input
+                              value={it.area}
+                              onChange={(e) => updateAdhoc(it.id, { area: e.target.value })}
+                              list={LOCATION_LIST_ID}
+                              placeholder="Stand 12, north switch room, Pier B roof…"
+                              className="mt-1 min-h-[40px] w-full rounded-[9px] border px-2.5 py-2 text-[12px] outline-none"
+                              style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+                            />
+                          </label>
+
+                          <label className="mt-2 block">
+                            <span className="label-xs" style={{ color: "var(--ink-4)" }}>
+                              What you found and would like to do
+                            </span>
+                            <textarea
+                              value={it.description}
+                              onChange={(e) => updateAdhoc(it.id, { description: e.target.value })}
+                              placeholder="Further assessment, check documents, regulations, codes, refer to engineer and discuss, consult ACSA, park observation for later stage…"
+                              className="mt-1 min-h-[64px] w-full resize-y rounded-[9px] border px-2.5 py-2 text-[12px] leading-[1.45] outline-none"
+                              style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+                            />
+                          </label>
+
+                          <div className="mt-2 flex flex-wrap gap-[6px]">
+                            <button
+                              onClick={() =>
+                                updateAdhoc(it.id, { flagEngineerReview: !it.flagEngineerReview })
+                              }
+                              className="rounded-full border px-[9px] py-[4px] text-[10px] font-semibold"
+                              style={
+                                it.flagEngineerReview
+                                  ? { background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }
+                                  : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-3)" }
+                              }
+                            >
+                              <IconFlag width={10} height={10} style={{ display: "inline", marginRight: 3 }} />
+                              Engineer review
+                            </button>
+                            <button
+                              onClick={() =>
+                                updateAdhoc(it.id, { flagAuditScopeReview: !it.flagAuditScopeReview })
+                              }
+                              className="rounded-full border px-[9px] py-[4px] text-[10px] font-semibold"
+                              style={
+                                it.flagAuditScopeReview
+                                  ? { background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }
+                                  : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-3)" }
+                              }
+                            >
+                              <IconFlag width={10} height={10} style={{ display: "inline", marginRight: 3 }} />
+                              Audit scope review
+                            </button>
+                          </div>
+
+                          <div className="mt-2 flex justify-end gap-2">
+                            <PhotoButton
+                              compact
+                              onCaptured={(m) =>
+                                addAdhocAttachment(it.id, {
+                                  ...m,
+                                  location: it.area.trim(),
+                                  createdBy: auditor,
+                                })
+                              }
+                            />
+                            <VoiceNoteButton
+                              compact
+                              onCaptured={(m) => addAdhocAttachment(it.id, { ...m, createdBy: auditor })}
+                            />
+                          </div>
+                          {it.attachments.length > 0 && (
+                            <div className="mt-2">
+                              <AttachmentStrip
+                                attachments={it.attachments}
+                                thumbSize={36}
+                                onRemove={(aid) => removeAdhocAttachment(it.id, aid)}
+                                onUpdate={(aid, pa) => updateAdhocAttachment(it.id, aid, pa)}
+                              />
+                            </div>
+                          )}
+
+                          <div className="mt-2.5 flex items-center justify-end">
+                            <Btn
+                              className="min-h-[36px] px-2.5 py-1.5 text-[10.5px]"
+                              onClick={() => raiseInternalFinding(it)}
+                            >
+                              <IconCheck width={12} height={12} />
+                              Move to findings
+                            </Btn>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
               </>
             )}
           </Sheet>
