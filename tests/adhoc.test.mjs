@@ -144,10 +144,20 @@ const portfolio = storeCode.slice(
   storeCode.indexOf("export interface AuditProgress")
 );
 check("usePortfolio never reads adhoc", !/adhoc/.test(portfolio));
+/* FIXED, 20 October 2026 — this used to read walkCandidates (the GLOBAL
+   walk-item count) regardless of the screen's own discipline/location
+   filter, so filtering to one discipline still showed every walk item
+   across all of them. walkVisible is the filtered count the tree itself
+   actually renders — see FieldPage's own comment on walkScoped/walkVisible. */
 check(
   "the walk count is stated SEPARATELY on the inspection screen",
-  /\+\{walkCandidates\.length\} seen on the walk/.test(field),
+  /\+\{walkVisible\.length\} seen on the walk/.test(field),
   "two numbers, never one — a denominator that grows as you work is not a denominator"
+);
+check(
+  "and it reflects the active filter, not the global walk-item count",
+  !/\+\{walkCandidates\.length\} seen on the walk/.test(field),
+  "a discipline filter that still showed every discipline's walk items was not a filter"
 );
 check(
   "and that count excludes a parked, not-yet-promoted Internal Working Area item",
