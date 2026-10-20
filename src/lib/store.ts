@@ -62,6 +62,7 @@ import type {
 } from "./types";
 import {
   type AuditDateOverride,
+  auditWindow,
   CURRENT_ENTITY_CODE,
   CURRENT_VISIT_ID,
   ENTITIES,
@@ -208,6 +209,35 @@ export function visitLabelFor(visitId: string): string {
   if (!m) return visitId;
   const [y, mm] = visitId.split("-");
   return `${MONTHS[Number(mm) - 1]} ${y}`;
+}
+
+/** A visit's own label/note, corrected — Sarel: "build an option where a
+ *  user can edit the audit dates," then later, naming exactly why: "ORTIA
+ *  audit of September was done early October, i need to change the date."
+ *  A visit's id decides which month it's FILED under (carry-forward sorts
+ *  by it, and changing it would mean a different visit), but the dates a
+ *  reader actually sees — the masthead strip, the Audits panel — are just
+ *  `label`/`note`, free text from programme.json. This is where
+ *  `AuditDateOverride` (see its own doc comment in programme.ts) actually
+ *  takes effect: applied once, here, rather than at every screen that
+ *  prints a visit, so a correction typed once shows everywhere without
+ *  each of them having to know overrides exist.
+ *
+ *  `auditFrom`/`auditTo` win over a stored `note` when both are set,
+ *  through the SAME `auditWindow()` formatter every Entity-level window
+ *  uses — "15 Sep – 18 Sep 2026" on one screen and "15–18 Sep 2026" on
+ *  another is the exact drift that formatter already exists to prevent,
+ *  and a correction is not exempt from it. */
+export function withDateOverride(
+  v: ProgrammeVisit,
+  entityCode: string,
+  overrides: Record<string, AuditDateOverride>
+): ProgrammeVisit {
+  const o = overrides[scopeKey(entityCode, v.id)];
+  if (!o) return v;
+  const note =
+    o.auditFrom && o.auditTo ? auditWindow(o.auditFrom, o.auditTo, o.auditTbc) : (o.note ?? v.note);
+  return { ...v, label: o.label ?? v.label, note };
 }
 
 export interface VisitData {
@@ -4513,8 +4543,12 @@ export const useEntity = () => entityOf(useStore((s) => s.entity));
 export function useVisits(entityCode?: string): ProgrammeVisit[] {
   const custom = useStore((s) => s.customVisits);
   const current = useStore((s) => s.entity);
+  const overrides = useStore((s) => s.auditDateOverrides);
   const code = entityCode ?? current;
-  return useMemo(() => mergeVisits(custom, code), [custom, code]);
+  return useMemo(
+    () => mergeVisits(custom, code).map((v) => withDateOverride(v, code, overrides)),
+    [custom, code, overrides]
+  );
 }
 
 /** Every audit across every entity that either exists in the programme, was
@@ -4522,6 +4556,7 @@ export function useVisits(entityCode?: string): ProgrammeVisit[] {
 export function useAllAudits(): { entity: string; visit: ProgrammeVisit }[] {
   const custom = useStore((s) => s.customVisits);
   const byVisit = useStore((s) => s.byVisit);
+  const overrides = useStore((s) => s.auditDateOverrides);
   return useMemo(() => {
     const seen = new Set<string>();
     const out: { entity: string; visit: ProgrammeVisit }[] = [];
@@ -4529,7 +4564,7 @@ export function useAllAudits(): { entity: string; visit: ProgrammeVisit }[] {
       const k = scopeKey(entityCode, v.id);
       if (seen.has(k)) return;
       seen.add(k);
-      out.push({ entity: entityCode, visit: v });
+      out.push({ entity: entityCode, visit: withDateOverride(v, entityCode, overrides) });
     };
     for (const v of [...PROGRAMME_VISITS, ...custom]) push(v.entity, v);
     /* A scope holding data but no visit definition would otherwise be
@@ -4542,7 +4577,7 @@ export function useAllAudits(): { entity: string; visit: ProgrammeVisit }[] {
     return out.sort(
       (a, b) => a.entity.localeCompare(b.entity) || a.visit.id.localeCompare(b.visit.id)
     );
-  }, [custom, byVisit]);
+  }, [custom, byVisit, overrides]);
 }
 
 export const useVisitData = () =>

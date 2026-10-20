@@ -24,7 +24,7 @@ import {
 } from "@/lib/store";
 import { ENTITIES, entity as entityOf, PROGRAMME_VISITS } from "@/lib/programme";
 import { Btn, Panel, Pill } from "@/components/ui/primitives";
-import { IconCheck, IconPin, IconX } from "@/components/ui/icons";
+import { IconCheck, IconEdit, IconPin, IconX } from "@/components/ui/icons";
 
 export default function AuditsPanel({ onClose }: { onClose: () => void }) {
   const audits = useAllAudits();
@@ -33,6 +33,9 @@ export default function AuditsPanel({ onClose }: { onClose: () => void }) {
   const openAudit = useStore((s) => s.openAudit);
   const addVisit = useStore((s) => s.addVisit);
   const removeVisit = useStore((s) => s.removeVisit);
+  const auditDateOverrides = useStore((s) => s.auditDateOverrides);
+  const setAuditDateOverride = useStore((s) => s.setAuditDateOverride);
+  const clearAuditDateOverride = useStore((s) => s.clearAuditDateOverride);
   const currentEntity = useEntityCode();
   const currentVisit = useVisitId();
 
@@ -45,6 +48,43 @@ export default function AuditsPanel({ onClose }: { onClose: () => void }) {
   const [toast, setToast] = useState<string | null>(null);
 
   const newId = `${newYear}-${newMonth}`;
+
+  /* THE DATES SHOWN FOR A VISIT ARE FREE TEXT, 20 Oct 2026 — Sarel: "add
+   *  option to change the date of the audit ie ORTIA audit of september was
+   *  done early october, i need to change the date." A visit's id decides
+   *  which month it's FILED under for carry-forward's own ordering — that
+   *  is not what this corrects, and could not be without turning a visit
+   *  into a different visit. What this fixes is what a reader actually
+   *  SEES: the label and window text printed on the masthead strip and in
+   *  this same panel, both already reading through useVisits/useAllAudits
+   *  (store.ts), which apply AuditDateOverride once there so nothing else
+   *  has to know it exists. This is the one place that writes one. */
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editFrom, setEditFrom] = useState("");
+  const [editTo, setEditTo] = useState("");
+  const [editTbc, setEditTbc] = useState(false);
+  const [editNote, setEditNote] = useState("");
+
+  const startEdit = (entityCode: string, visitId: string) => {
+    const key = scopeKey(entityCode, visitId);
+    const o = auditDateOverrides[key];
+    setEditingKey(key);
+    setEditFrom(o?.auditFrom ?? "");
+    setEditTo(o?.auditTo ?? "");
+    setEditTbc(o?.auditTbc ?? false);
+    setEditNote(o?.note ?? "");
+  };
+
+  const saveEdit = (entityCode: string, visitId: string) => {
+    setAuditDateOverride(entityCode, visitId, {
+      auditFrom: editFrom || undefined,
+      auditTo: editTo || undefined,
+      auditTbc: editTbc,
+      note: editNote.trim() || undefined,
+    });
+    setEditingKey(null);
+    setToast(`${entityOf(entityCode).short} · ${visitLabelFor(visitId)} dates updated.`);
+  };
 
   /* What each audit actually holds, so the list distinguishes "scheduled" from
      "there is work in here" without anyone having to open it. */
@@ -265,6 +305,22 @@ export default function AuditsPanel({ onClose }: { onClose: () => void }) {
                               Open
                             </Btn>
                           )}
+                          <button
+                            onClick={() =>
+                              editingKey === key ? setEditingKey(null) : startEdit(e.code, v.id)
+                            }
+                            aria-label={`Edit dates for ${e.short} ${v.label}`}
+                            title="Correct this audit's dates — the window shown here and on the masthead strip"
+                            aria-pressed={editingKey === key}
+                            className="flex h-[30px] w-[30px] items-center justify-center rounded-[8px] border"
+                            style={
+                              editingKey === key
+                                ? { background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }
+                                : { borderColor: "var(--line-2)", color: "var(--ink-3)" }
+                            }
+                          >
+                            <IconEdit width={11} height={11} />
+                          </button>
                           {!seeded && !has && (
                             <button
                               onClick={() => {
@@ -284,6 +340,93 @@ export default function AuditsPanel({ onClose }: { onClose: () => void }) {
                       </div>
                     );
                   })}
+                  {/* THE EDITOR, inline below the whole list rather than
+                      per-row — a row is already a tight single line, and a
+                      form embedded in it would either wrap unpredictably or
+                      force the row to grow every time. Rendered once, keyed
+                      to whichever visit editingKey names, same pattern the
+                      "New audit" panel above already uses for a form that
+                      needs real width. */}
+                  {list.some(({ visit: v }) => scopeKey(e.code, v.id) === editingKey) && (
+                    <Panel>
+                      {(() => {
+                        const v = list.find(({ visit }) => scopeKey(e.code, visit.id) === editingKey)!.visit;
+                        return (
+                          <>
+                            <div className="mb-2 font-display text-[11.5px] font-semibold">
+                              Correct {e.short} · {v.label}&rsquo;s dates
+                            </div>
+                            <p className="mb-2 text-[11px]" style={{ color: "var(--ink-3)" }}>
+                              The visit stays filed under {v.id} — this only corrects what is
+                              printed for it, here and on the masthead strip.
+                            </p>
+                            <div className="flex flex-wrap items-end gap-2">
+                              <label className="flex flex-col gap-1">
+                                <span className="label-xs">Actually started</span>
+                                <input
+                                  type="date"
+                                  value={editFrom}
+                                  onChange={(ev) => setEditFrom(ev.target.value)}
+                                  className="rounded-[8px] border px-2 py-[7px] text-[11.5px]"
+                                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                                />
+                              </label>
+                              <label className="flex flex-col gap-1">
+                                <span className="label-xs">Actually ended</span>
+                                <input
+                                  type="date"
+                                  value={editTo}
+                                  onChange={(ev) => setEditTo(ev.target.value)}
+                                  className="rounded-[8px] border px-2 py-[7px] text-[11.5px]"
+                                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                                />
+                              </label>
+                              <label className="flex items-center gap-1.5 pb-[7px] text-[11px]">
+                                <input
+                                  type="checkbox"
+                                  checked={editTbc}
+                                  onChange={(ev) => setEditTbc(ev.target.checked)}
+                                />
+                                Dates not yet confirmed
+                              </label>
+                              <label className="flex min-w-[180px] flex-1 flex-col gap-1">
+                                <span className="label-xs">Note instead · optional</span>
+                                <input
+                                  value={editNote}
+                                  onChange={(ev) => setEditNote(ev.target.value)}
+                                  placeholder="Used only if the dates above are left blank"
+                                  className="rounded-[8px] border px-2 py-[7px] text-[11.5px]"
+                                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                                />
+                              </label>
+                            </div>
+                            <div className="mt-2.5 flex items-center gap-2">
+                              <Btn variant="primary" onClick={() => saveEdit(e.code, v.id)}>
+                                <IconCheck width={13} height={13} />
+                                Save
+                              </Btn>
+                              <Btn variant="ghost" onClick={() => setEditingKey(null)}>
+                                Cancel
+                              </Btn>
+                              {auditDateOverrides[editingKey!] && (
+                                <button
+                                  onClick={() => {
+                                    clearAuditDateOverride(e.code, v.id);
+                                    setEditingKey(null);
+                                    setToast(`${e.short} · ${v.label} back to the programme's own dates.`);
+                                  }}
+                                  className="ml-1 text-[11px] underline"
+                                  style={{ color: "var(--ink-3)" }}
+                                >
+                                  Clear correction
+                                </button>
+                              )}
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </Panel>
+                  )}
                 </div>
               )}
             </div>
