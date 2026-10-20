@@ -341,7 +341,9 @@ check(
 
 check(
   "and the merged verification carries the union",
-  /verifications\[pf\] = \{ \.\.\.newer, attachments, progress, discussionLog, possibleEvents \};/.test(merge),
+  /verifications\[pf\] = \{[\s\S]{0,40}attachments,[\s\S]{0,300}progress,\s*discussionLog,\s*possibleEvents,?\s*\};/.test(
+    merge
+  ),
   ""
 );
 

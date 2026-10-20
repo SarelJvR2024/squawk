@@ -519,6 +519,33 @@ export interface Response {
   issuesPicked: number[];
   walkaboutPicked: number | null;
   attachments: Attachment[];
+  /** ATTACHMENT IDS DELIBERATELY REMOVED (OR MOVED AWAY) FROM THIS RECORD,
+   *  and when — an append-only tombstone log, the counterpart to
+   *  merge.ts's additive `unionAttachments`.
+   *
+   *  THE BUG THIS FIXES: `removeAttachment`/`moveAttachment` (store.ts) take
+   *  an id out of `attachments` and bump `updatedAt` on this device, but a
+   *  sync bundle from a device that captured its own copy of this response
+   *  BEFORE that removal still carries the old attachment. A plain
+   *  union-by-id merge (rule 3 in merge.ts's own header) puts it straight
+   *  back — even on the branch where this device's copy wins as newer,
+   *  because attachments are unioned independently of which side's scalar
+   *  fields "won." Device A removes a mis-filed photo, or moves it to the
+   *  correct check; device B, still on its stale pre-removal snapshot,
+   *  syncs in; the photo reappears, duplicating or resurrecting evidence
+   *  nobody meant to keep.
+   *
+   *  Checked only by the merge, never rendered or exported: by the time a
+   *  device has processed a removal, the id is already physically gone from
+   *  `attachments` there, so nothing needs to filter this list out of the UI
+   *  or a workbook — it only has to survive the NEXT sync undoing that same
+   *  removal, which is why the tombstone itself is unioned across devices
+   *  too (see `unionAttachmentsWithTombstones` in merge.ts).
+   *
+   *  Optional, absent-means-empty, same shape as `location`/`feedback`/
+   *  `adhoc` above — a record from before this existed has removed nothing,
+   *  which is the correct reading, so no persist version bump is needed. */
+  removedAttachmentIds?: { id: string; at: number }[];
   /** DERIVED, and written only by the store: true when every mode this check's
    *  vtype declares has been answered. Every one of the 324 checks needs both
    *  a document review and the asset seen (see the note on needsDesk/
@@ -1198,6 +1225,11 @@ export interface Verification {
    *  fixed"; renaming it would be a migration for no gain. */
   evidence: string;
   attachments: Attachment[];
+  /** See Response.removedAttachmentIds — the same tombstone log, for
+   *  `removeVerificationAttachment`'s removal half. Optional and
+   *  absent-means-empty for the same reason, no persist version bump
+   *  needed. */
+  removedAttachmentIds?: { id: string; at: number }[];
   verifiedBy: string;
   verifiedAt: number | null;
   /** EVIDENCE REQUESTED — the other half of the same question, asked but not
