@@ -83,15 +83,15 @@ check(
   /evidencePendingNote: "",\s*\n\s*evidenceProves: "",\s*\n\s*evidenceVerdict: null,/.test(codeOnly)
 );
 
-/* ---- the UI: a text box, and three verdicts, not five -------------------- */
+/* ---- the UI: a text box, and all four verdicts -------------------------- */
 
 check(
-  "EVIDENCE_VERDICTS reuses three of Compliance's four values — not N/A",
+  "EVIDENCE_VERDICTS carries all four of Compliance's values, including N/A",
   /key: "C", label: "Compliant"/.test(codeOnly) &&
     /key: "NC", label: "Non-compliant"/.test(codeOnly) &&
     /key: "NV", label: "Not Verified"/.test(codeOnly) &&
-    !/key: "N\/A", label: "Compliant"/.test(codeOnly),
-  "evidence cannot answer whether a check applies at all, only what it shows once it does"
+    /key: "N\/A", label: "Not Applicable"/.test(codeOnly),
+  "Sarel, 20 Oct 2026, reviewing the Review screen's button rows: 'should be compliant, non-compliant, not verified, not applicable' — overriding the original three-value set for consistency with the audit check's own verdict"
 );
 check(
   "the textbox is unconditional, like the status buttons above it — no gate on the Answer Library",
