@@ -43,6 +43,7 @@ const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8"
 
 const review = src("app", "(app)", "review", "page.tsx");
 const reviewDetail = src("components", "ReviewDetail.tsx");
+const checkDetail = src("components", "CheckDetail.tsx");
 const types = src("lib", "types.ts");
 const shell = src("components", "AppShell.tsx");
 
@@ -275,9 +276,22 @@ check(
 );
 
 check(
-  "siteInspection is editable on ReviewDetail, with the same three-way shape as the evidence verdict (no N/A)",
+  "siteInspection is editable on ReviewDetail, reusing EVIDENCE_VERDICTS (now all four Compliance values) rather than a parallel set",
   /patch\(check\.id, \{ siteInspection: on \? null : v\.key \}\)/.test(reviewDetail) &&
     /EVIDENCE_VERDICTS\.map\(\(v\) => \{[\s\S]{0,200}r\.siteInspection === v\.key/.test(reviewDetail)
+);
+
+check(
+  "EVIDENCE_VERDICTS carries all four Compliance values, not three — Compliant, Non-compliant, Not Verified, Not Applicable",
+  /\{ key: "C", label: "Compliant"/.test(checkDetail) &&
+    /\{ key: "NC", label: "Non-compliant"/.test(checkDetail) &&
+    /\{ key: "NV", label: "Not Verified"/.test(checkDetail) &&
+    /\{ key: "N\/A", label: "Not Applicable"/.test(checkDetail)
+);
+
+check(
+  "the unanswered placeholder on Evidence and Site inspection reads 'Not Verified', not '— not yet' — the two meant the same thing",
+  (reviewDetail.match(/emptyLabel="Not Verified"/g) ?? []).length === 2
 );
 
 /* ------------------------- Part 4d: evidence requested vs received ----- */
@@ -296,8 +310,48 @@ check(
 );
 
 check(
-  "the inspection notes (the observation text) sit immediately above the evidence they explain, not in a separate, distant section",
-  /Inspection notes[\s\S]{0,600}label-xs mb-1\.5">Evidence</.test(reviewDetail)
+  "the audit check observation notes are the first section, sitting immediately above the evidence they explain",
+  /Audit check observation[\s\S]{0,3200}label-xs mb-1\.5">Evidence</.test(reviewDetail)
+);
+
+check(
+  "the audit check's own compliance has a button grid, not only the sticky strip's select",
+  /Audit check compliance[\s\S]{0,400}STATUSES\.map/.test(reviewDetail) &&
+    /setCompliance\(check\.id, on \? null : st\.key\)/.test(reviewDetail)
+);
+
+/* ------------------------- Part 4e: raise a finding, without leaving --- */
+
+check(
+  "a finding raised here is always tied to the check on screen, not picked from a search",
+  /addFinding\(\{[\s\S]{0,40}checkId: check\.id,/.test(reviewDetail)
+);
+
+check(
+  "discipline and asset system default to the check's own, same convenience RaiseFindingSheet gives once a check is picked",
+  /useState\(check\.discipline\)/.test(reviewDetail) && /useState\(check\.system\)/.test(reviewDetail)
+);
+
+check(
+  "a headline is required, same rule RaiseFindingSheet and AddItemSheet both enforce",
+  /if \(!title\) \{/.test(reviewDetail) && /setNewError\(/.test(reviewDetail)
+);
+
+check(
+  "photo, voice and file capture here write into THIS check's own attachments, not a second store of evidence",
+  /PhotoButton[\s\S]{0,100}addAttachment\(check\.id, \{ \.\.\.m, createdBy: auditor \}\)/.test(reviewDetail) &&
+    /VoiceNoteButton[\s\S]{0,100}addAttachment\(check\.id, \{ \.\.\.m, createdBy: auditor \}\)/.test(reviewDetail) &&
+    /FileButton[\s\S]{0,100}addAttachment\(check\.id, \{ \.\.\.m, createdBy: auditor \}\)/.test(reviewDetail)
+);
+
+check(
+  "the new finding's capture buttons do not render a second photo strip — it shows once, in Evidence received",
+  (() => {
+    const i = reviewDetail.indexOf("Raise a finding");
+    const section = reviewDetail.slice(i, reviewDetail.indexOf("</section>", i));
+    return !/<AttachmentStrip/.test(section);
+  })(),
+  "the same attachments array already renders in the Evidence section above"
 );
 
 /* ----------------------------------------- Part 5: ids are the site's own */

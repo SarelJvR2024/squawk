@@ -176,15 +176,22 @@ export const EVIDENCE_STATUSES: {
 
 /** THE VERDICT THE EVIDENCE ITSELF SUPPORTS — a different question from
  *  EVIDENCE_STATUSES above (has the proof been produced) and from STATUSES
- *  (the check's own compliance verdict). Reuses three of `Compliance`'s four
- *  values rather than inventing a parallel set — "N/A" is deliberately not
- *  offered here, because evidence cannot answer whether a check applies at
- *  all, only what it shows once it does.
+ *  (the check's own compliance verdict).
  *
  *  Replaces "Evidence to request", "Likely answers" and "Issues found" —
  *  Sarel, 11 October 2026, removing all three chip-picking tabs in favour of
  *  this: what the evidence actually proves, written and judged, not asked
- *  for and ticked off. */
+ *  for and ticked off.
+ *
+ *  ALL FOUR OF `Compliance`'S VALUES, 20 Oct 2026. Originally three —
+ *  "N/A" was deliberately left out, on the reasoning that evidence cannot
+ *  answer whether a check applies at all, only what it shows once it does.
+ *  Sarel, reviewing the Review screen's button rows: "should be compliant,
+ *  non-compliant, not verified, not applicable" — overriding that on his own
+ *  direct instruction, for consistency with the audit check's own verdict
+ *  (STATUSES) and so every button row on this screen offers the same shape
+ *  of answer. A check that genuinely does not apply can have no evidence to
+ *  judge either, and this is now how that gets said here. */
 export const EVIDENCE_VERDICTS: {
   key: Compliance;
   label: string;
@@ -194,6 +201,7 @@ export const EVIDENCE_VERDICTS: {
   { key: "C", label: "Compliant", Icon: IconCheck, tone: "good" },
   { key: "NC", label: "Non-compliant", Icon: IconX, tone: "bad" },
   { key: "NV", label: "Not Verified", Icon: IconHelp, tone: "warn" },
+  { key: "N/A", label: "Not Applicable", Icon: IconDash, tone: "neu" },
 ];
 
 /** Every reference extract reads the same way: the document's words, set as
@@ -569,7 +577,7 @@ export default function CheckDetail({
             className="min-h-[64px] w-full resize-y rounded-[8px] border px-3 py-2 text-[12.5px] outline-none focus:border-[var(--acc)]"
             style={{ background: "var(--bg)", borderColor: "var(--line-2)" }}
           />
-          <div className="mt-2 grid grid-cols-3 gap-[6px]">
+          <div className="mt-2 grid grid-cols-4 gap-[6px]">
             {EVIDENCE_VERDICTS.map((v) => {
               const on = r.evidenceVerdict === v.key;
               return (
@@ -578,10 +586,11 @@ export default function CheckDetail({
                   type="button"
                   onClick={() => patch(check.id, { evidenceVerdict: on ? null : v.key })}
                   aria-pressed={on}
-                  className="flex min-h-[40px] items-center justify-center gap-[6px] rounded-[9px] border text-[11px] font-semibold transition-[var(--t)] active:translate-y-[1px]"
+                  title={v.label}
+                  className="flex min-h-[40px] min-w-0 items-center justify-center gap-[4px] rounded-[9px] border px-[2px] text-center text-[10px] font-semibold leading-tight transition-[var(--t)] active:translate-y-[1px]"
                   style={toneStyle(v.tone, on)}
                 >
-                  <v.Icon width={13} height={13} />
+                  <v.Icon width={12} height={12} className="shrink-0" />
                   {v.label}
                 </button>
               );
