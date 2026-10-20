@@ -159,11 +159,40 @@ export default function FormsHubPage() {
         />
       )}
 
+      {/* TWO DIFFERENT EMPTY STATES, not one message doing both jobs.
+          "No forms recorded yet" and "nothing matches what you've filtered
+          to" are different facts — the first means there is nothing to find
+          here at all, the second means there is, just not under the current
+          Form/Status pick, and the fix is one tap on "All" above rather than
+          going and creating a record. Telling them apart is `rows.length`
+          (every record this entity holds, before either filter) against
+          `filtered.length`/`groups.length` (what's left after both) — the
+          same two numbers FilterBar's own `active` flag above already reads
+          off `filter`/`status`, just asked a second way. */}
       {groups.length === 0 ? (
-        <Empty>
-          <b>No forms recorded yet.</b>
-          <span>Start one from the tiles above.</span>
-        </Empty>
+        rows.length === 0 ? (
+          <Empty>
+            <b>No forms recorded yet.</b>
+            <span>Start one from the tiles above.</span>
+          </Empty>
+        ) : (
+          <Empty>
+            <b>Nothing matches this filter.</b>
+            <span>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilter("all");
+                  setStatus("all");
+                }}
+                className="underline decoration-dotted underline-offset-2"
+                style={{ color: "var(--acc)" }}
+              >
+                Clear it to see every record
+              </button>
+            </span>
+          </Empty>
+        )
       ) : null}
 
       {/* THE TIMELINE — Sarel: "create a more intuitive timeline or calendar

@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Seventy-seven suites, no framework. Thirteen need a running server; sixty-four do not.
+Seventy-eight suites, no framework. Thirteen need a running server; sixty-five do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -85,8 +85,9 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `sharepoint.test.mjs` | no | 300 |
 | `activity.test.mjs` | no | 34 |
 | `assets.test.mjs` | no | 21 |
-| `checkscreen.test.mjs` | no | 54 |
+| `checkscreen.test.mjs` | no | 55 |
 | `checksfilter.test.mjs` | no | 3 |
+| `filterbar.test.mjs` | no | 21 |
 | `dataloss.test.mjs` | no | 17 |
 | `merge.test.mjs` | no | 58 |
 | `figures.test.mjs` | no | 7 |
@@ -117,7 +118,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,389 assertions in total**, every count above verified by running the suite,
+**3,411 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -191,6 +192,27 @@ lives under it; every write goes through the one scoped helper; no screen reads
 the store's raw slices; nothing is hardcoded to one site (owners, the cycle
 strip, export filenames); the scope is actually selectable in the shell; and the
 v5 migration files pre-scope data rather than dropping it.
+
+## `filterbar.test.mjs`
+
+Guards the shared filter disclosure (`src/components/ui/FilterBar.tsx`) against
+the one mistake it cannot make on its own but the four screens that wire it
+could: a copy-pasted `onChange` quietly resetting a neighbouring axis instead
+of its own. "Show all statuses" clearing the discipline filter too, or vice
+versa, would still type-check and still render — the only way to notice is
+clearing one filter and watching a different one change.
+
+```bash
+node tests/filterbar.test.mjs
+```
+
+Four parts: `ChipRow` calls exactly `group.onChange(o.key)` with no second
+prop it could reach into; Capture, Review, Closure and Forms each wire their
+groups to a *different* `useState` setter per axis, never a shared one, and
+none of those setters is a store action that could write a record — clearing
+a filter stays read-only; and Forms tells "no forms recorded yet" apart from
+"nothing survives the filter", two different facts that used to share one
+message even with real records one tap away behind a filter.
 
 ## `carryforward.test.mjs`
 
