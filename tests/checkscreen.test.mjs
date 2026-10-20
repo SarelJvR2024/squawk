@@ -338,10 +338,33 @@ check(
   at('group: "acsa"') > 0 && /\(\["acsa", "do", "read"\] as const\)/.test(codeOnly),
   "it was fourth in Reference, behind five tabs of TPJV's own material"
 );
+/* REVERSED AGAIN, 20 Oct 2026 (ui-refresh Stage 2, Area 3: "the primary
+   flow — read the question, record what you observed, attach evidence,
+   pick the compliance outcome, save — isn't visually competing with
+   reference material for the same amount of attention on first paint").
+   `useState("standard")` is gone. ACSA's requirement is still first in the
+   strip (the check just above this one is unchanged and still passes) —
+   what changed is that it is no longer the panel a brand-new check opens
+   on, because "attach evidence" and "pick the compliance outcome" both
+   live in the Evidence status tab, which a reference panel sitting open by
+   default was hiding on arrival. The initial state is `""`, a key no real
+   panel ever carries, so `openKey`'s own fallback two checks above this one
+   — `panels[0].key` — decides it per check: Walkabout where the register
+   has one, Evidence status otherwise. Both are "do" panels, never "acsa" or
+   "read", which is the actual regression guard here — not one hardcoded
+   tab name, since the right default panel differs check to check. */
 check(
-  "and it is the tab already open, not one to go and find",
-  /useState\("standard"\)/.test(codeOnly),
-  "a default of anything else buries the thing he named as most important"
+  "the default panel is resolved, not hardcoded to a reference tab",
+  /const \[panel, setPanel\] = useState\(""\);/.test(codeOnly) &&
+    !/useState\("standard"\)/.test(codeOnly),
+  "a literal default of any kind stops being right the day the panel order changes"
+);
+check(
+  "and an unresolved default always falls back to a capture panel, never reference",
+  /if \(a && a\.WO\.length > 0\)\s*\n\s*panels\.push\(\{\s*\n\s*key: "walkabout"/.test(codeOnly) &&
+    at('key: "walkabout"') < at('key: "evidenceStatus"') &&
+    at('key: "evidenceStatus"') < at('key: "standard"'),
+  "panels[0] is only ever a reference tab if every capture tab were pushed after it, which would silently re-bury the thing this ask was about"
 );
 
 /* WHAT REPLACED THEM: not a chip to tap, a verdict to judge and a sentence

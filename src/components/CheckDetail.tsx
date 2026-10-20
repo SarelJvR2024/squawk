@@ -333,8 +333,24 @@ export default function CheckDetail({
    *  discipline works the same panel check after check — evidence, evidence,
    *  evidence — and being thrown back to the first tab on every Save & next is
    *  a press per check for the whole walk. A key that this check does not
-   *  carry falls back to the first one it does. */
-  const [panel, setPanel] = useState("standard");
+   *  carry falls back to the first one it does.
+   *
+   *  THE DEFAULT ON ARRIVAL NO LONGER OPENS ON "standard" (ACSA requirement).
+   *  That earlier choice is explained at the "standard" panel's own push
+   *  below, and it is still right about ORDER — the requirement is still the
+   *  first tab in the strip, read before the evidence is gathered for it.
+   *  But this task's own ask is concrete: the primary flow (read the
+   *  question, record what was observed, attach evidence, pick an outcome,
+   *  save) must not have to compete with reference material for the same
+   *  attention on first paint, and a reference panel open by default on
+   *  every single check — before anything has been recorded — is exactly
+   *  that competition. "" never matches a real panel key, so the fallback
+   *  two lines below `openKey` always resolves it to THIS check's own first
+   *  capture ("do") panel instead — Walkabout where the register has one,
+   *  Evidence status otherwise — and ACSA's requirement stays one tap away,
+   *  first in the strip, not open by default. Once an auditor actually picks
+   *  a tab the sticky behaviour above takes back over unchanged. */
+  const [panel, setPanel] = useState("");
   /* Whether this screen has been scrolled at all.
    *
    *  From lg the two columns scroll inside themselves and this container never
@@ -897,7 +913,17 @@ export default function CheckDetail({
        requirement was four presses away. That is the wrong way round: you read
        the requirement, then you go and get the evidence for it. The strip now
        renders this group, then the Answer library, then the rest of the
-       Reference tabs, and the screen opens here. */
+       Reference tabs.
+
+       IT NO LONGER FOLLOWS THAT THE SCREEN OPENS HERE, though. That used to
+       be the same sentence as the one above — first in the strip AND open by
+       default were one decision. A later, separate ask (make the primary
+       flow of read → record → attach → decide → save the thing that is NOT
+       sharing first-paint attention with reference material) splits them:
+       still first in the strip, where "read the requirement before you go
+       get the evidence" remains true and visible at a glance, but no longer
+       the panel a brand-new check opens on — see the comment on `panel`'s
+       own useState above for where the actual default moved to. */
     group: "acsa",
     body: <AcsaRequirementPanel check={check} />,
   });
@@ -1352,8 +1378,31 @@ export default function CheckDetail({
            `lg:flex-col` lets the Observation block below take the leftover
            height of ITS OWN column and scroll inside that, with the
            compliance bar still the last, non-scrolling thing in it — the
-           same pinned-bar bargain the page above makes, one level deeper. */
-        className="sticky bottom-0 z-[7] lg:static lg:flex lg:min-h-0 lg:w-1/2 lg:shrink-0 lg:flex-col"
+           same pinned-bar bargain the page above makes, one level deeper.
+
+           max-h-[70vh] overflow-y-auto BELOW lg ONLY, added for the mobile
+           keyboard — found with Playwright, not assumed: shrink the
+           viewport to roughly what a phone keyboard leaves (390x464, a
+           390x844 screen with ~45% covered) and this block alone still fit,
+           Save and the compliance buttons both stayed on screen. Shrink it
+           further, to what an iOS keyboard WITH its QuickType/emoji row can
+           take (~55% of a 375x667 screen), and this block had no ceiling —
+           it is exactly as tall as its own content, sticky or not, and with
+           nowhere to give, it rode up over whatever the tab panel above it
+           was showing, so a field being read there (not even typed in) came
+           back as un-clickable, covered by this bar. 70vh keeps that from
+           ever reaching 100%: whatever is left of a short viewport, roughly
+           30% of it stays free for the panel above, and if this block's own
+           content still does not fit the 70% it has, it scrolls within
+           itself rather than pushing Save off the bottom with no way back.
+           At a normal phone height with no keyboard this block never gets
+           near 70vh, so nothing here is visible at rest — it is a ceiling,
+           not a redesign. lg:max-h-none lg:overflow-visible because `lg:
+           static` below already turns this into an ordinary column cell
+           beside the reference panel, where its own child two lines down
+           keeps the `lg:overflow-y-auto` that actually does the scrolling
+           at that width — this rule must not fight that one. */
+        className="sticky bottom-0 z-[7] max-h-[70vh] overflow-y-auto overscroll-contain lg:static lg:flex lg:min-h-0 lg:w-1/2 lg:shrink-0 lg:flex-col lg:max-h-none lg:overflow-visible"
         style={{
           background: "var(--panel)",
           boxShadow: "0 -6px 18px -10px rgba(22,16,40,.2)",
