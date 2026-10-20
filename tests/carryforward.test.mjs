@@ -2,6 +2,33 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+/* RUN, not just read — the one part of this suite that needs the alias
+   loader (see tests/alias.mjs and NEEDS_ALIAS in tests/suite-table.test.mjs):
+
+     node --import ./tests/alias.mjs tests/carryforward.test.mjs
+
+   Everything above this import proves the MECHANISM is written correctly, by
+   pattern-matching the source the way the rest of this file always has. It
+   does not prove the mechanism actually DOES what it says against a finding
+   that has no check behind it — RaiseFindingSheet.tsx's whole reason for
+   existing (see its own header) — and that is exactly the case Sarel asked
+   to see proved before testing it himself: "all the non-compliances we pick
+   up now with our audit checks must get added onto that for follow-up
+   audits." Part 7, right at the end, calls outstandingFor() and fromCarried()
+   directly against a constructed Finding with checkId: null.
+
+   store.ts is imported FIRST, deliberately — carryforward.ts and store.ts
+   both reach into ./programme, and which one a test enters through decides
+   which side of that cycle resolves its top-level bindings first. Entering
+   through carryforward.ts directly hits a genuine TDZ ReferenceError on
+   CURRENT_ENTITY_CODE under Node's ESM loader; entering through store.ts
+   first does not. Node resolves a cycle differently from webpack (the app
+   has shipped on this for months with no issue), so this is a test-harness
+   ordering fix, not a production bug — and it is exactly the kind of thing
+   only RUNNING the real module, rather than reading it, would ever surface. */
+import "@/lib/store";
+import { fromCarried, outstandingFor } from "@/lib/carryforward";
+
 /* What an earlier visit left open must reach the next one.
  *
  *  Closure read one static file — the 23 March 2025 findings — and nothing
@@ -366,6 +393,128 @@ check(
       closure
     ),
   "a Mar 2025 finding and a Sep 2026 one in the same system are different ages of problem and rendered identically before"
+);
+
+/* ------------- Part 7: a finding raised outside the register, for real --- */
+
+/* THE SCENARIO THE OWNER ASKED TO SEE PROVED, not just inspected: a
+ * non-compliance picked up with no check behind it (RaiseFindingSheet.tsx,
+ * or the walk screen's own promote-an-observation flow — both produce this
+ * exact shape) must still carry into a LATER visit's Follow-up screen. Every
+ * assertion below calls the real exported functions against a plain,
+ * hand-built Finding — nothing here re-implements outstandingFor()'s or
+ * fromCarried()'s own logic, which is the whole point of running them rather
+ * than describing them. */
+
+const ENTITY = "FALE";
+const EARLIER_VISIT = "2024-01"; // before every seeded/real visit this entity has
+const LATER_VISIT = "2099-12"; // after every seeded/real finding this entity has
+
+const baseFinding = (overrides) => ({
+  id: "F-T0001",
+  checkId: null,
+  entity: ENTITY,
+  discipline: "Electrical & Essential Power",
+  system: "Standby Generators",
+  area: "",
+  title: "Standby generator fuel log missing",
+  description: "No fuel consumption log found for the standby generator bank.",
+  issueIndex: null,
+  severity: "Major",
+  likelihood: "Likely",
+  ratingConfirmed: false,
+  rootCause: "",
+  actions: [],
+  progress: [],
+  actionStatus: "Open",
+  originVisit: EARLIER_VISIT,
+  priorRating: null,
+  adHoc: true,
+  suggestedEvent: "",
+  createdAt: Date.now(),
+  createdBy: "Test Auditor",
+  ...overrides,
+});
+
+/* THE CASE THIS FEATURE EXISTS FOR: checkId is null — raised from
+   RaiseFindingSheet.tsx (or the walk) with no check-point picked. */
+const noCheckFinding = baseFinding({ id: "F-T0001", checkId: null });
+/* The same finding, but raised against a specific check — included so the
+   two are compared against each other, not just asserted in isolation. */
+const withCheckFinding = baseFinding({
+  id: "F-T0002",
+  checkId: "FALE-ELE-005",
+  discipline: "Electrical & Essential Power",
+  system: "Standby Generators",
+});
+/* A finding that IS closed by the time the later visit opens — must not
+   carry, proving this isn't "everything carries" dressed up as a feature. */
+const closedFinding = baseFinding({ id: "F-T0003", checkId: null, actionStatus: "Closed" });
+/* A finding raised ON the later visit itself — this visit's own work, not a
+   carry-over; outstandingFor's own doc comment is explicit about this. */
+const sameVisitFinding = baseFinding({
+  id: "F-T0004",
+  checkId: null,
+  originVisit: LATER_VISIT,
+});
+
+const carried = fromCarried(noCheckFinding);
+check(
+  "fromCarried() reads a checkless finding with no special-casing",
+  carried.source === "carried" && carried.key === "F-T0001" && carried.findingId === "F-T0001"
+);
+check(
+  "fromCarried() carries the discipline and asset system through untouched",
+  carried.discipline === "Electrical & Essential Power" && carried.system === "Standby Generators",
+  `got discipline=${carried.discipline} system=${carried.system}`
+);
+check(
+  "fromCarried() carries an unconfirmed rating as Not audited, for real",
+  carried.rating === "Not audited",
+  `got "${carried.rating}" for a finding with severity/likelihood set but ratingConfirmed: false`
+);
+
+const out = outstandingFor(ENTITY, LATER_VISIT, [
+  noCheckFinding,
+  withCheckFinding,
+  closedFinding,
+  sameVisitFinding,
+]);
+const outIds = out.filter((o) => o.source === "carried").map((o) => o.key);
+
+check(
+  "outstandingFor() carries the checkless finding into a later visit",
+  outIds.includes("F-T0001"),
+  `outstanding carried keys: ${outIds.join(", ")}`
+);
+check(
+  "and it carries the check-raised one exactly the same way — checkId is not a filter",
+  outIds.includes("F-T0002"),
+  `outstanding carried keys: ${outIds.join(", ")}`
+);
+check(
+  "a finding closed before the later visit does not carry",
+  !outIds.includes("F-T0003")
+);
+check(
+  "a finding raised ON the later visit is this visit's own work, not a carry-over",
+  !outIds.includes("F-T0004")
+);
+
+const carriedRow = out.find((o) => o.key === "F-T0001");
+check(
+  "the carried row groups by the same discipline and asset system a closure screen reads",
+  carriedRow?.discipline === "Electrical & Essential Power" &&
+    carriedRow?.system === "Standby Generators",
+  `got discipline=${carriedRow?.discipline} system=${carriedRow?.system}`
+);
+check(
+  "the carried row knows which finding to close when this visit closes it",
+  carriedRow?.findingId === "F-T0001"
+);
+check(
+  "a checkless finding and a check-raised one on the same asset system both carry — same count either way",
+  out.filter((o) => o.source === "carried" && o.system === "Standby Generators").length === 2
 );
 
 /* ------------------------------------------------------------------ result */

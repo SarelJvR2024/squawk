@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Seventy-three suites, no framework. Thirteen need a running server; sixty do not.
+Seventy-four suites, no framework. Thirteen need a running server; sixty-one do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -42,7 +42,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `risk-matrix.test.mjs` | no | 49 |
 | `capture.test.mjs` | no | 35 |
 | `scope.test.mjs` | no | 48 |
-| `carryforward.test.mjs` | no | 48 |
+| `carryforward.test.mjs` | no | 58 |
 | `crosswalk.test.mjs` | no | 13 |
 | `faor-import.test.mjs` | no | 28 |
 | `faor-import-other-disciplines.test.mjs` | no | 26 |
@@ -90,6 +90,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `fieldacsatab.test.mjs` | no | 15 |
 | `home.test.mjs` | no | 58 |
 | `adhoc.test.mjs` | no | 54 |
+| `raisefinding.test.mjs` | no | 25 |
 | `isf.test.mjs` | no | 92 |
 | `interviews.test.mjs` | no | 97 |
 | `attendance.test.mjs` | no | 117 |
@@ -113,7 +114,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,276 assertions in total**, every count above verified by running the suite,
+**3,311 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -197,7 +198,7 @@ list and then nothing. The shell drew a three-year cycle across every screen
 while the cycle was not implemented.
 
 ```bash
-node tests/carryforward.test.mjs
+node --import ./tests/alias.mjs tests/carryforward.test.mjs
 ```
 
 Five parts: seeded and carried items are the same shape and keyed so old
@@ -228,6 +229,22 @@ must agree with `visitsOpen()`: it excludes skipped visits (nobody was there,
 so nothing was survived) and the visit being decided now (an item is not shown
 as having survived the meeting it is sitting in). Two figures counting one
 thing differently on one screen is how a screen stops being believed.
+
+A seventh part RUNS the mechanism instead of reading it — the one reason this
+suite now needs the alias loader. `RaiseFindingSheet.tsx` (see
+`raisefinding.test.mjs`) and the walk screen's own promote-an-observation flow
+both raise a finding with `checkId: null`, and `outstandingFor()`/
+`fromCarried()` are called directly against a constructed Finding in exactly
+that shape, never a reimplementation of their logic: a checkless finding
+raised on an earlier visit carries into a later one; a check-raised finding
+right beside it carries identically, proving `checkId` is not a filter; a
+closed finding and one raised on the later visit itself both correctly do
+not carry; and the carried row's discipline/asset system and `findingId`
+come through untouched. Entering through `@/lib/store` first, ahead of
+`@/lib/carryforward`, is deliberate — see the comment at the top of the file
+for the circular-import ordering it works around under Node's ESM loader
+(not a production bug; the app builds through webpack, which resolves the
+same cycle without hitting this).
 
 ## `isf.test.mjs`
 
@@ -525,6 +542,44 @@ Tolerable one. Those tokens are banned from the control, state is carried by an
 icon and a word as well as a fill, and the same segment tapped twice clears the
 outcome — a status set by mistake that cannot be unset turns a blank "not
 captured" into an untrue Pass.
+
+## `raisefinding.test.mjs`
+
+Guards the second entry point for raising a finding — Sarel: "there might be
+findings that we pick up which is not relating to a specific audit check...
+make sure there's an easy way to capture findings, to link it to a discipline
+and or asset type and or a question or a check." The Findings screen
+(`src/app/(app)/findings/page.tsx`) reviews and rates findings that already
+exist; until `RaiseFindingSheet.tsx`, nothing on it let an auditor raise one,
+so a non-compliance with no check behind it had nowhere to go but the walk
+screen's own promote-an-observation flow.
+
+```bash
+node tests/raisefinding.test.mjs
+```
+
+Source-read, like `adhoc.test.mjs`'s own coverage of `AddItemSheet.tsx` — a
+UI call's shape is exactly as checkable from the call site as from running
+it, and this repo's own suites already draw that line. Five parts: the data
+model already supports a checkless finding (`Finding.checkId: string | null`,
+pre-existing) with discipline and asset system required on every finding
+regardless; the sheet exists, is built on this app's own `Sheet` primitive
+rather than a hand-rolled modal, and is actually reachable from the Findings
+screen; discipline is required to save and asset system and check-point are
+both genuinely optional — "and or asset type and or a question or a check";
+the check-point search is the *same* fuzzy match the ⌘K jump-to-check palette
+(`AppShell.tsx`) runs, not a second one that can drift from it; and the
+`addFinding` call this sheet makes defaults every field `AddItemSheet.tsx`'s
+own `raiseFinding` call does — `severity`, `likelihood`, `rootCause`,
+`actionStatus: "Open"`, `ratingConfirmed: false`, `adHoc: true` and the rest —
+identically, field for field, so the two capture paths cannot drift into two
+different shapes of finding. `checkId` is the one field that differs: a
+literal `null` in `AddItemSheet.tsx` (that flow can never have one) against
+this sheet's own picked-or-null variable.
+
+**What actually proves a checkless finding reaches the next visit's
+Follow-up screen is run, not read** — see `carryforward.test.mjs`'s seventh
+part, which calls `outstandingFor()` and `fromCarried()` directly.
 
 ## `review.test.mjs`
 
