@@ -1,7 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { IconX } from "@/components/ui/icons";
+import { useDialogFocusTrap } from "@/lib/dialogFocus";
 
 /** A FOCUSED SURFACE WITH THE ACTION PINNED TO THE BOTTOM OF IT.
  *
@@ -47,6 +48,12 @@ export default function Sheet({
   footer?: ReactNode;
   wide?: boolean;
 }) {
+  const titleId = useId();
+  /* Called unconditionally — before the `if (!open) return null` below —
+     because a hook cannot be called only on some renders. See
+     src/lib/dialogFocus.ts for what it does and why it is shared with
+     SharedSheet.tsx rather than written twice. */
+  const dialogRef = useDialogFocusTrap<HTMLDivElement>(open, onClose);
   if (!open) return null;
   return (
     <div
@@ -55,8 +62,11 @@ export default function Sheet({
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className={`flex max-h-[94vh] w-full flex-col rounded-t-[16px] border sm:max-h-[86vh] sm:rounded-[16px] ${
           wide ? "sm:w-[min(760px,94vw)]" : "sm:w-[min(600px,94vw)]"
         }`}
@@ -81,7 +91,7 @@ export default function Sheet({
                 {badges}
               </div>
             )}
-            <h3 className="text-[14px] leading-[1.35] font-bold">{title}</h3>
+            <h3 id={titleId} className="text-[14px] leading-[1.35] font-bold">{title}</h3>
             {subtitle && (
               <p className="mt-[3px] text-[11px] leading-[1.45]" style={{ color: "var(--ink-3)" }}>
                 {subtitle}

@@ -24,14 +24,23 @@
  *  nothing after it is the message that sent Sarel to the Vercel dashboard
  *  guessing. */
 
+import { useId } from "react";
 import SharedPanel from "@/components/SharedPanel";
 import { useShared } from "@/lib/shared";
 import { Btn } from "@/components/ui/primitives";
 import { IconX } from "@/components/ui/icons";
+import { useDialogFocusTrap } from "@/lib/dialogFocus";
 
 export default function SharedSheet({ onClose }: { onClose: () => void }) {
   const shared = useShared();
   const missing = shared?.missing ?? [];
+  const titleId = useId();
+  /* This component only ever exists in the tree while it is open (AppShell
+     renders it as `{sharedOpen && <SharedSheet .../>}`), unlike Sheet.tsx's
+     own `open` prop that can toggle while the component stays mounted — so
+     `open` is always true here. Same shared mechanism either way; see
+     src/lib/dialogFocus.ts. */
+  const dialogRef = useDialogFocusTrap<HTMLDivElement>(true, onClose);
 
   return (
     <div
@@ -40,13 +49,18 @@ export default function SharedSheet({ onClose }: { onClose: () => void }) {
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className="h-fit w-[min(520px,100%)] rounded-[16px] border p-[22px]"
         style={{ background: "var(--panel)", borderColor: "var(--line-2)", boxShadow: "var(--e3)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
-            <h3 className="font-display text-[15px] font-bold">Shared record</h3>
+            <h3 id={titleId} className="font-display text-[15px] font-bold">Shared record</h3>
             <p className="mt-[3px] text-[11.5px]" style={{ color: "var(--ink-3)" }}>
               One audit, every device. Enter the team passphrase once.
             </p>
