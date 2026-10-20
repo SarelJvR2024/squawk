@@ -439,6 +439,95 @@ check(
   "ACSA's Progress cell is one field that gets typed over; we keep the log and flatten it on the way out"
 );
 
+/* Verification.evidenceRequested, Verification.discussionLog and
+ *  Verification.evidencePending — all three confirmed by grep to have zero
+ *  matches anywhere in sharepoint.ts. The one sync site that touches a
+ *  Verification record at all is this "last cycle, verified this visit"
+ *  loop, so this is the one place that can carry them across. Each is
+ *  deliberately distinct from a similarly-named Response-level field — see
+ *  their own doc comments in types.ts. */
+check(
+  "a verified prior finding's evidenceRequested, discussionLog and evidencePending ALL reach the portal",
+  (() => {
+    const prior = [{ portalId: "KSIA-ELE-P01", entityCode: "FALE" }];
+    const verifications = {
+      "KSIA-ELE-P01": {
+        pf: "KSIA-ELE-P01", outcome: "Open - repeat", evidence: "", attachments: [],
+        verifiedBy: "Sarel", verifiedAt: 1,
+        action: "Replace the valve",
+        evidenceRequested: "Updated maintenance certificate",
+        evidencePending: true,
+        progress: [{ at: 1_757_000_000_000, by: "Sarel", visit: "2026-09", outcome: null, note: "PO raised" }],
+        discussionLog: [
+          { at: 1_757_200_000_000, by: "Sarel", visit: "2026-09", outcome: null, note: "ACSA agreed an extension to November" },
+        ],
+      },
+    };
+    const p = sp.buildPlan({ ...BASE, prior, verifications }, NOTHING);
+    const v = p.findings[0].values;
+    return (
+      v.evidenceRequested === "Updated maintenance certificate" &&
+      /ACSA agreed an extension to November/.test(String(v.discussionLog)) &&
+      /EVIDENCE PENDING/.test(String(v.treatment)) &&
+      /Replace the valve/.test(String(v.treatment)) &&
+      /PO raised/.test(String(v.progress)) &&
+      !/ACSA agreed/.test(String(v.progress))
+    );
+  })(),
+  JSON.stringify(
+    sp.buildPlan(
+      {
+        ...BASE,
+        prior: [{ portalId: "KSIA-ELE-P01", entityCode: "FALE" }],
+        verifications: {
+          "KSIA-ELE-P01": {
+            pf: "KSIA-ELE-P01", outcome: "Open - repeat", evidence: "", attachments: [],
+            verifiedBy: "Sarel", verifiedAt: 1, action: "Replace the valve",
+            evidenceRequested: "Updated maintenance certificate", evidencePending: true,
+            discussionLog: [{ at: 1, by: "Sarel", visit: "2026-09", outcome: null, note: "x" }],
+          },
+        },
+      },
+      NOTHING
+    ).findings[0]?.values
+  )
+);
+
+check(
+  "discussionLog in the findings row is EXACTLY flattenProgress() of the raw log, not a reimplementation",
+  (() => {
+    const log = [
+      { at: 1_757_200_000_000, by: "Sarel", visit: "2026-09", outcome: null, note: "ACSA agreed an extension to November" },
+      { at: 1_757_300_000_000, by: "Thabile", visit: "2026-09", outcome: null, note: "Site confirmed the date" },
+    ];
+    const prior = [{ portalId: "KSIA-ELE-P03", entityCode: "FALE" }];
+    const verifications = {
+      "KSIA-ELE-P03": {
+        pf: "KSIA-ELE-P03", outcome: "Open - repeat", evidence: "", attachments: [],
+        verifiedBy: "Sarel", verifiedAt: 1, discussionLog: log,
+      },
+    };
+    const p = sp.buildPlan({ ...BASE, prior, verifications }, NOTHING);
+    return p.findings[0].values.discussionLog === sp.flattenProgress(log);
+  })()
+);
+
+check(
+  "a verified prior finding with NONE of the three set is unaffected — no stray EVIDENCE PENDING, nulls not crashes",
+  (() => {
+    const prior = [{ portalId: "KSIA-ELE-P02", entityCode: "FALE" }];
+    const verifications = {
+      "KSIA-ELE-P02": {
+        pf: "KSIA-ELE-P02", outcome: "Closed", evidence: "", attachments: [],
+        verifiedBy: "Sarel", verifiedAt: 1, action: "Done",
+      },
+    };
+    const p = sp.buildPlan({ ...BASE, prior, verifications }, NOTHING);
+    const v = p.findings[0].values;
+    return v.evidenceRequested === null && v.discussionLog === "" && v.treatment === "Done";
+  })()
+);
+
 check(
   "BOTH log entries survive the flattening — it joins, it does not take the last",
   sp

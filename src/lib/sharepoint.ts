@@ -170,6 +170,31 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
   owner: ["Owner", "Responsible", "Responsible person"],
   targetDate: ["Target date", "Target Date", "Due date"],
   progress: ["Progress/Update", "Progress / Update", "Progress", "Update"],
+  /* THE FOLLOW-UP SCREEN'S OWN "evidence requested" — Verification.
+     evidenceRequested — asked against a CARRIED finding, not the Checks
+     screen's own evidence-request chips (those fold into `observation`
+     above and never had a column of their own). See Verification.
+     evidenceRequested's doc comment in types.ts: "both sections required",
+     the two reading as a pair with `evidence`/`treatment` rather than one
+     box doing both jobs. Aliases say "follow-up"/"outstanding" so a portal
+     operator never files this under the Checks-screen sentence. */
+  evidenceRequested: ["Evidence requested (follow-up)", "Evidence requested", "Evidence outstanding"],
+  /* THE ACSA DISCUSSION LOG — Verification.discussionLog — a separate,
+     dated, append-only log from `progress` above, for the conversation
+     itself rather than what moved. Same ProgressNote shape as `progress`,
+     flattened the same way via flattenProgress(). See Verification.
+     discussionLog's doc comment in types.ts. */
+  discussionLog: ["ACSA discussion log", "Discussion log", "Discussion Log"],
+  /* Verification.evidencePending — DELIBERATELY SEPARATE from Response.
+     evidencePending below: this one is about whether the proof a CARRIED
+     finding is waiting on has arrived, not about this visit's own
+     check-point answer. See Verification.evidencePending's doc comment.
+     Declared here for completeness, but — same as Response.evidencePending,
+     which has no entry of its own below for the same reason — no portal
+     column takes a flag cleanly, so it is folded into the row's text (the
+     last-cycle findings loop's `treatment`) rather than written as its own
+     value. */
+  evidencePending: ["Evidence pending (follow-up)", "Follow-up evidence pending"],
   compliance: ["Compliance", "Result", "Outcome"],
   /* THE INSPECTION SCREEN'S OWN VERDICT, SEPARATE FROM `compliance` ABOVE.
      See Response.fieldCompliance's own doc comment in types.ts — this is the
@@ -1780,6 +1805,21 @@ export function buildPlan(
       continue;
     }
     const itemId = existing.findings.get(p.portalId);
+    /* EVIDENCE PENDING GOES ACROSS, IN treatment — the same convention
+       Response.evidencePending uses on `observation` in the checkpoints
+       loop above, for the same reason: no portal column takes a flag
+       cleanly, and this row has no `observation` column of its own to carry
+       it instead. See Verification.evidencePending's doc comment — it is
+       about whether a CARRIED finding's requested closure evidence has
+       arrived, not Response.evidencePending's own, different question. */
+    const treatmentText = [
+      v.evidencePending
+        ? "EVIDENCE PENDING — closure evidence has been requested and has not yet been received."
+        : "",
+      v.action ?? "",
+    ]
+      .filter(Boolean)
+      .join(" ");
     findings.push({
       key: p.portalId,
       action: itemId ? "update" : "create",
@@ -1788,7 +1828,17 @@ export function buildPlan(
         title: p.portalId,
         status: v.outcome,
         progress: flattenProgress(v.progress),
-        treatment: v.action ?? "",
+        treatment: treatmentText,
+        /* THE FOLLOW-UP SCREEN'S OWN "evidence requested" — Verification.
+           evidenceRequested, not the Checks screen's chips. `null` when
+           blank, same reasoning as evidenceVerdict/combinedComment
+           elsewhere in this file: unasked must read as unasked, not as an
+           empty string that could be mistaken for "nothing outstanding". */
+        evidenceRequested: v.evidenceRequested?.trim() || null,
+        /* THE ACSA DISCUSSION LOG — Verification.discussionLog, flattened
+           with the same flattenProgress() `progress` above already uses;
+           it is the exact same ProgressNote[] shape, just a separate log. */
+        discussionLog: flattenProgress(v.discussionLog),
       },
       summary: `${p.portalId} · ${v.outcome} (last cycle)`,
     });
