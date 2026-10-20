@@ -186,28 +186,46 @@ export default function AddItemSheet({
       addAdhocAttachment(id, rest);
     }
     setPendingAttachments([]);
-    onSaved?.(id, `${id} recorded — not one of the 324`);
+    /* NC raises automatically, same as it does when the outcome changes on
+       an item that already exists — see raiseFindingFrom's own comment.
+       This is the one path that case cannot cover: the outcome chosen
+       before Record it was ever pressed, when there was no id yet to
+       raise against. */
+    if (draft.outcome === "NC") {
+      const findingId = raiseFindingFrom(id, draft);
+      onSaved?.(findingId, `${id} recorded — not one of the 324 — ${findingId} raised automatically`);
+    } else {
+      onSaved?.(id, `${id} recorded — not one of the 324`);
+    }
     /* Stay open, on the SAME id — see createdId's own note. */
     setCreatedId(id);
   };
 
-  /* An observation becomes a finding when somebody decides it is one. Offered,
-     never automatic: plenty of what is worth recording on a walk is context,
-     and a register that raises a finding for every observation is a register
-     nobody can work through. The link is kept both ways so the two stay one
-     thing rather than becoming two accounts of it. */
-  const raiseFinding = () => {
-    if (!item || item.findingId) return;
+  /* An observation becomes a finding when somebody decides it is one, OR the
+     moment it is marked Non-Compliant — see the two call sites below.
+     Anything else is still offered, never automatic: plenty of what is worth
+     recording on a walk is context, and a register that raises a finding for
+     every observation is a register nobody can work through. NC is
+     different — Sarel: "if an item is marked Non Compliant... it should be
+     added as an additional item which is non compliant automatically." An
+     NC walk item with nobody having raised it is exactly the gap that
+     matters, so for that one outcome the decision is already made. The link
+     is kept both ways so the two stay one thing rather than becoming two
+     accounts of it. */
+  const raiseFindingFrom = (
+    targetId: string,
+    fields: { description: string; discipline: string | null; system: string | null; area: string }
+  ) => {
     const id = addFinding({
       checkId: null,
-      discipline: item.discipline ?? "",
+      discipline: fields.discipline ?? "",
       /* The asset system if one was named, and the item's own id if not —
          never the string "Ad-hoc", which used to be written here and then
          appeared as an asset system on every screen that groups by one. */
-      system: item.system ?? "",
-      area: item.area,
+      system: fields.system ?? "",
+      area: fields.area,
       title: "Seen on the walk",
-      description: item.description,
+      description: fields.description,
       issueIndex: null,
       severity: null,
       likelihood: null,
@@ -222,7 +240,13 @@ export default function AddItemSheet({
       adHoc: true,
       createdBy: auditor,
     });
-    updateAdhoc(item.id, { findingId: id });
+    updateAdhoc(targetId, { findingId: id });
+    return id;
+  };
+
+  const raiseFinding = () => {
+    if (!item || item.findingId) return;
+    const id = raiseFindingFrom(item.id, item);
     onSaved?.(id, `${id} raised from ${item.id}`);
   };
 
@@ -388,7 +412,17 @@ export default function AddItemSheet({
             <div className="mt-1.5">
               <OutcomeControl
                 value={value.outcome}
-                onChange={(o) => set({ outcome: o })}
+                onChange={(o) => {
+                  set({ outcome: o });
+                  /* NC raises automatically — see raiseFindingFrom's own
+                     comment. Only for an item that already exists (a brand
+                     new one takes this path in save() instead, once there
+                     is an id to raise against) and only once. */
+                  if (o === "NC" && item && !item.findingId) {
+                    const findingId = raiseFindingFrom(item.id, item);
+                    onSaved?.(findingId, `${findingId} raised automatically — marked Non-Compliant`);
+                  }
+                }}
                 size={52}
                 idPrefix="adhoc-outcome"
               />
