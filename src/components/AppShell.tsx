@@ -95,7 +95,13 @@ const NAV = [
      rather than the work, and it named it in a way that suggested the register
      of findings was the destination; the findings are still there, one press
      inside it. "Asset assurance" is what TPJV was appointed to do. */
-  { href: "/findings", label: "Asset Assurance", icon: IconLoop },
+  /* short: "Assets" — Sarel, reviewing the bottom nav at 390px: the full
+     label was set at 6.5px and wrapping to fit six destinations, which
+     is below the 11px floor and the no-wrap rule every other label on
+     this bar already follows. "Assets" is the one label on the bar that
+     needs its own mobile-only shorthand; the full name stays everywhere
+     else (sm+, the active-item label, and the accessible name below). */
+  { href: "/findings", label: "Asset Assurance", short: "Assets", icon: IconLoop },
   /* HIRA, not "Hazards" and never "Risks".
      It names the instrument: B170 001M IS a Hazard Identification and Risk
      Assessment, and that is the language SACAA expects to see. "Risks" was the
@@ -104,7 +110,10 @@ const NAV = [
      on two different matrices and going to two different committees, is exactly
      how the last round of confusion started. The route stays /hazards. */
   { href: "/hazards", label: "HIRA", icon: IconFlag },
-  { href: "/closure", label: "Follow-up", icon: IconLoop },
+  /* IconActivity, not IconLoop — Asset Assurance already owns IconLoop
+     in this same bar, and the two read as one destination tapped twice
+     on a row of icons nobody has time to read the words on first. */
+  { href: "/closure", label: "Follow-up", icon: IconActivity },
   /* REVIEW MOVED TO THE MORE MENU (Sarel, 30 Sep): "move safety and review
      menu items out of the main menu bar."
      THEN (Sarel, 2026-09-11): it was moved to sit after Follow-up, not
@@ -593,6 +602,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                    the link's own text content, this is for a sighted pointer
                    user who wants to confirm an icon before tapping it. */
                 title={active ? undefined : n.label}
+                /* THE FULL NAME, ALWAYS, to anyone who cannot see which of
+                   the two labels is showing. Below sm the visible text can
+                   be `n.short` ("Assets") — this guarantees the accessible
+                   name stays "Asset Assurance" regardless, the same
+                   reasoning as STATUSES' aria-label on the C/NC/N/A
+                   buttons in CheckDetail.tsx. */
+                aria-label={n.label}
                 onClick={(e) => disabled && e.preventDefault()}
                 /* 44px, because this is a tablet held on an apron.
                    Measured: the nav links were 29px while every other tappable
@@ -614,20 +630,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                    back to the single row it always was. justify-center keeps
                    the (now shorter) stacked content centred in the 44px
                    target rather than pinned to its top edge. */
-                /* text-[9px] below sm, same 11.5px from sm up — the active
+                /* text-[11px] below sm, same 11.5px from sm up — the active
                    item's own label (the span below that this ask could not
                    touch without unpinning tests/tablet.test.mjs's literal
                    match on it) is the only text in this link with no font
-                   size of its own; it inherits whichever this Link sets. At
-                   11.5px, stacked under the icon, "Asset Assurance" alone
-                   was tall enough to grow the whole bar past its measured
-                   56px (--bottom-nav, globals.css — out of scope this pass)
-                   and clip the last row of every scrolling screen behind it.
-                   9px keeps the stacked target inside that existing budget;
-                   sm and up are completely unaffected; the `hidden xl:inline`
-                   label two lines down only ever shows at xl, where this is
-                   already back to 11.5px. */
-                className="flex min-h-[44px] flex-col items-center justify-center gap-[5px] whitespace-nowrap rounded-[8px] px-[9px] py-[6px] font-display text-[9px] font-semibold no-underline transition-[var(--t)] sm:flex-row sm:text-[11.5px]"
+                   size of its own; it inherits whichever this Link sets.
+                   NO LABEL BELOW 11px, Sarel's own floor, reviewing this bar
+                   at 390px — 9px (and the inactive span's old 6.5px, just
+                   below) both sat under it. Growing both to 11px/11px makes
+                   this label the same height it always was at sm+, so the
+                   bar's own measured height grows too — see the updated
+                   --bottom-nav (globals.css) and the inactive span's own
+                   note, just below, for the rest of what that cost. */
+                className="flex min-h-[44px] flex-col items-center justify-center gap-[5px] whitespace-nowrap rounded-[8px] px-[9px] py-[6px] font-display text-[11px] font-semibold no-underline transition-[var(--t)] sm:flex-row sm:text-[11.5px]"
                 style={{
                   background: active ? "var(--panel)" : "transparent",
                   color: active ? "var(--acc)" : "var(--ink-2)",
@@ -645,17 +660,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     pass was given. Deliberately separate from the
                     "hidden xl:inline" label a few lines down: that one keeps
                     doing exactly what it always did between sm and xl (icon
-                    and count, full label only at xl) — untouched. This one is
-                    sm:hidden, gone the instant the row layout's own label
-                    takes over, and wraps rather than truncates, because
-                    "Asset Assurance" does not fit one line in the width six
-                    items can share on a phone. */}
+                    and count, full label only at xl) — untouched.
+
+                    NO LONGER WRAPS, AND NO LONGER 6.5px. Sarel's own
+                    screenshot at 390px: a wrapped, 6.5px label reads as
+                    neither readable text nor a deliberate icon-only state —
+                    it is the worst of both. `n.short ?? n.label` is the
+                    fix for the one label long enough to have needed the
+                    wrap ("Asset Assurance" → "Assets", see NAV above); every
+                    other label already fits one line at 11px without it.
+                    whitespace-nowrap, same as the active item's own label
+                    two states up, so the two read as one convention rather
+                    than two different bars depending on which item is
+                    open. */}
                 {!active && (
                   <span
-                    className="block text-center text-[6.5px] leading-[1.05] font-semibold sm:hidden"
-                    style={{ whiteSpace: "normal", maxWidth: "42px" }}
+                    className="block text-center text-[11px] leading-[1.05] font-semibold whitespace-nowrap sm:hidden"
                   >
-                    {n.label}
+                    {n.short ?? n.label}
                   </span>
                 )}
                 {/* On the bottom bar all seven destinations have to fit across

@@ -407,7 +407,19 @@ export default function HomePage() {
                   <span className="text-[12px] font-normal" style={{ color: "var(--ink-2)" }}>
                     {next.short}
                   </span>
-                  {nextIsOpen && <Pill tone="good">OPEN NOW</Pill>}
+                  {/* CURRENT, not "OPEN NOW" — Sarel, checkpoint feedback:
+                      "a visit must never show 'OPEN NOW' and 'window has
+                      passed' together." `nextIsOpen` only ever means THIS is
+                      the selected entity/visit — it says nothing about the
+                      real calendar dates, which `windowState` two lines down
+                      computes separately and can genuinely disagree with.
+                      "OPEN NOW" claimed the window itself was open; "CURRENT"
+                      claims only what this pill has ever actually been able
+                      to promise — that this is the one open on screen —
+                      which is never false, whatever windowState says beside
+                      it. Wording only: nextIsOpen's own condition is
+                      unchanged. */}
+                  {nextIsOpen && <Pill tone="good">CURRENT</Pill>}
                 </h2>
                 <p className="mt-[6px] text-[11.5px]" style={{ color: "var(--ink-2)" }}>
                   {auditWindow(next.auditFrom, next.auditTo, next.auditTbc)} · {nextVisit.label} · {nextVisit.note}
@@ -527,7 +539,14 @@ export default function HomePage() {
                         <span className="text-[11.5px]" style={{ color: "var(--ink-2)" }}>
                           {label}
                         </span>
-                        {on && <Pill tone="accent">OPEN NOW</Pill>}
+                        {/* CURRENT, same rename and same reason as the
+                            "next in the programme" card above — `on` here is
+                            the identical is-this-selected check, not a date
+                            check, and the Dot two lines up already says "The
+                            audit you are in" beside it; "OPEN NOW" implied a
+                            window-open claim this pill was never actually
+                            making. */}
+                        {on && <Pill tone="accent">CURRENT</Pill>}
                         <span className="tnum ml-auto font-mono text-[11px]" style={{ color: "var(--ink-3)" }}>
                           {r.complete}/{r.checks}
                         </span>

@@ -204,6 +204,67 @@ export const EVIDENCE_VERDICTS: {
   { key: "N/A", label: "Not Applicable", Icon: IconDash, tone: "neu" },
 ];
 
+/** A SCROLLABLE ROW SAYS SO. Sarel, reviewing a 390px screenshot of the tag
+ *  row and the tab strip: both are cut off at the edge with nothing on
+ *  screen to say there is more if you swipe. Both rows already scroll
+ *  sideways on purpose (see each one's own comment — the tab strip in
+ *  particular is a direct, quoted Sarel decision never to wrap), so the fix
+ *  is the fade-plus-chevron pair home/page.tsx's audit calendar strip
+ *  already uses for the same shape of problem, not a new pattern invented
+ *  for this one. */
+function useEdgeScroll(ref: React.RefObject<HTMLDivElement | null>) {
+  const [edge, setEdge] = useState({ left: false, right: false });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      setEdge({
+        left: el.scrollLeft > 2,
+        right: el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
+      });
+    };
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      ro.disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return edge;
+}
+
+/** The fade+chevron themselves, as the two edge-conditional siblings — never
+ *  children — of the scroller they sit beside. An absolutely positioned
+ *  child of the scroller would scroll away with it instead of staying put
+ *  at the edge; same split home/page.tsx's calendar strip already made. */
+function ScrollEdges({ edge }: { edge: { left: boolean; right: boolean } }) {
+  return (
+    <>
+      {edge.left && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 left-0 flex w-[22px] items-center justify-start"
+          style={{ background: "linear-gradient(90deg, var(--panel) 35%, transparent)" }}
+        >
+          <IconLeft width={10} height={10} style={{ color: "var(--ink-3)" }} />
+        </span>
+      )}
+      {edge.right && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 flex w-[22px] items-center justify-end"
+          style={{ background: "linear-gradient(270deg, var(--panel) 35%, transparent)" }}
+        >
+          <IconRight width={10} height={10} style={{ color: "var(--ink-3)" }} />
+        </span>
+      )}
+    </>
+  );
+}
+
 /** Every reference extract reads the same way: the document's words, set as
  *  the document set them. Whitespace is preserved because ACSA's procedures
  *  carry numbered sub-clauses on their own lines and reflowing them loses the
@@ -356,6 +417,13 @@ export default function CheckDetail({
    *  still there. */
   const scrollRef = useRef<HTMLDivElement>(null);
   const [stuck, setStuck] = useState(false);
+  /* The tag row and the tab strip both scroll sideways on purpose (see each
+     one's own comment) — these two just say so. See useEdgeScroll/
+     ScrollEdges above. */
+  const tagRowRef = useRef<HTMLDivElement>(null);
+  const tagRowEdge = useEdgeScroll(tagRowRef);
+  const tabStripRef = useRef<HTMLDivElement>(null);
+  const tabStripEdge = useEdgeScroll(tabStripRef);
   const obsRef = useRef<HTMLTextAreaElement>(null);
   const a = useAnswers(check.id);
   const entityCode = useEntityCode();
@@ -1029,9 +1097,15 @@ export default function CheckDetail({
       >
         {/* ONE LINE THAT SCROLLS on a phone, wrapping only where there is
             room. Three wrapped rows of pills is 50px of pinned header taken
-            off a 664px screen before the check has said anything. */}
+            off a 664px screen before the check has said anything.
+
+            relative + ScrollEdges, below sm only (sm:overflow-visible
+            already means there is never an edge to show from sm up — the
+            row wraps there instead, see the className). */}
+        <div className="relative mb-[5px]">
         <div
-          className="mb-[5px] flex flex-nowrap items-center gap-[7px] overflow-x-auto font-mono text-[10px] [&>*]:shrink-0 sm:flex-wrap sm:overflow-visible"
+          ref={tagRowRef}
+          className="flex flex-nowrap items-center gap-[7px] overflow-x-auto font-mono text-[10px] [&>*]:shrink-0 sm:flex-wrap sm:overflow-visible"
           style={{ color: "var(--ink-3)" }}
         >
           <span>{portalId}</span>
@@ -1099,6 +1173,10 @@ export default function CheckDetail({
           ) : r.deskDoneAt ? (
             <Pill tone="warn">DESK DONE</Pill>
           ) : null}
+        </div>
+        <div className="sm:hidden">
+          <ScrollEdges edge={tagRowEdge} />
+        </div>
         </div>
         {/* THE REGISTER'S OWN CHECK TEXT, VERBATIM, AND LABELLED AS SUCH.
             `check.requirement` is the Rev A2 check-point wording — ACSA's
@@ -1232,7 +1310,9 @@ export default function CheckDetail({
           the same busyness the tabbed redesign was built to get rid of.
           One row, scrolling, is the same bargain the strip already made
           for a phone, now kept at every width. */}
+      <div className="relative">
       <div
+        ref={tabStripRef}
         className="flex flex-nowrap items-center gap-x-[14px] gap-y-[5px] overflow-x-auto border-b px-5 py-[8px] whitespace-nowrap"
         style={{ background: "var(--panel)", borderColor: "var(--line)" }}
       >
@@ -1292,6 +1372,11 @@ export default function CheckDetail({
             </div>
           );
         })}
+      </div>
+      {/* Every width, not sm:hidden — this row scrolls at every width by
+          design (see the comment above it), unlike the tag row above,
+          which only scrolls below sm. */}
+      <ScrollEdges edge={tabStripEdge} />
       </div>
       </div>
 
@@ -1364,36 +1449,56 @@ export default function CheckDetail({
            compliance bar still the last, non-scrolling thing in it — the
            same pinned-bar bargain the page above makes, one level deeper.
 
-           max-h-[70vh] overflow-y-auto BELOW lg ONLY, added for the mobile
-           keyboard — found with Playwright, not assumed: shrink the
-           viewport to roughly what a phone keyboard leaves (390x464, a
-           390x844 screen with ~45% covered) and this block alone still fit,
-           Save and the compliance buttons both stayed on screen. Shrink it
-           further, to what an iOS keyboard WITH its QuickType/emoji row can
-           take (~55% of a 375x667 screen), and this block had no ceiling —
-           it is exactly as tall as its own content, sticky or not, and with
-           nowhere to give, it rode up over whatever the tab panel above it
-           was showing, so a field being read there (not even typed in) came
+           max-h-[70vh] BELOW lg ONLY, added for the mobile keyboard — found
+           with Playwright, not assumed: shrink the viewport to roughly what
+           a phone keyboard leaves (390x464, a 390x844 screen with ~45%
+           covered) and this block alone still fit, Save and the compliance
+           buttons both stayed on screen. Shrink it further, to what an iOS
+           keyboard WITH its QuickType/emoji row can take (~55% of a
+           375x667 screen), and this block had no ceiling — it is exactly
+           as tall as its own content, sticky or not, and with nowhere to
+           give, it rode up over whatever the tab panel above it was
+           showing, so a field being read there (not even typed in) came
            back as un-clickable, covered by this bar. 70vh keeps that from
            ever reaching 100%: whatever is left of a short viewport, roughly
-           30% of it stays free for the panel above, and if this block's own
-           content still does not fit the 70% it has, it scrolls within
-           itself rather than pushing Save off the bottom with no way back.
-           At a normal phone height with no keyboard this block never gets
-           near 70vh, so nothing here is visible at rest — it is a ceiling,
-           not a redesign. lg:max-h-none lg:overflow-visible because `lg:
-           static` below already turns this into an ordinary column cell
-           beside the reference panel, where its own child two lines down
-           keeps the `lg:overflow-y-auto` that actually does the scrolling
-           at that width — this rule must not fight that one. */
-        className="sticky bottom-0 z-[7] max-h-[70vh] overflow-y-auto overscroll-contain lg:static lg:flex lg:min-h-0 lg:w-1/2 lg:shrink-0 lg:flex-col lg:max-h-none lg:overflow-visible"
+           30% of it stays free for the panel above.
+
+           max-h-[25vh] AT REST, 70vh ONLY WHILE THE OBSERVATION BOX HAS
+           FOCUS — Sarel, reviewing a 390px screenshot with nothing typed
+           yet: the bar was still the 70vh ceiling's full height even with
+           no keyboard open, because nothing here actually shrank at rest —
+           70vh was a ceiling this block simply never had reason to hit,
+           not a resting size. `has-[.obs-pane:focus-within]:max-h-[70vh]`
+           keys the expansion to the ONE field that matters (the Observation
+           textarea, wrapped `.obs-pane` just below) rather than to
+           `:focus-within` on this whole bar, which would also fire from
+           tapping Compliant/Non-compliant/N/A or Save and re-expand the bar
+           for no reason right when the auditor is about to move on. Save
+           and the compliance buttons are never inside the part that
+           shrinks — see the flex-col split two lines down, where the
+           Observation block is `flex-1 overflow-y-auto` (it gives) and the
+           answer bar below it is `shrink-0` (it never does) — so "smaller
+           at rest" never costs reaching either, at 25vh or at 70vh alike.
+
+           lg:max-h-none lg:overflow-visible because `lg:static` below
+           already turns this into an ordinary column cell beside the
+           reference panel, where the Observation block's own
+           lg:overflow-y-auto does the scrolling at that width instead —
+           this rule must not fight that one. */
+        className="sticky bottom-0 z-[7] flex min-h-0 max-h-[25vh] flex-col overflow-hidden has-[.obs-pane:focus-within]:max-h-[70vh] lg:static lg:w-1/2 lg:shrink-0 lg:max-h-none lg:overflow-visible"
         style={{
           background: "var(--panel)",
           boxShadow: "0 -6px 18px -10px rgba(22,16,40,.2)",
         }}
       >
+        {/* .obs-pane: the one field the pinned bar's own resting height
+             keys off — see the has-[...] selector on the bar itself, just
+             above. flex-1/min-h-0/overflow-y-auto are no longer lg:-only:
+             this block has always been the one that gives (the answer bar
+             below it, shrink-0, never has), now true at every width, not
+             only from lg. */}
         <div
-          className="border-t px-5 pt-[9px] pb-[9px] lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:flex lg:flex-col"
+          className="obs-pane flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain border-t px-5 pt-[9px] pb-[9px]"
           style={{ borderColor: "var(--line)" }}
         >
           <div className="mb-[6px] hidden items-center justify-between gap-3 sm:flex">
@@ -1593,8 +1698,12 @@ export default function CheckDetail({
         <div
           /* Tighter vertically than it looks like it should be, because on a
              phone this is three 44px rows and the targets are the thing that
-             may not shrink. The gaps give back what the third row costs. */
-          className="flex flex-wrap items-center gap-x-3 gap-y-[6px] border-t px-5 py-2 sm:gap-y-2 sm:py-2.5"
+             may not shrink. The gaps give back what the third row costs.
+             shrink-0: the pinned bar's own flex-col split (see its className
+             above) means this row is the one that must NOT give, whatever
+             the bar's own max-height is doing — Save and the compliance
+             buttons stay on screen at 25vh exactly as they did at 70vh. */
+          className="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-[6px] border-t px-5 py-2 sm:gap-y-2 sm:py-2.5"
           style={{
             background: "var(--panel)",
             borderColor: "var(--line)",
@@ -1645,21 +1754,12 @@ export default function CheckDetail({
                 <button
                   key={st.label}
                   onClick={() => setCompliance(check.id, on ? null : st.key)}
-                  /* The full phrase, always, to a screen reader — the phone
-                     shows the code to fit the targets across 390px, and "C"
-                     read out loud is not an answer anybody should have to
-                     decode. */
-                  aria-label={st.label}
                   aria-pressed={on}
                   title={st.label}
-                  /* min-w-0 lets the grid keep all five columns the same
+                  /* min-w-0 lets the grid keep all three columns the same
                      width — without it a flex child's default min-width is
                      its own content, so a long label forces its column
-                     wider than the others. smLabel (see the STATUSES entry)
-                     shortens the one label long enough to need it; min-w-0
-                     and dropping whitespace-nowrap both stay as the
-                     fallback for anything narrower than this was tuned
-                     against, not the everyday case. */
+                     wider than the others. */
                   /* outline-none, and deliberately no focus ring in its
                      place — see the identical note this block carried
                      before the merge: the browser's own default outline
@@ -1668,16 +1768,22 @@ export default function CheckDetail({
                      tap, and reads as one oversized box. The selected
                      state itself (background, border, tone, aria-pressed)
                      is already the affordance. */
-                  className={`flex min-h-[44px] min-w-0 items-center justify-center gap-[4px] rounded-[9px] px-[4px] py-1 text-center font-display text-[10px] leading-tight font-semibold outline-none transition-[var(--t)] active:translate-y-[1px] sm:px-[6px] sm:text-[10.5px] ${quiet ? "border" : "border-[1.5px]"}`}
+                  /* text-[9.5px] below sm, not st.short's code. Sarel,
+                     reviewing a 390px screenshot: "the outcome buttons must
+                     read 'Compliant', 'Non-compliant', 'N/A', not C/NC."
+                     "Non-compliant" is the long one — 9.5px plus the tight
+                     gap/padding already on this button is what gets all
+                     three full words onto one row of three columns at 390px
+                     without wrapping or shrinking the 44px target. st.short
+                     stays on the STATUSES entries themselves (it is still
+                     ACSA's own code, still read by whatever exports off of
+                     it) — it is just no longer what this button shows or
+                     says, at any width. */
+                  className={`flex min-h-[44px] min-w-0 items-center justify-center gap-[4px] rounded-[9px] px-[4px] py-1 text-center font-display text-[9.5px] leading-tight font-semibold outline-none transition-[var(--t)] active:translate-y-[1px] sm:px-[6px] sm:text-[10.5px] ${quiet ? "border" : "border-[1.5px]"}`}
                   style={toneStyle(st.tone, on, quiet)}
                 >
                   <st.Icon width={12} height={12} className="shrink-0" />
-                  {/* ACSA's own code on a phone, the word everywhere else.
-                      C, NC and N/A are not abbreviations invented here:
-                      they are what the record stores and what the export
-                      column says. */}
-                  <span className="sm:hidden">{st.short}</span>
-                  <span className="hidden sm:inline">{st.label}</span>
+                  <span>{st.label}</span>
                 </button>
               );
             })}
