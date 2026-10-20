@@ -382,7 +382,35 @@ export interface Attachment {
 
 export interface Response {
   checkId: string;
+  /** THE CHECKS SCREEN'S OWN VERDICT — the desk half, set on Capture (and
+   *  mirrored, editable, in the Review screen's "Audit check" cell). See
+   *  `fieldCompliance` below for the Inspection screen's own, separate
+   *  verdict on the same check. */
   compliance: Compliance | null;
+  /** THE INSPECTION SCREEN'S OWN VERDICT — a second, independent compliance
+   *  axis, set on the walk (`src/app/(app)/field/page.tsx`'s `OutcomeControl`),
+   *  not `compliance` above.
+   *
+   *  Sarel, 20 Oct 2026: "the compliances on the inspections page is a
+   *  seperate compliance field th[a]n what is on the checks page. They are
+   *  seperate compliances and should not pull through to the other page.
+   *  But they remain linked to the specific audit check." Until this field
+   *  existed, the Inspection screen's Outcome control read and wrote
+   *  `compliance` itself — the same field Capture's own compliance buttons
+   *  set — so answering one screen silently answered the other. The two are
+   *  now genuinely separate fields on the same `Response` (same `checkId`,
+   *  same record — "linked to the specific audit check" — just two
+   *  different verdicts on it), set through the equally separate
+   *  `setFieldCompliance` rather than `setCompliance`.
+   *
+   *  NOT `siteInspection` (below): that is a REVIEWER's later judgment of
+   *  whether the physical site, as seen, matches what Capture recorded —
+   *  set on Review, after the visit. This is the auditor's own verdict,
+   *  live, from standing in front of the asset — a different moment, a
+   *  different question, and now a different field.
+   *
+   *  `null` is "not yet answered on this screen," same as `compliance`. */
+  fieldCompliance: Compliance | null;
   /** ACSA SAYS COMPLIANT, AND THE EVIDENCE IS STILL TO COME.
    *
    *  Sarel, 2026-09-12: "ACSA's explanation is that they are compliant but

@@ -251,6 +251,7 @@ function emptyResponse(checkId: string): Response {
   return {
     checkId,
     compliance: null,
+    fieldCompliance: null,
     observation: "",
     evidencePicked: [],
     issuesPicked: [],
@@ -456,6 +457,12 @@ interface State {
    *  only honoured with c === "C"; every other answer clears it, so the flag
    *  can never be left stranded on a non-compliance. */
   setCompliance: (checkId: string, c: Compliance | null, evidencePending?: boolean) => void;
+  /** The Inspection screen's own verdict (`Response.fieldCompliance`) — see
+   *  that field's own doc comment in types.ts. A separate entry point from
+   *  `setCompliance` on purpose: `evidencePending` is a Checks-screen RFI
+   *  concept with no equivalent question here, so there is nothing of
+   *  `setCompliance`'s for this to share. */
+  setFieldCompliance: (checkId: string, c: Compliance | null) => void;
   toggleEvidence: (checkId: string, i: number) => void;
   toggleIssue: (
     checkId: string,
@@ -1121,15 +1128,23 @@ export const useStore = create<State>()(
           })),
 
         /* ONE ENTRY POINT, so the two fields cannot drift apart. Both are
-           written on every call — including from the walkabout chips and the
-           field screen, which pass no flag and therefore clear it — which is
-           what keeps "evidence pending" a trustworthy filter for the RFI list
-           rather than a stale marker left behind by a changed answer. */
+           written on every call — including from the walkabout chips, which
+           pass no flag and therefore clear it — which is what keeps
+           "evidence pending" a trustworthy filter for the RFI list rather
+           than a stale marker left behind by a changed answer. Sets the
+           CHECKS screen's own verdict only — see `setFieldCompliance`
+           immediately below for the Inspection screen's separate one. */
         setCompliance: (checkId, c, evidencePending = false) =>
           get().patch(checkId, {
             compliance: c,
             evidencePending: c === "C" ? evidencePending : false,
           }),
+
+        /* No evidencePending flag to carry, unlike setCompliance above — see
+           that field's own doc comment in types.ts for why the Inspection
+           screen's verdict has nothing of the Checks screen's RFI concept to
+           share. */
+        setFieldCompliance: (checkId, c) => get().patch(checkId, { fieldCompliance: c }),
 
         toggleEvidence: (checkId, i) => {
           const r = get().response(checkId);

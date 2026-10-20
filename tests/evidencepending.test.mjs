@@ -175,11 +175,24 @@ ok(
     (detail.match(/^export const STATUSES/gm) ?? []).length === 1
 );
 
-/* ---- the field screen must not silently drop it ----------------------- */
+/* ---- THEN (7 Oct): the field screen carried the tag when it confirmed the
+   same verdict — because it WAS the same verdict, both screens writing
+   `compliance`. REVERSED, 20 Oct 2026 — Sarel: "the compliances on the
+   inspections page is a seperate compliance field th[a]n what is on the
+   checks page... should not pull through to the other page." The field
+   screen now writes its own `Response.fieldCompliance`
+   (`setFieldCompliance`), never `compliance`/`evidencePending` at all — so
+   there is no tag left on this axis to carry, and nothing on it should
+   touch the Checks screen's RFI flag either way. */
 
 ok(
-  "THE FIELD HALF CARRIES THE TAG when it confirms the same verdict",
-  /nextOutcome === "C" \? !!r\?\.evidencePending : false/.test(field)
+  "the field screen's own Outcome control writes fieldCompliance, through its own action",
+  /value=\{r\?\.fieldCompliance \?\? null\}/.test(field) &&
+    /setFieldCompliance\(c\.id, nextOutcome\)/.test(field)
+);
+ok(
+  "and it never calls setCompliance or touches evidencePending — the two screens' verdicts cannot drift into each other",
+  !/setCompliance\(/.test(field) && !/evidencePending/.test(field)
 );
 
 /* ---- THREE: it reaches the workbook, or no RFI can be generated ------- */
