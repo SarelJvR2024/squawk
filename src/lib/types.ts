@@ -1078,6 +1078,14 @@ export interface MitigationAction {
    *  so an action to fix it belongs to whichever discipline is actually
    *  doing the work), always set it. */
   discipline?: string;
+  /** Which asset system (SystemAssessment.system) this action was copied in
+   *  from, when it was — same reasoning as `discipline` just above: a hazard
+   *  consolidated from 2+ asset systems (see hazardPromotion.ts) must not
+   *  blur which system's action is which, the same way a cause must stay
+   *  labelled. Absent means "raised directly on this record", not pulled
+   *  from an asset-system event — true for most actions, which are typed
+   *  straight onto a Hazard/Finding rather than copied in from one. */
+  system?: string;
   action: string;
   owner: string;
   /** ISO date, as everywhere else. Blank is a real state and it is flagged

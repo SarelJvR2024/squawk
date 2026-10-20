@@ -20,7 +20,7 @@
  *  somebody taps Accept, and its rating stays unagreed until somebody taps a
  *  cell on the matrix. */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   areasAt,
@@ -59,9 +59,11 @@ import {
   buildPromotedHazardPatch,
   eventKey,
   groupSystemEventCandidates,
+  parseRootCauseBySystem,
+  shouldAutoPromote,
   type SystemEventCandidate,
 } from "@/lib/hazardPromotion";
-import type { Attachment, Hazard } from "@/lib/types";
+import type { Attachment, Hazard, MitigationAction } from "@/lib/types";
 
 /** Vision sends at most eight images per request and the route refuses a ninth
  *  rather than dropping it silently. Consolidation would happily send forty, so
@@ -210,6 +212,36 @@ export default function HazardsPage() {
         : `${id} raised · rate it on the matrix`
     );
   }
+
+  /* AUTOMATIC MERGE — Sarel: "the app should automatically merge them
+   *  together if the risk is identified twice." A candidateGroups entry
+   *  with more than one contributor can only exist because the same
+   *  hazardous event was named, word-for-word, on 2+ asset systems (see
+   *  shouldAutoPromote's own comment in hazardPromotion.ts) — that is
+   *  already the duplicate signal, so there is nothing left for a human to
+   *  decide by tapping a button. A group of exactly one stays manual: a
+   *  single system naming an event nobody else echoed is a real "should
+   *  this become a hazard at all" call, not a duplicate to resolve.
+   *
+   *  promoteSystemEvents adds the group's event ids to the new hazard's
+   *  sourceSystemEventIds, which removes them from systemEventCandidates
+   *  (via promotedEventIds) on the next computation — so a correctly
+   *  guarded effect naturally stops re-finding an already-promoted group.
+   *  The ref-tracked `attempted` set is the explicit guard on top of that,
+   *  defensive against React re-render timing: it never lets the same
+   *  group key fire promoteSystemEvents twice, even if candidateGroups
+   *  briefly recomputes before the store update lands. */
+  const attemptedAutoPromotes = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const group of candidateGroups) {
+      if (!shouldAutoPromote(group)) continue;
+      const key = eventKey(group[0].event.event);
+      if (attemptedAutoPromotes.current.has(key)) continue;
+      attemptedAutoPromotes.current.add(key);
+      promoteSystemEvents(group);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidateGroups]);
 
   const list = useMemo(() => {
     let l = hazards;
@@ -787,10 +819,26 @@ export default function HazardsPage() {
                       </div>
                     )}
                   </div>
-                  <Btn variant="primary" onClick={() => promoteSystemEvents(group)}>
-                    <IconCheck width={13} height={13} />
-                    {multi ? `Create one hazard from ${group.length}` : "Create hazard"}
-                  </Btn>
+                  {multi ? (
+                    /* Auto-promoted by the effect above the moment this group
+                       is computed — see its own comment. No tap needed, and
+                       this row disappears on the next render once the
+                       promoted event ids drop it from systemEventCandidates;
+                       this is just what it looks like for the one render in
+                       between, so a reviewer never sees a button they could
+                       tap on a group that's already a hazard. */
+                    <span
+                      className="text-[10.5px] font-semibold uppercase tracking-[.03em]"
+                      style={{ color: "var(--acc)" }}
+                    >
+                      Merging automatically…
+                    </span>
+                  ) : (
+                    <Btn variant="primary" onClick={() => promoteSystemEvents(group)}>
+                      <IconCheck width={13} height={13} />
+                      Create hazard
+                    </Btn>
+                  )}
                 </div>
               );
             })}
@@ -907,34 +955,111 @@ export default function HazardsPage() {
                             )}
                           </div>
 
-                          <div className="mb-1.5">
-                            <div className="label-xs mb-[3px]">Root cause</div>
-                            {h.rootCause ? (
-                              <div className="whitespace-pre-line">{h.rootCause}</div>
-                            ) : (
-                              <span style={{ color: "var(--ink-4)" }}>Not recorded yet.</span>
-                            )}
-                          </div>
+                          {h.systems.length > 1 ? (
+                            /* HIERARCHY FOR A CONSOLIDATED HAZARD — Sarel:
+                               "give the root causes and their mitigating
+                               actions in a hierarchy structure, and maintain
+                               the link to the asset system." h.rootCause
+                               stays the one free-text string the portal
+                               needs (see hazardPromotion.ts), so this is a
+                               richer READ of that same string, not a new
+                               stored shape: parseRootCauseBySystem splits it
+                               back into the [System] lines
+                               buildPromotedHazardPatch wrote, and actions
+                               group by their own `system` field the same
+                               way. Each system's causes and actions nest
+                               under its own heading; anything that doesn't
+                               carry a system — hand-typed after promotion,
+                               or from before this existed — falls into one
+                               final bucket rather than disappearing. */
+                            (() => {
+                              const causeGroups = parseRootCauseBySystem(h.rootCause, h.systems);
+                              const causesBySystem = new Map(
+                                causeGroups.map((g) => [g.system, g.lines])
+                              );
+                              const knownSystems = new Set(h.systems);
+                              const buckets: { system: string | null; lines: string[]; actions: MitigationAction[] }[] = [
+                                ...h.systems.map((s) => ({
+                                  system: s,
+                                  lines: causesBySystem.get(s) ?? [],
+                                  actions: h.actions.filter((a) => a.system === s),
+                                })),
+                                {
+                                  system: null,
+                                  lines: causesBySystem.get(null) ?? [],
+                                  actions: h.actions.filter(
+                                    (a) => !a.system || !knownSystems.has(a.system)
+                                  ),
+                                },
+                              ].filter((b) => b.lines.length > 0 || b.actions.length > 0);
+                              return buckets.length ? (
+                                <div className="space-y-2">
+                                  {buckets.map((b) => (
+                                    <div key={b.system ?? "__unattributed"}>
+                                      <div className="label-xs mb-[3px]">
+                                        {b.system ?? "Not linked to a specific system"}
+                                      </div>
+                                      {b.lines.length > 0 && (
+                                        <div className="whitespace-pre-line">
+                                          {b.lines.join("\n")}
+                                        </div>
+                                      )}
+                                      {b.actions.length > 0 && (
+                                        <ul className="mt-[3px] space-y-[3px]">
+                                          {b.actions.map((a) => (
+                                            <li key={a.id}>
+                                              {a.action}
+                                              <span
+                                                className="font-mono text-[9px]"
+                                                style={{ color: "var(--ink-4)" }}
+                                              >
+                                                {a.owner ? ` · ${a.owner}` : ""} · {a.status}
+                                              </span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span style={{ color: "var(--ink-4)" }}>
+                                  No root causes or mitigating actions recorded yet.
+                                </span>
+                              );
+                            })()
+                          ) : (
+                            <>
+                              <div className="mb-1.5">
+                                <div className="label-xs mb-[3px]">Root cause</div>
+                                {h.rootCause ? (
+                                  <div className="whitespace-pre-line">{h.rootCause}</div>
+                                ) : (
+                                  <span style={{ color: "var(--ink-4)" }}>Not recorded yet.</span>
+                                )}
+                              </div>
 
-                          <div>
-                            <div className="label-xs mb-[3px]">
-                              Mitigating actions ({h.actions.length})
-                            </div>
-                            {h.actions.length ? (
-                              <ul className="space-y-[3px]">
-                                {h.actions.map((a) => (
-                                  <li key={a.id}>
-                                    {a.action}
-                                    <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                                      {a.owner ? ` · ${a.owner}` : ""} · {a.status}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <span style={{ color: "var(--ink-4)" }}>None recorded yet.</span>
-                            )}
-                          </div>
+                              <div>
+                                <div className="label-xs mb-[3px]">
+                                  Mitigating actions ({h.actions.length})
+                                </div>
+                                {h.actions.length ? (
+                                  <ul className="space-y-[3px]">
+                                    {h.actions.map((a) => (
+                                      <li key={a.id}>
+                                        {a.action}
+                                        <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                                          {a.owner ? ` · ${a.owner}` : ""} · {a.status}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <span style={{ color: "var(--ink-4)" }}>None recorded yet.</span>
+                                )}
+                              </div>
+                            </>
+                          )}
 
                           <Btn className="mt-2" onClick={() => setActiveId(h.id)}>
                             Rate &amp; edit this hazard
