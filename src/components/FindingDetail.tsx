@@ -26,15 +26,121 @@
  *  issue chips still deserves the same "what event does this expose?"
  *  question, just asked here instead of at the moment it was raised. */
 
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { checksAt, useAdhoc, useEntityCode, useResponses, useStore } from "@/lib/store";
+import { portalIdFor } from "@/lib/sites";
 import { assist, findingContext } from "@/lib/assist";
-import { Pill } from "@/components/ui/primitives";
+import { Btn, Pill } from "@/components/ui/primitives";
 import RecordActions from "@/components/RecordActions";
 import RootCauseAdvice from "@/components/RootCauseAdvice";
 import HazardAdvice from "@/components/HazardAdvice";
 import { AttachmentStrip } from "@/components/Capture";
 import type { Finding } from "@/lib/types";
+
+/** LINK AN UNLINKED FINDING TO ONE OF THE 324 AUDIT CHECKS, LATER.
+ *
+ *  Sarel: capture stays easy in the field — nothing forces a walk item or
+ *  the finding raised from it to name a check while someone is standing in
+ *  front of the asset. This is the "back at the office" half: a finding
+ *  with no checkId can be matched to the specific check it is evidence
+ *  against, once there is time to look.
+ *
+ *  Linking does one more thing, not just the usual record-keeping: it sets
+ *  that check's own compliance to NC. Sarel: "if an item is marked Non
+ *  Compliant... it must affect the audit check compliance to non
+ *  compliant... part of the audit non compliance which need to be
+ *  rectified and verified in the next audit cycle." A finding IS the
+ *  record of something wrong — there is no "compliant finding" in this
+ *  app — so linking one to a check is the moment that check joins the
+ *  audit's non-compliance count and the normal verify-at-next-visit cycle
+ *  every other NC check already goes through. Never reversed here: a
+ *  finding, once linked, stays linked — unlinking would leave a check
+ *  marked NC with nothing on record explaining why. */
+function LinkToCheck({ f, entityCode, onLinked }: { f: Finding; entityCode: string; onLinked: (checkId: string) => void }) {
+  const setCompliance = useStore((s) => s.setCompliance);
+  const updateFinding = useStore((s) => s.updateFinding);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  /* The SAME search RaiseFindingSheet's own check picker runs — ID, wording,
+     system, discipline — so there is one fuzzy-search rule for "find a
+     check-point" in this app, not two that can drift apart. */
+  const candidates = useMemo(() => {
+    const scoped = checksAt(entityCode).filter((c) => !f.discipline || c.discipline === f.discipline);
+    const q = query.trim().toLowerCase();
+    return scoped
+      .filter(
+        (c) =>
+          !q ||
+          `${portalIdFor(entityCode, c.id)} ${c.requirement} ${c.system} ${c.discipline}`
+            .toLowerCase()
+            .includes(q)
+      )
+      .slice(0, 30);
+  }, [entityCode, f.discipline, query]);
+
+  const link = (checkId: string) => {
+    updateFinding(f.id, { checkId });
+    /* setCompliance, not a raw patch — it also clears evidencePending for
+       us, which can only ever be true alongside a "C" verdict (see
+       Response.evidencePending's own doc comment). A raw patch would leave
+       a check reading "Compliant, evidence pending" AND "Non-compliant" at
+       once. */
+    setCompliance(checkId, "NC");
+    setOpen(false);
+    onLinked(checkId);
+  };
+
+  if (!open)
+    return (
+      <Btn variant="ghost" onClick={() => setOpen(true)} className="text-[10.5px]">
+        Link to an audit check
+      </Btn>
+    );
+
+  return (
+    <div className="mt-2 rounded-[11px] border p-2.5" style={{ background: "var(--sunken)", borderColor: "var(--line)" }}>
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={f.discipline ? `Search ${f.discipline} checks…` : "Search all checks…"}
+          autoFocus
+          className="min-w-0 flex-1 rounded-[8px] border px-2.5 py-1.5 text-[12px] outline-none"
+          style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+        />
+        <Btn variant="ghost" onClick={() => setOpen(false)} className="shrink-0 text-[10.5px]">
+          Cancel
+        </Btn>
+      </div>
+      <div className="max-h-[220px] overflow-y-auto">
+        {candidates.length === 0 ? (
+          <div className="px-1 py-2 text-[11px]" style={{ color: "var(--ink-4)" }}>
+            No matching checks.
+          </div>
+        ) : (
+          candidates.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => link(c.id)}
+              className="block w-full rounded-[7px] px-2 py-1.5 text-left text-[11.5px] hover:bg-[var(--panel)]"
+            >
+              <span className="mr-1.5 font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
+                {portalIdFor(entityCode, c.id)}
+              </span>
+              {c.requirement}
+            </button>
+          ))
+        )}
+      </div>
+      <div className="mt-1.5 text-[10px]" style={{ color: "var(--ink-4)" }}>
+        Sets that check's compliance to Non-Compliant. Cannot be undone from here.
+      </div>
+    </div>
+  );
+}
 
 export default function FindingDetail({
   f,
@@ -72,11 +178,21 @@ export default function FindingDetail({
             className="underline"
             style={{ color: "var(--acc)" }}
           >
-            {f.checkId}
+            {portalIdFor(entityCode, f.checkId)}
           </button>
         )}
       </div>
       <h3 className="mb-3 text-[14.5px] leading-[1.35] font-bold">{f.description}</h3>
+
+      {!f.checkId && (
+        <div className="mb-3.5">
+          <LinkToCheck
+            f={f}
+            entityCode={entityCode}
+            onLinked={(checkId) => say(`Linked to ${portalIdFor(entityCode, checkId)} — marked Non-Compliant`)}
+          />
+        </div>
+      )}
 
       {/* WHERE IT CAME FROM, WHEN IT CAME OFF THE WALK.
           A finding raised from an ad-hoc item has no check-point behind
