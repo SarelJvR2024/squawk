@@ -527,7 +527,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             scrolls. Splitting them is what lets the fade sit ON TOP of the
             scrolling content at a fixed position instead of scrolling away
             with it. */}
-        <div className="order-last relative w-full min-w-0 shrink-0 basis-full sm:order-none sm:w-auto sm:flex-1 sm:basis-auto">
+        {/* THE THREE HEADER ZONES, made to read as three rather than one row
+            of controls — audit context (the brand mark, to the left),
+            destinations (this nav), account and sharing controls (the
+            cluster to the right). Nothing moves and nothing resizes: a
+            hairline rule sits in the gap the header's own `gap-x-3` already
+            leaves on either side of the nav (sm and up only — below sm the
+            nav is already its own full-width row, already visually its own
+            zone, and a vertical rule across a bottom bar would mean nothing).
+            `border-box` (globals.css) means the 1px costs no layout width,
+            so none of the pixel-measured overflow handling below is
+            affected by adding it. */}
+        <div
+          className="order-last relative w-full min-w-0 shrink-0 basis-full sm:order-none sm:w-auto sm:flex-1 sm:basis-auto sm:border-l"
+          style={{ borderColor: "var(--line)" }}
+        >
           <nav
             ref={navRef}
             className="app-nav hide-scrollbar flex w-full gap-[2px] overflow-x-auto rounded-[11px] p-[3px]"
@@ -569,6 +583,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 key={n.href}
                 href={disabled ? "#" : n.href}
                 aria-disabled={disabled}
+                /* The visit chips lower in this file already say which one is
+                   current with aria-current; the main destinations never did.
+                   "page" because each of these is a full navigation, not a
+                   step or a location within one screen. */
+                aria-current={active ? "page" : undefined}
                 /* The hover/long-press name for the icon-only state between sm
                    and xl — the label is still on screen for a screen reader via
                    the link's own text content, this is for a sighted pointer
@@ -589,7 +608,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                    see the note on the fixed-width cluster to the right of
                    this nav, and the one on NAV itself, for the rest of what
                    this pass changed. */
-                className="flex min-h-[44px] items-center gap-[5px] whitespace-nowrap rounded-[8px] px-[9px] py-[6px] font-display text-[11.5px] font-semibold no-underline transition-[var(--t)]"
+                /* COLUMN BELOW sm, ROW FROM sm — the mobile bottom bar stacks
+                   icon over label (a "two-row tap target") so a text label can
+                   sit next to five others across 390px; from sm this goes
+                   back to the single row it always was. justify-center keeps
+                   the (now shorter) stacked content centred in the 44px
+                   target rather than pinned to its top edge. */
+                className="flex min-h-[44px] flex-col items-center justify-center gap-[5px] whitespace-nowrap rounded-[8px] px-[9px] py-[6px] font-display text-[11.5px] font-semibold no-underline transition-[var(--t)] sm:flex-row"
                 style={{
                   background: active ? "var(--panel)" : "transparent",
                   color: active ? "var(--acc)" : "var(--ink-2)",
@@ -601,6 +626,25 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <span className="relative flex shrink-0">
                   <Icon width={13} height={13} />
                 </span>
+                {/* A REAL LABEL BELOW sm TOO, not only on the active item.
+                    Icon-only read as six unlabelled buttons on the one device
+                    the walkabout is actually done on — exactly the ask this
+                    pass was given. Deliberately separate from the
+                    "hidden xl:inline" label a few lines down: that one keeps
+                    doing exactly what it always did between sm and xl (icon
+                    and count, full label only at xl) — untouched. This one is
+                    sm:hidden, gone the instant the row layout's own label
+                    takes over, and wraps rather than truncates, because
+                    "Asset Assurance" does not fit one line in the width six
+                    items can share on a phone. */}
+                {!active && (
+                  <span
+                    className="block text-center text-[6.5px] leading-[1.05] font-semibold sm:hidden"
+                    style={{ whiteSpace: "normal", maxWidth: "42px" }}
+                  >
+                    {n.label}
+                  </span>
+                )}
                 {/* On the bottom bar all seven destinations have to fit across
                     390px, and seven full labels do not — three fitted and the
                     rest were a swipe nobody would think to make. The ACTIVE one
@@ -677,7 +721,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        {/* ZONE THREE — account and sharing controls. The matching rule to
+            the nav's own, same reasoning: it sits in the gap the header's
+            `gap-x-3` already leaves, sm and up only, costs no width. */}
+        <div
+          className="flex shrink-0 items-center gap-1.5 sm:gap-2 sm:border-l"
+          style={{ borderColor: "var(--line)" }}
+        >
           {/* FIVE CONTROLS BECAME ONE BUTTON AND A PILL.
               Sync, Export, Reset and the shortcuts sheet stood in the masthead
               at every width, on every screen, for the whole audit. All four are
