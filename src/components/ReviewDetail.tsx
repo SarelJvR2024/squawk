@@ -76,6 +76,16 @@ const complianceTone = (v: Compliance | null): Tone =>
 const COMPLIANCE_OPTIONS = STATUSES.map((s) => ({ key: s.key, label: s.label }));
 const VERDICT_OPTIONS = EVIDENCE_VERDICTS.map((v) => ({ key: v.key, label: v.label }));
 
+/** Every `Compliance` value's full word, for the one cell (Combined) that is
+ *  never a `<select>` and so never gets its word from an `<option>` the way
+ *  the other three do. Built from the same two option lists above rather
+ *  than a parallel set of strings, so Combined can never show a word the
+ *  editable cells do not already use for the same value. Covers all four —
+ *  `COMPLIANCE_OPTIONS` carries C/NC/N/A, `VERDICT_OPTIONS` adds NV. */
+const COMPLIANCE_LABELS = Object.fromEntries(
+  [...COMPLIANCE_OPTIONS, ...VERDICT_OPTIONS].map((o) => [o.key, o.label])
+) as Record<Compliance, string>;
+
 /** Same CSS-variable tones `toneStyle` (CheckDetail.tsx) takes, not the
  *  `Tone` union `Pill` takes — "neu"/"acc" rather than "neutral"/"accent" —
  *  so a cell's `<select>` reads in exactly the colour its own section
@@ -93,9 +103,15 @@ function selectStyle(value: Compliance | null): React.CSSProperties {
  *  this screen (or, for the audit check, Capture/Field) already calls, so
  *  there is no second copy of the value to keep in sync. The fourth,
  *  Combined, is derived and never passes them, so it stays the plain
- *  read-only Pill it always was. `partial` marks that one when not every
- *  axis has been answered yet, so a clean-looking "C" is never mistaken for
- *  a finished review. */
+ *  read-only Pill it always was — showing the full word (COMPLIANCE_LABELS),
+ *  not the stored code: Sarel, 20 Oct 2026, after the strip's three `<select>`
+ *  cells shipped already spelling theirs out, "fix the combined compliance,
+ *  it must be a word not an abbreviation or a concatenation" — the Pill was
+ *  still printing the raw "NC" the record stores, with a literal " ·"
+ *  appended when the review was still partial. `partial` now marks that with
+ *  a small corner dot outside the word (plus the same title and an sr-only
+ *  note) rather than punctuation glued onto the end of it, so the word
+ *  itself is never anything but the word. */
 function ComplianceCell({
   label,
   value,
@@ -133,10 +149,19 @@ function ComplianceCell({
           ))}
         </select>
       ) : (
-        <Pill tone={complianceTone(value)} title={partial ? "Not every axis has been reviewed yet" : undefined}>
-          {value ?? "—"}
-          {partial ? " ·" : ""}
-        </Pill>
+        <span className="relative inline-flex">
+          <Pill tone={complianceTone(value)} title={partial ? "Not every axis has been reviewed yet" : undefined}>
+            {value ? COMPLIANCE_LABELS[value] : "Not yet"}
+            {partial && <span className="sr-only"> — not every axis reviewed yet</span>}
+          </Pill>
+          {partial && (
+            <span
+              aria-hidden="true"
+              className="absolute -top-[3px] -right-[3px] h-[6px] w-[6px] rounded-full"
+              style={{ background: "var(--warn)" }}
+            />
+          )}
+        </span>
       )}
     </div>
   );
