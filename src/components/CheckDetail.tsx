@@ -335,22 +335,16 @@ export default function CheckDetail({
    *  a press per check for the whole walk. A key that this check does not
    *  carry falls back to the first one it does.
    *
-   *  THE DEFAULT ON ARRIVAL NO LONGER OPENS ON "standard" (ACSA requirement).
-   *  That earlier choice is explained at the "standard" panel's own push
-   *  below, and it is still right about ORDER — the requirement is still the
-   *  first tab in the strip, read before the evidence is gathered for it.
-   *  But this task's own ask is concrete: the primary flow (read the
-   *  question, record what was observed, attach evidence, pick an outcome,
-   *  save) must not have to compete with reference material for the same
-   *  attention on first paint, and a reference panel open by default on
-   *  every single check — before anything has been recorded — is exactly
-   *  that competition. "" never matches a real panel key, so the fallback
-   *  two lines below `openKey` always resolves it to THIS check's own first
-   *  capture ("do") panel instead — Walkabout where the register has one,
-   *  Evidence status otherwise — and ACSA's requirement stays one tap away,
-   *  first in the strip, not open by default. Once an auditor actually picks
-   *  a tab the sticky behaviour above takes back over unchanged. */
-  const [panel, setPanel] = useState("");
+   *  THIRD TIME HOLDING AT "standard" (ACSA requirement) — ui-refresh Stage
+   *  2, Area 3 tried moving the default to each check's own first capture
+   *  ("do") panel instead, on the reasoning that a reference panel open by
+   *  default competes with the primary read → record → attach → decide →
+   *  save flow for first-paint attention. Sarel, reviewing it: keep it the
+   *  way he originally wanted — the requirement stays the tab already open,
+   *  not one to go and find. Reverted; see tests/checkscreen.test.mjs for
+   *  the regression guard, unchanged back to what it asserted before this
+   *  attempt. */
+  const [panel, setPanel] = useState("standard");
   /* Whether this screen has been scrolled at all.
    *
    *  From lg the two columns scroll inside themselves and this container never
@@ -913,17 +907,7 @@ export default function CheckDetail({
        requirement was four presses away. That is the wrong way round: you read
        the requirement, then you go and get the evidence for it. The strip now
        renders this group, then the Answer library, then the rest of the
-       Reference tabs.
-
-       IT NO LONGER FOLLOWS THAT THE SCREEN OPENS HERE, though. That used to
-       be the same sentence as the one above — first in the strip AND open by
-       default were one decision. A later, separate ask (make the primary
-       flow of read → record → attach → decide → save the thing that is NOT
-       sharing first-paint attention with reference material) splits them:
-       still first in the strip, where "read the requirement before you go
-       get the evidence" remains true and visible at a glance, but no longer
-       the panel a brand-new check opens on — see the comment on `panel`'s
-       own useState above for where the actual default moved to. */
+       Reference tabs, and the screen opens here. */
     group: "acsa",
     body: <AcsaRequirementPanel check={check} />,
   });
