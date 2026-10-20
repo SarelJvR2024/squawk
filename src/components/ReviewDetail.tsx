@@ -49,11 +49,11 @@
  *  this audit actually attached, same AttachmentStrip as before, relabelled
  *  and counted so the two sit side by side rather than one being implicit. */
 
-import { useState } from "react";
-import { useResponses, useStore } from "@/lib/store";
+import { useMemo, useState } from "react";
+import { disciplinesAt, useResponses, useStore } from "@/lib/store";
 import { portalIdFor } from "@/lib/sites";
 import { reviewCombinedCompliance } from "@/lib/review";
-import { AttachmentStrip } from "@/components/Capture";
+import { AttachmentStrip, FileButton, PhotoButton, VoiceNoteButton } from "@/components/Capture";
 import RelinkPhotoSheet from "@/components/RelinkPhotoSheet";
 import {
   EVIDENCE_STATUSES,
@@ -120,12 +120,23 @@ function ComplianceCell({
   partial,
   options,
   onChange,
+  emptyLabel = "— not yet",
 }: {
   label: string;
   value: Compliance | null;
   partial?: boolean;
   options?: { key: Compliance; label: string }[];
   onChange?: (next: Compliance | null) => void;
+  /** What the unanswered state reads as, in the `<select>` itself — Sarel:
+   *  "not yet should be not verified." Evidence and Site inspection pass
+   *  "Not Verified" here: on those two axes, "nobody has looked at this yet"
+   *  and "this could not be verified" are the same practical fact, so this
+   *  cell should not use two different words for it. The underlying stored
+   *  value stays `null` either way — only the label changes — so the
+   *  combined cell's own "partial" check (which looks for `null`) and
+   *  everything downstream of it is unaffected. The Audit check cell has no
+   *  `NV` value at all (see STATUSES), so it keeps the plain default. */
+  emptyLabel?: string;
 }) {
   return (
     <div
@@ -143,7 +154,7 @@ function ComplianceCell({
           className="min-h-[30px] w-full rounded-full border px-1.5 py-[2px] text-center font-mono text-[9.5px] font-semibold outline-none transition-[var(--t)]"
           style={selectStyle(value)}
         >
-          <option value="">— not yet</option>
+          <option value="">{emptyLabel}</option>
           {options.map((o) => (
             <option key={o.key} value={o.key}>
               {o.label}
@@ -181,17 +192,84 @@ export default function ReviewDetail({
   const r = useResponses()[check.id];
   const entityCode = useStore((s) => s.entity);
   const auditor = useStore((s) => s.auditor);
+  const visitId = useStore((s) => s.visit);
   const patch = useStore((s) => s.patch);
   const setCompliance = useStore((s) => s.setCompliance);
+  const addAttachment = useStore((s) => s.addAttachment);
   const updateAttachment = useStore((s) => s.updateAttachment);
   const removeAttachment = useStore((s) => s.removeAttachment);
   const moveAttachment = useStore((s) => s.moveAttachment);
+  const addFinding = useStore((s) => s.addFinding);
 
   /* The photo currently open in the "move it to a different check" sheet —
    *  Review is the one screen a mis-filed photo is actually spotted on
    *  (every check's evidence sits side by side here), so this is the one
    *  screen that offers it. See RelinkPhotoSheet's own doc comment. */
   const [movingPhoto, setMovingPhoto] = useState<Attachment | null>(null);
+
+  /* RAISE A FINDING, WITHOUT LEAVING REVIEW — Sarel: "add a section to
+   *  capture a new inspection issue, same fields as capturing it in other
+   *  areas of the app and add photo etc." Same shape and the same
+   *  `addFinding` call RaiseFindingSheet.tsx and AddItemSheet.tsx's own
+   *  raiseFinding already use (checkId, discipline, system, title,
+   *  description, issueIndex null, severity/likelihood null,
+   *  ratingConfirmed false, rootCause empty, actions empty, actionStatus
+   *  "Open", adHoc true) — a fourth capture path for the same kind of
+   *  record, not a different one. checkId is always THIS check: a reviewer
+   *  reading one check-point's evidence is exactly who spots a new issue
+   *  tied to it, and RaiseFindingSheet's own check-point search would only
+   *  be finding its way back to the check already on screen. Discipline and
+   *  asset system default to the check's own — same convenience
+   *  RaiseFindingSheet gives once a check is picked there — but stay
+   *  editable, since the issue found while reviewing one check can
+   *  genuinely be about a related system. Photo/voice/file capture writes
+   *  into THIS check's own Response.attachments via the same `addAttachment`
+   *  action and AttachmentStrip the "Evidence received" section above
+   *  already uses — a finding has no attachments field of its own anywhere
+   *  in this app (see Finding in types.ts); every screen that shows a
+   *  finding's photos reads them off the check (or ad-hoc item) it is tied
+   *  to, and this keeps that the one rule rather than inventing a second. */
+  const [newTitle, setNewTitle] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newDiscipline, setNewDiscipline] = useState(check.discipline);
+  const [newSystem, setNewSystem] = useState(check.system);
+  const [newError, setNewError] = useState<string | null>(null);
+  const [newSaved, setNewSaved] = useState<string | null>(null);
+  const disciplines = useMemo(() => disciplinesAt(entityCode), [entityCode]);
+
+  const raiseFinding = () => {
+    const title = newTitle.trim();
+    if (!title) {
+      setNewError("Say what you found. It is the one thing this cannot default.");
+      return;
+    }
+    const id = addFinding({
+      checkId: check.id,
+      discipline: newDiscipline,
+      system: newSystem,
+      area: "",
+      title,
+      description: newDescription.trim() || title,
+      issueIndex: null,
+      severity: null,
+      likelihood: null,
+      ratingConfirmed: false,
+      rootCause: "",
+      actions: [],
+      actionStatus: "Open",
+      originVisit: visitId,
+      priorRating: null,
+      suggestedEvent: "",
+      progress: [],
+      adHoc: true,
+      createdBy: auditor,
+    });
+    setNewTitle("");
+    setNewDescription("");
+    setNewError(null);
+    setNewSaved(`${id} raised, tied to this check`);
+    setTimeout(() => setNewSaved(null), 2600);
+  };
 
   const combined = r ? reviewCombinedCompliance(r.compliance, r.evidenceVerdict, r.siteInspection) : null;
   const combinedPartial = !!r && [r.compliance, r.evidenceVerdict, r.siteInspection].some((v) => v === null);
@@ -235,12 +313,14 @@ export default function ReviewDetail({
                 value={r.evidenceVerdict}
                 options={VERDICT_OPTIONS}
                 onChange={(v) => patch(check.id, { evidenceVerdict: v })}
+                emptyLabel="Not Verified"
               />
               <ComplianceCell
                 label="Site inspection"
                 value={r.siteInspection}
                 options={VERDICT_OPTIONS}
                 onChange={(v) => patch(check.id, { siteInspection: v })}
+                emptyLabel="Not Verified"
               />
               <ComplianceCell label="Combined" value={combined} partial={combinedPartial} />
             </div>
@@ -253,16 +333,57 @@ export default function ReviewDetail({
           <Empty>Not captured yet.</Empty>
         ) : (
           <div className="flex flex-col gap-5">
+            {/* FIRST SECTION, DELIBERATELY — Sarel: "make sure the audit check
+                observation notes is the first section on the review section."
+                Labelled "Audit check observation", not "Inspection notes" —
+                this is `Response.observation`, the auditor's own write-up for
+                THIS check, and "Inspection" already names a separate screen
+                and a separate compliance axis (`fieldCompliance`, see its own
+                doc comment in types.ts); keeping the old label here invited
+                exactly that confusion. */}
             <section>
-              <div className="label-xs mb-1.5">Inspection notes</div>
+              <div className="label-xs mb-1.5">Audit check observation</div>
               <textarea
                 value={r.observation}
                 onChange={(e) => patch(check.id, { observation: e.target.value })}
                 placeholder="What was observed"
-                aria-label="Inspection notes"
+                aria-label="Audit check observation"
                 className="min-h-[96px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[13px] outline-none focus:border-[var(--acc)]"
                 style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
               />
+
+              {/* THE AUDIT CHECK'S OWN COMPLIANCE, AS BUTTONS — Sarel: "add
+                  the compliance buttons for the audit check." Evidence and
+                  Site inspection already get a button grid further down this
+                  screen; the audit check's own verdict (`Response.compliance`,
+                  the sticky strip's first cell) only had a `<select>` there
+                  and no button grid in the body at all. Same STATUSES array
+                  and the same `setCompliance` action CheckDetail's own grid
+                  and the sticky cell above both already use — one more place
+                  to set it from, not a second copy of the value. */}
+              <div className="mt-3">
+                <div className="label-xs mb-1.5">Audit check compliance</div>
+                <div className="grid grid-cols-3 gap-[6px]">
+                  {STATUSES.map((st) => {
+                    const on = r.compliance === st.key;
+                    const quiet = st.group === "qualifier";
+                    return (
+                      <button
+                        key={st.key}
+                        type="button"
+                        onClick={() => setCompliance(check.id, on ? null : st.key)}
+                        aria-pressed={on}
+                        title={st.label}
+                        className={`flex min-h-[40px] items-center justify-center gap-[6px] rounded-[9px] text-[11.5px] font-semibold transition-[var(--t)] active:translate-y-[1px] ${quiet ? "border" : "border-[1.5px]"}`}
+                        style={toneStyle(st.tone, on, quiet)}
+                      >
+                        <st.Icon width={13} height={13} />
+                        {st.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </section>
 
             <section>
@@ -335,7 +456,7 @@ export default function ReviewDetail({
                 />
               </div>
 
-              <div className="mt-2 grid grid-cols-3 gap-[6px]">
+              <div className="mt-2 grid grid-cols-4 gap-[6px]">
                 {EVIDENCE_VERDICTS.map((v) => {
                   const on = r.evidenceVerdict === v.key;
                   return (
@@ -344,10 +465,11 @@ export default function ReviewDetail({
                       type="button"
                       onClick={() => patch(check.id, { evidenceVerdict: on ? null : v.key })}
                       aria-pressed={on}
-                      className="flex min-h-[40px] items-center justify-center gap-[6px] rounded-[9px] border text-[11.5px] font-semibold transition-[var(--t)] active:translate-y-[1px]"
+                      title={v.label}
+                      className="flex min-h-[40px] min-w-0 items-center justify-center gap-[4px] rounded-[9px] border px-[2px] text-center text-[10px] font-semibold leading-tight transition-[var(--t)] active:translate-y-[1px]"
                       style={toneStyle(v.tone, on)}
                     >
-                      <v.Icon width={13} height={13} />
+                      <v.Icon width={12} height={12} className="shrink-0" />
                       {v.label}
                     </button>
                   );
@@ -365,7 +487,7 @@ export default function ReviewDetail({
               <div className="mb-1.5 text-[11.5px]" style={{ color: "var(--ink-3)" }}>
                 Does what was physically seen on site match what was captured?
               </div>
-              <div className="grid grid-cols-3 gap-[6px]">
+              <div className="grid grid-cols-4 gap-[6px]">
                 {EVIDENCE_VERDICTS.map((v) => {
                   const on = r.siteInspection === v.key;
                   return (
@@ -374,10 +496,11 @@ export default function ReviewDetail({
                       type="button"
                       onClick={() => patch(check.id, { siteInspection: on ? null : v.key })}
                       aria-pressed={on}
-                      className="flex min-h-[40px] items-center justify-center gap-[6px] rounded-[9px] border text-[11.5px] font-semibold transition-[var(--t)] active:translate-y-[1px]"
+                      title={v.label}
+                      className="flex min-h-[40px] min-w-0 items-center justify-center gap-[4px] rounded-[9px] border px-[2px] text-center text-[10px] font-semibold leading-tight transition-[var(--t)] active:translate-y-[1px]"
                       style={toneStyle(v.tone, on)}
                     >
-                      <v.Icon width={13} height={13} />
+                      <v.Icon width={12} height={12} className="shrink-0" />
                       {v.label}
                     </button>
                   );
@@ -446,6 +569,118 @@ export default function ReviewDetail({
                   {r.reviewStatusAt ? ` · ${new Date(r.reviewStatusAt).toLocaleString("en-ZA")}` : ""}
                 </div>
               )}
+            </section>
+
+            {/* RAISE A FINDING WITHOUT LEAVING REVIEW — see the state/handler
+                above this component for the full reasoning. Last section,
+                deliberately: everything above is reading and rating what
+                this audit already recorded; this is the one place on the
+                screen that adds something new. */}
+            <section>
+              <div className="label-xs mb-1.5">Raise a finding</div>
+              <div className="mb-1.5 text-[11.5px]" style={{ color: "var(--ink-3)" }}>
+                A new issue spotted while reviewing this check — tied to it automatically.
+              </div>
+
+              <label className="block">
+                <span className="font-display text-[11px] font-semibold">What you found</span>
+                <textarea
+                  value={newTitle}
+                  onChange={(e) => {
+                    setNewError(null);
+                    setNewTitle(e.target.value);
+                  }}
+                  placeholder="A short headline — e.g. Fire extinguisher past its service date"
+                  aria-label="What you found"
+                  className="mt-1 min-h-[52px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[13px] outline-none focus:border-[var(--acc)]"
+                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                />
+              </label>
+
+              <label className="mt-3 block">
+                <span className="font-display text-[11px] font-semibold">Description · optional</span>
+                <textarea
+                  value={newDescription}
+                  onChange={(e) => setNewDescription(e.target.value)}
+                  placeholder="Anything else worth recording — defaults to the headline above if left blank"
+                  aria-label="Description"
+                  className="mt-1 min-h-[64px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[13px] outline-none focus:border-[var(--acc)]"
+                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                />
+              </label>
+
+              {newError && (
+                <div className="mt-2 text-[11.5px]" style={{ color: "var(--warn)" }}>
+                  {newError}
+                </div>
+              )}
+
+              <div className="mt-3 grid grid-cols-2 gap-2.5">
+                <label className="block">
+                  <span className="font-display text-[11px] font-semibold">Discipline</span>
+                  <select
+                    value={newDiscipline}
+                    onChange={(e) => setNewDiscipline(e.target.value)}
+                    aria-label="Discipline"
+                    className="mt-1 w-full rounded-[11px] border px-3 py-2.5 text-[13px] outline-none"
+                    style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                  >
+                    {disciplines.map((d) => (
+                      <option key={d}>{d}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="font-display text-[11px] font-semibold">Asset system</span>
+                  <input
+                    value={newSystem}
+                    onChange={(e) => setNewSystem(e.target.value)}
+                    aria-label="Asset system"
+                    className="mt-1 w-full rounded-[11px] border px-3 py-2.5 text-[13px] outline-none"
+                    style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                  />
+                </label>
+              </div>
+
+              {/* Same photo/voice/file capture as "Evidence received" above —
+                  into the SAME check.attachments, because a finding reads its
+                  photos off the check it is tied to rather than carrying any
+                  of its own. Not re-rendered as a second strip here — one
+                  photo card showing twice on the one screen would read as two
+                  photographs. It lands in "Evidence received" above,
+                  immediately. */}
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[10.5px]" style={{ color: "var(--ink-4)" }}>
+                  {r.attachments.length > 0
+                    ? "Adds to Evidence received above."
+                    : "Adds to this check's evidence."}
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <PhotoButton
+                    compact
+                    onCaptured={(m) => addAttachment(check.id, { ...m, createdBy: auditor })}
+                  />
+                  <VoiceNoteButton
+                    compact
+                    onCaptured={(m) => addAttachment(check.id, { ...m, createdBy: auditor })}
+                  />
+                  <FileButton
+                    compact
+                    onCaptured={(m) => addAttachment(check.id, { ...m, createdBy: auditor })}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center gap-2.5">
+                <Btn variant="primary" onClick={raiseFinding} style={{ minHeight: 44 }}>
+                  Raise it
+                </Btn>
+                {newSaved && (
+                  <span className="text-[11.5px] font-semibold" style={{ color: "var(--good)" }}>
+                    {newSaved}
+                  </span>
+                )}
+              </div>
             </section>
           </div>
         )}
