@@ -36,7 +36,11 @@ check(
 
 check(
   "an N/A chip is offered alongside NC and 2025, in the same chip array",
-  /\["nc", "NC"\], \["na", "N\/A"\], \["pf", "2025"\]/.test(page)
+  /* Whitespace-tolerant since the UX-audit P0 pass reformatted this literal
+     onto one line per entry when the status row moved into FilterBar's
+     `groups` prop (src/components/ui/FilterBar.tsx) — same three entries,
+     same order, still one array. */
+  /\["nc", "NC"\],\s*\["na", "N\/A"\],\s*\["pf", "2025"\]/.test(page)
 );
 
 check(

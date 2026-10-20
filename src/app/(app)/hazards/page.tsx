@@ -50,6 +50,7 @@ import {
 import { BAND_META, bandFor, cellCode } from "@/lib/risk";
 import { getBlob } from "@/lib/media";
 import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
+import { DisciplineSelect } from "@/components/ui/DisciplineSelect";
 import RecordActions from "@/components/RecordActions";
 import StickyActions from "@/components/StickyActions";
 import RootCauseAdvice from "@/components/RootCauseAdvice";
@@ -454,17 +455,15 @@ export default function HazardsPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <select
+            <DisciplineSelect
               value={discipline}
-              onChange={(e) => setDiscipline(e.target.value)}
-              className="rounded-[9px] border px-2.5 py-[7px] text-[12px]"
-              style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-            >
-              <option>All</option>
-              {disciplinesAt(entityCode).map((d) => (
-                <option key={d}>{d}</option>
-              ))}
-            </select>
+              onChange={setDiscipline}
+              className="w-auto"
+              options={[
+                { value: "All", label: "All" },
+                ...disciplinesAt(entityCode).map((d) => ({ value: d, label: d })),
+              ]}
+            />
             <div
               className="flex gap-[2px] rounded-[11px] p-[3px]"
               style={{ background: "var(--sunken)" }}
@@ -624,7 +623,7 @@ export default function HazardsPage() {
                       <span
                         key={id}
                         title={f?.description}
-                        className="rounded-full border px-[8px] py-[3px] font-mono text-[9.5px]"
+                        className="rounded-full border px-[11px] py-[6px] font-mono text-[11.5px]"
                         style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
                       >
                         {id}
@@ -747,7 +746,7 @@ export default function HazardsPage() {
                       {group.map(({ discipline, system, event }) => (
                         <span
                           key={event.id}
-                          className="rounded-full border px-[7px] py-[2px] font-mono text-[9px] tracking-[.03em] uppercase"
+                          className="rounded-full border px-[11px] py-[6px] font-mono text-[11.5px] tracking-[.03em] uppercase"
                           style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
                         >
                           {discipline} · {system}
@@ -896,7 +895,7 @@ export default function HazardsPage() {
                                 {h.systems.map((s) => (
                                   <span
                                     key={s}
-                                    className="rounded-full border px-[7px] py-[2px] font-mono text-[9px] tracking-[.03em] uppercase"
+                                    className="rounded-full border px-[11px] py-[6px] font-mono text-[11.5px] tracking-[.03em] uppercase"
                                     style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
                                   >
                                     {s}

@@ -256,7 +256,11 @@ check(
 
 check(
   "it is a select, not a chip strip",
-  /aria-label=\{groupBy === "area" \? "Filter by location" : "Filter by discipline"\}/.test(fieldCode),
+  /* Rendered through the shared DisciplineSelect (src/components/ui/DisciplineSelect.tsx)
+     since the UX-audit P0 pass — same native <select>, same computed label,
+     just the prop spelled `ariaLabel` the way that component takes it rather
+     than typed by hand as `aria-label` on a raw <select>. */
+  /ariaLabel=\{groupBy === "area" \? "Filter by location" : "Filter by discipline"\}/.test(fieldCode),
   "133 register categories in a horizontally scrolling row is not a filter anybody can use"
 );
 

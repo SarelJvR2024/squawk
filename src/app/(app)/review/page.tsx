@@ -57,10 +57,21 @@ import {
 import { portalIdFor } from "@/lib/sites";
 import ReviewDetail from "@/components/ReviewDetail";
 import { Dot, Empty, Pill } from "@/components/ui/primitives";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { DisciplineSelect } from "@/components/ui/DisciplineSelect";
 import { IconInbox } from "@/components/ui/icons";
 import type { Check, Response } from "@/lib/types";
 
 type Filter = "all" | "nc" | "findings" | "flagged" | "evidence" | "unsigned";
+
+const STATUS_FILTER_LABEL: Record<Filter, string> = {
+  all: "All",
+  nc: "NC",
+  findings: "Findings",
+  flagged: "Flagged",
+  evidence: "Evidence",
+  unsigned: "Not signed off",
+};
 
 const RATING_TONE = {
   Unacceptable: "bad",
@@ -180,54 +191,47 @@ export default function ReviewPage() {
           className="sticky top-0 z-[5] border-b px-[9px] pt-[9px] pb-[8px]"
           style={{ background: "var(--panel)", borderColor: "var(--line)" }}
         >
-          <div className="mb-[7px] flex flex-wrap gap-1">
-            {(
-              [
-                ["all", "All"],
-                ["nc", "NC"],
-                ["findings", "Findings"],
-                ["flagged", "Flagged"],
-                ["evidence", "Evidence"],
-                ["unsigned", "Not signed off"],
-              ] as [Filter, string][]
-            ).map(([k, label]) => (
-              <button
-                key={k}
-                onClick={() => setFilter(k)}
-                className="whitespace-nowrap rounded-full border px-[9px] py-[4px] text-[10.5px] transition-[var(--t)]"
-                style={
-                  filter === k
-                    ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
-                    : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
-                }
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {/* Same shared disclosure Capture uses — see
+              src/components/ui/FilterBar.tsx — this row was an identical
+              copy-paste of Capture's and had drifted into a 2-line wrap on
+              desktop because "Not signed off" didn't fit one row. */}
+          <FilterBar
+            className="mb-[7px]"
+            summary={<>Showing: <b>{STATUS_FILTER_LABEL[filter]}</b></>}
+            active={filter !== "all"}
+            groups={[
+              {
+                options: (
+                  [
+                    ["all", "All"],
+                    ["nc", "NC"],
+                    ["findings", "Findings"],
+                    ["flagged", "Flagged"],
+                    ["evidence", "Evidence"],
+                    ["unsigned", "Not signed off"],
+                  ] as [Filter, string][]
+                ).map(([key, label]) => ({ key, label })),
+                value: filter,
+                onChange: (k) => setFilter(k as Filter),
+              },
+            ]}
+          />
 
-          <select
-            aria-label="Discipline"
+          <DisciplineSelect
+            ariaLabel="Discipline"
             value={discipline}
-            onChange={(e) => {
-              setDiscipline(e.target.value);
+            onChange={(v) => {
+              setDiscipline(v);
               setExpanded([]);
               setAutoOpened(null);
               setActiveId(null);
             }}
-            className="w-full rounded-[8px] border px-2 py-[7px] text-[11.5px] outline-none"
-            style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-          >
-            {disciplines.map((d) => {
+            options={disciplines.map((d) => {
               const cs = checksOf(entityCode, d);
               const done = cs.filter((c) => reviewed(responses[c.id])).length;
-              return (
-                <option key={d} value={d}>
-                  {d} — {done}/{cs.length}
-                </option>
-              );
+              return { value: d, label: `${d} — ${done}/${cs.length}` };
             })}
-          </select>
+          />
 
           <div className="mt-[7px] flex items-start justify-between gap-2">
             <div className="text-[10px]" style={{ color: "var(--ink-3)" }}>

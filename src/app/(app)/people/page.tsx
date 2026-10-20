@@ -62,7 +62,7 @@ function SiteSelect({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       aria-label={ariaLabel}
-      className="min-h-[44px] w-full rounded-[9px] border px-3 text-[12.5px] outline-none"
+      className="w-full rounded-[9px] border px-3 py-[7px] text-[11.5px] outline-none"
       style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
     >
       {includeAll && <option value="">All sites</option>}
@@ -94,7 +94,7 @@ function DisciplineSelect({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       aria-label={ariaLabel}
-      className="min-h-[44px] w-full rounded-[9px] border px-3 text-[12.5px] outline-none"
+      className="w-full rounded-[9px] border px-3 py-[7px] text-[11.5px] outline-none"
       style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
     >
       <option value="">Not discipline-specific</option>

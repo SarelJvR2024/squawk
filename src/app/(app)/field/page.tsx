@@ -20,6 +20,7 @@ import { locationAxis } from "@/lib/programme";
 import { portalIdFor } from "@/lib/sites";
 import type { AdHocItem, Check } from "@/lib/types";
 import { Btn, Empty, Pill } from "@/components/ui/primitives";
+import { DisciplineSelect } from "@/components/ui/DisciplineSelect";
 import AddItemSheet from "@/components/AddItemSheet";
 import GroupRow from "@/components/ui/GroupRow";
 import Sheet from "@/components/ui/Sheet";
@@ -550,31 +551,24 @@ export default function FieldPage() {
               own: measured at 375px this bar was already 122px of a 664px
               screen after the last trim, and a third row would put back most of
               what that trim bought. */}
-          <select
+          <DisciplineSelect
             value={activeFilter}
-            onChange={(e) => {
-              setFilter(e.target.value);
+            onChange={(v) => {
+              setFilter(v);
               /* Different subject, different systems — nothing that was open
                  under the last one still means anything. */
               setExpanded([]);
             }}
-            aria-label={groupBy === "area" ? "Filter by location" : "Filter by discipline"}
+            ariaLabel={groupBy === "area" ? "Filter by location" : "Filter by discipline"}
             title={activeFilter || (groupBy === "area" ? "Every location" : "Every discipline")}
-            className="w-[124px] shrink-0 rounded-[11px] border px-2 text-[11.5px] outline-none sm:w-[210px]"
-            style={{
-              minHeight: 42,
-              background: activeFilter ? "var(--acc-soft)" : "var(--panel)",
-              borderColor: activeFilter ? "var(--acc-line)" : "var(--line-2)",
-              color: activeFilter ? "var(--acc)" : "var(--ink-2)",
-            }}
-          >
-            <option value="">{groupBy === "area" ? "All locations" : "All disciplines"}</option>
-            {tops.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
+            active={!!activeFilter}
+            className="w-[124px] sm:w-[210px]"
+            style={{ minHeight: 42 }}
+            options={[
+              { value: "", label: groupBy === "area" ? "All locations" : "All disciplines" },
+              ...tops.map((t) => ({ value: t, label: t })),
+            ]}
+          />
           <div
             className="flex min-w-0 flex-1 items-center gap-2 rounded-[11px] border px-3 py-1 sm:py-2"
             style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}

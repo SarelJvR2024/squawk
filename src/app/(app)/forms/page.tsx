@@ -15,7 +15,8 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { FORM_KIND_LABEL, groupByDate, useFormsIndex, type FormKind } from "@/lib/formsIndex";
-import { Chip, Empty, Pill } from "@/components/ui/primitives";
+import { Empty, Pill } from "@/components/ui/primitives";
+import { FilterBar } from "@/components/ui/FilterBar";
 import { IconCheck, IconClipboard, IconFlag, IconInbox, IconLock, IconMic, IconPin, IconTeam } from "@/components/ui/icons";
 
 const TILES: Array<{ kind: FormKind | "evidence2"; label: string; hint: string; href: string; icon: ReactNode }> = [
@@ -51,6 +52,12 @@ function dayLabel(date: string, today: string): string {
 }
 
 type StatusFilter = "all" | "completed" | "needsAttention";
+
+const STATUS_FILTER_LABEL: Record<StatusFilter, string> = {
+  all: "All",
+  completed: "Completed",
+  needsAttention: "Needs attention",
+};
 
 export default function FormsHubPage() {
   const router = useRouter();
@@ -105,42 +112,51 @@ export default function FormsHubPage() {
         ))}
       </div>
 
-      {/* FILTERS, ON CHIPS RATHER THAN Btn — Btn's 44px minimum height is the
-          right floor for a control somebody commits an answer with; a filter
-          is a lighter-weight, optional refinement, and ten kind buttons at
-          that floor wrapped across three lines. Chip is the same primitive
-          the Answer Library already uses for "pick one of several small
-          options", so this is the existing pattern applied here rather than
-          a new one. The kind row scrolls horizontally instead of wrapping,
-          so it costs exactly one line regardless of how many forms exist. */}
+      {/* FILTERS, FOLDED — same shared disclosure Capture/Review/Closure use
+          (src/components/ui/FilterBar.tsx). These two Chip rows were the one
+          place in the app that already reached for the shared `Chip`
+          primitive instead of reinventing it, but stacked they still cost
+          ~230px before any record list, more once the kind row wraps on a
+          narrow phone — the same "too many filters visible at once,
+          scattered all over" complaint the Closure rebuild answered. */}
       {role !== "acsa" && (
-        <div
-          className="mb-2 flex flex-nowrap gap-[5px] overflow-x-auto pb-1 [&>*]:shrink-0 [&>*]:whitespace-nowrap"
-          style={{ scrollbarWidth: "none" }}
-        >
-          <Chip selected={filter === "all"} onClick={() => setFilter("all")}>
-            All
-          </Chip>
-          {(Object.keys(FORM_KIND_LABEL) as FormKind[]).map((k) => (
-            <Chip key={k} selected={filter === k} onClick={() => setFilter(k)}>
-              {FORM_KIND_LABEL[k]}
-            </Chip>
-          ))}
-        </div>
-      )}
-
-      {role !== "acsa" && (
-        <div className="mb-3 flex gap-[5px]">
-          <Chip selected={status === "all"} onClick={() => setStatus("all")}>
-            All
-          </Chip>
-          <Chip selected={status === "completed"} onClick={() => setStatus("completed")}>
-            Completed
-          </Chip>
-          <Chip selected={status === "needsAttention"} onClick={() => setStatus("needsAttention")}>
-            Needs attention
-          </Chip>
-        </div>
+        <FilterBar
+          className="mb-3"
+          summary={
+            filter === "all" && status === "all" ? (
+              "All forms"
+            ) : (
+              <>
+                Showing: <b>{[filter !== "all" ? FORM_KIND_LABEL[filter] : null, STATUS_FILTER_LABEL[status]].filter(Boolean).join(" · ")}</b>
+              </>
+            )
+          }
+          active={filter !== "all" || status !== "all"}
+          groups={[
+            {
+              label: "Form",
+              options: [
+                { key: "all", label: "All" },
+                ...(Object.keys(FORM_KIND_LABEL) as FormKind[]).map((k) => ({
+                  key: k,
+                  label: FORM_KIND_LABEL[k],
+                })),
+              ],
+              value: filter,
+              onChange: (k) => setFilter(k as FormKind | "all"),
+            },
+            {
+              label: "Status",
+              options: [
+                { key: "all", label: "All" },
+                { key: "completed", label: "Completed" },
+                { key: "needsAttention", label: "Needs attention" },
+              ],
+              value: status,
+              onChange: (k) => setStatus(k as StatusFilter),
+            },
+          ]}
+        />
       )}
 
       {groups.length === 0 ? (

@@ -36,6 +36,7 @@ import { currentRatingOf } from "@/lib/carryforward";
 import { mappingFor, worstRating } from "@/lib/crosswalk";
 import { AttachmentStrip } from "@/components/Capture";
 import { Panel, Pill, type Tone } from "@/components/ui/primitives";
+import { DisciplineSelect } from "@/components/ui/DisciplineSelect";
 import {
   IconCamera,
   IconCheck,
@@ -309,19 +310,15 @@ export default function DashboardPage() {
               ))}
             </div>
             {level === "airport" && (
-              <select
+              <DisciplineSelect
                 value={disciplineFilter}
-                onChange={(e) => setDisciplineFilter(e.target.value)}
-                className="rounded-[9px] border px-2.5 py-[7px] text-[12px]"
-                style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-              >
-                <option value="all">All disciplines</option>
-                {disciplines.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
+                onChange={setDisciplineFilter}
+                className="w-auto"
+                options={[
+                  { value: "all", label: "All disciplines" },
+                  ...disciplines.map((d) => ({ value: d, label: d })),
+                ]}
+              />
             )}
             <Pill tone={role === "acsa" ? "neutral" : "accent"}>{role === "acsa" ? "READ-ONLY" : "TPJV"}</Pill>
           </div>

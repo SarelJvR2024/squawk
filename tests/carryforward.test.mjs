@@ -45,6 +45,7 @@ const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8"
 
 const cf = src("lib", "carryforward.ts");
 const closure = src("app", "(app)", "closure", "page.tsx");
+const filterBar = src("components", "ui", "FilterBar.tsx");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -271,7 +272,17 @@ check(
 
 check(
   "the discipline chips are 44px, like everything else an auditor taps",
-  /min-h-\[44px\] rounded-full border px-\[11px\]/.test(closure)
+  /* Closure's own filter chips moved into the shared FilterBar primitive
+     (src/components/ui/FilterBar.tsx) as part of the UX-audit P0 pass —
+     same chip markup, now rendered once for every screen that uses it
+     rather than typed out here. The 44px floor survives as the
+     `chipClassName` Closure still passes for its discipline group (its
+     status group deliberately does not get it — that was already true
+     before the extraction, FilterBar just preserves the asymmetry per
+     group), and FilterBar appends whatever chipClassName it is given to
+     every chip's own className. */
+  /chipClassName: "min-h-\[44px\]"/.test(closure) &&
+    /\$\{group\.chipClassName/.test(filterBar)
 );
 
 /* ------------------------------------- the timeline: every audit, as a shape */
