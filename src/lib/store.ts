@@ -384,6 +384,20 @@ interface State {
   /** The entity and visit every scoped read and write below belongs to. */
   entity: string;
   visit: string;
+  /** THE SHARED DISCIPLINE FILTER — Capture, Review, Field and HIRA each
+   *  used to keep this in their own local `useState`, so picking "Electrical"
+   *  on Capture and then opening Field showed every discipline again. One
+   *  value now, keyed by entity so moving to another airport does not carry
+   *  one entity's pick onto another's register (same reasoning `setEntity`
+   *  already uses for which visit to land on). "" means "no discipline
+   *  picked" — Field and HIRA's own "All disciplines" state; Capture and
+   *  Review have no such state (a desk or a walk is always IN one
+   *  discipline), so they fall back to their first available discipline
+   *  exactly as they did when this was local state, they just no longer
+   *  need a place of their own to remember the choice. Dashboard's own
+   *  discipline select deliberately does NOT read or write this — see the
+   *  note on its call site for why. */
+  disciplineFilterByEntity: Record<string, string>;
   byVisit: Record<string, VisitData>;
   /** Audits created in the app, on top of the six programme.json seeds. */
   customVisits: ProgrammeVisit[];
@@ -462,6 +476,9 @@ interface State {
   setAuditor: (a: string) => void;
   setDictation: (on: boolean) => void;
   setEntity: (code: string) => void;
+  /** Sets the shared discipline filter for the CURRENT entity only — see
+   *  disciplineFilterByEntity above. */
+  setDisciplineFilter: (discipline: string) => void;
   setVisit: (visitId: string) => void;
   /** Create an audit. Returns null on success, or why it was refused. */
   addVisit: (entityCode: string, visitId: string, note?: string) => string | null;
@@ -1028,6 +1045,7 @@ export const useStore = create<State>()(
         dictation: false,
         entity: CURRENT_ENTITY_CODE,
         visit: CURRENT_VISIT_ID,
+        disciplineFilterByEntity: {},
         byVisit: {},
         customVisits: [],
         auditDateOverrides: {},
@@ -1068,6 +1086,11 @@ export const useStore = create<State>()(
           }),
 
         setVisit: (visit) => set({ visit }),
+
+        setDisciplineFilter: (discipline) =>
+          set((s) => ({
+            disciplineFilterByEntity: { ...s.disciplineFilterByEntity, [s.entity]: discipline },
+          })),
 
         addVisit: (entityCode, visitId, note) => {
           if (!VISIT_ID.test(visitId))
@@ -3750,7 +3773,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 37,
+      version: 38,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -4475,6 +4498,13 @@ export const useStore = create<State>()(
              version number to carry forward in case a later migration ever
              needs to tell "before this existed" apart from "after." */
         }
+        if (from < 38) {
+          /* disciplineFilterByEntity (the shared Capture/Review/Field/HIRA
+             discipline filter) is new and purely additive, same shape as
+             the `from < 36` note just above — a tablet that predates it
+             simply has none, and the default `{}` from the store's own
+             initial state already means exactly that: nothing picked yet. */
+        }
         if (from < 37 && !st.auditDateOverrides) {
           /* auditDateOverrides — Sarel: "build an option where a user can
              edit the audit dates." A tablet that predates this simply has
@@ -4490,6 +4520,7 @@ export const useStore = create<State>()(
         dictation: s.dictation,
         entity: s.entity,
         visit: s.visit,
+        disciplineFilterByEntity: s.disciplineFilterByEntity,
         byVisit: s.byVisit,
         customVisits: s.customVisits,
         auditDateOverrides: s.auditDateOverrides,
@@ -4530,6 +4561,15 @@ if (typeof window !== "undefined") {
    would loop. */
 
 export const useEntityCode = () => useStore((s) => s.entity);
+/** The discipline filter shared across Capture, Review, Field and HIRA for
+ *  the entity currently in view — see disciplineFilterByEntity's own note
+ *  on State. "" means no discipline picked. A thin selector, same shape as
+ *  useEntityCode just above; the setter is reached directly off useStore
+ *  the same way setEntity already is at every one of its call sites. */
+export const useDisciplineFilter = (): string => {
+  const entity = useStore((s) => s.entity);
+  return useStore((s) => s.disciplineFilterByEntity[entity] ?? "");
+};
 /** Null while this device's own storage is working; a sentence for the
  *  banner the moment a write to it fails. See idbStorage.setItem. */
 export const usePersistError = () => useStore((s) => s.persistError);

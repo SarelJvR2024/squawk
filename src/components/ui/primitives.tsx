@@ -1,5 +1,18 @@
 "use client";
 
+/** THE BORDER-RADIUS SCALE — three tiers, nothing in between:
+ *    8px  — small controls/chips (icon buttons, badges, compact segments)
+ *    11px — inputs, selects, buttons (this file's own `Btn`, `DisciplineSelect`)
+ *    16px — panels, cards, larger bordered containers (this file's `Panel`)
+ *  `rounded-full` is separate again — the intentional pill shape for `Chip`
+ *  and the filter rows in `FilterBar`, never one of these three. Before this
+ *  pass, ad-hoc `rounded-[Npx]` values (5, 6, 7, 9, 10, 12, 13, 15, 20…)
+ *  drifted independently across the app for conceptually identical
+ *  containers; every one of them was mapped to the nearest of the three
+ *  values above. Keep new corner radii on this scale rather than picking a
+ *  fourth. (The CheckDetail/ReviewDetail compliance-verdict grid driven by
+ *  `toneStyle()` was a prior, separate pass and was left untouched here.) */
+
 import type { ReactNode, ButtonHTMLAttributes } from "react";
 
 export type Tone = "good" | "bad" | "warn" | "neutral" | "accent";
@@ -12,6 +25,15 @@ const toneVars: Record<Tone, { fg: string; bg: string; line: string }> = {
   accent: { fg: "var(--acc)", bg: "var(--acc-soft)", line: "var(--acc-line)" },
 };
 
+/** A STATUS TAG, NOT A CONTROL — deliberately doesn't share `Chip`'s pill
+ *  shape. `Pill` is read-only (a `<span>`, never a `<button>`), so it keeps
+ *  the small-control radius tier (`rounded-[8px]`) while every interactive
+ *  filter chip (`Chip` below, and `FilterBar`'s chip rows) stays
+ *  `rounded-full` — the one visible, consistent cue for "this is a tag you
+ *  read" vs. "this is a button you tap." `cursor-default` is explicit
+ *  rather than relied-on, since a `Pill` sitting next to clickable chips
+ *  (e.g. the "READ-ONLY"/"TPJV" pills beside Dashboard's filter row) is
+ *  exactly the case a wrong cursor would be most misleading in. */
 export function Pill({
   children,
   tone = "neutral",
@@ -25,7 +47,7 @@ export function Pill({
   return (
     <span
       title={title}
-      className="inline-flex items-center gap-1 rounded-full px-2 py-[2px] font-mono text-[9.5px] font-semibold whitespace-nowrap"
+      className="inline-flex cursor-default items-center gap-1 rounded-[8px] px-2 py-[2px] font-mono text-[9.5px] font-semibold whitespace-nowrap"
       style={{ background: t.bg, color: t.fg }}
     >
       {children}
@@ -95,7 +117,7 @@ export function Btn({
   const base =
     "inline-flex min-h-[44px] items-center gap-[7px] font-display font-semibold text-[12px] rounded-[11px] transition-[var(--t)] active:translate-y-[1px] disabled:opacity-40 disabled:cursor-not-allowed";
   /* An icon-only button is square at the same height, not a 34px sliver. */
-  const pad = icon ? "min-w-[44px] justify-center p-[9px] rounded-[10px]" : "px-[15px] py-[9px]";
+  const pad = icon ? "min-w-[44px] justify-center p-[9px] rounded-[11px]" : "px-[15px] py-[9px]";
   const styles =
     variant === "primary"
       ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)", boxShadow: "var(--e1)" }

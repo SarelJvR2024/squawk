@@ -410,7 +410,7 @@ export default function RecordActions({
             return (
               <>
                 <div
-                  className="mt-2 flex flex-wrap items-center gap-2 rounded-[9px] px-[11px] py-[8px] font-display text-[12px] font-bold"
+                  className="mt-2 flex flex-wrap items-center gap-2 rounded-[8px] px-[11px] py-[8px] font-display text-[12px] font-bold"
                   style={
                     p
                       ? record.ermConfirmed
@@ -462,7 +462,7 @@ export default function RecordActions({
                 {/* The one thing that must not pass quietly. */}
                 {record.ermLikelihoodAssumed && record.ermLikelihood && (
                   <div
-                    className="mt-1.5 rounded-[7px] border px-[8px] py-[6px] text-[11px] leading-[1.5]"
+                    className="mt-1.5 rounded-[8px] border px-[8px] py-[6px] text-[11px] leading-[1.5]"
                     style={{
                       background: "var(--warn-bg)",
                       borderColor: "var(--warn-line)",
@@ -797,7 +797,7 @@ export default function RecordActions({
           <select
             value={record.actionStatus}
             onChange={(e) => onChange({ actionStatus: e.target.value as ActionStatus })}
-            className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[11.5px]"
+            className="mt-1 w-full rounded-[8px] border px-2.5 py-2 text-[11.5px]"
             style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
           >
             {(["Open", "In progress", "Closed"] as ActionStatus[]).map((s) => (

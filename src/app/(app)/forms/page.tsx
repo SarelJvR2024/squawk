@@ -103,7 +103,7 @@ export default function FormsHubPage() {
             key={t.label}
             title={t.hint}
             onClick={() => router.push(t.href)}
-            className="flex min-h-[52px] flex-col items-center justify-center gap-[3px] rounded-[10px] border px-1 py-[7px] text-center transition-[var(--t)] hover:bg-[var(--sunken)]"
+            className="flex min-h-[52px] flex-col items-center justify-center gap-[3px] rounded-[11px] border px-1 py-[7px] text-center transition-[var(--t)] hover:bg-[var(--sunken)]"
             style={{ background: "var(--panel)", borderColor: "var(--line)" }}
           >
             <span style={{ color: "var(--acc)" }}>{t.icon}</span>
@@ -198,7 +198,7 @@ export default function FormsHubPage() {
                 <button
                   key={`${r.kind}-${r.id}`}
                   onClick={() => router.push(r.href)}
-                  className="mb-[6px] flex w-full items-start justify-between gap-3 rounded-[10px] border px-[11px] py-[8px] text-left transition-[var(--t)] hover:bg-[var(--sunken)]"
+                  className="mb-[6px] flex w-full items-start justify-between gap-3 rounded-[11px] border px-[11px] py-[8px] text-left transition-[var(--t)] hover:bg-[var(--sunken)]"
                   style={{ background: "var(--panel)", borderColor: "var(--line)" }}
                 >
                   <div className="min-w-0">

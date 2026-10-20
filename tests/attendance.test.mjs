@@ -549,7 +549,11 @@ check(
   "arrival is stamped by the store, not left to be typed",
   /addAttendee[\s\S]{0,900}arrivedAt: now/.test(store)
 );
-check("site days are persisted", /partialize[\s\S]{0,500}siteDays: s\.siteDays/.test(store));
+/* UX-audit P1 added disciplineFilterByEntity ahead of byVisit in
+   partialize (src/lib/store.ts), pushing every field after it further
+   from the "partialize" literal — widened from 500 to account for that
+   one new line; siteDays itself did not move relative to byVisit. */
+check("site days are persisted", /partialize[\s\S]{0,600}siteDays: s\.siteDays/.test(store));
 check(
   "the persisted shape was versioned",
   Number(/version: (\d+),/.exec(store)?.[1] ?? 0) >= 16,

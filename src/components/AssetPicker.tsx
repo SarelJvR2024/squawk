@@ -64,7 +64,7 @@ export default function AssetPicker({
     <details
       open={open}
       onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
-      className="rounded-[10px] border"
+      className="rounded-[11px] border"
       style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
     >
       <summary
@@ -141,7 +141,7 @@ export default function AssetPicker({
                   <li key={a.assetId}>
                     <button
                       onClick={() => toggle(a)}
-                      className="flex min-h-[44px] w-full items-center gap-2 rounded-[7px] px-[8px] text-left text-[11px]"
+                      className="flex min-h-[44px] w-full items-center gap-2 rounded-[8px] px-[8px] text-left text-[11px]"
                       style={{ background: on ? "var(--acc-soft)" : "transparent", color: "var(--ink)" }}
                     >
                       <span className="font-mono text-[10px]" style={{ color: on ? "var(--acc)" : "var(--ink-3)" }}>

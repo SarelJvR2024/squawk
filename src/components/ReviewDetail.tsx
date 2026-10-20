@@ -270,7 +270,7 @@ export default function ReviewDetail({
 
               {evidenceRequested && (
                 <div
-                  className="mb-2.5 rounded-[9px] border px-[10px] py-[7px] text-[12px] leading-[1.5]"
+                  className="mb-2.5 rounded-[8px] border px-[10px] py-[7px] text-[12px] leading-[1.5]"
                   style={{ background: "var(--sunken)", borderColor: "var(--line)", color: "var(--ink-2)" }}
                 >
                   <span className="label-xs mr-1.5" style={{ color: "var(--ink-4)" }}>

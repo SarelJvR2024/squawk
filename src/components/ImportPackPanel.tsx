@@ -193,7 +193,7 @@ export default function ImportPackPanel() {
 
   return (
     <div
-      className="mb-3.5 rounded-[13px] border p-3"
+      className="mb-3.5 rounded-[11px] border p-3"
       style={{ borderColor: "var(--line)", background: "var(--sunken)" }}
     >
       <div className="flex flex-wrap items-start gap-3">
@@ -393,7 +393,7 @@ export default function ImportPackPanel() {
 
 function Tile({ n, label, sub }: { n: number; label: string; sub: string }) {
   return (
-    <div className="rounded-[9px] border px-2.5 py-2" style={{ borderColor: "var(--line)", background: "var(--sunken)" }}>
+    <div className="rounded-[8px] border px-2.5 py-2" style={{ borderColor: "var(--line)", background: "var(--sunken)" }}>
       <div className="font-display text-[17px] font-bold">{n}</div>
       <div className="text-[10.5px] leading-[1.3]" style={{ color: "var(--ink-3)" }}>
         {label}

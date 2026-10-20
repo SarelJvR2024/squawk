@@ -7,6 +7,7 @@ import {
   disciplinesAt,
   priorFor,
   useCaptures,
+  useDisciplineFilter,
   useEntity,
   useEntityCode,
   useAdhoc,
@@ -21,6 +22,7 @@ import { portalIdFor } from "@/lib/sites";
 import type { AdHocItem, Check } from "@/lib/types";
 import { Btn, Empty, Pill } from "@/components/ui/primitives";
 import { DisciplineSelect } from "@/components/ui/DisciplineSelect";
+import { FilterPopover } from "@/components/ui/FilterPopover";
 import AddItemSheet from "@/components/AddItemSheet";
 import GroupRow from "@/components/ui/GroupRow";
 import Sheet from "@/components/ui/Sheet";
@@ -139,8 +141,22 @@ export default function FieldPage() {
      categories in a horizontally scrolling row is not a filter anybody can use,
      and it cost about 50px of a 664px screen permanently. A select is one
      40px control at any list length, and on a phone it opens as the platform's
-     own picker. */
-  const [filter, setFilter] = useState("");
+     own picker.
+
+     SHARED WITH CAPTURE, REVIEW AND HIRA ON THE DISCIPLINE AXIS ONLY — see
+     useDisciplineFilter's own note in src/lib/store.ts. The location axis
+     (`groupBy === "area"`) has nothing to share with those screens, so it
+     keeps its own local state exactly as before; `filter`/`setFilter` below
+     is a thin read-through to whichever axis is live, so every other use of
+     `filter` in this file (by way of `activeFilter`) is unchanged. */
+  const [areaFilter, setAreaFilter] = useState("");
+  const sharedDiscipline = useDisciplineFilter();
+  const setSharedDiscipline = useStore((s) => s.setDisciplineFilter);
+  const filter = groupBy === "area" ? areaFilter : sharedDiscipline;
+  const setFilter = (v: string) => {
+    if (groupBy === "area") setAreaFilter(v);
+    else setSharedDiscipline(v);
+  };
   /* Which groups are open. "top" and "top|system" — one flat set for both
      levels, because a key can only mean one of them. Session state, per the
      brief: remembered while the screen is open, not persisted. */
@@ -443,6 +459,22 @@ export default function FieldPage() {
   const axis = locationAxis(entityCode);
   const doneCount = visible.filter((c) => fieldDone(responses[c.id])).length;
 
+  /* THE FILTERS POPOVER'S OWN BUTTON — a one-line readout of all three axes
+     at once (the axis switch, the select, the search) so checking what is
+     applied never requires opening the panel, and a count badge for how
+     many of them are non-default. The axis switch itself (discipline vs.
+     location) is always "set to something" rather than on/off, so it is not
+     counted — same reasoning FilterBar's own `active` flag uses for a mode
+     toggle vs. an actual filter. */
+  const fieldFilterCount = (activeFilter ? 1 : 0) + (searching ? 1 : 0);
+  const fieldFilterSummary = [
+    groupBy === "area" ? "By location" : "By discipline",
+    activeFilter || (groupBy === "area" ? "All locations" : "All disciplines"),
+    searching ? `"${q.trim()}"` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
 
   return (
     <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -477,61 +509,121 @@ export default function FieldPage() {
           </p>
         </div>
 
-        {/* THE STICKY HEADER — the axis switch, the search and the filter, in
-            that order, and all three reachable without scrolling.
+        {/* THE STICKY HEADER — one row now: the Filters popover (the axis
+            switch, the select and the search all live inside it) plus the
+            progress figure beside it.
 
-            The axis switch used to sit ABOVE this bar, in the page heading's
-            row, so it scrolled away with the title: on a phone the control
-            that decides the entire shape of the list was gone by the second
-            screenful. It is in the bar now, first, because it is the one that
-            changes what everything below it means. */}
+            It used to be three rows stacked here permanently — the axis
+            switch, then the select and search sharing a row — which measured
+            156+122px (278px) at 375px wide before any content showed, the
+            UX audit's bucket-4 complaint. Nothing any of the three controls
+            DOES changed; see FilterPopover's own doc comment in
+            src/components/ui/FilterPopover.tsx for why this is a different
+            shape from Closure/Capture/Review/Forms's FilterBar disclosure. */}
         <div
           ref={barRef}
           className="sticky top-0 z-10 -mx-4 mb-2 border-b px-4 py-[5px] sm:-mx-6 sm:px-6 sm:py-[7px]"
           style={{ background: "var(--bg)", borderColor: "var(--line)" }}
         >
-          <div className="mb-1.5 flex items-center gap-2">
-          <div
-            role="radiogroup"
-            aria-label="Group the list by"
-            /* Capped on a desk, where a 1,130px two-way switch is a lot of
-               furniture for a binary choice. On a phone it shares its row with
-               the progress figure rather than owning one: measured at 375px
-               this sticky bar was 156px of a 664px screen, and between it, the
-               masthead and the two bottom bars the furniture came to 437px —
-               two thirds of the viewport, on the screen whose entire job is
-               the list underneath. */
-            className="flex min-w-0 flex-1 gap-[2px] rounded-[11px] p-[3px] sm:max-w-[420px] sm:flex-none"
-            style={{ background: "var(--sunken)" }}
-          >
-            {(["discipline", "area"] as const).map((g) => (
-              <button
-                key={g}
-                role="radio"
-                aria-checked={groupBy === g}
-                onClick={() => {
-                  setGroupBy(g);
-                  /* A new axis has different groups, so nothing that was open
-                     under the old one still means anything — and the filter is
-                     a discipline on one axis and a place on the other, so it
-                     means nothing either. */
-                  setExpanded([]);
-                  setFilter("");
-                }}
-                className="flex min-h-[38px] flex-1 items-center justify-center gap-[6px] rounded-[8px] px-3 font-display text-[11.5px] font-semibold transition-[var(--t)] sm:min-h-[40px]"
-                style={{
-                  background: groupBy === g ? "var(--panel)" : "transparent",
-                  color: groupBy === g ? "var(--acc)" : "var(--ink-2)",
-                  boxShadow: groupBy === g ? "var(--e1)" : "none",
-                }}
+          <div className="flex items-center gap-2">
+            <FilterPopover
+              activeCount={fieldFilterCount}
+              summary={fieldFilterSummary}
+              className="min-w-0 flex-1 sm:max-w-[420px] sm:flex-none"
+            >
+              <div
+                role="radiogroup"
+                aria-label="Group the list by"
+                className="flex gap-[2px] rounded-[11px] p-[3px]"
+                style={{ background: "var(--sunken)" }}
               >
-                {g === "area" && <IconPin width={13} height={13} />}
-                By {g === "area" ? "location" : "discipline"}
-              </button>
-            ))}
-            </div>
-            {/* Progress beside the switch, not under it. Two numbers on one
-                24px line instead of two lines. */}
+                {(["discipline", "area"] as const).map((g) => (
+                  <button
+                    key={g}
+                    role="radio"
+                    aria-checked={groupBy === g}
+                    onClick={() => {
+                      setGroupBy(g);
+                      /* A new axis has different groups, so nothing that was
+                         open under the old one still means anything. The
+                         location axis's own filter resets here exactly as it
+                         always did — a place filter means nothing once
+                         you've left it. The discipline axis does NOT reset:
+                         it is the shared filter (useDisciplineFilter), and
+                         clearing it on every toggle back to "By discipline"
+                         would throw away the whole point of sharing it with
+                         Capture/Review/HIRA. Setting it directly (not through
+                         `setFilter`, which reads the OLD `groupBy` from this
+                         closure) avoids clearing the wrong axis. */
+                      setExpanded([]);
+                      setAreaFilter("");
+                    }}
+                    className="flex min-h-[38px] flex-1 items-center justify-center gap-[6px] rounded-[8px] px-3 font-display text-[11.5px] font-semibold transition-[var(--t)] sm:min-h-[40px]"
+                    style={{
+                      background: groupBy === g ? "var(--panel)" : "transparent",
+                      color: groupBy === g ? "var(--acc)" : "var(--ink-2)",
+                      boxShadow: groupBy === g ? "var(--e1)" : "none",
+                    }}
+                  >
+                    {g === "area" && <IconPin width={13} height={13} />}
+                    By {g === "area" ? "location" : "discipline"}
+                  </button>
+                ))}
+              </div>
+
+              {/* THE TOP LEVEL, AS A FILTER. It was six rows of the tree that
+                  every auditor opened and closed on every visit to this
+                  screen. It is one control now, and the tree under it starts
+                  at the asset system. */}
+              <DisciplineSelect
+                value={activeFilter}
+                onChange={(v) => {
+                  setFilter(v);
+                  /* Different subject, different systems — nothing that was
+                     open under the last one still means anything. */
+                  setExpanded([]);
+                }}
+                ariaLabel={groupBy === "area" ? "Filter by location" : "Filter by discipline"}
+                title={activeFilter || (groupBy === "area" ? "Every location" : "Every discipline")}
+                active={!!activeFilter}
+                className="w-full"
+                options={[
+                  { value: "", label: groupBy === "area" ? "All locations" : "All disciplines" },
+                  ...tops.map((t) => ({ value: t, label: t })),
+                ]}
+              />
+
+              <div
+                className="flex min-w-0 items-center gap-2 rounded-[11px] border px-3 py-1 sm:py-2"
+                style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+              >
+                <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
+                {/* The search box on the walkabout screen is how an auditor
+                    finds the check for the thing in front of them, and it
+                    measured 24px — the only control on any screen still
+                    under the target. The wrapper carries the border, so the
+                    height goes on the input. */}
+                <input
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Search anywhere…"
+                  aria-label="Search any check"
+                  className="min-h-[40px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
+                />
+              </div>
+              {/* SAID OUT LOUD, because otherwise it looks like the filter
+                  broke. A search runs across the whole register — it has to,
+                  or the check for the thing in front of the auditor is
+                  missing because of a filter they set in another building. */}
+              {searching && activeFilter && (
+                <div className="text-[10.5px]" style={{ color: "var(--ink-3)" }}>
+                  Searching every {groupBy === "area" ? "location" : "discipline"}, not just{" "}
+                  <b>{activeFilter}</b>.
+                </div>
+              )}
+            </FilterPopover>
+            {/* Progress beside the Filters button, not under it. Two numbers
+                on one 24px line instead of a whole row of its own. */}
             <span className="flex shrink-0 items-center gap-1.5 font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
               <span>
                 {doneCount}/{visible.length}
@@ -541,63 +633,6 @@ export default function FieldPage() {
               )}
             </span>
           </div>
-
-          <div className="mb-1.5 flex items-stretch gap-2">
-          {/* THE TOP LEVEL, AS A FILTER. It was six rows of the tree that every
-              auditor opened and closed on every visit to this screen. It is one
-              control now, and the tree under it starts at the asset system.
-
-              It shares its row with the search rather than taking one of its
-              own: measured at 375px this bar was already 122px of a 664px
-              screen after the last trim, and a third row would put back most of
-              what that trim bought. */}
-          <DisciplineSelect
-            value={activeFilter}
-            onChange={(v) => {
-              setFilter(v);
-              /* Different subject, different systems — nothing that was open
-                 under the last one still means anything. */
-              setExpanded([]);
-            }}
-            ariaLabel={groupBy === "area" ? "Filter by location" : "Filter by discipline"}
-            title={activeFilter || (groupBy === "area" ? "Every location" : "Every discipline")}
-            active={!!activeFilter}
-            className="w-[124px] sm:w-[210px]"
-            style={{ minHeight: 42 }}
-            options={[
-              { value: "", label: groupBy === "area" ? "All locations" : "All disciplines" },
-              ...tops.map((t) => ({ value: t, label: t })),
-            ]}
-          />
-          <div
-            className="flex min-w-0 flex-1 items-center gap-2 rounded-[11px] border px-3 py-1 sm:py-2"
-            style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-          >
-            <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
-            {/* The search box on the walkabout screen is how an auditor finds
-                the check for the thing in front of them, and it measured 24px
-                — the only control on any screen still under the target. The
-                wrapper carries the border, so the height goes on the input. */}
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search anywhere…"
-              aria-label="Search any check"
-              className="min-h-[40px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
-            />
-          </div>
-          </div>
-          {/* SAID OUT LOUD, because otherwise it looks like the filter broke.
-              A search runs across the whole register — it has to, or the check
-              for the thing in front of the auditor is missing because of a
-              filter they set in another building — and the row count jumping
-              past the filter needs one line of explanation. */}
-          {searching && activeFilter && (
-            <div className="mb-1.5 text-[10.5px]" style={{ color: "var(--ink-3)" }}>
-              Searching every {groupBy === "area" ? "location" : "discipline"}, not just{" "}
-              <b>{activeFilter}</b>.
-            </div>
-          )}
           {/* THE FILTER CHIP ROW IS GONE, AND THAT IS THE POINT.
               It was a row of discipline names that filtered a flat list. The
               list is now a tree grouped BY discipline, so the chips were a
@@ -676,7 +711,7 @@ export default function FieldPage() {
                looked exactly like a header that had not reached its stopping
                point yet. The square corner where the first group row meets the
                border is the price, and it is worth paying. */
-            className="rounded-[13px] border"
+            className="rounded-[11px] border"
             style={{ background: "var(--panel)", borderColor: "var(--line)" }}
           >
             {tree.map((g) => {
@@ -897,7 +932,7 @@ export default function FieldPage() {
                                       not a check-point has to say so in a way
                                       that survives a greyscale printout. */}
                                   <span
-                                    className="flex items-center gap-[3px] rounded-[5px] border border-dashed px-[5px] py-[1px] font-mono text-[8.5px]"
+                                    className="flex items-center gap-[3px] rounded-[8px] border border-dashed px-[5px] py-[1px] font-mono text-[8.5px]"
                                     style={{ borderColor: "var(--acc)", color: "var(--acc)" }}
                                     title="Added on the walk — not one of ACSA's check-points, and not counted in the completion figure"
                                   >
@@ -1049,7 +1084,7 @@ export default function FieldPage() {
       {tray && (
         <div className="fixed inset-0 z-[80] flex justify-center pt-[10vh]" style={{ background: "rgba(16,10,32,.5)", backdropFilter: "blur(4px)" }} onClick={() => setTray(false)}>
           <div
-            className="max-h-[70vh] w-[min(560px,92vw)] overflow-y-auto rounded-[20px] border p-[22px]"
+            className="max-h-[70vh] w-[min(560px,92vw)] overflow-y-auto rounded-[16px] border p-[22px]"
             style={{ background: "var(--panel)", borderColor: "var(--line-2)", boxShadow: "var(--e3)" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1105,7 +1140,7 @@ export default function FieldPage() {
           onClick={() => setHazardOpen(false)}
         >
           <div
-            className="w-[min(560px,92vw)] rounded-[20px] border p-[22px]"
+            className="w-[min(560px,92vw)] rounded-[16px] border p-[22px]"
             style={{ background: "var(--panel)", borderColor: "var(--line-2)", boxShadow: "var(--e3)" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1142,7 +1177,7 @@ export default function FieldPage() {
                 <select
                   value={adhocDisc}
                   onChange={(e) => setAdhocDisc(e.target.value)}
-                  className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[12px]"
+                  className="mt-1 w-full rounded-[8px] border px-2.5 py-2 text-[12px]"
                   style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
                 >
                   {disciplines.map((d) => (
@@ -1155,7 +1190,7 @@ export default function FieldPage() {
                 <select
                   value={adhocArea}
                   onChange={(e) => setAdhocArea(e.target.value)}
-                  className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[12px]"
+                  className="mt-1 w-full rounded-[8px] border px-2.5 py-2 text-[12px]"
                   style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
                 >
                   {areas.map((a) => (
@@ -1404,7 +1439,7 @@ export default function FieldPage() {
                 an empty one renders nothing at all. */}
             {c.walkabout?.trim() && (
               <div
-                className="mb-3 rounded-[9px] border-l-[2px] pl-[9px]"
+                className="mb-3 rounded-[8px] border-l-[2px] pl-[9px]"
                 style={{ borderColor: "var(--line-2)" }}
               >
                 <div className="label-xs" style={{ color: "var(--ink-4)" }}>
@@ -1428,7 +1463,7 @@ export default function FieldPage() {
 
             {needsPhoto && (
               <div
-                className="mb-3 flex items-center gap-2 rounded-[9px] border px-[10px] py-[7px] text-[11px]"
+                className="mb-3 flex items-center gap-2 rounded-[8px] border px-[10px] py-[7px] text-[11px]"
                 style={{
                   background: "var(--warn-bg)",
                   borderColor: "var(--warn-line)",
@@ -1546,7 +1581,7 @@ export default function FieldPage() {
               );
               return (
                 <div
-                  className="mt-5 rounded-[12px] border border-dashed p-3"
+                  className="mt-5 rounded-[11px] border border-dashed p-3"
                   style={{ borderColor: "var(--acc-line)", background: "var(--acc-soft)" }}
                 >
                   <div className="mb-1 flex items-center justify-between gap-2">
@@ -1594,7 +1629,7 @@ export default function FieldPage() {
                       {internalItems.map((it) => (
                         <div
                           key={it.id}
-                          className="rounded-[10px] border p-2.5"
+                          className="rounded-[11px] border p-2.5"
                           style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
                         >
                           <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -1604,7 +1639,7 @@ export default function FieldPage() {
                             <button
                               onClick={() => removeAdhoc(it.id)}
                               aria-label="Remove this parked item"
-                              className="flex h-[26px] w-[26px] items-center justify-center rounded-[7px]"
+                              className="flex h-[26px] w-[26px] items-center justify-center rounded-[8px]"
                               style={{ color: "var(--ink-3)" }}
                             >
                               <IconX width={12} height={12} />
@@ -1620,7 +1655,7 @@ export default function FieldPage() {
                               onChange={(e) => updateAdhoc(it.id, { area: e.target.value })}
                               list={LOCATION_LIST_ID}
                               placeholder="Stand 12, north switch room, Pier B roof…"
-                              className="mt-1 min-h-[40px] w-full rounded-[9px] border px-2.5 py-2 text-[12px] outline-none"
+                              className="mt-1 min-h-[40px] w-full rounded-[8px] border px-2.5 py-2 text-[12px] outline-none"
                               style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
                             />
                           </label>
@@ -1633,7 +1668,7 @@ export default function FieldPage() {
                               value={it.description}
                               onChange={(e) => updateAdhoc(it.id, { description: e.target.value })}
                               placeholder="Further assessment, check documents, regulations, codes, refer to engineer and discuss, consult ACSA, park observation for later stage…"
-                              className="mt-1 min-h-[64px] w-full resize-y rounded-[9px] border px-2.5 py-2 text-[12px] leading-[1.45] outline-none"
+                              className="mt-1 min-h-[64px] w-full resize-y rounded-[8px] border px-2.5 py-2 text-[12px] leading-[1.45] outline-none"
                               style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
                             />
                           </label>

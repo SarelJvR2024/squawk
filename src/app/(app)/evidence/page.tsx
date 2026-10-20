@@ -83,7 +83,7 @@ function dayOnly(t: number): string {
   });
 }
 
-const inputCls = "w-full rounded-[9px] border px-3 py-2 text-[13px]";
+const inputCls = "w-full rounded-[8px] border px-3 py-2 text-[13px]";
 const inputStyle = { background: "var(--bg)", borderColor: "var(--line)" } as const;
 
 export default function EvidencePage() {
@@ -481,7 +481,7 @@ export default function EvidencePage() {
                             onClick={() =>
                               patch(e.id, { checkIds: e.checkIds.filter((x) => x !== cid) })
                             }
-                            className="rounded-[6px] border px-2 py-1 font-mono text-[9px]"
+                            className="rounded-[8px] border px-2 py-1 font-mono text-[9px]"
                             style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                             aria-label={`Remove ${portalIdFor(entityCode, cid)}`}
                           >

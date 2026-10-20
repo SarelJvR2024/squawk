@@ -57,7 +57,7 @@ export default function Sheet({
       <div
         role="dialog"
         aria-modal="true"
-        className={`flex max-h-[94vh] w-full flex-col rounded-t-[20px] border sm:max-h-[86vh] sm:rounded-[20px] ${
+        className={`flex max-h-[94vh] w-full flex-col rounded-t-[16px] border sm:max-h-[86vh] sm:rounded-[16px] ${
           wide ? "sm:w-[min(760px,94vw)]" : "sm:w-[min(600px,94vw)]"
         }`}
         style={{
@@ -94,7 +94,7 @@ export default function Sheet({
             /* 44px like everything else an auditor taps. It is also the
                control somebody reaches for by accident, so it is far from the
                primary action rather than beside it. */
-            className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-[10px]"
+            className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-[11px]"
             style={{ color: "var(--ink-3)" }}
           >
             <IconX width={16} height={16} />

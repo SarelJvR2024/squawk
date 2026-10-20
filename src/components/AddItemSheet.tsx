@@ -238,7 +238,7 @@ export default function AddItemSheet({
       onClick={close}
     >
       <div
-        className="flex max-h-[92vh] w-full flex-col rounded-t-[20px] border sm:max-h-[84vh] sm:w-[min(600px,94vw)] sm:rounded-[20px]"
+        className="flex max-h-[92vh] w-full flex-col rounded-t-[16px] border sm:max-h-[84vh] sm:w-[min(600px,94vw)] sm:rounded-[16px]"
         style={{
           background: "var(--panel)",
           borderColor: "var(--line-2)",
@@ -267,7 +267,7 @@ export default function AddItemSheet({
           <button
             onClick={close}
             aria-label="Close"
-            className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[9px]"
+            className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[8px]"
             style={{ color: "var(--ink-3)" }}
           >
             <IconX width={16} height={16} />
@@ -510,7 +510,7 @@ export default function AddItemSheet({
 
           {item && (
             <div
-              className="mt-4 rounded-[12px] border p-3"
+              className="mt-4 rounded-[11px] border p-3"
               style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
             >
               {item.findingId ? (

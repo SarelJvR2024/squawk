@@ -96,7 +96,7 @@ export default function VisitStrip({
             title={`${c.label} — ${WORD[c.state]}${c.by ? ` (${c.by})` : ""}`}
             aria-label={`${c.label}: ${WORD[c.state]}`}
             role="img"
-            className="block rounded-[3px]"
+            className="block rounded-[8px]"
             style={{ width: size, height: size, ...cellStyle(c.state) }}
           />
           {labels && (

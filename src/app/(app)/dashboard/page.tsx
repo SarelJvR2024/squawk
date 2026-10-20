@@ -125,7 +125,17 @@ export default function DashboardPage() {
   /* "all disciplines allow filter per discipline or all" — Sarel, replacing
      the ACSA SharePoint check-points register this screen now mirrors. "all"
      is the default so the screen opens showing the whole visit, same as the
-     register itself before anyone narrows it. */
+     register itself before anyone narrows it.
+
+     DELIBERATELY LOCAL, NOT THE SHARED useDisciplineFilter() (src/lib/
+     store.ts) Capture/Review/Field/HIRA now read and write. Those four are
+     "which discipline am I working in" — the same discipline follows the
+     auditor from one to the next. This one is "which discipline's STATS am
+     I looking at" on a report the whole team opens, including ACSA's own
+     read-only role: it has to open to "all" every time regardless of
+     whatever an auditor's phone last had Capture set to, and picking
+     "Electrical" to read one discipline's numbers must not reset the
+     discipline every other screen is actively working in. */
   const [disciplineFilter, setDisciplineFilter] = useState<string>("all");
   const disciplinesInScope = disciplineFilter === "all" ? disciplines : [disciplineFilter];
 
@@ -255,7 +265,7 @@ export default function DashboardPage() {
   const kpi = (label: string, value: string | number, tone?: "good" | "bad" | "warn" | "acc") => (
     <div
       key={label}
-      className="relative overflow-hidden rounded-[15px] border px-[15px] py-[13px]"
+      className="relative overflow-hidden rounded-[16px] border px-[15px] py-[13px]"
       style={{ background: "var(--panel)", borderColor: "var(--line)" }}
     >
       <span
@@ -345,7 +355,7 @@ export default function DashboardPage() {
               {kpi("Open findings, network", portfolio.reduce((n, r) => n + r.findings, 0), "bad")}
               {kpi("2025 findings carried in", portfolio.reduce((n, r) => n + r.prior, 0), "warn")}
             </div>
-            <div className="overflow-x-auto rounded-[15px] border" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
+            <div className="overflow-x-auto rounded-[16px] border" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
               <table className="w-full border-collapse text-[12px]">
                 <thead>
                   <tr>
@@ -427,7 +437,7 @@ export default function DashboardPage() {
                   sheet. Severity/likelihood/tolerance are blank, not guessed,
                   until the group has agreed them — see `agreed` below, same
                   gate systemsSheet() and sharepoint.ts's assetRisk push use. */}
-              <div className="rounded-[15px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
+              <div className="rounded-[16px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
                 <h3 className="mb-3 text-[12.5px] font-bold">Asset systems: risk to operations</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-[12px]">
@@ -507,7 +517,7 @@ export default function DashboardPage() {
               </div>
 
               {/* ACSA B170 001M heat map */}
-              <div className="rounded-[15px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
+              <div className="rounded-[16px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-[12.5px] font-bold">Risk profile</h3>
                   <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
@@ -547,7 +557,7 @@ export default function DashboardPage() {
                           return (
                             <td
                               key={l}
-                              className="h-[38px] rounded-[7px] text-center font-mono text-[12.5px] font-semibold"
+                              className="h-[38px] rounded-[8px] text-center font-mono text-[12.5px] font-semibold"
                               style={{
                                 /* Empty cells keep a faint band wash so the shape of
                                    the matrix — where the dangerous corner is — reads
@@ -573,14 +583,14 @@ export default function DashboardPage() {
                     ["good", "Green — Acceptable"],
                   ].map(([t, label]) => (
                     <span key={label} className="flex items-center gap-1.5">
-                      <i className="h-[9px] w-[9px] rounded-[3px]" style={{ background: `var(--${t})` }} />
+                      <i className="h-[9px] w-[9px] rounded-[8px]" style={{ background: `var(--${t})` }} />
                       {label}
                     </span>
                   ))}
                 </div>
                 <div className="mt-2.5 grid grid-cols-3 gap-2 text-center">
                   {(["Red", "Amber", "Green"] as const).map((b) => (
-                    <div key={b} className="rounded-[9px] py-1.5" style={{ background: "var(--sunken)" }}>
+                    <div key={b} className="rounded-[8px] py-1.5" style={{ background: "var(--sunken)" }}>
                       <b className="block font-mono text-[15px] font-semibold" style={{ color: b === "Red" ? "var(--bad)" : b === "Amber" ? "var(--warn)" : "var(--good)" }}>
                         {bandCount(b)}
                       </b>
@@ -596,7 +606,7 @@ export default function DashboardPage() {
             {/* "DISTRIBUTION OF RATINGS" — asset systems by discipline, by the
                 tolerance the group has agreed for them this round, same
                 table the register itself prints under this name. */}
-            <div className="mb-3.5 rounded-[15px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
+            <div className="mb-3.5 rounded-[16px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
               <h3 className="mb-3 text-[12.5px] font-bold">Distribution of ratings</h3>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-[12px]">
@@ -653,7 +663,7 @@ export default function DashboardPage() {
             </div>
 
             {/* cycle movement */}
-            <div className="rounded-[15px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
+            <div className="rounded-[16px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
               <h3 className="mb-3 flex items-center gap-2 text-[12.5px] font-bold">
                 <IconLoop width={14} height={14} style={{ color: "var(--acc)" }} />
                 Movement against March 2025
@@ -696,7 +706,7 @@ export default function DashboardPage() {
                 registers is done." Each tile is a shortcut to its own
                 screen, same reason the whole dashboard exists: a number
                 nobody can act on from here is a number that gets ignored. */}
-            <div className="mt-3.5 rounded-[15px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
+            <div className="mt-3.5 rounded-[16px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
               <h3 className="mb-3 flex items-center justify-between gap-2">
                 <span className="flex items-center gap-2 text-[12.5px] font-bold">
                   <IconInbox width={14} height={14} style={{ color: "var(--acc)" }} />
@@ -804,7 +814,7 @@ export default function DashboardPage() {
                   <button
                     key={t.label}
                     onClick={() => router.push(t.href)}
-                    className="relative overflow-hidden rounded-[15px] border px-[15px] py-[13px] text-left transition-[var(--t)] hover:bg-[var(--sunken)]"
+                    className="relative overflow-hidden rounded-[16px] border px-[15px] py-[13px] text-left transition-[var(--t)] hover:bg-[var(--sunken)]"
                     style={{ background: "var(--panel)", borderColor: "var(--line)" }}
                   >
                     <span
@@ -827,7 +837,7 @@ export default function DashboardPage() {
                 same grouping the register prints under this name. Collapsed
                 by default (native <details>, no extra state) — the register
                 runs to hundreds of rows and nobody reads all of them at once. */}
-            <div className="mt-3.5 rounded-[15px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
+            <div className="mt-3.5 rounded-[16px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
               <h3 className="mb-3 text-[12.5px] font-bold">Check-points</h3>
               <div className="flex flex-col gap-2">
                 {systemPairs.map((p) => {
@@ -851,7 +861,7 @@ export default function DashboardPage() {
                           const r = responses[c.id];
                           const photos = (r?.attachments ?? []).filter((a) => a.kind === "photo");
                           return (
-                            <div key={c.id} className="rounded-[9px] px-2.5 py-2" style={{ background: "var(--sunken)" }}>
+                            <div key={c.id} className="rounded-[8px] px-2.5 py-2" style={{ background: "var(--sunken)" }}>
                               <div className="flex flex-wrap items-center justify-between gap-1.5">
                                 <span className="font-mono text-[10.5px] font-semibold" style={{ color: "var(--ink-2)" }}>
                                   {portalIdFor(entityCode, c.id)}
@@ -896,14 +906,14 @@ export default function DashboardPage() {
               const withPhotos = walkItems.filter((w) => w.attachments.some((a) => a.kind === "photo"));
               if (withPhotos.length === 0) return null;
               return (
-                <div className="mt-3.5 rounded-[15px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
+                <div className="mt-3.5 rounded-[16px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
                   <h3 className="mb-3 flex items-center gap-2 text-[12.5px] font-bold">
                     <IconCamera width={14} height={14} style={{ color: "var(--acc)" }} />
                     Site walkabout photographs
                   </h3>
                   <div className="flex flex-col gap-3">
                     {withPhotos.map((w) => (
-                      <div key={w.id} className="rounded-[9px] px-2.5 py-2" style={{ background: "var(--sunken)" }}>
+                      <div key={w.id} className="rounded-[8px] px-2.5 py-2" style={{ background: "var(--sunken)" }}>
                         <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10.5px] font-semibold" style={{ color: "var(--ink-2)" }}>
                           {w.id}
                           {w.discipline && <Pill tone="neutral">{w.discipline}</Pill>}

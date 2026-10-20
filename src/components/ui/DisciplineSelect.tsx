@@ -1,7 +1,8 @@
 "use client";
 
-/** THE DISCIPLINE SELECT — one styled `<select>`, standardised on the radius
- *  and type Capture/Dashboard's middle ground already used: `rounded-[9px]`,
+/** THE DISCIPLINE SELECT — one styled `<select>`, standardised on
+ *  `rounded-[11px]` (the shared radius scale's "inputs/selects/buttons"
+ *  tier — see the border-radius pass in src/components/ui/primitives.tsx),
  *  `text-[11.5px]`, `py-[7px]`. Capture, Review, Field, Dashboard, HIRA and
  *  People each re-typed this control with a slightly different radius, font
  *  size or padding; this is the one definition, options and wiring left to
@@ -42,7 +43,7 @@ export function DisciplineSelect({
       title={title}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className={`shrink-0 rounded-[9px] border px-2 py-[7px] text-[11.5px] outline-none ${className}`}
+      className={`shrink-0 rounded-[11px] border px-2 py-[7px] text-[11.5px] outline-none ${className}`}
       style={{
         ...(active
           ? { background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }

@@ -139,7 +139,7 @@ export default function AuditsPanel({ onClose }: { onClose: () => void }) {
       onClick={onClose}
     >
       <div
-        className="h-fit w-[min(820px,100%)] rounded-[20px] border p-[22px]"
+        className="h-fit w-[min(820px,100%)] rounded-[16px] border p-[22px]"
         style={{ background: "var(--panel)", borderColor: "var(--line-2)", boxShadow: "var(--e3)" }}
         onClick={(e) => e.stopPropagation()}
       >

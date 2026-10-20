@@ -785,7 +785,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       onClick={onClose}
     >
       <div
-        className="h-fit w-[min(720px,92vw)] rounded-[20px] border p-[22px]"
+        className="h-fit w-[min(720px,92vw)] rounded-[16px] border p-[22px]"
         style={{ background: "var(--panel)", borderColor: "var(--line-2)", boxShadow: "var(--e3)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -881,7 +881,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
 
             {/* --- sign in ------------------------------------------------ */}
             <div
-              className="mb-3 flex flex-wrap items-center gap-2 rounded-[10px] border px-[11px] py-[9px] text-[11.5px]"
+              className="mb-3 flex flex-wrap items-center gap-2 rounded-[11px] border px-[11px] py-[9px] text-[11.5px]"
               style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
             >
               {who ? (
@@ -910,7 +910,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
 
             {error && (
               <p
-                className="mb-3 rounded-[10px] border px-[11px] py-[9px] text-[11.5px]"
+                className="mb-3 rounded-[11px] border px-[11px] py-[9px] text-[11.5px]"
                 style={{ background: "var(--bad-bg)", borderColor: "var(--bad-line)", color: "var(--bad)" }}
               >
                 {error}
@@ -929,7 +929,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                     run only — the tiles and totals below react live. */}
                 {disciplines.length > 0 && (
                   <div
-                    className="mb-3 rounded-[10px] border px-[11px] py-[9px] text-[11.5px] leading-[1.5]"
+                    className="mb-3 rounded-[11px] border px-[11px] py-[9px] text-[11.5px] leading-[1.5]"
                     style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
                   >
                     <div className="mb-[7px] flex items-center justify-between gap-2">
@@ -1077,7 +1077,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                     photographs and signatures going" is a live question. */}
                 {(plan.evidence.length > 0 || plan.signatures.length > 0) && (
                   <label
-                    className="mb-2 flex cursor-pointer items-start gap-[9px] rounded-[10px] border px-[11px] py-[9px] text-[11.5px] leading-[1.5]"
+                    className="mb-2 flex cursor-pointer items-start gap-[9px] rounded-[11px] border px-[11px] py-[9px] text-[11.5px] leading-[1.5]"
                     style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
                   >
                     <input
@@ -1243,7 +1243,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                     the auditor say so. */}
                 {early && (
                   <label
-                    className="mb-2 flex cursor-pointer items-start gap-[9px] rounded-[10px] border px-[11px] py-[9px] text-[11.5px] leading-[1.5]"
+                    className="mb-2 flex cursor-pointer items-start gap-[9px] rounded-[11px] border px-[11px] py-[9px] text-[11.5px] leading-[1.5]"
                     style={{ background: "var(--bad-bg)", borderColor: "var(--bad-line)", color: "var(--bad)" }}
                   >
                     <input
@@ -1446,7 +1446,7 @@ function Contract() {
 function Tile({ n, label, strong }: { n: number; label: string; strong?: boolean }) {
   return (
     <div
-      className="rounded-[10px] border px-[11px] py-[8px]"
+      className="rounded-[11px] border px-[11px] py-[8px]"
       style={{
         background: strong ? "var(--acc-soft)" : "var(--sunken)",
         borderColor: strong ? "var(--acc-line)" : "var(--line-2)",
@@ -1481,7 +1481,7 @@ function Note({
           ? { background: "var(--good-bg)", borderColor: "var(--good-line)", color: "var(--good)" }
           : { background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-2)" };
   return (
-    <p className="mb-2 rounded-[10px] border px-[11px] py-[8px] text-[11.5px] leading-[1.5]" style={s}>
+    <p className="mb-2 rounded-[11px] border px-[11px] py-[8px] text-[11.5px] leading-[1.5]" style={s}>
       {children}
     </p>
   );

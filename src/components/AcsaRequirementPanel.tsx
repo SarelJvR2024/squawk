@@ -59,7 +59,7 @@ export default function AcsaRequirementPanel({ check }: { check: Check }) {
            The auditor decides against the one that governs here; the report
            can cite both. */
         <div
-          className="mt-2.5 rounded-[9px] border px-[10px] py-[8px]"
+          className="mt-2.5 rounded-[8px] border px-[10px] py-[8px]"
           style={{ background: "var(--bad-bg)", borderColor: "var(--bad-line)" }}
         >
           <div className="label-xs" style={{ color: "var(--bad)" }}>
@@ -100,7 +100,7 @@ export default function AcsaRequirementPanel({ check }: { check: Check }) {
            not in a tooltip — an auditor who reads the network figure and
            misses this one audits against the wrong standard. */
         <div
-          className="mt-2.5 rounded-[9px] border px-[10px] py-[8px]"
+          className="mt-2.5 rounded-[8px] border px-[10px] py-[8px]"
           style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)" }}
         >
           <div className="label-xs" style={{ color: "var(--warn)" }}>
@@ -122,7 +122,7 @@ export default function AcsaRequirementPanel({ check }: { check: Check }) {
           sentence the evidence gets held against. */}
       {check.complianceTest && (
         <div
-          className="mt-2.5 rounded-[9px] border px-[10px] py-[8px]"
+          className="mt-2.5 rounded-[8px] border px-[10px] py-[8px]"
           style={{ background: "var(--good-bg)", borderColor: "var(--good-line)" }}
         >
           <div className="label-xs" style={{ color: "var(--good)" }}>
@@ -141,7 +141,7 @@ export default function AcsaRequirementPanel({ check }: { check: Check }) {
 
       {check.acsaThreshold ? (
         <div
-          className="mt-2.5 rounded-[9px] border px-[10px] py-[8px]"
+          className="mt-2.5 rounded-[8px] border px-[10px] py-[8px]"
           style={{ background: "var(--acc-soft)", borderColor: "var(--acc-line)" }}
         >
           <div className="label-xs" style={{ color: "var(--acc)" }}>
@@ -160,7 +160,7 @@ export default function AcsaRequirementPanel({ check }: { check: Check }) {
            standard to audit against, and that is itself the finding. Say it,
            rather than leaving a gap the auditor has to notice. */
         <div
-          className="mt-2.5 rounded-[9px] border px-[10px] py-[8px]"
+          className="mt-2.5 rounded-[8px] border px-[10px] py-[8px]"
           style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)" }}
         >
           <div className="label-xs" style={{ color: "var(--warn)" }}>

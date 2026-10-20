@@ -72,7 +72,11 @@ function ChipRow({ group }: { group: FilterGroup }) {
             type="button"
             onClick={() => group.onChange(o.key)}
             aria-pressed={group.multi ? selected : undefined}
-            className={`rounded-full border px-[11px] py-[5px] text-[11.5px] transition-[var(--t)] ${group.chipClassName ?? ""}`}
+            /* Same lift-on-hover/active `Chip` (primitives.tsx) already
+               uses — these chip rows had no hover/active affordance at
+               all, which is the thing that made a clickable filter chip
+               and a read-only `Pill` hard to tell apart at a glance. */
+            className={`rounded-full border px-[11px] py-[5px] text-[11.5px] transition-[var(--t)] hover:-translate-y-[1px] active:translate-y-0 ${group.chipClassName ?? ""}`}
             style={selected ? selectedStyle(group.variant) : unselectedStyle}
           >
             {o.label}
@@ -116,7 +120,7 @@ export function FilterBar({
 
       <details className="group" open={defaultOpen || undefined}>
         <summary
-          className="flex min-h-[44px] w-full cursor-pointer list-none items-start gap-2 rounded-[9px] border px-3 py-[9px] text-[11.5px] transition-[var(--t)]"
+          className="flex min-h-[44px] w-full cursor-pointer list-none items-start gap-2 rounded-[11px] border px-3 py-[9px] text-[11.5px] transition-[var(--t)]"
           style={
             active
               ? { background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }

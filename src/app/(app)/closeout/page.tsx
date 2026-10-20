@@ -30,7 +30,7 @@ import { SignaturePad } from "@/components/SignaturePad";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
 import type { SiteDay } from "@/lib/types";
 
-const inputCls = "min-h-[44px] w-full rounded-[9px] border px-3 py-2 text-[13px]";
+const inputCls = "min-h-[44px] w-full rounded-[8px] border px-3 py-2 text-[13px]";
 const inputStyle = { background: "var(--bg)", borderColor: "var(--line)" } as const;
 
 function hhmm(t: number): string {

@@ -117,7 +117,7 @@ export default function ResetPanel({ onClose }: { onClose: () => void }) {
       onClick={onClose}
     >
       <div
-        className="h-fit w-[min(520px,100%)] rounded-[20px] border p-[22px]"
+        className="h-fit w-[min(520px,100%)] rounded-[16px] border p-[22px]"
         style={{ background: "var(--panel)", borderColor: "var(--line-2)", boxShadow: "var(--e3)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -174,7 +174,7 @@ export default function ResetPanel({ onClose }: { onClose: () => void }) {
                     setScope(k);
                     setArmed(false);
                   }}
-                  className="rounded-[12px] border px-[13px] py-[11px] text-left transition-[var(--t)]"
+                  className="rounded-[11px] border px-[13px] py-[11px] text-left transition-[var(--t)]"
                   style={
                     scope === k
                       ? { background: "var(--acc-soft)", borderColor: "var(--acc-line)" }

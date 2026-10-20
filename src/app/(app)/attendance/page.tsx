@@ -274,7 +274,7 @@ export default function AttendancePage() {
               return (
                 <div
                   key={row.id}
-                  className="mb-2 mt-2 rounded-[9px] border p-2"
+                  className="mb-2 mt-2 rounded-[8px] border p-2"
                   style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
                 >
                   <div className="flex items-center gap-[6px]">
@@ -464,7 +464,7 @@ export default function AttendancePage() {
                 return (
                   <div
                     key={a.id}
-                    className="mb-2 mt-2 rounded-[9px] border p-2"
+                    className="mb-2 mt-2 rounded-[8px] border p-2"
                     style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
                   >
                     <button

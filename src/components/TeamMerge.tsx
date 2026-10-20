@@ -74,7 +74,7 @@ export default function TeamMerge() {
 
   return (
     <div
-      className="mb-3.5 rounded-[13px] border p-3"
+      className="mb-3.5 rounded-[11px] border p-3"
       style={{ borderColor: "var(--line)", background: "var(--sunken)" }}
     >
       <div className="flex flex-wrap items-start gap-3">

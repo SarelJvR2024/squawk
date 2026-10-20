@@ -69,7 +69,7 @@ export default function OutcomeControl({
     <div
       role="radiogroup"
       aria-label="Outcome"
-      className="grid w-full grid-cols-4 gap-[3px] rounded-[12px] border p-[3px]"
+      className="grid w-full grid-cols-4 gap-[3px] rounded-[11px] border p-[3px]"
       /* The trough carries a border as well as a fill. Without it, four white
          segments on a white card read as four separate buttons again — which
          is the thing this replaced. */
@@ -85,7 +85,7 @@ export default function OutcomeControl({
             aria-checked={on}
             aria-label={label}
             onClick={() => onChange(on ? null : key)}
-            className="flex flex-col items-center justify-center gap-[3px] rounded-[9px] font-display text-[10.5px] font-semibold transition-[var(--t)] active:translate-y-[1px]"
+            className="flex flex-col items-center justify-center gap-[3px] rounded-[8px] font-display text-[10.5px] font-semibold transition-[var(--t)] active:translate-y-[1px]"
             style={{
               minHeight: size,
               /* Solid fill, white ink and a lift for the chosen one; a quiet

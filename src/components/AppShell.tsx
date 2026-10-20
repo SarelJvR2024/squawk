@@ -514,7 +514,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   colouring the visit would have painted it the same as the site
                   code beside it. The chip separates them on any ground. */}
               <span
-                className="rounded-[6px] px-[7px] py-[1px] text-[12.5px]"
+                className="rounded-[8px] px-[7px] py-[1px] text-[12.5px]"
                 style={{ background: "var(--acc-soft)", color: "var(--ink)" }}
               >
                 {visitLabel}
@@ -776,7 +776,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                      whatever sits beside the button; `sm:` and up keeps the
                      exact anchored-to-the-button behaviour this always had,
                      since nothing there was broken. */
-                  className="fixed inset-x-3 top-[58px] z-[75] max-h-[min(72vh,620px)] overflow-y-auto rounded-[13px] border p-[5px] sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+7px)] sm:w-[300px]"
+                  className="fixed inset-x-3 top-[58px] z-[75] max-h-[min(72vh,620px)] overflow-y-auto rounded-[11px] border p-[5px] sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+7px)] sm:w-[300px]"
                   style={{
                     background: "var(--menu-bg)",
                     borderColor: "var(--menu-line)",
@@ -984,7 +984,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <div
                   role="menu"
                   aria-label="Viewing as"
-                  className="absolute right-0 top-[calc(100%+7px)] z-[75] w-[268px] overflow-hidden rounded-[13px] border p-[5px]"
+                  className="absolute right-0 top-[calc(100%+7px)] z-[75] w-[268px] overflow-hidden rounded-[11px] border p-[5px]"
                   style={{
                     background: "var(--menu-bg)",
                     borderColor: "var(--menu-line)",
@@ -1025,7 +1025,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     ? "Photographs still only on this device. Tap to send them now."
                     : "Offline — photographs will be sent when there is a network."
               }
-              className="flex shrink-0 items-center gap-[5px] rounded-[7px] border px-[8px] py-[4px] font-mono text-[9.5px]"
+              className="flex shrink-0 items-center gap-[5px] rounded-[8px] border px-[8px] py-[4px] font-mono text-[9.5px]"
               style={{
                 background: sync.failed ? "var(--warn-bg)" : "var(--panel)",
                 borderColor: sync.failed ? "var(--warn-line)" : "var(--line-2)",
@@ -1057,7 +1057,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     ? "Signatures still only on this device. Tap to send them now."
                     : "Offline — signatures will be sent when there is a network."
               }
-              className="flex shrink-0 items-center gap-[5px] rounded-[7px] border px-[8px] py-[4px] font-mono text-[9.5px]"
+              className="flex shrink-0 items-center gap-[5px] rounded-[8px] border px-[8px] py-[4px] font-mono text-[9.5px]"
               style={{
                 background: sigSync.failed ? "var(--warn-bg)" : "var(--panel)",
                 borderColor: sigSync.failed ? "var(--warn-line)" : "var(--line-2)",
@@ -1155,7 +1155,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           value={entityCode}
           onChange={(e) => setEntity(e.target.value)}
           aria-label="Entity"
-          className="mr-2.5 h-[26px] shrink-0 rounded-[7px] border px-1.5 font-mono text-[9.5px]"
+          className="mr-2.5 h-[26px] shrink-0 rounded-[8px] border px-1.5 font-mono text-[9.5px]"
           style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
         >
           {ENTITIES.map((e) => (
@@ -1169,7 +1169,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <button
           onClick={() => setAudits(true)}
           title="Open any audit, or start a new one"
-          className="mr-3 flex shrink-0 items-center gap-[5px] rounded-[7px] border px-[9px] py-[4px] font-mono text-[9.5px] transition-[var(--t)]"
+          className="mr-3 flex shrink-0 items-center gap-[5px] rounded-[8px] border px-[9px] py-[4px] font-mono text-[9.5px] transition-[var(--t)]"
           style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
         >
           <IconGrid width={11} height={11} />
@@ -1186,7 +1186,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {visits.length === 0 && (
           <button
             onClick={() => setAudits(true)}
-            className="flex shrink-0 items-center gap-[6px] rounded-[7px] border px-[10px] py-[4px] text-[10.5px] transition-[var(--t)]"
+            className="flex shrink-0 items-center gap-[6px] rounded-[8px] border px-[10px] py-[4px] text-[10.5px] transition-[var(--t)]"
             style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}
           >
             No audits at {entityOf(entityCode).short} yet — create the first one
@@ -1199,7 +1199,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               onClick={() => setVisit(v.id)}
               aria-current={v.id === visitId}
               title={`Show ${v.label}`}
-              className="flex shrink-0 items-center gap-[6px] rounded-[7px] px-1.5 py-[3px] transition-[var(--t)]"
+              className="flex shrink-0 items-center gap-[6px] rounded-[8px] px-1.5 py-[3px] transition-[var(--t)]"
               style={
                 v.id === visitId
                   ? { background: "var(--acc-soft)", boxShadow: "inset 0 0 0 1px var(--acc-line)" }
@@ -1232,7 +1232,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </button>
             {i < visits.length - 1 && (
               <span
-                className="mx-2 h-[1.5px] w-[22px] shrink-0 rounded-[2px]"
+                className="mx-2 h-[1.5px] w-[22px] shrink-0 rounded-[8px]"
                 style={{ background: v.state === "done" ? "var(--good-line)" : "var(--line)" }}
               />
             )}
@@ -1300,7 +1300,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           onClick={() => setPalette(false)}
         >
           <div
-            className="w-[min(620px,92vw)] overflow-hidden rounded-[20px] border"
+            className="w-[min(620px,92vw)] overflow-hidden rounded-[16px] border"
             style={{ background: "var(--panel)", borderColor: "var(--line-2)", boxShadow: "var(--e3)" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1358,7 +1358,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           onClick={() => setHelp(false)}
         >
           <div
-            className="w-[min(520px,92vw)] rounded-[20px] border p-[22px]"
+            className="w-[min(520px,92vw)] rounded-[16px] border p-[22px]"
             style={{ background: "var(--panel)", borderColor: "var(--line-2)", boxShadow: "var(--e3)" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1373,7 +1373,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               ].map(([k, v]) => (
                 <span key={k} className="contents">
                   <kbd
-                    className="justify-self-start rounded-[5px] border px-[7px] py-[2px] font-mono text-[10px]"
+                    className="justify-self-start rounded-[8px] border px-[7px] py-[2px] font-mono text-[10px]"
                     style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
                   >
                     {k}
@@ -1548,7 +1548,7 @@ function MoreItem({
       onClick={onClick}
       /* --menu-* rather than --panel and friends: this row renders inside the
          masthead, which redefines those for the dark band. See globals.css. */
-      className="flex w-full min-h-[44px] items-start gap-[9px] rounded-[9px] px-[9px] py-[8px] text-left transition-[var(--t)] hover:bg-[var(--menu-hover)]"
+      className="flex w-full min-h-[44px] items-start gap-[9px] rounded-[8px] px-[9px] py-[8px] text-left transition-[var(--t)] hover:bg-[var(--menu-hover)]"
       style={selected ? { background: "var(--menu-acc-soft)" } : undefined}
     >
       <span

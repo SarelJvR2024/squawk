@@ -62,7 +62,7 @@ function SiteSelect({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       aria-label={ariaLabel}
-      className="w-full rounded-[9px] border px-3 py-[7px] text-[11.5px] outline-none"
+      className="w-full rounded-[8px] border px-3 py-[7px] text-[11.5px] outline-none"
       style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
     >
       {includeAll && <option value="">All sites</option>}
@@ -94,7 +94,7 @@ function DisciplineSelect({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       aria-label={ariaLabel}
-      className="w-full rounded-[9px] border px-3 py-[7px] text-[11.5px] outline-none"
+      className="w-full rounded-[8px] border px-3 py-[7px] text-[11.5px] outline-none"
       style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
     >
       <option value="">Not discipline-specific</option>
@@ -206,7 +206,7 @@ export default function PeoplePage() {
               onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
               placeholder="Name"
               aria-label="Name"
-              className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+              className="min-h-[44px] rounded-[8px] border px-3 text-[12.5px] outline-none"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             />
             <input
@@ -214,7 +214,7 @@ export default function PeoplePage() {
               onChange={(e) => setDraft((d) => ({ ...d, surname: e.target.value }))}
               placeholder="Surname"
               aria-label="Surname"
-              className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+              className="min-h-[44px] rounded-[8px] border px-3 text-[12.5px] outline-none"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             />
             <input
@@ -222,7 +222,7 @@ export default function PeoplePage() {
               onChange={(e) => setDraft((d) => ({ ...d, role: e.target.value }))}
               placeholder="Role — e.g. Airport Duty Manager"
               aria-label="Role"
-              className="col-span-2 min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+              className="col-span-2 min-h-[44px] rounded-[8px] border px-3 text-[12.5px] outline-none"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             />
             <DisciplineSelect
@@ -235,7 +235,7 @@ export default function PeoplePage() {
               onChange={(e) => setDraft((d) => ({ ...d, company: e.target.value }))}
               placeholder="Company — e.g. TPJV, ACSA"
               aria-label="Company"
-              className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+              className="min-h-[44px] rounded-[8px] border px-3 text-[12.5px] outline-none"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             />
             <input
@@ -243,7 +243,7 @@ export default function PeoplePage() {
               onChange={(e) => setDraft((d) => ({ ...d, department: e.target.value }))}
               placeholder="Department"
               aria-label="Department"
-              className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+              className="min-h-[44px] rounded-[8px] border px-3 text-[12.5px] outline-none"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             />
             <input
@@ -251,7 +251,7 @@ export default function PeoplePage() {
               onChange={(e) => setDraft((d) => ({ ...d, location: e.target.value }))}
               placeholder="Location"
               aria-label="Location"
-              className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+              className="min-h-[44px] rounded-[8px] border px-3 text-[12.5px] outline-none"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             />
             <input
@@ -260,7 +260,7 @@ export default function PeoplePage() {
               type="tel"
               placeholder="Phone"
               aria-label="Phone"
-              className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+              className="min-h-[44px] rounded-[8px] border px-3 text-[12.5px] outline-none"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             />
             <input
@@ -269,7 +269,7 @@ export default function PeoplePage() {
               type="email"
               placeholder="Email"
               aria-label="Email"
-              className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+              className="min-h-[44px] rounded-[8px] border px-3 text-[12.5px] outline-none"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             />
             <SiteSelect
@@ -296,7 +296,7 @@ export default function PeoplePage() {
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search name, role, department…"
           aria-label="Search the directory"
-          className="min-h-[44px] min-w-[180px] flex-1 rounded-[9px] border px-3 text-[12.5px] outline-none"
+          className="min-h-[44px] min-w-[180px] flex-1 rounded-[8px] border px-3 text-[12.5px] outline-none"
           style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
         />
         <div className="min-w-[160px]">
@@ -357,14 +357,14 @@ export default function PeoplePage() {
                             value={c.name}
                             onChange={(e) => updateContact(c.id, { name: e.target.value })}
                             aria-label="Name"
-                            className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+                            className="min-h-[44px] rounded-[8px] border px-3 text-[12.5px] outline-none"
                             style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
                           />
                           <input
                             value={c.surname}
                             onChange={(e) => updateContact(c.id, { surname: e.target.value })}
                             aria-label="Surname"
-                            className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+                            className="min-h-[44px] rounded-[8px] border px-3 text-[12.5px] outline-none"
                             style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
                           />
                           <input
@@ -372,7 +372,7 @@ export default function PeoplePage() {
                             onChange={(e) => updateContact(c.id, { role: e.target.value })}
                             placeholder="Role"
                             aria-label="Role"
-                            className="col-span-2 min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+                            className="col-span-2 min-h-[44px] rounded-[8px] border px-3 text-[12.5px] outline-none"
                             style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
                           />
                           <DisciplineSelect
@@ -385,7 +385,7 @@ export default function PeoplePage() {
                             onChange={(e) => updateContact(c.id, { company: e.target.value })}
                             placeholder="Company"
                             aria-label="Company"
-                            className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+                            className="min-h-[44px] rounded-[8px] border px-3 text-[12.5px] outline-none"
                             style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
                           />
                           <input
@@ -393,7 +393,7 @@ export default function PeoplePage() {
                             onChange={(e) => updateContact(c.id, { department: e.target.value })}
                             placeholder="Department"
                             aria-label="Department"
-                            className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+                            className="min-h-[44px] rounded-[8px] border px-3 text-[12.5px] outline-none"
                             style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
                           />
                           <input
@@ -401,7 +401,7 @@ export default function PeoplePage() {
                             onChange={(e) => updateContact(c.id, { location: e.target.value })}
                             placeholder="Location"
                             aria-label="Location"
-                            className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+                            className="min-h-[44px] rounded-[8px] border px-3 text-[12.5px] outline-none"
                             style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
                           />
                           <input
@@ -410,7 +410,7 @@ export default function PeoplePage() {
                             type="tel"
                             placeholder="Phone"
                             aria-label="Phone"
-                            className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+                            className="min-h-[44px] rounded-[8px] border px-3 text-[12.5px] outline-none"
                             style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
                           />
                           <input
@@ -419,7 +419,7 @@ export default function PeoplePage() {
                             type="email"
                             placeholder="Email"
                             aria-label="Email"
-                            className="min-h-[44px] rounded-[9px] border px-3 text-[12.5px] outline-none"
+                            className="min-h-[44px] rounded-[8px] border px-3 text-[12.5px] outline-none"
                             style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
                           />
                           <SiteSelect

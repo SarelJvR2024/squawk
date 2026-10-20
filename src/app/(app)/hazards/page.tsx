@@ -27,6 +27,7 @@ import {
   checksAt,
   disciplinesAt,
   systemsAt,
+  useDisciplineFilter,
   useEntityCode,
   useResponses,
   useStore,
@@ -97,7 +98,15 @@ export default function HazardsPage() {
   const vision = useVisionOn();
 
   const [filter, setFilter] = useState<Filter>("all");
-  const [discipline, setDiscipline] = useState<string>("All");
+  /* Shared with Capture, Review and Field — see useDisciplineFilter's own
+     note in src/lib/store.ts. The shared value's "" is this screen's own
+     "All" sentinel (its options list and `discipline !== "All"` checks
+     below predate the shared store and are left exactly as they were); the
+     mapping happens only at this boundary. */
+  const sharedDiscipline = useDisciplineFilter();
+  const setSharedDiscipline = useStore((s) => s.setDisciplineFilter);
+  const discipline = sharedDiscipline === "" ? "All" : sharedDiscipline;
+  const setDiscipline = (v: string) => setSharedDiscipline(v === "All" ? "" : v);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [otherImpactDraft, setOtherImpactDraft] = useState("");
@@ -495,7 +504,7 @@ export default function HazardsPage() {
           ].map(([label, value, tone]) => (
             <div
               key={label as string}
-              className="relative overflow-hidden rounded-[15px] border px-[15px] py-[13px]"
+              className="relative overflow-hidden rounded-[16px] border px-[15px] py-[13px]"
               style={{ background: "var(--panel)", borderColor: "var(--line)" }}
             >
               <span
@@ -517,7 +526,7 @@ export default function HazardsPage() {
 
         {/* ------------------------------------------------ consolidation */}
         <div
-          className="mb-3.5 rounded-[15px] border px-[15px] py-[13px]"
+          className="mb-3.5 rounded-[16px] border px-[15px] py-[13px]"
           style={{ background: "var(--panel)", borderColor: "var(--line)" }}
         >
           <div className="flex flex-wrap items-center gap-2.5">
@@ -606,7 +615,7 @@ export default function HazardsPage() {
                 )}
                 {p.note && (
                   <div
-                    className="mt-1.5 rounded-[7px] border px-[8px] py-[6px] text-[11px] leading-[1.5]"
+                    className="mt-1.5 rounded-[8px] border px-[8px] py-[6px] text-[11px] leading-[1.5]"
                     style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}
                   >
                     <div className="mb-[2px] font-mono text-[8.5px] tracking-[.06em] uppercase">
@@ -650,12 +659,12 @@ export default function HazardsPage() {
                             <img
                               src={a.thumbDataUrl}
                               alt={a.caption || a.ref || a.name}
-                              className="h-[74px] w-full rounded-[7px] border object-cover"
+                              className="h-[74px] w-full rounded-[8px] border object-cover"
                               style={{ borderColor: "var(--line-2)" }}
                             />
                           ) : (
                             <div
-                              className="flex h-[74px] w-full items-center justify-center rounded-[7px] border text-[9px]"
+                              className="flex h-[74px] w-full items-center justify-center rounded-[8px] border text-[9px]"
                               style={{ borderColor: "var(--line-2)", color: "var(--ink-4)" }}
                             >
                               no preview
@@ -704,7 +713,7 @@ export default function HazardsPage() {
         {/* -------------------------------------------- from asset assurance */}
         {systemEventCandidates.length > 0 && (
           <div
-            className="mb-3.5 rounded-[15px] border px-[15px] py-[13px]"
+            className="mb-3.5 rounded-[16px] border px-[15px] py-[13px]"
             style={{ background: "var(--panel)", borderColor: "var(--line)" }}
           >
             <div className="flex flex-wrap items-center gap-2.5">
@@ -807,7 +816,7 @@ export default function HazardsPage() {
         ) : (
           <div className="grid gap-3 lg:grid-cols-[440px_minmax(0,1fr)]">
             <div
-              className="overflow-hidden rounded-[15px] border"
+              className="overflow-hidden rounded-[16px] border"
               style={{ background: "var(--panel)", borderColor: "var(--line)" }}
             >
               {list.length === 0 ? (
@@ -949,7 +958,7 @@ export default function HazardsPage() {
 
             {active && (
               <div
-                className="rounded-[15px] border px-[17px] py-[15px]"
+                className="rounded-[16px] border px-[17px] py-[15px]"
                 style={{ background: "var(--panel)", borderColor: "var(--line)" }}
               >
                 <div className="mb-2 flex flex-wrap items-center gap-2 font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
@@ -973,7 +982,7 @@ export default function HazardsPage() {
                     value={active.event}
                     onChange={(e) => updateHazard(active.id, { event: e.target.value })}
                     placeholder="Uncontained fuel release on the apron…"
-                    className="mt-1 w-full rounded-[9px] border px-2.5 py-2 text-[13px] font-semibold outline-none focus:border-[var(--acc)]"
+                    className="mt-1 w-full rounded-[8px] border px-2.5 py-2 text-[13px] font-semibold outline-none focus:border-[var(--acc)]"
                     style={{
                       background: "var(--panel)",
                       borderColor: active.event ? "var(--line-2)" : "var(--warn-line)",
@@ -1141,7 +1150,7 @@ export default function HazardsPage() {
                       }}
                       placeholder="Reputational exposure, a contractual penalty…"
                       aria-label="Add another impact"
-                      className="min-w-0 flex-1 rounded-[9px] border px-2.5 py-2 text-[11.5px] outline-none focus:border-[var(--acc)]"
+                      className="min-w-0 flex-1 rounded-[8px] border px-2.5 py-2 text-[11.5px] outline-none focus:border-[var(--acc)]"
                       style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
                     />
                     <Btn
@@ -1234,7 +1243,7 @@ export default function HazardsPage() {
                               <img
                                 src={a.thumbDataUrl}
                                 alt={a.caption || a.ref || a.name}
-                                className="h-[74px] w-full rounded-[7px] border object-cover"
+                                className="h-[74px] w-full rounded-[8px] border object-cover"
                                 style={{ borderColor: "var(--line-2)" }}
                               />
                             ) : null}
@@ -1383,7 +1392,7 @@ export default function HazardsPage() {
 
                           {active.reassessNote && (
                             <div
-                              className="mt-2 rounded-[7px] border px-[8px] py-[6px] text-[11.5px] leading-[1.5] whitespace-pre-line"
+                              className="mt-2 rounded-[8px] border px-[8px] py-[6px] text-[11.5px] leading-[1.5] whitespace-pre-line"
                               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
                             >
                               {active.reassessNote}
@@ -1392,7 +1401,7 @@ export default function HazardsPage() {
 
                           {reread?.id === active.id && (
                             <div
-                              className="mt-2 rounded-[9px] border px-[9px] py-[8px]"
+                              className="mt-2 rounded-[8px] border px-[9px] py-[8px]"
                               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
                             >
                               <div className="text-[11.5px] leading-[1.55]">{reread.result.note}</div>
@@ -1406,7 +1415,7 @@ export default function HazardsPage() {
                               )}
                               {reread.result.ratingComment && (
                                 <div
-                                  className="mt-1.5 rounded-[7px] border px-[8px] py-[6px] text-[11px] leading-[1.5]"
+                                  className="mt-1.5 rounded-[8px] border px-[8px] py-[6px] text-[11px] leading-[1.5]"
                                   style={{
                                     background: "var(--warn-bg)",
                                     borderColor: "var(--warn-line)",
@@ -1422,7 +1431,7 @@ export default function HazardsPage() {
                               {reread.result.newHazards.map((n, i) => (
                                 <div
                                   key={`${n.event}-${i}`}
-                                  className="mt-1.5 flex flex-wrap items-center gap-2 rounded-[7px] border px-[8px] py-[6px]"
+                                  className="mt-1.5 flex flex-wrap items-center gap-2 rounded-[8px] border px-[8px] py-[6px]"
                                   style={{ borderColor: "var(--line-2)" }}
                                 >
                                   <span className="text-[11.5px] font-semibold">{n.event}</span>

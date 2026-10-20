@@ -381,7 +381,7 @@ export default function ClosurePage() {
             cycle, so nobody has to know to open it to learn that one exists. */}
         <details className="mb-2.5">
           <summary
-            className="cursor-pointer list-none rounded-[9px] border px-3 py-[7px] text-[11px]"
+            className="cursor-pointer list-none rounded-[8px] border px-3 py-[7px] text-[11px]"
             style={{ background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }}
           >
             Findings carry on the <b>3-year cycle</b> — what that means for closing one
@@ -475,7 +475,7 @@ export default function ClosurePage() {
             can shrink to the panel's actual width instead of the content's
             natural one. */}
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[380px_minmax(0,1fr)]">
-          <div className="overflow-hidden rounded-[15px] border" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
+          <div className="overflow-hidden rounded-[16px] border" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
             {list.length === 0 ? (
               <Empty>Nothing matches this filter.</Empty>
             ) : (
@@ -671,7 +671,7 @@ export default function ClosurePage() {
           </div>
 
           {active && (
-            <div className="rounded-[15px] border p-[18px]" style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "var(--e2)" }}>
+            <div className="rounded-[16px] border p-[18px]" style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "var(--e2)" }}>
               <div className="mb-1.5 flex flex-wrap items-center gap-[7px] font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
                 <span>{active.key}</span>
                 <span>·</span>
@@ -704,7 +704,7 @@ export default function ClosurePage() {
                   the report it came from. */}
               {(active.severity || active.likelihood || active.riskPriority) && (
                 <div
-                  className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[9px] border px-[10px] py-[7px] text-[11.5px]"
+                  className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[8px] border px-[10px] py-[7px] text-[11.5px]"
                   style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
                 >
                   <span className="label-xs" style={{ color: "var(--ink-3)" }}>
@@ -758,7 +758,7 @@ export default function ClosurePage() {
                     </span>
                     {i < arr.length - 1 && (
                       <span
-                        className="mx-2 h-[1.5px] w-[20px] shrink-0 rounded-[2px]"
+                        className="mx-2 h-[1.5px] w-[20px] shrink-0 rounded-[8px]"
                         style={{ background: step.done ? "var(--good-line)" : "var(--line)" }}
                       />
                     )}
@@ -861,7 +861,7 @@ export default function ClosurePage() {
                   patchVerification(active.key, { evidencePending: !v?.evidencePending })
                 }
                 aria-pressed={!!v?.evidencePending}
-                className="mt-3 flex w-full items-center gap-2 rounded-[9px] border px-[10px] py-[7px] text-left text-[11px] transition-[var(--t)]"
+                className="mt-3 flex w-full items-center gap-2 rounded-[8px] border px-[10px] py-[7px] text-left text-[11px] transition-[var(--t)]"
                 style={
                   v?.evidencePending
                     ? { background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }
@@ -976,7 +976,7 @@ export default function ClosurePage() {
                   {v!.discussionLog!.map((n, i) => (
                     <div
                       key={i}
-                      className="rounded-[9px] border px-3 py-2 text-[11.5px] leading-[1.45]"
+                      className="rounded-[8px] border px-3 py-2 text-[11.5px] leading-[1.45]"
                       style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
                     >
                       <div className="mb-[2px] font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>

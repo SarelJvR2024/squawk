@@ -177,7 +177,7 @@ export default function IsfPage() {
                bound to it. */
             aria-label="What did you see?"
             placeholder="Exposed busbar in the MV room, door standing open"
-            className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+            className="w-full rounded-[8px] border px-3 py-2 text-[13px]"
             style={{ background: "var(--bg)", borderColor: "var(--line)" }}
           />
         </Field>
@@ -257,7 +257,7 @@ export default function IsfPage() {
                         onChange={(e) => patch(f.id, { notifiedTo: e.target.value })}
                         aria-label={`Who you told about ${f.id}`}
                         placeholder="Who did you tell?"
-                        className="mb-2 w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                        className="mb-2 w-full rounded-[8px] border px-3 py-2 text-[13px]"
                         style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                       />
                       <div className="flex flex-wrap gap-2">
@@ -291,7 +291,7 @@ export default function IsfPage() {
                         value={dateInputValue(f.raisedAt)}
                         onChange={(e) => setRaisedDate(f, e.target.value)}
                         aria-label={`Date ${f.id} was raised`}
-                        className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                        className="w-full rounded-[8px] border px-3 py-2 text-[13px]"
                         style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                       />
                     </Field>
@@ -301,7 +301,7 @@ export default function IsfPage() {
                         value={timeInputValue(f.raisedAt)}
                         onChange={(e) => setRaisedTime(f, e.target.value)}
                         aria-label={`Time ${f.id} was raised`}
-                        className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                        className="w-full rounded-[8px] border px-3 py-2 text-[13px]"
                         style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                       />
                     </Field>
@@ -314,7 +314,7 @@ export default function IsfPage() {
                       rows={2}
                       aria-label={`What happened — ${f.id}`}
                       placeholder="Exposed busbar in the MV room, door standing open"
-                      className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                      className="w-full rounded-[8px] border px-3 py-2 text-[13px]"
                       style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                     />
                   </Field>
@@ -325,7 +325,7 @@ export default function IsfPage() {
                         value={f.raisedBy}
                         onChange={(e) => patch(f.id, { raisedBy: e.target.value })}
                         aria-label={`Who identified ${f.id}`}
-                        className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                        className="w-full rounded-[8px] border px-3 py-2 text-[13px]"
                         style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                       />
                     </Field>
@@ -334,7 +334,7 @@ export default function IsfPage() {
                         value={f.recordedBy}
                         onChange={(e) => patch(f.id, { recordedBy: e.target.value })}
                         aria-label={`Who recorded ${f.id}`}
-                        className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                        className="w-full rounded-[8px] border px-3 py-2 text-[13px]"
                         style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                       />
                     </Field>
@@ -346,7 +346,7 @@ export default function IsfPage() {
                       onChange={(e) => patch(f.id, { location: e.target.value })}
                       aria-label={`Where ${f.id} is`}
                       placeholder="MV switchroom, Pier B basement"
-                      className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                      className="w-full rounded-[8px] border px-3 py-2 text-[13px]"
                       style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                     />
                   </Field>
@@ -358,7 +358,7 @@ export default function IsfPage() {
                       rows={2}
                       aria-label={`Location description for ${f.id}`}
                       placeholder="Between stand 14 and 15, access panel on the apron side"
-                      className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                      className="w-full rounded-[8px] border px-3 py-2 text-[13px]"
                       style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                     />
                   </Field>
@@ -371,7 +371,7 @@ export default function IsfPage() {
                           patch(f.id, { discipline: e.target.value || null })
                         }
                         aria-label={`Discipline for ${f.id}`}
-                        className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                        className="w-full rounded-[8px] border px-3 py-2 text-[13px]"
                         style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                       >
                         <option value="">Not attributed</option>
@@ -457,7 +457,7 @@ export default function IsfPage() {
                         rows={2}
                         aria-label={`Actual impact of ${f.id}`}
                         placeholder="What actually resulted — damage, delay, a near miss"
-                        className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                        className="w-full rounded-[8px] border px-3 py-2 text-[13px]"
                         style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                       />
                     </Field>
@@ -468,7 +468,7 @@ export default function IsfPage() {
                         rows={2}
                         aria-label={`Potential impact of ${f.id}`}
                         placeholder="The reasonable worst case if this happens again"
-                        className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                        className="w-full rounded-[8px] border px-3 py-2 text-[13px]"
                         style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                       />
                     </Field>
@@ -481,7 +481,7 @@ export default function IsfPage() {
                       rows={2}
                       aria-label={`Immediate risk to persons from ${f.id}`}
                       placeholder="Anyone entering the room could contact live parts"
-                      className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                      className="w-full rounded-[8px] border px-3 py-2 text-[13px]"
                       style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                     />
                   </Field>
@@ -493,7 +493,7 @@ export default function IsfPage() {
                       rows={2}
                       aria-label={`Immediate action taken on ${f.id}`}
                       placeholder="Withdrew, warned two staff nearby, escort locked the door"
-                      className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                      className="w-full rounded-[8px] border px-3 py-2 text-[13px]"
                       style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                     />
                   </Field>
@@ -576,7 +576,7 @@ export default function IsfPage() {
                       onChange={(e) => patch(f.id, { acsaManagerName: e.target.value })}
                       aria-label={`ACSA area or department manager for ${f.id}`}
                       placeholder="Name of the ACSA area or department manager"
-                      className="w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                      className="w-full rounded-[8px] border px-3 py-2 text-[13px]"
                       style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                     />
                   </Field>
@@ -599,7 +599,7 @@ export default function IsfPage() {
                       onChange={(e) => patch(f.id, { writtenTo: e.target.value })}
                       aria-label={`Who the written notice for ${f.id} goes to`}
                       placeholder="Airport contact and ACSA Centre of Excellence"
-                      className="mb-2 w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                      className="mb-2 w-full rounded-[8px] border px-3 py-2 text-[13px]"
                       style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                     />
                     <div className="flex flex-wrap gap-2">
@@ -619,7 +619,7 @@ export default function IsfPage() {
                       onChange={(e) => patch(f.id, { authorisedBy: e.target.value })}
                       aria-label={`Authorised person for ${f.id}`}
                       placeholder="Name of the TPJV authorised person"
-                      className="mb-2 w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                      className="mb-2 w-full rounded-[8px] border px-3 py-2 text-[13px]"
                       style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                     />
                     {signing === f.id ? (
@@ -664,7 +664,7 @@ export default function IsfPage() {
                         onChange={(e) => patch(f.id, { closureNote: e.target.value })}
                         aria-label={`Who confirmed ${f.id} is safe, and how`}
                         placeholder="Who confirmed it, and how"
-                        className="mb-2 w-full rounded-[9px] border px-3 py-2 text-[13px]"
+                        className="mb-2 w-full rounded-[8px] border px-3 py-2 text-[13px]"
                         style={{ background: "var(--bg)", borderColor: "var(--line)" }}
                       />
                       <Btn

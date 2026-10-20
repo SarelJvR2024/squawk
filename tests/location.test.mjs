@@ -238,7 +238,14 @@ check(
 
 check(
   "the screen holds a filter, defaulting to everything",
-  /const \[filter, setFilter\] = useState\(""\);/.test(fieldCode),
+  /* UX-audit P1 split this one local useState into a read-through: the
+     location axis keeps its own local "" default (areaFilter) and the
+     discipline axis now reads the shared useDisciplineFilter() store slice
+     (src/lib/store.ts), which defaults to "" the same way for an entity
+     nothing has been picked on yet. Either way "filter" itself still opens
+     on everything, which is what this assertion protects. */
+  /const \[areaFilter, setAreaFilter\] = useState\(""\);/.test(fieldCode) &&
+    /const filter = groupBy === "area" \? areaFilter : sharedDiscipline;/.test(fieldCode),
   "nothing is hidden until the auditor chooses to hide it"
 );
 

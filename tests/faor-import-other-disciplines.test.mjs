@@ -189,8 +189,13 @@ check("SystemAssessment.directionOfRisk exists and is optional", /directionOfRis
 const store = src("src", "lib", "store.ts");
 check("persist key untouched", store.includes('"acsa-assurance-v1"'));
 check(
+  /* UX-audit P1 added disciplineFilterByEntity (src/lib/store.ts), an
+     unrelated persisted field, and bumped the version 37 -> 38 for it.
+     This assertion's own point — that importing this file's hazard
+     mapping adds no new stored field of ITS OWN — still holds; it is
+     re-pinned to the version that change actually landed on. */
   "the migration version is unchanged — this import adds no new field, unlike the first hazard-mapping wave",
-  /version:\s*37,/.test(store)
+  /version:\s*38,/.test(store)
 );
 
 /* The two hazard-mapping waves must never collide — same entity/visit,
