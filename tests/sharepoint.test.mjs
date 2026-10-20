@@ -248,6 +248,51 @@ check(
   })()
 );
 
+/* Response.fieldCompliance — the Inspection screen's OWN, separate verdict
+ *  on a check (OutcomeControl, on the walk), distinct from Response.compliance
+ *  (the Checks screen's verdict, set on Capture). It was captured and shown
+ *  correctly in the app's own Inspection UI but sharepoint.ts never read it —
+ *  zero matches for `fieldCompliance` anywhere in this file — so the portal
+ *  only ever saw `compliance`, never knew the walk's own answer existed. */
+check(
+  "A CHECK'S fieldCompliance REACHES THE PORTAL, INDEPENDENTLY OF compliance",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": {
+            compliance: "C",
+            fieldCompliance: "NC",
+            observation: "Fine on the desk",
+            attachments: [],
+          },
+        },
+      },
+      NOTHING
+    );
+    return p.checkpoints[0].values.compliance === "C" && p.checkpoints[0].values.fieldCompliance === "NC";
+  })(),
+  JSON.stringify(
+    sp.buildPlan(
+      { ...BASE, responses: { "KSIA-ELE-001": { compliance: "C", fieldCompliance: "NC", observation: "", attachments: [] } } },
+      NOTHING
+    ).checkpoints[0]?.values
+  )
+);
+
+check(
+  "a check with no fieldCompliance answered yet sends null, not a copy of compliance",
+  sp.buildPlan(
+    {
+      ...BASE,
+      responses: { "KSIA-ELE-001": { compliance: "C", fieldCompliance: null, observation: "Fine", attachments: [] } },
+    },
+    NOTHING
+  ).checkpoints[0].values.fieldCompliance === null,
+  "a regression check: the two fields must never be folded into one on the way to the portal either"
+);
+
 check(
   "an AGREED ERM cell reaches the portal, in the portal's own words",
   (() => {
@@ -256,6 +301,39 @@ check(
     return v.severity === "B - Critical" && v.likelihood === "3 - Likely" && v.riskPriority === "I";
   })(),
   JSON.stringify(sp.buildPlan({ ...BASE, hazards: [HAZARD()] }, NOTHING).findings[0]?.values)
+);
+
+/* MitigationAction.system (hazardPromotion.ts's hazard-auto-merge) names
+ *  which asset system an action was copied in from, for a hazard consolidated
+ *  from 2+ systems — exactly the case `discipline` already disambiguates.
+ *  It was written and shown correctly in the app's own hazard-register UI
+ *  but never read by flattenActions, the one function that decides what
+ *  ACSA's portal actually sees in the Treatment cell — so a multi-system
+ *  action reached the portal with no way to tell which system it was for. */
+check(
+  "A MULTI-SYSTEM HAZARD'S ACTIONS REACH THE PORTAL TAGGED BY SYSTEM",
+  (() => {
+    const actions = [
+      { id: "a1", action: "Install LOTO signage", owner: "J. Smith", dueDate: "2026-11-01", status: "Open", system: "Switchgear", discipline: "Electrical" },
+      { id: "a2", action: "Replace worn seals", owner: "T. Naidoo", dueDate: "2026-11-15", status: "Open", system: "Fuel farm" },
+    ];
+    const p = sp.buildPlan({ ...BASE, hazards: [HAZARD({ systems: ["Switchgear", "Fuel farm"], actions })] }, NOTHING);
+    const treatment = p.findings[0].values.treatment;
+    return treatment.includes("[Switchgear]") && treatment.includes("[Fuel farm]");
+  })(),
+  JSON.stringify(sp.buildPlan({ ...BASE, hazards: [HAZARD({ actions: [{ id: "a1", action: "x", owner: "", dueDate: "", status: "Open", system: "Switchgear" }] })] }, NOTHING).findings[0]?.values.treatment)
+);
+
+check(
+  "and flattenActions itself produces the exact line, system before discipline",
+  sp.flattenActions([{ id: "a1", action: "Install LOTO signage", owner: "J. Smith", dueDate: "2026-11-01", status: "Open", system: "Switchgear", discipline: "Electrical" }]) ===
+    "[Switchgear] Electrical — Install LOTO signage · J. Smith · 2026-11-01 · Open"
+);
+
+check(
+  "an action with no system (the common case) is unaffected — no stray tag",
+  sp.flattenActions([{ id: "a1", action: "Fix it", owner: "", dueDate: "", status: "Open" }]) ===
+    "Fix it · NO OWNER · NO TARGET DATE · Open"
 );
 
 check(
@@ -359,6 +437,95 @@ check(
     );
   })(),
   "ACSA's Progress cell is one field that gets typed over; we keep the log and flatten it on the way out"
+);
+
+/* Verification.evidenceRequested, Verification.discussionLog and
+ *  Verification.evidencePending — all three confirmed by grep to have zero
+ *  matches anywhere in sharepoint.ts. The one sync site that touches a
+ *  Verification record at all is this "last cycle, verified this visit"
+ *  loop, so this is the one place that can carry them across. Each is
+ *  deliberately distinct from a similarly-named Response-level field — see
+ *  their own doc comments in types.ts. */
+check(
+  "a verified prior finding's evidenceRequested, discussionLog and evidencePending ALL reach the portal",
+  (() => {
+    const prior = [{ portalId: "KSIA-ELE-P01", entityCode: "FALE" }];
+    const verifications = {
+      "KSIA-ELE-P01": {
+        pf: "KSIA-ELE-P01", outcome: "Open - repeat", evidence: "", attachments: [],
+        verifiedBy: "Sarel", verifiedAt: 1,
+        action: "Replace the valve",
+        evidenceRequested: "Updated maintenance certificate",
+        evidencePending: true,
+        progress: [{ at: 1_757_000_000_000, by: "Sarel", visit: "2026-09", outcome: null, note: "PO raised" }],
+        discussionLog: [
+          { at: 1_757_200_000_000, by: "Sarel", visit: "2026-09", outcome: null, note: "ACSA agreed an extension to November" },
+        ],
+      },
+    };
+    const p = sp.buildPlan({ ...BASE, prior, verifications }, NOTHING);
+    const v = p.findings[0].values;
+    return (
+      v.evidenceRequested === "Updated maintenance certificate" &&
+      /ACSA agreed an extension to November/.test(String(v.discussionLog)) &&
+      /EVIDENCE PENDING/.test(String(v.treatment)) &&
+      /Replace the valve/.test(String(v.treatment)) &&
+      /PO raised/.test(String(v.progress)) &&
+      !/ACSA agreed/.test(String(v.progress))
+    );
+  })(),
+  JSON.stringify(
+    sp.buildPlan(
+      {
+        ...BASE,
+        prior: [{ portalId: "KSIA-ELE-P01", entityCode: "FALE" }],
+        verifications: {
+          "KSIA-ELE-P01": {
+            pf: "KSIA-ELE-P01", outcome: "Open - repeat", evidence: "", attachments: [],
+            verifiedBy: "Sarel", verifiedAt: 1, action: "Replace the valve",
+            evidenceRequested: "Updated maintenance certificate", evidencePending: true,
+            discussionLog: [{ at: 1, by: "Sarel", visit: "2026-09", outcome: null, note: "x" }],
+          },
+        },
+      },
+      NOTHING
+    ).findings[0]?.values
+  )
+);
+
+check(
+  "discussionLog in the findings row is EXACTLY flattenProgress() of the raw log, not a reimplementation",
+  (() => {
+    const log = [
+      { at: 1_757_200_000_000, by: "Sarel", visit: "2026-09", outcome: null, note: "ACSA agreed an extension to November" },
+      { at: 1_757_300_000_000, by: "Thabile", visit: "2026-09", outcome: null, note: "Site confirmed the date" },
+    ];
+    const prior = [{ portalId: "KSIA-ELE-P03", entityCode: "FALE" }];
+    const verifications = {
+      "KSIA-ELE-P03": {
+        pf: "KSIA-ELE-P03", outcome: "Open - repeat", evidence: "", attachments: [],
+        verifiedBy: "Sarel", verifiedAt: 1, discussionLog: log,
+      },
+    };
+    const p = sp.buildPlan({ ...BASE, prior, verifications }, NOTHING);
+    return p.findings[0].values.discussionLog === sp.flattenProgress(log);
+  })()
+);
+
+check(
+  "a verified prior finding with NONE of the three set is unaffected — no stray EVIDENCE PENDING, nulls not crashes",
+  (() => {
+    const prior = [{ portalId: "KSIA-ELE-P02", entityCode: "FALE" }];
+    const verifications = {
+      "KSIA-ELE-P02": {
+        pf: "KSIA-ELE-P02", outcome: "Closed", evidence: "", attachments: [],
+        verifiedBy: "Sarel", verifiedAt: 1, action: "Done",
+      },
+    };
+    const p = sp.buildPlan({ ...BASE, prior, verifications }, NOTHING);
+    const v = p.findings[0].values;
+    return v.evidenceRequested === null && v.discussionLog === "" && v.treatment === "Done";
+  })()
 );
 
 check(

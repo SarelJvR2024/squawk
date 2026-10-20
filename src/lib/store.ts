@@ -1280,6 +1280,13 @@ export const useStore = create<State>()(
           if (a?.blobKey) void delBlob(a.blobKey);
           get().patch(checkId, {
             attachments: r.attachments.filter((x) => x.id !== attachmentId),
+            /* See Response.removedAttachmentIds — recorded in the SAME patch
+               call as the removal so a sync from a device that only saw the
+               attachment (never the removal) cannot put it back. */
+            removedAttachmentIds: [
+              ...(r.removedAttachmentIds ?? []),
+              { id: attachmentId, at: Date.now() },
+            ],
           });
         },
 
@@ -1313,6 +1320,15 @@ export const useStore = create<State>()(
               : a;
           get().patch(fromCheckId, {
             attachments: from.attachments.filter((x) => x.id !== attachmentId),
+            /* See Response.removedAttachmentIds. The removal half of a move
+               is a removal from `from`'s point of view — a stale sync of
+               `from` must not resurrect the attachment there once it has
+               moved on. The add half below is additive and needs no
+               tombstone of its own. */
+            removedAttachmentIds: [
+              ...(from.removedAttachmentIds ?? []),
+              { id: attachmentId, at: Date.now() },
+            ],
           });
           get().patch(toCheckId, {
             attachments: [...to.attachments, moved],
@@ -3097,6 +3113,12 @@ export const useStore = create<State>()(
           const gone = v.attachments.find((a) => a.id === attachmentId);
           get().patchVerification(pf, {
             attachments: v.attachments.filter((a) => a.id !== attachmentId),
+            /* See Response.removedAttachmentIds — same tombstone, for the
+               Verification side. */
+            removedAttachmentIds: [
+              ...(v.removedAttachmentIds ?? []),
+              { id: attachmentId, at: Date.now() },
+            ],
           });
           /* The bytes go with it — the same rule every other
              removeXAttachment follows. */

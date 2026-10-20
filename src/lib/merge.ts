@@ -225,11 +225,87 @@ export interface Contested {
 const when = (r: { updatedAt?: number } | undefined): number => r?.updatedAt ?? 0;
 const empty = (): Counts => ({ added: [], updated: [], kept: [] });
 
-/** Union by id, theirs appended where this device has never seen it.
- *  Order is preserved so a strip of photographs does not reshuffle on merge. */
-function unionAttachments(mine: Attachment[], theirs: Attachment[]): Attachment[] {
-  const seen = new Set(mine.map((a) => a.id));
-  return [...mine, ...theirs.filter((a) => !seen.has(a.id))];
+/** A tombstone: an attachment id deliberately removed from a record, and
+ *  when. See Response.removedAttachmentIds / Verification.removedAttachmentIds. */
+type Tombstone = { id: string; at: number };
+
+/** Merge two devices' tombstone logs the same way unionProgress merges
+ *  ProgressNote[] — by identity, nothing dropped. Two devices can each
+ *  remove a DIFFERENT attachment from the same record independently (one
+ *  deletes a blurry photo, the other moves a mis-filed one elsewhere), and
+ *  neither record of removal may be lost — if it were, a THIRD device that
+ *  later merges from whichever side lost it could resurrect the attachment
+ *  that side removed, even though the fix already reached that side once.
+ *
+ *  The same id tombstoned on both sides (independently removed in parallel,
+ *  or carried forward from an earlier merge) keeps the LATER of the two
+ *  `at`s: a later-known removal time only ever makes the tombstone MORE
+ *  likely to block a stale resurrection, never less, and this bug is one
+ *  where erring toward blocking is the safe side to err on. */
+function unionTombstones(mine: Tombstone[] = [], theirs: Tombstone[] = []): Tombstone[] {
+  const byId = new Map(mine.map((t) => [t.id, t]));
+  for (const t of theirs) {
+    const existing = byId.get(t.id);
+    if (!existing || t.at > existing.at) byId.set(t.id, t);
+  }
+  return [...byId.values()];
+}
+
+/** The tombstone-aware union that actually belongs on Response/Verification
+ *  attachments, in place of the plain `unionAttachments` above.
+ *
+ *  THE BUG: `removeAttachment`/`moveAttachment`/`removeVerificationAttachment`
+ *  (store.ts) take an id out of `attachments` and bump the record's
+ *  `updatedAt`, but a plain union-by-id has no concept of "this id was
+ *  deliberately removed" — it just appends whatever `theirs` still has that
+ *  `mine` doesn't carry by id. A `theirs` bundle that is a stale snapshot
+ *  from BEFORE the removal/move happened still has the attachment, so the
+ *  union puts it straight back. This happens even on the branch where
+ *  `mine`'s record wins the "which side is newer" comparison in
+ *  `mergeBundle` (device A's removal bumped `updatedAt` to now, so A's
+ *  record beats B's older snapshot) — attachments are still unioned
+ *  independently of which side's scalar fields won, so the stale copy of
+ *  the attachment still gets appended unless this function stops it.
+ *
+ *  THE RULE, applied to BOTH sides rather than only to what `theirs` would
+ *  add: an id is dropped from whichever side carries it when that side's own
+ *  `updatedAt` is NOT newer than the id's tombstone `at` (from `tombstones`,
+ *  the caller's already-merged union of both sides' removal logs — see
+ *  `unionTombstones`). "Not newer than the tombstone" means that side has
+ *  not been touched since the removal it is stale with respect to, so its
+ *  copy is the stale one and must not survive the merge.
+ *
+ *  Symmetric on purpose, not only "filter what theirs would add": device A
+ *  removes and syncs into stale device B — B's own PRE-EXISTING copy of the
+ *  id must also drop out of the merge, not just future resurrections of it,
+ *  or B's next export to a device C would carry the attachment right back
+ *  out, undoing the removal one hop later than where it was supposed to
+ *  stop. That is exactly the "third device" case this bug report calls out
+ *  by name, and it is only prevented if a stale side's OWN existing copy is
+ *  filtered here too, not just incoming ones.
+ *
+ *  If a side's own `updatedAt` IS newer than the tombstone's `at`, that side
+ *  saw something after the removal — handled conservatively by letting its
+ *  copy through, even though attachment ids are minted fresh per
+ *  `addAttachment` call, so a genuine re-add under the SAME id after a
+ *  removal should not actually happen in practice; this does not assert that
+ *  it can't. */
+function unionAttachmentsWithTombstones(
+  mine: Attachment[],
+  theirs: Attachment[],
+  tombstones: Tombstone[],
+  mineUpdatedAt: number,
+  theirsUpdatedAt: number
+): Attachment[] {
+  const tombstonedAt = new Map(tombstones.map((t) => [t.id, t.at]));
+  const survives = (a: Attachment, sideUpdatedAt: number) => {
+    const removedAt = tombstonedAt.get(a.id);
+    return removedAt === undefined || sideUpdatedAt > removedAt;
+  };
+  const keptMine = mine.filter((a) => survives(a, mineUpdatedAt));
+  const seen = new Set(keptMine.map((a) => a.id));
+  const toAdd = theirs.filter((a) => !seen.has(a.id) && survives(a, theirsUpdatedAt));
+  return [...keptMine, ...toAdd];
 }
 
 /** Progress notes have no id — they are an append-only log. Two devices can
@@ -377,12 +453,26 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
       report.attachmentsAdded += t.attachments?.length ?? 0;
       continue;
     }
-    const attachments = unionAttachments(m.attachments ?? [], t.attachments ?? []);
+    const removedAttachmentIds = unionTombstones(m.removedAttachmentIds, t.removedAttachmentIds);
+    const attachments = unionAttachmentsWithTombstones(
+      m.attachments ?? [],
+      t.attachments ?? [],
+      removedAttachmentIds,
+      when(m),
+      when(t)
+    );
     report.attachmentsAdded += attachments.length - (m.attachments?.length ?? 0);
+
+    /* Absent rather than `[]`, same as every other optional array field in
+       this codebase (see Response.location's own note on this) — a record
+       with nothing tombstoned reads exactly like one from before this field
+       existed, which is also what keeps a plain merge of an untouched
+       record byte-for-byte identical to not merging it at all. */
+    const tombstones = removedAttachmentIds.length ? removedAttachmentIds : undefined;
 
     const bothTouched = when(m) > 0 && when(t) > 0;
     if (when(t) > when(m)) {
-      responses[checkId] = { ...t, attachments };
+      responses[checkId] = { ...t, attachments, removedAttachmentIds: tombstones };
       report.responses.updated.push(checkId);
       if (bothTouched) {
         report.contested.push({
@@ -394,7 +484,7 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
         });
       }
     } else {
-      responses[checkId] = { ...m, attachments };
+      responses[checkId] = { ...m, attachments, removedAttachmentIds: tombstones };
       report.responses.kept.push(checkId);
       if (bothTouched && when(m) > when(t)) {
         report.contested.push({
@@ -417,7 +507,14 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
       report.verifications.added.push(pf);
       continue;
     }
-    const attachments = unionAttachments(m.attachments ?? [], t.attachments ?? []);
+    const removedAttachmentIds = unionTombstones(m.removedAttachmentIds, t.removedAttachmentIds);
+    const attachments = unionAttachmentsWithTombstones(
+      m.attachments ?? [],
+      t.attachments ?? [],
+      removedAttachmentIds,
+      when(m),
+      when(t)
+    );
     const progress = unionProgress(m.progress, t.progress);
     /* Same append-only-log reasoning as `progress`, for the ACSA discussion
        log — two auditors can each add a note between visits and neither must
@@ -427,7 +524,16 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
     report.attachmentsAdded += attachments.length - (m.attachments?.length ?? 0);
     report.progressAdded += progress.length - (m.progress?.length ?? 0);
     const newer = when(t) > when(m) ? t : m;
-    verifications[pf] = { ...newer, attachments, progress, discussionLog, possibleEvents };
+    verifications[pf] = {
+      ...newer,
+      attachments,
+      /* Absent rather than `[]` — see the same note on the Response loop
+         above. */
+      removedAttachmentIds: removedAttachmentIds.length ? removedAttachmentIds : undefined,
+      progress,
+      discussionLog,
+      possibleEvents,
+    };
     if (when(t) > when(m)) report.verifications.updated.push(pf);
     else report.verifications.kept.push(pf);
     if (when(m) > 0 && when(t) > 0 && when(m) !== when(t)) {
