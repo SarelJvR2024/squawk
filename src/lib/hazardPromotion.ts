@@ -117,7 +117,13 @@ export function buildPromotedHazardPatch(
     likelihood: group.find(({ event }) => event.likelihood)?.event.likelihood ?? null,
     note: [...new Set(group.map(({ event }) => event.note).filter(Boolean))].join("\n"),
     rootCause,
-    actions: group.flatMap(({ event }) => event.actions ?? []),
+    /* Each action keeps the system it was copied in from — see
+       MitigationAction.system's own comment. `a.system ?? system` so an
+       action that somehow already carries a system (e.g. re-promoting data
+       that already went through this once) is not overwritten. */
+    actions: group.flatMap(({ system, event }) =>
+      (event.actions ?? []).map((a) => ({ ...a, system: a.system ?? system }))
+    ),
     findingIds: linkedFindingIds,
     assetIds: [
       ...new Set([
@@ -134,4 +140,65 @@ export function buildPromotedHazardPatch(
     systems: [...new Set(group.map(({ system }) => system))],
     sourceSystemEventIds: group.map(({ event }) => event.id),
   };
+}
+
+/** THE GATE FOR AUTOMATIC, NON-REVERSIBLE-BY-TAP HAZARD CREATION. Per
+ *  groupSystemEventCandidates' own header, a group of more than one can
+ *  only form from a real, identically-worded duplicate named independently
+ *  on 2+ asset systems — never a coincidence, since a blank/unnamed event
+ *  always gets its own unique key — so Sarel's ask ("the app should
+ *  automatically merge them") applies to exactly this case. A group of
+ *  one is a single system naming an event nobody else echoed: a genuine
+ *  "should this become a hazard at all" judgment call, so it is NOT
+ *  auto-promoted and keeps the manual "Create hazard" tap. Pulled out as
+ *  its own predicate so the auto-promote effect reads as what it is,
+ *  rather than an inline `.length > 1` a reader has to go verify against
+ *  the grouping guarantee above. */
+export function shouldAutoPromote(group: SystemEventCandidate[]): boolean {
+  return group.length > 1;
+}
+
+export interface RootCauseGroup {
+  system: string | null;
+  lines: string[];
+}
+
+/** `[System] cause — note` per line — the exact format buildPromotedHazardPatch
+ *  above joins a multi-system group's root causes into (see its own comment
+ *  for why rootCause stays ONE string rather than becoming a list — ACSA's
+ *  portal field and sharepoint.ts's sync rely on that shape). This is the
+ *  matching READ side: the register's expanded hazard card (hazards/page.tsx)
+ *  groups a consolidated hazard's causes by which system each line came
+ *  from, without changing what is actually stored.
+ *
+ *  `systems` is the hazard's own `systems` list, in the order the card
+ *  renders it, and sets the order groups come back in too — so the caller
+ *  can just map over the result. Any line that does not match the bracket
+ *  format at all — a hazard's root cause edited by hand after promotion, or
+ *  a legacy hazard raised before this format existed — lands in the
+ *  `system: null` bucket instead of silently disappearing, and any bracket
+ *  naming a system outside the hazard's own list (should not normally
+ *  happen, but data drifts) still comes back as its own group rather than
+ *  being dropped. */
+const ROOT_CAUSE_LINE = /^\[([^\]]+)\]\s*(.*)$/;
+
+export function parseRootCauseBySystem(rootCause: string, systems: string[]): RootCauseGroup[] {
+  const bySystem = new Map<string, string[]>();
+  const unmatched: string[] = [];
+  for (const line of rootCause.split("\n")) {
+    if (!line.trim()) continue;
+    const m = line.match(ROOT_CAUSE_LINE);
+    if (m) {
+      const arr = bySystem.get(m[1]);
+      if (arr) arr.push(m[2]);
+      else bySystem.set(m[1], [m[2]]);
+    } else {
+      unmatched.push(line);
+    }
+  }
+  const order = [...systems, ...[...bySystem.keys()].filter((s) => !systems.includes(s))];
+  const groups: RootCauseGroup[] = order
+    .filter((s) => bySystem.has(s))
+    .map((s) => ({ system: s, lines: bySystem.get(s)! }));
+  return unmatched.length ? [...groups, { system: null, lines: unmatched }] : groups;
 }

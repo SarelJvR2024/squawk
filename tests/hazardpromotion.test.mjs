@@ -19,6 +19,8 @@ import {
   buildPromotedHazardPatch,
   eventKey,
   groupSystemEventCandidates,
+  parseRootCauseBySystem,
+  shouldAutoPromote,
 } from "@/lib/hazardPromotion";
 
 let failures = 0;
@@ -173,6 +175,10 @@ check(
     patch.rootCause
   );
   check("single-group action carries through untouched", patch.actions.length === 1 && patch.actions[0].action === "Fund the repair");
+  check(
+    "single-group action still carries the system it came from (just not a bracket in rootCause)",
+    patch.actions[0].system === "Substations"
+  );
   check("single-group sourceSystemEventIds has the one event", JSON.stringify(patch.sourceSystemEventIds) === JSON.stringify(["EV-SOLO"]));
   check("single-group systems is just that one system", JSON.stringify(patch.systems) === JSON.stringify(["Substations"]));
   check(
@@ -229,6 +235,14 @@ check(
   );
   check("every action is carried across", patch.actions.length === 4);
   check(
+    "every action carries the system it was named against, for the hierarchy view",
+    patch.actions.find((a) => a.id === "MA-1")?.system === "Substations" &&
+      patch.actions.find((a) => a.id === "MA-2")?.system === "Transformers" &&
+      patch.actions.find((a) => a.id === "MA-3")?.system === "Fire Safety Management" &&
+      patch.actions.find((a) => a.id === "MA-4")?.system === "Statutory Appointments & Competencies",
+    JSON.stringify(patch.actions.map((a) => [a.id, a.system]))
+  );
+  check(
     "every source event id is recorded, so each drops off the candidate list once promoted",
     patch.sourceSystemEventIds.length === 4 &&
       ["EV-1", "EV-2", "EV-3", "EV-4"].every((id) => patch.sourceSystemEventIds.includes(id))
@@ -264,6 +278,98 @@ check(
   ];
   const patch = buildPromotedHazardPatch(group, []);
   check("a later event's recorded likelihood is not lost behind an earlier blank one", patch.likelihood === "4");
+}
+
+/* --------------------------- shouldAutoPromote -------------------------- */
+
+check(
+  "a group of one does NOT auto-promote — a genuine 'should this be a hazard' call stays manual",
+  shouldAutoPromote([candidate("Electrical", "Substations")]) === false
+);
+check(
+  "a group of two+ DOES auto-promote — the grouping guarantee is already the duplicate signal",
+  shouldAutoPromote([
+    candidate("Electrical", "Substations"),
+    candidate("Electrical", "Transformers"),
+  ]) === true
+);
+
+/* ------------------------------ parseRootCauseBySystem ------------------ */
+
+{
+  // ROUND-TRIP: build a multi-system patch, take its rootCause string, parse
+  // it back, and get the same systems/causes that went in.
+  const group = [
+    candidate("Electrical", "Substations", {
+      id: "EV-1",
+      rootCauses: [rootCause("Oil not tested")],
+    }),
+    candidate("Electrical", "Transformers", {
+      id: "EV-2",
+      rootCauses: [rootCause("Protection not tested", "overdue")],
+    }),
+    candidate("Process Safety & Risk", "Fire Safety Management", {
+      id: "EV-3",
+      rootCauses: [rootCause("No separation between bays")],
+    }),
+  ];
+  const patch = buildPromotedHazardPatch(group, []);
+  const parsed = parseRootCauseBySystem(patch.rootCause, patch.systems);
+  check(
+    "one group per contributing system, in the hazard's own systems order",
+    parsed.length === 3 &&
+      parsed[0].system === "Substations" &&
+      parsed[1].system === "Transformers" &&
+      parsed[2].system === "Fire Safety Management",
+    JSON.stringify(parsed.map((g) => g.system))
+  );
+  check(
+    "each system's own cause line round-trips back out",
+    parsed[0].lines[0] === "Oil not tested" &&
+      parsed[1].lines[0] === "Protection not tested — overdue" &&
+      parsed[2].lines[0] === "No separation between bays",
+    JSON.stringify(parsed.map((g) => g.lines))
+  );
+  check("nothing lands in the unattributed bucket when every line parses", !parsed.some((g) => g.system === null));
+}
+
+{
+  // A single-group promotion's rootCause has no bracket at all (multi is
+  // false) — parsing it back against its own one-item systems list must
+  // still show that cause, not drop it or wrongly call it unattributed.
+  const group = [
+    candidate("Electrical", "Substations", {
+      id: "EV-SOLO",
+      rootCauses: [rootCause("No budget")],
+    }),
+  ];
+  const patch = buildPromotedHazardPatch(group, []);
+  const parsed = parseRootCauseBySystem(patch.rootCause, patch.systems);
+  check(
+    "an unparsable (no-bracket) line lands in the null/unattributed bucket rather than being dropped",
+    parsed.length === 1 && parsed[0].system === null && parsed[0].lines[0] === "No budget",
+    JSON.stringify(parsed)
+  );
+}
+
+{
+  // A legacy hazard raised before this format existed, or hand-edited after
+  // promotion — plain free text, no bracket prefix anywhere.
+  const parsed = parseRootCauseBySystem(
+    "No isolation procedure on site\nSecond paragraph, still free text",
+    ["Substations", "Transformers"]
+  );
+  check(
+    "a fully unparsable legacy string lands entirely in the null bucket, not dropped",
+    parsed.length === 1 && parsed[0].system === null && parsed[0].lines.length === 2,
+    JSON.stringify(parsed)
+  );
+}
+
+{
+  // Blank root cause: nothing to show, nothing to invent.
+  const parsed = parseRootCauseBySystem("", ["Substations"]);
+  check("an empty root cause parses to no groups at all", parsed.length === 0);
 }
 
 /* ------------------------------------------------------------------ result */
