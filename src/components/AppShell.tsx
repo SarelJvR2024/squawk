@@ -614,7 +614,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                    back to the single row it always was. justify-center keeps
                    the (now shorter) stacked content centred in the 44px
                    target rather than pinned to its top edge. */
-                className="flex min-h-[44px] flex-col items-center justify-center gap-[5px] whitespace-nowrap rounded-[8px] px-[9px] py-[6px] font-display text-[11.5px] font-semibold no-underline transition-[var(--t)] sm:flex-row"
+                /* text-[9px] below sm, same 11.5px from sm up — the active
+                   item's own label (the span below that this ask could not
+                   touch without unpinning tests/tablet.test.mjs's literal
+                   match on it) is the only text in this link with no font
+                   size of its own; it inherits whichever this Link sets. At
+                   11.5px, stacked under the icon, "Asset Assurance" alone
+                   was tall enough to grow the whole bar past its measured
+                   56px (--bottom-nav, globals.css — out of scope this pass)
+                   and clip the last row of every scrolling screen behind it.
+                   9px keeps the stacked target inside that existing budget;
+                   sm and up are completely unaffected; the `hidden xl:inline`
+                   label two lines down only ever shows at xl, where this is
+                   already back to 11.5px. */
+                className="flex min-h-[44px] flex-col items-center justify-center gap-[5px] whitespace-nowrap rounded-[8px] px-[9px] py-[6px] font-display text-[9px] font-semibold no-underline transition-[var(--t)] sm:flex-row sm:text-[11.5px]"
                 style={{
                   background: active ? "var(--panel)" : "transparent",
                   color: active ? "var(--acc)" : "var(--ink-2)",
@@ -674,7 +687,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                      able to say "yes, really, zero" without the badge lying by
                      omission the way IsfStage's zero-value cases refuse to. */
                   <span
-                    className="rounded-full px-[4px] font-mono text-[9px]"
+                    /* HIDDEN BELOW sm, where it was not before — the one
+                       trade-off this pass made to add a label at every width
+                       without the stacked bottom-bar item growing past the
+                       56px --bottom-nav budget (globals.css, out of scope
+                       this pass) and clipping the last row of every
+                       scrolling screen behind it. The count is still one tap
+                       away (open the destination) and still shown here from
+                       sm up, unchanged. */
+                    className="hidden rounded-full px-[4px] font-mono text-[9px] sm:inline"
                     style={
                       /^0\//.test(String(badge))
                         ? { background: "transparent", color: "var(--ink-4)" }
