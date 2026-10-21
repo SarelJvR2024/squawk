@@ -409,7 +409,17 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
     const t = planTotals(plan);
     const total = t.writes - (sendPhotos ? 0 : t.photographs + t.signatures);
 
-    const writeRows = async (rows: PlannedRow[], list: { id: string; map: FieldMap } | null, what: string) => {
+    const writeRows = async (
+      rows: PlannedRow[],
+      list: { id: string; map: FieldMap } | null,
+      what: string,
+      /* Only a hazard's Title is minted sequentially (mintPortalId) rather
+         than built from something that cannot collide with a different row
+         — see findItemIdByTitle's own comment. Re-checking every list's
+         every create against the portal would just be a slower sync for no
+         gain on the lists that cannot race this way. */
+      verifyCreate = false
+    ) => {
       if (!list) return;
       for (const row of rows) {
         setProgress({ done: written, total, what: `${what} ${row.key}` });
@@ -423,12 +433,34 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
           });
           continue;
         }
-        /* The row's own action decides whether a blank may overwrite. An
-           update never empties a cell; see projectFields. */
-        const fields = projectFields(list.map, row.values, row.action);
         try {
-          if (row.itemId) {
-            await graph.updateItem(resolved.siteId, list.id, row.itemId, fields);
+          /* THE RACE THIS CLOSES: the plan was built from a read of the
+             portal that can be minutes old by the time this write actually
+             runs, or another device can have minted and created this exact
+             Title in that window — mintPortalId has no lock to take. One
+             more read, right here, right before the write it guards, asks
+             the portal directly rather than trusting that snapshot. */
+          let itemId = row.itemId;
+          if (!itemId && verifyCreate) {
+            itemId = (await graph.findItemIdByTitle(resolved.siteId, list.id, row.key)) ?? undefined;
+          }
+          /* The row's own action decides whether a blank may overwrite. An
+             update never empties a cell; see projectFields — and that must
+             be "update" here even when the PLAN said "create", because the
+             check just above is exactly the case where the plan was wrong:
+             a row already exists, found seconds too late for the plan to
+             have known. Projecting with the plan's stale "create" would
+             skip nothing and blank every cell this row already has — the
+             33-row incident projectFields' own comment describes, reached
+             by a different door. */
+          const fields = projectFields(list.map, row.values, itemId ? "update" : row.action);
+          if (itemId) {
+            await graph.updateItem(resolved.siteId, list.id, itemId, fields);
+            /* Found by this run's own check, not by the plan's — the earlier
+               write-back never happened (the create that minted this Title
+               probably outran its own response), so it still has to happen
+               now or the NEXT sync re-runs this exact race. */
+            if (!row.itemId && row.hazardId) updateHazard(row.hazardId, { portalId: row.key });
           } else {
             await graph.createItem(resolved.siteId, list.id, fields);
             /* Remember the Title we minted, so the NEXT sync updates this row
@@ -446,7 +478,7 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
 
     try {
       await writeRows(plan.checkpoints, resolved.checkList, "check-point");
-      await writeRows(plan.findings, resolved.findingList, "finding");
+      await writeRows(plan.findings, resolved.findingList, "finding", true);
       await writeRows(plan.attendance, resolved.attendanceList, "attendance row");
       await writeRows(plan.evidenceLog, resolved.evidenceLogList, "evidence log entry");
       await writeRows(plan.assetRisk, resolved.assetRiskList, "asset risk row");

@@ -57,7 +57,14 @@ const NEEDS_ALIAS = new Set([
   "carryforward.test.mjs",
   "auditdates.test.mjs",
   "relinkphoto.test.mjs",
+  "exports.test.mjs",
+  "graph.test.mjs",
 ]);
+/* graph.test.mjs ALSO needs --experimental-transform-types: GraphError's
+   constructor uses TS parameter properties, which Node's type-stripping
+   alone cannot erase (actual code generation, not just a type to drop) — see
+   run-all.sh's own copy of this same note. */
+const NEEDS_TRANSFORM_TYPES = new Set(["graph.test.mjs"]);
 const SELF = "suite-table.test.mjs";
 
 /* Every source suite needs a ROW, this file included — a suite that exempts
@@ -89,9 +96,11 @@ const stale = [];
 for (const file of runnable) {
   const row = rowOf(file);
   if (!row) continue;
-  const args = NEEDS_ALIAS.has(file)
-    ? ["--import", "./tests/alias.mjs", `tests/${file}`]
-    : [`tests/${file}`];
+  const args = [
+    ...(NEEDS_TRANSFORM_TYPES.has(file) ? ["--experimental-transform-types"] : []),
+    ...(NEEDS_ALIAS.has(file) ? ["--import", "./tests/alias.mjs"] : []),
+    `tests/${file}`,
+  ];
   let out;
   try {
     out = execFileSync(process.execPath, args, { cwd: root, encoding: "utf8" });
@@ -149,7 +158,9 @@ const WORDS = {
   "sixty-two": 62, "sixty-three": 63, "sixty-four": 64, "sixty-five": 65, "sixty-six": 66,
   "sixty-seven": 67, "sixty-eight": 68, "sixty-nine": 69, seventy: 70, "seventy-one": 71, "seventy-two": 72,
   "seventy-three": 73, "seventy-four": 74, "seventy-five": 75, "seventy-six": 76, "seventy-seven": 77,
-  "seventy-eight": 78, "seventy-nine": 79,
+  "seventy-eight": 78, "seventy-nine": 79, eighty: 80, "eighty-one": 81,
+  "eighty-two": 82, "eighty-three": 83, "eighty-four": 84, "eighty-five": 85,
+  "eighty-six": 86, "eighty-seven": 87, "eighty-eight": 88, "eighty-nine": 89,
   "thirty-seven": 37,
   "twenty-four": 24, "twenty-five": 25, "twenty-six": 26,
   "twenty-seven": 27, "twenty-eight": 28, "twenty-nine": 29,
