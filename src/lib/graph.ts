@@ -308,13 +308,52 @@ function isRetryableStatus(status: number): boolean {
 }
 const RETRYABLE_MESSAGE = /resource has changed|etag|name already exists|invalid request/i;
 
+/** Whether a failed Graph call should be retried — the ONE decision `call()`
+ *  defers to, so the rule itself (not a copy of it) is what a test drives;
+ *  see tests/graph.test.mjs.
+ *
+ *  `RETRYABLE_MESSAGE` was meant to catch 409s whose STATUS this file
+ *  deliberately excludes (see `isRetryableStatus`'s comment) but whose
+ *  message is "distinctive enough to retry on that alone" — `updateItem`'s
+ *  list-write conflicts ("the resource has changed…") and `uploadEvidence`'s
+ *  file-PUT races (literally "Name already exists" even with
+ *  `conflictBehavior=replace`, per the same comment). Both are genuine
+ *  transient failures with NO success path of their own, so they must keep
+ *  retrying — `retryOn409Message` stays true for them.
+ *
+ *  It is NOT distinctive enough, though: `ensureFolder`'s OWN folder-create
+ *  — `conflictBehavior: "fail"` — gets EXACTLY that same text, "The specified
+ *  item name already exists.", for the ordinary, successful "it is already
+ *  there" case its own `.catch()` already handles. Retrying that 409 up to
+ *  MAX_ATTEMPTS times before finally giving up and throwing (which
+ *  `ensureFolder` then reads as success anyway) just adds seconds of backoff
+ *  to every new evidence folder, for a conflict that was never going to
+ *  resolve by waiting. `ensureFolder` passes `retryOn409Message: false` on
+ *  that one call.
+ *
+ *  So this is scoped to the one call site that has its own 409 success path,
+ *  not to the status code — a global "never retry 409" would silently stop
+ *  retrying `updateItem`'s and `uploadEvidence`'s genuine 409s too, which is
+ *  the mistake this option exists to avoid. Default true: every other caller
+ *  of `call()` is unaffected. */
+export function isRetryable(status: number, detail: string, retryOn409Message = true): boolean {
+  if (isRetryableStatus(status)) return true;
+  if (status === 409 && !retryOn409Message) return false;
+  return RETRYABLE_MESSAGE.test(detail);
+}
+
 const MAX_ATTEMPTS = 4;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function call<T>(path: string, init?: RequestInit): Promise<T> {
+async function call<T>(
+  path: string,
+  init?: RequestInit,
+  opts?: { retryOn409Message?: boolean }
+): Promise<T> {
   if (!token || token.expires <= Date.now()) {
     throw new GraphError("Signed out. Sign in to Microsoft again.", 401, path);
   }
+  const retryOn409Message = opts?.retryOn409Message ?? true;
   for (let attempt = 1; ; attempt++) {
     const res = await fetch(`https://graph.microsoft.com/v1.0${path}`, {
       ...init,
@@ -338,8 +377,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       /* a non-JSON body; the status is what we have */
     }
-    const retryable = isRetryableStatus(res.status) || RETRYABLE_MESSAGE.test(detail);
-    if (!retryable || attempt >= MAX_ATTEMPTS) {
+    if (!isRetryable(res.status, detail, retryOn409Message) || attempt >= MAX_ATTEMPTS) {
       throw new GraphError(detail, res.status, path);
     }
     /* Retry-After is in seconds when Graph sends it (429/503); otherwise
@@ -608,10 +646,18 @@ export async function ensureFolder(driveId: string, folderPath: string): Promise
   const into = parent
     ? `/drives/${driveId}/root:/${encodeURI(parent)}:/children`
     : `/drives/${driveId}/root/children`;
-  await call(into, {
-    method: "POST",
-    body: JSON.stringify({ name, folder: {}, "@microsoft.graph.conflictBehavior": "fail" }),
-  }).catch((e) => {
+  await call(
+    into,
+    {
+      method: "POST",
+      body: JSON.stringify({ name, folder: {}, "@microsoft.graph.conflictBehavior": "fail" }),
+    },
+    /* Never retry THIS call's own 409 on the message fallback — see
+       `retryOn409Message`'s doc comment above `call()`. The `.catch()` right
+       below already reads that 409 as success; retrying it first only adds
+       backoff delay to a conflict that was never a failure to begin with. */
+    { retryOn409Message: false }
+  ).catch((e) => {
     /* Somebody else created it between the check and the create. That is the
        outcome we wanted, so it is not an error. */
     if (!(e instanceof GraphError) || e.status !== 409) throw e;

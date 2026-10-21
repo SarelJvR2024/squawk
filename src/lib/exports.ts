@@ -31,6 +31,7 @@ import { entity as entityOf, PROGRAMME_VISITS } from "./programme";
 import { portalIdFor } from "./sites";
 import { priorFor } from "./register";
 import { mappingFor } from "./crosswalk";
+import { flattenProgress } from "./sharepoint";
 import * as erm from "./erm";
 
 /** Who raised the hazard, spelled out for a reader of the workbook. */
@@ -227,6 +228,14 @@ export function registerSheet(x: ExportInput): Sheet {
       /* Spelled out rather than "Yes": a reader scanning this column should
          not have to look up what a bare yes is answering. */
       r?.evidencePending ? "ACSA says compliant — evidence still to be produced" : "",
+      /* THE INSPECTION SCREEN'S OWN, SEPARATE VERDICT — Response.fieldCompliance,
+         never `compliance` above. Same STATUS_WORD vocabulary, its own column,
+         because the two are deliberately independent answers to independent
+         questions on independent screens (see fieldCompliance's doc comment in
+         types.ts) and folding one into the other would throw that away. `null`
+         (not yet answered on the walk) renders blank, same convention as the
+         Status column just above. */
+      r?.fieldCompliance ? STATUS_WORD[r.fieldCompliance] : "",
       /* WHERE THE ASSET WAS INSPECTED, and it is a different column from
          `Area`. Area is ACSA's category on the register; this is the auditor's
          own words for where they were standing, which is the half that lets
@@ -294,6 +303,11 @@ export function registerSheet(x: ExportInput): Sheet {
          column an RFI gets generated from — filter it, and "Compliant when"
          above says what to ask each site for. */
       { header: "Evidence pending", width: 18, wrap: true },
+      /* THE INSPECTION SCREEN'S OWN VERDICT — not a rename or a mirror of
+         "Status" above. Named the way sharepoint.ts's FIELD_CANDIDATES for
+         this field already does, so a reader who has met the column on the
+         portal recognises it here too. */
+      { header: "Field compliance", width: 16 },
       { header: "Where it was inspected", width: 28 },
       { header: "Observation", width: 60, wrap: true },
       { header: "Evidence requested", width: 42, wrap: true },
@@ -822,6 +836,22 @@ export function closureSheet(x: ExportInput): Sheet {
       p.observation,
       v?.outcome ?? "",
       v?.evidence ?? "",
+      /* THE OTHER HALF OF THE SAME QUESTION — Verification.evidenceRequested:
+         what was asked for, next to `evidence` (what has been received), so
+         the pair reads as outstanding-against-in-hand rather than one column
+         doing both jobs. Sarel: "both sections required." Trimmed, blank
+         when unasked — same null/blank convention as `evidence`/`action`/
+         `nextStep` around it. */
+      v?.evidenceRequested?.trim() ?? "",
+      /* WHETHER THAT REQUESTED EVIDENCE HAS ARRIVED — Verification.
+         evidencePending, DELIBERATELY SEPARATE from Response.evidencePending
+         (that one is this visit's own check-point answer; this one is about a
+         CARRIED finding's closure proof). Absent-means-false, same as every
+         other optional flag in this workbook (see Response.evidencePending's
+         own cell above and `h.immediate` on the Hazards sheet): blank when
+         not pending, so a blank cell never has to be read as "false" by a
+         reader scanning past it. */
+      v?.evidencePending ? "Pending — closure evidence requested, not yet received" : "",
       /* WHAT FIXES IT, and separately WHAT HAPPENS NEXT. ACSA's own sheet
          folds the two into one cell, which is how a finding regularly arrives
          at the next audit with the chase recorded and no remedy at all. */
@@ -847,6 +877,13 @@ export function closureSheet(x: ExportInput): Sheet {
             }: ${n.note}`
         )
         .join("\n"),
+      /* THE ACSA DISCUSSION LOG — Verification.discussionLog, a SEPARATE
+         append-only log from `progress` just above (the conversation itself,
+         not what moved — see the field's own doc comment in types.ts).
+         Flattened with the EXACT SAME flattenProgress() sharepoint.ts already
+         uses for this field, not a second implementation that could drift
+         from it. */
+      flattenProgress(v?.discussionLog),
       v?.verifiedBy ?? "",
       when(v?.verifiedAt),
       covering.length,
@@ -878,10 +915,13 @@ export function closureSheet(x: ExportInput): Sheet {
       { header: "Finding as raised in Mar 2025", width: 66, wrap: true },
       { header: `Verification (${visitLabel(x.visit)})`, width: 16 },
       { header: "Evidence of closure", width: 58, wrap: true },
+      { header: "Evidence requested", width: 42, wrap: true },
+      { header: "Evidence pending", width: 18, wrap: true },
       { header: "Remediation action", width: 50, wrap: true },
       { header: "Next step", width: 44, wrap: true },
       { header: "Possible hazardous events", width: 62, wrap: true },
       { header: "Progress / Update", width: 66, wrap: true },
+      { header: "ACSA discussion log", width: 66, wrap: true },
       { header: "Verified by", width: 22 },
       { header: "Verified on", width: 12 },
       { header: "Checks covering it", width: 16 },
