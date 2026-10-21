@@ -140,17 +140,19 @@ export default function AcsaRequirementPanel({ check }: { check: Check }) {
       )}
 
       {check.acsaThreshold ? (
+        /* Reference wording, not a status — item 4 of Sarel's second
+           visual-hierarchy pass takes the brand accent off this box. */
         <div
           className="mt-2.5 rounded-[8px] border px-[10px] py-[8px]"
-          style={{ background: "var(--acc-soft)", borderColor: "var(--acc-line)" }}
+          style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
         >
-          <div className="label-xs" style={{ color: "var(--acc)" }}>
+          <div className="label-xs" style={{ color: "var(--ink-2)" }}>
             ACSA states ·{" "}
             {check.acsaDocs
               .map((d) => `${d.doc}${d.clause ? ` cl. ${d.clause}` : ""}`)
               .join("; ")}
           </div>
-          <div className="mt-1 text-[12.5px] leading-[1.55]" style={{ color: "var(--acc)" }}>
+          <div className="mt-1 text-[12.5px] leading-[1.55]" style={{ color: "var(--ink-2)" }}>
             {check.acsaThreshold}
           </div>
         </div>

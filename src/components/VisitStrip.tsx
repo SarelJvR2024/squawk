@@ -61,7 +61,12 @@ function cellStyle(state: TimelineState): React.CSSProperties {
         opacity: 0.6,
       };
     case "raised":
-      return { background: "var(--acc)", border: "1px solid var(--acc)" };
+      /* COLOUR IS NOT THE CARRIER (see above) — item 4 of Sarel's second
+         visual-hierarchy pass takes the brand accent off this cell too:
+         `raised` is a lifecycle state like every other one here, not the
+         one named exception (`repeat`), so it is carried the same way
+         they are, by a solid neutral fill rather than by colour. */
+      return { background: "var(--ink-2)", border: "1px solid var(--ink-2)" };
     case "carried":
     case "notVerified":
       return { background: "transparent", border: "2px solid var(--ink-3)" };

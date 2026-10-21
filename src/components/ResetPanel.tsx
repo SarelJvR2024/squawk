@@ -140,8 +140,13 @@ export default function ResetPanel({ onClose }: { onClose: () => void }) {
 
         {done ? (
           <>
-            <Panel tone="accent">
-              <div className="text-[12.5px]" style={{ color: "var(--acc)" }}>
+            {/* GENUINE STATUS, GENUINE COLOUR — item 4 of Sarel's second
+                visual-hierarchy pass: this reports that the reset actually
+                succeeded, which is exactly a status (not a selection or a
+                primary action), so it reads in the same good this app
+                already uses for "that worked", not the brand accent. */}
+            <Panel tone="good">
+              <div className="text-[12.5px]" style={{ color: "var(--good)" }}>
                 {done}
               </div>
             </Panel>

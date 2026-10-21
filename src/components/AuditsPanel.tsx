@@ -162,8 +162,14 @@ export default function AuditsPanel({ onClose }: { onClose: () => void }) {
         </div>
 
         {toast && (
-          <Panel tone="accent" className="mb-3">
-            <div className="text-[12px]" style={{ color: "var(--acc)" }}>
+          /* GENUINE STATUS, GENUINE COLOUR — item 4 of Sarel's second
+             visual-hierarchy pass: every one of these toasts reports that
+             an action just succeeded (created, opened, removed, reset to
+             programme dates), which is a status, not a selection or a
+             primary action, so it reads in the same good this app already
+             uses for "that worked", not the brand accent. */
+          <Panel tone="good" className="mb-3">
+            <div className="text-[12px]" style={{ color: "var(--good)" }}>
               {toast}
             </div>
           </Panel>

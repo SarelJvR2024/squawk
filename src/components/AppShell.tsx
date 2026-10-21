@@ -1090,7 +1090,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </div>
 
-          {/* The role, always legible, one press to change. */}
+          {/* The role, always legible, one press to change. It is state,
+              not a selection or a primary action (see the comment below) —
+              item 4 of Sarel's second visual-hierarchy pass takes the
+              brand accent off TPJV so it reads the same neutral as the
+              role pill everywhere else this role shows. */}
           <div className="relative hidden sm:block">
             <button
               onClick={() => { setRoleOpen((v) => !v); setMore(false); }}
@@ -1101,7 +1105,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               style={
                 role === "acsa"
                   ? { background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }
-                  : { background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }
+                  : { background: "var(--neu-bg)", borderColor: "var(--line-2)", color: "var(--neu)" }
               }
             >
               {role === "acsa" ? "ACSA" : "TPJV"}
@@ -1516,9 +1520,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {sharedOpen && <SharedSheet onClose={() => setSharedOpen(false)} />}
 
       {role === "acsa" && (
+        /* The same read-only ACSA state the role pill flags elsewhere in
+           warn — item 4 of Sarel's second visual-hierarchy pass takes the
+           brand accent off this banner so the two agree. */
         <div
           className="fixed bottom-4 left-1/2 z-[70] flex -translate-x-1/2 items-center gap-2 rounded-[11px] px-3.5 py-2 text-[11.5px]"
-          style={{ background: "var(--acc-soft)", color: "var(--acc)", boxShadow: "var(--e2)" }}
+          style={{ background: "var(--warn-bg)", color: "var(--warn)", boxShadow: "var(--e2)" }}
         >
           <IconLock width={13} height={13} />
           ACSA view — dashboard only. Capture is TPJV.
