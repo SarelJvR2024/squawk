@@ -65,6 +65,7 @@ import CheckDetail from "@/components/CheckDetail";
 import SystemTreatment from "@/components/SystemTreatment";
 import RaiseFindingSheet from "@/components/RaiseFindingSheet";
 import { IconInbox, IconLeft, IconPlus, IconSearch, IconX } from "@/components/ui/icons";
+import { FilterBar } from "@/components/ui/FilterBar";
 import type { Check, Finding, Tolerance, Attachment, AdHocItem } from "@/lib/types";
 import { AttachmentStrip } from "@/components/Capture";
 
@@ -514,15 +515,27 @@ export default function FindingsPage() {
           className="sticky top-0 z-10 -mx-4 mb-1.5 shrink-0 border-b px-4 py-[4px] sm:-mx-6 sm:px-6 sm:py-[5px]"
           style={{ background: "var(--bg)", borderColor: "var(--line)" }}
         >
-          {/* THE MODE SWITCH, THE SEARCH BOX AND THE RATING FILTER, ALL ONE ROW
-              NOW — Sarel: "move these buttons and search all into one row and
-              make thinner." These used to be two rows (the mode switch and the
-              rated count above, search and the filter pills below), each with
-              its own vertical padding — on a wide screen that was two mostly-
-              empty rows stacked on top of each other. One row, flex-wrapping
-              at narrow widths exactly as the search-and-filter pairing already
-              did, and every control a touch shorter (buttons and the search
-              box both lost a few px of min-height) for "thinner". */}
+          {/* THREE ROWS, EACH A DIFFERENT KIND OF CONTROL — overnight
+              refinement, task 3: "separate 'By asset system' / 'Findings
+              raised' navigation from filtering — they shouldn't visually
+              compete as the same kind of control. Put the mobile search
+              field on its own full-width, clearly usable row. Put
+              previous-rating filters in a clearly labelled secondary area
+              or disclosure." All three used to sit in one flex-wrapping
+              row: the mode switch (a segmented radiogroup), the search box,
+              and the 2025-rating filter (a row of toggle pills) — the mode
+              switch and the rating filter are both rows of small rounded
+              buttons, so on a narrow screen where they wrapped onto their
+              own lines they read as the same kind of control doing two
+              different jobs. They're split onto their own rows now: the
+              mode switch (navigation) on its own line with the rated
+              count and "Raise a finding"; the search box full-width right
+              below it; and the rating filter moved into the same shared
+              `FilterBar` disclosure Capture/Review/Closure/Forms already
+              use — closed by default, with a visible "Showing: …" summary
+              and the exact same multi-select/"clear" semantics as before,
+              just no longer competing with the mode switch for the same
+              visual language. */}
           <div className="flex flex-wrap items-center gap-2">
             {/* THE TWO WAYS IN. Asset system is the default because it is what
                 the screen is for; the flat register is the one an auditor
@@ -569,76 +582,6 @@ export default function FindingsPage() {
                 : `${findings.filter((f) => f.ratingConfirmed).length}/${findings.length} rated`}
             </span>
 
-            <div
-              className="flex min-w-0 flex-1 items-center gap-2 rounded-[11px] border px-3 py-[2px] sm:max-w-[240px] sm:flex-none"
-              style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-            >
-              <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder={mode === "systems" ? "Search an asset system…" : "Search a finding…"}
-                aria-label={mode === "systems" ? "Search an asset system" : "Search a finding"}
-                className="min-h-[30px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
-              />
-            </div>
-
-            {/* THE 2025 BAND, AS A FILTER — not just a colour on the row. Sarel:
-                "add filter for tolerable, unacceptable." Toggled, not
-                radio-picked, because "everything that is not fine" is exactly
-                Unacceptable + Tolerable together, and an auditor triaging what
-                needs attention first wants both checked at once. Nothing
-                checked reads as no filter, same rule the rest of this screen's
-                filters use. */}
-            {mode === "systems" && (
-              <div
-                role="group"
-                aria-label="Filter by the previous audit's rating"
-                className="flex flex-wrap items-center gap-[5px]"
-              >
-                <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                  2025 RATING
-                </span>
-                {BANDS.map((b) => {
-                  const on = bandFilter.has(b);
-                  const t = TONE_VARS[ratingTone(b)];
-                  return (
-                    <button
-                      key={b}
-                      type="button"
-                      aria-pressed={on}
-                      onClick={() =>
-                        setBandFilter((cur) => {
-                          const next = new Set(cur);
-                          if (next.has(b)) next.delete(b);
-                          else next.add(b);
-                          return next;
-                        })
-                      }
-                      className="rounded-full border px-[9px] py-[4px] font-mono text-[10px] font-semibold transition-[var(--t)]"
-                      style={
-                        on
-                          ? { background: t.fg, borderColor: t.fg, color: "#fff" }
-                          : { background: t.bg, borderColor: t.line, color: t.fg }
-                      }
-                    >
-                      {b}
-                    </button>
-                  );
-                })}
-                {bandFilter.size > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setBandFilter(new Set())}
-                    className="font-mono text-[9.5px] underline-offset-2 hover:underline"
-                    style={{ color: "var(--ink-3)" }}
-                  >
-                    clear
-                  </button>
-                )}
-              </div>
-            )}
-
             {/* THE ENTRY POINT THIS SCREEN DID NOT HAVE — Sarel: "make sure
                 there's an easy way to capture findings". Always here, in
                 either mode, because a non-compliance that is not tied to a
@@ -654,6 +597,61 @@ export default function FindingsPage() {
               Raise a finding
             </Btn>
           </div>
+
+          {/* ITS OWN FULL-WIDTH ROW, ALWAYS — not sharing a row with the
+              mode switch and shrinking to whatever space was left over,
+              which is how it ended up at 240px wide (and easy to miss) on
+              a desk-width window and cramped on a phone. */}
+          <div
+            className="mt-2 flex min-w-0 items-center gap-2 rounded-[11px] border px-3 py-[6px]"
+            style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+          >
+            <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={mode === "systems" ? "Search an asset system…" : "Search a finding…"}
+              aria-label={mode === "systems" ? "Search an asset system" : "Search a finding"}
+              className="min-h-[32px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
+            />
+          </div>
+
+          {/* THE 2025 BAND, AS A FILTER, IN ITS OWN DISCLOSURE — not just a
+              colour on the row. Sarel: "add filter for tolerable,
+              unacceptable." Toggled, not radio-picked, because "everything
+              that is not fine" is exactly Unacceptable + Tolerable
+              together, and an auditor triaging what needs attention first
+              wants both checked at once — `multi: true` below is that same
+              rule, unchanged. Nothing checked reads as no filter, same rule
+              the rest of this screen's filters use, and `FilterBar`'s own
+              "clear" link is the identical setBandFilter(new Set()) the
+              inline version used. */}
+          {mode === "systems" && (
+            <FilterBar
+              className="mt-2"
+              summary={
+                <>
+                  2025 rating:{" "}
+                  <b>{bandFilter.size === 0 ? "every rating" : [...bandFilter].join(", ")}</b>
+                </>
+              }
+              active={bandFilter.size > 0}
+              groups={[
+                {
+                  options: BANDS.map((b) => ({ key: b, label: b })),
+                  value: [...bandFilter],
+                  multi: true,
+                  onChange: (key) =>
+                    setBandFilter((cur) => {
+                      const next = new Set(cur);
+                      if (next.has(key as Tolerance)) next.delete(key as Tolerance);
+                      else next.add(key as Tolerance);
+                      return next;
+                    }),
+                },
+              ]}
+            />
+          )}
         </div>
 
         <div className="grid gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[340px_minmax(0,1fr)]">
