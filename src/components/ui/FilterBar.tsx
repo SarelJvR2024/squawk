@@ -57,10 +57,27 @@ function isSelected(g: FilterGroup, key: string): boolean {
 }
 
 function ChipRow({ group }: { group: FilterGroup }) {
+  /* SELECTED-STATE ACCESSIBILITY, MATCHED TO WHAT THE GROUP ACTUALLY IS —
+   *  overnight refinement, task 3. A multi-select row is a set of
+   *  independent toggles, so `aria-pressed` on each chip (unchanged) is the
+   *  right role. A single-select row is "choose exactly one of these" —
+   *  the same pattern the Asset Assurance mode switch and the EVIDENCE
+   *  verdict buttons elsewhere in this app already use (role="radiogroup" /
+   *  role="radio" + aria-checked) — but every single-select FilterBar group
+   *  (Closure's status row, Capture's NC/Open pin, Review's filters, …) was
+   *  rendering as plain buttons with NO selected-state exposed at all:
+   *  `aria-pressed={group.multi ? selected : undefined}` was `undefined`
+   *  on every single-select chip, selected or not. A screen reader had no
+   *  way to tell which chip, if any, was currently chosen. */
+  const single = !group.multi;
   return (
-    <div className="flex flex-wrap items-center gap-[6px]">
+    <div
+      className="flex flex-wrap items-center gap-[6px]"
+      role={single ? "radiogroup" : undefined}
+      aria-label={single ? group.label : undefined}
+    >
       {group.label && (
-        <span className="label-xs" style={{ color: "var(--ink-3)" }}>
+        <span className="label-xs" aria-hidden={single || undefined} style={{ color: "var(--ink-3)" }}>
           {group.label}
         </span>
       )}
@@ -71,6 +88,8 @@ function ChipRow({ group }: { group: FilterGroup }) {
             key={o.key}
             type="button"
             onClick={() => group.onChange(o.key)}
+            role={single ? "radio" : undefined}
+            aria-checked={single ? selected : undefined}
             aria-pressed={group.multi ? selected : undefined}
             /* Same lift-on-hover/active `Chip` (primitives.tsx) already
                uses — these chip rows had no hover/active affordance at
