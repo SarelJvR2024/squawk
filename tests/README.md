@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Eighty suites, no framework. Thirteen need a running server; sixty-seven do not.
+Eighty-one suites, no framework. Thirteen need a running server; sixty-eight do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -38,6 +38,14 @@ modules:
 
 ```
 node --import ./tests/alias.mjs tests/sharepoint.test.mjs
+```
+
+`graph.test.mjs` needs a second flag on top of that — `GraphError`'s
+constructor uses TS parameter properties, which Node's type-stripping alone
+cannot erase:
+
+```
+node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.mjs
 ```
 
 | Suite | Needs a server | Assertions run |
@@ -86,6 +94,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `relinkphoto.test.mjs` | no | 16 |
 | `erm-matrix.test.mjs` | no | 80 |
 | `sharepoint.test.mjs` | no | 308 |
+| `graph.test.mjs` | no | 12 |
 | `activity.test.mjs` | no | 34 |
 | `assets.test.mjs` | no | 21 |
 | `checkscreen.test.mjs` | no | 54 |
@@ -123,7 +132,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,451 assertions in total**, every count above verified by running the suite,
+**3,463 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -1468,6 +1477,34 @@ that a blank/unanswered value renders blank, the sheet's own convention; that
 `sharepoint.ts` already uses for it, not a second implementation; and that
 `evidencePending` renders blank when unset, same absent-means-false
 convention as every other optional flag in this workbook.
+
+## `graph.test.mjs`
+
+Runs `isRetryable()` from `src/lib/graph.ts` — the one decision `call()`'s
+retry loop defers to — directly. `ensureFolder` sends its folder-create with
+`conflictBehavior: "fail"` and reads a 409 there as "already exists, success"
+per `isRetryableStatus`'s own comment, deliberately excluded from status-based
+retry; but the message-based fallback (`RETRYABLE_MESSAGE`) matched Microsoft
+Graph's actual wording for that same case, "The specified item name already
+exists.", regardless of status — so that 409 was retried up to `MAX_ATTEMPTS`
+times with growing backoff before `ensureFolder`'s own `.catch()` read the
+eventual throw as success anyway.
+
+```bash
+node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.mjs
+```
+
+The fix is scoped to the one call site, not to the status code: `updateItem`'s
+list-write conflicts and `uploadEvidence`'s file-PUT races are both genuine
+409s with no success path of their own, and rely on this exact message
+fallback to retry at all. Part 1 runs `isRetryable()` against both flavours
+of 409 — `ensureFolder`'s own ("name already exists", opted out) and the
+others' (same message, or "resource has changed", opted in) — and against
+the untouched status-based cases (429/503/509/412) and a non-retryable one
+(404). Part 2 reads the source for what a return value cannot express: that
+`ensureFolder`'s own call is the one that opts out, that `call()` defers to
+`isRetryable()` rather than a reimplementation, and that no other call site
+was accidentally widened to opt out too.
 
 ## Exit status
 

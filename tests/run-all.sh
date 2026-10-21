@@ -43,6 +43,10 @@ row() { rows="${rows}$(printf '%-22s %6s\n' "$1" "$2")
 echo "== source suites"
 for f in tests/*.test.mjs; do
   case "$f" in
+    # graph.test.mjs also needs --experimental-transform-types: GraphError's
+    # constructor uses TS parameter properties, which Node's type-stripping
+    # alone cannot erase (actual code generation, not just a type to drop).
+    *graph*) args="--experimental-transform-types --import ./tests/alias.mjs" ;;
     *sharepoint*|*merge*|*figures*|*attendance*|*isf*|*toolbox*|*incident*|*sync-coverage*|*import-pack*|*ortia-v3-pack*|*hazardpromotion*|*carryforward*|*auditdates*|*relinkphoto*|*exports*) args="--import ./tests/alias.mjs" ;;
     *) args="" ;;
   esac
