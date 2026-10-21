@@ -185,7 +185,11 @@ export default function ToolboxTalkPage() {
                       </span>
                     </button>
 
-                    {/* THE QUICK SIGN — same control as attendance. */}
+                    {/* THE QUICK SIGN — same control as attendance.
+                        GENUINE STATUS, GENUINE COLOUR — item 4 of Sarel's
+                        second visual-hierarchy pass: signed/not signed
+                        now matches the SIGNED/NOT SIGNED pill's own
+                        good/warn instead of the brand accent. */}
                     {!rowSigning && (
                       <button
                         type="button"
@@ -193,7 +197,7 @@ export default function ToolboxTalkPage() {
                         className="flex shrink-0 items-center gap-[4px] rounded-[8px] border px-[10px] py-[6px] font-display text-[11px] font-semibold"
                         style={
                           signed
-                            ? { background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }
+                            ? { background: "var(--good-bg)", borderColor: "var(--good-line)", color: "var(--good)" }
                             : { background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }
                         }
                       >
@@ -406,7 +410,9 @@ export default function ToolboxTalkPage() {
                     <span className="font-mono text-[10px]">
                       {t.date} · {hhmm(t.openedAt)}
                     </span>
-                    {savedId === t.id ? <Pill tone="accent">✓ SAVED</Pill> : null}
+                    {/* GENUINE STATUS, GENUINE COLOUR — item 4 of Sarel's
+                        second visual-hierarchy pass: saved is a status. */}
+                    {savedId === t.id ? <Pill tone="good">✓ SAVED</Pill> : null}
                   </div>
                   <p className="mt-1 text-[13px]">
                     {t.topic.trim() || "No topic recorded"}

@@ -46,8 +46,12 @@ function timeInputValue(t: number): string {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-const STATUS_TONE: Record<PpeStatus, "accent" | "warn" | undefined> = {
-  compliant: "accent",
+/* GENUINE STATUS, GENUINE COLOUR — item 4 of Sarel's second
+   visual-hierarchy pass: compliant is exactly the kind of genuine
+   compliant/non-compliant status the good/warn pair already carries
+   everywhere else in the app, not a selection or a primary action. */
+const STATUS_TONE: Record<PpeStatus, "good" | "warn" | undefined> = {
+  compliant: "good",
   missing: "warn",
   notApplicable: undefined,
 };
@@ -262,9 +266,14 @@ export default function PpePage() {
                       {missing.length ? <Pill tone="warn">{missing.length} MISSING</Pill> : null}
                     </div>
 
-                    {/* THE QUICK SIGN — same control as attendance: color-coded,
-                        opens only the pad, hidden once the pad is actually
-                        open. */}
+                    {/* THE QUICK SIGN — same control as attendance:
+                        color-coded, opens only the pad, hidden once the pad
+                        is actually open. GENUINE STATUS, GENUINE COLOUR —
+                        item 4 of Sarel's second visual-hierarchy pass:
+                        signed/not signed is exactly the same status the
+                        SIGNED/NOT SIGNED pill beside it already carries in
+                        good/warn, so this control now matches it instead
+                        of the brand accent. */}
                     {!rowSigning && (
                       <button
                         type="button"
@@ -272,7 +281,7 @@ export default function PpePage() {
                         className="flex shrink-0 items-center gap-[4px] rounded-[8px] border px-[10px] py-[6px] font-display text-[11px] font-semibold"
                         style={
                           signed
-                            ? { background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }
+                            ? { background: "var(--good-bg)", borderColor: "var(--good-line)", color: "var(--good)" }
                             : { background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }
                         }
                       >
@@ -317,20 +326,20 @@ export default function PpePage() {
                         className="flex min-h-[44px] items-center gap-[6px] rounded-full border px-[12px] text-[11px] font-semibold"
                         style={{
                           background:
-                            STATUS_TONE[e.items[k]] === "accent"
-                              ? "var(--acc-soft)"
+                            STATUS_TONE[e.items[k]] === "good"
+                              ? "var(--good-bg)"
                               : STATUS_TONE[e.items[k]] === "warn"
                                 ? "var(--warn-bg)"
                                 : "var(--panel)",
                           borderColor:
-                            STATUS_TONE[e.items[k]] === "accent"
-                              ? "var(--acc-line)"
+                            STATUS_TONE[e.items[k]] === "good"
+                              ? "var(--good-line)"
                               : STATUS_TONE[e.items[k]] === "warn"
                                 ? "var(--warn-line)"
                                 : "var(--line-2)",
                           color:
-                            STATUS_TONE[e.items[k]] === "accent"
-                              ? "var(--acc)"
+                            STATUS_TONE[e.items[k]] === "good"
+                              ? "var(--good)"
                               : STATUS_TONE[e.items[k]] === "warn"
                                 ? "var(--warn)"
                                 : "var(--ink-3)",
@@ -561,7 +570,9 @@ export default function PpePage() {
                       {c.date} · {hhmm(c.openedAt)}
                     </span>
                     {c.noiseZone ? <Pill tone="warn">NOISE ZONE</Pill> : null}
-                    {savedId === c.id ? <Pill tone="accent">✓ SAVED</Pill> : null}
+                    {/* GENUINE STATUS, GENUINE COLOUR — item 4 of Sarel's
+                        second visual-hierarchy pass: saved is a status. */}
+                    {savedId === c.id ? <Pill tone="good">✓ SAVED</Pill> : null}
                   </div>
                   <p className="mt-1 text-[13px]">
                     {c.location.trim() || "No location recorded"}

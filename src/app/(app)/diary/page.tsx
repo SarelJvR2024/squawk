@@ -427,8 +427,11 @@ function DiaryDayBody({
           THE DIARY SIGNATURE IS ON THIS DEVICE ONLY — THE RECORD COPY IS NOT WIRED YET.
         </p>
       ) : null}
+      {/* GENUINE STATUS, GENUINE COLOUR — item 4 of Sarel's second
+          visual-hierarchy pass: saved is exactly a status, so it reads in
+          the same good every other completed status already uses. */}
       {savedId === day.id ? (
-        <p className="mt-2 font-mono text-[9px]" style={{ color: "var(--acc)" }}>
+        <p className="mt-2 font-mono text-[9px]" style={{ color: "var(--good)" }}>
           ✓ SAVED
         </p>
       ) : null}
@@ -444,12 +447,16 @@ function DaySummary({ day, savedId }: { day: SiteDay; savedId: string | null }) 
     <div className="min-w-0">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-mono text-[10px]">{day.date}</span>
+        {/* GENUINE STATUS, GENUINE COLOUR — item 4 of Sarel's second
+            visual-hierarchy pass: complete and saved are exactly statuses,
+            so both read in the same good every other completed status
+            already uses, not the brand accent. */}
         {gaps.length ? (
           <Pill tone="warn">{gaps.join(", ").toUpperCase()}</Pill>
         ) : (
-          <Pill tone="accent">COMPLETE</Pill>
+          <Pill tone="good">COMPLETE</Pill>
         )}
-        {savedId === day.id ? <Pill tone="accent">✓ SAVED</Pill> : null}
+        {savedId === day.id ? <Pill tone="good">✓ SAVED</Pill> : null}
       </div>
       <p className="mt-1 line-clamp-2 text-[13px]">
         {day.diaryEntries.length === 0

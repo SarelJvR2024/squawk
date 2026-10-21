@@ -295,10 +295,16 @@ export default function CloseoutPage() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-mono text-[10px]">{day.date}</span>
+                      {/* GENUINE STATUS, GENUINE COLOUR — item 4 of Sarel's
+                          second visual-hierarchy pass: closed out with no
+                          gaps is exactly a status (not a selection or a
+                          primary action), so it reads in the same good
+                          every other completed status in the app already
+                          uses, not the brand accent. */}
                       {gaps.length ? (
                         <Pill tone="warn">{gaps.join(", ").toUpperCase()}</Pill>
                       ) : (
-                        <Pill tone="accent">CLOSED OUT</Pill>
+                        <Pill tone="good">CLOSED OUT</Pill>
                       )}
                     </div>
                     <p className="mt-1 text-[13px]">

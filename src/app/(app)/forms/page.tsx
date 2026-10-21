@@ -32,14 +32,17 @@ const TILES: Array<{ kind: FormKind | "evidence2"; label: string; hint: string; 
   { kind: "evidence2", label: "Evidence", hint: "Log what ACSA handed over", href: "/evidence", icon: <IconInbox width={15} height={15} /> },
 ];
 
-const KIND_TONE: Record<FormKind, "accent" | "warn" | undefined> = {
+/* Which form this is is a category, not a status — item 4 of Sarel's
+   second visual-hierarchy pass takes the brand accent off the routine
+   forms, which now read neutral like diary/closeout beside them. */
+const KIND_TONE: Record<FormKind, "warn" | undefined> = {
   isf: "warn",
-  interview: "accent",
-  attendance: "accent",
+  interview: undefined,
+  attendance: undefined,
   diary: undefined,
-  ppe: "accent",
-  siteAccess: "accent",
-  toolboxTalk: "accent",
+  ppe: undefined,
+  siteAccess: undefined,
+  toolboxTalk: undefined,
   incident: "warn",
   closeout: undefined,
   evidence: "warn",
