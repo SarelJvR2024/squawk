@@ -281,6 +281,15 @@ export class GraphError extends Error {
  *  `conflictBehavior=replace` set — a destination file SharePoint's own
  *  virus-scan lock had not released yet, not a real naming conflict.
  *
+ *  `setFileFields` hits the same timing gap from the other side: it PATCHes a
+ *  file's columns in the same breath `uploadEvidence` just PUT its bytes, and
+ *  SharePoint occasionally has not finished indexing the new item by the time
+ *  that PATCH lands — rejected with the genuinely uninformative "Invalid
+ *  request", seen 21 October 2026 on 42 photographs that uploaded cleanly and
+ *  only lost their CheckID/caption columns. Retried, it is this same
+ *  still-indexing gap again, not a malformed field — a real bad value would
+ *  fail identically on attempt one, so retrying costs nothing when it is not.
+ *
  *  A plain network failure (fetch itself throwing, no response at all) is
  *  deliberately NOT retried here: that is the one case where whether the
  *  write already committed server-side is genuinely unknown, and blindly
@@ -297,7 +306,7 @@ export class GraphError extends Error {
 function isRetryableStatus(status: number): boolean {
   return status === 429 || status === 503 || status === 509 || status === 412;
 }
-const RETRYABLE_MESSAGE = /resource has changed|etag|name already exists/i;
+const RETRYABLE_MESSAGE = /resource has changed|etag|name already exists|invalid request/i;
 
 const MAX_ATTEMPTS = 4;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
