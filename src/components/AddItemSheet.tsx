@@ -281,7 +281,9 @@ export default function AddItemSheet({
           <div>
             <h3 className="flex items-center gap-1.5 text-[14px] font-bold">
               {item ? item.id : "Add an inspection item"}
-              {item?.importKey && <Pill tone="accent">IMPORTED, TPJV-PROPOSED</Pill>}
+              {/* A provenance mark, not a status — item 4 of Sarel's second
+                  visual-hierarchy pass takes the brand accent off it. */}
+              {item?.importKey && <Pill>IMPORTED, TPJV-PROPOSED</Pill>}
             </h3>
             <p className="mt-[2px] text-[11px]" style={{ color: "var(--ink-3)" }}>
               Something on site the 324 check-points do not cover. It is recorded as

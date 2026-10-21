@@ -316,7 +316,7 @@ check(
 
 check(
   "what is already attached is shown in it",
-  /\{photos > 0 && \(/.test(pinned) && /\{voice && <Pill tone="accent">voice note<\/Pill>\}/.test(pinned),
+  /\{photos > 0 && \(/.test(pinned) && /\{voice && <Pill>voice note<\/Pill>\}/.test(pinned),
   "the desk-width label row carrying that count is hidden on a phone"
 );
 
