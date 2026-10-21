@@ -188,7 +188,7 @@ check(
 
 check(
   "the writer passes each row's own action rather than one for the batch",
-  /projectFields\(list\.map, row\.values, row\.action\)/.test(panel),
+  /projectFields\(list\.map, row\.values, itemId \? "update" : row\.action\)/.test(panel),
   "a plan mixes creates and updates in the same list"
 );
 
