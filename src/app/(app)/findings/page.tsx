@@ -64,7 +64,7 @@ import FindingDetail from "@/components/FindingDetail";
 import CheckDetail from "@/components/CheckDetail";
 import SystemTreatment from "@/components/SystemTreatment";
 import RaiseFindingSheet from "@/components/RaiseFindingSheet";
-import { IconInbox, IconPlus, IconSearch, IconX } from "@/components/ui/icons";
+import { IconInbox, IconLeft, IconPlus, IconSearch, IconX } from "@/components/ui/icons";
 import type { Check, Finding, Tolerance, Attachment, AdHocItem } from "@/lib/types";
 import { AttachmentStrip } from "@/components/Capture";
 
@@ -237,6 +237,31 @@ export default function FindingsPage() {
      contradicts the panel beside it has lost track of what it is showing. */
   const [expanded, setExpanded] = useState<string[] | null>(null);
   const [activeKey, setActiveKey] = useState<string | null>(null);
+  /* MOBILE LIST → DETAIL, AS ITS OWN VIEW STATE — overnight refinement, task
+     2. Below `lg` the hierarchy and the assessment panel stack in one column
+     (see the grid two reasons above this), so picking a row used to leave
+     the list on screen with the panel it opened rendered hundreds of pixels
+     further down — selecting an asset looked like nothing had happened. This
+     flag (true only once a row has actually been tapped, never from the
+     screen's own "land on something" defaults below) swaps which of the two
+     panels is visible below `lg`; at `lg` and up both render side by side
+     exactly as before, and this flag is simply never read. */
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
+  const [mobileListScroll, setMobileListScroll] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  /** Capture where the list was scrolled to, then open the detail view. The
+   *  scroll position is restored in `backToList` below, so returning lands
+   *  exactly where the auditor left off rather than back at the top. */
+  const openMobileDetail = () => {
+    setMobileListScroll(scrollRef.current?.scrollTop ?? 0);
+    setMobileDetailOpen(true);
+  };
+  const backToList = () => {
+    setMobileDetailOpen(false);
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ top: mobileListScroll });
+    });
+  };
   const [openFinding, setOpenFinding] = useState<string | null>(null);
   /** Which check-point's own capture popup is open — Sarel: "when clicking
    *  on the row it should bring up the popup with the same view as when
@@ -464,7 +489,7 @@ export default function FindingsPage() {
   const totalSystems = tree.reduce((n, d) => n + d.systems.length, 0);
 
   return (
-    <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto lg:overflow-hidden">
+    <div ref={scrollRef} className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto lg:overflow-hidden">
       <div className="mx-auto flex w-full max-w-[1240px] flex-col px-4 pt-3 pb-16 sm:px-6 lg:min-h-0 lg:flex-1 lg:pb-3">
         {/* COMPACT, ON PURPOSE. This used to be a title line, a sentence of
             prose beneath it, then the bar — three stacked blocks before any
@@ -653,8 +678,16 @@ export default function FindingsPage() {
                item past it rather than shrinking — and because the app shell
                is `overflow: hidden`, the overflow is CLIPPED rather than
                scrollable. Measured at 375px: the group row's "0/13" count lost
-               its last character off the right edge, silently. */
-            className="min-w-0 rounded-[11px] border lg:min-h-0 lg:overflow-y-auto"
+               its last character off the right edge, silently.
+
+               HIDDEN BELOW `lg` ONCE A ROW HAS OPENED THE DETAIL VIEW — the
+               other half of task 2's mobile fix. `lg:block` always wins back
+               at the breakpoint where both panels are meant to show side by
+               side; below it, `mobileDetailOpen` decides which ONE of the
+               two panels in this grid is the working view. */
+            className={`min-w-0 rounded-[11px] border lg:block lg:min-h-0 lg:overflow-y-auto ${
+              mobileDetailOpen ? "hidden" : ""
+            }`}
             style={{ background: "var(--panel)", borderColor: "var(--line)" }}
           >
             {mode === "findings" ? (
@@ -675,7 +708,10 @@ export default function FindingsPage() {
                     <button
                       key={f.id}
                       data-finding={f.id}
-                      onClick={() => setActiveFindingId(f.id)}
+                      onClick={() => {
+                        setActiveFindingId(f.id);
+                        openMobileDetail();
+                      }}
                       className="relative flex w-full items-start gap-2 border-b px-[11px] py-[9px] text-left transition-[var(--t)]"
                       style={{
                         borderColor: "var(--line)",
@@ -779,7 +815,10 @@ export default function FindingsPage() {
                           <button
                             key={key}
                             data-system={x.system}
-                            onClick={() => setActiveKey(key)}
+                            onClick={() => {
+                              setActiveKey(key);
+                              openMobileDetail();
+                            }}
                             /* The whole name, for the row that cannot show it.
                                Three marks on the name's line means a long asset
                                system truncates at about 24 characters —
@@ -902,13 +941,38 @@ export default function FindingsPage() {
             )}
           </div>
 
-          {/* ------------------------------------------------- the assessment */}
-          {mode === "findings" ? (
+          {/* ------------------------------------------------- the assessment
+
+              SHOWN BELOW `lg` ONLY ONCE A ROW HAS BEEN TAPPED — the detail
+              half of task 2's mobile fix. Each of the three branches below
+              gets the same `hidden`/`lg:block` pair the list panel above
+              carries, applied directly to its own existing div (no wrapper
+              — a wrapper here would sit between this grid item and the
+              `lg:flex`/`lg:min-h-0` sizing the independent-scroll desktop
+              layout depends on, which must stay exactly as it was). `backBtn`
+              is the same "Back to…" control inlined into each branch as its
+              first child, `lg:hidden` because at `lg` the list is always
+              visible beside this panel and a way back to it is redundant. */}
+          {(() => {
+            const backBtn = (
+              <button
+                type="button"
+                onClick={backToList}
+                className="mb-2 flex min-h-[36px] items-center gap-1.5 text-[12px] font-semibold lg:hidden"
+                style={{ color: "var(--acc)" }}
+              >
+                <IconLeft width={13} height={13} aria-hidden />
+                Back to {mode === "findings" ? "findings" : "asset systems"}
+              </button>
+            );
+            const mobileCls = mobileDetailOpen ? "" : "hidden ";
+            return mode === "findings" ? (
             shownFinding ? (
               <div
-                className="min-w-0 rounded-[16px] border p-[18px] lg:min-h-0 lg:overflow-y-auto"
+                className={`${mobileCls}min-w-0 rounded-[16px] border p-[18px] lg:block lg:min-h-0 lg:overflow-y-auto`}
                 style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "var(--e2)" }}
               >
+                {backBtn}
                 {/* THE SAME PANE, INLINE. It opens in a sheet from an asset
                     system's evidence list and fills the panel here — one
                     component either way, because a finding rated from one route
@@ -918,7 +982,7 @@ export default function FindingsPage() {
               </div>
             ) : (
               <div
-                className="flex min-w-0 items-center justify-center rounded-[16px] border p-8 text-center text-[12.5px] lg:min-h-0"
+                className={`${mobileCls}flex min-w-0 items-center justify-center rounded-[16px] border p-8 text-center text-[12.5px] lg:flex lg:min-h-0`}
                 style={{ background: "var(--panel)", borderColor: "var(--line)", color: "var(--ink-3)" }}
               >
                 {findings.length === 0
@@ -928,7 +992,7 @@ export default function FindingsPage() {
             )
           ) : !active || !a ? (
             <div
-              className="flex min-w-0 items-center justify-center rounded-[16px] border p-8 text-center text-[12.5px] lg:min-h-0"
+              className={`${mobileCls}flex min-w-0 items-center justify-center rounded-[16px] border p-8 text-center text-[12.5px] lg:flex lg:min-h-0`}
               style={{ background: "var(--panel)", borderColor: "var(--line)", color: "var(--ink-3)" }}
             >
               Pick an asset system to rate it and read everything this audit knows about it.
@@ -945,13 +1009,14 @@ export default function FindingsPage() {
                  root causes, mitigations, possible events and the full evidence
                  list below — scrolls underneath them. That block is the sticky
                  header right below; everything after it is the scrolling body. */
-              className="min-w-0 rounded-[16px] border lg:flex lg:min-h-0 lg:flex-col lg:overflow-y-auto"
+              className={`${mobileCls}min-w-0 rounded-[16px] border lg:flex lg:min-h-0 lg:flex-col lg:overflow-y-auto`}
               style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "var(--e2)" }}
             >
               <div
                 className="rounded-t-[16px] px-[18px] pt-[18px] pb-3 lg:sticky lg:top-0 lg:z-10 lg:shrink-0 lg:border-b"
                 style={{ background: "var(--panel)", borderColor: "var(--line)" }}
               >
+                {backBtn}
                 <div
                   className="mb-1.5 flex flex-wrap items-center gap-[7px] font-mono text-[10px]"
                   style={{ color: "var(--ink-3)" }}
@@ -1259,7 +1324,8 @@ export default function FindingsPage() {
                 />
               </div>
             </div>
-          )}
+          );
+          })()}
         </div>
       </div>
 
