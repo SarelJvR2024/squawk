@@ -309,24 +309,32 @@ export default function HomePage() {
   const card = "rounded-[16px] border p-[17px]";
   const cardStyle = { background: "var(--panel)", borderColor: "var(--line)" };
 
-  const stat = (label: string, value: string, sub: string, pct: number | null, tone: string) => (
-    <div key={label} className="relative overflow-hidden rounded-[16px] border px-[15px] py-[13px]" style={cardStyle}>
-      <span className="absolute inset-x-0 top-0 h-[2.5px]" style={{ background: `var(--${tone})` }} />
-      <span className="label-xs block">{label}</span>
+  /** ONE ROW OF A SLIM PROGRESS STRIP, NOT A BOXED TILE — Sarel's second
+   *  visual-hierarchy pass, item 8: "merge the four stat tiles (At the desk
+   *  / On site / Findings / 2025 follow-up) into one slim progress strip
+   *  under the main audit panel — thin progress bars with numbers, not four
+   *  boxed tiles." The four used to be their own cards: a border, a top
+   *  accent stripe, a 21px number, a track and a standing sentence of
+   *  explanation, each repeated four times. The number and the bar are what
+   *  somebody glancing at Home actually reads; the explanatory sentence
+   *  moves to `title` (a hover/long-press), the same tooltip trade this
+   *  file already makes elsewhere on this screen ("Document and site
+   *  evidence…", "Started means…") rather than standing prose.
+   *  `pct === null` (Findings has no honest denominator — see its own call
+   *  below) skips the bar rather than drawing a 0% one, which would read as
+   *  "nothing done" instead of "not that kind of number". */
+  const statRow = (label: string, value: string, sub: string, pct: number | null, tone: string) => (
+    <div key={label} className="flex items-center gap-3" title={sub}>
+      <span className="w-[98px] shrink-0 text-[11px]" style={{ color: "var(--ink-2)" }}>
+        {label}
+      </span>
+      <span className="min-w-0 flex-1">{pct !== null && <Track pct={pct} color={`var(--${tone})`} />}</span>
       <b
-        className="tnum mt-[3px] block font-mono text-[21px] leading-[1.15] font-semibold"
+        className="tnum w-[64px] shrink-0 text-right font-mono text-[12.5px] font-semibold"
         style={{ color: `var(--${tone})` }}
       >
         {value}
       </b>
-      {pct !== null && (
-        <span className="mt-[7px] block">
-          <Track pct={pct} color={`var(--${tone})`} />
-        </span>
-      )}
-      <span className="mt-[6px] block text-[10.5px]" style={{ color: "var(--ink-3)" }}>
-        {sub}
-      </span>
     </div>
   );
 
@@ -476,23 +484,23 @@ export default function HomePage() {
           </section>
         </div>
 
-        {/* --------------------------------------------------------- stats */}
-        <section aria-label="This audit at a glance" className="mb-3.5 grid grid-cols-2 gap-[9px] md:grid-cols-4">
-          {stat(
+        {/* --------------------------------------------------- progress strip */}
+        <section aria-label="This audit at a glance" className={`${card} mb-3.5 flex flex-col gap-2`} style={cardStyle}>
+          {statRow(
             "At the desk",
             `${desk.done}/${desk.total}`,
             "evidence collected and questions asked",
             desk.total ? (desk.done / desk.total) * 100 : 0,
             "acc"
           )}
-          {stat(
+          {statRow(
             "On site",
             `${field.done}/${field.total}`,
             "the asset itself seen and photographed",
             field.total ? (field.done / field.total) * 100 : 0,
             "good"
           )}
-          {stat(
+          {statRow(
             "Findings",
             String(findings.length),
             unrated
@@ -501,7 +509,7 @@ export default function HomePage() {
             null,
             "bad"
           )}
-          {stat(
+          {statRow(
             "2025 follow-up",
             `${verified}/${prior.length}`,
             prior.length ? "carried findings verified this visit" : "a baseline audit — nothing carried in",
@@ -510,13 +518,21 @@ export default function HomePage() {
           )}
         </section>
 
-        {/* -------------------------------------- open audits · just done */}
-        <div className="mb-3.5 grid gap-3.5 lg:grid-cols-[1.25fr_1fr]">
-          <section aria-labelledby="home-inprogress" className={card} style={cardStyle}>
-            <h2 id="home-inprogress" className="mb-[3px] text-[12.5px] font-bold">
-              Audits with work in them
-            </h2>
-            <p className="mb-3 text-[11px]" style={{ color: "var(--ink-3)" }}>
+        {/* ------------------------------------------------- recent activity
+
+            ONE PANEL, NOT TWO — Sarel's second visual-hierarchy pass, item 8:
+            "merge 'Audits with work in them' and 'Just done' into one
+            'Recent activity' panel." They used to be side-by-side cards
+            answering two different questions about the same thing
+            (which audits hold work; what happened most recently in this
+            one) — now one hairline divider apart inside a single panel
+            instead of two separate borders a gap apart. */}
+        <section aria-labelledby="home-recent" className={`${card} mb-3.5`} style={cardStyle}>
+          <h2 id="home-recent" className="mb-[3px] text-[12.5px] font-bold">
+            Recent activity
+          </h2>
+          <div className="mb-1">
+            <p className="mb-2 text-[11px]" style={{ color: "var(--ink-3)" }}>
               Every site and visit that holds captured work, most recently touched first.
             </p>
             {open.length === 0 ? (
@@ -592,39 +608,39 @@ export default function HomePage() {
                 })}
               </div>
             )}
-          </section>
+          </div>
 
-          <section aria-labelledby="home-recent" className={card} style={cardStyle}>
-            <h2 id="home-recent" className="mb-[3px] text-[12.5px] font-bold">
-              Just done
-            </h2>
-            <p className="mb-3 text-[11px]" style={{ color: "var(--ink-3)" }}>
-              The last things anybody did in {entity.short} {visitLabel}.
-            </p>
-            {recent.length === 0 ? (
-              <Empty>Nothing recorded in this audit yet.</Empty>
-            ) : (
-              <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
-                {recent.map((ev, i) => (
-                  <li key={`${ev.at}-${i}`} className="flex gap-2">
-                    <Dot tone={ev.tone} label={ev.what} />
-                    <span className="min-w-0 flex-1">
-                      <b className="block text-[11.5px] font-semibold">{ev.what}</b>
-                      <span className="block truncate text-[11px]" style={{ color: "var(--ink-3)" }}>
-                        {ev.detail}
-                      </span>
+          {/* ONE HAIRLINE DIVIDER, not a second card border — the two
+              questions ("which audits hold work" / "what just happened in
+              this one") stay visually distinct without a second box. */}
+          <div className="my-3 border-t" style={{ borderColor: "var(--line)" }} />
+
+          <p className="mb-2 text-[11px]" style={{ color: "var(--ink-3)" }}>
+            The last things anybody did in {entity.short} {visitLabel}.
+          </p>
+          {recent.length === 0 ? (
+            <Empty>Nothing recorded in this audit yet.</Empty>
+          ) : (
+            <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+              {recent.map((ev, i) => (
+                <li key={`${ev.at}-${i}`} className="flex gap-2">
+                  <Dot tone={ev.tone} label={ev.what} />
+                  <span className="min-w-0 flex-1">
+                    <b className="block text-[11.5px] font-semibold">{ev.what}</b>
+                    <span className="block truncate text-[11px]" style={{ color: "var(--ink-3)" }}>
+                      {ev.detail}
                     </span>
-                    {now > 0 && (
-                      <span className="shrink-0 font-mono text-[9.5px] whitespace-nowrap" style={{ color: "var(--ink-4)" }}>
-                        {ago(ev.at, now)}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
+                  </span>
+                  {now > 0 && (
+                    <span className="shrink-0 font-mono text-[9.5px] whitespace-nowrap" style={{ color: "var(--ink-4)" }}>
+                      {ago(ev.at, now)}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         {/* ----------------------------------------------------- the year */}
         <section aria-labelledby="home-year" className={`${card} mb-3.5`} style={cardStyle}>
