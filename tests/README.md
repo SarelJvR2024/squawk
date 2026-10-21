@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Seventy-nine suites, no framework. Thirteen need a running server; sixty-six do not.
+Eighty suites, no framework. Thirteen need a running server; sixty-seven do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -29,9 +29,12 @@ starts failing on half-written chunks and the failures look exactly like real
 ones; the runner builds before it starts anything for that reason.
 
 All run with plain `node` except `sharepoint.test.mjs`, `merge.test.mjs`,
-`figures.test.mjs`, `attendance.test.mjs`, `attendanceregister.test.mjs` and
-`isf.test.mjs`, which need the alias loader so they can import the app's
-real modules:
+`figures.test.mjs`, `attendance.test.mjs`, `attendanceregister.test.mjs`,
+`isf.test.mjs` and several others (see `NEEDS_ALIAS` in
+`suite-table.test.mjs` for the full, current list — it is longer than this
+sentence, and that list is what actually drives the runner, so it is the one
+to trust), which need the alias loader so they can import the app's real
+modules:
 
 ```
 node --import ./tests/alias.mjs tests/sharepoint.test.mjs
@@ -105,6 +108,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `import-pack.test.mjs` | no | 63 |
 | `ortia-v3-pack.test.mjs` | no | 84 |
 | `sheet.test.mjs` | no | 17 |
+| `exports.test.mjs` | no | 3 |
 | `e2e.js` | yes | 24 |
 | `robustness.js` | yes | 53 |
 | `exports.js` | yes | 32 |
@@ -119,7 +123,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,446 assertions in total**, every count above verified by running the suite,
+**3,449 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -1439,6 +1443,27 @@ behaviour was driven in a live browser for this pass with Playwright, the
 same way every other suite in this directory that needs a real DOM is; a
 static read cannot click a backdrop or watch `document.activeElement` move,
 only catch the source regressing.
+
+## `exports.test.mjs`
+
+Runs `registerSheet()` from `src/lib/exports.ts` — the actual function that
+builds the exported workbook's Register sheet — for `Response.fieldCompliance`,
+the Inspection screen's own verdict. It was wired into `store.ts`, the UI and
+`sharepoint.ts`'s portal sync but never reached the workbook itself: zero
+matches for the name anywhere in `exports.ts` before this fix. Real
+execution, not a source-regex: a column that exists but reads the wrong
+field, or quietly overwrites a sibling column, is a bug a text search for the
+field's name would call "fixed" while it is still wrong.
+
+```bash
+node --import ./tests/alias.mjs tests/exports.test.mjs
+```
+
+Reads cells back by column HEADER, not position, so a column rename or
+reorder fails the test loudly instead of silently comparing against the
+wrong index. Confirms `fieldCompliance` sits in its own "Field compliance"
+column, independent of (and never folded into) the existing Status column,
+and that a blank/unanswered value renders blank, the sheet's own convention.
 
 ## Exit status
 

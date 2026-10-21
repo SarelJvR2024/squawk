@@ -227,6 +227,14 @@ export function registerSheet(x: ExportInput): Sheet {
       /* Spelled out rather than "Yes": a reader scanning this column should
          not have to look up what a bare yes is answering. */
       r?.evidencePending ? "ACSA says compliant — evidence still to be produced" : "",
+      /* THE INSPECTION SCREEN'S OWN, SEPARATE VERDICT — Response.fieldCompliance,
+         never `compliance` above. Same STATUS_WORD vocabulary, its own column,
+         because the two are deliberately independent answers to independent
+         questions on independent screens (see fieldCompliance's doc comment in
+         types.ts) and folding one into the other would throw that away. `null`
+         (not yet answered on the walk) renders blank, same convention as the
+         Status column just above. */
+      r?.fieldCompliance ? STATUS_WORD[r.fieldCompliance] : "",
       /* WHERE THE ASSET WAS INSPECTED, and it is a different column from
          `Area`. Area is ACSA's category on the register; this is the auditor's
          own words for where they were standing, which is the half that lets
@@ -294,6 +302,11 @@ export function registerSheet(x: ExportInput): Sheet {
          column an RFI gets generated from — filter it, and "Compliant when"
          above says what to ask each site for. */
       { header: "Evidence pending", width: 18, wrap: true },
+      /* THE INSPECTION SCREEN'S OWN VERDICT — not a rename or a mirror of
+         "Status" above. Named the way sharepoint.ts's FIELD_CANDIDATES for
+         this field already does, so a reader who has met the column on the
+         portal recognises it here too. */
+      { header: "Field compliance", width: 16 },
       { header: "Where it was inspected", width: 28 },
       { header: "Observation", width: 60, wrap: true },
       { header: "Evidence requested", width: 42, wrap: true },

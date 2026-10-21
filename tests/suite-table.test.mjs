@@ -57,6 +57,7 @@ const NEEDS_ALIAS = new Set([
   "carryforward.test.mjs",
   "auditdates.test.mjs",
   "relinkphoto.test.mjs",
+  "exports.test.mjs",
 ]);
 const SELF = "suite-table.test.mjs";
 
@@ -149,7 +150,7 @@ const WORDS = {
   "sixty-two": 62, "sixty-three": 63, "sixty-four": 64, "sixty-five": 65, "sixty-six": 66,
   "sixty-seven": 67, "sixty-eight": 68, "sixty-nine": 69, seventy: 70, "seventy-one": 71, "seventy-two": 72,
   "seventy-three": 73, "seventy-four": 74, "seventy-five": 75, "seventy-six": 76, "seventy-seven": 77,
-  "seventy-eight": 78, "seventy-nine": 79,
+  "seventy-eight": 78, "seventy-nine": 79, eighty: 80,
   "thirty-seven": 37,
   "twenty-four": 24, "twenty-five": 25, "twenty-six": 26,
   "twenty-seven": 27, "twenty-eight": 28, "twenty-nine": 29,
