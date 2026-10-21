@@ -280,5 +280,135 @@ check(
   })()
 );
 
+/* ========================================================== Bug 3 ========
+ *  Verification.attachments — the photographs an auditor attaches directly
+ *  on the Follow-up/Closure screen (PR #148) — never reached the exported
+ *  workbook at all. closureSheet() had no photo count/caption columns for
+ *  them (unlike the Findings/Hazard sheets, which already carry
+ *  "Photographs"/"Photograph files"/"Photograph captions" for their OWN
+ *  attachments), and photographsSheet() enumerated only x.responses and
+ *  x.adhoc — never x.verifications. */
+
+check(
+  "a verification's photographs get their own Photographs/files/captions columns on the Closure sheet",
+  (() => {
+    const x = {
+      ...BASE_CLOSURE,
+      verifications: {
+        "KSIA-ELE-P01": {
+          pf: "KSIA-ELE-P01",
+          outcome: "Closed",
+          evidence: "",
+          verifiedBy: "Sarel",
+          verifiedAt: 1,
+          attachments: [
+            { id: "v1", kind: "photo", name: "n1", ref: "KSIA-ELE-P01_P01", caption: "Replaced gland" },
+            { id: "v2", kind: "photo", name: "n2", ref: "KSIA-ELE-P01_P02", caption: "" },
+            /* A voice note on the same screen is not a photograph — see
+               photosFor()'s own filter, which verificationPhotosFor() mirrors. */
+            { id: "v3", kind: "voice", name: "n3" },
+          ],
+        },
+      },
+    };
+    const sheet = ex.closureSheet(x);
+    return (
+      cellOf(sheet, 0, "Photographs") === 2 &&
+      cellOf(sheet, 0, "Photograph files") === "KSIA-ELE-P01_P01.jpg · KSIA-ELE-P01_P02.jpg" &&
+      cellOf(sheet, 0, "Photograph captions") === "Replaced gland · (no caption)"
+    );
+  })(),
+  (() => {
+    const x = {
+      ...BASE_CLOSURE,
+      verifications: {
+        "KSIA-ELE-P01": {
+          pf: "KSIA-ELE-P01", outcome: "Closed", evidence: "", verifiedBy: "Sarel", verifiedAt: 1,
+          attachments: [{ id: "v1", kind: "photo", name: "n1", ref: "KSIA-ELE-P01_P01", caption: "Replaced gland" }],
+        },
+      },
+    };
+    const sheet = ex.closureSheet(x);
+    return JSON.stringify({
+      count: cellOf(sheet, 0, "Photographs"),
+      files: cellOf(sheet, 0, "Photograph files"),
+      captions: cellOf(sheet, 0, "Photograph captions"),
+    });
+  })()
+);
+
+check(
+  "a verification with no attachments gets a zero count, not a blank or a crash",
+  (() => {
+    const sheet = ex.closureSheet(BASE_CLOSURE);
+    return (
+      cellOf(sheet, 0, "Photographs") === 0 &&
+      cellOf(sheet, 0, "Photograph files") === "" &&
+      cellOf(sheet, 0, "Photograph captions") === ""
+    );
+  })()
+);
+
+check(
+  "a verification's photograph is its OWN row on the consolidated Photographs sheet",
+  (() => {
+    const x = {
+      ...BASE_CLOSURE,
+      verifications: {
+        "KSIA-ELE-P01": {
+          pf: "KSIA-ELE-P01",
+          outcome: "Closed",
+          evidence: "",
+          verifiedBy: "Sarel",
+          verifiedAt: 1,
+          attachments: [
+            {
+              id: "v1", kind: "photo", name: "n1", ref: "KSIA-ELE-P01_P01",
+              caption: "Replaced gland", captionSource: "auditor", createdBy: "Sarel",
+            },
+            { id: "v2", kind: "voice", name: "n2" },
+          ],
+        },
+      },
+    };
+    const sheet = ex.photographsSheet(x);
+    return (
+      sheet.rows.length === 1 &&
+      cellOf(sheet, 0, "File") === "KSIA-ELE-P01_P01.jpg" &&
+      cellOf(sheet, 0, "Check") === "KSIA-ELE-P01" &&
+      cellOf(sheet, 0, "Discipline") === "Electrical" &&
+      cellOf(sheet, 0, "Caption") === "Replaced gland" &&
+      /Follow-up|Closure/.test(String(cellOf(sheet, 0, "Source")))
+    );
+  })(),
+  "a voice note must not count as a photograph here either"
+);
+
+check(
+  "a verification's photograph does not collide with a check-point's or a walk item's on the same sheet",
+  (() => {
+    const x = {
+      ...BASE_CLOSURE,
+      checks: [CHECK("KSIA-ELE-001")],
+      responses: {
+        "KSIA-ELE-001": RESP({
+          checkId: "KSIA-ELE-001", compliance: "NC",
+          attachments: [{ id: "r1", kind: "photo", name: "n", ref: "KSIA-ELE-001_P01" }],
+        }),
+      },
+      adhoc: [{ id: "WALK-1", attachments: [{ id: "a1", kind: "photo", name: "n", ref: "WALK-1_P01" }] }],
+      verifications: {
+        "KSIA-ELE-P01": {
+          pf: "KSIA-ELE-P01", outcome: "Closed", evidence: "", verifiedBy: "Sarel", verifiedAt: 1,
+          attachments: [{ id: "v1", kind: "photo", name: "n", ref: "KSIA-ELE-P01_P01" }],
+        },
+      },
+    };
+    const sheet = ex.photographsSheet(x);
+    const files = sheet.rows.map((r) => r[sheet.columns.findIndex((c) => c.header === "File")]).sort();
+    return files.length === 3 && files.join(",") === "KSIA-ELE-001_P01.jpg,KSIA-ELE-P01_P01.jpg,WALK-1_P01.jpg";
+  })()
+);
+
 console.log(`\n${failures === 0 ? "ALL PASS" : `${failures} FAILED`}`);
 process.exit(failures ? 1 : 0);

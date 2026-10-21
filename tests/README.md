@@ -93,7 +93,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `auditdates.test.mjs` | no | 15 |
 | `relinkphoto.test.mjs` | no | 16 |
 | `erm-matrix.test.mjs` | no | 80 |
-| `sharepoint.test.mjs` | no | 308 |
+| `sharepoint.test.mjs` | no | 314 |
 | `graph.test.mjs` | no | 12 |
 | `activity.test.mjs` | no | 34 |
 | `assets.test.mjs` | no | 21 |
@@ -117,7 +117,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `import-pack.test.mjs` | no | 63 |
 | `ortia-v3-pack.test.mjs` | no | 84 |
 | `sheet.test.mjs` | no | 17 |
-| `exports.test.mjs` | no | 5 |
+| `exports.test.mjs` | no | 9 |
 | `e2e.js` | yes | 24 |
 | `robustness.js` | yes | 53 |
 | `exports.js` | yes | 32 |
@@ -132,7 +132,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,463 assertions in total**, every count above verified by running the suite,
+**3,473 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -1455,14 +1455,18 @@ only catch the source regressing.
 
 ## `exports.test.mjs`
 
-Runs `registerSheet()` and `closureSheet()` from `src/lib/exports.ts` — the
-actual functions that build the exported workbook — for the four fields that
-were wired into `store.ts`, the UI and `sharepoint.ts`'s portal sync but never
-reached the workbook itself: `Response.fieldCompliance` and
-`Verification.evidenceRequested`/`discussionLog`/`evidencePending`. Real
-execution, not a source-regex: a column that exists but reads the wrong
-field, or quietly overwrites a sibling column, is a bug a text search for the
-field's name would call "fixed" while it is still wrong.
+Runs `registerSheet()`, `closureSheet()` and `photographsSheet()` from
+`src/lib/exports.ts` — the actual functions that build the exported workbook
+— for fields that were wired into `store.ts`, the UI and `sharepoint.ts`'s
+portal sync but never reached the workbook itself: `Response.fieldCompliance`,
+`Verification.evidenceRequested`/`discussionLog`/`evidencePending`, and
+(PR #148's own gap) `Verification.attachments` — the photographs an auditor
+attaches directly on the Follow-up/Closure screen, which had no
+Photographs/Photograph files/Photograph captions columns on the Closure sheet
+and no rows at all on the consolidated Photographs sheet. Real execution, not
+a source-regex: a column that exists but reads the wrong field, or quietly
+overwrites a sibling column, is a bug a text search for the field's name
+would call "fixed" while it is still wrong.
 
 ```bash
 node --import ./tests/alias.mjs tests/exports.test.mjs

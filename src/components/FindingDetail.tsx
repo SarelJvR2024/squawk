@@ -136,7 +136,7 @@ function LinkToCheck({ f, entityCode, onLinked }: { f: Finding; entityCode: stri
         )}
       </div>
       <div className="mt-1.5 text-[10px]" style={{ color: "var(--ink-4)" }}>
-        Sets that check's compliance to Non-Compliant. Cannot be undone from here.
+        Sets that check&apos;s compliance to Non-Compliant. Cannot be undone from here.
       </div>
     </div>
   );
