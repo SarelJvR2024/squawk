@@ -565,27 +565,17 @@ export default function FieldPage() {
   const axis = locationAxis(entityCode);
   const doneCount = visible.filter((c) => fieldDone(responses[c.id])).length;
 
-  /* THE FILTERS POPOVER'S OWN BUTTON — a one-line readout of all three axes
-     at once (the axis switch, the select, the search) so checking what is
-     applied never requires opening the panel, and a count badge for how
-     many of them are non-default. The axis switch itself (discipline vs.
-     location) is always "set to something" rather than on/off, so it is not
-     counted — same reasoning FilterBar's own `active` flag uses for a mode
-     toggle vs. an actual filter. */
-  const fieldFilterCount =
-    (activeFilter ? 1 : 0) +
-    (searching ? 1 : 0) +
-    (checkLinkFilter !== "all" ? 1 : 0) +
-    (systemLinkFilter !== "all" ? 1 : 0);
-  const fieldFilterSummary = [
-    groupBy === "area" ? "By location" : "By discipline",
-    activeFilter || (groupBy === "area" ? "All locations" : "All disciplines"),
-    searching ? `"${q.trim()}"` : null,
-    checkLinkFilter !== "all" ? `${checkLinkFilter} to a check` : null,
-    systemLinkFilter !== "all" ? `${systemLinkFilter} to a system` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  /* THE FILTERS POPOVER'S OWN BUTTON — just "Filters" or "Filters · X",
+   *  21 Oct 2026 (the second visual-hierarchy pass, item 7). This used to
+   *  carry a one-line readout of all three axes at once plus a count
+   *  badge for how many were non-default — both gone now, see the
+   *  FilterPopover call's own doc comment just below for why. `X` is the
+   *  one thing worth a glance on the button itself: the discipline or
+   *  location actually selected, when one is. Everything else (the
+   *  search term, the two linkage filters) is still exactly as reachable
+   *  as it was — one tap into the panel — just no longer spelled out on
+   *  the button's own face. */
+  const fieldFilterLabel = activeFilter ? `Filters · ${activeFilter}` : "Filters";
 
 
   return (
@@ -638,9 +628,26 @@ export default function FieldPage() {
           style={{ background: "var(--bg)", borderColor: "var(--line)" }}
         >
           <div className="flex items-center gap-2">
+            {/* THE BUTTON NAMES WHAT IS SET, IT DOES NOT ALSO COUNT IT —
+                Sarel's second visual-hierarchy pass, item 7: "Filter button
+                label becomes 'Filters · Civil' — drop the '8/56 +16' from
+                the button; show result counts above the list instead." The
+                button used to carry three things at once: the word
+                "Filters", a count badge (how many of the axes are
+                non-default) and a full summary line ("By discipline ·
+                Electrical · 'ramp' · linked to a check"). `fieldFilterLabel`
+                replaces all three with the one thing worth reading at a
+                glance — which discipline or location is active, right in
+                the label — and nothing is lost: the full detail (search
+                term, linkage filters and all) is still one tap away inside
+                the panel, unchanged. The result counts this button used to
+                sit beside (doneCount/visible.length, +walkVisible.length)
+                move to sit directly above the list instead — see the
+                existing track+figure just below this bar, which already
+                did that job; the one that duplicated it beside this button
+                is the one that is gone. */}
             <FilterPopover
-              activeCount={fieldFilterCount}
-              summary={fieldFilterSummary}
+              label={fieldFilterLabel}
               className="min-w-0 flex-1 sm:max-w-[420px] sm:flex-none"
             >
               <div
@@ -741,55 +748,50 @@ export default function FieldPage() {
                   reader from reading five controls as one list and
                   wondering why the last two look like they repeat the
                   first three. */}
-              <div className="-mx-[14px] border-t" style={{ borderColor: "var(--line)" }} />
-              <div className="-mt-1 text-[9.5px] font-semibold tracking-wide uppercase" style={{ color: "var(--ink-4)" }}>
-                Walk photos — linked to the register, or not
-              </div>
-
-              {/* LINKED, OR NOT — in photographs, not items. See walkLinkage's
-                  own comment above for why. Each row is independent: a walk
-                  item can be linked to a check, to a system, to both or to
-                  neither, so "Linked"/"Unlinked" on one row says nothing
-                  about the other. */}
-              <LinkageFilter
-                label="Photos linked to a check"
-                value={checkLinkFilter}
-                onChange={setCheckLinkFilter}
-                linked={walkLinkage.checkLinked}
-                unlinked={walkLinkage.checkUnlinked}
-              />
-              <LinkageFilter
-                label="Photos linked to an asset system"
-                value={systemLinkFilter}
-                onChange={setSystemLinkFilter}
-                linked={walkLinkage.systemLinked}
-                unlinked={walkLinkage.systemUnlinked}
-              />
+              {/* "PHOTO FILTERS", BEHIND A DISCLOSURE — Sarel's second
+                  visual-hierarchy pass, item 7: "remove the duplicated
+                  'All / linked / unlinked' segmented blocks (keep one, or
+                  fold photo filters behind a 'Photo filters' disclosure)."
+                  The two LinkageFilter rows below are not literally
+                  duplicated — one axis is "linked to a check", the other
+                  "linked to an asset system" — but they are the same
+                  three-way control shape twice in a row, and removing
+                  either one would be a real loss of filtering capability
+                  (a logic change this pass does not make). Folding both
+                  behind one disclosure keeps both axes fully working,
+                  closed by default, so the panel's own first screen is the
+                  three controls that answer "where" rather than five that
+                  read as one repeating list. */}
+              <details className="group -mx-[14px] border-t px-[14px] pt-2" style={{ borderColor: "var(--line)" }}>
+                <summary className="-mt-1 flex min-h-[30px] cursor-pointer list-none items-center gap-[6px] text-[9.5px] font-semibold tracking-wide uppercase" style={{ color: "var(--ink-4)" }}>
+                  <span aria-hidden className="shrink-0 font-mono transition-transform group-open:rotate-90">
+                    ›
+                  </span>
+                  Photo filters — linked to the register, or not
+                </summary>
+                {/* LINKED, OR NOT — in photographs, not items. See
+                    walkLinkage's own comment above for why. Each row is
+                    independent: a walk item can be linked to a check, to a
+                    system, to both or to neither, so "Linked"/"Unlinked" on
+                    one row says nothing about the other. */}
+                <div className="mt-2 flex flex-col gap-2">
+                  <LinkageFilter
+                    label="Photos linked to a check"
+                    value={checkLinkFilter}
+                    onChange={setCheckLinkFilter}
+                    linked={walkLinkage.checkLinked}
+                    unlinked={walkLinkage.checkUnlinked}
+                  />
+                  <LinkageFilter
+                    label="Photos linked to an asset system"
+                    value={systemLinkFilter}
+                    onChange={setSystemLinkFilter}
+                    linked={walkLinkage.systemLinked}
+                    unlinked={walkLinkage.systemUnlinked}
+                  />
+                </div>
+              </details>
             </FilterPopover>
-            {/* Progress beside the Filters button, not under it. Two numbers
-                on one 24px line instead of a whole row of its own. */}
-            <span className="flex shrink-0 items-center gap-1.5 font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
-              {/* A DIFFERENT UNIT FROM THE POPOVER'S OWN COUNTS, SAID ON
-                  HOVER. Sarel, relayed via another session: "check the
-                  numbers in these filter they are either wrong or
-                  confusing." This chip counts CHECK-POINTS done/total; the
-                  popover's own counts, one tap away, count PHOTOGRAPHS —
-                  both correct, nothing in either label said so. A title
-                  attribute is the cheap half of the fix on a chip this
-                  tight for space; see LinkageFilter's own fix for the half
-                  that needed more room. */}
-              <span title={`${doneCount} of ${visible.length} register check-points field-done`}>
-                {doneCount}/{visible.length}
-              </span>
-              {walkVisible.length > 0 && (
-                <span
-                  style={{ color: "var(--acc)" }}
-                  title={`${walkVisible.length} walk item${walkVisible.length === 1 ? "" : "s"} seen, outside the 324-point register`}
-                >
-                  +{walkVisible.length}
-                </span>
-              )}
-            </span>
           </div>
           {/* THE FILTER CHIP ROW IS GONE, AND THAT IS THE POINT.
               It was a row of discipline names that filtered a flat list. The
