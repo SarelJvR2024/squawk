@@ -383,10 +383,10 @@ export default function HomePage() {
               </p>
             </div>
             {/* THE ONE MAIN ACTION ON THIS SCREEN. Checks is the first step of
-                the flow this page's own strip names further down, so it is
-                the button that carries the primary style — "Go out and walk"
-                is the other place this audit's work continues, kept as a
-                plain secondary rather than a second primary. */}
+                the seven-step flow named just below, so it is the button
+                that carries the primary style — "Go out and walk" is the
+                other place this audit's work continues, kept as a plain
+                secondary rather than a second primary. */}
             <div className="mt-3.5 flex flex-wrap gap-2">
               <Link href="/capture" className="no-underline">
                 <Btn variant="primary">Continue at the desk</Btn>
@@ -395,6 +395,21 @@ export default function HomePage() {
                 <Btn>Go out and walk</Btn>
               </Link>
             </div>
+            {/* THE ORDER, AS A LINE OF TEXT, NOT A SECOND NAVIGATION — Sarel's
+                second visual-hierarchy pass, item 9: "remove the 'How the
+                work flows' stepper bar — it duplicates the main navigation.
+                If the step order matters, show it once as small text inside
+                the current-audit panel." The stepper that used to sit at
+                the foot of this page (a row of seven rounded, bordered
+                links with icons) was the masthead's own nav, restated in a
+                friendlier shape — every one of its destinations, in the
+                same order, reachable the same way. The ORDER is the one
+                thing the nav bar itself cannot say, and that is all this
+                line keeps: plain text, no links, no icons, so it cannot be
+                mistaken for a second way to get anywhere. */}
+            <p className="mt-3 text-[10.5px] leading-[1.6]" style={{ color: "var(--ink-4)" }}>
+              The seven steps, in order: {FLOW.map((s) => s.label).join(" › ")}.
+            </p>
           </section>
 
           {/* --------------------------------------------- next in the programme */}
@@ -735,62 +750,19 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ----------------------------------------------------- the flow
-
-            ONE ROW, NOT EIGHT CARDS — Sarel: "the whole app is very busy...
-            review what is actually necessary to display." This used to
-            restate the entire top navigation as a grid of cards, each with
-            its own paragraph and its own printed route — the same seven
-            destinations the masthead already shows, in the same order,
-            explained a second time on every visit to this screen. The
-            masthead is permanent furniture; this was a page section doing
-            the same job in more words.
-
-            What survives is the one thing the nav bar cannot say: the
-            ORDER. A numbered strip of plain links does that in a line
-            anybody can read in a glance, and every description that used to
-            be a paragraph is still here — on hover/long-press, where it is
-            worth having without costing a page's worth of space. Pre-flight
-            keeps its place at the end, same as before. */}
-        <section aria-labelledby="home-flow" className={card} style={cardStyle}>
-          <h2 id="home-flow" className="mb-[9px] text-[12.5px] font-bold">
-            How the work flows
-          </h2>
-          <div className="flex flex-wrap items-center gap-[6px]">
-            {FLOW.map((s, i) => {
-              const Icon = s.icon;
-              return (
-                <span key={s.href} className="flex items-center gap-[6px]">
-                  <Link
-                    href={s.href}
-                    title={s.line}
-                    className="flex items-center gap-[6px] rounded-full border px-[11px] py-[7px] no-underline transition-[var(--t)] hover:-translate-y-[1px]"
-                    style={{ background: "var(--sunken)", borderColor: "var(--line)", color: "var(--ink)" }}
-                  >
-                    <span className="tnum font-mono text-[9px] font-semibold" style={{ color: "var(--ink-4)" }}>
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <Icon width={13} height={13} style={{ color: "var(--acc)" }} />
-                    <b className="font-display text-[11.5px] font-semibold">{s.label}</b>
-                  </Link>
-                  {i < FLOW.length - 1 && (
-                    <IconRight width={11} height={11} aria-hidden style={{ color: "var(--ink-4)" }} />
-                  )}
-                </span>
-              );
-            })}
-            <span className="mx-[2px] h-[20px] w-px shrink-0" style={{ background: "var(--line-2)" }} aria-hidden />
-            <Link
-              href="/preflight"
-              title="Microphone, camera, storage and the offline cache, checked on this device before anyone walks onto an apron."
-              className="flex items-center gap-[6px] rounded-full border px-[11px] py-[7px] no-underline transition-[var(--t)] hover:-translate-y-[1px]"
-              style={{ background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }}
-            >
-              <b className="font-display text-[11.5px] font-semibold">Pre-flight</b>
-              <span className="text-[10px]" style={{ color: "var(--acc)" }}>before you go</span>
-            </Link>
-          </div>
-        </section>
+        {/* "HOW THE WORK FLOWS" IS GONE, 21 Oct 2026 — Sarel's second
+            visual-hierarchy pass, item 9: "remove the 'How the work flows'
+            stepper bar — it duplicates the main navigation." This had
+            already been cut down once, from eight cards to one row of
+            seven linked pills (see this section's own prior history, now
+            removed with it) — but a row of links to the same seven
+            destinations, in the same order, is still the masthead's own
+            nav restated, just in pill shape instead of card shape. The
+            order itself — the one fact the nav bar cannot state — now
+            lives as a plain-text line inside "The audit you are in" above,
+            not as a second set of links. Pre-flight's own quick link here
+            is gone with it; it stays reachable from the More menu, same as
+            every other screen not in the seven-step sequence. */}
       </div>
     </div>
   );
