@@ -111,11 +111,19 @@ check(
        this popup entirely, 11 October 2026 (Sarel: remove the answer
        options from the popup screen) — not moved behind the ACSA tab, gone
        from the popup altogether. OutcomeControl is what this slice still
-       commits. */
+       commits.
+
+       "What you found · the observation on the record" stopped being the
+       VISIBLE caption over the observation textarea on 21 Oct 2026 — the
+       second visual-hierarchy pass, item 3: a label that only restates
+       what the field already is. The textarea itself, and an accessible
+       name for it (now an sr-only "Observation"), are still exactly here;
+       this probes for those instead of the deleted visible copy. */
     return (
       /TPJV walkabout — physical check/.test(slice) &&
       /<OutcomeControl/.test(slice) &&
-      /What you found · the observation on the record/.test(slice) &&
+      /sr-only">Observation<\/span>/.test(slice) &&
+      /value=\{r\?\.observation/.test(slice) &&
       /<AttachmentStrip/.test(slice)
     );
   })(),

@@ -1633,9 +1633,15 @@ export default function FieldPage() {
               </div>
             )}
 
-            <div className="label-xs mb-1.5" style={{ color: "var(--ink-4)" }}>
-              Outcome
-            </div>
+            {/* THE "OUTCOME" CAPTION IS GONE, deliberately — Sarel's second
+                visual-hierarchy pass, item 3: delete a label that only
+                restates what the content already says. The four buttons
+                immediately below read "Compliant", "Non-compliant", "N/A",
+                "Later" — nobody needs told that is the outcome before
+                reading the word "Compliant" on a button. OutcomeControl's
+                own radiogroup still carries aria-label="Outcome"
+                (OutcomeControl.tsx), so the accessible name survives; only
+                the sighted, redundant copy of it is removed. */}
             <OutcomeControl
               value={r?.fieldCompliance ?? null}
               onChange={(nextOutcome) => {
@@ -1686,9 +1692,15 @@ export default function FieldPage() {
             </label>
 
             <label className="mt-4 block">
-              <span className="label-xs" style={{ color: "var(--ink-4)" }}>
-                What you found · the observation on the record
-              </span>
+              {/* VISIBLE CAPTION REMOVED, ACCESSIBLE NAME KEPT — Sarel's
+                  second visual-hierarchy pass, item 3: "What you found · the
+                  observation on the record" restated what the placeholder
+                  and the field's own position (right under the outcome)
+                  already say. sr-only rather than deleted outright: the
+                  <label> still needs something to give the textarea a name
+                  for anyone using a screen reader, and "Observation" says
+                  that in three words instead of nine. */}
+              <span className="sr-only">Observation</span>
               <textarea
                 value={r?.observation ?? ""}
                 onChange={(e) => patch(c.id, { observation: e.target.value })}
