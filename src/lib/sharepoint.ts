@@ -1842,6 +1842,40 @@ export function buildPlan(
       },
       summary: `${p.portalId} · ${v.outcome} (last cycle)`,
     });
+
+    /* --- AND THE VERIFICATION'S OWN EVIDENCE PHOTOS -----------------
+     *
+     *  Verification.attachments — the photographs an auditor attaches
+     *  directly on THIS Follow-up/Closure screen (PR #148), as proof the
+     *  carried finding above was actually fixed. Everything upstream of
+     *  sync was already wired for them (store.ts, the upload queue, merge.ts's
+     *  tombstone-aware union); this is the one site that turns them into
+     *  evidence the portal actually receives — the exact same pattern the
+     *  check-point loop and the walk-item loop above follow for their own
+     *  photographs, just a third population of this same `evidence` array.
+     *
+     *  `v.attachments` is already the LIVE list by the time it gets here: a
+     *  removal filters it in store.ts immediately, and merge.ts's
+     *  unionAttachmentsWithTombstones() strips a removed id out of it on
+     *  every merge — so, same as the check-point and walk-item loops just
+     *  above, nothing further needs to consult removedAttachmentIds here. */
+    for (const a of v.attachments ?? []) {
+      if (a.kind !== "photo" || a.unavailable) continue;
+      if (!a.blobKey && !a.cloudUrl) continue;
+      evidence.push({
+        checkId: p.portalId,
+        filename: photoFilename(a),
+        attachment: a,
+        caption: a.caption?.trim() ?? "",
+        /* A CARRIED finding keeps the discipline/asset system it was raised
+           under, same as the check-point loop reads them off the register's
+           own check rather than guessing. `p.assetSystem` is the mapped
+           register system (nullable); `p.discipline` is never blank — see
+           PriorFinding in types.ts. */
+        values: evidenceValues(a, p.portalId, p.discipline, p.assetSystem ?? ""),
+        folder: dayFolder(folder, a.takenAt ?? a.createdAt),
+      });
+    }
   }
   if (unverified) {
     skipped.push({

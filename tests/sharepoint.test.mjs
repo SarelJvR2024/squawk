@@ -33,6 +33,7 @@ const check = (name, cond, detail = "") => {
 const sp = await import("../src/lib/sharepoint.ts");
 const sites = await import("../src/lib/sites.ts");
 const { localDate } = await import("../src/lib/attendance.ts");
+const merge = await import("../src/lib/merge.ts");
 
 /** The source with its COMMENTS REMOVED.
  *
@@ -3953,6 +3954,204 @@ check(
     return p.assetRisk.length === 0;
   })(),
   "a note the team must never see leaving this app should not even be the reason a row gets created"
+);
+
+/* ---- A VERIFICATION'S OWN EVIDENCE PHOTOS ARE QUEUED FOR UPLOAD TOO -----
+ *
+ *  Verification.attachments — the photographs an auditor attaches directly
+ *  on the Follow-up/Closure screen (PR #148) — never reached the `evidence`
+ *  array that drives the actual SharePoint upload: the check-point loop and
+ *  the walk-item loop each populate it, but the "last cycle's findings,
+ *  verified this visit" loop (the only place `x.verifications` is read at
+ *  all) stopped at outcome/progress/action/evidenceRequested/evidencePending/
+ *  discussionLog and never looked at `v.attachments`. Evidence looked
+ *  captured in the app and silently never reached the portal. */
+
+check(
+  "A VERIFICATION'S PHOTOGRAPH IS QUEUED FOR UPLOAD, same as a check-point's or a walk item's",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        prior: [{ portalId: "KSIA-ELE-P01", entityCode: "FALE", discipline: "Electrical", assetSystem: "AGL" }],
+        verifications: {
+          "KSIA-ELE-P01": {
+            pf: "KSIA-ELE-P01", outcome: "Closed", evidence: "", attachments: [
+              { id: "v1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-P01_P01", caption: "Replaced gland", createdBy: "Sarel" },
+              { id: "v2", kind: "voice", name: "v", blobKey: "b2" },
+            ],
+            verifiedBy: "Sarel", verifiedAt: 1,
+          },
+        },
+      },
+      NOTHING
+    );
+    return p.evidence.length === 1 && p.evidence[0].filename === "KSIA-ELE-P01_P01.jpg";
+  })(),
+  "a voice note on a verification is no more evidence for the library than one on a check or a walk item"
+);
+
+check(
+  "and it carries the CARRIED finding's own discipline/asset system, the way a check-point's photo carries the check's",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        prior: [{ portalId: "KSIA-ELE-P01", entityCode: "FALE", discipline: "Electrical", assetSystem: "AGL" }],
+        verifications: {
+          "KSIA-ELE-P01": {
+            pf: "KSIA-ELE-P01", outcome: "Closed", evidence: "", attachments: [
+              { id: "v1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-P01_P01", caption: "c" },
+            ],
+            verifiedBy: "Sarel", verifiedAt: 1,
+          },
+        },
+      },
+      NOTHING
+    );
+    const v = p.evidence[0].values;
+    return v.checkId === "KSIA-ELE-P01" && v.discipline === "Electrical" && v.assetSystem === "AGL";
+  })()
+);
+
+check(
+  "A VERIFICATION PHOTOGRAPH THIS DEVICE NEVER TOOK IS STILL QUEUED, if the record holds it — same rule as the register and the walk",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        prior: [{ portalId: "KSIA-ELE-P01", entityCode: "FALE", discipline: "Electrical", assetSystem: "AGL" }],
+        verifications: {
+          "KSIA-ELE-P01": {
+            pf: "KSIA-ELE-P01", outcome: "Closed", evidence: "", attachments: [
+              { id: "v1", kind: "photo", name: "n", cloudUrl: "https://blob/x", ref: "KSIA-ELE-P01_P01", caption: "c" },
+            ],
+            verifiedBy: "Sarel", verifiedAt: 1,
+          },
+        },
+      },
+      NOTHING
+    );
+    return p.evidence.length === 1 && !!p.evidence[0].attachment;
+  })()
+);
+
+check(
+  "the same exclusions apply to a verification's photographs — evicted is gone, and no bytes anywhere means no upload",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        prior: [
+          { portalId: "KSIA-ELE-P01", entityCode: "FALE", discipline: "Electrical", assetSystem: "AGL" },
+          { portalId: "KSIA-ELE-P02", entityCode: "FALE", discipline: "Electrical", assetSystem: "AGL" },
+          { portalId: "KSIA-ELE-P03", entityCode: "FALE", discipline: "Electrical", assetSystem: "AGL" },
+        ],
+        verifications: {
+          "KSIA-ELE-P01": {
+            pf: "KSIA-ELE-P01", outcome: "Closed", evidence: "", verifiedBy: "Sarel", verifiedAt: 1,
+            attachments: [{ id: "v1", kind: "photo", name: "n", blobKey: "b", unavailable: true, ref: "R" }],
+          },
+          "KSIA-ELE-P02": {
+            pf: "KSIA-ELE-P02", outcome: "Closed", evidence: "", verifiedBy: "Sarel", verifiedAt: 1,
+            attachments: [{ id: "v2", kind: "photo", name: "n", ref: "R2" }],
+          },
+          "KSIA-ELE-P03": {
+            pf: "KSIA-ELE-P03", outcome: "Closed", evidence: "", verifiedBy: "Sarel", verifiedAt: 1,
+            attachments: [{ id: "v3", kind: "photo", name: "n", cloudUrl: "https://blob/y", ref: "KSIA-ELE-P03_P01" }],
+          },
+        },
+      },
+      NOTHING
+    );
+    return p.evidence.length === 1 && p.evidence[0].filename === "KSIA-ELE-P03_P01.jpg";
+  })()
+);
+
+check(
+  "a prior finding with no verification this visit queues no photographs at all",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE, prior: [{ portalId: "KSIA-ELE-P01", entityCode: "FALE" }], verifications: {} },
+      NOTHING
+    );
+    return p.evidence.length === 0;
+  })()
+);
+
+/* ---- AND A REMOVED VERIFICATION ATTACHMENT MUST NEVER REAPPEAR ON SYNC --
+ *
+ *  Runs the REAL mergeBundle() (src/lib/merge.ts), not a hand-built fixture,
+ *  so this proves the full chain: a stale bundle that predates a removal
+ *  must not resurrect the attachment into the very array that drives the
+ *  SharePoint upload. Built the exact way store.ts's own
+ *  removeVerificationAttachment leaves a Verification — attachments without
+ *  it, a fresh tombstone, updatedAt bumped — same fixture shape
+ *  tests/merge.test.mjs already proves for Response.attachments. */
+check(
+  "a removed verification attachment does not reappear in the sync evidence after a stale merge",
+  (() => {
+    const T = 1_700_000_000_000;
+    const photo = (id) => ({
+      id, kind: "photo", name: `${id}.jpg`, ref: `KSIA-ELE-P01_${id}`,
+      createdAt: T, createdBy: "Someone", cloudUrl: `https://blob.example/${id}.jpg`,
+    });
+    const mineAfterRemoval = {
+      entity: "FALE",
+      visit: "2026-09",
+      visitData: {
+        responses: {},
+        verifications: {
+          "KSIA-ELE-P01": {
+            pf: "KSIA-ELE-P01", outcome: "Closed", evidence: "", verifiedBy: "Sarel", verifiedAt: 1,
+            attachments: [],
+            removedAttachmentIds: [{ id: "p1", at: T + 5000 }],
+            updatedAt: T + 5000,
+          },
+        },
+        captures: [],
+        feedback: {},
+      },
+      findings: [],
+      hazards: [],
+    };
+    const staleBundle = {
+      meta: {
+        kind: merge.BUNDLE_KIND, version: 1, entity: "FALE", visit: "2026-09",
+        exportedBy: "Someone else", exportedAt: T,
+        counts: { responses: 0, findings: 0, hazards: 0, verifications: 1 },
+        photographsNotUploaded: 0,
+      },
+      visit: {
+        responses: {},
+        verifications: {
+          "KSIA-ELE-P01": {
+            pf: "KSIA-ELE-P01", outcome: "Closed", evidence: "", verifiedBy: "Sarel", verifiedAt: 1,
+            attachments: [photo("p1")],
+            updatedAt: T,
+          },
+        },
+        captures: [],
+        feedback: {},
+      },
+      findings: [],
+      hazards: [],
+    };
+    const merged = merge.mergeBundle(mineAfterRemoval, staleBundle);
+    const stillGone = !merged.visitData.verifications["KSIA-ELE-P01"].attachments.some((a) => a.id === "p1");
+
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        prior: [{ portalId: "KSIA-ELE-P01", entityCode: "FALE", discipline: "Electrical", assetSystem: "AGL" }],
+        verifications: merged.visitData.verifications,
+      },
+      NOTHING
+    );
+    const reappeared = p.evidence.some((e) => e.attachment.id === "p1");
+    return stillGone && !reappeared;
+  })(),
+  "the removal must survive the merge AND the attachment must not be re-queued for upload"
 );
 
 /* ------------------------------------------------------------------ result */

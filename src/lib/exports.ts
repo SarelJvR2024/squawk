@@ -460,6 +460,17 @@ function photosFor(x: ExportInput, checkId: string | null | undefined): Attachme
   return (x.responses[checkId]?.attachments ?? []).filter((a) => a.kind === "photo");
 }
 
+/** Photographs attached directly to a Verification record — the Follow-up/
+ *  Closure screen's own evidence (PR #148), kept apart from `photosFor`
+ *  above on purpose: a verification's photographs prove THIS visit's
+ *  closure of a CARRIED finding, not a check-point answer, so they are
+ *  never folded into the register's own count. Same filter as `photosFor`
+ *  — `kind === "photo"` only, `unavailable` still counted (the Photographs
+ *  sheet below says which it is, same as every other photograph there). */
+function verificationPhotosFor(x: ExportInput, portalId: string): Attachment[] {
+  return (x.verifications[portalId]?.attachments ?? []).filter((a) => a.kind === "photo");
+}
+
 /** One row per photograph.
  *
  *  A photograph nobody indexed is a photograph nobody will find. This sheet is
@@ -550,6 +561,48 @@ export function photographsSheet(x: ExportInput): Sheet {
             : "On the device only",
         a.cloudUrl ?? "",
         "Seen on the walk — NOT one of the register check-points",
+      ]);
+    }
+  }
+  /* Photographs attached directly on the Follow-up/Closure screen — a
+     Verification's own evidence (PR #148). Same sheet as the other two: a
+     photograph proves a prior finding was fixed in exactly the way one
+     proves a check-point answer or a walk observation, and a reader should
+     not have to know which screen captured it to find it here. */
+  for (const p of x.prior ?? []) {
+    const v = x.verifications[p.portalId];
+    for (const a of v?.attachments ?? []) {
+      if (a.kind !== "photo") continue;
+      rows.push([
+        photoFilename(a),
+        a.ref ?? "",
+        p.portalId,
+        p.discipline,
+        p.assetSystem ?? p.assetSystemRecorded,
+        /* PriorFinding carries no `area` of its own — see types.ts — so this
+           stays blank rather than guessing one. */
+        "",
+        a.location?.trim() ?? "",
+        a.assetName?.trim() ?? "",
+        a.assetRef?.trim() ?? "",
+        a.caption?.trim() ?? "",
+        a.caption?.trim()
+          ? a.captionSource === "assistant"
+            ? "Assistant, accepted by the auditor"
+            : "Auditor"
+          : "NO CAPTION",
+        when(a.takenAt) ?? "",
+        when(a.createdAt),
+        a.createdBy,
+        a.width && a.height ? `${a.width}×${a.height}` : "",
+        a.bytes ? Math.round(a.bytes / 1024) : "",
+        a.unavailable
+          ? "No image stored"
+          : a.cloudUrl
+            ? "On the device and in the record store"
+            : "On the device only",
+        a.cloudUrl ?? "",
+        "Follow-up / Closure evidence — NOT one of the register check-points",
       ]);
     }
   }
@@ -884,6 +937,15 @@ export function closureSheet(x: ExportInput): Sheet {
          uses for this field, not a second implementation that could drift
          from it. */
       flattenProgress(v?.discussionLog),
+      /* THE EVIDENCE PHOTOS ATTACHED DIRECTLY ON THIS SCREEN — Verification.
+         attachments, PR #148. Same count/files/captions convention as the
+         Findings sheet's own three Photograph columns, and the same reason:
+         a count alone says there is evidence but not what it shows. */
+      verificationPhotosFor(x, p.portalId).length,
+      verificationPhotosFor(x, p.portalId).map(photoFilename).join(" · "),
+      verificationPhotosFor(x, p.portalId)
+        .map((a) => a.caption?.trim() || "(no caption)")
+        .join(" · "),
       v?.verifiedBy ?? "",
       when(v?.verifiedAt),
       covering.length,
@@ -922,6 +984,9 @@ export function closureSheet(x: ExportInput): Sheet {
       { header: "Possible hazardous events", width: 62, wrap: true },
       { header: "Progress / Update", width: 66, wrap: true },
       { header: "ACSA discussion log", width: 66, wrap: true },
+      { header: "Photographs", width: 12 },
+      { header: "Photograph files", width: 44, wrap: true },
+      { header: "Photograph captions", width: 60, wrap: true },
       { header: "Verified by", width: 22 },
       { header: "Verified on", width: 12 },
       { header: "Checks covering it", width: 16 },
