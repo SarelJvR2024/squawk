@@ -773,8 +773,11 @@ export default function HazardsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-[6px]">
                       <b className="text-[12.5px]">{first.event.event || "(unnamed event)"}</b>
+                      {/* A count, not a status — item 4 of Sarel's second
+                          visual-hierarchy pass takes the brand accent off
+                          it. */}
                       {multi && (
-                        <Pill tone="accent" title="Named independently on more than one asset system">
+                        <Pill title="Named independently on more than one asset system">
                           {group.length} ASSET SYSTEMS
                         </Pill>
                       )}
@@ -856,8 +859,10 @@ export default function HazardsPage() {
 
         {/* ------------------------------------------------ register */}
         {hazards.length === 0 ? (
-          <Panel tone="accent">
-            <div className="text-[12px]" style={{ color: "var(--acc)" }}>
+          /* An empty state, not a status — item 4 of Sarel's second
+             visual-hierarchy pass takes the brand accent off it. */
+          <Panel>
+            <div className="text-[12px]" style={{ color: "var(--ink-3)" }}>
               No hazards yet. Group the findings above, or raise one directly.
             </div>
           </Panel>
@@ -1088,14 +1093,17 @@ export default function HazardsPage() {
               >
                 <div className="mb-2 flex flex-wrap items-center gap-2 font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
                   <span>{active.id}</span>
-                  <Pill tone={active.origin === "consolidated" ? "accent" : active.origin === "acsa" ? "warn" : "neutral"}>
+                  {/* Where the hazard came from is a provenance mark, not
+                      a status — item 4 of Sarel's second visual-hierarchy
+                      pass takes the brand accent off "consolidated". */}
+                  <Pill tone={active.origin === "acsa" ? "warn" : "neutral"}>
                     {ORIGIN_LABEL[active.origin]}
                   </Pill>
                   {active.disciplines.length > 0 && <span>{active.disciplines.join(" · ")}</span>}
                   {active.systems.length > 0 && <span>{active.systems.join(" · ")}</span>}
                   {active.immediate && <Pill tone="bad">IMMEDIATE</Pill>}
                   {active.importKey && (
-                    <Pill tone="accent" title="Written by Import observation pack, not raised on the audit">
+                    <Pill title="Written by Import observation pack, not raised on the audit">
                       IMPORTED, TPJV-PROPOSED
                     </Pill>
                   )}

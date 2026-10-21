@@ -379,10 +379,13 @@ export default function ClosurePage() {
             a standing banner that says the same four sentences on every visit
             is furniture by the second day. The summary line still names the
             cycle, so nobody has to know to open it to learn that one exists. */}
+        {/* Reference information, not a status — item 4 of Sarel's second
+            visual-hierarchy pass takes the brand accent off this
+            disclosure. */}
         <details className="mb-2.5">
           <summary
             className="cursor-pointer list-none rounded-[8px] border px-3 py-[7px] text-[11px]"
-            style={{ background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }}
+            style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
           >
             Findings carry on the <b>3-year cycle</b> — what that means for closing one
           </summary>
@@ -681,7 +684,10 @@ export default function ClosurePage() {
                 <Pill tone={ratingTone(active.rating)}>
                   {active.originLabel.toUpperCase()} {active.rating.toUpperCase()}
                 </Pill>
-                {active.source === "carried" && <Pill tone="accent">CARRIED FORWARD</Pill>}
+                {/* A provenance mark, not a status — item 4 of Sarel's
+                    second visual-hierarchy pass takes the brand accent
+                    off it. */}
+                {active.source === "carried" && <Pill>CARRIED FORWARD</Pill>}
                 {(() => {
                   const n = visitsOpen(active, entityCode, visitId);
                   return n > 0 ? (
