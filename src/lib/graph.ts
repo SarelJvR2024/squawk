@@ -435,6 +435,36 @@ export async function items(siteId: string, listId: string, select: string[]): P
   return all<GraphItem>(`/sites/${siteId}/lists/${listId}/items?$expand=${expand}&$top=200`);
 }
 
+/** Does a row with this exact Title exist RIGHT NOW? One targeted query, not
+ *  the whole-list read `items()` does — called immediately before a create
+ *  for a Title the plan minted sequentially (a hazard's `ORTIA-ELE-P10`), to
+ *  close the gap between "the plan was built" and "this write actually
+ *  happens". The plan's own snapshot of the portal can be minutes old by the
+ *  time an auditor has reviewed it and pressed the final button, or another
+ *  device can have minted and written the very same next number in that
+ *  window — mintPortalId has no lock to take, only the list itself does,
+ *  and this is the closest thing to asking it one. Narrows the race to the
+ *  time between this call and the create that follows it, which two devices
+ *  can still both lose, but a sync minutes apart never will again.
+ *
+ *  A deterministic Title (a check-point's own id, an asset system's
+ *  `<site>-RISK-<discipline>-<system>`) never collides with a DIFFERENT row
+ *  this way — it can only ever match itself — so this is only worth calling
+ *  before a hazard's create, not every row's. */
+export async function findItemIdByTitle(
+  siteId: string,
+  listId: string,
+  title: string
+): Promise<string | null> {
+  const escaped = title.replace(/'/g, "''");
+  const page = await call<{ value: GraphItem[] }>(
+    `/sites/${siteId}/lists/${listId}/items?$filter=${encodeURIComponent(
+      `fields/Title eq '${escaped}'`
+    )}&$top=1&$select=id`
+  );
+  return page.value[0]?.id ?? null;
+}
+
 export async function createItem(
   siteId: string,
   listId: string,
