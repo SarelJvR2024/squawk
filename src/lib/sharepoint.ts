@@ -170,7 +170,43 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
   owner: ["Owner", "Responsible", "Responsible person"],
   targetDate: ["Target date", "Target Date", "Due date"],
   progress: ["Progress/Update", "Progress / Update", "Progress", "Update"],
+  /* THE FOLLOW-UP SCREEN'S OWN "evidence requested" — Verification.
+     evidenceRequested — asked against a CARRIED finding, not the Checks
+     screen's own evidence-request chips (those fold into `observation`
+     above and never had a column of their own). See Verification.
+     evidenceRequested's doc comment in types.ts: "both sections required",
+     the two reading as a pair with `evidence`/`treatment` rather than one
+     box doing both jobs. Aliases say "follow-up"/"outstanding" so a portal
+     operator never files this under the Checks-screen sentence. */
+  evidenceRequested: ["Evidence requested (follow-up)", "Evidence requested", "Evidence outstanding"],
+  /* THE ACSA DISCUSSION LOG — Verification.discussionLog — a separate,
+     dated, append-only log from `progress` above, for the conversation
+     itself rather than what moved. Same ProgressNote shape as `progress`,
+     flattened the same way via flattenProgress(). See Verification.
+     discussionLog's doc comment in types.ts. */
+  discussionLog: ["ACSA discussion log", "Discussion log", "Discussion Log"],
+  /* Verification.evidencePending — DELIBERATELY SEPARATE from Response.
+     evidencePending below: this one is about whether the proof a CARRIED
+     finding is waiting on has arrived, not about this visit's own
+     check-point answer. See Verification.evidencePending's doc comment.
+     Declared here for completeness, but — same as Response.evidencePending,
+     which has no entry of its own below for the same reason — no portal
+     column takes a flag cleanly, so it is folded into the row's text (the
+     last-cycle findings loop's `treatment`) rather than written as its own
+     value. */
+  evidencePending: ["Evidence pending (follow-up)", "Follow-up evidence pending"],
   compliance: ["Compliance", "Result", "Outcome"],
+  /* THE INSPECTION SCREEN'S OWN VERDICT, SEPARATE FROM `compliance` ABOVE.
+     See Response.fieldCompliance's own doc comment in types.ts — this is the
+     walk's own OutcomeControl answer, a second independent axis on the same
+     check, deliberately never pulled through to or from the Checks screen's
+     own verdict. It never had a column at all until now, so a portal reader
+     saw only `compliance` (the desk half) and had no way to tell the two
+     apart even once this exists — hence aliases that read unambiguously as
+     the OTHER column, not a rename of it. `null` (not yet answered on the
+     walk) is sent through as-is, same as `evidenceVerdict` below — a
+     genuinely unset verdict must not be mistaken for a cleared one. */
+  fieldCompliance: ["Field compliance", "Field Compliance", "Inspection compliance", "Site verdict"],
   /* THE EVIDENCE QUESTION, SEPARATE FROM THE CHECK'S OWN VERDICT. Replaced
      the chip-picking "Evidence to request" tab (never synced) — see the
      note at the checkpoints loop's values object in buildPlan(). */
@@ -905,13 +941,26 @@ export function flattenProgress(notes: ProgressNote[] | undefined): string {
 
 /** A hazard (or finding) can carry several mitigating actions now, each with
  *  its own discipline, owner and date — the portal's `treatment` field is
- *  still one text cell, so this flattens the same way flattenProgress does. */
+ *  still one text cell, so this flattens the same way flattenProgress does.
+ *
+ *  THE SYSTEM TAG. `MitigationAction.system` (hazardPromotion.ts, the
+ *  hazard-auto-merge feature) names which asset system an action was copied
+ *  in from, for exactly the case `discipline` already exists to disambiguate:
+ *  a hazard consolidated from 2+ asset systems. It was written correctly and
+ *  shown correctly in the app's own hazard-register UI, but this flatten —
+ *  the one ACSA's portal actually reads — never read it, so the portal (and
+ *  the exported workbook's matching cell, exports.ts's Finding/Hazard sheets,
+ *  which must stay byte-for-byte identical to this one — see their own
+ *  comments) silently dropped which system each multi-system action belonged
+ *  to. Same `[System]` convention `buildPromotedHazardPatch` already uses
+ *  for the root-cause text it builds alongside these actions, prepended
+ *  ahead of the discipline segment. */
 export function flattenActions(actions: MitigationAction[] | undefined): string {
   if (!actions?.length) return "";
   return actions
     .map(
       (m) =>
-        `${m.discipline ? `${m.discipline} — ` : ""}${m.action} · ${m.owner || "NO OWNER"} · ${m.dueDate || "NO TARGET DATE"} · ${m.status}`
+        `${m.system ? `[${m.system}] ` : ""}${m.discipline ? `${m.discipline} — ` : ""}${m.action} · ${m.owner || "NO OWNER"} · ${m.dueDate || "NO TARGET DATE"} · ${m.status}`
     )
     .join("\n");
 }
@@ -1428,6 +1477,14 @@ export function buildPlan(
         discipline: c.discipline,
         assetSystem: c.system,
         compliance: r.compliance,
+        /* THE INSPECTION SCREEN'S OWN, SEPARATE VERDICT — see
+           Response.fieldCompliance's doc comment and the fieldCompliance
+           entry in FIELD_CANDIDATES above. Sent through as `null` when the
+           walk has not answered this check, same reasoning as
+           evidenceVerdict below: an unset verdict must read as unset on the
+           portal, not fold into (or get confused with) `compliance` above,
+           which is a different question answered on a different screen. */
+        fieldCompliance: r.fieldCompliance,
         /* EVIDENCE PENDING GOES ACROSS, IN THE OBSERVATION.
            The portal's compliance column has four values and "Compliant,
            evidence pending" is not one of them — it is a C with a flag on it,
@@ -1748,6 +1805,21 @@ export function buildPlan(
       continue;
     }
     const itemId = existing.findings.get(p.portalId);
+    /* EVIDENCE PENDING GOES ACROSS, IN treatment — the same convention
+       Response.evidencePending uses on `observation` in the checkpoints
+       loop above, for the same reason: no portal column takes a flag
+       cleanly, and this row has no `observation` column of its own to carry
+       it instead. See Verification.evidencePending's doc comment — it is
+       about whether a CARRIED finding's requested closure evidence has
+       arrived, not Response.evidencePending's own, different question. */
+    const treatmentText = [
+      v.evidencePending
+        ? "EVIDENCE PENDING — closure evidence has been requested and has not yet been received."
+        : "",
+      v.action ?? "",
+    ]
+      .filter(Boolean)
+      .join(" ");
     findings.push({
       key: p.portalId,
       action: itemId ? "update" : "create",
@@ -1756,7 +1828,17 @@ export function buildPlan(
         title: p.portalId,
         status: v.outcome,
         progress: flattenProgress(v.progress),
-        treatment: v.action ?? "",
+        treatment: treatmentText,
+        /* THE FOLLOW-UP SCREEN'S OWN "evidence requested" — Verification.
+           evidenceRequested, not the Checks screen's chips. `null` when
+           blank, same reasoning as evidenceVerdict/combinedComment
+           elsewhere in this file: unasked must read as unasked, not as an
+           empty string that could be mistaken for "nothing outstanding". */
+        evidenceRequested: v.evidenceRequested?.trim() || null,
+        /* THE ACSA DISCUSSION LOG — Verification.discussionLog, flattened
+           with the same flattenProgress() `progress` above already uses;
+           it is the exact same ProgressNote[] shape, just a separate log. */
+        discussionLog: flattenProgress(v.discussionLog),
       },
       summary: `${p.portalId} · ${v.outcome} (last cycle)`,
     });

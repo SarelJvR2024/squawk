@@ -144,10 +144,20 @@ const portfolio = storeCode.slice(
   storeCode.indexOf("export interface AuditProgress")
 );
 check("usePortfolio never reads adhoc", !/adhoc/.test(portfolio));
+/* FIXED, 20 October 2026 — this used to read walkCandidates (the GLOBAL
+   walk-item count) regardless of the screen's own discipline/location
+   filter, so filtering to one discipline still showed every walk item
+   across all of them. walkVisible is the filtered count the tree itself
+   actually renders — see FieldPage's own comment on walkScoped/walkVisible. */
 check(
   "the walk count is stated SEPARATELY on the inspection screen",
-  /\+\{walkCandidates\.length\} seen on the walk/.test(field),
+  /\+\{walkVisible\.length\} seen on the walk/.test(field),
   "two numbers, never one — a denominator that grows as you work is not a denominator"
+);
+check(
+  "and it reflects the active filter, not the global walk-item count",
+  !/\+\{walkCandidates\.length\} seen on the walk/.test(field),
+  "a discipline filter that still showed every discipline's walk items was not a filter"
 );
 check(
   "and that count excludes a parked, not-yet-promoted Internal Working Area item",
@@ -207,11 +217,16 @@ check(
    description field, before anything is typed — that it should not have
    to wait for Record it at all. A capture taken before the item exists is
    held in pendingAttachments and folded in the moment it does. */
+/* Window widened 13 October 2026 from 1000 to 1800 chars — save() grew the
+   NC-auto-raise block (see "an item saved already marked NC raises on the
+   spot" below) between clearing pendingAttachments and setCreatedId(id).
+   The assertion's point is unchanged: Record it still ends on setCreatedId,
+   never onClose(). */
 check(
   "Record it no longer closes the sheet — it creates the item and stays open",
-  /const save = \(\) => \{[\s\S]{0,400}const id = addAdhoc\(\{[\s\S]{0,1000}setCreatedId\(id\);/.test(
+  /const save = \(\) => \{[\s\S]{0,400}const id = addAdhoc\(\{[\s\S]{0,1800}setCreatedId\(id\);/.test(
     sheet
-  ) && !/const save = \(\) => \{[\s\S]{0,1200}\n\s*onClose\(\);/.test(sheet),
+  ) && !/const save = \(\) => \{[\s\S]{0,1800}\n\s*onClose\(\);/.test(sheet),
   "a new item's photo and voice-note controls must appear in the same sitting it was typed in"
 );
 
@@ -281,9 +296,40 @@ check(
   !/system: "Ad-hoc"/.test(codeOnly(sheet)) && !/system: "Ad-hoc"/.test(codeOnly(field)),
   "that string used to appear as an asset system on every screen that groups by one"
 );
+/* REFACTORED 13 October 2026 — Sarel: "if an item is marked Non Compliant
+   ... it should be added as an additional item which is non compliant
+   automatically." raiseFinding() (the manual "Raise a finding from this"
+   button) and the two new automatic paths — outcome flips to NC on an
+   item that already exists, and an item is first saved already marked NC
+   — now share one helper, raiseFindingFrom(targetId, fields), so the link
+   is written the same way regardless of which path raised it. */
 check(
-  "raising a finding from an item links the two",
-  /updateAdhoc\(item\.id, \{ findingId: id \}\)/.test(sheet)
+  "raising a finding from an item links the two, from one shared helper",
+  /const raiseFindingFrom = \(\s*\n\s*targetId: string,/.test(sheet) &&
+    /updateAdhoc\(targetId, \{ findingId: id \}\);/.test(sheet)
+);
+check(
+  "the manual button still raises through that helper",
+  /const raiseFinding = \(\) => \{\s*\n\s*if \(!item \|\| item\.findingId\) return;\s*\n\s*const id = raiseFindingFrom\(item\.id, item\);/.test(
+    sheet
+  )
+);
+check(
+  "an existing item raises automatically the moment its outcome becomes NC",
+  /if \(o === "NC" && item && !item\.findingId\) \{\s*\n\s*const findingId = raiseFindingFrom\(item\.id, item\);/.test(
+    sheet
+  ),
+  "the gap Sarel flagged: an NC walk item nobody pressed the button on"
+);
+check(
+  "an item saved already marked NC raises on the spot too",
+  /if \(draft\.outcome === "NC"\) \{\s*\n\s*const findingId = raiseFindingFrom\(id, draft\);/.test(sheet),
+  "the one path the outcome-change case above cannot cover — there is no item yet to watch"
+);
+check(
+  "capture stays easy in the field — raising never requires a checkId",
+  /checkId: null,/.test(sheet.slice(sheet.indexOf("raiseFindingFrom = ("), sheet.indexOf("raiseFindingFrom = (") + 1200)),
+  "linking to a register check is deliberately a later, office-side step — see components/FindingDetail.tsx"
 );
 
 /* ---- 8 · AN OUTCOME IS NOT A RATING ------------------------------------ */

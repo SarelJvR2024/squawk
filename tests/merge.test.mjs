@@ -514,6 +514,165 @@ check("the right audit is not refused", refuse(bundle(), HERE) === null);
   );
 }
 
+/* --------- A REMOVED/MOVED ATTACHMENT MUST NOT COME BACK ON SYNC ---------
+ *
+ *  This is the bug: removeAttachment/moveAttachment (store.ts) take an id out
+ *  of `attachments` as part of a `patch()` call that also appends a tombstone
+ *  (`removedAttachmentIds: [{ id, at }]`) and bumps `updatedAt`. A bundle from
+ *  a device that captured a snapshot BEFORE that removal still carries the
+ *  attachment, and a plain `unionAttachments` has no way to tell "never seen"
+ *  apart from "deliberately removed" — it just puts it back. These four
+ *  blocks run the real `mergeBundle()` against fixtures built exactly the way
+ *  store.ts's own removeAttachment/moveAttachment leave a Response, proving
+ *  the tombstone actually stops the resurrection rather than just reading as
+ *  though it should. */
+
+{
+  /* Device A calls removeAttachment: the photo is gone from `attachments`,
+     a tombstone records it, and `updatedAt` is bumped to now — exactly what
+     store.ts's removeAttachment does in one patch() call. Device B's bundle
+     is a stale snapshot from BEFORE that removal: the photo is still there,
+     `updatedAt` is older, and it carries no tombstone of its own. */
+  const mineAfterRemoval = mine({
+    visitData: {
+      responses: {
+        X: response("X", {
+          compliance: "C",
+          attachments: [],
+          removedAttachmentIds: [{ id: "p1", at: T + 5000 }],
+          updatedAt: T + 5000,
+        }),
+      },
+    },
+  });
+  const staleBundle = bundle({
+    visit: {
+      responses: {
+        X: response("X", { compliance: "C", attachments: [photo("p1")], updatedAt: T }),
+      },
+    },
+  });
+  const out = mergeBundle(mineAfterRemoval, staleBundle);
+  check(
+    "REPRODUCES THE BUG: a removed attachment does not reappear from a stale sync",
+    !out.visitData.responses.X.attachments.some((a) => a.id === "p1"),
+    JSON.stringify(out.visitData.responses.X.attachments)
+  );
+  check(
+    "and the tombstone itself survives the merge, for the next sync in the chain",
+    out.visitData.responses.X.removedAttachmentIds?.some((t) => t.id === "p1"),
+    JSON.stringify(out.visitData.responses.X.removedAttachmentIds)
+  );
+}
+
+{
+  /* moveAttachment is remove-then-add across two Responses in one call: the
+     SOURCE check loses the attachment and gains a tombstone (same mechanism
+     as plain removeAttachment above); the DESTINATION check gains a copy
+     under the same id with a fresh photo ref. theirs is a stale bundle from
+     before the move: it only knows the source check's old, pre-move state. */
+  const mineAfterMove = mine({
+    visitData: {
+      responses: {
+        FROM: response("FROM", {
+          attachments: [],
+          removedAttachmentIds: [{ id: "p1", at: T + 5000 }],
+          updatedAt: T + 5000,
+        }),
+        TO: response("TO", { attachments: [photo("p1")], updatedAt: T + 5000 }),
+      },
+    },
+  });
+  const staleBundle = bundle({
+    visit: { responses: { FROM: response("FROM", { attachments: [photo("p1")], updatedAt: T }) } },
+  });
+  const out = mergeBundle(mineAfterMove, staleBundle);
+  const onFrom = out.visitData.responses.FROM.attachments.filter((a) => a.id === "p1").length;
+  const onTo = out.visitData.responses.TO.attachments.filter((a) => a.id === "p1").length;
+  check(
+    "MOVE CASE: the attachment ends up on exactly ONE response, not zero and not two",
+    onFrom === 0 && onTo === 1,
+    `on FROM: ${onFrom}, on TO: ${onTo} — a stale sync must not duplicate the moved evidence back onto its old check`
+  );
+}
+
+{
+  /* Regression: a genuinely new attachment theirs has and mine has never
+     seen — no tombstone anywhere — must still merge in. The fix must not
+     turn ordinary additive sync into a fix that only ever removes. */
+  const out = mergeBundle(
+    mine({
+      visitData: {
+        responses: { X: response("X", { attachments: [photo("old")], updatedAt: T }) },
+      },
+    }),
+    bundle({
+      visit: {
+        responses: {
+          X: response("X", { attachments: [photo("old"), photo("brandNew")], updatedAt: T + 1000 }),
+        },
+      },
+    })
+  );
+  const ids = out.visitData.responses.X.attachments.map((a) => a.id);
+  check(
+    "REGRESSION CHECK: an ordinary new attachment with no tombstone still merges in",
+    ids.includes("old") && ids.includes("brandNew"),
+    ids.join(", ")
+  );
+}
+
+{
+  /* THIRD-DEVICE CHAIN: A removes and tombstones; B is stale (has the old
+     snapshot, no tombstone of its own) and merges FROM A — B must come out
+     of that merge with the attachment gone AND holding A's tombstone, or B's
+     own next export would carry the attachment straight back out to C. C is
+     staler still (predates the removal, never merged with A directly) and
+     merges FROM B's post-merge bundle. The attachment must still not
+     resurface on C — proving the tombstone propagated THROUGH B rather than
+     only ever protecting the original remover. */
+  const deviceA = mine({
+    visitData: {
+      responses: {
+        X: response("X", {
+          attachments: [],
+          removedAttachmentIds: [{ id: "p1", at: T + 5000 }],
+          updatedAt: T + 5000,
+        }),
+      },
+    },
+  });
+  const deviceBStale = {
+    entity: "KSIA",
+    visit: "2026-09",
+    responses: { X: response("X", { attachments: [photo("p1")], updatedAt: T }) },
+  };
+  const bundleFromA = bundle({ visit: { responses: deviceA.visitData.responses } });
+  const bAfterMergingA = mergeBundle(
+    mine({ visitData: { responses: deviceBStale.responses } }),
+    bundleFromA
+  );
+  check(
+    "step 1 — B loses the attachment by merging A's removal in",
+    !bAfterMergingA.visitData.responses.X.attachments.some((a) => a.id === "p1"),
+    JSON.stringify(bAfterMergingA.visitData.responses.X.attachments)
+  );
+
+  const deviceCStale = mine({
+    visitData: {
+      responses: { X: response("X", { attachments: [photo("p1")], updatedAt: T - 1000 }) },
+    },
+  });
+  const bundleFromB = bundle({ visit: { responses: bAfterMergingA.visitData.responses } });
+  const cAfterMergingB = mergeBundle(deviceCStale, bundleFromB);
+  check(
+    "step 2 — THE THIRD DEVICE: C merging from B does not resurrect the attachment either",
+    !cAfterMergingB.visitData.responses.X.attachments.some((a) => a.id === "p1"),
+    JSON.stringify(cAfterMergingB.visitData.responses.X.attachments) +
+      " — the tombstone must have propagated through B, not just protected A"
+  );
+}
+
 /* ------------------------------- the summary ------------------------------ */
 
 {

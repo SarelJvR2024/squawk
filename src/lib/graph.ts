@@ -269,19 +269,56 @@ export class GraphError extends Error {
   }
 }
 
+/** STATUS CODES SHAREPOINT ITSELF DOCUMENTS AS "ASK AGAIN" — 429 (throttled),
+ *  503 (service unavailable) and 509 (bandwidth limit). Graph's SharePoint
+ *  list backing store also hands back 409/412 under ordinary write load, with
+ *  no If-Match of ours to blame: `updateItem` sends none, so "the resource has
+ *  changed since the caller last read it" here is the list's own internal
+ *  version check tripping against another near-simultaneous write — including
+ *  our own previous row, moments earlier, in the same sequential loop — not a
+ *  stale read this client needs to repeat. The same backend hiccup shows up on
+ *  a file PUT too, occasionally as "Name already exists" even with
+ *  `conflictBehavior=replace` set — a destination file SharePoint's own
+ *  virus-scan lock had not released yet, not a real naming conflict.
+ *
+ *  A plain network failure (fetch itself throwing, no response at all) is
+ *  deliberately NOT retried here: that is the one case where whether the
+ *  write already committed server-side is genuinely unknown, and blindly
+ *  repeating a POST could double a check-point or finding row. Every status
+ *  below is the server explicitly saying "I did not do this, try again" —
+ *  retrying those is always safe.
+ *
+ *  409 IS DELIBERATELY NOT IN THIS LIST. `ensureFolder` below sends its own
+ *  folder-create with `conflictBehavior: "fail"` and reads a 409 there as "it
+ *  already exists, which is what we wanted" — not a failure, and not this
+ *  function's to retry on its behalf. Whatever status SharePoint happens to
+ *  attach to the transient conflicts this IS meant to catch, their message
+ *  text is distinctive enough to retry on that alone. */
+function isRetryableStatus(status: number): boolean {
+  return status === 429 || status === 503 || status === 509 || status === 412;
+}
+const RETRYABLE_MESSAGE = /resource has changed|etag|name already exists/i;
+
+const MAX_ATTEMPTS = 4;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   if (!token || token.expires <= Date.now()) {
     throw new GraphError("Signed out. Sign in to Microsoft again.", 401, path);
   }
-  const res = await fetch(`https://graph.microsoft.com/v1.0${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${token.value}`,
-      ...(init?.body && !(init.body instanceof Blob) ? { "Content-Type": "application/json" } : {}),
-      ...init?.headers,
-    },
-  });
-  if (!res.ok) {
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetch(`https://graph.microsoft.com/v1.0${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${token.value}`,
+        ...(init?.body && !(init.body instanceof Blob) ? { "Content-Type": "application/json" } : {}),
+        ...init?.headers,
+      },
+    });
+    if (res.ok) {
+      if (res.status === 204) return undefined as T;
+      return (await res.json()) as T;
+    }
     /* The whole message, not a status code. "403" tells an auditor nothing;
        "you do not have permission to write to this list" tells them who to
        ring. */
@@ -292,10 +329,19 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       /* a non-JSON body; the status is what we have */
     }
-    throw new GraphError(detail, res.status, path);
+    const retryable = isRetryableStatus(res.status) || RETRYABLE_MESSAGE.test(detail);
+    if (!retryable || attempt >= MAX_ATTEMPTS) {
+      throw new GraphError(detail, res.status, path);
+    }
+    /* Retry-After is in seconds when Graph sends it (429/503); otherwise
+       exponential backoff with jitter so a run of these does not re-knock in
+       lockstep against a backend that is still catching up. */
+    const retryAfter = Number(res.headers.get("Retry-After"));
+    const delayMs = Number.isFinite(retryAfter) && retryAfter > 0
+      ? retryAfter * 1000
+      : 800 * 2 ** (attempt - 1) + Math.random() * 300;
+    await sleep(delayMs);
   }
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
 }
 
 /** Every page of a collection. A site with 324 check-points returns them 200 at

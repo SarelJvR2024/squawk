@@ -349,9 +349,14 @@ export function findingsSheet(x: ExportInput): Sheet {
       /* Several actions now, each with its own discipline, owner, date and
          status — flattened the same way the asset-system assessment sheet
          already flattens MitigationAction[], one line each, so a reader
-         used to that sheet reads this one the same way. */
+         used to that sheet reads this one the same way. MUST STAY IDENTICAL
+         to sharepoint.ts's flattenActions (not called directly from here —
+         see that function's own comment for why) and to the Hazard sheet's
+         copy of this same template just below: the system tag included here
+         is exactly the fix for a bug that happened precisely because this
+         template lives in three places that drifted. */
       f.actions
-        .map((m) => `${m.discipline ? `${m.discipline} — ` : ""}${m.action} · ${m.owner || "NO OWNER"} · ${m.dueDate || "NO TARGET DATE"} · ${m.status}`)
+        .map((m) => `${m.system ? `[${m.system}] ` : ""}${m.discipline ? `${m.discipline} — ` : ""}${m.action} · ${m.owner || "NO OWNER"} · ${m.dueDate || "NO TARGET DATE"} · ${m.status}`)
         .join("\n"),
       [...new Set(f.actions.map((m) => m.owner).filter(Boolean))].join("\n"),
       [...new Set(f.actions.map((m) => iso(m.dueDate)).filter(Boolean))].join("\n"),
@@ -716,8 +721,10 @@ export function hazardsSheet(x: ExportInput): Sheet {
       h.ratingRationale,
       assetCell(h.assetIds),
       h.rootCause,
+      /* Same template, same reasoning, as the Finding sheet's own copy
+         above — keep the two (and sharepoint.ts's flattenActions) in sync. */
       h.actions
-        .map((m) => `${m.discipline ? `${m.discipline} — ` : ""}${m.action} · ${m.owner || "NO OWNER"} · ${m.dueDate || "NO TARGET DATE"} · ${m.status}`)
+        .map((m) => `${m.system ? `[${m.system}] ` : ""}${m.discipline ? `${m.discipline} — ` : ""}${m.action} · ${m.owner || "NO OWNER"} · ${m.dueDate || "NO TARGET DATE"} · ${m.status}`)
         .join("\n"),
       [...new Set(h.actions.map((m) => m.owner).filter(Boolean))].join("\n"),
       [...new Set(h.actions.map((m) => iso(m.dueDate)).filter(Boolean))].join("\n"),
