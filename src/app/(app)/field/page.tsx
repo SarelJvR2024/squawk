@@ -611,23 +611,53 @@ export default function FieldPage() {
           </p>
         </div>
 
-        {/* THE STICKY HEADER — one row now: the Filters popover (the axis
-            switch, the select and the search all live inside it) plus the
-            progress figure beside it.
+        {/* THE STICKY HEADER.
 
-            It used to be three rows stacked here permanently — the axis
-            switch, then the select and search sharing a row — which measured
-            156+122px (278px) at 375px wide before any content showed, the
-            UX audit's bucket-4 complaint. Nothing any of the three controls
-            DOES changed; see FilterPopover's own doc comment in
-            src/components/ui/FilterPopover.tsx for why this is a different
-            shape from Closure/Capture/Review/Forms's FilterBar disclosure. */}
+            SEARCH IS ITS OWN ROW NOW, FIRST, ALWAYS VISIBLE — overnight
+            refinement, task 3: "expose its existing search prominently
+            instead of burying every way to locate an asset behind a
+            'Filters' button." It used to live inside the FilterPopover
+            below, behind a tap on "Filters · <whatever is set>" — the one
+            way an auditor standing at an asset finds the check for it was
+            hidden behind the one control that also changes what's filtered.
+            Nothing about search itself changed: same `q`/`setQ`, same
+            whole-register reach, same "Searching every…" note when a filter
+            is also set — it is simply the first thing in the bar rather
+            than three levels deep in a popover.
+
+            The Filters popover (the axis switch, the discipline/location
+            select and the photo-linkage filters) is still exactly as
+            reachable as before, directly below — advanced grouping stays
+            available, it is just no longer the way search is reached. */}
         <div
           ref={barRef}
           className="sticky top-0 z-10 -mx-4 mb-2 border-b px-4 py-[5px] sm:-mx-6 sm:px-6 sm:py-[7px]"
           style={{ background: "var(--bg)", borderColor: "var(--line)" }}
         >
-          <div className="flex items-center gap-2">
+          <div
+            className="flex min-w-0 items-center gap-2 rounded-[11px] border px-3 py-1 sm:py-2"
+            style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+          >
+            <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search anywhere…"
+              aria-label="Search any check"
+              className="min-h-[40px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
+            />
+          </div>
+          {/* SAID OUT LOUD, because otherwise it looks like the filter broke.
+              A search runs across the whole register — it has to, or the
+              check for the thing in front of the auditor is missing because
+              of a filter they set in another building. */}
+          {searching && activeFilter && (
+            <div className="mt-1 text-[10.5px]" style={{ color: "var(--ink-3)" }}>
+              Searching every {groupBy === "area" ? "location" : "discipline"}, not just{" "}
+              <b>{activeFilter}</b>.
+            </div>
+          )}
+          <div className="mt-2 flex items-center gap-2">
             {/* THE BUTTON NAMES WHAT IS SET, IT DOES NOT ALSO COUNT IT —
                 Sarel's second visual-hierarchy pass, item 7: "Filter button
                 label becomes 'Filters · Civil' — drop the '8/56 +16' from
@@ -712,42 +742,13 @@ export default function FieldPage() {
                 ]}
               />
 
-              <div
-                className="flex min-w-0 items-center gap-2 rounded-[11px] border px-3 py-1 sm:py-2"
-                style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-              >
-                <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
-                {/* The search box on the walkabout screen is how an auditor
-                    finds the check for the thing in front of them, and it
-                    measured 24px — the only control on any screen still
-                    under the target. The wrapper carries the border, so the
-                    height goes on the input. */}
-                <input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search anywhere…"
-                  aria-label="Search any check"
-                  className="min-h-[40px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
-                />
-              </div>
-              {/* SAID OUT LOUD, because otherwise it looks like the filter
-                  broke. A search runs across the whole register — it has to,
-                  or the check for the thing in front of the auditor is
-                  missing because of a filter they set in another building. */}
-              {searching && activeFilter && (
-                <div className="text-[10.5px]" style={{ color: "var(--ink-3)" }}>
-                  Searching every {groupBy === "area" ? "location" : "discipline"}, not just{" "}
-                  <b>{activeFilter}</b>.
-                </div>
-              )}
-
-              {/* A SEPARATE GROUP, SAID SO. The axis switch, the discipline/
-                  location select and the search above all answer "where" —
-                  this answers "linked to what", a different question about
-                  the same walk items. A rule and a small heading keep a
-                  reader from reading five controls as one list and
-                  wondering why the last two look like they repeat the
-                  first three. */}
+              {/* A SEPARATE GROUP, SAID SO. The axis switch and the
+                  discipline/location select above answer "where" (search
+                  itself moved out of this panel — see the sticky header's
+                  own note above) — this answers "linked to what", a
+                  different question about the same walk items. A rule and a
+                  small heading keep a reader from reading these as a
+                  continuation of the same list. */}
               {/* "PHOTO FILTERS", BEHIND A DISCLOSURE — Sarel's second
                   visual-hierarchy pass, item 7: "remove the duplicated
                   'All / linked / unlinked' segmented blocks (keep one, or
