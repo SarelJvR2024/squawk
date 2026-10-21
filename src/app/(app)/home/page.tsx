@@ -345,30 +345,34 @@ export default function HomePage() {
 
             LEADS WITH THE SELECTED AUDIT NOW, not "Next in the programme" —
             the ask was to lead with the audit actually in view and ONE main
-            action. Nothing in either card's own content changed from what
+            action. Nothing in either half's own content changed from what
             was here before; what changed is which one goes first and wider,
             and which button on the screen gets the primary treatment — only
             one does, "Continue at the desk" below, because the guardrail is
-            one main button per screen, not one per card. "Next in the
+            one main button per screen, not one per half. "Next in the
             programme" still has its own actions, just as plain buttons now
             that it is the look-ahead rather than the lead.
 
-            THE TWO CARDS LEFT ON THIS SCREEN, after item 2 of Sarel's
-            second visual-hierarchy pass ("reserve bordered cards for
-            primary objects only... Target: Home goes from ~8 cards to
-            2."). Every other section below (the progress strip, Recent
-            activity, the audit calendar) is a VIEW onto the audit — a
-            reading of its progress, a list of what happened, a row of
-            other sites — and sits on the plain background now, one
-            hairline rule apart. These two are the only sections that are
-            actual OBJECTS: one specific audit record each (the one open
-            now, the one coming up next), which is what "primary object"
-            means on every other screen this pass touches too (the
-            selected asset system, the open check). That is a judgement
-            call rather than something the spec spelled out row by row —
-            flagged here for review rather than assumed. */}
-        <div className="mb-3.5 grid gap-3.5 lg:grid-cols-[1.25fr_1fr]">
-          <section aria-labelledby="home-open" className={card} style={cardStyle}>
+            ONE CARD, NOT TWO — item 2's revision. The first pass (commit
+            7351d82) got Home from ~8 cards down to 2: this one and "Next in
+            the programme" sitting as separate bordered boxes side by side.
+            Sarel then decided that was still one card too many for a screen
+            whose only genuine OBJECT is the audit in view — "next in the
+            programme" is a look-ahead at that same object, not a second
+            one, so it does not earn its own border either. Both halves now
+            live inside a single bordered card, divided by one hairline rule
+            (a vertical one at the width that still runs them side by side,
+            a horizontal one once they stack), the same divider language
+            every de-carded section below already uses. Neither half's own
+            content, copy, or data changed — only the container they sit
+            in. Every other section below (the progress strip, Recent
+            activity, the audit calendar) is still a VIEW onto that one
+            object — a reading of its progress, a list of what happened, a
+            row of other sites — and sits on the plain background, one
+            hairline rule apart, same as before. */}
+        <section aria-label="The audit you are in, and what's next" className={`${card} mb-3.5`} style={cardStyle}>
+          <div className="grid gap-3.5 lg:grid-cols-[1.25fr_1fr]">
+            <div aria-labelledby="home-open">
             <span className="label-xs">The audit you are in</span>
             <h2 id="home-open" className="mt-[5px] flex flex-wrap items-center gap-2 text-[19px] font-bold">
               {entity.short}
@@ -433,10 +437,20 @@ export default function HomePage() {
             <p className="mt-3 text-[10.5px] leading-[1.6]" style={{ color: "var(--ink-4)" }}>
               The seven steps, in order: {FLOW.map((s) => s.label).join(" › ")}.
             </p>
-          </section>
+          </div>
 
-          {/* --------------------------------------------- next in the programme */}
-          <section aria-labelledby="home-next" className={card} style={cardStyle}>
+          {/* --------------------------------------------- next in the programme
+
+              THE DIVIDER, not a second border — a hairline rule above on the
+              narrow layout (where this half stacks below the first) and a
+              hairline rule to the left on the wide one (where the grid above
+              runs them side by side), so the two halves of this one card stay
+              visually distinct without either becoming its own box. */}
+          <div
+            aria-labelledby="home-next"
+            className="border-t pt-3.5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-3.5"
+            style={{ borderColor: "var(--line)" }}
+          >
             <span className="label-xs">Next in the programme</span>
             {next && nextVisit ? (
               <>
@@ -496,8 +510,9 @@ export default function HomePage() {
                 </p>
               </>
             )}
-          </section>
+          </div>
         </div>
+        </section>
 
         {/* --------------------------------------------------- progress strip
 
