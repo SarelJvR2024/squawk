@@ -693,6 +693,22 @@ export default function HomePage() {
                 const on = e.code === entityCode;
                 const state = now > 0 ? windowState(e, now) : null;
                 return (
+                  /* TIGHTENED, AND "NOT STARTED" IS GONE — Sarel's second
+                     visual-hierarchy pass, item 10: "stop repeating 'NOT
+                     STARTED' on every card — that's the default state, show
+                     a status chip only when a site is started... Tighten
+                     each card to: code, airport name, dates, and one small
+                     'starts in N days' line. The selected/current site gets
+                     the accent border; all others neutral." Not-started was
+                     nine identical chips out of ten cards saying the thing
+                     that is true before anybody has opened anything —
+                     exactly the standing-badge problem item 1 fixed in the
+                     nav, here on the calendar strip instead. Only `started`
+                     now earns a visible chip; the check-points count is
+                     gone too (code/name/dates/window-state is the tight
+                     set asked for). Border stays the one earlier rule it
+                     already followed — accent for the selected site, the
+                     same neutral --line for every other, started or not. */
                   <div
                     key={e.code}
                     className="flex w-[168px] shrink-0 flex-col gap-[5px] rounded-[11px] border px-[11px] py-[10px]"
@@ -703,28 +719,17 @@ export default function HomePage() {
                     }
                   >
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <Dot
-                        tone={started ? "good" : "pending"}
-                        label={started ? "Started" : "Not started"}
-                      />
                       <b className="font-display text-[12px] font-semibold">{e.short}</b>
                       {on && <Pill tone="accent">HERE</Pill>}
-                      {/* VISIBLE NOW, not only a colour the dot carries and a
-                          screen reader hears — a dot alone is the same shape
-                          and size whichever colour it is, which is exactly
-                          what reads as "the same thing" at a glance on a row
-                          of ten. Started gets its own word and a tick;
-                          not started gets the same word the rest of an
-                          unstarted card already uses, in the same quiet
-                          tone, so the two are two different things rather
-                          than two shades of one. */}
-                      <span
-                        className="ml-auto flex items-center gap-[3px] font-mono text-[8.5px] font-semibold tracking-[0.03em] uppercase"
-                        style={{ color: started ? "var(--good)" : "var(--ink-4)" }}
-                      >
-                        {started && <IconCheck width={8} height={8} aria-hidden />}
-                        {started ? "Started" : "Not started"}
-                      </span>
+                      {started && (
+                        <span
+                          className="ml-auto flex items-center gap-[3px] text-[10px] font-semibold"
+                          style={{ color: "var(--good)" }}
+                        >
+                          <IconCheck width={8} height={8} aria-hidden />
+                          Started
+                        </span>
+                      )}
                     </div>
                     <span className="text-[10.5px] leading-[1.35]" style={{ color: "var(--ink-2)" }}>
                       {e.name}
@@ -732,10 +737,11 @@ export default function HomePage() {
                     <span className="font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>
                       {auditWindow(e.auditFrom, e.auditTo, e.auditTbc)}
                     </span>
-                    <span className="text-[10px]" style={{ color: "var(--ink-4)" }}>
-                      {checksAt(e.code).length} check-points
-                      {state ? ` · ${state.text}` : ""}
-                    </span>
+                    {state && (
+                      <span className="text-[10px]" style={{ color: "var(--ink-4)" }}>
+                        {state.text}
+                      </span>
+                    )}
                   </div>
                 );
               })}
