@@ -351,7 +351,22 @@ export default function HomePage() {
             one does, "Continue at the desk" below, because the guardrail is
             one main button per screen, not one per card. "Next in the
             programme" still has its own actions, just as plain buttons now
-            that it is the look-ahead rather than the lead. */}
+            that it is the look-ahead rather than the lead.
+
+            THE TWO CARDS LEFT ON THIS SCREEN, after item 2 of Sarel's
+            second visual-hierarchy pass ("reserve bordered cards for
+            primary objects only... Target: Home goes from ~8 cards to
+            2."). Every other section below (the progress strip, Recent
+            activity, the audit calendar) is a VIEW onto the audit — a
+            reading of its progress, a list of what happened, a row of
+            other sites — and sits on the plain background now, one
+            hairline rule apart. These two are the only sections that are
+            actual OBJECTS: one specific audit record each (the one open
+            now, the one coming up next), which is what "primary object"
+            means on every other screen this pass touches too (the
+            selected asset system, the open check). That is a judgement
+            call rather than something the spec spelled out row by row —
+            flagged here for review rather than assumed. */}
         <div className="mb-3.5 grid gap-3.5 lg:grid-cols-[1.25fr_1fr]">
           <section aria-labelledby="home-open" className={card} style={cardStyle}>
             <span className="label-xs">The audit you are in</span>
@@ -484,8 +499,22 @@ export default function HomePage() {
           </section>
         </div>
 
-        {/* --------------------------------------------------- progress strip */}
-        <section aria-label="This audit at a glance" className={`${card} mb-3.5 flex flex-col gap-2`} style={cardStyle}>
+        {/* --------------------------------------------------- progress strip
+
+            DE-CARDED — Sarel's second visual-hierarchy pass, item 2:
+            "Reserve bordered cards for primary objects only (the current
+            audit on Home...). Everything else sits on the plain
+            background separated by whitespace and one hairline divider at
+            most." This strip is a reading of the current audit's own
+            progress, not a second object in its own right, so it drops
+            the border and the panel fill and sits straight on the page
+            background, with one hairline rule above it marking where the
+            lead cards end. */}
+        <section
+          aria-label="This audit at a glance"
+          className="mb-3.5 flex flex-col gap-2 border-t pt-3.5"
+          style={{ borderColor: "var(--line)" }}
+        >
           {statRow(
             "At the desk",
             `${desk.done}/${desk.total}`,
@@ -526,8 +555,17 @@ export default function HomePage() {
             answering two different questions about the same thing
             (which audits hold work; what happened most recently in this
             one) — now one hairline divider apart inside a single panel
-            instead of two separate borders a gap apart. */}
-        <section aria-labelledby="home-recent" className={`${card} mb-3.5`} style={cardStyle}>
+            instead of two separate borders a gap apart.
+
+            DE-CARDED TOO, same item-2 pass: a list, not an object — the
+            border and panel fill are gone, replaced by the one hairline
+            rule above (border-t) that already marks every section change
+            on this page now. */}
+        <section
+          aria-labelledby="home-recent"
+          className="mb-3.5 border-t pt-3.5"
+          style={{ borderColor: "var(--line)" }}
+        >
           <h2 id="home-recent" className="mb-[3px] text-[12.5px] font-bold">
             Recent activity
           </h2>
@@ -642,8 +680,18 @@ export default function HomePage() {
           )}
         </section>
 
-        {/* ----------------------------------------------------- the year */}
-        <section aria-labelledby="home-year" className={`${card} mb-3.5`} style={cardStyle}>
+        {/* ----------------------------------------------------- the year
+
+            DE-CARDED, same item-2 pass — the calendar is a row of its own
+            small cards (each one accent-bordered only when selected,
+            neutral otherwise, per item 10 above); the SECTION around them
+            does not also need a border. One hairline rule above, same as
+            every other section change on this page now. */}
+        <section
+          aria-labelledby="home-year"
+          className="mb-3.5 border-t pt-3.5"
+          style={{ borderColor: "var(--line)" }}
+        >
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
             <h2 id="home-year" className="text-[12.5px] font-bold">
               Round 1 — the audit calendar
