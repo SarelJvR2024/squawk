@@ -386,11 +386,18 @@ check(
   "on a phone 100vh is the viewport with the chrome retracted, so the bottom nav sits under the address bar"
 );
 
+/* THE AUDIT STRIP ITSELF IS GONE, 21 Oct 2026 (the second visual-hierarchy
+   pass, item 1) — not just hidden on a phone any more, removed everywhere,
+   folded into the single "Switch audit" button in the masthead. The
+   question this check used to ask ("does a second band restate the
+   masthead on a phone") no longer applies because there is no second band
+   at any width; the question that replaces it is "is the one-app-bar
+   button actually there instead". */
 check(
-  "the audit strip does not restate the masthead on a phone",
-  /no-scrollbar hidden shrink-0 items-center overflow-x-auto border-b px-3\.5 py-\[7px\] sm:flex/.test(
+  "the audit strip is gone at every width, not merely hidden on a phone",
+  !/no-scrollbar hidden shrink-0 items-center overflow-x-auto border-b px-3\.5 py-\[7px\] sm:flex/.test(
     shell
-  ),
+  ) && /aria-label="Switch audit"/.test(shell),
   "the masthead already says KSIA and Sep 2026, in the app's largest type, and never scrolls"
 );
 

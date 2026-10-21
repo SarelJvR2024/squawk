@@ -61,7 +61,7 @@ import {
   STATUSES,
   toneStyle,
 } from "@/components/CheckDetail";
-import { Btn, Empty, Pill, type Tone } from "@/components/ui/primitives";
+import { Btn, Dot, Empty, type Tone } from "@/components/ui/primitives";
 import { IconCheck, IconFlag, IconLeft, IconRight } from "@/components/ui/icons";
 import type { Attachment, Check, Compliance } from "@/lib/types";
 
@@ -88,95 +88,57 @@ const COMPLIANCE_LABELS = Object.fromEntries(
   [...COMPLIANCE_OPTIONS, ...VERDICT_OPTIONS].map((o) => [o.key, o.label])
 ) as Record<Compliance, string>;
 
-/** Same CSS-variable tones `toneStyle` (CheckDetail.tsx) takes, not the
- *  `Tone` union `Pill` takes — "neu"/"acc" rather than "neutral"/"accent" —
- *  so a cell's `<select>` reads in exactly the colour its own section
- *  further down the screen already shows for the same value. `null` keeps
- *  the cell's own sunken, unanswered look rather than any tone at all. */
-function selectStyle(value: Compliance | null): React.CSSProperties {
-  if (!value) return { background: "var(--sunken)", borderColor: "var(--line)", color: "var(--ink-2)" };
-  const tone = value === "NC" ? "bad" : value === "C" ? "good" : value === "NV" ? "warn" : "neu";
-  return toneStyle(tone, true);
-}
-
-/** One cell of the sticky strip. Three of the four — audit check, evidence,
- *  site inspection — take `options`/`onChange` and render a `<select>` that
- *  writes straight through to the same action its own section further down
- *  this screen (or, for the audit check, Capture/Field) already calls, so
- *  there is no second copy of the value to keep in sync. The fourth,
- *  Combined, is derived and never passes them, so it stays the plain
- *  read-only Pill it always was — showing the full word (COMPLIANCE_LABELS),
- *  not the stored code: Sarel, 20 Oct 2026, after the strip's three `<select>`
- *  cells shipped already spelling theirs out, "fix the combined compliance,
- *  it must be a word not an abbreviation or a concatenation" — the Pill was
- *  still printing the raw "NC" the record stores, with a literal " ·"
- *  appended when the review was still partial. `partial` now marks that with
- *  a small corner dot outside the word (plus the same title and an sr-only
- *  note) rather than punctuation glued onto the end of it, so the word
- *  itself is never anything but the word. */
-function ComplianceCell({
+/** ONE SLIM STATUS LINE, NOT FOUR BOXED DROPDOWNS — Sarel's second
+ *  visual-hierarchy pass, item 5: "On the check screen, replace the four
+ *  boxed status dropdowns across the top (Audit check / Evidence / Site
+ *  inspection / Combined) with one slim inline status line — small text
+ *  with colored dots, not form controls. The actual input controls below
+ *  stay exactly as they are."
+ *
+ *  Each of these four used to be its own bordered, sunken box holding a
+ *  `<select>` (three of them) or a `<Pill>` (Combined) — a second, fully
+ *  editable copy of `compliance`/`evidenceVerdict`/`siteInspection` sitting
+ *  above the identical button grids this same screen already renders for
+ *  each axis (Audit check compliance, the Evidence verdict row, Site
+ *  inspection, further down). This is now a read-only summary of the same
+ *  three fields — a Dot and the word, no box, no `<select>` — and the
+ *  button grids below are UNCHANGED: still the one place each axis is
+ *  actually set, still calling the exact same `setCompliance`/`patch`
+ *  actions. Nothing editable was removed; only the second, redundant way
+ *  to edit it from up here. */
+function StatusCell({
   label,
   value,
   partial,
-  options,
-  onChange,
-  emptyLabel = "— not yet",
+  emptyLabel = "Not yet",
 }: {
   label: string;
   value: Compliance | null;
   partial?: boolean;
-  options?: { key: Compliance; label: string }[];
-  onChange?: (next: Compliance | null) => void;
-  /** What the unanswered state reads as, in the `<select>` itself — Sarel:
-   *  "not yet should be not verified." Evidence and Site inspection pass
-   *  "Not Verified" here: on those two axes, "nobody has looked at this yet"
-   *  and "this could not be verified" are the same practical fact, so this
-   *  cell should not use two different words for it. The underlying stored
-   *  value stays `null` either way — only the label changes — so the
-   *  combined cell's own "partial" check (which looks for `null`) and
-   *  everything downstream of it is unaffected. The Audit check cell has no
-   *  `NV` value at all (see STATUSES), so it keeps the plain default. */
+  /** Evidence and Site inspection pass "Not verified" — Sarel: "not yet
+   *  should be not verified," since on those two axes "nobody has looked
+   *  at this yet" and "this could not be verified" are the same practical
+   *  fact. The Audit check cell keeps the plain default. */
   emptyLabel?: string;
 }) {
+  const word = value ? COMPLIANCE_LABELS[value] : emptyLabel;
   return (
-    <div
-      className="flex flex-col items-center justify-center gap-[3px] rounded-[8px] border px-[4px] py-[6px] text-center"
-      style={{ borderColor: "var(--line)", background: "var(--sunken)" }}
-    >
-      <span className="label-xs leading-tight" style={{ color: "var(--ink-4)" }}>
+    <span className="flex items-center gap-[6px]">
+      <Dot tone={complianceTone(value)} label={`${label}: ${word}`} />
+      <span className="text-[11.5px] font-semibold whitespace-nowrap" style={{ color: "var(--ink)" }}>
         {label}
       </span>
-      {options && onChange ? (
-        <select
-          aria-label={label}
-          value={value ?? ""}
-          onChange={(e) => onChange(e.target.value === "" ? null : (e.target.value as Compliance))}
-          className="min-h-[30px] w-full rounded-full border px-1.5 py-[2px] text-center font-mono text-[9.5px] font-semibold outline-none transition-[var(--t)]"
-          style={selectStyle(value)}
-        >
-          <option value="">{emptyLabel}</option>
-          {options.map((o) => (
-            <option key={o.key} value={o.key}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <span className="relative inline-flex">
-          <Pill tone={complianceTone(value)} title={partial ? "Not every axis has been reviewed yet" : undefined}>
-            {value ? COMPLIANCE_LABELS[value] : "Not yet"}
-            {partial && <span className="sr-only"> — not every axis reviewed yet</span>}
-          </Pill>
-          {partial && (
-            <span
-              aria-hidden="true"
-              className="absolute -top-[3px] -right-[3px] h-[6px] w-[6px] rounded-full"
-              style={{ background: "var(--warn)" }}
-            />
-          )}
-        </span>
+      <span className="text-[11.5px] whitespace-nowrap" style={{ color: "var(--ink-3)" }}>
+        {word}
+      </span>
+      {partial && (
+        <span
+          className="h-[5px] w-[5px] shrink-0 rounded-full"
+          style={{ background: "var(--warn)" }}
+          title="Not every axis has been reviewed yet"
+        />
       )}
-    </div>
+    </span>
   );
 }
 
@@ -301,28 +263,11 @@ export default function ReviewDetail({
           </div>
           <h2 className="mb-2.5 text-[15.5px] font-bold leading-snug">{check.requirement}</h2>
           {r && (
-            <div className="grid grid-cols-4 gap-[6px]">
-              <ComplianceCell
-                label="Audit check"
-                value={r.compliance}
-                options={COMPLIANCE_OPTIONS}
-                onChange={(v) => setCompliance(check.id, v)}
-              />
-              <ComplianceCell
-                label="Evidence"
-                value={r.evidenceVerdict}
-                options={VERDICT_OPTIONS}
-                onChange={(v) => patch(check.id, { evidenceVerdict: v })}
-                emptyLabel="Not Verified"
-              />
-              <ComplianceCell
-                label="Site inspection"
-                value={r.siteInspection}
-                options={VERDICT_OPTIONS}
-                onChange={(v) => patch(check.id, { siteInspection: v })}
-                emptyLabel="Not Verified"
-              />
-              <ComplianceCell label="Combined" value={combined} partial={combinedPartial} />
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+              <StatusCell label="Audit check" value={r.compliance} />
+              <StatusCell label="Evidence" value={r.evidenceVerdict} emptyLabel="Not Verified" />
+              <StatusCell label="Site inspection" value={r.siteInspection} emptyLabel="Not Verified" />
+              <StatusCell label="Combined" value={combined} partial={combinedPartial} />
             </div>
           )}
         </div>
