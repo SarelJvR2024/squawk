@@ -244,6 +244,18 @@ export default function RaiseFindingSheet({
           </div>
         ) : (
           <>
+            {/* A COMPACT SEARCHABLE CHOOSER, NOT A WALL OF CHIPS — overnight
+                refinement, task 6. This used to render every matching asset
+                system (up to 40) as an always-visible row of pill chips the
+                moment this field was reached — the "wall of chips" the brief
+                names, and the exact opposite shape of the check-point
+                chooser two fields down, which already showed its results
+                only once there was something to search for. Same
+                `systems` list, same discipline scoping, same search box;
+                the only change is that the results only render once typing
+                starts, matching the check-point field's own pattern so the
+                two optional-field choosers in this form behave the same
+                way. Nothing about which systems are offered changed. */}
             <div className="mt-1 flex items-center gap-2 rounded-[11px] border px-3" style={boxStyle}>
               <IconSearch width={14} height={14} style={{ color: "var(--ink-3)" }} />
               <input
@@ -254,21 +266,31 @@ export default function RaiseFindingSheet({
                 className="min-h-[44px] w-full border-none bg-transparent text-[13px] outline-none"
               />
             </div>
-            <div className="no-scrollbar mt-1.5 flex max-h-[132px] flex-wrap gap-[5px] overflow-y-auto">
-              {systems.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => {
-                    setSystem(s);
-                    setSystemQuery("");
-                  }}
-                  className="rounded-full border px-[11px] py-[7px] text-[11px]"
-                  style={{ background: "var(--panel)", borderColor: "var(--line)", color: "var(--ink-2)" }}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+            {systemQuery.trim() && (
+              <div
+                className="no-scrollbar mt-1.5 max-h-[160px] overflow-y-auto rounded-[11px] border"
+                style={{ borderColor: "var(--line)" }}
+              >
+                {systems.length === 0 ? (
+                  <div className="px-3 py-3 text-center text-[11.5px]" style={{ color: "var(--ink-3)" }}>
+                    Nothing matches.
+                  </div>
+                ) : (
+                  systems.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => {
+                        setSystem(s);
+                        setSystemQuery("");
+                      }}
+                      className="flex w-full items-center px-3 py-2 text-left text-[12.5px] hover:bg-[var(--acc-soft)]"
+                    >
+                      {s}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
             <span className="mt-1 block text-[10.5px]" style={{ color: "var(--ink-4)" }}>
               Leave it blank if this is not about a specific asset system.
             </span>
