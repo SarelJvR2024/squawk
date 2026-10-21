@@ -107,7 +107,7 @@ export default function RootCauseAdvice({
           {busy ? "Thinking…" : candidates ? "Suggest again" : "Suggest root causes"}
         </button>
         {photos.length > 0 && (
-          <span className="text-[9.5px]" style={{ color: "var(--ink-4)" }}>
+          <span className="text-[13px]" style={{ color: "var(--ink-4)" }}>
             {vision
               ? `Photographs are sent to the assistant for this step (${Math.min(photos.length, 8)}).`
               : "Photograph captions are sent; the images themselves are not."}
@@ -173,7 +173,7 @@ export default function RootCauseAdvice({
       ))}
 
       {candidates && (
-        <span className="text-[9.5px]" style={{ color: "var(--ink-4)" }}>
+        <span className="text-[15px]" style={{ color: "var(--ink-4)" }}>
           Proposals. Tapping a cause sets the chip; the questions are yours to put to
           the responsible person and are not recorded.
         </span>

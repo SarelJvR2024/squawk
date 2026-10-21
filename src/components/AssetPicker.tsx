@@ -85,7 +85,7 @@ export default function AssetPicker({
       <div className="border-t px-[11px] py-[10px]" style={{ borderColor: "var(--line-2)" }}>
         {sample && (
           <p
-            className="mb-2 rounded-[8px] border px-[9px] py-[7px] text-[10.5px] leading-[1.5]"
+            className="mb-2 rounded-[8px] border px-[9px] py-[7px] text-[15px] leading-[1.5]"
             style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}
           >
             <b>Stand-in register.</b> ACSA has not supplied the real one yet, so every tag here

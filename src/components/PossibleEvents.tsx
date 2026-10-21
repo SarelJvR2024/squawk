@@ -133,7 +133,7 @@ export default function PossibleEvents({
               : `${events.length}`}
         </span>
       </div>
-      <p className="mb-2 text-[10.5px] leading-[1.5]" style={{ color: "var(--ink-4)" }}>
+      <p className="mb-2 text-[15px] leading-[1.5]" style={{ color: "var(--ink-4)" }}>
         {showLikelihood ? (
           <>
             The event, not the paperwork — what actually goes wrong if this is not

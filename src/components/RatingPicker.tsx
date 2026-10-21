@@ -141,7 +141,7 @@ function Axis({
           check, and the definition must not live only in a tooltip on a device
           that has no hover. */}
       <div
-        className="mt-[3px] text-[10.5px] leading-[1.3]"
+        className="mt-[3px] text-[15px] leading-[1.3]"
         style={{ color: value ? "var(--ink-2)" : "var(--ink-4)" }}
       >
         {value ?? `Not picked — ${options.length} to choose from`}

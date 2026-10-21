@@ -813,7 +813,7 @@ export default function FieldPage() {
               told it is not one. Shortened rather than hidden: the full
               sentence is still there from sm, where there is room for it. */}
           {axis.kind === "area" && groupBy === "area" && (
-            <div className="mt-[7px] text-[10.5px] leading-[1.5]" style={{ color: "var(--ink-3)" }}>
+            <div className="mt-[7px] text-[15px] leading-[1.5]" style={{ color: "var(--ink-3)" }}>
               <span className="sm:hidden">
                 These are the register&rsquo;s categories, not physical zones.
               </span>
@@ -1773,7 +1773,7 @@ export default function FieldPage() {
                       Add item
                     </Btn>
                   </div>
-                  <p className="mb-2.5 text-[10.5px] leading-[1.4]" style={{ color: "var(--ink-3)" }}>
+                  <p className="mb-2.5 text-[15px] leading-[1.4]" style={{ color: "var(--ink-3)" }}>
                     Not visible externally and not linked to any report — a place to park what
                     you are not ready to call a finding yet.
                   </p>

@@ -427,7 +427,7 @@ export default function AddItemSheet({
                 idPrefix="adhoc-outcome"
               />
             </div>
-            <p className="mt-1.5 text-[10.5px]" style={{ color: "var(--ink-4)" }}>
+            <p className="mt-1.5 text-[15px]" style={{ color: "var(--ink-4)" }}>
               Usually Fail. Not forced — leaving it blank means not yet decided, which is
               a real answer on a walk.
             </p>

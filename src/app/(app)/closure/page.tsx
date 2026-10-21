@@ -703,9 +703,17 @@ export default function ClosurePage() {
                   record rather than re-derived, so it can never disagree with
                   the report it came from. */}
               {(active.severity || active.likelihood || active.riskPriority) && (
+                /* Border only, not --sunken like the lifecycle strip right
+                   below it. Both this chip row and that strip used to carry
+                   the same generic container tint back to back, which reads
+                   as one undifferentiated block rather than two different
+                   things (why the rating is what it is, then where the
+                   finding stands) — --sunken means nothing semantic here, so
+                   repeating it on adjacent unrelated content was noise, not
+                   signal. */
                 <div
                   className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[8px] border px-[10px] py-[7px] text-[11.5px]"
-                  style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
+                  style={{ borderColor: "var(--line)" }}
                 >
                   <span className="label-xs" style={{ color: "var(--ink-3)" }}>
                     Why {active.rating.toLowerCase()}

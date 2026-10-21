@@ -98,7 +98,7 @@ export default function HazardAdvice({
           </span>
         )}
         {photos.length > 0 && !finding.suggestedEvent && (
-          <span className="text-[9.5px]" style={{ color: "var(--ink-4)" }}>
+          <span className="text-[13px]" style={{ color: "var(--ink-4)" }}>
             {vision
               ? `Photographs are sent to the assistant for this step (${Math.min(photos.length, 8)}).`
               : "Photograph captions are sent; the images themselves are not."}
@@ -148,7 +148,7 @@ export default function HazardAdvice({
       ))}
 
       {proposals && (
-        <span className="text-[9.5px]" style={{ color: "var(--ink-4)" }}>
+        <span className="text-[15px]" style={{ color: "var(--ink-4)" }}>
           Proposals, unrated. Tapping one records the event on this finding; severity and
           likelihood stay the audit team&rsquo;s to agree on the matrix.
         </span>

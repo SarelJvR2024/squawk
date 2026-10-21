@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Seventy-eight suites, no framework. Thirteen need a running server; sixty-five do not.
+Seventy-nine suites, no framework. Thirteen need a running server; sixty-six do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -104,6 +104,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `incident.test.mjs` | no | 41 |
 | `import-pack.test.mjs` | no | 63 |
 | `ortia-v3-pack.test.mjs` | no | 84 |
+| `sheet.test.mjs` | no | 17 |
 | `e2e.js` | yes | 24 |
 | `robustness.js` | yes | 53 |
 | `exports.js` | yes | 32 |
@@ -118,7 +119,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,429 assertions in total**, every count above verified by running the suite,
+**3,446 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -1415,6 +1416,29 @@ sits in says the state in words anyway* — a green dot beside "23 findings" is 
 second reading of something already written. `aria-hidden` on its own is not a
 pass; that would let any dot be silenced with one attribute, which is the exact
 failure the assertion exists to catch.
+
+## `sheet.test.mjs`
+
+Guards the accessible-dialog mechanism `src/components/ui/Sheet.tsx` and
+`src/components/SharedSheet.tsx` share: a title linked to the dialog with
+`aria-labelledby`, initial focus into the dialog on open (without fighting
+the `autoFocus` two of this app's own callers of `Sheet.tsx` already put on
+a specific field), a Tab trap that wraps at both ends, Escape closing it, and focus
+returned to whatever opened it when it closes.
+
+```bash
+node tests/sheet.test.mjs
+```
+
+Source-read, like the rest of this directory's coverage of UI call sites.
+The mechanism itself lives once, in `src/lib/dialogFocus.ts`, used by both
+sheets — so most of what this suite guards is that drift: a second,
+hand-rolled `keydown` listener creeping back into either one instead of
+both calling the one shared hook. The real Tab-wrap, Escape and focus-return
+behaviour was driven in a live browser for this pass with Playwright, the
+same way every other suite in this directory that needs a real DOM is; a
+static read cannot click a backdrop or watch `document.activeElement` move,
+only catch the source regressing.
 
 ## Exit status
 
