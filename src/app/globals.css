@@ -351,11 +351,23 @@ h4 {
   font-variant-numeric: tabular-nums;
 }
 
+/* SENTENCE CASE, NORMAL WEIGHT — Sarel's second visual-hierarchy pass, item
+   3: "kill the mono ALL-CAPS letter-spaced labels. Replace with sentence-case
+   labels at normal weight." This class is the one place that decision lives:
+   85 call sites across 16 files (AppShell, Home, CheckDetail, ReviewDetail,
+   the Audits panel, every FilterBar/FilterPopover group label and more) all
+   read var(--font-mono) + uppercase + 0.1em tracking from here, and every one
+   of them already WRITES its text in sentence case — "Evidence status",
+   "What the register says to look at", "Audits with work in them" — the
+   mono/uppercase/tracked treatment was doing the shouting, not the words.
+   Fixing it once, here, turns every one of those into a quiet sentence-case
+   caption without touching a single call site's text or logic. Font size and
+   colour are unchanged: 9px muted ink-3 was never the problem, the letterform
+   was. */
 .label-xs {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 9px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-weight: 600;
   color: var(--ink-3);
 }
 

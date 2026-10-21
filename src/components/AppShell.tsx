@@ -18,7 +18,7 @@ import {
   deskDone,
   fieldDone,
 } from "@/lib/store";
-import { ENTITIES, entity as entityOf } from "@/lib/programme";
+import { entity as entityOf } from "@/lib/programme";
 import { needsDesk, needsField } from "@/lib/verification";
 import { useAssistAvailable, useTranscribeAvailable } from "@/lib/assist";
 import { portalIdFor } from "@/lib/sites";
@@ -231,12 +231,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               ? "Not syncing — open to see why"
               : "Not set up on this deployment";
   const visitId = useVisitId();
-  const setEntity = useStore((s) => s.setEntity);
-  const setVisit = useStore((s) => s.setVisit);
 
-  /* The cycle strip and the picker both run off the visits this entity
-     actually has, so switching airport re-draws the programme rather than
-     showing another site's schedule. */
+  /* `visitLabel` below runs off the visits this entity actually has.
+     Switching audits (entity or visit) now happens entirely inside
+     AuditsPanel, opened from the "Switch audit" button in the masthead or
+     the More menu — see that button's own doc comment — so this file no
+     longer calls setEntity/setVisit directly itself. */
   const visits = useVisits(entityCode);
   const visitLabel =
     visits.find((v) => v.id === visitId)?.label ?? visitId;
@@ -532,6 +532,31 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </span>
         </Link>
 
+        {/* THE AUDIT STRIP COLLAPSES INTO THIS ONE BUTTON — Sarel's second
+            visual-hierarchy pass, item 1: "collapse the three stacked header
+            bands into ONE app bar. Move the airport/visit context into a
+            single compact selector in that bar." The desk-only strip that
+            used to sit under this header (an entity `<select>`, an "All
+            audits" button and a row of visit chips — see git history for
+            the removed block) did exactly one job three ways: open a
+            different audit. AuditsPanel already IS that job, fully — same
+            entity list, same visit list, same "start a new one" — opened
+            from the More menu on every width since the UI refresh, and now
+            from right here too, so a desk user reaches it in one tap
+            instead of a whole permanent band underneath this one. Nothing
+            it could do is gone; it is one tap away rather than always on
+            screen. */}
+        <button
+          type="button"
+          onClick={() => setAudits(true)}
+          title="Switch audit — open any site or visit, or start a new one"
+          aria-label="Switch audit"
+          className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-[8px] transition-[var(--t)]"
+          style={{ color: "var(--ink-3)" }}
+        >
+          <IconGrid width={14} height={14} />
+        </button>
+
         {/* THE WRAPPER carries the sizing and the fade; the nav itself only
             scrolls. Splitting them is what lets the fade sit ON TOP of the
             scrolling content at a fixed position instead of scrolling away
@@ -597,11 +622,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                    "page" because each of these is a full navigation, not a
                    step or a location within one screen. */
                 aria-current={active ? "page" : undefined}
-                /* The hover/long-press name for the icon-only state between sm
-                   and xl — the label is still on screen for a screen reader via
-                   the link's own text content, this is for a sighted pointer
-                   user who wants to confirm an icon before tapping it. */
-                title={active ? undefined : n.label}
+                /* THE PER-ITEM COUNT LIVES HERE NOW, NOT AS A STANDING BADGE —
+                   Sarel's second visual-hierarchy pass, item 1: "remove the
+                   per-nav-item counts (324/324, 10, 22/33) from the top bar —
+                   show overall progress once [the ring, a few lines down]
+                   ... and put per-section counts on the Dashboard or as a
+                   tooltip." The ring already says how the whole register is
+                   doing; nine identical badges said it again, per
+                   destination, on every screen, permanently. `badge`'s own
+                   computation (desk/field/verified/ungrouped, just below) is
+                   unchanged — only where it is read: a hover/long-press title
+                   now, not a chip rendered beside every icon. */
+                title={
+                  active
+                    ? undefined
+                    : badge !== "" && badge !== 0
+                      ? `${n.label} — ${badge}`
+                      : n.label
+                }
                 /* THE FULL NAME, ALWAYS, to anyone who cannot see which of
                    the two labels is showing. Below sm the visible text can
                    be `n.short` ("Assets") — this guarantees the accessible
@@ -672,20 +710,32 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     whitespace-nowrap, same as the active item's own label
                     two states up, so the two read as one convention rather
                     than two different bars depending on which item is
-                    open. */}
-                {!active && (
-                  <span
-                    className="block text-center text-[11px] leading-[1.05] font-semibold whitespace-nowrap sm:hidden"
-                  >
-                    {n.short ?? n.label}
-                  </span>
-                )}
+                    open.
+
+                    UNCONDITIONAL NOW, not `!active`-only — a correctness fix
+                    folded into this same item-1 commit, found by a separate
+                    mobile-UI review agent while this pass was already
+                    restructuring this header: the ACTIVE item used to skip
+                    this short-label span entirely and fall through to the
+                    unconditional full-label span below with no `sm:hidden`
+                    of its own, so opening the one destination whose label
+                    actually needs shortening — Asset Assurance — overflowed
+                    the bottom bar by ~50px at 375px and ~11px at 414px
+                    (Dashboard clipped off the right edge). `n.short ?? n.label`
+                    already existed for exactly this label; the active path
+                    simply never read it. Both states read it now, so the
+                    active destination can never render wider than the
+                    inactive one beside it. */}
+                <span
+                  className="block text-center text-[11px] leading-[1.05] font-semibold whitespace-nowrap sm:hidden"
+                >
+                  {n.short ?? n.label}
+                </span>
                 {/* On the bottom bar all seven destinations have to fit across
                     390px, and seven full labels do not — three fitted and the
                     rest were a swipe nobody would think to make. The ACTIVE one
-                    keeps its label so you always know where you are; the others
-                    are their icon and their count, which is what a bottom bar
-                    has always been. Full labels return at sm.
+                    keeps its label so you always know where you are. Full
+                    labels return at sm.
 
                     FULL LABELS FOR EVERY ITEM DO NOT RETURN UNTIL xl (1280px).
                     Sarel, wide desktop and tablet both: "you shouldn't have to
@@ -695,41 +745,31 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     in the ~464px a 1024px tablet or a windowed 1152px laptop
                     actually leaves it, which is exactly the overflow that was
                     scrolling. Between sm and xl every inactive item is its
-                    icon and its count, same as the bottom bar — still names
-                    every destination, still fits every one on screen at once,
-                    no swipe required. */}
-                <span className={active ? "" : "hidden xl:inline"}>{n.label}</span>
-                {badge !== "" && badge !== 0 && (
-                  /* NOTHING DONE YET IS NOT NEWS. A "0/315" badge is exactly as
-                     loud as a "312/315" one, in the same accent colour, and at
-                     the start of an audit every applicable destination carries
-                     one — nine identical shouts saying the thing that is true
-                     of the whole app before anybody has tapped anything. Muted
-                     rather than hidden: a reset mid-audit still needs to be
-                     able to say "yes, really, zero" without the badge lying by
-                     omission the way IsfStage's zero-value cases refuse to. */
-                  <span
-                    /* HIDDEN BELOW sm, where it was not before — the one
-                       trade-off this pass made to add a label at every width
-                       without the stacked bottom-bar item growing past the
-                       56px --bottom-nav budget (globals.css, out of scope
-                       this pass) and clipping the last row of every
-                       scrolling screen behind it. The count is still one tap
-                       away (open the destination) and still shown here from
-                       sm up, unchanged. */
-                    className="hidden rounded-full px-[4px] font-mono text-[9px] sm:inline"
-                    style={
-                      /^0\//.test(String(badge))
-                        ? { background: "transparent", color: "var(--ink-4)" }
-                        : {
-                            background: active ? "var(--acc)" : "var(--acc-soft)",
-                            color: active ? "var(--on-acc)" : "var(--acc)",
-                          }
-                    }
-                  >
-                    {badge}
-                  </span>
-                )}
+                    icon alone — still names every destination (the label is
+                    always in the accessible name and the hover title), still
+                    fits every one on screen at once, no swipe required.
+
+                    `sm:inline` ADDED TO THE ACTIVE BRANCH, same fix as above:
+                    this span used to carry no "hidden" class at all when
+                    active, so it rendered below sm too — alongside the short
+                    label two lines up, for Asset Assurance specifically,
+                    that was the full "Asset Assurance" string on the bottom
+                    bar, not "Assets". `hidden sm:inline` keeps it exactly as
+                    it was from sm up (active always shows its full label)
+                    and hides it below sm, where the short-label span above
+                    now carries every destination, active or not. */}
+                <span className={active ? "hidden sm:inline" : "hidden xl:inline"}>{n.label}</span>
+                {/* THE STANDING BADGE IS GONE — Sarel's second visual-
+                    hierarchy pass, item 1: "remove the per-nav-item counts
+                    (324/324, 10, 22/33) from the top bar — show overall
+                    progress once [the ring] ... and put per-section counts
+                    on the Dashboard or as a tooltip." Nine destinations each
+                    carrying their own "0/315" in the accent colour, permanently,
+                    on every screen, was nine repetitions of a fact the ring
+                    two zones over already states once. The count itself is
+                    not gone — see the `title` prop above, which is now
+                    `"Checks — 312/315"` and so on, one hover or long-press
+                    away rather than a chip nobody asked to see every time. */}
               </Link>
             );
           })}
@@ -1218,131 +1258,34 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* THE AUDIT STRIP — DESK ONLY, and that is Sarel's call on his own
-          phone: "there is a duplication in KSIA label. As long as the top
-          purple header is visible then we don't need the second one to also be
-          visible the whole time."
+      {/* THE AUDIT STRIP IS GONE — folded into the "Switch audit" button in
+          the masthead itself (see that button's own doc comment, just above
+          the nav in this file). This used to be a second, desk-only band
+          doing the identical job in more pixels: an entity `<select>`, an
+          "All audits" button and a row of visit chips, costing a fixed
+          40px-tall strip above every screen at sm+ to say what the masthead
+          and one tap on the new button already say. Sarel had already cut
+          its mobile duplicate once ("there is a duplication in KSIA label");
+          this pass (item 1: "collapse the three stacked header bands into
+          ONE app bar") cuts the desk one too, for the same reason. */}
 
-          He is right twice over. The masthead already says KSIA and Sep 2026,
-          in the app's largest type, and it never scrolls. And this strip is not
-          cheap: it is a fixed band above every screen, so on a 664px phone it
-          spent about 40px permanently restating a fact already on screen — on
-          top of a 52px masthead, a sticky filter bar, an action bar and the
-          navigation. Measured on Inspection, the fixed furniture was two thirds
-          of the viewport.
-
-          NOTHING IS LOST ON A PHONE. Everything this strip does — switching
-          site, switching audit, starting a new one — is what "All audits" does,
-          and that is now the first item in the More menu, which is present at
-          every width. From sm up there is room for the strip and it stays,
-          because on a tablet at a desk the visit timeline is genuinely useful
-          at a glance. */}
-      <div
-        className="no-scrollbar hidden shrink-0 items-center overflow-x-auto border-b px-3.5 py-[7px] sm:flex"
-        style={{ background: "var(--panel)", borderColor: "var(--line)" }}
-      >
-        {/* Which audit everything below belongs to. Ten entities, six visits
-            each — the store keys every response, verification and capture by
-            this pair, so changing it here changes the whole app's subject. */}
-        <select
-          value={entityCode}
-          onChange={(e) => setEntity(e.target.value)}
-          aria-label="Entity"
-          className="mr-2.5 h-[26px] shrink-0 rounded-[8px] border px-1.5 font-mono text-[9.5px]"
-          style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
-        >
-          {ENTITIES.map((e) => (
-            <option key={e.code} value={e.code}>
-              {e.short} — {e.name}
-            </option>
-          ))}
-        </select>
-        {/* The strip was clickable before this, but read as a progress
-            indicator, so nobody clicked it. Naming the action is the fix. */}
-        <button
-          onClick={() => setAudits(true)}
-          title="Open any audit, or start a new one"
-          className="mr-3 flex shrink-0 items-center gap-[5px] rounded-[8px] border px-[9px] py-[4px] font-mono text-[9.5px] transition-[var(--t)]"
-          style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
-        >
-          <IconGrid width={11} height={11} />
-          All audits
-        </button>
-        {/* Desk only. On a phone this row is a horizontal scroller carrying an
-            entity picker, a button, this hint and six visit chips — it reads as
-            cut off because most of it is off-screen, and the hint is the part
-            that earns its place least. Everything it points at is behind
-            "All audits", which is right there. */}
-        <span className="mr-3 hidden whitespace-nowrap font-mono text-[8.5px] tracking-[0.1em] uppercase sm:inline" style={{ color: "var(--ink-4)" }}>
-          tap a visit to open it
-        </span>
-        {visits.length === 0 && (
-          <button
-            onClick={() => setAudits(true)}
-            className="flex shrink-0 items-center gap-[6px] rounded-[8px] border px-[10px] py-[4px] text-[10.5px] transition-[var(--t)]"
-            style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}
-          >
-            No audits at {entityOf(entityCode).short} yet — create the first one
-          </button>
-        )}
-        {visits.map((v, i) => (
-          <span key={v.id} className="flex shrink-0 items-center">
-            <button
-              type="button"
-              onClick={() => setVisit(v.id)}
-              aria-current={v.id === visitId}
-              title={`Show ${v.label}`}
-              className="flex shrink-0 items-center gap-[6px] rounded-[8px] px-1.5 py-[3px] transition-[var(--t)]"
-              style={
-                v.id === visitId
-                  ? { background: "var(--acc-soft)", boxShadow: "inset 0 0 0 1px var(--acc-line)" }
-                  : undefined
-              }
-            >
-              {/* Decorative, and allowed to be: the note beside it already says
-                  the state in words — "23 findings", "not audited", "this
-                  visit", "scheduled" — so the colour is a second reading of
-                  something written, not the only carrier of it. */}
-              <span
-                aria-hidden
-                className="h-[7px] w-[7px] rounded-full"
-                style={{
-                  background:
-                    v.state === "done" ? "var(--good)" : v.state === "current" ? "var(--acc)" : "var(--line-3)",
-                  boxShadow: v.state === "current" ? "0 0 0 3.5px var(--acc-soft)" : "none",
-                }}
-              />
-              <span
-                className="whitespace-nowrap text-[10.5px]"
-                style={{
-                  color: v.state === "current" ? "var(--acc)" : v.state === "done" ? "var(--ink-2)" : "var(--ink-4)",
-                  fontWeight: v.state === "current" ? 600 : 400,
-                }}
-              >
-                {v.label}
-                <span style={{ opacity: 0.6 }}> · {v.note}</span>
-              </span>
-            </button>
-            {i < visits.length - 1 && (
-              <span
-                className="mx-2 h-[1.5px] w-[22px] shrink-0 rounded-[8px]"
-                style={{ background: v.state === "done" ? "var(--good-line)" : "var(--line)" }}
-              />
-            )}
-          </span>
-        ))}
-      </div>
-
-      {/* WHERE THIS SCREEN SITS IN THE SEVEN-STEP FLOW — Home's "How the work
-          flows" section (src/app/(app)/home/page.tsx) is the only place that
-          sequence was ever visible; leave Home and every other screen read as
-          its own silo. One central render here, keyed off the route, reaches
-          all seven destinations without six near-identical edits, and
-          `FlowStepper` itself returns null off the sequence (More menu,
-          Pre-flight, the individual forms) so nothing appears where it
-          wouldn't make sense. */}
+      {/* WHERE THIS SCREEN SITS IN THE SEVEN-STEP FLOW, AS PLAIN TEXT IN THE
+          PAGE'S OWN TITLE AREA — Sarel's second visual-hierarchy pass, item
+          1: "move 'Step X of 7' into the page title area as plain small
+          text (not a bordered breadcrumb band)." It used to be the third
+          stacked band under the masthead: its own border-b, its own
+          var(--panel) fill, permanent furniture the full width of the
+          screen. FlowStepper's own markup was always just small mono text
+          with two links either side (see FlowStepper.tsx) — the band was
+          this wrapper's doing, not its. Dropping the border and the fill
+          and sitting it directly above `<main>`, on the page's own
+          background, is what turns "a fourth bar" into "a line of text at
+          the top of the page" without moving the render out of AppShell
+          (which would mean touching this seven-screen's worth of page
+          files for a wording-free restyle). Still one central render, keyed
+          off the route; FlowStepper still returns null off the sequence. */}
       {FLOW_STEPS.some((s) => s.href === pathname) && (
-        <div className="shrink-0 border-b px-3.5 py-[5px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
+        <div className="shrink-0 px-3.5 pt-2 pb-1">
           <FlowStepper current={pathname} />
         </div>
       )}

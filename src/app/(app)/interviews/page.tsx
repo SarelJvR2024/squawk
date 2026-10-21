@@ -268,7 +268,12 @@ export default function InterviewsPage() {
                         onClick={() => setExpandedRowId(rowOpen ? null : e.id)}
                         className="flex min-h-[30px] min-w-0 flex-1 items-center gap-[6px] text-left"
                       >
-                        {signed ? <Pill tone="accent">SIGNED</Pill> : <Pill tone="warn">NOT SIGNED</Pill>}
+                        {/* GENUINE STATUS, GENUINE COLOUR — item 4 of Sarel's
+                            second visual-hierarchy pass: signed/not signed
+                            is a status, not a selection, so it reads in the
+                            same good/warn pair every compliant pill in the
+                            app already uses, not the brand accent. */}
+                        {signed ? <Pill tone="good">SIGNED</Pill> : <Pill tone="warn">NOT SIGNED</Pill>}
                         <span className="truncate text-[12.5px] font-semibold">
                           {e.name.trim() || "Unnamed"}
                         </span>

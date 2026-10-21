@@ -309,24 +309,32 @@ export default function HomePage() {
   const card = "rounded-[16px] border p-[17px]";
   const cardStyle = { background: "var(--panel)", borderColor: "var(--line)" };
 
-  const stat = (label: string, value: string, sub: string, pct: number | null, tone: string) => (
-    <div key={label} className="relative overflow-hidden rounded-[16px] border px-[15px] py-[13px]" style={cardStyle}>
-      <span className="absolute inset-x-0 top-0 h-[2.5px]" style={{ background: `var(--${tone})` }} />
-      <span className="label-xs block">{label}</span>
+  /** ONE ROW OF A SLIM PROGRESS STRIP, NOT A BOXED TILE — Sarel's second
+   *  visual-hierarchy pass, item 8: "merge the four stat tiles (At the desk
+   *  / On site / Findings / 2025 follow-up) into one slim progress strip
+   *  under the main audit panel — thin progress bars with numbers, not four
+   *  boxed tiles." The four used to be their own cards: a border, a top
+   *  accent stripe, a 21px number, a track and a standing sentence of
+   *  explanation, each repeated four times. The number and the bar are what
+   *  somebody glancing at Home actually reads; the explanatory sentence
+   *  moves to `title` (a hover/long-press), the same tooltip trade this
+   *  file already makes elsewhere on this screen ("Document and site
+   *  evidence…", "Started means…") rather than standing prose.
+   *  `pct === null` (Findings has no honest denominator — see its own call
+   *  below) skips the bar rather than drawing a 0% one, which would read as
+   *  "nothing done" instead of "not that kind of number". */
+  const statRow = (label: string, value: string, sub: string, pct: number | null, tone: string) => (
+    <div key={label} className="flex items-center gap-3" title={sub}>
+      <span className="w-[98px] shrink-0 text-[11px]" style={{ color: "var(--ink-2)" }}>
+        {label}
+      </span>
+      <span className="min-w-0 flex-1">{pct !== null && <Track pct={pct} color={`var(--${tone})`} />}</span>
       <b
-        className="tnum mt-[3px] block font-mono text-[21px] leading-[1.15] font-semibold"
+        className="tnum w-[64px] shrink-0 text-right font-mono text-[12.5px] font-semibold"
         style={{ color: `var(--${tone})` }}
       >
         {value}
       </b>
-      {pct !== null && (
-        <span className="mt-[7px] block">
-          <Track pct={pct} color={`var(--${tone})`} />
-        </span>
-      )}
-      <span className="mt-[6px] block text-[10.5px]" style={{ color: "var(--ink-3)" }}>
-        {sub}
-      </span>
     </div>
   );
 
@@ -337,15 +345,34 @@ export default function HomePage() {
 
             LEADS WITH THE SELECTED AUDIT NOW, not "Next in the programme" —
             the ask was to lead with the audit actually in view and ONE main
-            action. Nothing in either card's own content changed from what
+            action. Nothing in either half's own content changed from what
             was here before; what changed is which one goes first and wider,
             and which button on the screen gets the primary treatment — only
             one does, "Continue at the desk" below, because the guardrail is
-            one main button per screen, not one per card. "Next in the
+            one main button per screen, not one per half. "Next in the
             programme" still has its own actions, just as plain buttons now
-            that it is the look-ahead rather than the lead. */}
-        <div className="mb-3.5 grid gap-3.5 lg:grid-cols-[1.25fr_1fr]">
-          <section aria-labelledby="home-open" className={card} style={cardStyle}>
+            that it is the look-ahead rather than the lead.
+
+            ONE CARD, NOT TWO — item 2's revision. The first pass (commit
+            7351d82) got Home from ~8 cards down to 2: this one and "Next in
+            the programme" sitting as separate bordered boxes side by side.
+            Sarel then decided that was still one card too many for a screen
+            whose only genuine OBJECT is the audit in view — "next in the
+            programme" is a look-ahead at that same object, not a second
+            one, so it does not earn its own border either. Both halves now
+            live inside a single bordered card, divided by one hairline rule
+            (a vertical one at the width that still runs them side by side,
+            a horizontal one once they stack), the same divider language
+            every de-carded section below already uses. Neither half's own
+            content, copy, or data changed — only the container they sit
+            in. Every other section below (the progress strip, Recent
+            activity, the audit calendar) is still a VIEW onto that one
+            object — a reading of its progress, a list of what happened, a
+            row of other sites — and sits on the plain background, one
+            hairline rule apart, same as before. */}
+        <section aria-label="The audit you are in, and what's next" className={`${card} mb-3.5`} style={cardStyle}>
+          <div className="grid gap-3.5 lg:grid-cols-[1.25fr_1fr]">
+            <div aria-labelledby="home-open">
             <span className="label-xs">The audit you are in</span>
             <h2 id="home-open" className="mt-[5px] flex flex-wrap items-center gap-2 text-[19px] font-bold">
               {entity.short}
@@ -383,10 +410,10 @@ export default function HomePage() {
               </p>
             </div>
             {/* THE ONE MAIN ACTION ON THIS SCREEN. Checks is the first step of
-                the flow this page's own strip names further down, so it is
-                the button that carries the primary style — "Go out and walk"
-                is the other place this audit's work continues, kept as a
-                plain secondary rather than a second primary. */}
+                the seven-step flow named just below, so it is the button
+                that carries the primary style — "Go out and walk" is the
+                other place this audit's work continues, kept as a plain
+                secondary rather than a second primary. */}
             <div className="mt-3.5 flex flex-wrap gap-2">
               <Link href="/capture" className="no-underline">
                 <Btn variant="primary">Continue at the desk</Btn>
@@ -395,10 +422,35 @@ export default function HomePage() {
                 <Btn>Go out and walk</Btn>
               </Link>
             </div>
-          </section>
+            {/* THE ORDER, AS A LINE OF TEXT, NOT A SECOND NAVIGATION — Sarel's
+                second visual-hierarchy pass, item 9: "remove the 'How the
+                work flows' stepper bar — it duplicates the main navigation.
+                If the step order matters, show it once as small text inside
+                the current-audit panel." The stepper that used to sit at
+                the foot of this page (a row of seven rounded, bordered
+                links with icons) was the masthead's own nav, restated in a
+                friendlier shape — every one of its destinations, in the
+                same order, reachable the same way. The ORDER is the one
+                thing the nav bar itself cannot say, and that is all this
+                line keeps: plain text, no links, no icons, so it cannot be
+                mistaken for a second way to get anywhere. */}
+            <p className="mt-3 text-[10.5px] leading-[1.6]" style={{ color: "var(--ink-4)" }}>
+              The seven steps, in order: {FLOW.map((s) => s.label).join(" › ")}.
+            </p>
+          </div>
 
-          {/* --------------------------------------------- next in the programme */}
-          <section aria-labelledby="home-next" className={card} style={cardStyle}>
+          {/* --------------------------------------------- next in the programme
+
+              THE DIVIDER, not a second border — a hairline rule above on the
+              narrow layout (where this half stacks below the first) and a
+              hairline rule to the left on the wide one (where the grid above
+              runs them side by side), so the two halves of this one card stay
+              visually distinct without either becoming its own box. */}
+          <div
+            aria-labelledby="home-next"
+            className="border-t pt-3.5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-3.5"
+            style={{ borderColor: "var(--line)" }}
+          >
             <span className="label-xs">Next in the programme</span>
             {next && nextVisit ? (
               <>
@@ -458,26 +510,41 @@ export default function HomePage() {
                 </p>
               </>
             )}
-          </section>
+          </div>
         </div>
+        </section>
 
-        {/* --------------------------------------------------------- stats */}
-        <section aria-label="This audit at a glance" className="mb-3.5 grid grid-cols-2 gap-[9px] md:grid-cols-4">
-          {stat(
+        {/* --------------------------------------------------- progress strip
+
+            DE-CARDED — Sarel's second visual-hierarchy pass, item 2:
+            "Reserve bordered cards for primary objects only (the current
+            audit on Home...). Everything else sits on the plain
+            background separated by whitespace and one hairline divider at
+            most." This strip is a reading of the current audit's own
+            progress, not a second object in its own right, so it drops
+            the border and the panel fill and sits straight on the page
+            background, with one hairline rule above it marking where the
+            lead cards end. */}
+        <section
+          aria-label="This audit at a glance"
+          className="mb-3.5 flex flex-col gap-2 border-t pt-3.5"
+          style={{ borderColor: "var(--line)" }}
+        >
+          {statRow(
             "At the desk",
             `${desk.done}/${desk.total}`,
             "evidence collected and questions asked",
             desk.total ? (desk.done / desk.total) * 100 : 0,
             "acc"
           )}
-          {stat(
+          {statRow(
             "On site",
             `${field.done}/${field.total}`,
             "the asset itself seen and photographed",
             field.total ? (field.done / field.total) * 100 : 0,
             "good"
           )}
-          {stat(
+          {statRow(
             "Findings",
             String(findings.length),
             unrated
@@ -486,7 +553,7 @@ export default function HomePage() {
             null,
             "bad"
           )}
-          {stat(
+          {statRow(
             "2025 follow-up",
             `${verified}/${prior.length}`,
             prior.length ? "carried findings verified this visit" : "a baseline audit — nothing carried in",
@@ -495,13 +562,30 @@ export default function HomePage() {
           )}
         </section>
 
-        {/* -------------------------------------- open audits · just done */}
-        <div className="mb-3.5 grid gap-3.5 lg:grid-cols-[1.25fr_1fr]">
-          <section aria-labelledby="home-inprogress" className={card} style={cardStyle}>
-            <h2 id="home-inprogress" className="mb-[3px] text-[12.5px] font-bold">
-              Audits with work in them
-            </h2>
-            <p className="mb-3 text-[11px]" style={{ color: "var(--ink-3)" }}>
+        {/* ------------------------------------------------- recent activity
+
+            ONE PANEL, NOT TWO — Sarel's second visual-hierarchy pass, item 8:
+            "merge 'Audits with work in them' and 'Just done' into one
+            'Recent activity' panel." They used to be side-by-side cards
+            answering two different questions about the same thing
+            (which audits hold work; what happened most recently in this
+            one) — now one hairline divider apart inside a single panel
+            instead of two separate borders a gap apart.
+
+            DE-CARDED TOO, same item-2 pass: a list, not an object — the
+            border and panel fill are gone, replaced by the one hairline
+            rule above (border-t) that already marks every section change
+            on this page now. */}
+        <section
+          aria-labelledby="home-recent"
+          className="mb-3.5 border-t pt-3.5"
+          style={{ borderColor: "var(--line)" }}
+        >
+          <h2 id="home-recent" className="mb-[3px] text-[12.5px] font-bold">
+            Recent activity
+          </h2>
+          <div className="mb-1">
+            <p className="mb-2 text-[11px]" style={{ color: "var(--ink-3)" }}>
               Every site and visit that holds captured work, most recently touched first.
             </p>
             {open.length === 0 ? (
@@ -577,42 +661,52 @@ export default function HomePage() {
                 })}
               </div>
             )}
-          </section>
+          </div>
 
-          <section aria-labelledby="home-recent" className={card} style={cardStyle}>
-            <h2 id="home-recent" className="mb-[3px] text-[12.5px] font-bold">
-              Just done
-            </h2>
-            <p className="mb-3 text-[11px]" style={{ color: "var(--ink-3)" }}>
-              The last things anybody did in {entity.short} {visitLabel}.
-            </p>
-            {recent.length === 0 ? (
-              <Empty>Nothing recorded in this audit yet.</Empty>
-            ) : (
-              <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
-                {recent.map((ev, i) => (
-                  <li key={`${ev.at}-${i}`} className="flex gap-2">
-                    <Dot tone={ev.tone} label={ev.what} />
-                    <span className="min-w-0 flex-1">
-                      <b className="block text-[11.5px] font-semibold">{ev.what}</b>
-                      <span className="block truncate text-[11px]" style={{ color: "var(--ink-3)" }}>
-                        {ev.detail}
-                      </span>
+          {/* ONE HAIRLINE DIVIDER, not a second card border — the two
+              questions ("which audits hold work" / "what just happened in
+              this one") stay visually distinct without a second box. */}
+          <div className="my-3 border-t" style={{ borderColor: "var(--line)" }} />
+
+          <p className="mb-2 text-[11px]" style={{ color: "var(--ink-3)" }}>
+            The last things anybody did in {entity.short} {visitLabel}.
+          </p>
+          {recent.length === 0 ? (
+            <Empty>Nothing recorded in this audit yet.</Empty>
+          ) : (
+            <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+              {recent.map((ev, i) => (
+                <li key={`${ev.at}-${i}`} className="flex gap-2">
+                  <Dot tone={ev.tone} label={ev.what} />
+                  <span className="min-w-0 flex-1">
+                    <b className="block text-[11.5px] font-semibold">{ev.what}</b>
+                    <span className="block truncate text-[11px]" style={{ color: "var(--ink-3)" }}>
+                      {ev.detail}
                     </span>
-                    {now > 0 && (
-                      <span className="shrink-0 font-mono text-[9.5px] whitespace-nowrap" style={{ color: "var(--ink-4)" }}>
-                        {ago(ev.at, now)}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
+                  </span>
+                  {now > 0 && (
+                    <span className="shrink-0 font-mono text-[9.5px] whitespace-nowrap" style={{ color: "var(--ink-4)" }}>
+                      {ago(ev.at, now)}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
-        {/* ----------------------------------------------------- the year */}
-        <section aria-labelledby="home-year" className={`${card} mb-3.5`} style={cardStyle}>
+        {/* ----------------------------------------------------- the year
+
+            DE-CARDED, same item-2 pass — the calendar is a row of its own
+            small cards (each one accent-bordered only when selected,
+            neutral otherwise, per item 10 above); the SECTION around them
+            does not also need a border. One hairline rule above, same as
+            every other section change on this page now. */}
+        <section
+          aria-labelledby="home-year"
+          className="mb-3.5 border-t pt-3.5"
+          style={{ borderColor: "var(--line)" }}
+        >
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
             <h2 id="home-year" className="text-[12.5px] font-bold">
               Round 1 — the audit calendar
@@ -662,6 +756,22 @@ export default function HomePage() {
                 const on = e.code === entityCode;
                 const state = now > 0 ? windowState(e, now) : null;
                 return (
+                  /* TIGHTENED, AND "NOT STARTED" IS GONE — Sarel's second
+                     visual-hierarchy pass, item 10: "stop repeating 'NOT
+                     STARTED' on every card — that's the default state, show
+                     a status chip only when a site is started... Tighten
+                     each card to: code, airport name, dates, and one small
+                     'starts in N days' line. The selected/current site gets
+                     the accent border; all others neutral." Not-started was
+                     nine identical chips out of ten cards saying the thing
+                     that is true before anybody has opened anything —
+                     exactly the standing-badge problem item 1 fixed in the
+                     nav, here on the calendar strip instead. Only `started`
+                     now earns a visible chip; the check-points count is
+                     gone too (code/name/dates/window-state is the tight
+                     set asked for). Border stays the one earlier rule it
+                     already followed — accent for the selected site, the
+                     same neutral --line for every other, started or not. */
                   <div
                     key={e.code}
                     className="flex w-[168px] shrink-0 flex-col gap-[5px] rounded-[11px] border px-[11px] py-[10px]"
@@ -672,28 +782,17 @@ export default function HomePage() {
                     }
                   >
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <Dot
-                        tone={started ? "good" : "pending"}
-                        label={started ? "Started" : "Not started"}
-                      />
                       <b className="font-display text-[12px] font-semibold">{e.short}</b>
                       {on && <Pill tone="accent">HERE</Pill>}
-                      {/* VISIBLE NOW, not only a colour the dot carries and a
-                          screen reader hears — a dot alone is the same shape
-                          and size whichever colour it is, which is exactly
-                          what reads as "the same thing" at a glance on a row
-                          of ten. Started gets its own word and a tick;
-                          not started gets the same word the rest of an
-                          unstarted card already uses, in the same quiet
-                          tone, so the two are two different things rather
-                          than two shades of one. */}
-                      <span
-                        className="ml-auto flex items-center gap-[3px] font-mono text-[8.5px] font-semibold tracking-[0.03em] uppercase"
-                        style={{ color: started ? "var(--good)" : "var(--ink-4)" }}
-                      >
-                        {started && <IconCheck width={8} height={8} aria-hidden />}
-                        {started ? "Started" : "Not started"}
-                      </span>
+                      {started && (
+                        <span
+                          className="ml-auto flex items-center gap-[3px] text-[10px] font-semibold"
+                          style={{ color: "var(--good)" }}
+                        >
+                          <IconCheck width={8} height={8} aria-hidden />
+                          Started
+                        </span>
+                      )}
                     </div>
                     <span className="text-[10.5px] leading-[1.35]" style={{ color: "var(--ink-2)" }}>
                       {e.name}
@@ -701,10 +800,11 @@ export default function HomePage() {
                     <span className="font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>
                       {auditWindow(e.auditFrom, e.auditTo, e.auditTbc)}
                     </span>
-                    <span className="text-[10px]" style={{ color: "var(--ink-4)" }}>
-                      {checksAt(e.code).length} check-points
-                      {state ? ` · ${state.text}` : ""}
-                    </span>
+                    {state && (
+                      <span className="text-[10px]" style={{ color: "var(--ink-4)" }}>
+                        {state.text}
+                      </span>
+                    )}
                   </div>
                 );
               })}
@@ -735,62 +835,19 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ----------------------------------------------------- the flow
-
-            ONE ROW, NOT EIGHT CARDS — Sarel: "the whole app is very busy...
-            review what is actually necessary to display." This used to
-            restate the entire top navigation as a grid of cards, each with
-            its own paragraph and its own printed route — the same seven
-            destinations the masthead already shows, in the same order,
-            explained a second time on every visit to this screen. The
-            masthead is permanent furniture; this was a page section doing
-            the same job in more words.
-
-            What survives is the one thing the nav bar cannot say: the
-            ORDER. A numbered strip of plain links does that in a line
-            anybody can read in a glance, and every description that used to
-            be a paragraph is still here — on hover/long-press, where it is
-            worth having without costing a page's worth of space. Pre-flight
-            keeps its place at the end, same as before. */}
-        <section aria-labelledby="home-flow" className={card} style={cardStyle}>
-          <h2 id="home-flow" className="mb-[9px] text-[12.5px] font-bold">
-            How the work flows
-          </h2>
-          <div className="flex flex-wrap items-center gap-[6px]">
-            {FLOW.map((s, i) => {
-              const Icon = s.icon;
-              return (
-                <span key={s.href} className="flex items-center gap-[6px]">
-                  <Link
-                    href={s.href}
-                    title={s.line}
-                    className="flex items-center gap-[6px] rounded-full border px-[11px] py-[7px] no-underline transition-[var(--t)] hover:-translate-y-[1px]"
-                    style={{ background: "var(--sunken)", borderColor: "var(--line)", color: "var(--ink)" }}
-                  >
-                    <span className="tnum font-mono text-[9px] font-semibold" style={{ color: "var(--ink-4)" }}>
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <Icon width={13} height={13} style={{ color: "var(--acc)" }} />
-                    <b className="font-display text-[11.5px] font-semibold">{s.label}</b>
-                  </Link>
-                  {i < FLOW.length - 1 && (
-                    <IconRight width={11} height={11} aria-hidden style={{ color: "var(--ink-4)" }} />
-                  )}
-                </span>
-              );
-            })}
-            <span className="mx-[2px] h-[20px] w-px shrink-0" style={{ background: "var(--line-2)" }} aria-hidden />
-            <Link
-              href="/preflight"
-              title="Microphone, camera, storage and the offline cache, checked on this device before anyone walks onto an apron."
-              className="flex items-center gap-[6px] rounded-full border px-[11px] py-[7px] no-underline transition-[var(--t)] hover:-translate-y-[1px]"
-              style={{ background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }}
-            >
-              <b className="font-display text-[11.5px] font-semibold">Pre-flight</b>
-              <span className="text-[10px]" style={{ color: "var(--acc)" }}>before you go</span>
-            </Link>
-          </div>
-        </section>
+        {/* "HOW THE WORK FLOWS" IS GONE, 21 Oct 2026 — Sarel's second
+            visual-hierarchy pass, item 9: "remove the 'How the work flows'
+            stepper bar — it duplicates the main navigation." This had
+            already been cut down once, from eight cards to one row of
+            seven linked pills (see this section's own prior history, now
+            removed with it) — but a row of links to the same seven
+            destinations, in the same order, is still the masthead's own
+            nav restated, just in pill shape instead of card shape. The
+            order itself — the one fact the nav bar cannot state — now
+            lives as a plain-text line inside "The audit you are in" above,
+            not as a second set of links. Pre-flight's own quick link here
+            is gone with it; it stays reachable from the More menu, same as
+            every other screen not in the seven-step sequence. */}
       </div>
     </div>
   );

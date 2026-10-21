@@ -446,8 +446,23 @@ check(
    scrolling on everything narrower than that. */
 check(
   "the active destination keeps its label, the others give up theirs",
-  /className=\{active \? "" : "hidden xl:inline"\}>\{n\.label\}/.test(shell),
+  /className=\{active \? "hidden sm:inline" : "hidden xl:inline"\}>\{n\.label\}/.test(shell),
   "seven full labels needed 485px of a 390px bar; three fitted and the rest were a swipe nobody would make"
+);
+
+/* FIX, 21 Oct 2026, folded into the same header pass that made the check
+   above: the active item used to carry no "hidden" class at all on its
+   full-label span, so it rendered on the bottom bar too — for Asset
+   Assurance specifically, that was "Asset Assurance" rather than "Assets",
+   and it overflowed the bar by ~50px at 375px and ~11px at 414px with
+   Dashboard clipped off the end. Both the active and inactive paths now
+   read the same short label below sm. */
+check(
+  "the active item's bottom-bar label is the short one too, not the full one that overflowed",
+  /className="block text-center text-\[11px\] leading-\[1\.05\] font-semibold whitespace-nowrap sm:hidden"\s*\n\s*>\s*\n\s*\{n\.short \?\? n\.label\}/.test(
+    shell
+  ),
+  "Asset Assurance's active bottom-bar label must read n.short ?? n.label (\"Assets\"), unconditionally, or it overflows the 390/414px bar again"
 );
 
 check(

@@ -838,42 +838,59 @@ export default function FindingsPage() {
                                   )}
                                   {raised > 0 && <span> · {raised} raised</span>}
                                 </span>
-                                {/* LAST AUDIT'S BAND, BESIDE THIS ONE'S.
-                                    Sarel asked for both, with the previous one
-                                    "transparent maybe" — so it renders at 55%
-                                    against the same tone, which reads as behind
-                                    rather than as a second live rating. The word
-                                    "2025" is on it, because a faded pill with no
-                                    date is just a pill somebody has to ask
-                                    about. */}
-                                {pf && priorTone ? (
-                                  <span
-                                    className="shrink-0 rounded-full border px-[6px] py-[1px] font-mono text-[8.5px] font-semibold whitespace-nowrap"
-                                    style={{
-                                      /* Solid, not the tone's own soft fill — the
-                                         row behind it is ALREADY that fill (see
-                                         priorTone above), so a pill in the same
-                                         colour would blend straight into it. A
-                                         panel-coloured chip with the tone's own
-                                         border and text is what still reads as
-                                         its own label sitting on a tinted row. */
-                                      background: "var(--panel)",
-                                      borderColor: priorTone.line,
-                                      color: priorTone.fg,
-                                    }}
-                                    title={`March 2025 rated this asset system ${pf.rating}`}
-                                  >
-                                    2025 {pf.rating.toUpperCase()}
-                                  </span>
-                                ) : (
-                                  <span
-                                    className="shrink-0 font-mono text-[8.5px] whitespace-nowrap"
-                                    style={{ color: "var(--ink-4)", opacity: 0.7 }}
-                                    title="March 2025 did not rate this asset system"
-                                  >
-                                    2025 —
-                                  </span>
-                                )}
+                                {/* LAST AUDIT'S BAND, BESIDE THIS ONE'S — BUT
+                                    ONLY WHEN IT DISAGREES, 21 Oct 2026. Sarel's
+                                    second visual-hierarchy pass, item 5: "show
+                                    one status badge per row (drop the '2025
+                                    TOLERABLE' second badge; keep the year only
+                                    where it differs from the current audit)."
+                                    Marks (this row's own name line, just above)
+                                    already carries the LIVE band as a word and
+                                    a colour; when this audit confirmed the same
+                                    band 2025 had, this chip was that word a
+                                    second time, in different clothes, on the
+                                    same row. `sameAsLive` is true only when
+                                    there IS a live, confirmed band this visit
+                                    AND it equals 2025's own rating — the one
+                                    case this chip now renders nothing for. A
+                                    changed band, an unconfirmed one, or no live
+                                    band at all still show it: those are exactly
+                                    the cases where last year's word is new
+                                    information, not an echo. */}
+                                {(() => {
+                                  const sameAsLive =
+                                    !!pf && confirmed && !!b && BAND_META[b].label === pf.rating;
+                                  if (sameAsLive) return null;
+                                  return pf && priorTone ? (
+                                    <span
+                                      className="shrink-0 rounded-full border px-[6px] py-[1px] font-mono text-[8.5px] font-semibold whitespace-nowrap"
+                                      style={{
+                                        /* Solid, not the tone's own soft fill —
+                                           the row behind it is ALREADY that
+                                           fill (see priorTone above), so a pill
+                                           in the same colour would blend
+                                           straight into it. A panel-coloured
+                                           chip with the tone's own border and
+                                           text is what still reads as its own
+                                           label sitting on a tinted row. */
+                                        background: "var(--panel)",
+                                        borderColor: priorTone.line,
+                                        color: priorTone.fg,
+                                      }}
+                                      title={`March 2025 rated this asset system ${pf.rating}`}
+                                    >
+                                      2025 {pf.rating.toUpperCase()}
+                                    </span>
+                                  ) : (
+                                    <span
+                                      className="shrink-0 font-mono text-[8.5px] whitespace-nowrap"
+                                      style={{ color: "var(--ink-4)", opacity: 0.7 }}
+                                      title="March 2025 did not rate this asset system"
+                                    >
+                                      2025 —
+                                    </span>
+                                  );
+                                })()}
                               </span>
                             </span>
                           </button>

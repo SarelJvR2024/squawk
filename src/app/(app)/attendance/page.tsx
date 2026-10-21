@@ -283,7 +283,14 @@ export default function AttendancePage() {
                       onClick={() => setExpandedRowId(rowOpen ? null : row.id)}
                       className="flex min-h-[30px] min-w-0 flex-1 items-center gap-[6px] text-left"
                     >
-                      {signed ? <Pill tone="accent">SIGNED</Pill> : <Pill tone="warn">NOT SIGNED</Pill>}
+                      {/* GENUINE STATUS, GENUINE COLOUR — Sarel's second
+                          visual-hierarchy pass, item 4: "color only for
+                          genuine status." Signed/not signed is exactly
+                          that (not a selection or a primary action), so it
+                          moves off the brand accent onto the same
+                          good/warn pair every compliant/not-compliant pill
+                          in the app already uses. */}
+                      {signed ? <Pill tone="good">SIGNED</Pill> : <Pill tone="warn">NOT SIGNED</Pill>}
                       <span className="truncate text-[12.5px] font-semibold">
                         {row.name.trim() || "Unnamed"}
                       </span>

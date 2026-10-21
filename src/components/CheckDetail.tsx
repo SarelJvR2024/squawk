@@ -1185,24 +1185,45 @@ export default function CheckDetail({
             screen that also carries our question, our evidence list and our
             suggested answers, "the biggest text on the page" is not the same
             as "attributed". Not summarised, not truncated, not title-cased. */}
-        <div className="label-xs mb-[2px]" style={{ color: "var(--ink-4)" }}>
-          ACSA check-point · the register&rsquo;s wording
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="label-xs mb-[2px]" style={{ color: "var(--ink-4)" }}>
+              ACSA check-point · the register&rsquo;s wording
+            </div>
+            {/* 27 register rows run past 140 characters and one reaches 569. Left
+                unclamped they turn the sticky header into half the screen, so a long
+                one is capped at three lines with a control to open it. Short ones —
+                the great majority — get no clamp and no extra control. */}
+            <h2
+              className={`max-w-[92ch] xl:max-w-[150ch] font-bold ${
+                stuck && !titleOpen
+                  ? "line-clamp-1 text-[13px] leading-[1.35]"
+                  : `text-[15.5px] leading-[1.3]${
+                      longTitle && !titleOpen ? " line-clamp-2 sm:line-clamp-3" : ""
+                    }`
+              }`}
+            >
+              {check.requirement}
+            </h2>
+          </div>
+          {/* PREV/NEXT, ALSO AT THE TOP — Sarel's second visual-hierarchy
+              pass, item 6: "the check title + one status line + prev/next
+              arrows" at the top of the Checks screen. These call the exact
+              same onPrev/onNext this screen already wires to the bottom
+              answer bar's own Previous/Next (and to the ArrowLeft/ArrowRight
+              keys) — one more place to reach them, not a second pair of
+              actions, and the bottom bar's own pair is untouched: moving
+              fast between checks while answering is the more common path
+              and stays under the thumb there. */}
+          <div className="flex shrink-0 items-center gap-[6px]">
+            <Btn icon onClick={onPrev} aria-label="Previous check">
+              <IconLeft width={13} height={13} />
+            </Btn>
+            <Btn icon onClick={onNext} aria-label="Next check">
+              <IconRight width={13} height={13} />
+            </Btn>
+          </div>
         </div>
-        {/* 27 register rows run past 140 characters and one reaches 569. Left
-            unclamped they turn the sticky header into half the screen, so a long
-            one is capped at three lines with a control to open it. Short ones —
-            the great majority — get no clamp and no extra control. */}
-        <h2
-          className={`max-w-[92ch] xl:max-w-[150ch] font-bold ${
-            stuck && !titleOpen
-              ? "line-clamp-1 text-[13px] leading-[1.35]"
-              : `text-[15.5px] leading-[1.3]${
-                  longTitle && !titleOpen ? " line-clamp-2 sm:line-clamp-3" : ""
-                }`
-          }`}
-        >
-          {check.requirement}
-        </h2>
         {/* Only for the genuinely long ones. A title compacted by scrolling
             comes back by scrolling, and a control saying so would cost the row
             the compaction just saved. */}

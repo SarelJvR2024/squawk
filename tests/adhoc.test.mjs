@@ -166,9 +166,14 @@ check(
   ),
   "an internal item is not visible externally, including in this screen's own 'seen on the walk' count, until it is promoted"
 );
+/* The literal "{doneCount}/{visible.length}" text moved on 21 Oct 2026 — the
+   second visual-hierarchy pass, item 7 — out of the duplicate figure that
+   used to sit beside the Filters button (dropped; the track below already
+   said the same thing) and now exists only as the track's own width
+   calculation. The denominator itself is unchanged. */
 check(
   "and the progress bar's denominator is still the register's",
-  /\{doneCount\}\/\{visible\.length\}/.test(field)
+  /\(doneCount \/ visible\.length\) \* 100/.test(field)
 );
 
 /* ---- 6 · every export says which it is --------------------------------- */
