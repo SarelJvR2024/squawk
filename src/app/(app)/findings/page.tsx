@@ -638,6 +638,16 @@ export default function FindingsPage() {
               active={bandFilter.size > 0}
               groups={[
                 {
+                  /* NAMED, not just captioned by the summary line above —
+                     same accessible-name requirement the old inline
+                     role="group" aria-label carried (see
+                     tests/systems.test.mjs's own regression guard for it).
+                     FilterBar renders a group's `label` as a visible
+                     caption for a multi-select row (unlike the
+                     radiogroup/aria-label pairing it uses for single-select
+                     — see FilterBar.tsx), so this is both the accessible
+                     name and a readable caption, not a decoration. */
+                  label: "Filter by the previous audit's rating",
                   options: BANDS.map((b) => ({ key: b, label: b })),
                   value: [...bandFilter],
                   multi: true,
