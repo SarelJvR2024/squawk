@@ -138,20 +138,29 @@ check(
 
 /* ------------------------------------------- Part 5: the way in is visible */
 
+/* THE DESK-ONLY STRIP (entity select + "All audits" button + visit chips) IS
+   GONE, 21 Oct 2026 — Sarel's second visual-hierarchy pass, item 1:
+   "collapse the three stacked header bands into ONE app bar. Move the
+   airport/visit context into a single compact selector." It was a whole
+   permanent band doing one job — open AuditsPanel to switch or start an
+   audit — that a single "Switch audit" button in the masthead itself now
+   does in one tap, same as the More menu already did on every width. Not a
+   capability lost, only a standing band removed; AuditsPanel (the only
+   place this file otherwise reads) is completely unchanged. */
 check(
-  "the strip names the action rather than looking like a progress bar",
-  /All audits/.test(shell) && /tap a visit to open it/.test(shell),
-  "it was already clickable and nobody clicked it"
+  "the masthead carries a single compact control that opens AuditsPanel, not a standing strip",
+  /onClick=\{\(\) => setAudits\(true\)\}[\s\S]{0,200}?aria-label="Switch audit"/.test(shell),
+  "the airport/visit switcher must be one button in the one app bar, not a second band under it"
 );
 
 check(
-  "an entity with no audits offers to create the first",
-  /No audits at \{entityOf\(entityCode\)\.short\} yet — create the first one/.test(shell),
-  "an empty strip is not an explanation"
+  "the old strip's own entity <select> and visit-chip row are actually gone, not just renamed",
+  !/aria-label="Entity"/.test(shell) && !/tap a visit to open it/.test(shell),
+  "a collapsed band that still renders is not collapsed"
 );
 
 check(
-  "the strip reads visits from the store, so a new audit appears at once",
+  "the masthead's own visit label still reads from the store, so a new audit still appears at once",
   /const visits = useVisits\(entityCode\);/.test(shell) &&
     !/PROGRAMME_VISITS\.filter\(\(v\) => v\.entity === entityCode\)/.test(shell),
   ""
