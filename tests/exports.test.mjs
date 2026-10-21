@@ -1,13 +1,15 @@
-/* The exported workbook — src/lib/exports.ts — for Response.fieldCompliance,
- *  the Inspection screen's own verdict. It was wired into store.ts, the UI
- *  and sharepoint.ts's portal sync (PR #163) but never reached the workbook:
- *  zero matches for the name anywhere in exports.ts before this fix.
+/* The exported workbook — src/lib/exports.ts — for the four fields that were
+ *  wired into store.ts, the UI and sharepoint.ts's portal sync (PR #163) but
+ *  never reached the workbook: Response.fieldCompliance (the Inspection
+ *  screen's own verdict) and Verification.evidenceRequested/discussionLog/
+ *  evidencePending. Zero matches for any of the four names anywhere in
+ *  exports.ts before this fix.
  *
  *  Real execution, not a source-regex: a column that EXISTS but reads the
  *  wrong field, or overwrites a sibling column, is a bug a text search for
- *  the field's name would call "fixed" while it is still wrong. This builds
- *  the actual sheet via registerSheet() — the function the real export uses
- *  — and reads the resulting cells back out, the same way
+ *  the field's name would call "fixed" while it is still wrong. These build
+ *  the actual sheet via registerSheet()/closureSheet() — the functions the
+ *  real export uses — and read the resulting cells back out, the same way
  *  tests/sharepoint.test.mjs runs buildPlan() rather than reading its
  *  source. */
 
@@ -37,6 +39,7 @@ const check = (name, cond, detail = "") => {
 };
 
 const ex = await import("../src/lib/exports.ts");
+const sp = await import("../src/lib/sharepoint.ts");
 
 /** A cell by column HEADER, not position — so a column rename or reorder
  *  fails this test loudly instead of silently comparing against the wrong
@@ -177,6 +180,103 @@ check(
   (() => {
     const sheet = ex.registerSheet({ ...BASE, responses: {} });
     return cellOf(sheet, 0, "Field compliance") === "" && cellOf(sheet, 0, /^Status/) === "";
+  })()
+);
+
+/* ========================================================== Bug 2 ========
+ *  Verification.evidenceRequested, Verification.discussionLog and
+ *  Verification.evidencePending — all three confirmed by grep to have had
+ *  zero matches in exports.ts. closureSheet() is the one sheet that reports
+ *  a Verification record at all, so it is the one place that can carry
+ *  them. Each is deliberately distinct from a similarly-named Response-level
+ *  field — see their own doc comments in types.ts. */
+
+const PRIOR = (over = {}) => ({
+  portalId: "KSIA-ELE-P01",
+  discipline: "Electrical",
+  assetSystemRecorded: "AGL",
+  assetSystem: null,
+  tolerance: "Tolerable",
+  observation: "Cable gland missing",
+  ...over,
+});
+
+const BASE_CLOSURE = { ...BASE, checks: [], prior: [PRIOR()] };
+
+check(
+  "evidenceRequested, discussionLog and evidencePending ALL reach the Closure sheet, in their own columns",
+  (() => {
+    const log = [
+      { at: 1_757_200_000_000, by: "Sarel", visit: "2026-09", outcome: null, note: "ACSA agreed an extension to November" },
+    ];
+    const x = {
+      ...BASE_CLOSURE,
+      verifications: {
+        "KSIA-ELE-P01": {
+          pf: "KSIA-ELE-P01",
+          outcome: "Open - repeat",
+          evidence: "Photo of the replaced gland",
+          attachments: [],
+          verifiedBy: "Sarel",
+          verifiedAt: 1,
+          /* leading/trailing space, to prove the column trims it */
+          evidenceRequested: "  Updated maintenance certificate  ",
+          evidencePending: true,
+          discussionLog: log,
+        },
+      },
+    };
+    const sheet = ex.closureSheet(x);
+    return (
+      cellOf(sheet, 0, "Evidence requested") === "Updated maintenance certificate" &&
+      cellOf(sheet, 0, "Evidence pending") !== "" &&
+      /pending/i.test(String(cellOf(sheet, 0, "Evidence pending"))) &&
+      /* THE DISCUSSION LOG MUST BE sharepoint.ts's OWN flattenProgress() OF
+         THE RAW LOG — not a reimplementation that could drift from it. */
+      cellOf(sheet, 0, "ACSA discussion log") === sp.flattenProgress(log) &&
+      /ACSA agreed an extension to November/.test(cellOf(sheet, 0, "ACSA discussion log")) &&
+      /* and the pre-existing columns are UNTOUCHED — the three new ones sit
+         beside them, not instead of them */
+      cellOf(sheet, 0, /^Verification/) === "Open - repeat" &&
+      cellOf(sheet, 0, "Evidence of closure") === "Photo of the replaced gland"
+    );
+  })(),
+  (() => {
+    const log = [{ at: 1, by: "Sarel", visit: "2026-09", outcome: null, note: "x" }];
+    const x = {
+      ...BASE_CLOSURE,
+      verifications: {
+        "KSIA-ELE-P01": {
+          pf: "KSIA-ELE-P01", outcome: "Open - repeat", evidence: "", attachments: [],
+          verifiedBy: "Sarel", verifiedAt: 1,
+          evidenceRequested: "  Updated maintenance certificate  ", evidencePending: true,
+          discussionLog: log,
+        },
+      },
+    };
+    return JSON.stringify(ex.closureSheet(x).rows[0]);
+  })()
+);
+
+check(
+  "evidencePending is BLANK when not set — absent-means-false, same convention as every other optional flag in this workbook",
+  (() => {
+    const x = {
+      ...BASE_CLOSURE,
+      verifications: {
+        "KSIA-ELE-P01": {
+          pf: "KSIA-ELE-P01", outcome: "Closed", evidence: "", attachments: [],
+          verifiedBy: "Sarel", verifiedAt: 1, action: "Done",
+        },
+      },
+    };
+    const sheet = ex.closureSheet(x);
+    return (
+      cellOf(sheet, 0, "Evidence pending") === "" &&
+      cellOf(sheet, 0, "Evidence requested") === "" &&
+      cellOf(sheet, 0, "ACSA discussion log") === "" &&
+      cellOf(sheet, 0, "Remediation action") === "Done"
+    );
   })()
 );
 

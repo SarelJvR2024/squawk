@@ -108,7 +108,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `import-pack.test.mjs` | no | 63 |
 | `ortia-v3-pack.test.mjs` | no | 84 |
 | `sheet.test.mjs` | no | 17 |
-| `exports.test.mjs` | no | 3 |
+| `exports.test.mjs` | no | 5 |
 | `e2e.js` | yes | 24 |
 | `robustness.js` | yes | 53 |
 | `exports.js` | yes | 32 |
@@ -123,7 +123,7 @@ node --import ./tests/alias.mjs tests/sharepoint.test.mjs
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,449 assertions in total**, every count above verified by running the suite,
+**3,451 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -1446,11 +1446,11 @@ only catch the source regressing.
 
 ## `exports.test.mjs`
 
-Runs `registerSheet()` from `src/lib/exports.ts` — the actual function that
-builds the exported workbook's Register sheet — for `Response.fieldCompliance`,
-the Inspection screen's own verdict. It was wired into `store.ts`, the UI and
-`sharepoint.ts`'s portal sync but never reached the workbook itself: zero
-matches for the name anywhere in `exports.ts` before this fix. Real
+Runs `registerSheet()` and `closureSheet()` from `src/lib/exports.ts` — the
+actual functions that build the exported workbook — for the four fields that
+were wired into `store.ts`, the UI and `sharepoint.ts`'s portal sync but never
+reached the workbook itself: `Response.fieldCompliance` and
+`Verification.evidenceRequested`/`discussionLog`/`evidencePending`. Real
 execution, not a source-regex: a column that exists but reads the wrong
 field, or quietly overwrites a sibling column, is a bug a text search for the
 field's name would call "fixed" while it is still wrong.
@@ -1462,8 +1462,12 @@ node --import ./tests/alias.mjs tests/exports.test.mjs
 Reads cells back by column HEADER, not position, so a column rename or
 reorder fails the test loudly instead of silently comparing against the
 wrong index. Confirms `fieldCompliance` sits in its own "Field compliance"
-column, independent of (and never folded into) the existing Status column,
-and that a blank/unanswered value renders blank, the sheet's own convention.
+column, independent of (and never folded into) the existing Status column;
+that a blank/unanswered value renders blank, the sheet's own convention; that
+`discussionLog` is flattened with the exact same `flattenProgress()`
+`sharepoint.ts` already uses for it, not a second implementation; and that
+`evidencePending` renders blank when unset, same absent-means-false
+convention as every other optional flag in this workbook.
 
 ## Exit status
 
