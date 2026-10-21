@@ -287,7 +287,7 @@ check(
 );
 check(
   "saving gives a visible confirmation",
-  /savedId === day\.id \? <Pill tone="accent">✓ SAVED<\/Pill>/.test(page)
+  /savedId === day\.id \? <Pill tone="good">✓ SAVED<\/Pill>/.test(page)
 );
 check(
   "there is no longer a Copy this diary button",

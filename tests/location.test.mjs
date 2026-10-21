@@ -317,7 +317,7 @@ check(
 
 check(
   "and the walk count is stated beside the fraction, never inside it",
-  /<Pill tone="accent">\+\{g\.walk\.length\}<\/Pill>/.test(field),
+  /<Pill>\+\{g\.walk\.length\}<\/Pill>/.test(field),
   ""
 );
 

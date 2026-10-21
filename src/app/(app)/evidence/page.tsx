@@ -62,9 +62,13 @@ import type { EvidenceMedium, EvidenceStage } from "@/lib/types";
 
 const MEDIA: EvidenceMedium[] = ["paper", "digital", "photographed", "portal", "verbal"];
 
-const STAGE: Record<EvidenceStage, { label: string; tone: "accent" | "warn" | undefined }> = {
+/* GENUINE STATUS, GENUINE COLOUR — item 4 of Sarel's second
+   visual-hierarchy pass: received is exactly a status — the evidence
+   that was actually produced — so it reads the same good every other
+   positive outcome in the app already uses, not the brand accent. */
+const STAGE: Record<EvidenceStage, { label: string; tone: "good" | "warn" | undefined }> = {
   requested: { label: "OUTSTANDING", tone: "warn" },
-  received: { label: "RECEIVED", tone: "accent" },
+  received: { label: "RECEIVED", tone: "good" },
   returned: { label: "RETURNED", tone: undefined },
   unavailable: { label: "NOT PRODUCED", tone: "warn" },
 };

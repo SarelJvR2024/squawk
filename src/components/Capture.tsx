@@ -685,7 +685,9 @@ function VoiceRow({
             loading…
           </span>
         )}
-        {!dead && <Pill tone="accent">{formatDuration(a.durationSec)}</Pill>}
+        {/* A duration is metadata, not a status — item 4 of Sarel's second
+            visual-hierarchy pass takes the brand accent off it. */}
+        {!dead && <Pill>{formatDuration(a.durationSec)}</Pill>}
 
         {showTranscribe && (
           <button

@@ -60,11 +60,15 @@ const METHODS: NotifyMethod[] = ["in-person", "phone", "radio", "message", "emai
 
 /** Colour carries the urgency, so a glance at the register is enough.
  *  `raised` is red on purpose: an ISF nobody has verbally notified is the one
- *  state SWP-07 treats as unfinished business. */
-const STAGE: Record<IsfStage, { label: string; tone: "warn" | "accent" | undefined }> = {
+ *  state SWP-07 treats as unfinished business. Item 4 of Sarel's second
+ *  visual-hierarchy pass takes the brand accent off `notified`/`issued` —
+ *  neither is a selection or a primary action, and once notified this
+ *  register has nothing left to flag urgently, so they read the same
+ *  neutral `closed` already does rather than borrow the brand colour. */
+const STAGE: Record<IsfStage, { label: string; tone: "warn" | undefined }> = {
   raised: { label: "NOT YET NOTIFIED", tone: "warn" },
-  notified: { label: "NOTIFIED VERBALLY", tone: "accent" },
-  issued: { label: "NOTICE ISSUED", tone: "accent" },
+  notified: { label: "NOTIFIED VERBALLY", tone: undefined },
+  issued: { label: "NOTICE ISSUED", tone: undefined },
   closed: { label: "CLOSED", tone: undefined },
 };
 
@@ -224,7 +228,11 @@ export default function IsfPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-[10px]">{f.id}</span>
                     <Pill>{STAGE[stage].label}</Pill>
-                    {savedId === f.id ? <Pill tone="accent">✓ SAVED</Pill> : null}
+                    {/* GENUINE STATUS, GENUINE COLOUR — item 4 of Sarel's
+                        second visual-hierarchy pass: saved is a status, so
+                        it reads in the same good every other completed
+                        status already uses. */}
+                    {savedId === f.id ? <Pill tone="good">✓ SAVED</Pill> : null}
                     {written === "late" && !f.closedAt ? (
                       <Pill>WRITTEN NOTICE OVERDUE</Pill>
                     ) : null}

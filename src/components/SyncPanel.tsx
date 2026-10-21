@@ -1476,15 +1476,20 @@ function Contract() {
 }
 
 function Tile({ n, label, strong }: { n: number; label: string; strong?: boolean }) {
+  /* The total standing out among its breakdown is emphasis, not a status
+     or a selection — item 4 of Sarel's second visual-hierarchy pass
+     takes the brand accent off it and gives it neutral weight instead:
+     the stronger of the app's two border tiers, same ink as any other
+     number. */
   return (
     <div
       className="rounded-[11px] border px-[11px] py-[8px]"
       style={{
-        background: strong ? "var(--acc-soft)" : "var(--sunken)",
-        borderColor: strong ? "var(--acc-line)" : "var(--line-2)",
+        background: "var(--sunken)",
+        borderColor: strong ? "var(--line)" : "var(--line-2)",
       }}
     >
-      <b className="block font-mono text-[16px] tnum" style={{ color: strong ? "var(--acc)" : "var(--ink)" }}>
+      <b className="block font-mono text-[16px] tnum" style={{ color: "var(--ink)" }}>
         {n}
       </b>
       <span className="text-[10px]" style={{ color: "var(--ink-3)" }}>

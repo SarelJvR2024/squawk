@@ -470,11 +470,12 @@ export default function PreflightPage() {
           apron. Every row says what to do about it, not just that it is red.
         </p>
 
-        <Panel
-          tone={bad ? undefined : "accent"}
-          className="mt-4 mb-4"
-          {...(bad ? {} : {})}
-        >
+        {/* GENUINE STATUS, GENUINE COLOUR — item 4 of Sarel's second
+            visual-hierarchy pass: ready-to-capture is exactly a status
+            (not a selection or a primary action), so it reads the same
+            good every other all-clear status already uses, not the
+            brand accent. */}
+        <Panel tone={bad ? undefined : "good"} className="mt-4 mb-4">
           <div className="label-xs">This device, right now</div>
           <div className="mt-1 text-[13.5px] leading-[1.5] font-semibold">
             {bad > 0
@@ -484,7 +485,10 @@ export default function PreflightPage() {
                 : "Ready to capture"}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-[6px] font-mono text-[10px]">
-            <Pill tone="accent">{entityOf(entityCode).short}</Pill>
+            {/* Which site this is, not a status — item 4 of Sarel's
+                second visual-hierarchy pass takes the brand accent off
+                it, matching the plain visit Pill right beside it. */}
+            <Pill>{entityOf(entityCode).short}</Pill>
             <Pill>{visit}</Pill>
             {auditor ? <Pill>{auditor}</Pill> : <Pill tone="warn">NO NAME SET</Pill>}
             {!hydrated && <Pill tone="warn">STILL LOADING</Pill>}

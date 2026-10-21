@@ -99,8 +99,19 @@ const EVIDENCE_STATUS_LABEL: Record<string, string> = {
   toBeProvided: "Pending",
   providedForReview: "Provided",
 };
+/* GENUINE STATUS, GENUINE COLOUR — item 4 of Sarel's second
+   visual-hierarchy pass: "pending" is outstanding, the same warn every
+   other not-yet-done status in the app already uses, and "no evidence"
+   is simply nothing to report, so it is neutral — neither is a
+   selection or a primary action, so neither borrows the brand accent. */
 const evidenceStatusTone = (v: string): Tone =>
-  v === "providedForReview" ? "good" : v === "specificNotAvailable" ? "warn" : "accent";
+  v === "providedForReview"
+    ? "good"
+    : v === "specificNotAvailable"
+      ? "warn"
+      : v === "toBeProvided"
+        ? "warn"
+        : "neutral";
 
 /** The 2025 audit's own three-level vocabulary, mapped to the app's tones. It
  *  is NOT B170 001M's — see BAND_AS_RATING in src/lib/risk.ts for why the two
@@ -1584,8 +1595,12 @@ function SystemEvidence({
         label={`Seen on the walk, not on the register (${walk.length})`}
         empty="The walk found nothing here that the register does not cover."
       >
+        {/* The outcome text is free-form from the walk, with no mapping to
+            a genuine good/bad/warn status here — item 4 of Sarel's second
+            visual-hierarchy pass takes the brand accent off it rather than
+            decorate it without one. */}
         {walk.map((w) => (
-          <Row key={w.id} id={w.id} tone="accent" right={(w.outcome ?? "no outcome").toUpperCase()}>
+          <Row key={w.id} id={w.id} tone="neutral" right={(w.outcome ?? "no outcome").toUpperCase()}>
             {w.description}
           </Row>
         ))}
