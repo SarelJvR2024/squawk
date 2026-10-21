@@ -284,6 +284,38 @@ export default function DashboardPage() {
     </div>
   );
 
+  /** A SUBORDINATE READING OF THE SAME WORK, NOT A SIXTH THROUGH NINTH
+   *  EQUALLY-WEIGHTED TILE — overnight refinement, task 7: "replace the
+   *  nine equally-weighted tile treatments with a clear primary summary
+   *  row plus a subordinate status breakdown." The five `kpi()` tiles
+   *  above (rating, assessed, compliance%, open findings, prior closed)
+   *  ARE the dashboard's headline — the register's own numbers, read
+   *  straight off the record. Compliant/Non-compliant/Awaiting evidence/
+   *  Not applicable is a breakdown of ONE of those five
+   *  ("Check-points assessed"), not four more facts of the same weight,
+   *  so it drops the card border, the accent stripe and the 23px number
+   *  for a quiet labelled row — a dot, a label, a smaller number — the
+   *  same "name it, don't just colour it" rule `kpi`'s own tone already
+   *  follows. No number here changes; only how loudly it is drawn. */
+  const breakdown = (label: string, value: number, tone?: "good" | "bad" | "warn") => (
+    <div key={label} className="flex items-center gap-[7px]">
+      <span
+        aria-hidden
+        className="h-[7px] w-[7px] shrink-0 rounded-full"
+        style={{ background: tone ? `var(--${tone})` : "var(--ink-4)" }}
+      />
+      <span className="min-w-0 flex-1 truncate text-[11px]" style={{ color: "var(--ink-2)" }}>
+        {label}
+      </span>
+      <b
+        className="tnum shrink-0 font-mono text-[13px] font-semibold"
+        style={{ color: tone ? `var(--${tone})` : "var(--ink)" }}
+      >
+        {value}
+      </b>
+    </div>
+  );
+
   return (
     <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
       <div className="mx-auto w-full max-w-[1180px] px-5 pt-5 pb-16">
@@ -423,14 +455,28 @@ export default function DashboardPage() {
                 priorScope.length && closed === priorScope.length ? "good" : "acc"
               )}
             </div>
-            <div className="mb-3.5 grid grid-cols-2 gap-[9px] md:grid-cols-4">
-              {kpi("Compliant", stats.C, "good")}
-              {kpi("Non-compliant", stats.NC, "bad")}
-              {kpi("Awaiting evidence", stats.NV, "warn")}
-              {kpi("Not applicable", stats.NA)}
+            <div className="mb-3.5 border-t pt-2.5" style={{ borderColor: "var(--line)" }}>
+              <span className="label-xs" style={{ color: "var(--ink-4)" }}>
+                Check-points assessed, by outcome
+              </span>
+              <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+                {breakdown("Compliant", stats.C, "good")}
+                {breakdown("Non-compliant", stats.NC, "bad")}
+                {breakdown("Awaiting evidence", stats.NV, "warn")}
+                {breakdown("Not applicable", stats.NA)}
+              </div>
             </div>
 
-            <div className="mb-3.5 grid gap-3.5 lg:grid-cols-[1.4fr_1fr]">
+            {/* `items-start` — overnight refinement, task 7: "do not stretch
+                the risk panel to match the full height of the asset table."
+                A CSS grid row stretches every item to the tallest one by
+                default; the asset table runs to as many rows as this site
+                has asset systems (dozens, easily), and the risk profile
+                below is a fixed 5×4 heat map plus a three-line legend —
+                stretched to match, its card grew a few hundred px of empty
+                space under a tiny table. `items-start` lets each card be
+                exactly as tall as its own content, side by side. */}
+            <div className="mb-3.5 grid items-start gap-3.5 lg:grid-cols-[1.4fr_1fr]">
               {/* "ASSET SYSTEMS: RISK TO OPERATIONS" — the register's own table,
                   same name, same source (SystemAssessment) as the Asset Risk
                   SharePoint list and the workbook export's "Asset systems"
@@ -438,7 +484,28 @@ export default function DashboardPage() {
                   until the group has agreed them — see `agreed` below, same
                   gate systemsSheet() and sharepoint.ts's assetRisk push use. */}
               <div className="rounded-[16px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
-                <h3 className="mb-3 text-[12.5px] font-bold">Asset systems: risk to operations</h3>
+                <div className="mb-3 flex items-baseline justify-between gap-2">
+                  <h3 className="text-[12.5px] font-bold">Asset systems: risk to operations</h3>
+                  {/* A DELIBERATE, NAMED OVERFLOW — overnight refinement, task
+                      7: "if mobile width forces overflow, make that overflow
+                      deliberate and accessible... not illegible compressed
+                      columns." Six columns of real words (Discipline, Asset
+                      system, Severity, Likelihood, Tolerance) do not fit a
+                      390px phone without either this table scrolling
+                      sideways or every column's text being squeezed to the
+                      point of guessing. `whitespace-nowrap` on every cell
+                      below picks the first: nothing compresses, the table
+                      runs past the card's width instead, and the
+                      `overflow-x-auto` wrapper turns that into a real
+                      horizontal scroll rather than a clipped, unreadable
+                      edge. This caption is the "deliberate" half — plain
+                      visible text, not a decorative-only cue a screen
+                      reader would miss — shown only where the overflow can
+                      actually happen. */}
+                  <span className="shrink-0 font-mono text-[9px] sm:hidden" style={{ color: "var(--ink-4)" }}>
+                    ↔ scroll for every column
+                  </span>
+                </div>
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-[12px]">
                     <thead>
@@ -453,7 +520,7 @@ export default function DashboardPage() {
                         ].map((h) => (
                           <th
                             key={h}
-                            className="border-b px-2.5 py-2 text-left font-mono text-[8.5px] tracking-[0.09em] uppercase"
+                            className="border-b px-2.5 py-2 text-left font-mono text-[8.5px] tracking-[0.09em] whitespace-nowrap uppercase"
                             style={{ borderColor: "var(--line)", color: "var(--ink-4)" }}
                           >
                             {h}
@@ -472,25 +539,29 @@ export default function DashboardPage() {
                           <tr key={p.key}>
                             {disciplineFilter === "all" && (
                               <td
-                                className="border-b px-2.5 py-2.5"
+                                className="border-b px-2.5 py-2.5 whitespace-nowrap"
                                 style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}
                               >
                                 {p.discipline}
                               </td>
                             )}
-                            <td className="border-b px-2.5 py-2.5 font-medium" style={{ borderColor: "var(--line)" }}>
+                            <td className="border-b px-2.5 py-2.5 font-medium whitespace-nowrap" style={{ borderColor: "var(--line)" }}>
                               {p.system}
                             </td>
-                            <td className="border-b px-2.5 py-2.5 text-right font-mono tnum" style={{ borderColor: "var(--line)" }}>
+                            <td className="border-b px-2.5 py-2.5 text-right font-mono tnum whitespace-nowrap" style={{ borderColor: "var(--line)" }}>
                               {done}/{cs.length}
                             </td>
-                            <td className="border-b px-2.5 py-2.5" style={{ borderColor: "var(--line)" }}>
+                            <td className="border-b px-2.5 py-2.5 whitespace-nowrap" style={{ borderColor: "var(--line)" }}>
                               {agreed ? a!.severity : <span style={{ color: "var(--ink-4)" }}>—</span>}
                             </td>
-                            <td className="border-b px-2.5 py-2.5" style={{ borderColor: "var(--line)" }}>
+                            <td className="border-b px-2.5 py-2.5 whitespace-nowrap" style={{ borderColor: "var(--line)" }}>
                               {agreed ? a!.likelihood : <span style={{ color: "var(--ink-4)" }}>—</span>}
                             </td>
-                            <td className="border-b px-2.5 py-2.5" style={{ borderColor: "var(--line)" }}>
+                            <td className="border-b px-2.5 py-2.5 whitespace-nowrap" style={{ borderColor: "var(--line)" }}>
+                              {/* NOT YET RATED IS NOT A ZERO — already true before this
+                                  pass (a neutral pill, never a colour implying a band),
+                                  kept exactly as it was; task 7 only asked for the
+                                  overflow fix above, this cell's own logic is untouched. */}
                               {agreed && band ? (
                                 <Pill tone={BAND_META[band].tone}>{BAND_AS_RATING[band]}</Pill>
                               ) : (
