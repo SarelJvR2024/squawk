@@ -59,6 +59,7 @@ import { portalIdFor } from "@/lib/sites";
 import { Btn, Dot, Empty, Pill, Track } from "@/components/ui/primitives";
 import {
   IconCamera,
+  IconCheck,
   IconClipboard,
   IconFlag,
   IconGrid,
@@ -332,60 +333,28 @@ export default function HomePage() {
   return (
     <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
       <div className="mx-auto w-full max-w-[1180px] px-5 pt-5 pb-16">
-        {/* ------------------------------------------------------- next up */}
-        <div className="mb-3.5 grid gap-3.5 lg:grid-cols-[1.25fr_1fr]">
-          <section aria-labelledby="home-next" className={card} style={cardStyle}>
-            <span className="label-xs">Next in the programme</span>
-            {next && nextVisit ? (
-              <>
-                <h2 id="home-next" className="mt-[5px] flex flex-wrap items-center gap-2 text-[19px] font-bold">
-                  {next.name}
-                  <Pill tone="accent">{next.short}</Pill>
-                  {nextIsOpen && <Pill tone="good">OPEN NOW</Pill>}
-                </h2>
-                <p className="mt-[6px] text-[12.5px]" style={{ color: "var(--ink-2)" }}>
-                  {auditWindow(next.auditFrom, next.auditTo, next.auditTbc)} · {nextVisit.label} · {nextVisit.note}
-                </p>
-                <p className="mt-[3px] text-[11.5px]" style={{ color: "var(--ink-3)" }}>
-                  {checksAt(next.code).length} check-points on this site&apos;s list
-                  {now > 0 ? ` · ${windowState(next, now).text}` : ""}
-                </p>
-                <div className="mt-3.5 flex flex-wrap gap-2">
-                  {!nextIsOpen && (
-                    <Btn variant="primary" onClick={() => openAudit(next.code, nextVisit.id)}>
-                      Open {next.short} · {nextVisit.label}
-                    </Btn>
-                  )}
-                  <Link href="/capture" className="no-underline">
-                    <Btn variant={nextIsOpen ? "primary" : "default"}>Start with Checks</Btn>
-                  </Link>
-                  <Link href="/preflight" className="no-underline">
-                    <Btn>Check this device</Btn>
-                  </Link>
-                </div>
-              </>
-            ) : (
-              <>
-                <h2 id="home-next" className="mt-[5px] text-[19px] font-bold">
-                  Every site in Round 1 has been started
-                </h2>
-                <p className="mt-[6px] text-[12.5px]" style={{ color: "var(--ink-2)" }}>
-                  There is no unstarted audit left in the programme. Pick up an open one below, or
-                  add the next visit from Audits in the header.
-                </p>
-              </>
-            )}
-          </section>
+        {/* ------------------------------------------------------- next up
 
-          {/* --------------------------------------------------- open now */}
+            LEADS WITH THE SELECTED AUDIT NOW, not "Next in the programme" —
+            the ask was to lead with the audit actually in view and ONE main
+            action. Nothing in either card's own content changed from what
+            was here before; what changed is which one goes first and wider,
+            and which button on the screen gets the primary treatment — only
+            one does, "Continue at the desk" below, because the guardrail is
+            one main button per screen, not one per card. "Next in the
+            programme" still has its own actions, just as plain buttons now
+            that it is the look-ahead rather than the lead. */}
+        <div className="mb-3.5 grid gap-3.5 lg:grid-cols-[1.25fr_1fr]">
           <section aria-labelledby="home-open" className={card} style={cardStyle}>
             <span className="label-xs">The audit you are in</span>
-            <h2 id="home-open" className="mt-[5px] flex flex-wrap items-baseline gap-2 text-[15px] font-bold">
+            <h2 id="home-open" className="mt-[5px] flex flex-wrap items-center gap-2 text-[19px] font-bold">
               {entity.short}
-              <span className="text-[12.5px] font-normal" style={{ color: "var(--ink-2)" }}>
-                {visitLabel}
-                {visitNote ? ` · ${visitNote}` : ""}
-              </span>
+              <Pill tone="accent">{visitLabel}</Pill>
+              {visitNote && (
+                <span className="text-[12.5px] font-normal" style={{ color: "var(--ink-2)" }}>
+                  {visitNote}
+                </span>
+              )}
             </h2>
             <div className="mt-3">
               <div className="mb-[6px] flex items-baseline justify-between gap-2">
@@ -413,14 +382,82 @@ export default function HomePage() {
                 Document and site evidence, where the check asks for both
               </p>
             </div>
-            <div className="mt-3 flex flex-wrap gap-2">
+            {/* THE ONE MAIN ACTION ON THIS SCREEN. Checks is the first step of
+                the flow this page's own strip names further down, so it is
+                the button that carries the primary style — "Go out and walk"
+                is the other place this audit's work continues, kept as a
+                plain secondary rather than a second primary. */}
+            <div className="mt-3.5 flex flex-wrap gap-2">
               <Link href="/capture" className="no-underline">
-                <Btn>Continue at the desk</Btn>
+                <Btn variant="primary">Continue at the desk</Btn>
               </Link>
               <Link href="/field" className="no-underline">
                 <Btn>Go out and walk</Btn>
               </Link>
             </div>
+          </section>
+
+          {/* --------------------------------------------- next in the programme */}
+          <section aria-labelledby="home-next" className={card} style={cardStyle}>
+            <span className="label-xs">Next in the programme</span>
+            {next && nextVisit ? (
+              <>
+                <h2 id="home-next" className="mt-[5px] flex flex-wrap items-baseline gap-2 text-[15px] font-bold">
+                  {next.name}
+                  <span className="text-[12px] font-normal" style={{ color: "var(--ink-2)" }}>
+                    {next.short}
+                  </span>
+                  {/* CURRENT, not "OPEN NOW" — Sarel, checkpoint feedback:
+                      "a visit must never show 'OPEN NOW' and 'window has
+                      passed' together." `nextIsOpen` only ever means THIS is
+                      the selected entity/visit — it says nothing about the
+                      real calendar dates, which `windowState` two lines down
+                      computes separately and can genuinely disagree with.
+                      "OPEN NOW" claimed the window itself was open; "CURRENT"
+                      claims only what this pill has ever actually been able
+                      to promise — that this is the one open on screen —
+                      which is never false, whatever windowState says beside
+                      it. Wording only: nextIsOpen's own condition is
+                      unchanged. */}
+                  {nextIsOpen && <Pill tone="good">CURRENT</Pill>}
+                </h2>
+                <p className="mt-[6px] text-[11.5px]" style={{ color: "var(--ink-2)" }}>
+                  {auditWindow(next.auditFrom, next.auditTo, next.auditTbc)} · {nextVisit.label} · {nextVisit.note}
+                </p>
+                <p className="mt-[3px] text-[10.5px]" style={{ color: "var(--ink-3)" }}>
+                  {checksAt(next.code).length} check-points on this site&apos;s list
+                  {now > 0 ? ` · ${windowState(next, now).text}` : ""}
+                </p>
+                {/* SECONDARY, deliberately — this card is a look-ahead, not
+                    the one main action, so every button here stays the
+                    plain/default style even when it opens a different audit
+                    outright, rather than competing with the primary button
+                    in the lead card above. */}
+                <div className="mt-3.5 flex flex-wrap gap-2">
+                  {!nextIsOpen && (
+                    <Btn onClick={() => openAudit(next.code, nextVisit.id)}>
+                      Open {next.short} · {nextVisit.label}
+                    </Btn>
+                  )}
+                  <Link href="/capture" className="no-underline">
+                    <Btn>Start with Checks</Btn>
+                  </Link>
+                  <Link href="/preflight" className="no-underline">
+                    <Btn>Check this device</Btn>
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 id="home-next" className="mt-[5px] text-[15px] font-bold">
+                  Every site in Round 1 has been started
+                </h2>
+                <p className="mt-[6px] text-[11.5px]" style={{ color: "var(--ink-2)" }}>
+                  There is no unstarted audit left in the programme. Pick up an open one below, or
+                  add the next visit from Audits in the header.
+                </p>
+              </>
+            )}
           </section>
         </div>
 
@@ -502,7 +539,14 @@ export default function HomePage() {
                         <span className="text-[11.5px]" style={{ color: "var(--ink-2)" }}>
                           {label}
                         </span>
-                        {on && <Pill tone="accent">OPEN NOW</Pill>}
+                        {/* CURRENT, same rename and same reason as the
+                            "next in the programme" card above — `on` here is
+                            the identical is-this-selected check, not a date
+                            check, and the Dot two lines up already says "The
+                            audit you are in" beside it; "OPEN NOW" implied a
+                            window-open claim this pill was never actually
+                            making. */}
+                        {on && <Pill tone="accent">CURRENT</Pill>}
                         <span className="tnum ml-auto font-mono text-[11px]" style={{ color: "var(--ink-3)" }}>
                           {r.complete}/{r.checks}
                         </span>
@@ -627,13 +671,29 @@ export default function HomePage() {
                         : { background: "var(--sunken)", borderColor: "var(--line)" }
                     }
                   >
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <Dot
                         tone={started ? "good" : "pending"}
                         label={started ? "Started" : "Not started"}
                       />
                       <b className="font-display text-[12px] font-semibold">{e.short}</b>
                       {on && <Pill tone="accent">HERE</Pill>}
+                      {/* VISIBLE NOW, not only a colour the dot carries and a
+                          screen reader hears — a dot alone is the same shape
+                          and size whichever colour it is, which is exactly
+                          what reads as "the same thing" at a glance on a row
+                          of ten. Started gets its own word and a tick;
+                          not started gets the same word the rest of an
+                          unstarted card already uses, in the same quiet
+                          tone, so the two are two different things rather
+                          than two shades of one. */}
+                      <span
+                        className="ml-auto flex items-center gap-[3px] font-mono text-[8.5px] font-semibold tracking-[0.03em] uppercase"
+                        style={{ color: started ? "var(--good)" : "var(--ink-4)" }}
+                      >
+                        {started && <IconCheck width={8} height={8} aria-hidden />}
+                        {started ? "Started" : "Not started"}
+                      </span>
                     </div>
                     <span className="text-[10.5px] leading-[1.35]" style={{ color: "var(--ink-2)" }}>
                       {e.name}

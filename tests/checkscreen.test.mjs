@@ -198,11 +198,22 @@ check(
   "a second array would let key 3 mean one thing to the hand and another to the eye"
 );
 
+/* REVERSED, 20 Oct 2026 (ui-refresh checkpoint feedback): Sarel, reviewing a
+   390px screenshot — "the outcome buttons must read 'Compliant',
+   'Non-compliant', 'N/A', not C/NC." The code-on-a-phone/word-everywhere-
+   else split this check used to guard is gone: `<span>{st.label}</span>`
+   is now the button's only text, at every width, so the accessible name
+   comes from the button's own content and no longer needs its own
+   aria-label to say the word the visible text was abbreviating. st.short
+   still exists on STATUSES itself (still ACSA's own code, see the type's
+   own doc comment) — it just is not what this button shows or says. */
 check(
-  "ACSA's own code on a phone, the full phrase to a screen reader at every width",
-  /<span className="sm:hidden">\{st\.short\}<\/span>/.test(codeOnly) &&
-    /aria-label=\{st\.label\}/.test(codeOnly),
-  "\"C\" read out loud is not an answer anybody should have to decode"
+  "the outcome buttons show the full word, not the ACSA code, at every width",
+  /<st\.Icon width=\{12\} height=\{12\} className="shrink-0" \/>\s*\n\s*<span>\{st\.label\}<\/span>/.test(
+    codeOnly
+  ) &&
+    !/<span className="sm:hidden">\{st\.short\}<\/span>/.test(codeOnly),
+  "a 390px screenshot showed C/NC — the button must read Compliant/Non-compliant/N/A at every width, not just from sm"
 );
 
 check(
@@ -338,6 +349,12 @@ check(
   at('group: "acsa"') > 0 && /\(\["acsa", "do", "read"\] as const\)/.test(codeOnly),
   "it was fourth in Reference, behind five tabs of TPJV's own material"
 );
+/* TRIED AND REVERTED, 20 Oct 2026 (ui-refresh Stage 2, Area 3): moving the
+   default off "standard" so a brand-new check opened on its own capture
+   ("do") panel instead, on the reasoning that an auto-opened reference
+   panel competes with the primary flow for first-paint attention. Sarel,
+   asked directly: keep it the way he originally wanted. Reverted — the
+   check below is the same regression guard as before this attempt. */
 check(
   "and it is the tab already open, not one to go and find",
   /useState\("standard"\)/.test(codeOnly),
@@ -475,11 +492,28 @@ check(
   "below lg the whole screen scrolls, and flex-1 there spilled the content out of a short box"
 );
 
+/* NO LONGER lg:-ONLY, 20 Oct 2026 (ui-refresh checkpoint feedback: "make the
+   pinned bottom area smaller when no field is focused"). The flex-col split
+   this check guards — the Observation block is the one that gives
+   (flex-1/min-h-0/overflow-y-auto), the answer bar below it (compliance
+   buttons + Save) is the one that never does (shrink-0) — used to only
+   apply from lg, because below lg the whole bar just grew to fit its
+   content instead. It is unconditional now: the bar caps at 25vh at rest
+   and 70vh while the Observation box has focus (`has-[.obs-pane:focus-
+   within]`, see the bar's own class), and that ceiling is only safe for
+   Save and the compliance buttons if the SAME give-or-never-give split
+   already existed below lg too — which is what this check now proves,
+   at every width, not only from lg. */
 check(
   "and the capture column beside it scrolls its own Observation block the same way",
-  /lg:static lg:flex lg:min-h-0 lg:w-1\/2 lg:shrink-0 lg:flex-col/.test(codeOnly) &&
-    /border-t px-5 pt-\[9px\] pb-\[9px\] lg:min-h-0 lg:flex-1 lg:overflow-y-auto/.test(codeOnly),
-  "a long observation with several photographs attached must not push the compliance buttons off the bottom of their own column"
+  /flex min-h-0 max-h-\[25vh\] flex-col overflow-hidden has-\[\.obs-pane:focus-within\]:max-h-\[70vh\] lg:static lg:w-1\/2 lg:shrink-0 lg:max-h-none lg:overflow-visible/.test(
+    codeOnly
+  ) &&
+    /obs-pane flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain border-t px-5 pt-\[9px\] pb-\[9px\]/.test(
+      codeOnly
+    ) &&
+    /shrink-0 flex flex-wrap items-center gap-x-3 gap-y-\[6px\] border-t px-5 py-2/.test(codeOnly),
+  "a long observation with several photographs attached must not push the compliance buttons off the bottom of their own column, at any width"
 );
 
 check(
