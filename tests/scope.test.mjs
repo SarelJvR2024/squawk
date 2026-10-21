@@ -221,21 +221,31 @@ check(
 
 /* ------------------------------------------- Part 5: the scope is selectable */
 
+/* THE ENTITY <select> AND THE VISIT-CHIP STRIP MOVED OUT OF AppShell.tsx,
+   21 Oct 2026 — the second visual-hierarchy pass, item 1: "collapse the
+   three stacked header bands into ONE app bar. Move the airport/visit
+   context into a single compact selector." AppShell now carries one
+   button ("Switch audit") that opens AuditsPanel, which is where entity
+   and visit selection actually live — same capability (every entity,
+   every visit, "start a new one"), one tap further in rather than a
+   standing band. */
+const auditsPanel = src("components", "AuditsPanel.tsx");
+
 check(
-  "the shell offers an entity picker",
-  /onChange=\{\(e\) => setEntity\(e\.target\.value\)\}/.test(appShell) &&
-    /ENTITIES\.map/.test(appShell),
+  "the masthead opens AuditsPanel rather than carrying its own entity picker",
+  /onClick=\{\(\) => setAudits\(true\)\}/.test(appShell) &&
+    !/onChange=\{\(e\) => setEntity\(e\.target\.value\)\}/.test(appShell),
   "ten entities are no use if only one can be opened"
 );
 
 check(
-  "the cycle strip selects the visit",
-  /onClick=\{\(\) => setVisit\(v\.id\)\}/.test(appShell),
+  "AuditsPanel offers every entity, and opens any of its visits",
+  /ENTITIES\.map/.test(auditsPanel) && /openAudit\(e\.code, v\.id\)/.test(auditsPanel),
   "two visits a year, six in the cycle — each must be openable"
 );
 
 check(
-  "the cycle strip shows only this entity's visits",
+  "the masthead's own visit label shows only this entity's visits",
   /const visits = useVisits\(entityCode\);/.test(appShell),
   "useVisits merges the programme seeds with audits created in the app, for this entity only"
 );
