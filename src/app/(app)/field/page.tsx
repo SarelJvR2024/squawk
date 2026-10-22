@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   areasAt,
   checksAt,
@@ -141,6 +141,99 @@ function LinkageFilter({
   );
 }
 
+/** THE WIDE-MODE TWIN OF THE SHEET, NEVER MOUNTED AT THE SAME TIME AS IT.
+ *
+ *  Same chrome as Sheet.tsx on purpose — a badges row, a title, a subtitle,
+ *  a scrolling body, a footer pinned at the bottom — so a check reads the
+ *  same whichever of the two is on screen; what it leaves out is everything
+ *  that makes Sheet a DIALOG: no backdrop, no `role="dialog"`, no focus
+ *  trap, no Escape handler, no close button. It does not need any of that —
+ *  the list beside it is never hidden, so there is nothing modal about it
+ *  for it to escape, and the Save & close button already clears the
+ *  selection (see `selectedDetail`'s footer) the same way Escape would.
+ *
+ *  `detail` is `selectedDetail`, built once in FieldPage and handed to
+ *  whichever of this component or Sheet is mounted — see that constant's
+ *  own doc comment for why there is only one copy of a check's fields to
+ *  drift out of sync. `null` (nothing selected yet) renders a placeholder
+ *  rather than nothing, so the list never jumps sideways as a selection is
+ *  made or cleared — the column is always there once this component mounts
+ *  at all (FieldPage only mounts it once `isWideDetail` is true).
+ *
+ *  STICKY, offset by the search bar's own measured height (`barOffset`,
+ *  `barH` in FieldPage) so it starts just under that bar rather than behind
+ *  it — the same offset GroupRow's own sticky group headers already use.
+ *  `maxHeight` keeps it from growing past the viewport once content is
+ *  long; it scrolls internally past that, independently of the list beside
+ *  it, which keeps scrolling the page as it always has below `lg` and still
+ *  does here (this pane is the one exception, not the list). */
+function WideCheckPane({
+  detail,
+  barOffset,
+  maxHeightPx,
+}: {
+  detail: {
+    badges: ReactNode;
+    title: ReactNode;
+    subtitle: ReactNode;
+    footer: ReactNode;
+    body: ReactNode;
+  } | null;
+  barOffset: number;
+  /** `.app-scroll`'s own measured height minus the search bar minus the
+   *  "Add item" bar minus a few pixels — see the call site's own comment.
+   *  `undefined` only for the render or two before those measurements
+   *  land; `70vh` is a conservative stand-in for that brief window, never
+   *  what ships to a screenshot or a real session. */
+  maxHeightPx?: number;
+}) {
+  const stickyStyle = {
+    top: barOffset,
+    maxHeight: maxHeightPx ? `${maxHeightPx}px` : "70vh",
+  };
+  if (!detail) {
+    return (
+      <div
+        className="flex w-[380px] shrink-0 flex-col items-center justify-center gap-1.5 rounded-[16px] border p-8 text-center"
+        style={{ ...stickyStyle, position: "sticky", borderColor: "var(--line)", color: "var(--ink-3)" }}
+      >
+        <IconInbox width={22} height={22} />
+        <p className="text-[12.5px]">Select a check-point from the list to see it here.</p>
+      </div>
+    );
+  }
+  return (
+    <div
+      className="flex w-[380px] shrink-0 flex-col overflow-hidden rounded-[16px] border"
+      style={{ ...stickyStyle, position: "sticky", borderColor: "var(--line-2)", background: "var(--panel)", boxShadow: "var(--e1)" }}
+    >
+      <div className="shrink-0 border-b px-5 py-3" style={{ borderColor: "var(--line)" }}>
+        {detail.badges && (
+          <div
+            className="mb-[5px] flex flex-wrap items-center gap-[6px] font-mono text-[10px]"
+            style={{ color: "var(--ink-3)" }}
+          >
+            {detail.badges}
+          </div>
+        )}
+        <h3 className="text-[14px] leading-[1.35] font-bold">{detail.title}</h3>
+        {detail.subtitle && (
+          <p className="mt-[3px] text-[11px] leading-[1.45]" style={{ color: "var(--ink-3)" }}>
+            {detail.subtitle}
+          </p>
+        )}
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{detail.body}</div>
+      <div
+        className="flex shrink-0 items-center justify-between gap-2 border-t px-5 py-3"
+        style={{ borderColor: "var(--line)", background: "var(--panel)" }}
+      >
+        {detail.footer}
+      </div>
+    </div>
+  );
+}
+
 export default function FieldPage() {
   const responses = useResponses();
   const captures = useCaptures();
@@ -274,6 +367,70 @@ export default function FieldPage() {
     const el = barRef.current;
     if (!el) return;
     const measure = () => setBarH(el.getBoundingClientRect().height);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  /* LIST+DETAIL SIDE BY SIDE, FROM `lg` (1024px) UP — the deferred item from
+     the desktop/tablet redesign brief, this round. `lg` is this app's own
+     established threshold for "both halves of a two-pane split stay
+     comfortably usable" — Checks' own CheckDetail.tsx reference/record split
+     uses it (`lg:grid-cols-2`/`lg:w-1/2`), and tests/tablet.test.mjs exists
+     because that pane went two-pane only at `xl` (1280px) first and stacked
+     on an iPad in landscape (1180px) as a result; `lg` is the fix that
+     shipped for it. Measured directly for THIS screen's own content at
+     1024×768 before choosing it here too — see this round's screenshots.
+
+     JS-DRIVEN, NOT A BARE CSS BREAKPOINT, because what it gates is WHICH of
+     two mutually exclusive things mounts (the Sheet modal below `lg`, the
+     inline `WideCheckPane` at and above it) — never both at once. Two
+     copies of the same dialog in the DOM at once would mean two focus traps
+     and duplicate ids (the Internal Working Area's inputs, the outcome
+     radiogroup's `idPrefix`); gating render in JS means only one ever
+     exists, rather than hiding one of two mounted copies with CSS and
+     hoping an inert focus trap stays inert. Defaults to false (narrow/modal)
+     until the effect below runs, matching how `barH` above already defaults
+     to 0 before its own measurement — consistent with this file's existing
+     pattern for "the real answer needs the DOM", not a new one. */
+  const [isWideDetail, setIsWideDetail] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const update = () => setIsWideDetail(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  /* HOW TALL `WideCheckPane` IS ALLOWED TO GET — measured, not guessed, the
+     same reason `barH` above is measured rather than assumed. The pane
+     sticks inside `.app-scroll`'s own scrollport, which is shorter than
+     `100vh` (the masthead and the tab strip above this page eat some of
+     that), and this screen also has a second sticky element BELOW it — the
+     "Add item" bar — that a height guessed from `100vh` alone drifted under
+     by exactly the few pixels that bar is tall, covering Save & close the
+     first time this was measured by eye. `scrollAreaH` is `.app-scroll`'s
+     own box, `addBarH` is that bottom bar's, and the pane's cap is the
+     first minus the search bar already measured (`barH`) minus the second,
+     with a few pixels of breathing room — the exact space actually left for
+     it, on this screen, at this width, rather than an assumption about how
+     much chrome sits above and below it. */
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [scrollAreaH, setScrollAreaH] = useState(0);
+  useEffect(() => {
+    const el = scrollAreaRef.current;
+    if (!el) return;
+    const measure = () => setScrollAreaH(el.getBoundingClientRect().height);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const addBarRef = useRef<HTMLDivElement>(null);
+  const [addBarH, setAddBarH] = useState(0);
+  useEffect(() => {
+    const el = addBarRef.current;
+    if (!el) return;
+    const measure = () => setAddBarH(el.getBoundingClientRect().height);
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -608,1065 +765,182 @@ export default function FieldPage() {
     </h2>
   );
 
-  return (
-    /* PHASE 2: an outer flex-col wrapper so the page heading can sit OUTSIDE
-       the scrolling container as its own shrink-0 bar, the same shape
-       Checks already has (src/app/(app)/capture/page.tsx) and shares with
-       it through PageHeading (src/components/ui/PageHeading.tsx) — title
-       and progress on the left, an actions slot on the right. It used to be
-       the first in-flow block inside `.app-scroll`, which meant it scrolled
-       away with the list; pinned here it stays visible at every scroll
-       position, same as Checks' own heading row. */
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <PageHeading
-        title={
-          <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
-            {heading}
-            {/* Prose that orients somebody the first time and costs them a
-                scroll every time after. ON ITS OWN LINE, it was a second
-                stacked block above a bar that already explains itself (the
-                toggle's labels, the search placeholder) — folded onto the
-                title's own row instead, so it costs a few extra characters of
-                width rather than a whole line of height. Still sm-only; a
-                664px phone has room for neither version. */}
-            <p className="hidden text-[11.5px] sm:block" style={{ color: "var(--ink-2)" }}>
-              Nothing here assumes an order — group by discipline or by where you are standing,
-              search anything, or capture first and assign it later.
-            </p>
-          </div>
-        }
-        progress={
-          /* THE PAGE-HEADING PROGRESS FIGURE, RESTORED — desktop/tablet
-             redesign, phase 1 checkpoint. `doneCount`/`visible.length` are
-             the exact pair that used to render here as "{doneCount}/
-             {visible.length}" (see their own comment just above this
-             return), presented now as a slim 4px bar plus words rather
-             than the bare mono fraction that used to sit beside the
-             Filters button — new presentation, same source of truth. */
-          <div className="flex min-w-[160px] flex-1 items-center gap-2.5 sm:max-w-[360px] sm:flex-none">
-            <span
-              className="h-[4px] flex-1 overflow-hidden rounded-full"
-              style={{ background: "var(--line)" }}
-              role="img"
-              aria-label={`${doneCount} of ${visible.length} captured, ${visiblePct}%`}
-            >
-              {/* a11y.js's "small round span" dot-check can mistake this fill
-                  for an unlabelled status dot once it's 0% wide (0x4px, same
-                  footprint as a real dot) — the sr-only text gives the span
-                  it sits in real textContent so the check's own "aria-hidden
-                  AND the row already says it in words" rule is satisfied. */}
-              <span className="sr-only">
-                {doneCount} of {visible.length} captured, {visiblePct}%
-              </span>
-              <span
-                className="block h-full rounded-full"
-                style={{ width: `${visiblePct}%`, background: "var(--acc)" }}
-                aria-hidden="true"
-              />
-            </span>
-            <span className="tnum shrink-0 font-mono text-[12px]" style={{ color: "var(--ink-2)" }} aria-hidden="true">
-              {doneCount} of {visible.length} captured · {visiblePct}%
-            </span>
-            {visible.length > 0 && doneCount === visible.length && (
-              <IconCheck
-                width={13}
-                height={13}
-                aria-label="All check-points captured"
-                style={{ color: "var(--acc)" }}
-              />
-            )}
-          </div>
-        }
-      />
-    <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <div className="mx-auto w-full max-w-[1180px] px-4 pt-3 pb-24 sm:px-6">
-        {/* THE STICKY HEADER.
+  /* THE SELECTED CHECK'S DETAIL — BUILT ONCE, RENDERED IN ONE OF TWO PLACES.
+     Desktop/tablet redesign, this round: the list+detail side-by-side item
+     deferred last round, because the Sheet below (see its own long comment
+     where it is used) is a deliberate, hard-won fix for real phone-width
+     defects — an expanded-in-place check lost its Save button and its
+     scrolling broke. Converting it by hand into two copies, one for the
+     modal and one for an inline pane, was the risk flagged then: the two
+     would drift the first time either one got a field added to it and
+     nobody remembered the other.
 
-            SEARCH IS ITS OWN ROW NOW, FIRST, ALWAYS VISIBLE — overnight
-            refinement, task 3: "expose its existing search prominently
-            instead of burying every way to locate an asset behind a
-            'Filters' button." It used to live inside the FilterPopover
-            below, behind a tap on "Filters · <whatever is set>" — the one
-            way an auditor standing at an asset finds the check for it was
-            hidden behind the one control that also changes what's filtered.
-            Nothing about search itself changed: same `q`/`setQ`, same
-            whole-register reach, same "Searching every…" note when a filter
-            is also set — it is simply the first thing in the bar rather
-            than three levels deep in a popover.
+     So there is exactly one copy. Every field, attachment tool, outcome
+     control and the Internal Working Area build here, ONCE, into five
+     pieces (`badges`/`title`/`subtitle`/`footer`/`body` — the same five the
+     Sheet component itself already separates a header from a body from a
+     footer by). Below `lg` they go to the Sheet exactly as before — nothing
+     in this object's shape or content is new, only where it is computed.
+     At `lg` and up `WideCheckPane` renders the SAME five beside the list
+     instead. Neither path hand-retypes a single field. */
+  const selectedDetail = (() => {
+    const c = openItem ? visible.find((x) => x.id === openItem) : null;
+    if (!c) return null;
+    const r = responses[c.id];
+    const attachments = r?.attachments ?? [];
+    const photos = attachments.filter((x) => x.kind === "photo");
+    const wo = library?.[c.id]?.WO ?? [];
+    const picked = r?.walkaboutPicked;
+    const needsPhoto = picked != null && wo[picked]?.photo === true && photos.length === 0;
+    const pf = priorFor(entityCode, c.discipline, c.system);
 
-            The Filters popover (the axis switch, the discipline/location
-            select and the photo-linkage filters) is still exactly as
-            reachable as before, directly below — advanced grouping stays
-            available, it is just no longer the way search is reached. */}
-        <div
-          ref={barRef}
-          className="sticky top-0 z-10 -mx-4 mb-2 border-b px-4 py-[5px] sm:-mx-6 sm:px-6 sm:py-[7px]"
-          style={{ background: "var(--bg)", borderColor: "var(--line)" }}
-        >
-          <div
-            className="flex min-w-0 items-center gap-2 rounded-[11px] border px-3 py-1 sm:py-2"
-            style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-          >
-            <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search anywhere…"
-              aria-label="Search any check"
-              className="min-h-[40px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
-            />
-          </div>
-          {/* SAID OUT LOUD, because otherwise it looks like the filter broke.
-              A search runs across the whole register — it has to, or the
-              check for the thing in front of the auditor is missing because
-              of a filter they set in another building. */}
-          {searching && activeFilter && (
-            <div className="mt-1 text-[10.5px]" style={{ color: "var(--ink-3)" }}>
-              Searching every {groupBy === "area" ? "location" : "discipline"}, not just{" "}
-              <b>{activeFilter}</b>.
-            </div>
-          )}
-          <div className="mt-2 flex items-center gap-2">
-            {/* THE BUTTON NAMES WHAT IS SET, IT DOES NOT ALSO COUNT IT —
-                Sarel's second visual-hierarchy pass, item 7: "Filter button
-                label becomes 'Filters · Civil' — drop the '8/56 +16' from
-                the button; show result counts above the list instead." The
-                button used to carry three things at once: the word
-                "Filters", a count badge (how many of the axes are
-                non-default) and a full summary line ("By discipline ·
-                Electrical · 'ramp' · linked to a check"). `fieldFilterLabel`
-                replaces all three with the one thing worth reading at a
-                glance — which discipline or location is active, right in
-                the label — and nothing is lost: the full detail (search
-                term, linkage filters and all) is still one tap away inside
-                the panel, unchanged. The result counts this button used to
-                sit beside (doneCount/visible.length, +walkVisible.length)
-                move to sit directly above the list instead — see the
-                existing track+figure just below this bar, which already
-                did that job; the one that duplicated it beside this button
-                is the one that is gone. */}
-            <FilterPopover
-              label={fieldFilterLabel}
-              className="min-w-0 flex-1 sm:max-w-[420px] sm:flex-none"
-            >
-              <div
-                role="radiogroup"
-                aria-label="Group the list by"
-                className="flex gap-[2px] rounded-[11px] p-[3px]"
-                style={{ background: "var(--sunken)" }}
-              >
-                {(["discipline", "area"] as const).map((g) => (
-                  <button
-                    key={g}
-                    role="radio"
-                    aria-checked={groupBy === g}
-                    onClick={() => {
-                      setGroupBy(g);
-                      /* A new axis has different groups, so nothing that was
-                         open under the old one still means anything. The
-                         location axis's own filter resets here exactly as it
-                         always did — a place filter means nothing once
-                         you've left it. The discipline axis does NOT reset:
-                         it is the shared filter (useDisciplineFilter), and
-                         clearing it on every toggle back to "By discipline"
-                         would throw away the whole point of sharing it with
-                         Capture/Review/HIRA. Setting it directly (not through
-                         `setFilter`, which reads the OLD `groupBy` from this
-                         closure) avoids clearing the wrong axis. */
-                      setExpanded([]);
-                      setAreaFilter("");
-                    }}
-                    className="flex min-h-[38px] flex-1 items-center justify-center gap-[6px] rounded-[8px] px-3 font-display text-[11.5px] font-semibold transition-[var(--t)] sm:min-h-[40px]"
-                    style={{
-                      background: groupBy === g ? "var(--panel)" : "transparent",
-                      color: groupBy === g ? "var(--acc)" : "var(--ink-2)",
-                      boxShadow: groupBy === g ? "var(--e1)" : "none",
-                    }}
-                  >
-                    {g === "area" && <IconPin width={13} height={13} />}
-                    By {g === "area" ? "location" : "discipline"}
-                  </button>
-                ))}
-              </div>
+    const badges = (
+      <>
+        <span>{portalIdFor(entityCode, c.id)}</span>
+        <span>·</span>
+        <span>{c.system}</span>
+        {/* How the check is answered is a category, not a status —
+            item 4 of Sarel's second visual-hierarchy pass takes the
+            brand accent off it. */}
+        {modeLabels(c)
+          .filter((m) => m !== "Physical")
+          .map((m) => <Pill key={m}>{m.toUpperCase()}</Pill>)}
+        {pf && <Pill tone="warn">{pf.key} · 2025 {pf.rating.toUpperCase()}</Pill>}
+      </>
+    );
 
-              {/* THE TOP LEVEL, AS A FILTER. It was six rows of the tree that
-                  every auditor opened and closed on every visit to this
-                  screen. It is one control now, and the tree under it starts
-                  at the asset system. */}
-              <DisciplineSelect
-                value={activeFilter}
-                onChange={(v) => {
-                  setFilter(v);
-                  /* Different subject, different systems — nothing that was
-                     open under the last one still means anything. */
-                  setExpanded([]);
-                }}
-                ariaLabel={groupBy === "area" ? "Filter by location" : "Filter by discipline"}
-                title={activeFilter || (groupBy === "area" ? "Every location" : "Every discipline")}
-                active={!!activeFilter}
-                className="w-full"
-                options={[
-                  { value: "", label: groupBy === "area" ? "All locations" : "All disciplines" },
-                  ...tops.map((t) => ({ value: t, label: t })),
-                ]}
-              />
+    const title = c.requirement?.trim() ? (
+      c.requirement
+    ) : (
+      <span style={{ color: "var(--warn)" }}>
+        {portalIdFor(entityCode, c.id)} — the register carries no check text for this
+        check-point
+      </span>
+    );
 
-              {/* A SEPARATE GROUP, SAID SO. The axis switch and the
-                  discipline/location select above answer "where" (search
-                  itself moved out of this panel — see the sticky header's
-                  own note above) — this answers "linked to what", a
-                  different question about the same walk items. A rule and a
-                  small heading keep a reader from reading these as a
-                  continuation of the same list. */}
-              {/* "PHOTO FILTERS", BEHIND A DISCLOSURE — Sarel's second
-                  visual-hierarchy pass, item 7: "remove the duplicated
-                  'All / linked / unlinked' segmented blocks (keep one, or
-                  fold photo filters behind a 'Photo filters' disclosure)."
-                  The two LinkageFilter rows below are not literally
-                  duplicated — one axis is "linked to a check", the other
-                  "linked to an asset system" — but they are the same
-                  three-way control shape twice in a row, and removing
-                  either one would be a real loss of filtering capability
-                  (a logic change this pass does not make). Folding both
-                  behind one disclosure keeps both axes fully working,
-                  closed by default, so the panel's own first screen is the
-                  three controls that answer "where" rather than five that
-                  read as one repeating list. */}
-              <details className="group -mx-[14px] border-t px-[14px] pt-2" style={{ borderColor: "var(--line)" }}>
-                <summary className="-mt-1 flex min-h-[30px] cursor-pointer list-none items-center gap-[6px] text-[9.5px] font-semibold tracking-wide uppercase" style={{ color: "var(--ink-4)" }}>
-                  <span aria-hidden className="shrink-0 font-mono transition-transform group-open:rotate-90">
-                    ›
-                  </span>
-                  Photo filters — linked to the register, or not
-                </summary>
-                {/* LINKED, OR NOT — in photographs, not items. See
-                    walkLinkage's own comment above for why. Each row is
-                    independent: a walk item can be linked to a check, to a
-                    system, to both or to neither, so "Linked"/"Unlinked" on
-                    one row says nothing about the other. */}
-                <div className="mt-2 flex flex-col gap-2">
-                  <LinkageFilter
-                    label="Photos linked to a check"
-                    value={checkLinkFilter}
-                    onChange={setCheckLinkFilter}
-                    linked={walkLinkage.checkLinked}
-                    unlinked={walkLinkage.checkUnlinked}
-                  />
-                  <LinkageFilter
-                    label="Photos linked to an asset system"
-                    value={systemLinkFilter}
-                    onChange={setSystemLinkFilter}
-                    linked={walkLinkage.systemLinked}
-                    unlinked={walkLinkage.systemUnlinked}
-                  />
-                </div>
-              </details>
-            </FilterPopover>
-          </div>
-          {/* THE FILTER CHIP ROW IS GONE, AND THAT IS THE POINT.
-              It was a row of discipline names that filtered a flat list. The
-              list is now a tree grouped BY discipline, so the chips were a
-              second control doing the tree's job — press "Electrical" or open
-              the Electrical group, same result, two ways to learn it and two
-              things to keep in sync. On the location axis it was worse: 133
-              register categories in a horizontally scrolling strip is not a
-              filter anybody can use.
+    const subtitle = "ACSA check-point · the register's wording";
 
-              It also cost about 50px of a 664px screen, permanently, at the
-              top. Between the axis switch, the search, the chips and the
-              progress line the sticky furniture came to a third of the
-              viewport — the letterbox the brief caps at a quarter. Search
-              still finds anything anywhere, and the tree is the filter. */}
-          {/* THE CAVEAT, AND IT RENDERS ON A PHONE.
-              It carried `hidden sm:block` — so on the 375px screen this whole
-              screen exists for, the one sentence saying the location axis is
-              not really locations did not render at all. The auditor most
-              likely to read "Appointments" as a place was the only one never
-              told it is not one. Shortened rather than hidden: the full
-              sentence is still there from sm, where there is room for it. */}
-          {axis.kind === "area" && groupBy === "area" && (
-            <div className="mt-[7px] text-[15px] leading-[1.5]" style={{ color: "var(--ink-3)" }}>
-              <span className="sm:hidden">
-                These are the register&rsquo;s categories, not physical zones.
-              </span>
-              <span className="hidden sm:inline">
-                These are the register&rsquo;s categories, not physical zones — {entity.short} zone
-                names have not been supplied yet. Search finds any check wherever you are standing.
-              </span>
-            </div>
-          )}
-          {/* TWO NUMBERS, NEVER ONE. The bar is progress through ACSA's list and
-              nothing else; what we found that was not on it is stated beside it
-              rather than added to it. Adding them would make the denominator a
-              number that grows as you work, which is not a denominator.
-              The figures moved up beside the axis switch; this is the track,
-              which is two pixels and carries the same fact at a glance. */}
-          <div className="mt-1.5 flex items-center gap-2">
-            <span className="track flex-1">
-              <i style={{ width: `${visible.length ? (doneCount / visible.length) * 100 : 0}%`, background: "var(--acc)" }} />
-            </span>
-            {walkVisible.length > 0 && (
-              <span className="shrink-0 font-mono text-[9.5px]" style={{ color: "var(--acc)" }}>
-                +{walkVisible.length} seen on the walk
-              </span>
-            )}
-          </div>
-        </div>
+    const footer = (
+      <>
+        {/* THE CAMERA AND THE MICROPHONE LIVE HERE NOW.
+            They were in the body, under the observation box, in a row
+            of their own. Sarel, on the phone: they make the boxes very
+            busy. They did — the body of a check already carries the
+            register's wording, our walkabout instruction, up to eleven
+            researched answers, an outcome, a location and a comment,
+            and two more controls in the middle of that reads as one
+            more thing to scroll past rather than a tool.
 
-        {visible.length === 0 && walkVisible.length === 0 ? (
-          <Empty>
-            <IconInbox width={26} height={26} />
-            <div>
-              Nothing matches. Clear the search or the filter — or use <b>Add item</b> for
-              something on site the register does not cover.
-            </div>
-          </Empty>
-        ) : (
-          /* THE LIST. Asset system → the work under it, and the work is both
-             kinds: the register's check-points and the things we found that it
-             does not cover, in one place, in the order somebody standing at the
-             asset would want them.
+            In the footer they are the opposite: pinned, never scrolled
+            away, one thumb-reach from the Save they sit beside, and out
+            of the reading order entirely. Icon-only with an aria-label
+            — a camera and a microphone are the two glyphs on earth that
+            need no word, and the room they free goes to the primary.
 
-             A collapsed row carries only what identifies the work: the outcome,
-             the id, the wording clamped to two lines, and small marks for what
-             is attached. Everything else is one tap away and unchanged when it
-             gets there. */
-          <div
-            /* NO `overflow-hidden` HERE, however much the rounded corners want
-               it. `overflow: hidden` makes an element its own scroll
-               container, so a `position: sticky` group header inside it sticks
-               within THIS box rather than within the page scroller — and since
-               this box is taller than the viewport and cannot itself scroll,
-               the header never sticks at all. It scrolled away silently, which
-               looked exactly like a header that had not reached its stopping
-               point yet. The square corner where the first group row meets the
-               border is the price, and it is worth paying. */
-            className="rounded-[11px] border"
-            style={{ background: "var(--panel)", borderColor: "var(--line)" }}
-          >
-            {tree.map((g) => {
-              const gOpen = isOpen(g.sys);
-              /* The 2025 rating for this asset system at THIS site. Looked up
-                 by the discipline the checks actually carry rather than by the
-                 filter, because on the location axis the filter is a place and
-                 a place has no discipline. */
-              const pf = priorFor(entityCode, g.checks[0]?.discipline ?? "", g.sys);
-              return (
-                <div key={g.sys} data-group={g.sys} data-system={g.sys}>
-                  <GroupRow
-                    label={g.sys}
-                    done={g.done}
-                    total={g.total}
-                    open={gOpen}
-                    onToggle={() => toggle(g.sys)}
-                    sticky
-                    stickyTop={barH}
-                    showCheck
-                    title={`${g.sys} — ${g.done} of ${g.total} seen${
-                      g.walk.length ? `, plus ${g.walk.length} added by hand` : ""
-                    }`}
-                  >
-                    {pf && <Pill tone="warn">{pf.key}</Pill>}
-                    {/* BESIDE THE FRACTION, NEVER INSIDE IT. Walk items are
-                        counted separately and said separately, because adding
-                        them would make the denominator a number that grows as
-                        you work. */}
-                    {/* A count, not a status — item 4 of Sarel's second
-                        visual-hierarchy pass takes the brand accent off it. */}
-                    {g.walk.length > 0 && <Pill>+{g.walk.length}</Pill>}
-                  </GroupRow>
-                  {gOpen && (
-                    <>
-                      {g.checks.map((c) => {
-                        const r = responses[c.id];
-                        const attachments = r?.attachments ?? [];
-                        const photos = attachments.filter((a) => a.kind === "photo");
-                        const voices = attachments.filter((a) => a.kind === "voice");
-                        const wo = library?.[c.id]?.WO ?? [];
-                        const picked = r?.walkaboutPicked;
-                        const needsPhoto =
-                          picked != null && wo[picked]?.photo === true && photos.length === 0;
-                        /* The row no longer expands in place — tapping it opens
-                           the check in a sheet. It still marks itself as the one
-                           that is open, because the sheet is dismissible and
-                           coming back to a list with nothing highlighted loses
-                           your place. */
-                        const itemOpen = openItem === c.id;
-                        const outcome = OUTCOMES.find((o) => o.key === r?.fieldCompliance);
-                        const raised = findingsHere.get(c.id) ?? 0;
-                        return (
-                          <div
-                            key={c.id}
-                            data-check={c.id}
-                            className="border-b"
-                            style={{ borderColor: "var(--line)" }}
-                          >
-                            {/* THE COLLAPSED ROW. Full width, one tap. */}
-                            <button
-                              onClick={() => { setOpenItem(c.id); setCheckTab("walkabout"); }}
-                              aria-haspopup="dialog"
-                              aria-expanded={itemOpen}
-                              className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left"
-                              style={{
-                                background: itemOpen ? "var(--acc-soft)" : "transparent",
-                                minHeight: 56,
-                                /* Recedes once the asset has been SEEN — the field half,
-                                   never the derived `captured` flag. A row must not fade
-                                   because somebody read a document at a desk: 290 of the
-                                   324 need both halves, and greying on the wrong one tells
-                                   an auditor on the apron that work they still have to do
-                                   is finished. */
-                                opacity: fieldDone(r) && !itemOpen ? 0.62 : 1,
-                              }}
-                            >
-                              {/* The outcome mark. BLANK WHEN NOT CAPTURED, and
-                                  blank means exactly that — never compliant.
-                                  Carried by the icon and the word underneath, so
-                                  it survives sunlight and a colour-blind
-                                  reader. */}
-                              <span
-                                className="mt-[1px] flex w-[34px] shrink-0 flex-col items-center gap-[2px]"
-                                style={{ color: outcome ? "var(--acc)" : "var(--ink-4)" }}
-                              >
-                                {outcome ? (
-                                  <outcome.Icon width={15} height={15} />
-                                ) : (
-                                  <span
-                                    aria-hidden="true"
-                                    className="block h-[13px] w-[13px] rounded-full border-[1.5px] border-dashed"
-                                    style={{ borderColor: "var(--line-2)" }}
-                                  />
-                                )}
-                                <span className="font-mono text-[8px] leading-none">
-                                  {outcome ? outcome.label : "—"}
-                                </span>
-                              </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="mb-[3px] flex flex-wrap items-center gap-1.5">
-                                  <span className="font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
-                                    {portalIdFor(entityCode, c.id)}
-                                  </span>
-                                  {/* THE OTHER HALF, said on the row. 290 of the
-                                      324 need a document review as well as the
-                                      asset seen. An auditor who ticks the walk
-                                      and moves on, with nothing saying the check
-                                      also wants evidence off a desk, leaves it
-                                      half answered — and the completion figure
-                                      will say so weeks later with no
-                                      explanation. "Physical" is dropped because
-                                      every row here is physical. */}
-                                  {/* How the check is answered is a
-                                      category, not a status — item 4 of
-                                      Sarel's second visual-hierarchy pass
-                                      takes the brand accent off it. */}
-                                  {modeLabels(c)
-                                    .filter((m) => m !== "Physical")
-                                    .map((m) => (
-                                      <Pill key={m}>{m.toUpperCase()}</Pill>
-                                    ))}
-                                </span>
-                                {/* CLAMPED, NOT SHORTENED. The register's own
-                                    words, whole, in the DOM — two lines of them
-                                    until the row is opened. Storing or rendering
-                                    a tidied version of ACSA's check text is the
-                                    defect pass 1 fixed and this must not
-                                    reintroduce it. */}
-                                <span
-                                  className="block text-[12.5px] leading-[1.4] font-semibold"
-                                  style={{
-                                    display: "-webkit-box",
-                                    WebkitLineClamp: 2,
-                                    WebkitBoxOrient: "vertical",
-                                    overflow: "hidden",
-                                  }}
-                                >
-                                  {c.requirement?.trim() ? (
-                                    c.requirement
-                                  ) : (
-                                    <span style={{ color: "var(--warn)" }}>
-                                      {portalIdFor(entityCode, c.id)} — the register carries no
-                                      check text for this check-point
-                                    </span>
-                                  )}
-                                </span>
-                                <span
-                                  className="mt-[3px] flex flex-wrap items-center gap-2 font-mono text-[9px]"
-                                  style={{ color: "var(--ink-4)" }}
-                                >
-                                  {r?.location?.trim() && <span>{r.location}</span>}
-                                  {photos.length > 0 && <span>{photos.length}📷</span>}
-                                  {voices.length > 0 && <span>{voices.length}🎙</span>}
-                                  {r?.observation?.trim() && <span>note</span>}
-                                  {raised > 0 && (
-                                    <span style={{ color: "var(--warn)" }}>
-                                      {raised} finding{raised === 1 ? "" : "s"}
-                                    </span>
-                                  )}
-                                  {needsPhoto && (
-                                    <span style={{ color: "var(--warn)" }}>photo expected</span>
-                                  )}
-                                </span>
-                              </span>
-                            </button>
-                          </div>
-                        );
-                      })}
+            "Full check-point →" WAS HERE AND IS GONE, at Sarel's
+            instruction. It left the walk for the desk screen mid-walk,
+            which is the opposite of what this screen is for; everything
+            it went to fetch — ACSA's requirement, the threshold, the
+            document and clause — is on the desk screen when the desk
+            half is done. */}
+        <span className="flex shrink-0 items-center gap-2">
+          <PhotoButton
+            compact
+            className="min-h-[44px] w-[44px] justify-center"
+            onCaptured={(m) => {
+              addAttachment(c.id, {
+                ...m,
+                /* WHERE IT WAS TAKEN, WITHOUT A SINGLE EXTRA TAP —
+                   when this check already has one typed. No running
+                   location to fall back on any more; a photograph on
+                   a check nobody has named a place for is simply
+                   editable per photograph, same as always. */
+                location: r?.location?.trim() || "",
+                createdBy: auditor,
+              });
+              say(`Photo added to ${portalIdFor(entityCode, c.id)}`);
+            }}
+          />
+          <VoiceNoteButton
+            compact
+            className="min-h-[44px] w-[44px] justify-center"
+            onCaptured={(m) => {
+              addAttachment(c.id, { ...m, createdBy: auditor });
+              say(`Voice note added to ${portalIdFor(entityCode, c.id)}`);
+            }}
+          />
+        </span>
+        {/* SAVE & CLOSE, ALWAYS — never "save and next".
+            Sarel, from the apron: "the save and next button should
+            rather be a save and close button because the inspections
+            wont necessarily flow in sequence."
 
-                      {/* ADDED BY HAND, FILED WITH THE REST OF THE WORK.
-                          Same row shape as a check-point, in the same asset
-                          system, because that is where somebody standing at the
-                          asset will look for it — and marked, at the front of
-                          the row, because it is NOT one of the 324: it has no
-                          ACSA requirement behind it, no threshold to quote, and
-                          no place in the completion figure. The mark is an icon
-                          AND the words "added on the walk", never colour alone.
-                          The border stays dashed for the same reason. */}
-                      {g.walk.map((it) => {
-                        const photos = it.attachments.filter((a) => a.kind === "photo").length;
-                        const voices = it.attachments.filter((a) => a.kind === "voice").length;
-                        const outcome = OUTCOMES.find((o) => o.key === it.outcome);
-                        return (
-                          <div
-                            key={it.id}
-                            data-walk={it.id}
-                            className="border-b"
-                            style={{ borderColor: "var(--line)" }}
-                          >
-                            <button
-                              onClick={() => {
-                                setEditingId(it.id);
-                                setSheetOpen(true);
-                              }}
-                              aria-haspopup="dialog"
-                              className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left"
-                              style={{ minHeight: 56 }}
-                            >
-                              <span
-                                className="mt-[1px] flex w-[34px] shrink-0 flex-col items-center gap-[2px]"
-                                style={{ color: outcome ? "var(--acc)" : "var(--ink-4)" }}
-                              >
-                                {outcome ? (
-                                  <outcome.Icon width={15} height={15} />
-                                ) : (
-                                  <span
-                                    aria-hidden="true"
-                                    className="block h-[13px] w-[13px] rounded-full border-[1.5px] border-dashed"
-                                    style={{ borderColor: "var(--line-2)" }}
-                                  />
-                                )}
-                                <span className="font-mono text-[8px] leading-none">
-                                  {outcome ? outcome.label : "—"}
-                                </span>
-                              </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="mb-[3px] flex flex-wrap items-center gap-1.5">
-                                  {/* THE MARK. An icon and a word, together —
-                                      one row in a list of check-points that is
-                                      not a check-point has to say so in a way
-                                      that survives a greyscale printout. */}
-                                  {/* A provenance mark, not a status — item 4
-                                      of Sarel's second visual-hierarchy pass
-                                      takes the brand accent off it. */}
-                                  <span
-                                    className="flex items-center gap-[3px] rounded-[8px] border border-dashed px-[5px] py-[1px] font-mono text-[8.5px]"
-                                    style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
-                                    title="Added on the walk — not one of ACSA's check-points, and not counted in the completion figure"
-                                  >
-                                    <IconPlus width={9} height={9} />
-                                    ADDED ON THE WALK
-                                  </span>
-                                  <span className="font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
-                                    {it.id}
-                                  </span>
-                                  {it.findingId && <Pill tone="warn">{it.findingId}</Pill>}
-                                  {it.importKey && (
-                                    <Pill title="Written by Import observation pack — not typed on the walk">
-                                      IMPORTED, TPJV-PROPOSED
-                                    </Pill>
-                                  )}
-                                </span>
-                                {it.title && (
-                                  <span
-                                    className="mb-[1px] block text-[10px] font-semibold uppercase tracking-wide"
-                                    style={{ color: "var(--ink-3)" }}
-                                  >
-                                    {it.title}
-                                  </span>
-                                )}
-                                <span
-                                  className="block text-[12.5px] leading-[1.4] font-semibold"
-                                  style={{
-                                    display: "-webkit-box",
-                                    WebkitLineClamp: 2,
-                                    WebkitBoxOrient: "vertical",
-                                    overflow: "hidden",
-                                  }}
-                                >
-                                  {it.description}
-                                </span>
-                                <span
-                                  className="mt-[3px] flex flex-wrap items-center gap-2 font-mono text-[9px]"
-                                  style={{ color: "var(--ink-4)" }}
-                                >
-                                  {it.area && <span>{it.area}</span>}
-                                  {it.raisedBy && <span>raised by {it.raisedBy}</span>}
-                                  {photos > 0 && <span>{photos}📷</span>}
-                                  {voices > 0 && <span>{voices}🎙</span>}
-                                  {photos === 0 && voices === 0 && (
-                                    <span style={{ color: "var(--warn)" }}>no evidence attached</span>
-                                  )}
-                                </span>
-                              </span>
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+            That is the difference between the desk and the walk. At a
+            desk an auditor works a discipline top to bottom and the
+            next check is the right one to open. On a walk they are
+            standing in front of a thing, and what they inspect next is
+            decided by where their feet are, not by register order.
+            Advancing for them opened a check about somewhere else and
+            made them close it again — a press against them on every
+            item.
 
-      {/* THE ADD CONTROL, AND WHY IT IS IN THE BAR RATHER THAN FLOATING OVER IT.
-          The brief asked for a floating action button bottom-right. On a phone
-          this screen already carries two fixed layers at the bottom: the app's
-          own navigation (56px plus the home indicator, fixed below sm) and this
-          action bar. A circle floating above both would be a third, and the
-          same brief caps sticky furniture at about a quarter of a 664px
-          viewport — which those two already come close to spending.
-
-          So the bar itself is the thumb zone, and Add item is its primary:
-          56px, bottom-right on a phone (order-last below sm), labelled in
-          words, never scrolled away, and clearing the home indicator through
-          --sticky-safe like everything else here. It satisfies every property
-          the brief asked the button for. Raise it if you disagree — the thing
-          it must not become is a third stacked layer. */}
-      <div
-        className="sticky bottom-0 z-20 flex items-center gap-2 border-t px-4 py-2.5 sm:px-6"
-        style={{
-          background: "var(--panel)",
-          borderColor: "var(--line)",
-          boxShadow: "0 -4px 16px -8px rgba(22,16,40,.14)",
-          paddingBottom: "calc(10px + var(--sticky-safe))",
-        }}
-      >
-        {/* IT RAN OFF THE RIGHT EDGE ON A REAL PHONE. Four controls plus the
-            unassigned badge came to more than 375px, so "Add item" — the
-            primary, and the one control the brief says must always be hittable
-            — was clipped. The two secondaries are icon-only below sm now, with
-            their names on aria-label, and the primary takes the room that
-            frees. `min-w-0` so a flex child can actually shrink. */}
+            Closing returns to the list, which is where the next choice
+            is actually made. `next` is no longer computed for this.
+            IN WIDE MODE this still closes/clears the pane rather than the
+            check itself changing shape — `setOpenItem(null)` deselects,
+            which is the inline-pane equivalent of the modal closing. */}
         <Btn
           variant="primary"
-          className="order-last min-h-[56px] min-w-0 flex-1 justify-center sm:order-none sm:flex-none"
           onClick={() => {
-            setEditingId(null);
-            setSheetOpen(true);
+            saveField(c.id);
+            setOpenItem(null);
+            say(`Saved · ${portalIdFor(entityCode, c.id)}`);
           }}
         >
-          <IconPlus width={16} height={16} />
-          Add item
+          <IconCheck width={14} height={14} />
+          Save &amp; close
         </Btn>
-        {/* Still the fastest path to a photograph: no record, no fields, assign
-            it later from the tray. Different from Add item, which creates the
-            record the photograph belongs to. */}
-        <PhotoButton
-          compact
-          className="min-h-[44px] w-[44px] shrink-0 justify-center sm:w-auto sm:px-[13px]"
-          onCaptured={(m) => {
-            addCapture({
-              ...m,
-              area: "Unspecified",
-              createdBy: auditor,
-            });
-            say("Captured — assign it whenever you like");
-          }}
-        />
-        {/* The walk is where hazards are actually spotted. Until this existed
-            the only route to the register was consolidating findings, which
-            cannot produce a hazard nobody wrote a finding about. */}
-        <Btn
-          className="min-h-[44px] shrink-0 justify-center px-0 sm:px-[15px]"
-          style={{ width: 44 }}
-          aria-label="Raise a hazard seen on the walk"
-          onClick={() => setHazardOpen(true)}
-        >
-          <IconFlag width={16} height={16} />
-          <span className="hidden sm:inline">Hazard</span>
-        </Btn>
-        {captures.length > 0 && (
-          <Btn
-            className="min-h-[44px] shrink-0 px-[11px] sm:px-[15px]"
-            aria-label={`${captures.length} unassigned captures`}
-            onClick={() => setTray(true)}
-            style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}
-          >
-            {captures.length}
-            <span className="hidden sm:inline"> unassigned</span>
-          </Btn>
-        )}
-        <span className="ml-auto hidden font-mono text-[10px] sm:block" style={{ color: "var(--ink-3)" }}>
-          offline-capable · syncs when connected
-        </span>
-      </div>
+      </>
+    );
 
-      {/* unassigned tray */}
-      {tray && (
-        <div className="fixed inset-0 z-[80] flex justify-center pt-[10vh]" style={{ background: "rgba(16,10,32,.5)", backdropFilter: "blur(4px)" }} onClick={() => setTray(false)}>
-          <div
-            className="max-h-[70vh] w-[min(560px,92vw)] overflow-y-auto rounded-[16px] border p-[22px]"
-            style={{ background: "var(--panel)", borderColor: "var(--line-2)", boxShadow: "var(--e3)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-[14px] font-bold">Unassigned captures</h3>
-            <p className="mt-1 mb-3.5 text-[12px]" style={{ color: "var(--ink-2)" }}>
-              Taken in the field before deciding where they belong. Assign each to a check-point, or
-              discard it.
-            </p>
-            {captures.map((cap) => (
-              <div key={cap.id} className="mb-2 flex items-center gap-2.5 rounded-[11px] border p-2.5" style={{ background: "var(--sunken)", borderColor: "var(--line)" }}>
-                <PhotoThumb a={cap} size={44} />
-                <div className="min-w-0 flex-1">
-                  <div className="font-mono text-[10px]" style={{ color: "var(--ink-4)" }}>
-                    {cap.name} · {cap.area}
-                  </div>
-                  <div className="text-[12px]">Awaiting assignment</div>
-                </div>
-                <select
-                  defaultValue=""
-                  onChange={(e) => {
-                    if (!e.target.value) return;
-                    assignCapture(cap.id, e.target.value);
-                    say("Photo assigned");
-                  }}
-                  className="max-w-[150px] rounded-[8px] border px-2 py-1.5 text-[11px]"
-                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-                >
-                  <option value="">Assign to…</option>
-                  {visible.slice(0, 60).map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {portalIdFor(entityCode, c.id)}
-                    </option>
-                  ))}
-                </select>
-                <button onClick={() => discardCapture(cap.id)} aria-label="Discard" style={{ color: "var(--ink-3)" }}>
-                  <IconX width={14} height={14} />
-                </button>
-              </div>
-            ))}
-            {captures.length === 0 && <Empty>Tray is empty.</Empty>}
-            <div className="mt-3 flex justify-end">
-              <Btn onClick={() => setTray(false)}>Close</Btn>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* a hazard seen on the walk */}
-      {hazardOpen && (
-        <div
-          className="fixed inset-0 z-[80] flex justify-center pt-[10vh]"
-          style={{ background: "rgba(16,10,32,.5)", backdropFilter: "blur(4px)" }}
-          onClick={() => setHazardOpen(false)}
-        >
-          <div
-            className="w-[min(560px,92vw)] rounded-[16px] border p-[22px]"
-            style={{ background: "var(--panel)", borderColor: "var(--line-2)", boxShadow: "var(--e3)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-[14px] font-bold">New hazard</h3>
-            <p className="mt-1 mb-3.5 text-[12px]" style={{ color: "var(--ink-2)" }}>
-              The <b>event</b>, not the paperwork. &ldquo;Uncontained fuel release on the apron&rdquo;,
-              not &ldquo;register not signed&rdquo; — the event is what carries the rating, because a
-              finding closes and a hazard does not. It arrives on the register unrated; the group
-              agrees the cell there.
-            </p>
-            <label className="block">
-              <span className="label-xs">The event · under 15 words</span>
-              <input
-                value={hazEvent}
-                onChange={(e) => setHazEvent(e.target.value)}
-                placeholder="Uncontained fuel release on the apron…"
-                className="mt-1 w-full rounded-[11px] border px-3 py-2.5 text-[13px] font-semibold outline-none"
-                style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-              />
-            </label>
-            <label className="mt-3 block">
-              <span className="label-xs">What control failed, and what it was protecting against</span>
-              <textarea
-                value={hazWhy}
-                onChange={(e) => setHazWhy(e.target.value)}
-                placeholder="What you saw, and what it would take to go wrong…"
-                className="mt-1 min-h-[70px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none"
-                style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-              />
-            </label>
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <label className="block">
-                <span className="label-xs">Discipline</span>
-                <select
-                  value={adhocDisc}
-                  onChange={(e) => setAdhocDisc(e.target.value)}
-                  className="mt-1 w-full rounded-[8px] border px-2.5 py-2 text-[12px]"
-                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-                >
-                  {disciplines.map((d) => (
-                    <option key={d}>{d}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="label-xs">Location</span>
-                <select
-                  value={adhocArea}
-                  onChange={(e) => setAdhocArea(e.target.value)}
-                  className="mt-1 w-full rounded-[8px] border px-2.5 py-2 text-[12px]"
-                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-                >
-                  {areas.map((a) => (
-                    <option key={a}>{a}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <Btn variant="ghost" onClick={() => setHazardOpen(false)}>
-                Cancel
-              </Btn>
-              <Btn
-                variant="primary"
-                onClick={() => {
-                  if (!hazEvent.trim()) {
-                    say("Name the event first");
-                    return;
-                  }
-                  const id = addHazard({
-                    originVisit: visitId,
-                    event: hazEvent.trim(),
-                    description: "",
-                    why: hazWhy.trim(),
-                    findingIds: [],
-                    disciplines: [adhocDisc],
-                    systems: [adhocArea],
-                    areas: [],
-                    otherImpacts: [],
-                    /* Unrated, on both instruments, always. The walk names the
-                       event; the group rates it. */
-                    severity: null,
-                    likelihood: null,
-                    ratingConfirmed: false,
-                    ermConsequence: null,
-                    ermLikelihood: null,
-                    ermConfirmed: false,
-                    ermLikelihoodAssumed: false,
-                    /* Seen on the walk, and the register says so. */
-                    origin: "field",
-                    note: `Seen on the walk at ${adhocArea}.`,
-                    occurrence: "",
-                    ratingRationale: "",
-                    progress: [],
-                    immediate: false,
-                    reassessedAt: null,
-                    reassessNote: "",
-                    rootCause: "",
-                    actions: [],
-                    actionStatus: "Open",
-                    createdBy: auditor,
-                  });
-                  setHazEvent("");
-                  setHazWhy("");
-                  setHazardOpen(false);
-                  say(`${id} raised · rate it on the hazard register`);
-                }}
+    const body = (
+      <>
+        {/* WHICH HALF IS SHOWING — see checkTab's own note above. Two tabs,
+            pill-shaped like CheckDetail's own tab strip, so a reference tab
+            reads the same wherever it appears in this app. "ACSA
+            requirement" is deliberately the same label the desk screen uses
+            for the identical panel — see AcsaRequirementPanel. */}
+        <div role="tablist" className="mb-3 flex flex-nowrap gap-[5px]">
+          {(
+            [
+              ["walkabout", "Walkabout"],
+              ["acsa", "ACSA requirement"],
+            ] as [typeof checkTab, string][]
+          ).map(([key, label]) => {
+            const on = checkTab === key;
+            return (
+              <button
+                key={key}
+                role="tab"
+                aria-selected={on}
+                onClick={() => setCheckTab(key)}
+                className="flex shrink-0 items-center gap-[5px] rounded-full border px-[11px] py-[6px] font-display text-[10.5px] font-semibold whitespace-nowrap transition-[var(--t)]"
+                style={
+                  on
+                    ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
+                    : { background: "var(--sunken)", borderColor: "transparent", color: "var(--ink-3)" }
+                }
               >
-                <IconCheck width={14} height={14} />
-                Create hazard
-              </Btn>
-            </div>
-          </div>
+                {label}
+              </button>
+            );
+          })}
         </div>
-      )}
 
-      {/* THE CHECK, IN A SHEET RATHER THAN EXPANDED IN THE LIST.
-
-          It expanded in place first, which is what the brief asked for, and on
-          a real phone it did not work. Sarel's words: too much scrolling, hard
-          to see what you need, and "the save button is not easily visible to
-          find to save it". All three are the same cause — an expanded item
-          rendered into the gap between a 156px sticky filter bar and a 132px
-          bottom bar on a 664px screen, so the answer buttons, the comment
-          field, the photographs and the save control were spread down a column
-          about 220px tall, and Save was last.
-
-          The sheet is the layout he pointed at as the clean one: the add-item
-          form. Same reasoning applies to a register check, more so — a check
-          carries the register's wording, our walkabout instruction, up to
-          eleven researched answers, an outcome, a comment and its evidence.
-          Given the whole viewport it reads as one job with the commit pinned
-          under it; squeezed into a third of the viewport it reads as a pile.
-
-          The list keeps its shape while the sheet is open, so closing it puts
-          the auditor back exactly where they were. */}
-      {(() => {
-        const c = openItem ? visible.find((x) => x.id === openItem) : null;
-        if (!c) return null;
-        const r = responses[c.id];
-        const attachments = r?.attachments ?? [];
-        const photos = attachments.filter((x) => x.kind === "photo");
-        const wo = library?.[c.id]?.WO ?? [];
-        const picked = r?.walkaboutPicked;
-        const needsPhoto = picked != null && wo[picked]?.photo === true && photos.length === 0;
-        const pf = priorFor(entityCode, c.discipline, c.system);
-        return (
-          <Sheet
-            open
-            wide
-            onClose={() => setOpenItem(null)}
-            badges={
-              <>
-                <span>{portalIdFor(entityCode, c.id)}</span>
-                <span>·</span>
-                <span>{c.system}</span>
-                {/* How the check is answered is a category, not a status —
-                    item 4 of Sarel's second visual-hierarchy pass takes the
-                    brand accent off it. */}
-                {modeLabels(c)
-                  .filter((m) => m !== "Physical")
-                  .map((m) => <Pill key={m}>{m.toUpperCase()}</Pill>)}
-                {pf && <Pill tone="warn">{pf.key} · 2025 {pf.rating.toUpperCase()}</Pill>}
-              </>
-            }
-            title={
-              c.requirement?.trim() ? (
-                c.requirement
-              ) : (
-                <span style={{ color: "var(--warn)" }}>
-                  {portalIdFor(entityCode, c.id)} — the register carries no check text for this
-                  check-point
-                </span>
-              )
-            }
-            subtitle="ACSA check-point · the register's wording"
-            footer={
-              <>
-                {/* THE CAMERA AND THE MICROPHONE LIVE HERE NOW.
-                    They were in the body, under the observation box, in a row
-                    of their own. Sarel, on the phone: they make the boxes very
-                    busy. They did — the body of a check already carries the
-                    register's wording, our walkabout instruction, up to eleven
-                    researched answers, an outcome, a location and a comment,
-                    and two more controls in the middle of that reads as one
-                    more thing to scroll past rather than a tool.
-
-                    In the footer they are the opposite: pinned, never scrolled
-                    away, one thumb-reach from the Save they sit beside, and out
-                    of the reading order entirely. Icon-only with an aria-label
-                    — a camera and a microphone are the two glyphs on earth that
-                    need no word, and the room they free goes to the primary.
-
-                    "Full check-point →" WAS HERE AND IS GONE, at Sarel's
-                    instruction. It left the walk for the desk screen mid-walk,
-                    which is the opposite of what this screen is for; everything
-                    it went to fetch — ACSA's requirement, the threshold, the
-                    document and clause — is on the desk screen when the desk
-                    half is done. */}
-                <span className="flex shrink-0 items-center gap-2">
-                  <PhotoButton
-                    compact
-                    className="min-h-[44px] w-[44px] justify-center"
-                    onCaptured={(m) => {
-                      addAttachment(c.id, {
-                        ...m,
-                        /* WHERE IT WAS TAKEN, WITHOUT A SINGLE EXTRA TAP —
-                           when this check already has one typed. No running
-                           location to fall back on any more; a photograph on
-                           a check nobody has named a place for is simply
-                           editable per photograph, same as always. */
-                        location: r?.location?.trim() || "",
-                        createdBy: auditor,
-                      });
-                      say(`Photo added to ${portalIdFor(entityCode, c.id)}`);
-                    }}
-                  />
-                  <VoiceNoteButton
-                    compact
-                    className="min-h-[44px] w-[44px] justify-center"
-                    onCaptured={(m) => {
-                      addAttachment(c.id, { ...m, createdBy: auditor });
-                      say(`Voice note added to ${portalIdFor(entityCode, c.id)}`);
-                    }}
-                  />
-                </span>
-                {/* SAVE & CLOSE, ALWAYS — never "save and next".
-                    Sarel, from the apron: "the save and next button should
-                    rather be a save and close button because the inspections
-                    wont necessarily flow in sequence."
-
-                    That is the difference between the desk and the walk. At a
-                    desk an auditor works a discipline top to bottom and the
-                    next check is the right one to open. On a walk they are
-                    standing in front of a thing, and what they inspect next is
-                    decided by where their feet are, not by register order.
-                    Advancing for them opened a check about somewhere else and
-                    made them close it again — a press against them on every
-                    item.
-
-                    Closing returns to the list, which is where the next choice
-                    is actually made. `next` is no longer computed for this. */}
-                <Btn
-                  variant="primary"
-                  onClick={() => {
-                    saveField(c.id);
-                    setOpenItem(null);
-                    say(`Saved · ${portalIdFor(entityCode, c.id)}`);
-                  }}
-                >
-                  <IconCheck width={14} height={14} />
-                  Save &amp; close
-                </Btn>
-              </>
-            }
-          >
-            {/* WHICH HALF OF THE SHEET IS SHOWING — see checkTab's own note
-                above. Two tabs, pill-shaped like CheckDetail's own tab strip,
-                so a reference tab reads the same wherever it appears in this
-                app. "ACSA requirement" is deliberately the same label the
-                desk screen uses for the identical panel — see
-                AcsaRequirementPanel. */}
-            <div role="tablist" className="mb-3 flex flex-nowrap gap-[5px]">
-              {(
-                [
-                  ["walkabout", "Walkabout"],
-                  ["acsa", "ACSA requirement"],
-                ] as [typeof checkTab, string][]
-              ).map(([key, label]) => {
-                const on = checkTab === key;
-                return (
-                  <button
-                    key={key}
-                    role="tab"
-                    aria-selected={on}
-                    onClick={() => setCheckTab(key)}
-                    className="flex shrink-0 items-center gap-[5px] rounded-full border px-[11px] py-[6px] font-display text-[10.5px] font-semibold whitespace-nowrap transition-[var(--t)]"
-                    style={
-                      on
-                        ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
-                        : { background: "var(--sunken)", borderColor: "transparent", color: "var(--ink-3)" }
-                    }
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {checkTab === "acsa" ? (
-              <AcsaRequirementPanel check={c} />
-            ) : (
-              <>
+        {checkTab === "acsa" ? (
+          <AcsaRequirementPanel check={c} />
+        ) : (
+          <>
             {/* OURS, AND IT SAYS SO. 25 of the 324 have no walkabout written;
                 an empty one renders nothing at all. */}
             {c.walkabout?.trim() && (
@@ -1991,11 +1265,968 @@ export default function FieldPage() {
                 </div>
               );
             })()}
-              </>
+          </>
+        )}
+      </>
+    );
+
+    return { c, badges, title, subtitle, footer, body };
+  })();
+
+  return (
+    /* PHASE 2: an outer flex-col wrapper so the page heading can sit OUTSIDE
+       the scrolling container as its own shrink-0 bar, the same shape
+       Checks already has (src/app/(app)/capture/page.tsx) and shares with
+       it through PageHeading (src/components/ui/PageHeading.tsx) — title
+       and progress on the left, an actions slot on the right. It used to be
+       the first in-flow block inside `.app-scroll`, which meant it scrolled
+       away with the list; pinned here it stays visible at every scroll
+       position, same as Checks' own heading row. */
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <PageHeading
+        title={
+          <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+            {heading}
+            {/* Prose that orients somebody the first time and costs them a
+                scroll every time after. ON ITS OWN LINE, it was a second
+                stacked block above a bar that already explains itself (the
+                toggle's labels, the search placeholder) — folded onto the
+                title's own row instead, so it costs a few extra characters of
+                width rather than a whole line of height. Still sm-only; a
+                664px phone has room for neither version. */}
+            <p className="hidden text-[11.5px] sm:block" style={{ color: "var(--ink-2)" }}>
+              Nothing here assumes an order — group by discipline or by where you are standing,
+              search anything, or capture first and assign it later.
+            </p>
+          </div>
+        }
+        progress={
+          /* THE PAGE-HEADING PROGRESS FIGURE, RESTORED — desktop/tablet
+             redesign, phase 1 checkpoint. `doneCount`/`visible.length` are
+             the exact pair that used to render here as "{doneCount}/
+             {visible.length}" (see their own comment just above this
+             return), presented now as a slim 4px bar plus words rather
+             than the bare mono fraction that used to sit beside the
+             Filters button — new presentation, same source of truth. */
+          <div className="flex min-w-[160px] flex-1 items-center gap-2.5 sm:max-w-[360px] sm:flex-none">
+            <span
+              className="h-[4px] flex-1 overflow-hidden rounded-full"
+              style={{ background: "var(--line)" }}
+              role="img"
+              aria-label={`${doneCount} of ${visible.length} captured, ${visiblePct}%`}
+            >
+              {/* a11y.js's "small round span" dot-check can mistake this fill
+                  for an unlabelled status dot once it's 0% wide (0x4px, same
+                  footprint as a real dot) — the sr-only text gives the span
+                  it sits in real textContent so the check's own "aria-hidden
+                  AND the row already says it in words" rule is satisfied. */}
+              <span className="sr-only">
+                {doneCount} of {visible.length} captured, {visiblePct}%
+              </span>
+              <span
+                className="block h-full rounded-full"
+                style={{ width: `${visiblePct}%`, background: "var(--acc)" }}
+                aria-hidden="true"
+              />
+            </span>
+            <span className="tnum shrink-0 font-mono text-[12px]" style={{ color: "var(--ink-2)" }} aria-hidden="true">
+              {doneCount} of {visible.length} captured · {visiblePct}%
+            </span>
+            {visible.length > 0 && doneCount === visible.length && (
+              <IconCheck
+                width={13}
+                height={13}
+                aria-label="All check-points captured"
+                style={{ color: "var(--acc)" }}
+              />
             )}
-          </Sheet>
-        );
-      })()}
+          </div>
+        }
+      />
+    <div ref={scrollAreaRef} className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <div className="mx-auto w-full max-w-[1180px] px-4 pt-3 pb-24 sm:px-6">
+        {/* THE STICKY HEADER.
+
+            SEARCH IS ITS OWN ROW NOW, FIRST, ALWAYS VISIBLE — overnight
+            refinement, task 3: "expose its existing search prominently
+            instead of burying every way to locate an asset behind a
+            'Filters' button." It used to live inside the FilterPopover
+            below, behind a tap on "Filters · <whatever is set>" — the one
+            way an auditor standing at an asset finds the check for it was
+            hidden behind the one control that also changes what's filtered.
+            Nothing about search itself changed: same `q`/`setQ`, same
+            whole-register reach, same "Searching every…" note when a filter
+            is also set — it is simply the first thing in the bar rather
+            than three levels deep in a popover.
+
+            The Filters popover (the axis switch, the discipline/location
+            select and the photo-linkage filters) is still exactly as
+            reachable as before, directly below — advanced grouping stays
+            available, it is just no longer the way search is reached. */}
+        <div
+          ref={barRef}
+          className="sticky top-0 z-10 -mx-4 mb-2 border-b px-4 py-[5px] sm:-mx-6 sm:px-6 sm:py-[7px]"
+          style={{ background: "var(--bg)", borderColor: "var(--line)" }}
+        >
+          <div
+            className="flex min-w-0 items-center gap-2 rounded-[11px] border px-3 py-1 sm:py-2"
+            style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+          >
+            <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search anywhere…"
+              aria-label="Search any check"
+              className="min-h-[40px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
+            />
+          </div>
+          {/* SAID OUT LOUD, because otherwise it looks like the filter broke.
+              A search runs across the whole register — it has to, or the
+              check for the thing in front of the auditor is missing because
+              of a filter they set in another building. */}
+          {searching && activeFilter && (
+            <div className="mt-1 text-[10.5px]" style={{ color: "var(--ink-3)" }}>
+              Searching every {groupBy === "area" ? "location" : "discipline"}, not just{" "}
+              <b>{activeFilter}</b>.
+            </div>
+          )}
+          <div className="mt-2 flex items-center gap-2">
+            {/* THE BUTTON NAMES WHAT IS SET, IT DOES NOT ALSO COUNT IT —
+                Sarel's second visual-hierarchy pass, item 7: "Filter button
+                label becomes 'Filters · Civil' — drop the '8/56 +16' from
+                the button; show result counts above the list instead." The
+                button used to carry three things at once: the word
+                "Filters", a count badge (how many of the axes are
+                non-default) and a full summary line ("By discipline ·
+                Electrical · 'ramp' · linked to a check"). `fieldFilterLabel`
+                replaces all three with the one thing worth reading at a
+                glance — which discipline or location is active, right in
+                the label — and nothing is lost: the full detail (search
+                term, linkage filters and all) is still one tap away inside
+                the panel, unchanged. The result counts this button used to
+                sit beside (doneCount/visible.length, +walkVisible.length)
+                move to sit directly above the list instead — see the
+                existing track+figure just below this bar, which already
+                did that job; the one that duplicated it beside this button
+                is the one that is gone. */}
+            <FilterPopover
+              label={fieldFilterLabel}
+              className="min-w-0 flex-1 sm:max-w-[420px] sm:flex-none"
+            >
+              <div
+                role="radiogroup"
+                aria-label="Group the list by"
+                className="flex gap-[2px] rounded-[11px] p-[3px]"
+                style={{ background: "var(--sunken)" }}
+              >
+                {(["discipline", "area"] as const).map((g) => (
+                  <button
+                    key={g}
+                    role="radio"
+                    aria-checked={groupBy === g}
+                    onClick={() => {
+                      setGroupBy(g);
+                      /* A new axis has different groups, so nothing that was
+                         open under the old one still means anything. The
+                         location axis's own filter resets here exactly as it
+                         always did — a place filter means nothing once
+                         you've left it. The discipline axis does NOT reset:
+                         it is the shared filter (useDisciplineFilter), and
+                         clearing it on every toggle back to "By discipline"
+                         would throw away the whole point of sharing it with
+                         Capture/Review/HIRA. Setting it directly (not through
+                         `setFilter`, which reads the OLD `groupBy` from this
+                         closure) avoids clearing the wrong axis. */
+                      setExpanded([]);
+                      setAreaFilter("");
+                    }}
+                    className="flex min-h-[38px] flex-1 items-center justify-center gap-[6px] rounded-[8px] px-3 font-display text-[11.5px] font-semibold transition-[var(--t)] sm:min-h-[40px]"
+                    style={{
+                      background: groupBy === g ? "var(--panel)" : "transparent",
+                      color: groupBy === g ? "var(--acc)" : "var(--ink-2)",
+                      boxShadow: groupBy === g ? "var(--e1)" : "none",
+                    }}
+                  >
+                    {g === "area" && <IconPin width={13} height={13} />}
+                    By {g === "area" ? "location" : "discipline"}
+                  </button>
+                ))}
+              </div>
+
+              {/* THE TOP LEVEL, AS A FILTER. It was six rows of the tree that
+                  every auditor opened and closed on every visit to this
+                  screen. It is one control now, and the tree under it starts
+                  at the asset system. */}
+              <DisciplineSelect
+                value={activeFilter}
+                onChange={(v) => {
+                  setFilter(v);
+                  /* Different subject, different systems — nothing that was
+                     open under the last one still means anything. */
+                  setExpanded([]);
+                }}
+                ariaLabel={groupBy === "area" ? "Filter by location" : "Filter by discipline"}
+                title={activeFilter || (groupBy === "area" ? "Every location" : "Every discipline")}
+                active={!!activeFilter}
+                className="w-full"
+                options={[
+                  { value: "", label: groupBy === "area" ? "All locations" : "All disciplines" },
+                  ...tops.map((t) => ({ value: t, label: t })),
+                ]}
+              />
+
+              {/* A SEPARATE GROUP, SAID SO. The axis switch and the
+                  discipline/location select above answer "where" (search
+                  itself moved out of this panel — see the sticky header's
+                  own note above) — this answers "linked to what", a
+                  different question about the same walk items. A rule and a
+                  small heading keep a reader from reading these as a
+                  continuation of the same list. */}
+              {/* "PHOTO FILTERS", BEHIND A DISCLOSURE — Sarel's second
+                  visual-hierarchy pass, item 7: "remove the duplicated
+                  'All / linked / unlinked' segmented blocks (keep one, or
+                  fold photo filters behind a 'Photo filters' disclosure)."
+                  The two LinkageFilter rows below are not literally
+                  duplicated — one axis is "linked to a check", the other
+                  "linked to an asset system" — but they are the same
+                  three-way control shape twice in a row, and removing
+                  either one would be a real loss of filtering capability
+                  (a logic change this pass does not make). Folding both
+                  behind one disclosure keeps both axes fully working,
+                  closed by default, so the panel's own first screen is the
+                  three controls that answer "where" rather than five that
+                  read as one repeating list. */}
+              <details className="group -mx-[14px] border-t px-[14px] pt-2" style={{ borderColor: "var(--line)" }}>
+                <summary className="-mt-1 flex min-h-[30px] cursor-pointer list-none items-center gap-[6px] text-[9.5px] font-semibold tracking-wide uppercase" style={{ color: "var(--ink-4)" }}>
+                  <span aria-hidden className="shrink-0 font-mono transition-transform group-open:rotate-90">
+                    ›
+                  </span>
+                  Photo filters — linked to the register, or not
+                </summary>
+                {/* LINKED, OR NOT — in photographs, not items. See
+                    walkLinkage's own comment above for why. Each row is
+                    independent: a walk item can be linked to a check, to a
+                    system, to both or to neither, so "Linked"/"Unlinked" on
+                    one row says nothing about the other. */}
+                <div className="mt-2 flex flex-col gap-2">
+                  <LinkageFilter
+                    label="Photos linked to a check"
+                    value={checkLinkFilter}
+                    onChange={setCheckLinkFilter}
+                    linked={walkLinkage.checkLinked}
+                    unlinked={walkLinkage.checkUnlinked}
+                  />
+                  <LinkageFilter
+                    label="Photos linked to an asset system"
+                    value={systemLinkFilter}
+                    onChange={setSystemLinkFilter}
+                    linked={walkLinkage.systemLinked}
+                    unlinked={walkLinkage.systemUnlinked}
+                  />
+                </div>
+              </details>
+            </FilterPopover>
+          </div>
+          {/* THE FILTER CHIP ROW IS GONE, AND THAT IS THE POINT.
+              It was a row of discipline names that filtered a flat list. The
+              list is now a tree grouped BY discipline, so the chips were a
+              second control doing the tree's job — press "Electrical" or open
+              the Electrical group, same result, two ways to learn it and two
+              things to keep in sync. On the location axis it was worse: 133
+              register categories in a horizontally scrolling strip is not a
+              filter anybody can use.
+
+              It also cost about 50px of a 664px screen, permanently, at the
+              top. Between the axis switch, the search, the chips and the
+              progress line the sticky furniture came to a third of the
+              viewport — the letterbox the brief caps at a quarter. Search
+              still finds anything anywhere, and the tree is the filter. */}
+          {/* THE CAVEAT, AND IT RENDERS ON A PHONE.
+              It carried `hidden sm:block` — so on the 375px screen this whole
+              screen exists for, the one sentence saying the location axis is
+              not really locations did not render at all. The auditor most
+              likely to read "Appointments" as a place was the only one never
+              told it is not one. Shortened rather than hidden: the full
+              sentence is still there from sm, where there is room for it. */}
+          {axis.kind === "area" && groupBy === "area" && (
+            <div className="mt-[7px] text-[15px] leading-[1.5]" style={{ color: "var(--ink-3)" }}>
+              <span className="sm:hidden">
+                These are the register&rsquo;s categories, not physical zones.
+              </span>
+              <span className="hidden sm:inline">
+                These are the register&rsquo;s categories, not physical zones — {entity.short} zone
+                names have not been supplied yet. Search finds any check wherever you are standing.
+              </span>
+            </div>
+          )}
+          {/* TWO NUMBERS, NEVER ONE. The bar is progress through ACSA's list and
+              nothing else; what we found that was not on it is stated beside it
+              rather than added to it. Adding them would make the denominator a
+              number that grows as you work, which is not a denominator.
+              The figures moved up beside the axis switch; this is the track,
+              which is two pixels and carries the same fact at a glance. */}
+          <div className="mt-1.5 flex items-center gap-2">
+            <span className="track flex-1">
+              <i style={{ width: `${visible.length ? (doneCount / visible.length) * 100 : 0}%`, background: "var(--acc)" }} />
+            </span>
+            {walkVisible.length > 0 && (
+              <span className="shrink-0 font-mono text-[9.5px]" style={{ color: "var(--acc)" }}>
+                +{walkVisible.length} seen on the walk
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* LIST AND DETAIL, SIDE BY SIDE FROM `lg` (1024px) UP.
+            Desktop/tablet redesign, this round — the deferred item. Below
+            `lg` this wrapper is a no-op: a plain block, one column, exactly
+            what rendered here before this round touched the file. At `lg`
+            and up it becomes a row: the list keeps its existing shape and
+            width (nothing in this `min-w-0 lg:flex-1` wrapper below changes
+            how the tree itself renders) and `WideCheckPane` — the SAME
+            badges/title/subtitle/footer/body `selectedDetail` builds once,
+            above this component's `return`, for the Sheet modal too — sits
+            beside it. `lg:items-start` lets the pane be only as tall as its
+            own content/sticky cap rather than stretched to the list's full
+            height, and `lg:sticky` (set on the pane itself) keeps it in view
+            as the list scrolls past it, offset by `barH` so it starts right
+            under the search bar rather than behind it. */}
+        <div className="lg:flex lg:min-h-0 lg:items-start lg:gap-4">
+        <div className="min-w-0 lg:min-h-0 lg:flex-1">
+        {visible.length === 0 && walkVisible.length === 0 ? (
+          <Empty>
+            <IconInbox width={26} height={26} />
+            <div>
+              Nothing matches. Clear the search or the filter — or use <b>Add item</b> for
+              something on site the register does not cover.
+            </div>
+          </Empty>
+        ) : (
+          /* THE LIST. Asset system → the work under it, and the work is both
+             kinds: the register's check-points and the things we found that it
+             does not cover, in one place, in the order somebody standing at the
+             asset would want them.
+
+             A collapsed row carries only what identifies the work: the outcome,
+             the id, the wording clamped to two lines, and small marks for what
+             is attached. Everything else is one tap away and unchanged when it
+             gets there. */
+          <div
+            /* NO `overflow-hidden` HERE, however much the rounded corners want
+               it. `overflow: hidden` makes an element its own scroll
+               container, so a `position: sticky` group header inside it sticks
+               within THIS box rather than within the page scroller — and since
+               this box is taller than the viewport and cannot itself scroll,
+               the header never sticks at all. It scrolled away silently, which
+               looked exactly like a header that had not reached its stopping
+               point yet. The square corner where the first group row meets the
+               border is the price, and it is worth paying. */
+            className="rounded-[11px] border"
+            style={{ background: "var(--panel)", borderColor: "var(--line)" }}
+          >
+            {tree.map((g) => {
+              const gOpen = isOpen(g.sys);
+              /* The 2025 rating for this asset system at THIS site. Looked up
+                 by the discipline the checks actually carry rather than by the
+                 filter, because on the location axis the filter is a place and
+                 a place has no discipline. */
+              const pf = priorFor(entityCode, g.checks[0]?.discipline ?? "", g.sys);
+              return (
+                <div key={g.sys} data-group={g.sys} data-system={g.sys}>
+                  <GroupRow
+                    label={g.sys}
+                    done={g.done}
+                    total={g.total}
+                    open={gOpen}
+                    onToggle={() => toggle(g.sys)}
+                    sticky
+                    stickyTop={barH}
+                    showCheck
+                    title={`${g.sys} — ${g.done} of ${g.total} seen${
+                      g.walk.length ? `, plus ${g.walk.length} added by hand` : ""
+                    }`}
+                  >
+                    {pf && <Pill tone="warn">{pf.key}</Pill>}
+                    {/* BESIDE THE FRACTION, NEVER INSIDE IT. Walk items are
+                        counted separately and said separately, because adding
+                        them would make the denominator a number that grows as
+                        you work. */}
+                    {/* A count, not a status — item 4 of Sarel's second
+                        visual-hierarchy pass takes the brand accent off it. */}
+                    {g.walk.length > 0 && <Pill>+{g.walk.length}</Pill>}
+                  </GroupRow>
+                  {gOpen && (
+                    <>
+                      {g.checks.map((c) => {
+                        const r = responses[c.id];
+                        const attachments = r?.attachments ?? [];
+                        const photos = attachments.filter((a) => a.kind === "photo");
+                        const voices = attachments.filter((a) => a.kind === "voice");
+                        const wo = library?.[c.id]?.WO ?? [];
+                        const picked = r?.walkaboutPicked;
+                        const needsPhoto =
+                          picked != null && wo[picked]?.photo === true && photos.length === 0;
+                        /* The row no longer expands in place — tapping it opens
+                           the check in a sheet. It still marks itself as the one
+                           that is open, because the sheet is dismissible and
+                           coming back to a list with nothing highlighted loses
+                           your place. */
+                        const itemOpen = openItem === c.id;
+                        const outcome = OUTCOMES.find((o) => o.key === r?.fieldCompliance);
+                        const raised = findingsHere.get(c.id) ?? 0;
+                        return (
+                          <div
+                            key={c.id}
+                            data-check={c.id}
+                            className="border-b"
+                            style={{ borderColor: "var(--line)" }}
+                          >
+                            {/* THE COLLAPSED ROW. Full width, one tap. */}
+                            <button
+                              onClick={() => { setOpenItem(c.id); setCheckTab("walkabout"); }}
+                              aria-haspopup="dialog"
+                              aria-expanded={itemOpen}
+                              className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left"
+                              style={{
+                                background: itemOpen ? "var(--acc-soft)" : "transparent",
+                                minHeight: 56,
+                                /* Recedes once the asset has been SEEN — the field half,
+                                   never the derived `captured` flag. A row must not fade
+                                   because somebody read a document at a desk: 290 of the
+                                   324 need both halves, and greying on the wrong one tells
+                                   an auditor on the apron that work they still have to do
+                                   is finished. */
+                                opacity: fieldDone(r) && !itemOpen ? 0.62 : 1,
+                              }}
+                            >
+                              {/* The outcome mark. BLANK WHEN NOT CAPTURED, and
+                                  blank means exactly that — never compliant.
+                                  Carried by the icon and the word underneath, so
+                                  it survives sunlight and a colour-blind
+                                  reader. */}
+                              <span
+                                className="mt-[1px] flex w-[34px] shrink-0 flex-col items-center gap-[2px]"
+                                style={{ color: outcome ? "var(--acc)" : "var(--ink-4)" }}
+                              >
+                                {outcome ? (
+                                  <outcome.Icon width={15} height={15} />
+                                ) : (
+                                  <span
+                                    aria-hidden="true"
+                                    className="block h-[13px] w-[13px] rounded-full border-[1.5px] border-dashed"
+                                    style={{ borderColor: "var(--line-2)" }}
+                                  />
+                                )}
+                                <span className="font-mono text-[8px] leading-none">
+                                  {outcome ? outcome.label : "—"}
+                                </span>
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="mb-[3px] flex flex-wrap items-center gap-1.5">
+                                  <span className="font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
+                                    {portalIdFor(entityCode, c.id)}
+                                  </span>
+                                  {/* THE OTHER HALF, said on the row. 290 of the
+                                      324 need a document review as well as the
+                                      asset seen. An auditor who ticks the walk
+                                      and moves on, with nothing saying the check
+                                      also wants evidence off a desk, leaves it
+                                      half answered — and the completion figure
+                                      will say so weeks later with no
+                                      explanation. "Physical" is dropped because
+                                      every row here is physical. */}
+                                  {/* How the check is answered is a
+                                      category, not a status — item 4 of
+                                      Sarel's second visual-hierarchy pass
+                                      takes the brand accent off it. */}
+                                  {modeLabels(c)
+                                    .filter((m) => m !== "Physical")
+                                    .map((m) => (
+                                      <Pill key={m}>{m.toUpperCase()}</Pill>
+                                    ))}
+                                </span>
+                                {/* CLAMPED, NOT SHORTENED. The register's own
+                                    words, whole, in the DOM — two lines of them
+                                    until the row is opened. Storing or rendering
+                                    a tidied version of ACSA's check text is the
+                                    defect pass 1 fixed and this must not
+                                    reintroduce it. */}
+                                <span
+                                  className="block text-[12.5px] leading-[1.4] font-semibold"
+                                  style={{
+                                    display: "-webkit-box",
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: "vertical",
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  {c.requirement?.trim() ? (
+                                    c.requirement
+                                  ) : (
+                                    <span style={{ color: "var(--warn)" }}>
+                                      {portalIdFor(entityCode, c.id)} — the register carries no
+                                      check text for this check-point
+                                    </span>
+                                  )}
+                                </span>
+                                <span
+                                  className="mt-[3px] flex flex-wrap items-center gap-2 font-mono text-[9px]"
+                                  style={{ color: "var(--ink-4)" }}
+                                >
+                                  {r?.location?.trim() && <span>{r.location}</span>}
+                                  {photos.length > 0 && <span>{photos.length}📷</span>}
+                                  {voices.length > 0 && <span>{voices.length}🎙</span>}
+                                  {r?.observation?.trim() && <span>note</span>}
+                                  {raised > 0 && (
+                                    <span style={{ color: "var(--warn)" }}>
+                                      {raised} finding{raised === 1 ? "" : "s"}
+                                    </span>
+                                  )}
+                                  {needsPhoto && (
+                                    <span style={{ color: "var(--warn)" }}>photo expected</span>
+                                  )}
+                                </span>
+                              </span>
+                            </button>
+                          </div>
+                        );
+                      })}
+
+                      {/* ADDED BY HAND, FILED WITH THE REST OF THE WORK.
+                          Same row shape as a check-point, in the same asset
+                          system, because that is where somebody standing at the
+                          asset will look for it — and marked, at the front of
+                          the row, because it is NOT one of the 324: it has no
+                          ACSA requirement behind it, no threshold to quote, and
+                          no place in the completion figure. The mark is an icon
+                          AND the words "added on the walk", never colour alone.
+                          The border stays dashed for the same reason. */}
+                      {g.walk.map((it) => {
+                        const photos = it.attachments.filter((a) => a.kind === "photo").length;
+                        const voices = it.attachments.filter((a) => a.kind === "voice").length;
+                        const outcome = OUTCOMES.find((o) => o.key === it.outcome);
+                        return (
+                          <div
+                            key={it.id}
+                            data-walk={it.id}
+                            className="border-b"
+                            style={{ borderColor: "var(--line)" }}
+                          >
+                            <button
+                              onClick={() => {
+                                setEditingId(it.id);
+                                setSheetOpen(true);
+                              }}
+                              aria-haspopup="dialog"
+                              className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left"
+                              style={{ minHeight: 56 }}
+                            >
+                              <span
+                                className="mt-[1px] flex w-[34px] shrink-0 flex-col items-center gap-[2px]"
+                                style={{ color: outcome ? "var(--acc)" : "var(--ink-4)" }}
+                              >
+                                {outcome ? (
+                                  <outcome.Icon width={15} height={15} />
+                                ) : (
+                                  <span
+                                    aria-hidden="true"
+                                    className="block h-[13px] w-[13px] rounded-full border-[1.5px] border-dashed"
+                                    style={{ borderColor: "var(--line-2)" }}
+                                  />
+                                )}
+                                <span className="font-mono text-[8px] leading-none">
+                                  {outcome ? outcome.label : "—"}
+                                </span>
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="mb-[3px] flex flex-wrap items-center gap-1.5">
+                                  {/* THE MARK. An icon and a word, together —
+                                      one row in a list of check-points that is
+                                      not a check-point has to say so in a way
+                                      that survives a greyscale printout. */}
+                                  {/* A provenance mark, not a status — item 4
+                                      of Sarel's second visual-hierarchy pass
+                                      takes the brand accent off it. */}
+                                  <span
+                                    className="flex items-center gap-[3px] rounded-[8px] border border-dashed px-[5px] py-[1px] font-mono text-[8.5px]"
+                                    style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+                                    title="Added on the walk — not one of ACSA's check-points, and not counted in the completion figure"
+                                  >
+                                    <IconPlus width={9} height={9} />
+                                    ADDED ON THE WALK
+                                  </span>
+                                  <span className="font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
+                                    {it.id}
+                                  </span>
+                                  {it.findingId && <Pill tone="warn">{it.findingId}</Pill>}
+                                  {it.importKey && (
+                                    <Pill title="Written by Import observation pack — not typed on the walk">
+                                      IMPORTED, TPJV-PROPOSED
+                                    </Pill>
+                                  )}
+                                </span>
+                                {it.title && (
+                                  <span
+                                    className="mb-[1px] block text-[10px] font-semibold uppercase tracking-wide"
+                                    style={{ color: "var(--ink-3)" }}
+                                  >
+                                    {it.title}
+                                  </span>
+                                )}
+                                <span
+                                  className="block text-[12.5px] leading-[1.4] font-semibold"
+                                  style={{
+                                    display: "-webkit-box",
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: "vertical",
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  {it.description}
+                                </span>
+                                <span
+                                  className="mt-[3px] flex flex-wrap items-center gap-2 font-mono text-[9px]"
+                                  style={{ color: "var(--ink-4)" }}
+                                >
+                                  {it.area && <span>{it.area}</span>}
+                                  {it.raisedBy && <span>raised by {it.raisedBy}</span>}
+                                  {photos > 0 && <span>{photos}📷</span>}
+                                  {voices > 0 && <span>{voices}🎙</span>}
+                                  {photos === 0 && voices === 0 && (
+                                    <span style={{ color: "var(--warn)" }}>no evidence attached</span>
+                                  )}
+                                </span>
+                              </span>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        </div>
+        {isWideDetail && (
+          <WideCheckPane
+            detail={selectedDetail}
+            barOffset={barH}
+            maxHeightPx={scrollAreaH > 0 ? Math.max(240, scrollAreaH - barH - addBarH - 8) : undefined}
+          />
+        )}
+        </div>
+      </div>
+
+      {/* THE ADD CONTROL, AND WHY IT IS IN THE BAR RATHER THAN FLOATING OVER IT.
+          The brief asked for a floating action button bottom-right. On a phone
+          this screen already carries two fixed layers at the bottom: the app's
+          own navigation (56px plus the home indicator, fixed below sm) and this
+          action bar. A circle floating above both would be a third, and the
+          same brief caps sticky furniture at about a quarter of a 664px
+          viewport — which those two already come close to spending.
+
+          So the bar itself is the thumb zone, and Add item is its primary:
+          56px, bottom-right on a phone (order-last below sm), labelled in
+          words, never scrolled away, and clearing the home indicator through
+          --sticky-safe like everything else here. It satisfies every property
+          the brief asked the button for. Raise it if you disagree — the thing
+          it must not become is a third stacked layer. */}
+      <div
+        ref={addBarRef}
+        className="sticky bottom-0 z-20 flex items-center gap-2 border-t px-4 py-2.5 sm:px-6"
+        style={{
+          background: "var(--panel)",
+          borderColor: "var(--line)",
+          boxShadow: "0 -4px 16px -8px rgba(22,16,40,.14)",
+          paddingBottom: "calc(10px + var(--sticky-safe))",
+        }}
+      >
+        {/* IT RAN OFF THE RIGHT EDGE ON A REAL PHONE. Four controls plus the
+            unassigned badge came to more than 375px, so "Add item" — the
+            primary, and the one control the brief says must always be hittable
+            — was clipped. The two secondaries are icon-only below sm now, with
+            their names on aria-label, and the primary takes the room that
+            frees. `min-w-0` so a flex child can actually shrink. */}
+        <Btn
+          variant="primary"
+          className="order-last min-h-[56px] min-w-0 flex-1 justify-center sm:order-none sm:flex-none"
+          onClick={() => {
+            setEditingId(null);
+            setSheetOpen(true);
+          }}
+        >
+          <IconPlus width={16} height={16} />
+          Add item
+        </Btn>
+        {/* Still the fastest path to a photograph: no record, no fields, assign
+            it later from the tray. Different from Add item, which creates the
+            record the photograph belongs to. */}
+        <PhotoButton
+          compact
+          className="min-h-[44px] w-[44px] shrink-0 justify-center sm:w-auto sm:px-[13px]"
+          onCaptured={(m) => {
+            addCapture({
+              ...m,
+              area: "Unspecified",
+              createdBy: auditor,
+            });
+            say("Captured — assign it whenever you like");
+          }}
+        />
+        {/* The walk is where hazards are actually spotted. Until this existed
+            the only route to the register was consolidating findings, which
+            cannot produce a hazard nobody wrote a finding about. */}
+        <Btn
+          className="min-h-[44px] shrink-0 justify-center px-0 sm:px-[15px]"
+          style={{ width: 44 }}
+          aria-label="Raise a hazard seen on the walk"
+          onClick={() => setHazardOpen(true)}
+        >
+          <IconFlag width={16} height={16} />
+          <span className="hidden sm:inline">Hazard</span>
+        </Btn>
+        {captures.length > 0 && (
+          <Btn
+            className="min-h-[44px] shrink-0 px-[11px] sm:px-[15px]"
+            aria-label={`${captures.length} unassigned captures`}
+            onClick={() => setTray(true)}
+            style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}
+          >
+            {captures.length}
+            <span className="hidden sm:inline"> unassigned</span>
+          </Btn>
+        )}
+        <span className="ml-auto hidden font-mono text-[10px] sm:block" style={{ color: "var(--ink-3)" }}>
+          offline-capable · syncs when connected
+        </span>
+      </div>
+
+      {/* unassigned tray */}
+      {tray && (
+        <div className="fixed inset-0 z-[80] flex justify-center pt-[10vh]" style={{ background: "rgba(16,10,32,.5)", backdropFilter: "blur(4px)" }} onClick={() => setTray(false)}>
+          <div
+            className="max-h-[70vh] w-[min(560px,92vw)] overflow-y-auto rounded-[16px] border p-[22px]"
+            style={{ background: "var(--panel)", borderColor: "var(--line-2)", boxShadow: "var(--e3)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[14px] font-bold">Unassigned captures</h3>
+            <p className="mt-1 mb-3.5 text-[12px]" style={{ color: "var(--ink-2)" }}>
+              Taken in the field before deciding where they belong. Assign each to a check-point, or
+              discard it.
+            </p>
+            {captures.map((cap) => (
+              <div key={cap.id} className="mb-2 flex items-center gap-2.5 rounded-[11px] border p-2.5" style={{ background: "var(--sunken)", borderColor: "var(--line)" }}>
+                <PhotoThumb a={cap} size={44} />
+                <div className="min-w-0 flex-1">
+                  <div className="font-mono text-[10px]" style={{ color: "var(--ink-4)" }}>
+                    {cap.name} · {cap.area}
+                  </div>
+                  <div className="text-[12px]">Awaiting assignment</div>
+                </div>
+                <select
+                  defaultValue=""
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    assignCapture(cap.id, e.target.value);
+                    say("Photo assigned");
+                  }}
+                  className="max-w-[150px] rounded-[8px] border px-2 py-1.5 text-[11px]"
+                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                >
+                  <option value="">Assign to…</option>
+                  {visible.slice(0, 60).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {portalIdFor(entityCode, c.id)}
+                    </option>
+                  ))}
+                </select>
+                <button onClick={() => discardCapture(cap.id)} aria-label="Discard" style={{ color: "var(--ink-3)" }}>
+                  <IconX width={14} height={14} />
+                </button>
+              </div>
+            ))}
+            {captures.length === 0 && <Empty>Tray is empty.</Empty>}
+            <div className="mt-3 flex justify-end">
+              <Btn onClick={() => setTray(false)}>Close</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* a hazard seen on the walk */}
+      {hazardOpen && (
+        <div
+          className="fixed inset-0 z-[80] flex justify-center pt-[10vh]"
+          style={{ background: "rgba(16,10,32,.5)", backdropFilter: "blur(4px)" }}
+          onClick={() => setHazardOpen(false)}
+        >
+          <div
+            className="w-[min(560px,92vw)] rounded-[16px] border p-[22px]"
+            style={{ background: "var(--panel)", borderColor: "var(--line-2)", boxShadow: "var(--e3)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[14px] font-bold">New hazard</h3>
+            <p className="mt-1 mb-3.5 text-[12px]" style={{ color: "var(--ink-2)" }}>
+              The <b>event</b>, not the paperwork. &ldquo;Uncontained fuel release on the apron&rdquo;,
+              not &ldquo;register not signed&rdquo; — the event is what carries the rating, because a
+              finding closes and a hazard does not. It arrives on the register unrated; the group
+              agrees the cell there.
+            </p>
+            <label className="block">
+              <span className="label-xs">The event · under 15 words</span>
+              <input
+                value={hazEvent}
+                onChange={(e) => setHazEvent(e.target.value)}
+                placeholder="Uncontained fuel release on the apron…"
+                className="mt-1 w-full rounded-[11px] border px-3 py-2.5 text-[13px] font-semibold outline-none"
+                style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+              />
+            </label>
+            <label className="mt-3 block">
+              <span className="label-xs">What control failed, and what it was protecting against</span>
+              <textarea
+                value={hazWhy}
+                onChange={(e) => setHazWhy(e.target.value)}
+                placeholder="What you saw, and what it would take to go wrong…"
+                className="mt-1 min-h-[70px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none"
+                style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+              />
+            </label>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="label-xs">Discipline</span>
+                <select
+                  value={adhocDisc}
+                  onChange={(e) => setAdhocDisc(e.target.value)}
+                  className="mt-1 w-full rounded-[8px] border px-2.5 py-2 text-[12px]"
+                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                >
+                  {disciplines.map((d) => (
+                    <option key={d}>{d}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="label-xs">Location</span>
+                <select
+                  value={adhocArea}
+                  onChange={(e) => setAdhocArea(e.target.value)}
+                  className="mt-1 w-full rounded-[8px] border px-2.5 py-2 text-[12px]"
+                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                >
+                  {areas.map((a) => (
+                    <option key={a}>{a}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <Btn variant="ghost" onClick={() => setHazardOpen(false)}>
+                Cancel
+              </Btn>
+              <Btn
+                variant="primary"
+                onClick={() => {
+                  if (!hazEvent.trim()) {
+                    say("Name the event first");
+                    return;
+                  }
+                  const id = addHazard({
+                    originVisit: visitId,
+                    event: hazEvent.trim(),
+                    description: "",
+                    why: hazWhy.trim(),
+                    findingIds: [],
+                    disciplines: [adhocDisc],
+                    systems: [adhocArea],
+                    areas: [],
+                    otherImpacts: [],
+                    /* Unrated, on both instruments, always. The walk names the
+                       event; the group rates it. */
+                    severity: null,
+                    likelihood: null,
+                    ratingConfirmed: false,
+                    ermConsequence: null,
+                    ermLikelihood: null,
+                    ermConfirmed: false,
+                    ermLikelihoodAssumed: false,
+                    /* Seen on the walk, and the register says so. */
+                    origin: "field",
+                    note: `Seen on the walk at ${adhocArea}.`,
+                    occurrence: "",
+                    ratingRationale: "",
+                    progress: [],
+                    immediate: false,
+                    reassessedAt: null,
+                    reassessNote: "",
+                    rootCause: "",
+                    actions: [],
+                    actionStatus: "Open",
+                    createdBy: auditor,
+                  });
+                  setHazEvent("");
+                  setHazWhy("");
+                  setHazardOpen(false);
+                  say(`${id} raised · rate it on the hazard register`);
+                }}
+              >
+                <IconCheck width={14} height={14} />
+                Create hazard
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* THE CHECK, IN A SHEET RATHER THAN EXPANDED IN THE LIST.
+
+          It expanded in place first, which is what the brief asked for, and on
+          a real phone it did not work. Sarel's words: too much scrolling, hard
+          to see what you need, and "the save button is not easily visible to
+          find to save it". All three are the same cause — an expanded item
+          rendered into the gap between a 156px sticky filter bar and a 132px
+          bottom bar on a 664px screen, so the answer buttons, the comment
+          field, the photographs and the save control were spread down a column
+          about 220px tall, and Save was last.
+
+          The sheet is the layout he pointed at as the clean one: the add-item
+          form. Same reasoning applies to a register check, more so — a check
+          carries the register's wording, our walkabout instruction, up to
+          eleven researched answers, an outcome, a comment and its evidence.
+          Given the whole viewport it reads as one job with the commit pinned
+          under it; squeezed into a third of the viewport it reads as a pile.
+
+          The list keeps its shape while the sheet is open, so closing it puts
+          the auditor back exactly where they were.
+
+          DESKTOP/TABLET REDESIGN, THIS ROUND — the deferred item: list and
+          detail side by side from `lg` up. The content that used to be built
+          inline, right here, is now built once as `selectedDetail` (see just
+          above this component's own `return`, right after `heading`) and fed
+          to whichever of two wrappers is on screen: this Sheet below the
+          breakpoint, or `WideCheckPane` beside the list at and above it. Only
+          one of the two ever mounts — `isWideDetail` gates it below — so
+          there is never a second dialog, a second focus trap, or a duplicate
+          id (the Internal Working Area's own inputs, the outcome
+          radiogroup's `idPrefix`) in the DOM at once. Nothing in this Sheet
+          itself changed; what moved is only WHERE its badges/title/subtitle/
+          footer/body get built. */}
+      {selectedDetail && !isWideDetail && (
+        <Sheet
+          open
+          wide
+          onClose={() => setOpenItem(null)}
+          badges={selectedDetail.badges}
+          title={selectedDetail.title}
+          subtitle={selectedDetail.subtitle}
+          footer={selectedDetail.footer}
+        >
+          {selectedDetail.body}
+        </Sheet>
+      )}
 
       {/* THE ADD SHEET. Replaces the old "+ New finding" modal, which took a
           description, a discipline and a location and nothing else — no
