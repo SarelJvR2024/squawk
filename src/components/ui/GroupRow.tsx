@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { IconCheck } from "@/components/ui/icons";
 
 /** ONE COLLAPSIBLE GROUP HEADER, USED BY EVERY SCREEN THAT GROUPS.
  *
@@ -44,6 +45,13 @@ export default function GroupRow({
    *  default: two levels of sticky in a 664px viewport is a letterbox. */
   sticky = false,
   stickyTop = 0,
+  /** A subtle check mark after the count once it reads done === total — never
+   *  a coloured badge, just the same glyph the count itself already implies.
+   *  Opt-in and false by default: GroupRow is shared with Findings and
+   *  Follow-up too (see this file's own top comment), and this mark is part
+   *  of the Checks/Inspection progress restoration, not a change asked for
+   *  on every screen that happens to reuse this component. */
+  showCheck = false,
 }: {
   label: string;
   done: number;
@@ -57,6 +65,7 @@ export default function GroupRow({
   title?: string;
   sticky?: boolean;
   stickyTop?: number;
+  showCheck?: boolean;
 }) {
   const pct = total ? (done / total) * 100 : 0;
   return (
@@ -101,6 +110,14 @@ export default function GroupRow({
         {done}/{total}
         {suffix}
       </span>
+      {showCheck && total > 0 && done === total && (
+        <IconCheck
+          width={10}
+          height={10}
+          aria-label={`${label} fully captured`}
+          style={{ color: holds ? "var(--acc)" : "var(--ink-3)" }}
+        />
+      )}
       <span className="absolute inset-x-0 bottom-0 h-[2px]" style={{ background: "var(--line-2)" }}>
         <span
           className="block h-full"

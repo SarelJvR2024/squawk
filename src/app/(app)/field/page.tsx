@@ -564,6 +564,16 @@ export default function FieldPage() {
      falls back to the register's categories, and the strip below says so. */
   const axis = locationAxis(entityCode);
   const doneCount = visible.filter((c) => fieldDone(responses[c.id])).length;
+  /* THE PCT FOR THE RESTORED PAGE-HEADING FIGURE — desktop/tablet redesign,
+     phase 1 checkpoint. `doneCount`/`visible.length` just above are the
+     exact pair that used to sit beside the Filters button as
+     "{doneCount}/{visible.length}" before d7d79bb's item-7 commit dropped
+     it on the (mistaken) claim that "the existing track+figure just below
+     this bar... already did that job" — the track survived, the figure did
+     not; see the sticky header's own progress-track block further down,
+     which carries no number at all today. This is that number, restored,
+     not recomputed: same two variables, nothing new. */
+  const visiblePct = visible.length ? Math.round((doneCount / visible.length) * 100) : 0;
 
   /* THE FILTERS POPOVER'S OWN BUTTON — just "Filters" or "Filters · X",
    *  21 Oct 2026 (the second visual-hierarchy pass, item 7). This used to
@@ -581,34 +591,67 @@ export default function FieldPage() {
   return (
     <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
       <div className="mx-auto w-full max-w-[1180px] px-4 pt-3 pb-24 sm:px-6">
-        <div className="mb-1.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
-          {/* NAMED AS THE TAB NAMES IT. The navigation says "Inspection" and
-              this heading said "Site walkabout" — an auditor told to go to
-              Inspection landed on a screen called something else, which is the
-              same defect the home screen's own test caught on the HIRA rename.
-              The walkabout wording is kept as the subtitle, because it is what
-              the audit method calls this session and it says what the screen
-              is for in a way "Inspection" does not. */}
-          <h2 className="text-[15px] font-bold">
-            Inspection{" "}
-            {/* The subtitle wrapped the heading onto a second line at 375px,
-                which is 22px of a 664px screen spent restating the tab name.
-                Desk only, where it costs nothing. */}
-            <span className="hidden sm:inline" style={{ color: "var(--ink-3)" }}>
-              · the site walkabout
+        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+          <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+            {/* NAMED AS THE TAB NAMES IT. The navigation says "Inspection" and
+                this heading said "Site walkabout" — an auditor told to go to
+                Inspection landed on a screen called something else, which is the
+                same defect the home screen's own test caught on the HIRA rename.
+                The walkabout wording is kept as the subtitle, because it is what
+                the audit method calls this session and it says what the screen
+                is for in a way "Inspection" does not. */}
+            <h2 className="text-[15px] font-bold">
+              Inspection{" "}
+              {/* The subtitle wrapped the heading onto a second line at 375px,
+                  which is 22px of a 664px screen spent restating the tab name.
+                  Desk only, where it costs nothing. */}
+              <span className="hidden sm:inline" style={{ color: "var(--ink-3)" }}>
+                · the site walkabout
+              </span>
+            </h2>
+            {/* Prose that orients somebody the first time and costs them a
+                scroll every time after. ON ITS OWN LINE, it was a second
+                stacked block above a bar that already explains itself (the
+                toggle's labels, the search placeholder) — folded onto the
+                title's own row instead, so it costs a few extra characters of
+                width rather than a whole line of height. Still sm-only; a
+                664px phone has room for neither version. */}
+            <p className="hidden text-[11.5px] sm:block" style={{ color: "var(--ink-2)" }}>
+              Nothing here assumes an order — group by discipline or by where you are standing,
+              search anything, or capture first and assign it later.
+            </p>
+          </div>
+          {/* THE PAGE-HEADING PROGRESS FIGURE, RESTORED — desktop/tablet
+              redesign, phase 1 checkpoint. `doneCount`/`visible.length` are
+              the exact pair that used to render here as "{doneCount}/
+              {visible.length}" (see their own comment just above this
+              return), presented now as a slim 4px bar plus words rather
+              than the bare mono fraction that used to sit beside the
+              Filters button — new presentation, same source of truth. */}
+          <div className="flex min-w-[160px] flex-1 items-center gap-2.5 sm:max-w-[360px] sm:flex-none">
+            <span
+              className="h-[4px] flex-1 overflow-hidden rounded-full"
+              style={{ background: "var(--line)" }}
+              role="img"
+              aria-label={`${doneCount} of ${visible.length} captured, ${visiblePct}%`}
+            >
+              <span
+                className="block h-full rounded-full"
+                style={{ width: `${visiblePct}%`, background: "var(--acc)" }}
+              />
             </span>
-          </h2>
-          {/* Prose that orients somebody the first time and costs them a
-              scroll every time after. ON ITS OWN LINE, it was a second
-              stacked block above a bar that already explains itself (the
-              toggle's labels, the search placeholder) — folded onto the
-              title's own row instead, so it costs a few extra characters of
-              width rather than a whole line of height. Still sm-only; a
-              664px phone has room for neither version. */}
-          <p className="hidden text-[11.5px] sm:block" style={{ color: "var(--ink-2)" }}>
-            Nothing here assumes an order — group by discipline or by where you are standing,
-            search anything, or capture first and assign it later.
-          </p>
+            <span className="tnum shrink-0 font-mono text-[12px]" style={{ color: "var(--ink-2)" }} aria-hidden="true">
+              {doneCount} of {visible.length} captured · {visiblePct}%
+            </span>
+            {visible.length > 0 && doneCount === visible.length && (
+              <IconCheck
+                width={13}
+                height={13}
+                aria-label="All check-points captured"
+                style={{ color: "var(--acc)" }}
+              />
+            )}
+          </div>
         </div>
 
         {/* THE STICKY HEADER.
@@ -892,6 +935,7 @@ export default function FieldPage() {
                     onToggle={() => toggle(g.sys)}
                     sticky
                     stickyTop={barH}
+                    showCheck
                     title={`${g.sys} — ${g.done} of ${g.total} seen${
                       g.walk.length ? `, plus ${g.walk.length} added by hand` : ""
                     }`}
