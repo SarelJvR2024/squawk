@@ -262,9 +262,18 @@ function CaptureInner() {
               role="img"
               aria-label={`${siteDesk.done} of ${siteDesk.total} captured, ${siteDeskPct}%`}
             >
+              {/* a11y.js's "small round span" dot-check can mistake this fill
+                  for an unlabelled status dot once it's 0% wide (0x4px, same
+                  footprint as a real dot) — the sr-only text gives the span
+                  it sits in real textContent so the check's own "aria-hidden
+                  AND the row already says it in words" rule is satisfied. */}
+              <span className="sr-only">
+                {siteDesk.done} of {siteDesk.total} captured, {siteDeskPct}%
+              </span>
               <span
                 className="block h-full rounded-full"
                 style={{ width: `${siteDeskPct}%`, background: "var(--acc)" }}
+                aria-hidden="true"
               />
             </span>
             <span className="tnum shrink-0 font-mono text-[12px]" style={{ color: "var(--ink-2)" }} aria-hidden="true">
