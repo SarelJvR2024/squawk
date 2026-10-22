@@ -21,6 +21,7 @@ import { locationAxis } from "@/lib/programme";
 import { portalIdFor } from "@/lib/sites";
 import type { AdHocItem, Check } from "@/lib/types";
 import { Btn, Empty, Pill } from "@/components/ui/primitives";
+import PageHeading from "@/components/ui/PageHeading";
 import { DisciplineSelect } from "@/components/ui/DisciplineSelect";
 import { FilterPopover } from "@/components/ui/FilterPopover";
 import AddItemSheet from "@/components/AddItemSheet";
@@ -588,27 +589,39 @@ export default function FieldPage() {
   const fieldFilterLabel = activeFilter ? `Filters · ${activeFilter}` : "Filters";
 
 
+  /* NAMED AS THE TAB NAMES IT. The navigation says "Inspection" and this
+     heading said "Site walkabout" — an auditor told to go to Inspection
+     landed on a screen called something else, which is the same defect the
+     home screen's own test caught on the HIRA rename. The walkabout wording
+     is kept as the subtitle, because it is what the audit method calls this
+     session and it says what the screen is for in a way "Inspection" does
+     not. */
+  const heading = (
+    <h2 className="text-[15px] font-bold">
+      Inspection{" "}
+      {/* The subtitle wrapped the heading onto a second line at 375px, which
+          is 22px of a 664px screen spent restating the tab name. Desk only,
+          where it costs nothing. */}
+      <span className="hidden sm:inline" style={{ color: "var(--ink-3)" }}>
+        · the site walkabout
+      </span>
+    </h2>
+  );
+
   return (
-    <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <div className="mx-auto w-full max-w-[1180px] px-4 pt-3 pb-24 sm:px-6">
-        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+    /* PHASE 2: an outer flex-col wrapper so the page heading can sit OUTSIDE
+       the scrolling container as its own shrink-0 bar, the same shape
+       Checks already has (src/app/(app)/capture/page.tsx) and shares with
+       it through PageHeading (src/components/ui/PageHeading.tsx) — title
+       and progress on the left, an actions slot on the right. It used to be
+       the first in-flow block inside `.app-scroll`, which meant it scrolled
+       away with the list; pinned here it stays visible at every scroll
+       position, same as Checks' own heading row. */
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <PageHeading
+        title={
           <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
-            {/* NAMED AS THE TAB NAMES IT. The navigation says "Inspection" and
-                this heading said "Site walkabout" — an auditor told to go to
-                Inspection landed on a screen called something else, which is the
-                same defect the home screen's own test caught on the HIRA rename.
-                The walkabout wording is kept as the subtitle, because it is what
-                the audit method calls this session and it says what the screen
-                is for in a way "Inspection" does not. */}
-            <h2 className="text-[15px] font-bold">
-              Inspection{" "}
-              {/* The subtitle wrapped the heading onto a second line at 375px,
-                  which is 22px of a 664px screen spent restating the tab name.
-                  Desk only, where it costs nothing. */}
-              <span className="hidden sm:inline" style={{ color: "var(--ink-3)" }}>
-                · the site walkabout
-              </span>
-            </h2>
+            {heading}
             {/* Prose that orients somebody the first time and costs them a
                 scroll every time after. ON ITS OWN LINE, it was a second
                 stacked block above a bar that already explains itself (the
@@ -621,13 +634,15 @@ export default function FieldPage() {
               search anything, or capture first and assign it later.
             </p>
           </div>
-          {/* THE PAGE-HEADING PROGRESS FIGURE, RESTORED — desktop/tablet
-              redesign, phase 1 checkpoint. `doneCount`/`visible.length` are
-              the exact pair that used to render here as "{doneCount}/
-              {visible.length}" (see their own comment just above this
-              return), presented now as a slim 4px bar plus words rather
-              than the bare mono fraction that used to sit beside the
-              Filters button — new presentation, same source of truth. */}
+        }
+        progress={
+          /* THE PAGE-HEADING PROGRESS FIGURE, RESTORED — desktop/tablet
+             redesign, phase 1 checkpoint. `doneCount`/`visible.length` are
+             the exact pair that used to render here as "{doneCount}/
+             {visible.length}" (see their own comment just above this
+             return), presented now as a slim 4px bar plus words rather
+             than the bare mono fraction that used to sit beside the
+             Filters button — new presentation, same source of truth. */
           <div className="flex min-w-[160px] flex-1 items-center gap-2.5 sm:max-w-[360px] sm:flex-none">
             <span
               className="h-[4px] flex-1 overflow-hidden rounded-full"
@@ -652,8 +667,10 @@ export default function FieldPage() {
               />
             )}
           </div>
-        </div>
-
+        }
+      />
+    <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <div className="mx-auto w-full max-w-[1180px] px-4 pt-3 pb-24 sm:px-6">
         {/* THE STICKY HEADER.
 
             SEARCH IS ITS OWN ROW NOW, FIRST, ALWAYS VISIBLE — overnight
@@ -2027,6 +2044,7 @@ export default function FieldPage() {
           {toast}
         </div>
       )}
+    </div>
     </div>
   );
 }

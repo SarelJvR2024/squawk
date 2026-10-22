@@ -19,6 +19,7 @@ import { portalIdFor } from "@/lib/sites";
 import { needsDesk, needsQuestion } from "@/lib/verification";
 import CheckDetail from "@/components/CheckDetail";
 import { Btn, Dot, Empty, Pill } from "@/components/ui/primitives";
+import PageHeading from "@/components/ui/PageHeading";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { DisciplineSelect } from "@/components/ui/DisciplineSelect";
 import { IconCheck, IconInbox } from "@/components/ui/icons";
@@ -245,36 +246,41 @@ function CaptureInner() {
           with the number a hover on the nav tab shows.
           Minimal by design — "don't over-build the shared shell yet, that's
           phase 2": a title, a 4px track and the figure, nothing else. */}
-      <div
-        className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1.5 border-b px-4 py-2.5"
-        style={{ background: "var(--panel)", borderColor: "var(--line)" }}
-      >
-        <h2 className="text-[13px] font-bold">Checks</h2>
-        <div className="flex min-w-[160px] flex-1 items-center gap-2.5 sm:max-w-[360px]">
-          <span
-            className="h-[4px] flex-1 overflow-hidden rounded-full"
-            style={{ background: "var(--line)" }}
-            role="img"
-            aria-label={`${siteDesk.done} of ${siteDesk.total} captured, ${siteDeskPct}%`}
-          >
+      {/* PHASE 2: the bar itself is now PageHeading, the shell shared with
+          Inspection's own heading row (src/components/ui/PageHeading.tsx) —
+          title left, progress beside it, an actions slot on the right for
+          whichever screen has something to put there. The progress markup
+          below is untouched, word for word: tests/progress-restore.test.mjs
+          reads this exact source out of this file by name. */}
+      <PageHeading
+        title={<h2 className="text-[13px] font-bold">Checks</h2>}
+        progress={
+          <div className="flex min-w-[160px] flex-1 items-center gap-2.5 sm:max-w-[360px]">
             <span
-              className="block h-full rounded-full"
-              style={{ width: `${siteDeskPct}%`, background: "var(--acc)" }}
-            />
-          </span>
-          <span className="tnum shrink-0 font-mono text-[12px]" style={{ color: "var(--ink-2)" }} aria-hidden="true">
-            {siteDesk.done} of {siteDesk.total} captured · {siteDeskPct}%
-          </span>
-          {siteDesk.total > 0 && siteDesk.done === siteDesk.total && (
-            <IconCheck
-              width={13}
-              height={13}
-              aria-label="All checks captured"
-              style={{ color: "var(--acc)" }}
-            />
-          )}
-        </div>
-      </div>
+              className="h-[4px] flex-1 overflow-hidden rounded-full"
+              style={{ background: "var(--line)" }}
+              role="img"
+              aria-label={`${siteDesk.done} of ${siteDesk.total} captured, ${siteDeskPct}%`}
+            >
+              <span
+                className="block h-full rounded-full"
+                style={{ width: `${siteDeskPct}%`, background: "var(--acc)" }}
+              />
+            </span>
+            <span className="tnum shrink-0 font-mono text-[12px]" style={{ color: "var(--ink-2)" }} aria-hidden="true">
+              {siteDesk.done} of {siteDesk.total} captured · {siteDeskPct}%
+            </span>
+            {siteDesk.total > 0 && siteDesk.done === siteDesk.total && (
+              <IconCheck
+                width={13}
+                height={13}
+                aria-label="All checks captured"
+                style={{ color: "var(--acc)" }}
+              />
+            )}
+          </div>
+        }
+      />
 
       <div className="flex min-h-0 min-w-0 flex-1">
       {/* navigator — one column: the filter, the discipline, and the asset
