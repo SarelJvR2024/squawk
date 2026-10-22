@@ -530,3 +530,20 @@ h4 {
 .toast-above-bar {
   bottom: calc(var(--bottom-nav) + var(--sticky-safe) + 88px);
 }
+
+/* HIRA's toast, anchored under the fixed chrome instead of above the bottom
+   bar. Raising the first hazard from the empty state swaps that whole
+   screen for the populated hazard list in the same tick the toast appears
+   — the "Consolidate the findings" card (and its "Raise one directly"
+   button) can land anywhere from ~600px to ~820px down the page depending
+   on the device, which is exactly the band a bottom-anchored toast sweeps
+   through as viewport height varies. Measured at 414x736 (iPhone 8 Plus):
+   a `.toast-bottom` toast landed with a 44px vertical overlap on that
+   button, hiding all but "...directly" of its label. `#work`'s top (the
+   masthead + step line above it) sits at a fixed 84px on every width this
+   app supports, independent of viewport height, so anchoring here instead
+   never lands on content that is about to change underneath it. */
+.toast-top-clear {
+  top: 96px;
+  bottom: auto;
+}

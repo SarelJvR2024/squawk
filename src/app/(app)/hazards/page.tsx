@@ -1676,8 +1676,14 @@ export default function HazardsPage() {
       </div>
 
       {toast && (
+        /* `.toast-top-clear`, not `.toast-bottom` — see the class's own note
+           in globals.css. This page's toast can fire the instant the empty
+           state swaps for the populated hazard list (raising the first
+           hazard), and a bottom-anchored toast would sweep through exactly
+           where the newly-revealed "Consolidate the findings" card and its
+           "Raise one directly" button land at common mobile heights. */
         <div
-          className="toast-bottom fixed left-1/2 z-[100] -translate-x-1/2 rounded-[11px] px-[15px] py-2.5 text-[12px] font-medium"
+          className="toast-top-clear fixed left-1/2 z-[100] -translate-x-1/2 rounded-[11px] px-[15px] py-2.5 text-[12px] font-medium"
           style={{ background: "var(--ink)", color: "var(--bg)", boxShadow: "var(--e3)" }}
         >
           {toast}
