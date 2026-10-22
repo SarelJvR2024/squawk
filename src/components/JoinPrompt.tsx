@@ -110,13 +110,26 @@ export default function JoinPrompt() {
     >
       <div className="min-w-[220px] flex-1">
         <b className="font-display text-[12.5px] font-semibold">This device has not joined the audit</b>
-        {/* WHAT IT COSTS THEM, not what the feature is called. An auditor who
-            skips this will not find out for a day, and the sentence that would
-            have stopped them is the one naming the consequence. */}
-        <p className="mt-0.5 text-[11.5px] leading-[1.5]" style={{ color: "var(--ink-2)" }}>
-          Enter the team passphrase once and this device sees everyone else&rsquo;s work — their
-          checks, findings and photographs — and theirs sees yours. Until then it audits on its own.
-        </p>
+        {/* COMPACT BY DEFAULT, FULL EXPLANATION ON DEMAND — overnight
+            refinement, task 5: the banner's own headline already says the
+            true, actionable fact ("has not joined"); WHAT IT COSTS THEM
+            (the paragraph below) is real and worth keeping verbatim, but it
+            no longer has to stand open on every screen load. A native
+            <details> keeps it one tap/click away, announced to assistive
+            tech via its own disclosure semantics, with no join/dismiss
+            logic touched — this is presentation only. */}
+        <details className="mt-0.5">
+          <summary
+            className="cursor-pointer text-[11px] font-medium select-none"
+            style={{ color: "var(--ink-3)" }}
+          >
+            Why?
+          </summary>
+          <p className="mt-1 text-[11.5px] leading-[1.5]" style={{ color: "var(--ink-2)" }}>
+            Enter the team passphrase once and this device sees everyone else&rsquo;s work — their
+            checks, findings and photographs — and theirs sees yours. Until then it audits on its own.
+          </p>
+        </details>
       </div>
 
       <form

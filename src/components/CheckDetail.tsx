@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { Check, Compliance, EvidenceStatus } from "@/lib/types";
 import { priorFor, useEntityCode, useResponses, useStore, useVisitFindings } from "@/lib/store";
 import { portalIdFor } from "@/lib/sites";
@@ -406,6 +406,13 @@ export default function CheckDetail({
    *  the regression guard, unchanged back to what it asserted before this
    *  attempt. */
   const [panel, setPanel] = useState("standard");
+  /* A stable, instance-unique id for the tab ↔ tabpanel wiring below
+     (aria-controls / aria-labelledby). `useId()` rather than a literal
+     string — CheckDetail opens inside a Sheet from several screens
+     (Capture, Findings, Field), and more than one could in principle sit
+     in the DOM at once; two tabpanels sharing one id would make the
+     aria-labelledby/aria-controls pair ambiguous for a screen reader. */
+  const panelBaseId = useId();
   /* Whether this screen has been scrolled at all.
    *
    *  From lg the two columns scroll inside themselves and this container never
@@ -1348,6 +1355,35 @@ export default function CheckDetail({
         {(["acsa", "do", "read"] as const).map((group) => {
           const mine = panels.filter((t) => t.group === group);
           if (mine.length === 0) return null;
+          /* THE SAME TAB nobody has to re-discover with a mouse. ARIA's
+             tabs pattern keeps exactly one tab per tablist in the normal
+             Tab order (the rest are tabIndex=-1) and moves focus between
+             them with the arrow keys instead — so Tab skips straight from
+             "before the strip" to "after it" rather than stopping at every
+             pill. The one IN the tab order is whichever tab is actually
+             open, when it belongs to this group; otherwise this group's
+             own first tab, so the group is still reachable at all.
+             Arrow/Home/End below both move focus AND activate the tab
+             landed on — the same "selection follows focus" model a tablist
+             this shallow (two or three tabs per group) reads most simply. */
+          const groupHasOpen = mine.some((t) => t.key === openKey);
+          const onTabKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+            const list = Array.from(
+              e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+            );
+            if (list.length === 0) return;
+            const i = list.indexOf(document.activeElement as HTMLButtonElement);
+            let next = -1;
+            if (e.key === "ArrowRight") next = i < 0 ? 0 : (i + 1) % list.length;
+            else if (e.key === "ArrowLeft") next = i < 0 ? list.length - 1 : (i - 1 + list.length) % list.length;
+            else if (e.key === "Home") next = 0;
+            else if (e.key === "End") next = list.length - 1;
+            else return;
+            e.preventDefault();
+            const btn = list[next];
+            btn.focus();
+            if (btn.dataset.key) setPanel(btn.dataset.key);
+          };
           return (
             <div
               key={group}
@@ -1359,15 +1395,21 @@ export default function CheckDetail({
                     ? "Answer library"
                     : "Reference"
               }
+              onKeyDown={onTabKeyDown}
               className="flex shrink-0 flex-nowrap gap-[5px]"
             >
-              {mine.map((t) => {
+              {mine.map((t, i) => {
                 const on = openKey === t.key;
+                const inTabOrder = groupHasOpen ? on : i === 0;
                 return (
                   <button
                     key={t.key}
+                    id={`${panelBaseId}-tab-${t.key}`}
+                    data-key={t.key}
                     role="tab"
                     aria-selected={on}
+                    aria-controls={`${panelBaseId}-tabpanel`}
+                    tabIndex={inTabOrder ? 0 : -1}
                     onClick={() => setPanel(t.key)}
                     className="flex shrink-0 items-center gap-[5px] rounded-full border px-[11px] py-[6px] font-display text-[10.5px] font-semibold whitespace-nowrap transition-[var(--t)]"
                     style={
@@ -1436,7 +1478,10 @@ export default function CheckDetail({
           of a short box, and the sticky bar — which can only stick within its
           parent's content box — came to rest in the MIDDLE of the screen. */}
       <div
+        id={`${panelBaseId}-tabpanel`}
         role="tabpanel"
+        aria-labelledby={`${panelBaseId}-tab-${openKey}`}
+        tabIndex={0}
         data-panel={openKey}
         /* No deep bottom padding at lg any more: the panel is its own
            scroller and the capture column is a sibling beside it, not

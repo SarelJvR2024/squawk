@@ -262,8 +262,18 @@ check(
 );
 check(
   "the filter is offered only where a previous classification exists to filter on",
+  /* OVERNIGHT REFINEMENT, TASK 3 moved this filter from a bespoke
+     role="group" aria-label="..." row into the shared FilterBar
+     component's own multi-select group — FilterBar names a multi-select
+     group with a visible `label` caption rather than an aria-label (see
+     FilterBar.tsx: aria-label is single-select-only, since that's where
+     the group itself carries the role="radiogroup" the name attaches to),
+     so the literal string this used to check for moved from an
+     `aria-label="..."` attribute to a `label: "..."` prop value — still
+     the exact same words, still clearly naming what the filter is, same
+     "offered only in systems mode" gate. */
   /mode === "systems" && \(/.test(page) &&
-    /aria-label="Filter by the previous audit's rating"/.test(page),
+    /label: "Filter by the previous audit's rating",/.test(page),
   "the findings-raised view has no asset-system band to filter by"
 );
 
@@ -351,9 +361,19 @@ check(
   /* UX-audit P1's mechanical border-radius pass moved these two ad-hoc
      values (13px, 15px) onto the shared 3-tier scale — 11px and 16px, the
      nearest tier to each. min-w-0 and the overflow behaviour this actually
-     protects are untouched. */
-  /className="min-w-0 rounded-\[11px\] border lg:min-h-0 lg:overflow-y-auto"/.test(page) &&
-    /className="min-w-0 rounded-\[16px\] border lg:flex lg:min-h-0 lg:flex-col lg:overflow-y-auto"/.test(
+     protects are untouched.
+
+     OVERNIGHT REFINEMENT, TASK 2 added a per-panel hidden/lg:block toggle
+     to both of these divs for the mobile list→detail fix, which turned
+     each className from one plain string into a template literal — the
+     min-w-0, the corner radius and the lg:min-h-0/lg:overflow-y-auto pair
+     this check actually protects are all still there, just no longer the
+     single literal `className="..."` string this regex used to anchor on
+     whole. Matching the exact START of each template literal keeps the
+     same protection without re-pinning to one specific way of writing the
+     conditional class. */
+  /className={`min-w-0 rounded-\[11px\] border lg:block lg:min-h-0 lg:overflow-y-auto/.test(page) &&
+    /className={`\$\{mobileCls\}min-w-0 rounded-\[16px\] border lg:flex lg:min-h-0 lg:flex-col lg:overflow-y-auto`}/.test(
       page
     ),
   "a grid item's default min-width is auto, and the app shell is overflow:hidden — so an overflowing child is CLIPPED, not scrollable. At 375px the group count lost its last character."

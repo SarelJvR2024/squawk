@@ -100,9 +100,16 @@ check(
    it. */
 check(
   "the check screen keeps one tab strip even where it splits into two columns from lg",
+  /* The {0,400} window widened to {0,700} — overnight refinement, tasks 1
+     + 3 added the accessible-tabs wiring (id/aria-labelledby/tabIndex and
+     the comment explaining them) onto this same role="tabpanel" element,
+     which pushed the gap to its own className past the old window. Still
+     the same element, still immediately followed by its lg: layout
+     classes — just with the new tab-model attributes in between, which is
+     exactly what this assertion is checking still belongs to ONE panel. */
   !/lg:grid-cols-\[minmax\(0,1fr\)_minmax\(0,1\.08fr\)\]/.test(detail) &&
     (detail.match(/className="flex flex-nowrap items-center gap-x-\[14px\]/g) || []).length === 1 &&
-    /role="tabpanel"[\s\S]{0,400}lg:min-h-0 lg:w-1\/2 lg:shrink-0 lg:overflow-y-auto/.test(detail),
+    /role="tabpanel"[\s\S]{0,700}lg:min-h-0 lg:w-1\/2 lg:shrink-0 lg:overflow-y-auto/.test(detail),
   "a tab strip per column was the busyness Sarel named — one strip above two scrolling columns is not the same layout"
 );
 

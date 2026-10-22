@@ -64,7 +64,8 @@ import FindingDetail from "@/components/FindingDetail";
 import CheckDetail from "@/components/CheckDetail";
 import SystemTreatment from "@/components/SystemTreatment";
 import RaiseFindingSheet from "@/components/RaiseFindingSheet";
-import { IconInbox, IconPlus, IconSearch, IconX } from "@/components/ui/icons";
+import { IconInbox, IconLeft, IconPlus, IconSearch, IconX } from "@/components/ui/icons";
+import { FilterBar } from "@/components/ui/FilterBar";
 import type { Check, Finding, Tolerance, Attachment, AdHocItem } from "@/lib/types";
 import { AttachmentStrip } from "@/components/Capture";
 
@@ -248,6 +249,31 @@ export default function FindingsPage() {
      contradicts the panel beside it has lost track of what it is showing. */
   const [expanded, setExpanded] = useState<string[] | null>(null);
   const [activeKey, setActiveKey] = useState<string | null>(null);
+  /* MOBILE LIST → DETAIL, AS ITS OWN VIEW STATE — overnight refinement, task
+     2. Below `lg` the hierarchy and the assessment panel stack in one column
+     (see the grid two reasons above this), so picking a row used to leave
+     the list on screen with the panel it opened rendered hundreds of pixels
+     further down — selecting an asset looked like nothing had happened. This
+     flag (true only once a row has actually been tapped, never from the
+     screen's own "land on something" defaults below) swaps which of the two
+     panels is visible below `lg`; at `lg` and up both render side by side
+     exactly as before, and this flag is simply never read. */
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
+  const [mobileListScroll, setMobileListScroll] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  /** Capture where the list was scrolled to, then open the detail view. The
+   *  scroll position is restored in `backToList` below, so returning lands
+   *  exactly where the auditor left off rather than back at the top. */
+  const openMobileDetail = () => {
+    setMobileListScroll(scrollRef.current?.scrollTop ?? 0);
+    setMobileDetailOpen(true);
+  };
+  const backToList = () => {
+    setMobileDetailOpen(false);
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ top: mobileListScroll });
+    });
+  };
   const [openFinding, setOpenFinding] = useState<string | null>(null);
   /** Which check-point's own capture popup is open — Sarel: "when clicking
    *  on the row it should bring up the popup with the same view as when
@@ -475,7 +501,7 @@ export default function FindingsPage() {
   const totalSystems = tree.reduce((n, d) => n + d.systems.length, 0);
 
   return (
-    <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto lg:overflow-hidden">
+    <div ref={scrollRef} className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto lg:overflow-hidden">
       <div className="mx-auto flex w-full max-w-[1240px] flex-col px-4 pt-3 pb-16 sm:px-6 lg:min-h-0 lg:flex-1 lg:pb-3">
         {/* COMPACT, ON PURPOSE. This used to be a title line, a sentence of
             prose beneath it, then the bar — three stacked blocks before any
@@ -500,15 +526,27 @@ export default function FindingsPage() {
           className="sticky top-0 z-10 -mx-4 mb-1.5 shrink-0 border-b px-4 py-[4px] sm:-mx-6 sm:px-6 sm:py-[5px]"
           style={{ background: "var(--bg)", borderColor: "var(--line)" }}
         >
-          {/* THE MODE SWITCH, THE SEARCH BOX AND THE RATING FILTER, ALL ONE ROW
-              NOW — Sarel: "move these buttons and search all into one row and
-              make thinner." These used to be two rows (the mode switch and the
-              rated count above, search and the filter pills below), each with
-              its own vertical padding — on a wide screen that was two mostly-
-              empty rows stacked on top of each other. One row, flex-wrapping
-              at narrow widths exactly as the search-and-filter pairing already
-              did, and every control a touch shorter (buttons and the search
-              box both lost a few px of min-height) for "thinner". */}
+          {/* THREE ROWS, EACH A DIFFERENT KIND OF CONTROL — overnight
+              refinement, task 3: "separate 'By asset system' / 'Findings
+              raised' navigation from filtering — they shouldn't visually
+              compete as the same kind of control. Put the mobile search
+              field on its own full-width, clearly usable row. Put
+              previous-rating filters in a clearly labelled secondary area
+              or disclosure." All three used to sit in one flex-wrapping
+              row: the mode switch (a segmented radiogroup), the search box,
+              and the 2025-rating filter (a row of toggle pills) — the mode
+              switch and the rating filter are both rows of small rounded
+              buttons, so on a narrow screen where they wrapped onto their
+              own lines they read as the same kind of control doing two
+              different jobs. They're split onto their own rows now: the
+              mode switch (navigation) on its own line with the rated
+              count and "Raise a finding"; the search box full-width right
+              below it; and the rating filter moved into the same shared
+              `FilterBar` disclosure Capture/Review/Closure/Forms already
+              use — closed by default, with a visible "Showing: …" summary
+              and the exact same multi-select/"clear" semantics as before,
+              just no longer competing with the mode switch for the same
+              visual language. */}
           <div className="flex flex-wrap items-center gap-2">
             {/* THE TWO WAYS IN. Asset system is the default because it is what
                 the screen is for; the flat register is the one an auditor
@@ -555,76 +593,6 @@ export default function FindingsPage() {
                 : `${findings.filter((f) => f.ratingConfirmed).length}/${findings.length} rated`}
             </span>
 
-            <div
-              className="flex min-w-0 flex-1 items-center gap-2 rounded-[11px] border px-3 py-[2px] sm:max-w-[240px] sm:flex-none"
-              style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-            >
-              <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder={mode === "systems" ? "Search an asset system…" : "Search a finding…"}
-                aria-label={mode === "systems" ? "Search an asset system" : "Search a finding"}
-                className="min-h-[30px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
-              />
-            </div>
-
-            {/* THE 2025 BAND, AS A FILTER — not just a colour on the row. Sarel:
-                "add filter for tolerable, unacceptable." Toggled, not
-                radio-picked, because "everything that is not fine" is exactly
-                Unacceptable + Tolerable together, and an auditor triaging what
-                needs attention first wants both checked at once. Nothing
-                checked reads as no filter, same rule the rest of this screen's
-                filters use. */}
-            {mode === "systems" && (
-              <div
-                role="group"
-                aria-label="Filter by the previous audit's rating"
-                className="flex flex-wrap items-center gap-[5px]"
-              >
-                <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                  2025 RATING
-                </span>
-                {BANDS.map((b) => {
-                  const on = bandFilter.has(b);
-                  const t = TONE_VARS[ratingTone(b)];
-                  return (
-                    <button
-                      key={b}
-                      type="button"
-                      aria-pressed={on}
-                      onClick={() =>
-                        setBandFilter((cur) => {
-                          const next = new Set(cur);
-                          if (next.has(b)) next.delete(b);
-                          else next.add(b);
-                          return next;
-                        })
-                      }
-                      className="rounded-full border px-[9px] py-[4px] font-mono text-[10px] font-semibold transition-[var(--t)]"
-                      style={
-                        on
-                          ? { background: t.fg, borderColor: t.fg, color: "#fff" }
-                          : { background: t.bg, borderColor: t.line, color: t.fg }
-                      }
-                    >
-                      {b}
-                    </button>
-                  );
-                })}
-                {bandFilter.size > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setBandFilter(new Set())}
-                    className="font-mono text-[9.5px] underline-offset-2 hover:underline"
-                    style={{ color: "var(--ink-3)" }}
-                  >
-                    clear
-                  </button>
-                )}
-              </div>
-            )}
-
             {/* THE ENTRY POINT THIS SCREEN DID NOT HAVE — Sarel: "make sure
                 there's an easy way to capture findings". Always here, in
                 either mode, because a non-compliance that is not tied to a
@@ -640,6 +608,71 @@ export default function FindingsPage() {
               Raise a finding
             </Btn>
           </div>
+
+          {/* ITS OWN FULL-WIDTH ROW, ALWAYS — not sharing a row with the
+              mode switch and shrinking to whatever space was left over,
+              which is how it ended up at 240px wide (and easy to miss) on
+              a desk-width window and cramped on a phone. */}
+          <div
+            className="mt-2 flex min-w-0 items-center gap-2 rounded-[11px] border px-3 py-[6px]"
+            style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+          >
+            <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={mode === "systems" ? "Search an asset system…" : "Search a finding…"}
+              aria-label={mode === "systems" ? "Search an asset system" : "Search a finding"}
+              className="min-h-[32px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
+            />
+          </div>
+
+          {/* THE 2025 BAND, AS A FILTER, IN ITS OWN DISCLOSURE — not just a
+              colour on the row. Sarel: "add filter for tolerable,
+              unacceptable." Toggled, not radio-picked, because "everything
+              that is not fine" is exactly Unacceptable + Tolerable
+              together, and an auditor triaging what needs attention first
+              wants both checked at once — `multi: true` below is that same
+              rule, unchanged. Nothing checked reads as no filter, same rule
+              the rest of this screen's filters use, and `FilterBar`'s own
+              "clear" link is the identical setBandFilter(new Set()) the
+              inline version used. */}
+          {mode === "systems" && (
+            <FilterBar
+              className="mt-2"
+              summary={
+                <>
+                  2025 rating:{" "}
+                  <b>{bandFilter.size === 0 ? "every rating" : [...bandFilter].join(", ")}</b>
+                </>
+              }
+              active={bandFilter.size > 0}
+              groups={[
+                {
+                  /* NAMED, not just captioned by the summary line above —
+                     same accessible-name requirement the old inline
+                     role="group" aria-label carried (see
+                     tests/systems.test.mjs's own regression guard for it).
+                     FilterBar renders a group's `label` as a visible
+                     caption for a multi-select row (unlike the
+                     radiogroup/aria-label pairing it uses for single-select
+                     — see FilterBar.tsx), so this is both the accessible
+                     name and a readable caption, not a decoration. */
+                  label: "Filter by the previous audit's rating",
+                  options: BANDS.map((b) => ({ key: b, label: b })),
+                  value: [...bandFilter],
+                  multi: true,
+                  onChange: (key) =>
+                    setBandFilter((cur) => {
+                      const next = new Set(cur);
+                      if (next.has(key as Tolerance)) next.delete(key as Tolerance);
+                      else next.add(key as Tolerance);
+                      return next;
+                    }),
+                },
+              ]}
+            />
+          )}
         </div>
 
         <div className="grid gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[340px_minmax(0,1fr)]">
@@ -664,8 +697,16 @@ export default function FindingsPage() {
                item past it rather than shrinking — and because the app shell
                is `overflow: hidden`, the overflow is CLIPPED rather than
                scrollable. Measured at 375px: the group row's "0/13" count lost
-               its last character off the right edge, silently. */
-            className="min-w-0 rounded-[11px] border lg:min-h-0 lg:overflow-y-auto"
+               its last character off the right edge, silently.
+
+               HIDDEN BELOW `lg` ONCE A ROW HAS OPENED THE DETAIL VIEW — the
+               other half of task 2's mobile fix. `lg:block` always wins back
+               at the breakpoint where both panels are meant to show side by
+               side; below it, `mobileDetailOpen` decides which ONE of the
+               two panels in this grid is the working view. */
+            className={`min-w-0 rounded-[11px] border lg:block lg:min-h-0 lg:overflow-y-auto ${
+              mobileDetailOpen ? "hidden" : ""
+            }`}
             style={{ background: "var(--panel)", borderColor: "var(--line)" }}
           >
             {mode === "findings" ? (
@@ -686,7 +727,10 @@ export default function FindingsPage() {
                     <button
                       key={f.id}
                       data-finding={f.id}
-                      onClick={() => setActiveFindingId(f.id)}
+                      onClick={() => {
+                        setActiveFindingId(f.id);
+                        openMobileDetail();
+                      }}
                       className="relative flex w-full items-start gap-2 border-b px-[11px] py-[9px] text-left transition-[var(--t)]"
                       style={{
                         borderColor: "var(--line)",
@@ -790,7 +834,10 @@ export default function FindingsPage() {
                           <button
                             key={key}
                             data-system={x.system}
-                            onClick={() => setActiveKey(key)}
+                            onClick={() => {
+                              setActiveKey(key);
+                              openMobileDetail();
+                            }}
                             /* The whole name, for the row that cannot show it.
                                Three marks on the name's line means a long asset
                                system truncates at about 24 characters —
@@ -913,13 +960,38 @@ export default function FindingsPage() {
             )}
           </div>
 
-          {/* ------------------------------------------------- the assessment */}
-          {mode === "findings" ? (
+          {/* ------------------------------------------------- the assessment
+
+              SHOWN BELOW `lg` ONLY ONCE A ROW HAS BEEN TAPPED — the detail
+              half of task 2's mobile fix. Each of the three branches below
+              gets the same `hidden`/`lg:block` pair the list panel above
+              carries, applied directly to its own existing div (no wrapper
+              — a wrapper here would sit between this grid item and the
+              `lg:flex`/`lg:min-h-0` sizing the independent-scroll desktop
+              layout depends on, which must stay exactly as it was). `backBtn`
+              is the same "Back to…" control inlined into each branch as its
+              first child, `lg:hidden` because at `lg` the list is always
+              visible beside this panel and a way back to it is redundant. */}
+          {(() => {
+            const backBtn = (
+              <button
+                type="button"
+                onClick={backToList}
+                className="mb-2 flex min-h-[36px] items-center gap-1.5 text-[12px] font-semibold lg:hidden"
+                style={{ color: "var(--acc)" }}
+              >
+                <IconLeft width={13} height={13} aria-hidden />
+                Back to {mode === "findings" ? "findings" : "asset systems"}
+              </button>
+            );
+            const mobileCls = mobileDetailOpen ? "" : "hidden ";
+            return mode === "findings" ? (
             shownFinding ? (
               <div
-                className="min-w-0 rounded-[16px] border p-[18px] lg:min-h-0 lg:overflow-y-auto"
+                className={`${mobileCls}min-w-0 rounded-[16px] border p-[18px] lg:block lg:min-h-0 lg:overflow-y-auto`}
                 style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "var(--e2)" }}
               >
+                {backBtn}
                 {/* THE SAME PANE, INLINE. It opens in a sheet from an asset
                     system's evidence list and fills the panel here — one
                     component either way, because a finding rated from one route
@@ -929,7 +1001,7 @@ export default function FindingsPage() {
               </div>
             ) : (
               <div
-                className="flex min-w-0 items-center justify-center rounded-[16px] border p-8 text-center text-[12.5px] lg:min-h-0"
+                className={`${mobileCls}flex min-w-0 items-center justify-center rounded-[16px] border p-8 text-center text-[12.5px] lg:flex lg:min-h-0`}
                 style={{ background: "var(--panel)", borderColor: "var(--line)", color: "var(--ink-3)" }}
               >
                 {findings.length === 0
@@ -939,7 +1011,7 @@ export default function FindingsPage() {
             )
           ) : !active || !a ? (
             <div
-              className="flex min-w-0 items-center justify-center rounded-[16px] border p-8 text-center text-[12.5px] lg:min-h-0"
+              className={`${mobileCls}flex min-w-0 items-center justify-center rounded-[16px] border p-8 text-center text-[12.5px] lg:flex lg:min-h-0`}
               style={{ background: "var(--panel)", borderColor: "var(--line)", color: "var(--ink-3)" }}
             >
               Pick an asset system to rate it and read everything this audit knows about it.
@@ -956,13 +1028,14 @@ export default function FindingsPage() {
                  root causes, mitigations, possible events and the full evidence
                  list below — scrolls underneath them. That block is the sticky
                  header right below; everything after it is the scrolling body. */
-              className="min-w-0 rounded-[16px] border lg:flex lg:min-h-0 lg:flex-col lg:overflow-y-auto"
+              className={`${mobileCls}min-w-0 rounded-[16px] border lg:flex lg:min-h-0 lg:flex-col lg:overflow-y-auto`}
               style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "var(--e2)" }}
             >
               <div
                 className="rounded-t-[16px] px-[18px] pt-[18px] pb-3 lg:sticky lg:top-0 lg:z-10 lg:shrink-0 lg:border-b"
                 style={{ background: "var(--panel)", borderColor: "var(--line)" }}
               >
+                {backBtn}
                 <div
                   className="mb-1.5 flex flex-wrap items-center gap-[7px] font-mono text-[10px]"
                   style={{ color: "var(--ink-3)" }}
@@ -1270,7 +1343,8 @@ export default function FindingsPage() {
                 />
               </div>
             </div>
-          )}
+          );
+          })()}
         </div>
       </div>
 

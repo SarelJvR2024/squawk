@@ -493,16 +493,29 @@ export default function HomePage() {
                     the one main action, so every button here stays the
                     plain/default style even when it opens a different audit
                     outright, rather than competing with the primary button
-                    in the lead card above. */}
+                    in the lead card above.
+
+                    THE SECOND "Start with" BUTTON ONLY WHEN IT MEANS SOMETHING ELSE —
+                    overnight refinement, task 5: when this look-ahead IS the
+                    audit already open (`nextIsOpen`), "Start with Checks"
+                    points at the exact same /capture destination as
+                    "Continue at the desk" in the lead card above, with no
+                    distinct meaning left — two buttons for one action. Once
+                    this is a different, not-yet-open audit, the two stop
+                    being the same destination (the lead card's primary
+                    button continues the CURRENT audit; this one starts the
+                    NEXT one) and it earns its place back. */}
                 <div className="mt-3.5 flex flex-wrap gap-2">
                   {!nextIsOpen && (
                     <Btn onClick={() => openAudit(next.code, nextVisit.id)}>
                       Open {next.short} · {nextVisit.label}
                     </Btn>
                   )}
-                  <Link href="/capture" className="no-underline">
-                    <Btn>Start with Checks</Btn>
-                  </Link>
+                  {!nextIsOpen && (
+                    <Link href="/capture" className="no-underline">
+                      <Btn>Start with Checks</Btn>
+                    </Link>
+                  )}
                   <Link href="/preflight" className="no-underline">
                     <Btn>Check this device</Btn>
                   </Link>

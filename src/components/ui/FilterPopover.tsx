@@ -19,8 +19,14 @@
  *  anchoring to the button, so it opens within thumb's reach one-handed
  *  instead of as a narrow dropdown that can run off either side. */
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { IconX } from "@/components/ui/icons";
+
+/** Every element inside the panel a keyboard user could land on — used both
+ *  to give the panel somewhere to send focus on open and to keep Tab
+ *  cycling inside it while it's open, rather than leaking out into the page
+ *  behind the backdrop. */
+const FOCUSABLE = 'button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 export function FilterPopover({
   label = "Filters",
@@ -43,11 +49,51 @@ export function FilterPopover({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
+  /** The one way this panel ever closes, whichever path triggers it
+   *  (Escape, the backdrop, the × button) — so focus always lands back on
+   *  the button that opened it, never left stranded on a backdrop or on an
+   *  element that's about to disappear. */
+  const close = () => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  };
+
+  /* OPENING FOCUS, ESCAPE, AND A TAB TRAP — overnight refinement, task 3.
+   *  This used to open with focus still on the trigger button and nothing
+   *  stopping Tab from leaving the panel into the page behind the backdrop;
+   *  a keyboard or screen-reader user had no signal the panel had opened at
+   *  all beyond `aria-expanded` flipping. Moving focus onto the panel
+   *  itself (not a specific child — the children are arbitrary per screen)
+   *  announces the dialog immediately; the Tab handler below keeps focus
+   *  cycling inside it while open, same as AppShell's own menus. */
   useEffect(() => {
     if (!open) return;
+    panelRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        close();
+        return;
+      }
+      if (e.key !== "Tab" || !panelRef.current) return;
+      const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE));
+      if (focusable.length === 0) {
+        e.preventDefault();
+        panelRef.current.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const current = document.activeElement;
+      if (e.shiftKey && current === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && current === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -56,6 +102,7 @@ export function FilterPopover({
   return (
     <div className={`relative ${className}`}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
@@ -96,21 +143,23 @@ export function FilterPopover({
         <>
           {/* Invisible, full-screen — tapping anywhere outside the panel
               closes it, same as AppShell's own dropdowns. */}
-          <div className="fixed inset-0 z-[70]" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div className="fixed inset-0 z-[70]" onClick={close} aria-hidden="true" />
           <div
+            ref={panelRef}
             role="dialog"
             aria-label={label}
+            tabIndex={-1}
             /* Pinned to the viewport's edges on a phone — reachable
                one-handed wherever the button happened to be — and an
                anchored dropdown from `sm` up, where there is room for one. */
-            className="fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+58px)] z-[75] max-h-[min(70vh,560px)] overflow-y-auto rounded-[16px] border p-[14px] sm:absolute sm:inset-x-auto sm:top-[calc(100%+7px)] sm:left-0 sm:max-h-none sm:w-[min(420px,92vw)]"
+            className="fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+58px)] z-[75] max-h-[min(70vh,560px)] overflow-y-auto rounded-[16px] border p-[14px] outline-none sm:absolute sm:inset-x-auto sm:top-[calc(100%+7px)] sm:left-0 sm:max-h-none sm:w-[min(420px,92vw)]"
             style={{ background: "var(--menu-bg)", borderColor: "var(--menu-line)", boxShadow: "var(--e3)" }}
           >
             <div className="mb-3 flex items-center justify-between gap-2">
               <b className="font-display text-[12.5px]">{label}</b>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={close}
                 aria-label="Close filters"
                 className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] transition-[var(--t)]"
                 style={{ color: "var(--ink-3)" }}
