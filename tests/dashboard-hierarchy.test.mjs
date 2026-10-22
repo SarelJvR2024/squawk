@@ -64,8 +64,12 @@ check(
 
 check(
   "the five headline tiles still go through the original kpi() renderer, unchanged",
+  // The accent-sweep pass (#175, merged after this test was written) correctly
+  // dropped the "acc" tone from this tile — it's a passive count, not a status
+  // or selection — so this no longer asserts a tone argument, just that the
+  // tile is still rendered through kpi() rather than some other renderer.
   /kpi\(`\$\{visitLabel\} rating`/.test(src) &&
-    /kpi\("Check-points assessed", `\$\{stats\.captured\}\/\$\{stats\.total\}`, "acc"\)/.test(src)
+    /kpi\("Check-points assessed", `\$\{stats\.captured\}\/\$\{stats\.total\}`\)/.test(src)
 );
 
 check(
