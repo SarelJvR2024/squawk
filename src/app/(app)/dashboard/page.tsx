@@ -496,8 +496,22 @@ export default function DashboardPage() {
                   SharePoint list and the workbook export's "Asset systems"
                   sheet. Severity/likelihood/tolerance are blank, not guessed,
                   until the group has agreed them — see `agreed` below, same
-                  gate systemsSheet() and sharepoint.ts's assetRisk push use. */}
-              <div className="rounded-[16px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
+                  gate systemsSheet() and sharepoint.ts's assetRisk push use.
+
+                  `min-w-0` — mobile regression fix. Below `lg:`, this grid
+                  has a single implicit column, and a CSS grid item's width
+                  defaults to `min-width: auto`, i.e. the min-content size of
+                  its contents. The table inside is deliberately
+                  `whitespace-nowrap` (see the overflow note below) so its
+                  min-content width is its FULL width — on this register,
+                  ~832px. Without `min-w-0`, that forces this card (and the
+                  column track it shares with the risk-profile card beside
+                  it) to grow to 832px inside a 375px viewport instead of
+                  shrinking to the available space and handing the overflow
+                  to `.overflow-x-auto` below. `min-w-0` removes that
+                  content-based floor so the column shrinks to the viewport
+                  and the inner scroll wrapper actually engages. */}
+              <div className="min-w-0 rounded-[16px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
                 <div className="mb-3 flex items-baseline justify-between gap-2">
                   <h3 className="text-[12.5px] font-bold">Asset systems: risk to operations</h3>
                   {/* A DELIBERATE, NAMED OVERFLOW — overnight refinement, task
@@ -601,8 +615,14 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* ACSA B170 001M heat map */}
-              <div className="rounded-[16px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
+              {/* ACSA B170 001M heat map. `min-w-0` for the same reason as the
+                  asset-systems card above: below `lg:`, this card shares the
+                  grid's single implicit column with that card, so its
+                  content-based minimum width also contributes to how wide
+                  the column is forced to be — without it, this card was
+                  being dragged along to the asset table's ~832px and cut off
+                  the same way. */}
+              <div className="min-w-0 rounded-[16px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-[12.5px] font-bold">Risk profile</h3>
                   <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
@@ -692,7 +712,17 @@ export default function DashboardPage() {
                 tolerance the group has agreed for them this round, same
                 table the register itself prints under this name. */}
             <div className="mb-3.5 rounded-[16px] border p-[17px]" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
-              <h3 className="mb-3 text-[12.5px] font-bold">Distribution of ratings</h3>
+              <div className="mb-3 flex items-baseline justify-between gap-2">
+                <h3 className="text-[12.5px] font-bold">Distribution of ratings</h3>
+                {/* Same visible scroll hint as the asset-systems table above —
+                    this card was never caught in the grid min-width trap (it
+                    is not a grid item), so its `.overflow-x-auto` wrapper
+                    already engaged correctly; it was only missing the
+                    plain-text cue that overflow is there and swipeable. */}
+                <span className="shrink-0 font-mono text-[9px] sm:hidden" style={{ color: "var(--ink-4)" }}>
+                  ↔ scroll for every column
+                </span>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-[12px]">
                   <thead>
