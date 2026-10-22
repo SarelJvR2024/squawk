@@ -19,9 +19,10 @@ import { portalIdFor } from "@/lib/sites";
 import { needsDesk, needsQuestion } from "@/lib/verification";
 import CheckDetail from "@/components/CheckDetail";
 import { Btn, Dot, Empty, Pill } from "@/components/ui/primitives";
+import PageHeading from "@/components/ui/PageHeading";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { DisciplineSelect } from "@/components/ui/DisciplineSelect";
-import { IconInbox } from "@/components/ui/icons";
+import { IconCheck, IconInbox } from "@/components/ui/icons";
 import type { Check } from "@/lib/types";
 
 type Filter = "all" | "open" | "q" | "nc" | "na" | "pf";
@@ -104,6 +105,22 @@ function CaptureInner() {
     [entityCode, discipline]
   );
 
+  /* THE SITE-WIDE CAPTURED FIGURE FOR THE PAGE HEADING — desktop/tablet
+     redesign, phase 1 checkpoint. This screen never had a visible top-of-
+     page count (the per-discipline select and the per-system rows below
+     always carried their own, and still do); this is new to the heading
+     row, not a restoration of markup that existed here before. It is NOT
+     a new calculation: `checksAt(entityCode).filter(needsDesk)` and
+     `deskDone` are the exact pair AppShell's nav badge for Checks and
+     Home's "At the desk" strip already compute (src/components/
+     AppShell.tsx, src/app/(app)/home/page.tsx) — site-wide, not scoped to
+     the discipline or status filter in view, so the number on this
+     heading always matches the nav's own "Checks" count beside it. */
+  const siteDesk = useMemo(() => {
+    const scope = checksAt(entityCode).filter(needsDesk);
+    return { done: scope.filter((c) => deskDone(responses[c.id])).length, total: scope.length };
+  }, [entityCode, responses]);
+  const siteDeskPct = siteDesk.total ? Math.round((siteDesk.done / siteDesk.total) * 100) : 0;
 
   const visible = useMemo(() => {
     let list = deskChecks;
@@ -215,7 +232,66 @@ function CaptureInner() {
   }, [visible, entityCode, discipline]);
 
   return (
-    <>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      {/* THE PAGE-HEADING ROW — desktop/tablet redesign, phase 1 checkpoint.
+          This screen had no visible heading at all before this: AppShell's
+          own <h1> is sr-only (see its own comment), and nothing on Checks
+          itself named the screen or its overall progress — only the
+          per-discipline select and the per-system rows further down ever
+          carried a count, each scoped to one slice of the register. This
+          row is new furniture, not restored markup, carrying the ONE figure
+          this screen was missing: `siteDesk`, the exact desk/needsDesk/
+          deskDone computation AppShell's "Checks" nav badge and Home's "At
+          the desk" strip already make — so the number here always agrees
+          with the number a hover on the nav tab shows.
+          Minimal by design — "don't over-build the shared shell yet, that's
+          phase 2": a title, a 4px track and the figure, nothing else. */}
+      {/* PHASE 2: the bar itself is now PageHeading, the shell shared with
+          Inspection's own heading row (src/components/ui/PageHeading.tsx) —
+          title left, progress beside it, an actions slot on the right for
+          whichever screen has something to put there. The progress markup
+          below is untouched, word for word: tests/progress-restore.test.mjs
+          reads this exact source out of this file by name. */}
+      <PageHeading
+        title={<h2 className="text-[13px] font-bold">Checks</h2>}
+        progress={
+          <div className="flex min-w-[160px] flex-1 items-center gap-2.5 sm:max-w-[360px]">
+            <span
+              className="h-[4px] flex-1 overflow-hidden rounded-full"
+              style={{ background: "var(--line)" }}
+              role="img"
+              aria-label={`${siteDesk.done} of ${siteDesk.total} captured, ${siteDeskPct}%`}
+            >
+              {/* a11y.js's "small round span" dot-check can mistake this fill
+                  for an unlabelled status dot once it's 0% wide (0x4px, same
+                  footprint as a real dot) — the sr-only text gives the span
+                  it sits in real textContent so the check's own "aria-hidden
+                  AND the row already says it in words" rule is satisfied. */}
+              <span className="sr-only">
+                {siteDesk.done} of {siteDesk.total} captured, {siteDeskPct}%
+              </span>
+              <span
+                className="block h-full rounded-full"
+                style={{ width: `${siteDeskPct}%`, background: "var(--acc)" }}
+                aria-hidden="true"
+              />
+            </span>
+            <span className="tnum shrink-0 font-mono text-[12px]" style={{ color: "var(--ink-2)" }} aria-hidden="true">
+              {siteDesk.done} of {siteDesk.total} captured · {siteDeskPct}%
+            </span>
+            {siteDesk.total > 0 && siteDesk.done === siteDesk.total && (
+              <IconCheck
+                width={13}
+                height={13}
+                aria-label="All checks captured"
+                style={{ color: "var(--acc)" }}
+              />
+            )}
+          </div>
+        }
+      />
+
+      <div className="flex min-h-0 min-w-0 flex-1">
       {/* navigator — one column: the filter, the discipline, and the asset
           systems with their checks nested under them.
 
@@ -366,6 +442,19 @@ function CaptureInner() {
                     {done}/{all.length}
                     {nc > 0 && ` · ${nc}NC`}
                   </span>
+                  {/* A SUBTLE MARK AT 100%, neutral/accent rather than a
+                      coloured badge — desktop/tablet redesign, phase 1
+                      checkpoint. `done === all.length` is the same figure
+                      the count just before it already reads; this only adds
+                      a quiet glyph when that figure is whole. */}
+                  {all.length > 0 && done === all.length && (
+                    <IconCheck
+                      width={10}
+                      height={10}
+                      aria-label={`${sys} fully captured`}
+                      style={{ color: holds ? "var(--acc)" : "var(--ink-3)" }}
+                    />
+                  )}
                   {/* The track, as the row's own underline — the same
                       information the stacked card carried, in none of the
                       height. */}
@@ -440,6 +529,7 @@ function CaptureInner() {
           </Empty>
         </div>
       )}
+      </div>
 
       {toast && (
         <div
@@ -449,7 +539,7 @@ function CaptureInner() {
           {toast}
         </div>
       )}
-    </>
+    </div>
   );
 }
 

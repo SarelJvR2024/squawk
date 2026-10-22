@@ -759,17 +759,29 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     and hides it below sm, where the short-label span above
                     now carries every destination, active or not. */}
                 <span className={active ? "hidden sm:inline" : "hidden xl:inline"}>{n.label}</span>
-                {/* THE STANDING BADGE IS GONE — Sarel's second visual-
-                    hierarchy pass, item 1: "remove the per-nav-item counts
-                    (324/324, 10, 22/33) from the top bar — show overall
-                    progress once [the ring] ... and put per-section counts
-                    on the Dashboard or as a tooltip." Nine destinations each
-                    carrying their own "0/315" in the accent colour, permanently,
-                    on every screen, was nine repetitions of a fact the ring
-                    two zones over already states once. The count itself is
-                    not gone — see the `title` prop above, which is now
-                    `"Checks — 312/315"` and so on, one hover or long-press
-                    away rather than a chip nobody asked to see every time. */}
+                {/* THE STANDING BADGE IS GONE, BUT CHECKS AND INSPECTION GET A
+                    QUIET COUNT BACK — Desktop/tablet redesign phase 1,
+                    checkpoint item: Sarel's second visual-hierarchy pass
+                    (item 1, d7d79bb) dropped every per-nav-item count to the
+                    `title` tooltip below, which an auditor glancing at the
+                    bar never sees. Checks and Inspection are the two screens
+                    whose whole job is a progress figure, so their count
+                    comes back on the face of the tab — not as the coloured
+                    pill d7d79bb removed (that read as a status, which is
+                    exactly the "bolder visual hierarchy" pass's complaint),
+                    but as small, muted-grey text, same `badge` value the
+                    tooltip already carries, computed nowhere new. Every
+                    other destination (Asset Assurance, HIRA, Follow-up,
+                    Dashboard) keeps the tooltip-only trade d7d79bb chose —
+                    they have no register denominator to be quiet about. */}
+                {(n.href === "/capture" || n.href === "/field") && badge !== "" && (
+                  <span
+                    className={`tnum font-mono text-[10px] ${active ? "hidden sm:inline" : "hidden xl:inline"}`}
+                    style={{ color: "var(--ink-4)" }}
+                  >
+                    {badge}
+                  </span>
+                )}
               </Link>
             );
           })}

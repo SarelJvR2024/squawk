@@ -222,9 +222,21 @@ check(
 
 /* ---- 5 · the camera and the microphone are out of the reading order ------ */
 
+/* TWO SHAPES, SAME GUARANTEE — desktop/tablet redesign, the deferred item.
+ * The literal `footer={` JSX attribute this originally matched moved: the
+ * check's footer (camera, microphone, Save & close) now builds once, as
+ * `const footer = (...)`, inside `selectedDetail` — fed to the Sheet modal
+ * below `lg` AND to the new `WideCheckPane` at and above it, so the two can
+ * never drift into two different footers. The first alternative still
+ * matches a plain inline `footer={<PhotoButton…<VoiceNoteButton…}`, which is
+ * what every OTHER sheet in this app still is; the second matches this
+ * screen's own extracted-once shape. Either way the property this guards —
+ * camera and microphone pinned in a footer, never loose in the scrolling
+ * body — still has to hold. */
 check(
   "the capture tools are in the sheet's footer, not its body",
-  /footer=\{[\s\S]{0,1200}?<PhotoButton[\s\S]{0,900}?<VoiceNoteButton/.test(fieldCode),
+  /footer=\{[\s\S]{0,1200}?<PhotoButton[\s\S]{0,900}?<VoiceNoteButton/.test(fieldCode) ||
+    /const footer = \([\s\S]{0,1200}?<PhotoButton[\s\S]{0,900}?<VoiceNoteButton/.test(fieldCode),
   "pinned, never scrolled away, and out of the middle of the form"
 );
 

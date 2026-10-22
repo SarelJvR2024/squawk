@@ -1396,12 +1396,23 @@ export default function CheckDetail({
                     : "Reference"
               }
               onKeyDown={onTabKeyDown}
-              className="flex shrink-0 flex-nowrap gap-[5px]"
+              className="flex shrink-0 flex-nowrap gap-[14px]"
             >
               {mine.map((t, i) => {
                 const on = openKey === t.key;
                 const inTabOrder = groupHasOpen ? on : i === 0;
                 return (
+                  /* UNDERLINE TABS, not filled pills — desktop/tablet
+                     redesign, phase 2, item B: "build on the accessible tab
+                     model already added, just restyle the tab bar itself to
+                     an underline style." Every aria/keyboard attribute above
+                     this button (id, role, aria-selected, aria-controls,
+                     tabIndex) and the group's own keyboard handling are
+                     untouched — this changes only how the OPEN tab is shown:
+                     a 2px accent rule under the active tab and accent text,
+                     quiet text otherwise, no border and no filled
+                     background competing with the accent reserved for
+                     primary actions and active selection. */
                   <button
                     key={t.key}
                     id={`${panelBaseId}-tab-${t.key}`}
@@ -1411,18 +1422,10 @@ export default function CheckDetail({
                     aria-controls={`${panelBaseId}-tabpanel`}
                     tabIndex={inTabOrder ? 0 : -1}
                     onClick={() => setPanel(t.key)}
-                    className="flex shrink-0 items-center gap-[5px] rounded-full border px-[11px] py-[6px] font-display text-[10.5px] font-semibold whitespace-nowrap transition-[var(--t)]"
-                    style={
-                      on
-                        ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
-                        : group === "do"
-                          ? { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
-                          : /* Reference reads quieter than capture: same shape,
-                               no border weight, so the eye lands on the doing
-                               first and the reading is there when it is
-                               wanted. */
-                            { background: "var(--sunken)", borderColor: "transparent", color: "var(--ink-3)" }
-                    }
+                    className="relative flex shrink-0 items-center gap-[5px] px-[3px] pt-[6px] pb-[8px] font-display text-[10.5px] font-semibold whitespace-nowrap transition-[var(--t)]"
+                    style={{
+                      color: on ? "var(--acc)" : group === "do" ? "var(--ink-2)" : "var(--ink-3)",
+                    }}
                   >
                     {t.label}
                     {t.badge && (
@@ -1430,13 +1433,22 @@ export default function CheckDetail({
                         className="rounded-full px-[5px] font-mono text-[9px]"
                         style={
                           on
-                            ? { background: "var(--on-acc)", color: "var(--acc)" }
-                            : { background: "var(--acc-soft)", color: "var(--acc)" }
+                            ? { background: "var(--acc-soft)", color: "var(--acc)" }
+                            : { background: "var(--sunken)", color: "var(--ink-3)" }
                         }
                       >
                         {t.badge}
                       </span>
                     )}
+                    {/* The underline itself — absolutely positioned so it
+                        never shifts the row's own height between the open
+                        and closed state, same reasoning the system row's
+                        own progress underline follows in capture/page.tsx. */}
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-x-0 bottom-0 h-[2px] rounded-full"
+                      style={{ background: on ? "var(--acc)" : "transparent" }}
+                    />
                   </button>
                 );
               })}

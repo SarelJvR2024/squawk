@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Eighty-nine suites, no framework. Thirteen need a running server; seventy-six do not.
+Ninety-one suites, no framework. Thirteen need a running server; seventy-eight do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -74,6 +74,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `register-review.test.mjs` | no | 24 |
 | `reports.test.mjs` | no | 22 |
 | `ppe.test.mjs` | no | 53 |
+| `progress-restore.test.mjs` | no | 20 |
 | `siteaccess.test.mjs` | no | 58 |
 | `formshub.test.mjs` | no | 45 |
 | `attendanceregister.test.mjs` | no | 66 |
@@ -126,6 +127,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `ortia-v3-pack.test.mjs` | no | 84 |
 | `sheet.test.mjs` | no | 17 |
 | `exports.test.mjs` | no | 9 |
+| `field-wide-detail.test.mjs` | no | 15 |
 | `e2e.js` | yes | 24 |
 | `robustness.js` | yes | 53 |
 | `exports.js` | yes | 32 |
@@ -140,7 +142,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,535 assertions in total**, every count above verified by running the suite,
+**3,570 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -1489,6 +1491,45 @@ that a blank/unanswered value renders blank, the sheet's own convention; that
 `sharepoint.ts` already uses for it, not a second implementation; and that
 `evidencePending` renders blank when unset, same absent-means-false
 convention as every other optional flag in this workbook.
+
+## `field-wide-detail.test.mjs`
+
+Guards Inspection's list+detail side-by-side at `lg` (1024px) and up —
+desktop/tablet redesign, the deferred item. The risk the brief itself named:
+the Sheet modal (narrow/medium widths) and the new inline `WideCheckPane`
+(wide widths) are two different wrappers around the same check's fields, and
+a hand-copied second version of those fields in one of the two is exactly
+how the two drift the first time either gets a new field and nobody
+remembers the other. So this reads the source for the single extraction
+(`selectedDetail`, built once) and for both wrappers consuming that same
+object, rather than re-asserting the fields themselves — those were moved,
+not retyped, and every field this screen has always carried is still
+covered by whatever already exercised the Sheet before this round (and by
+the live round trip below).
+
+```bash
+node tests/field-wide-detail.test.mjs
+```
+
+Source-read, like `findings-mobile-nav.test.mjs` covers the same kind of
+breakpoint-driven mode switch on the Findings screen, and for the same
+reason: the browser-suite lane in `run-all.sh` is a fixed, hand-curated list
+of thirteen, and adding a fourteenth for one screen's one behaviour was a
+bigger footprint than this round's change needed. The breakpoint itself
+(1024px matchMedia, gating which of the Sheet/`WideCheckPane` mounts — never
+both), the selection-updates-in-place guarantee (`selectedDetail` reads
+`openItem` fresh every render, so there is no second "which item is open in
+the wide pane" state to fall out of sync with it) and the untouched narrow
+row-tap handler were all also driven in a live browser with Playwright for
+this round: a pixel diff against this branch's own pre-round screenshots at
+768×1024 and 390×844 (light and dark) came back identical in light mode and
+differed only by pre-existing font-antialiasing jitter in dark mode —
+confirmed as jitter, not a regression, by diffing two screenshots of the
+*same* build taken moments apart and finding the identical pixel count — and
+a real save/read-back round trip through both the new wide inline pane and
+the existing narrow modal, each confirmed to persist and survive a reload.
+A static read cannot do either of those; it can only catch the source
+regressing afterward.
 
 ## `graph.test.mjs`
 
