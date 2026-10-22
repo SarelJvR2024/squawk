@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Sibling worktrees for other in-flight branches live under here and
+    // are not part of this checkout's own code — without this, `npm run
+    // lint` recurses into all of them and the real signal for main gets
+    // buried in noise from unrelated branches.
+    ".claude/worktrees/**",
   ]),
 ]);
 

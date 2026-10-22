@@ -98,9 +98,14 @@ export default function JoinPrompt() {
     /* A region rather than a dialog: it is in the flow of the page, it traps
        nothing, and calling it a dialog would tell a screen reader to expect a
        modal that never arrives. */
+    /* GENUINE STATUS, GENUINE COLOUR — item 4 of Sarel's second
+       visual-hierarchy pass: not having joined yet is outstanding work
+       the device still needs to do, the same warn every other
+       not-yet-done status in the app already uses, not the brand
+       accent. */
     <section
       className="flex flex-wrap items-center gap-x-[14px] gap-y-[9px] border-b px-4 py-[11px] sm:px-6"
-      style={{ background: "var(--acc-soft)", borderColor: "var(--acc-line)" }}
+      style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)" }}
       aria-label="Join the shared audit"
     >
       <div className="min-w-[220px] flex-1">

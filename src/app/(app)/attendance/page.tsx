@@ -306,7 +306,14 @@ export default function AttendancePage() {
                         mark, which this does without that panel ever
                         opening. Hidden once the pad is actually open — it
                         has its own Cancel, and a second "Sign" beside it is
-                        just noise. */}
+                        just noise.
+
+                        GENUINE STATUS, GENUINE COLOUR — item 4 of Sarel's
+                        second visual-hierarchy pass: signed/not signed is
+                        exactly the same status the SIGNED/NOT SIGNED pill
+                        beside it already carries in good/warn, so this
+                        control now matches it instead of the brand
+                        accent. */}
                     {!rowSigning && (
                       <button
                         type="button"
@@ -314,7 +321,7 @@ export default function AttendancePage() {
                         className="flex shrink-0 items-center gap-[4px] rounded-[8px] border px-[10px] py-[6px] font-display text-[11px] font-semibold"
                         style={
                           signed
-                            ? { background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }
+                            ? { background: "var(--good-bg)", borderColor: "var(--good-line)", color: "var(--good)" }
                             : { background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }
                         }
                       >
@@ -720,7 +727,9 @@ export default function AttendancePage() {
                       {r.date}
                       {r.time ? ` · ${r.time}` : ""}
                     </span>
-                    {savedId === r.id ? <Pill tone="accent">✓ SAVED</Pill> : null}
+                    {/* GENUINE STATUS, GENUINE COLOUR — item 4 of Sarel's
+                        second visual-hierarchy pass: saved is a status. */}
+                    {savedId === r.id ? <Pill tone="good">✓ SAVED</Pill> : null}
                   </div>
                   <p className="mt-1 text-[13px]">
                     {r.purpose.trim() || "No purpose recorded"}

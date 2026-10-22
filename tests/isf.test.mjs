@@ -525,7 +525,7 @@ check(
 );
 check(
   "saving gives a visible confirmation",
-  /savedId === f\.id \? <Pill tone="accent">✓ SAVED<\/Pill>/.test(page)
+  /savedId === f\.id \? <Pill tone="good">✓ SAVED<\/Pill>/.test(page)
 );
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");

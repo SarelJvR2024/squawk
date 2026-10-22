@@ -188,15 +188,19 @@ export function Panel({
   className = "",
 }: {
   children: ReactNode;
-  tone?: "accent" | "warn";
+  /** Any status tone Pill already carries, reusing the exact same
+   *  good/bad/warn/neutral/accent vars — item 4 of Sarel's second
+   *  visual-hierarchy pass widened this from "accent" | "warn" so a Panel
+   *  reporting a genuine outcome (e.g. "reset done") can say so in the
+   *  colour that outcome already has everywhere else, rather than
+   *  borrowing the brand accent for something that is not a selection or
+   *  a primary action. */
+  tone?: Tone;
   className?: string;
 }) {
-  const style: React.CSSProperties =
-    tone === "accent"
-      ? { background: "var(--acc-soft)", borderColor: "var(--acc-line)" }
-      : tone === "warn"
-        ? { background: "var(--warn-bg)", borderColor: "var(--warn-line)" }
-        : { background: "var(--panel)", borderColor: "var(--line)" };
+  const style: React.CSSProperties = tone
+    ? { background: toneVars[tone].bg, borderColor: toneVars[tone].line }
+    : { background: "var(--panel)", borderColor: "var(--line)" };
   return (
     <div
       className={`rounded-[11px] border px-[13px] py-[11px] ${className}`}

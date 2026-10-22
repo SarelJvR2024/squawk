@@ -901,9 +901,9 @@ export default function FieldPage() {
                         counted separately and said separately, because adding
                         them would make the denominator a number that grows as
                         you work. */}
-                    {g.walk.length > 0 && (
-                      <Pill tone="accent">+{g.walk.length}</Pill>
-                    )}
+                    {/* A count, not a status — item 4 of Sarel's second
+                        visual-hierarchy pass takes the brand accent off it. */}
+                    {g.walk.length > 0 && <Pill>+{g.walk.length}</Pill>}
                   </GroupRow>
                   {gOpen && (
                     <>
@@ -985,12 +985,14 @@ export default function FieldPage() {
                                       will say so weeks later with no
                                       explanation. "Physical" is dropped because
                                       every row here is physical. */}
+                                  {/* How the check is answered is a
+                                      category, not a status — item 4 of
+                                      Sarel's second visual-hierarchy pass
+                                      takes the brand accent off it. */}
                                   {modeLabels(c)
                                     .filter((m) => m !== "Physical")
                                     .map((m) => (
-                                      <Pill key={m} tone="accent">
-                                        {m.toUpperCase()}
-                                      </Pill>
+                                      <Pill key={m}>{m.toUpperCase()}</Pill>
                                     ))}
                                 </span>
                                 {/* CLAMPED, NOT SHORTENED. The register's own
@@ -1092,9 +1094,12 @@ export default function FieldPage() {
                                       one row in a list of check-points that is
                                       not a check-point has to say so in a way
                                       that survives a greyscale printout. */}
+                                  {/* A provenance mark, not a status — item 4
+                                      of Sarel's second visual-hierarchy pass
+                                      takes the brand accent off it. */}
                                   <span
                                     className="flex items-center gap-[3px] rounded-[8px] border border-dashed px-[5px] py-[1px] font-mono text-[8.5px]"
-                                    style={{ borderColor: "var(--acc)", color: "var(--acc)" }}
+                                    style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
                                     title="Added on the walk — not one of ACSA's check-points, and not counted in the completion figure"
                                   >
                                     <IconPlus width={9} height={9} />
@@ -1105,10 +1110,7 @@ export default function FieldPage() {
                                   </span>
                                   {it.findingId && <Pill tone="warn">{it.findingId}</Pill>}
                                   {it.importKey && (
-                                    <Pill
-                                      tone="accent"
-                                      title="Written by Import observation pack — not typed on the walk"
-                                    >
+                                    <Pill title="Written by Import observation pack — not typed on the walk">
                                       IMPORTED, TPJV-PROPOSED
                                     </Pill>
                                   )}
@@ -1458,13 +1460,12 @@ export default function FieldPage() {
                 <span>{portalIdFor(entityCode, c.id)}</span>
                 <span>·</span>
                 <span>{c.system}</span>
+                {/* How the check is answered is a category, not a status —
+                    item 4 of Sarel's second visual-hierarchy pass takes the
+                    brand accent off it. */}
                 {modeLabels(c)
                   .filter((m) => m !== "Physical")
-                  .map((m) => (
-                    <Pill key={m} tone="accent">
-                      {m.toUpperCase()}
-                    </Pill>
-                  ))}
+                  .map((m) => <Pill key={m}>{m.toUpperCase()}</Pill>)}
                 {pf && <Pill tone="warn">{pf.key} · 2025 {pf.rating.toUpperCase()}</Pill>}
               </>
             }

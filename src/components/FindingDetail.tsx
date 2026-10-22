@@ -166,9 +166,11 @@ export default function FindingDetail({
         <span>·</span>
         <span>{f.system}</span>
         {f.priorRating && <Pill tone="bad">REPEAT — MAR 2025 {f.priorRating.toUpperCase()}</Pill>}
-        {f.adHoc && <Pill tone="accent">AD-HOC</Pill>}
+        {/* Provenance marks, not statuses — item 4 of Sarel's second
+            visual-hierarchy pass takes the brand accent off both. */}
+        {f.adHoc && <Pill>AD-HOC</Pill>}
         {f.importKey && (
-          <Pill tone="accent" title="Written by Import observation pack, not typed by an auditor">
+          <Pill title="Written by Import observation pack, not typed by an auditor">
             IMPORTED, TPJV-PROPOSED
           </Pill>
         )}
@@ -229,7 +231,10 @@ export default function FindingDetail({
             style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
           >
             <div className="mb-1.5 flex flex-wrap items-center gap-2">
-              <Pill tone="accent">SEEN ON THE WALK</Pill>
+              {/* A provenance mark, not a status — item 4 of Sarel's
+                  second visual-hierarchy pass takes the brand accent off
+                  it. */}
+              <Pill>SEEN ON THE WALK</Pill>
               <span className="font-mono text-[10px]" style={{ color: "var(--ink-4)" }}>
                 {from.id}
               </span>

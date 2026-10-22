@@ -262,7 +262,7 @@ export default function DashboardPage() {
     return m.systems.flatMap((s) => checksOf(entityCode, p.discipline, s)).length === 0;
   }).length;
 
-  const kpi = (label: string, value: string | number, tone?: "good" | "bad" | "warn" | "acc") => (
+  const kpi = (label: string, value: string | number, tone?: "good" | "bad" | "warn") => (
     <div
       key={label}
       className="relative overflow-hidden rounded-[16px] border px-[15px] py-[13px]"
@@ -270,11 +270,11 @@ export default function DashboardPage() {
     >
       <span
         className="absolute inset-x-0 top-0 h-[2.5px]"
-        style={{ background: tone ? `var(--${tone === "acc" ? "acc" : tone})` : "var(--line-3)" }}
+        style={{ background: tone ? `var(--${tone})` : "var(--line-3)" }}
       />
       <b
         className="block font-mono text-[23px] leading-[1.15] font-semibold tnum"
-        style={{ color: tone ? `var(--${tone === "acc" ? "acc" : tone})` : "var(--ink)" }}
+        style={{ color: tone ? `var(--${tone})` : "var(--ink)" }}
       >
         {value}
       </b>
@@ -362,14 +362,21 @@ export default function DashboardPage() {
                 ]}
               />
             )}
-            <Pill tone={role === "acsa" ? "neutral" : "accent"}>{role === "acsa" ? "READ-ONLY" : "TPJV"}</Pill>
+            {/* Which role you're viewing as is state, not a selection or a
+                primary action — item 4 of Sarel's second visual-hierarchy
+                pass takes the brand accent off TPJV so it reads the same
+                neutral the ACSA case beside it already does. */}
+            <Pill tone="neutral">{role === "acsa" ? "READ-ONLY" : "TPJV"}</Pill>
           </div>
         </div>
 
         {level === "portfolio" ? (
           <>
-            <Panel tone="accent" className="mb-3.5">
-              <div className="flex items-start gap-2.5 text-[11.5px]" style={{ color: "var(--acc)" }}>
+            {/* Reference information, not a status — item 4 of Sarel's
+                second visual-hierarchy pass takes the brand accent off
+                this callout. */}
+            <Panel className="mb-3.5">
+              <div className="flex items-start gap-2.5 text-[11.5px]" style={{ color: "var(--ink-2)" }}>
                 <IconInfo width={14} height={14} style={{ marginTop: 1 }} />
                 <span>
                   Ten sites on a three-year cycle, two visits a year. Round 1 (2026-27) runs
@@ -381,9 +388,11 @@ export default function DashboardPage() {
                 </span>
               </div>
             </Panel>
+            {/* Plain counts, not statuses — item 4 of Sarel's second
+                visual-hierarchy pass takes the brand accent off both. */}
             <div className="mb-3.5 grid grid-cols-2 gap-[9px] md:grid-cols-4">
-              {kpi("Sites in Round 1", portfolio.length, "acc")}
-              {kpi("Check-points, all sites", portfolio.reduce((n, r) => n + r.checks, 0), "acc")}
+              {kpi("Sites in Round 1", portfolio.length)}
+              {kpi("Check-points, all sites", portfolio.reduce((n, r) => n + r.checks, 0))}
               {kpi("Open findings, network", portfolio.reduce((n, r) => n + r.findings, 0), "bad")}
               {kpi("2025 findings carried in", portfolio.reduce((n, r) => n + r.prior, 0), "warn")}
             </div>
@@ -446,13 +455,18 @@ export default function DashboardPage() {
                 prints, read straight off the record rather than retyped. */}
             <div className="mb-[9px] grid grid-cols-2 gap-[9px] md:grid-cols-5">
               {kpi(`${visitLabel} rating`, overallBand ? BAND_AS_RATING[overallBand] : "Not yet rated", overallBand ? BAND_META[overallBand].tone : undefined)}
-              {kpi("Check-points assessed", `${stats.captured}/${stats.total}`, "acc")}
+              {/* A plain count, not a status. */}
+              {kpi("Check-points assessed", `${stats.captured}/${stats.total}`)}
               {kpi("Demonstrated compliance", pct(stats.C, stats.C + stats.NC + stats.NV), stats.NC ? "warn" : "good")}
               {kpi("Open findings", scopedFindings.length, scopedFindings.length ? "bad" : "good")}
+              {/* Not fully closed yet is outstanding work, the same warn
+                  every other not-yet-done status already uses — item 4 of
+                  Sarel's second visual-hierarchy pass takes the brand
+                  accent off it. */}
               {kpi(
                 "Prior findings closed",
                 `${closed}/${priorScope.length}`,
-                priorScope.length && closed === priorScope.length ? "good" : "acc"
+                priorScope.length && closed === priorScope.length ? "good" : "warn"
               )}
             </div>
             <div className="mb-3.5 border-t pt-2.5" style={{ borderColor: "var(--line)" }}>
@@ -745,7 +759,11 @@ export default function DashboardPage() {
                 {kpi("Worsened", worsened, "bad")}
                 {kpi("Verified closed", closed, "good")}
                 {kpi("Repeat", repeat, "bad")}
-                {kpi("Still to verify", priorScope.length - verified, "acc")}
+                {/* Outstanding verification work is exactly the same warn
+                    "not yet done" already means everywhere else — item 4
+                    of Sarel's second visual-hierarchy pass takes the
+                    brand accent off it. */}
+                {kpi("Still to verify", priorScope.length - verified, "warn")}
               </div>
               {noCoverage > 0 && (
                 <Panel tone="warn" className="mt-3">
@@ -809,45 +827,51 @@ export default function DashboardPage() {
                      gate in the menu either, so it stays visible above. */
                   ...(role !== "acsa"
                     ? [
+                        /* Plain record counts, not statuses — item 4 of
+                           Sarel's second visual-hierarchy pass takes the
+                           brand accent off every one of these (tone
+                           undefined falls back to the same neutral the
+                           tile renderer below gives any tile with
+                           nothing to flag). */
                         {
                           label: "Interview days",
                           value: interviewDays.length,
-                          tone: "acc",
+                          tone: undefined,
                           icon: <IconMic width={13} height={13} />,
                           href: "/interviews",
                         },
                         {
                           label: "Attendance registers",
                           value: attendanceRegisters.length,
-                          tone: "acc",
+                          tone: undefined,
                           icon: <IconTeam width={13} height={13} />,
                           href: "/attendance",
                         },
                         {
                           label: "Daily diary",
                           value: siteDays.filter((d) => d.diaryEntries.length > 0).length,
-                          tone: "acc",
+                          tone: undefined,
                           icon: <IconClipboard width={13} height={13} />,
                           href: "/diary",
                         },
                         {
                           label: "PPE checks",
                           value: ppeChecks.length,
-                          tone: "acc",
+                          tone: undefined,
                           icon: <IconCheck width={13} height={13} />,
                           href: "/ppe",
                         },
                         {
                           label: "Site access logs",
                           value: siteAccessLogs.length,
-                          tone: "acc",
+                          tone: undefined,
                           icon: <IconPin width={13} height={13} />,
                           href: "/site-access",
                         },
                         {
                           label: "Toolbox talks",
                           value: toolboxTalks.length,
-                          tone: "acc",
+                          tone: undefined,
                           icon: <IconMic width={13} height={13} />,
                           href: "/toolbox-talk",
                         },
@@ -875,7 +899,7 @@ export default function DashboardPage() {
                         {
                           label: "People on file",
                           value: contactsHere,
-                          tone: "acc",
+                          tone: undefined,
                           icon: <IconTeam width={13} height={13} />,
                           href: "/people",
                         },
@@ -890,9 +914,12 @@ export default function DashboardPage() {
                   >
                     <span
                       className="absolute inset-x-0 top-0 h-[2.5px]"
-                      style={{ background: `var(--${t.tone})` }}
+                      style={{ background: t.tone ? `var(--${t.tone})` : "var(--line-3)" }}
                     />
-                    <span className="flex items-center gap-1.5" style={{ color: `var(--${t.tone})` }}>
+                    <span
+                      className="flex items-center gap-1.5"
+                      style={{ color: t.tone ? `var(--${t.tone})` : "var(--ink)" }}
+                    >
                       {t.icon}
                       <b className="font-mono text-[20px] leading-[1.15] font-semibold tnum">{t.value}</b>
                     </span>

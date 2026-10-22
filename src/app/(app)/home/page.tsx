@@ -151,18 +151,21 @@ function ago(at: number, now: number): string {
 }
 
 /** Where today sits against an audit window, in words rather than a colour. */
-function windowState(e: Entity, now: number): { text: string; tone: "accent" | "warn" | "neutral" } {
+function windowState(e: Entity, now: number): { text: string; tone: "warn" | "neutral" } {
   const from = dateOf(e.auditFrom);
   const to = dateOf(e.auditTo) + DAY;
   if (now < from) {
     const days = Math.ceil((from - now) / DAY);
-    return { text: days === 1 ? "starts tomorrow" : `starts in ${days} days`, tone: "accent" };
+    /* Not yet due is not a status that needs flagging — item 4 of
+       Sarel's second visual-hierarchy pass takes the brand accent off
+       it, matching "window has passed" below. */
+    return { text: days === 1 ? "starts tomorrow" : `starts in ${days} days`, tone: "neutral" };
   }
   if (now < to) return { text: "window open now", tone: "warn" };
   return { text: "window has passed", tone: "neutral" };
 }
 
-type Event = { at: number; what: string; detail: string; tone: "good" | "bad" | "warn" | "accent" };
+type Event = { at: number; what: string; detail: string; tone: "good" | "bad" | "warn" | "neutral" };
 
 export default function HomePage() {
   const entityCode = useEntityCode();
@@ -281,7 +284,11 @@ export default function HomePage() {
     const out: Event[] = [];
     for (const r of Object.values(responses)) {
       const id = portalIdFor(entityCode, r.checkId);
-      if (r.deskDoneAt) out.push({ at: r.deskDoneAt, what: "Desk half saved", detail: id, tone: "accent" });
+      /* Half saved is the outstanding half of the work, not a selection
+         or a primary action — item 4 of Sarel's second visual-hierarchy
+         pass gives it the same warn every other not-yet-done status in
+         the app already uses. */
+      if (r.deskDoneAt) out.push({ at: r.deskDoneAt, what: "Desk half saved", detail: id, tone: "warn" });
       if (r.fieldDoneAt) out.push({ at: r.fieldDoneAt, what: "Seen on site", detail: id, tone: "good" });
     }
     for (const f of findings) {
@@ -296,11 +303,13 @@ export default function HomePage() {
     }
     for (const c of captures) {
       if (c.createdAt)
+        /* A capture logged, not a status — item 4 of Sarel's second
+           visual-hierarchy pass takes the brand accent off it. */
         out.push({
           at: c.createdAt,
           what: c.kind === "voice" ? "Voice note captured" : "Photograph captured",
           detail: c.name,
-          tone: "accent",
+          tone: "neutral",
         });
     }
     return out.sort((a, b) => b.at - a.at).slice(0, 7);

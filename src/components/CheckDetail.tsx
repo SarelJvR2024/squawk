@@ -1130,8 +1130,12 @@ export default function CheckDetail({
               half. */}
           {modeLabels(check).map((m) => {
             const Icon = MODE_ICON[m] ?? IconInfo;
+            /* How the check is answered is a category, not a status —
+               item 4 of Sarel's second visual-hierarchy pass takes the
+               brand accent off every mode but Physical, which keeps its
+               warn because it carries a real consequence (see above). */
             return (
-              <Pill key={m} tone={m === "Physical" ? "warn" : "accent"}>
+              <Pill key={m} tone={m === "Physical" ? "warn" : "neutral"}>
                 <Icon width={10} height={10} aria-hidden />
                 {m.toUpperCase()}
               </Pill>
@@ -1158,7 +1162,11 @@ export default function CheckDetail({
               two pills: a Document check that is also a reconcile says both,
               which is the pair the old single vtype tag could not express. */}
           {check.confirmedBy && (
-            <Pill tone={check.confirmedBy === "Asset" ? "warn" : check.confirmedBy === "Practice" ? "accent" : "neutral"}>
+            /* What settles the check is a category, not a status — item 4
+               of Sarel's second visual-hierarchy pass takes the brand
+               accent off "Practice", which now reads the same neutral
+               every other non-Asset value already does. */
+            <Pill tone={check.confirmedBy === "Asset" ? "warn" : "neutral"}>
               {check.confirmedBy.toUpperCase()}
             </Pill>
           )}
@@ -1587,12 +1595,16 @@ export default function CheckDetail({
 
           {draft !== null && (
             /* A draft is a proposal. It sits beside the record until the
-               auditor puts it in — nothing writes itself into the audit. */
+               auditor puts it in — nothing writes itself into the audit.
+               Neutral, not accent: same box Capture.tsx's identical
+               "revised" proposal uses, since a pending suggestion is not a
+               status and nothing here is a selection or a primary action
+               either — item 4 of Sarel's second visual-hierarchy pass. */
             <div
               className="mb-[7px] max-h-[28vh] overflow-y-auto rounded-[11px] border p-3"
-              style={{ borderColor: "var(--acc)", background: "var(--acc-bg)" }}
+              style={{ borderColor: "var(--line-2)", background: "var(--sunken)" }}
             >
-              <div className="label-xs mb-1.5" style={{ color: "var(--acc)" }}>
+              <div className="label-xs mb-1.5" style={{ color: "var(--ink-3)" }}>
                 Suggested wording · yours to accept, edit or ignore
               </div>
               <div className="text-[12.5px] leading-[1.55]">{draft}</div>
@@ -1794,7 +1806,10 @@ export default function CheckDetail({
                 {photos} photo{photos > 1 ? "s" : ""}
               </Pill>
             )}
-            {voice && <Pill tone="accent">voice note</Pill>}
+            {/* A plain attachment count, same as photos and files beside
+                it — item 4 of Sarel's second visual-hierarchy pass takes
+                the brand accent off it. */}
+            {voice && <Pill>voice note</Pill>}
             {files > 0 && (
               <Pill>
                 {files} file{files > 1 ? "s" : ""}

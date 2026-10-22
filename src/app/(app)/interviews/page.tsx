@@ -50,8 +50,13 @@ import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconLeft, IconX } from "@/components/ui/icons";
 import type { InterviewDay, InterviewDayStage } from "@/lib/types";
 
-const STAGE: Record<InterviewDayStage, { label: string; tone: "accent" | undefined }> = {
-  open: { label: "OPEN", tone: "accent" },
+/* GENUINE STATUS, GENUINE COLOUR — item 4 of Sarel's second
+   visual-hierarchy pass: open/closed is exactly a status (not a selection
+   or a primary action) — still open and not yet approved reads the same
+   warn "outstanding" already means everywhere else, not the brand
+   accent. */
+const STAGE: Record<InterviewDayStage, { label: string; tone: "warn" | undefined }> = {
+  open: { label: "OPEN", tone: "warn" },
   closed: { label: "CLOSED AND APPROVED", tone: undefined },
 };
 
@@ -279,9 +284,14 @@ export default function InterviewsPage() {
                         </span>
                       </button>
 
-                      {/* THE QUICK SIGN — same control as attendance: color-coded,
-                          opens only the pad, hidden once the pad is actually open.
-                          Tapping the row's name still opens the full detail. */}
+                      {/* THE QUICK SIGN — same control as attendance:
+                          color-coded, opens only the pad, hidden once the
+                          pad is actually open. Tapping the row's name
+                          still opens the full detail. GENUINE STATUS,
+                          GENUINE COLOUR — item 4 of Sarel's second
+                          visual-hierarchy pass: signed/not signed now
+                          matches the SIGNED/NOT SIGNED pill's own
+                          good/warn instead of the brand accent. */}
                       {!rowSigning && !day.closedAt && (
                         <button
                           type="button"
@@ -289,7 +299,7 @@ export default function InterviewsPage() {
                           className="flex shrink-0 items-center gap-[4px] rounded-[8px] border px-[10px] py-[6px] font-display text-[11px] font-semibold"
                           style={
                             signed
-                              ? { background: "var(--acc-soft)", borderColor: "var(--acc-line)", color: "var(--acc)" }
+                              ? { background: "var(--good-bg)", borderColor: "var(--good-line)", color: "var(--good)" }
                               : { background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }
                           }
                         >
@@ -673,7 +683,9 @@ export default function InterviewsPage() {
                     <span className="font-mono text-[10px]">{day.id}</span>
                     <span className="font-mono text-[10px]">{day.date}</span>
                     <Pill tone={STAGE[stage].tone}>{STAGE[stage].label}</Pill>
-                    {savedId === day.id ? <Pill tone="accent">✓ SAVED</Pill> : null}
+                    {/* GENUINE STATUS, GENUINE COLOUR — item 4 of Sarel's
+                        second visual-hierarchy pass: saved is a status. */}
+                    {savedId === day.id ? <Pill tone="good">✓ SAVED</Pill> : null}
                   </div>
                   <p className="mt-1 text-[13px]">
                     {day.entries.length === 0

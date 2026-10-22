@@ -293,7 +293,7 @@ check(
 );
 check(
   "saving gives a visible confirmation, not just a closed panel",
-  /savedId === c\.id \? <Pill tone="accent">✓ SAVED<\/Pill>/.test(page)
+  /savedId === c\.id \? <Pill tone="good">✓ SAVED<\/Pill>/.test(page)
 );
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");
