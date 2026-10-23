@@ -27,7 +27,7 @@
 
 import { useMemo } from "react";
 import { BAND_AS_RATING, bandFor } from "./risk";
-import { PROGRAMME_VISITS } from "./programme";
+import { PROGRAMME_VISITS, type AuditDateOverride } from "./programme";
 import { mappingFor, type MappingType } from "./crosswalk";
 import type { VisitData } from "./store";
 import {
@@ -103,10 +103,17 @@ export interface Outstanding {
   riskPriority?: string | null;
 }
 
-const visitLabel = (id: string) =>
-  PROGRAMME_VISITS.find((v) => v.id === id)?.label ?? id;
+/* Checks `overrides` first — a renamed audit (AuditDateOverride.label, set
+   in the Audits panel) has to win here too, or "raised at ORTIA Sept 2026"
+   keeps saying the old name on every carried-forward finding after the
+   correction. */
+const visitLabel = (entityCode: string, id: string, overrides: Record<string, AuditDateOverride>) =>
+  overrides[scopeKey(entityCode, id)]?.label ?? PROGRAMME_VISITS.find((v) => v.id === id)?.label ?? id;
 
-function fromSeeded(p: PriorFinding): Outstanding {
+function fromSeeded(
+  p: PriorFinding,
+  overrides: Record<string, AuditDateOverride> = {}
+): Outstanding {
   const originVisit = seededVisitOf(p);
   const m = mappingFor(p);
   return {
@@ -126,7 +133,7 @@ function fromSeeded(p: PriorFinding): Outstanding {
     finding: p.observation,
     rating: p.tolerance,
     originVisit,
-    originLabel: visitLabel(originVisit),
+    originLabel: visitLabel(p.entityCode, originVisit, overrides),
     severity: p.severity,
     likelihood: p.likelihood,
     riskPriority: p.riskPriority,
@@ -137,7 +144,7 @@ function fromSeeded(p: PriorFinding): Outstanding {
  *  directly, against the real function outstandingFor() below calls, rather
  *  than only by inspection — see tests/carryforward.test.mjs's "a non-check
  *  finding carries forward" section. */
-export function fromCarried(f: Finding): Outstanding {
+export function fromCarried(f: Finding, overrides: Record<string, AuditDateOverride> = {}): Outstanding {
   const band = bandFor(f.severity, f.likelihood);
   return {
     key: f.id,
@@ -152,7 +159,7 @@ export function fromCarried(f: Finding): Outstanding {
        authority of a decision by surviving a visit. */
     rating: f.ratingConfirmed && band ? BAND_AS_RATING[band] : "Not audited",
     originVisit: f.originVisit,
-    originLabel: visitLabel(f.originVisit),
+    originLabel: visitLabel(f.entity, f.originVisit, overrides),
     findingId: f.id,
     /* A finding can carry several mitigating actions now, each with its own
        owner and date (see MitigationAction) — this header line only has
@@ -201,18 +208,19 @@ export function carriesWork(item: Outstanding): boolean {
 export function outstandingFor(
   entityCode: string,
   visitId: string,
-  entityFindings: Finding[]
+  entityFindings: Finding[],
+  overrides: Record<string, AuditDateOverride> = {}
 ): Outstanding[] {
   /* Seeded items appear only at their own site, and only on a visit after the
      one that raised them — opening O.R. Tambo must not present Cape Town's
      2025 findings, and the March 2025 visit must not present its own. */
   const seeded = priorFindingsAt(entityCode)
     .filter((p) => seededVisitOf(p) < visitId)
-    .map(fromSeeded);
+    .map((p) => fromSeeded(p, overrides));
 
   const carried = entityFindings
     .filter((f) => f.originVisit < visitId && f.actionStatus !== "Closed")
-    .map(fromCarried);
+    .map((f) => fromCarried(f, overrides));
 
   /* Oldest first: an item that has survived two visits is the one that most
      needs answering, and it should not be below this visit's newest arrival. */
@@ -225,9 +233,10 @@ export function useOutstanding(): Outstanding[] {
   const entityCode = useEntityCode();
   const visitId = useVisitId();
   const entityFindings = useEntityFindings();
+  const overrides = useStore((s) => s.auditDateOverrides);
   return useMemo(
-    () => outstandingFor(entityCode, visitId, entityFindings),
-    [entityCode, visitId, entityFindings]
+    () => outstandingFor(entityCode, visitId, entityFindings, overrides),
+    [entityCode, visitId, entityFindings, overrides]
   );
 }
 

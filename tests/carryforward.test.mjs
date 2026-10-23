@@ -192,10 +192,8 @@ for (const [label, re] of [
 
 check(
   "the next visit is looked up, not assumed",
-  /PROGRAMME_VISITS\.filter\(\s*\n?\s*\(v\) => v\.entity === entityCode && v\.id > visitId\s*\n?\s*\)\[0\]/.test(
-    closure
-  ),
-  ""
+  /correctedVisits\.filter\(\(v\) => v\.id > visitId\)\[0\]/.test(closure),
+  "correctedVisits is useVisits(entityCode) — already scoped to the entity, and corrected for a renamed audit, unlike a raw PROGRAMME_VISITS.filter"
 );
 
 /* ------------------- Closure carries only what carries -------------------- */

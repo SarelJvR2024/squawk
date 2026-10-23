@@ -11,6 +11,7 @@ import {
   useVerifications,
   useVisitFindings,
   useVisitId,
+  useVisits,
 } from "@/lib/store";
 import {
   carriesWork,
@@ -91,11 +92,14 @@ export default function ClosurePage() {
      closed. Both are the same question in front of the asset. */
   const outstanding = useOutstanding();
 
+  /* Through `useVisits`, not a raw `PROGRAMME_VISITS.find`/`.filter` — the
+     latter ignores a correction made in the Audits panel
+     (AuditDateOverride.label), so a renamed audit would still show its old
+     name here and in the "carries to {nextVisit}" copy below. */
+  const correctedVisits = useVisits(entityCode);
   const visitLabel =
-    PROGRAMME_VISITS.find((v) => v.id === visitId)?.label ?? visitId;
-  const nextVisit = PROGRAMME_VISITS.filter(
-    (v) => v.entity === entityCode && v.id > visitId
-  )[0];
+    correctedVisits.find((v) => v.id === visitId)?.label ?? visitId;
+  const nextVisit = correctedVisits.filter((v) => v.id > visitId)[0];
 
   const [filter, setFilter] = useState<Filter>("all");
   /* The closure conversation happens with ONE discipline in the room. O.R.

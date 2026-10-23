@@ -10,9 +10,8 @@
  *  what is about to go. */
 
 import { useState } from "react";
-import { scopeKey, useEntity, useResponses, useStore, useVisitId } from "@/lib/store";
+import { scopeKey, useEntity, useResponses, useStore, useVisitId, useVisits } from "@/lib/store";
 import { pushReset } from "@/lib/shared";
-import { PROGRAMME_VISITS } from "@/lib/programme";
 import { Btn, Panel, Pill } from "@/components/ui/primitives";
 import { IconLoop, IconX } from "@/components/ui/icons";
 
@@ -54,7 +53,10 @@ export default function ResetPanel({ onClose }: { onClose: () => void }) {
   const [armed, setArmed] = useState(false);
   const [done, setDone] = useState<string | null>(null);
 
-  const visitLabel = PROGRAMME_VISITS.find((v) => v.id === visitId)?.label ?? visitId;
+  /* Through `useVisits`, not a raw `PROGRAMME_VISITS.find` — a reset
+     confirmation naming the wrong audit is exactly the kind of text this
+     dialog exists to get right. */
+  const visitLabel = useVisits(entity.code).find((v) => v.id === visitId)?.label ?? visitId;
 
   /* Counted from the real records, so the confirm says what is actually
      there rather than what the screen last happened to show. */
