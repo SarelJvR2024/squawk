@@ -180,8 +180,9 @@ function WideCheckPane({
     body: ReactNode;
   } | null;
   barOffset: number;
-  /** `.app-scroll`'s own measured height minus the search bar minus the
-   *  "Add item" bar minus a few pixels — see the call site's own comment.
+  /** `.app-scroll`'s own measured height minus the measured gap above the
+   *  pane minus the "Add item" bar's measured height minus a few pixels of
+   *  intentional breathing room — see the call site's own comment.
    *  `undefined` only for the render or two before those measurements
    *  land; `70vh` is a conservative stand-in for that brief window, never
    *  what ships to a screenshot or a real session. */
@@ -191,6 +192,36 @@ function WideCheckPane({
     top: barOffset,
     maxHeight: maxHeightPx ? `${maxHeightPx}px` : "70vh",
   };
+  /* "MORE BELOW", SAID WITHOUT WORDS — the cap above is real (there is
+     genuinely nowhere else for the extra content to go once the pane has
+     claimed every pixel the screen can spare it), so past some length a
+     check's body still needs its own internal scroll: the walkabout note
+     and the outcome buttons fit without it on a real 1024×768 or 1280×900
+     screen, location/observation/attachments do not. A hard cut-off at a
+     rounded corner reads as "that's everything" rather than "scroll for
+     more" — nothing on this edge said otherwise before. A fade plus a
+     small chevron, both `aria-hidden` (the scrollable region itself is
+     still just a `div`; nothing here changes how a screen reader or a
+     keyboard finds the content below), appears exactly while there is
+     something to scroll to and disappears once scrolled to the bottom —
+     measured off the body's own `scrollHeight`/`scrollTop`/`clientHeight`,
+     never assumed from a fixed check's length, because 25 of 324 have no
+     walkabout note at all and some run to several paragraphs. */
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [hasMoreBelow, setHasMoreBelow] = useState(false);
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const measure = () => setHasMoreBelow(el.scrollHeight - el.scrollTop - el.clientHeight > 4);
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      ro.disconnect();
+    };
+  }, [detail]);
   if (!detail) {
     return (
       <div
@@ -207,7 +238,12 @@ function WideCheckPane({
       className="flex w-[380px] shrink-0 flex-col overflow-hidden rounded-[16px] border"
       style={{ ...stickyStyle, position: "sticky", borderColor: "var(--line-2)", background: "var(--panel)", boxShadow: "var(--e1)" }}
     >
-      <div className="shrink-0 border-b px-5 py-3" style={{ borderColor: "var(--line)" }}>
+      {/* py-2.5, NOT py-3 — the 2px a side this header and the footer below
+          both give up (4px apiece) go straight to the one thing in short
+          supply: the body's own scrollable height, in the cap's own
+          subtraction below. Still comfortable against the badges/title/
+          subtitle it holds; nothing here shrank a font to make room. */}
+      <div className="shrink-0 border-b px-5 py-2.5" style={{ borderColor: "var(--line)" }}>
         {detail.badges && (
           <div
             className="mb-[5px] flex flex-wrap items-center gap-[6px] font-mono text-[10px]"
@@ -223,9 +259,46 @@ function WideCheckPane({
           </p>
         )}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{detail.body}</div>
+      {/* `flex min-h-0 flex-1 flex-col`, NOT a bare `relative` box with a
+          `h-full` child — a percentage height only resolves against a
+          parent with a size the percentage-height spec calls "definite",
+          and a flex item sized purely by `flex: 1 1 0%` inside a
+          `max-height`-clamped, `height: auto` ancestor is exactly the case
+          where Chromium does not treat its own resolved size as definite
+          for ITS children: measured here, `h-full` on the body resolved to
+          the full unclamped content height (659.5px) instead of this row's
+          actual 271.5px, so the inner scroll never engaged and every pane
+          rendered at full, un-capped content height regardless of
+          `maxHeightPx` — the clipping this round exists to fix, reintroduced
+          by the one wrapper this round added. Making the body itself
+          `flex-1 min-h-0` keeps sizing inside the flex algorithm the rest
+          of this component already uses successfully, rather than asking a
+          percentage to answer a question flex layout has not settled yet. */}
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        {/* py-3, not py-4 — this padding is inside the very box the cap
+            above is rationing; the 8px it gives up (top and bottom) is 8px
+            more of the walkabout note and the outcome buttons on screen
+            before this box's own scroll has to start. */}
+        <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
+          {detail.body}
+        </div>
+        {hasMoreBelow && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 bottom-0 flex h-9 items-end justify-center"
+            style={{ background: "linear-gradient(to bottom, transparent, var(--panel) 80%)" }}
+          >
+            <span
+              className="mb-[3px] font-mono text-[10px] leading-none"
+              style={{ color: "var(--ink-3)" }}
+            >
+              ⌄
+            </span>
+          </div>
+        )}
+      </div>
       <div
-        className="flex shrink-0 items-center justify-between gap-2 border-t px-5 py-3"
+        className="flex shrink-0 items-center justify-between gap-2 border-t px-5 py-2.5"
         style={{ borderColor: "var(--line)", background: "var(--panel)" }}
       >
         {detail.footer}
@@ -409,11 +482,32 @@ export default function FieldPage() {
      "Add item" bar — that a height guessed from `100vh` alone drifted under
      by exactly the few pixels that bar is tall, covering Save & close the
      first time this was measured by eye. `scrollAreaH` is `.app-scroll`'s
-     own box, `addBarH` is that bottom bar's, and the pane's cap is the
-     first minus the search bar already measured (`barH`) minus the second,
-     with a few pixels of breathing room — the exact space actually left for
-     it, on this screen, at this width, rather than an assumption about how
-     much chrome sits above and below it. */
+     own box and `addBarH` is that bottom bar's — both still measured
+     exactly as before.
+
+     WHAT USED TO SIT BETWEEN THEM WAS A GUESS, AND IT WAS WRONG BY 12px.
+     The pane's cap used to be `scrollAreaH - barH - addBarH - 8` — barH
+     (the search/filter bar's own measured box) plus a flat "a few pixels
+     of breathing room" standing in for everything ELSE between
+     `.app-scroll`'s own top edge and where the pane actually starts: this
+     container's `pt-3` (12px) above the bar and the bar's own `mb-2` (8px)
+     below it, 20px together, not 8. The pane's measured bottom edge
+     therefore landed 12px INSIDE the "Add item" bar's own box every time —
+     not a cosmetic overlap, a real one: the bottom ~12px of the pane's
+     footer (Save & close, the camera and the microphone) sat under that
+     bar's opaque background and its higher z-index — on screen, those
+     controls' own bottom edge, clipped by whatever is painted on top of
+     them.
+
+     `paneTopGap` replaces both `barH` and the "- 8" with the one thing
+     that was actually needed: the real distance, measured, from
+     `.app-scroll`'s own top edge to where `WideCheckPane` (and the list
+     beside it) starts — `pt-3` and the bar's `mb-2` INCLUDED, because
+     they're inside that gap, not estimated separately from it. Measured
+     by `getBoundingClientRect` on the row both of them sit in, corrected
+     by the scroll container's own `scrollTop` so the figure is the
+     unscrolled offset regardless of where the list happens to be scrolled
+     to when a `ResizeObserver` callback fires. */
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [scrollAreaH, setScrollAreaH] = useState(0);
   useEffect(() => {
@@ -434,6 +528,22 @@ export default function FieldPage() {
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const paneRowRef = useRef<HTMLDivElement>(null);
+  const [paneTopGap, setPaneTopGap] = useState(0);
+  useEffect(() => {
+    const el = paneRowRef.current;
+    const scrollEl = scrollAreaRef.current;
+    if (!el || !scrollEl) return;
+    const measure = () =>
+      setPaneTopGap(
+        el.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top + scrollEl.scrollTop
+      );
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    ro.observe(scrollEl);
     return () => ro.disconnect();
   }, []);
   const [tray, setTray] = useState(false);
@@ -1368,30 +1478,32 @@ export default function FieldPage() {
           className="sticky top-0 z-10 -mx-4 mb-2 border-b px-4 py-[5px] sm:-mx-6 sm:px-6 sm:py-[7px]"
           style={{ background: "var(--bg)", borderColor: "var(--line)" }}
         >
-          <div
-            className="flex min-w-0 items-center gap-2 rounded-[11px] border px-3 py-1 sm:py-2"
-            style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-          >
-            <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search anywhere…"
-              aria-label="Search any check"
-              className="min-h-[40px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
-            />
-          </div>
-          {/* SAID OUT LOUD, because otherwise it looks like the filter broke.
-              A search runs across the whole register — it has to, or the
-              check for the thing in front of the auditor is missing because
-              of a filter they set in another building. */}
-          {searching && activeFilter && (
-            <div className="mt-1 text-[10.5px]" style={{ color: "var(--ink-3)" }}>
-              Searching every {groupBy === "area" ? "location" : "discipline"}, not just{" "}
-              <b>{activeFilter}</b>.
+          {/* SEARCH AND FILTERS, ONE ROW — the search box and the "Filters ·
+              …" chip used to be two full-width rows stacked on top of each
+              other, which cost a second row of sticky furniture for a
+              button that is, at any width, far narrower than the search box
+              beside it. Sarel, from a screenshot: put them on the same row.
+              Search gets whatever width is left (`flex-1`); the chip keeps
+              a fixed, non-growing width (`shrink-0`) and truncates its own
+              label (FilterPopover's trigger already does, via `truncate`)
+              rather than pushing the search box narrower than it needs to
+              be. Nothing about what either control does, or the chip's
+              collapsed-by-default panel, changes — only that they now sit
+              side by side instead of one above the other. */}
+          <div className="flex min-w-0 items-center gap-2">
+            <div
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-[11px] border px-3 py-1 sm:py-2"
+              style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+            >
+              <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search anywhere…"
+                aria-label="Search any check"
+                className="min-h-[40px] w-full min-w-0 border-none bg-transparent text-[13px] outline-none"
+              />
             </div>
-          )}
-          <div className="mt-2 flex items-center gap-2">
             {/* THE BUTTON NAMES WHAT IS SET, IT DOES NOT ALSO COUNT IT —
                 Sarel's second visual-hierarchy pass, item 7: "Filter button
                 label becomes 'Filters · Civil' — drop the '8/56 +16' from
@@ -1412,7 +1524,7 @@ export default function FieldPage() {
                 is the one that is gone. */}
             <FilterPopover
               label={fieldFilterLabel}
-              className="min-w-0 flex-1 sm:max-w-[420px] sm:flex-none"
+              className="w-[128px] max-w-[42%] shrink-0 sm:w-[220px] sm:max-w-none"
             >
               <div
                 role="radiogroup"
@@ -1528,6 +1640,16 @@ export default function FieldPage() {
               </details>
             </FilterPopover>
           </div>
+          {/* SAID OUT LOUD, because otherwise it looks like the filter broke.
+              A search runs across the whole register — it has to, or the
+              check for the thing in front of the auditor is missing because
+              of a filter they set in another building. */}
+          {searching && activeFilter && (
+            <div className="mt-1 text-[10.5px]" style={{ color: "var(--ink-3)" }}>
+              Searching every {groupBy === "area" ? "location" : "discipline"}, not just{" "}
+              <b>{activeFilter}</b>.
+            </div>
+          )}
           {/* THE FILTER CHIP ROW IS GONE, AND THAT IS THE POINT.
               It was a row of discipline names that filtered a flat list. The
               list is now a tree grouped BY discipline, so the chips were a
@@ -1592,7 +1714,7 @@ export default function FieldPage() {
             height, and `lg:sticky` (set on the pane itself) keeps it in view
             as the list scrolls past it, offset by `barH` so it starts right
             under the search bar rather than behind it. */}
-        <div className="lg:flex lg:min-h-0 lg:items-start lg:gap-4">
+        <div ref={paneRowRef} className="lg:flex lg:min-h-0 lg:items-start lg:gap-4">
         <div className="min-w-0 lg:min-h-0 lg:flex-1">
         {visible.length === 0 && walkVisible.length === 0 ? (
           <Empty>
@@ -1914,7 +2036,7 @@ export default function FieldPage() {
           <WideCheckPane
             detail={selectedDetail}
             barOffset={barH}
-            maxHeightPx={scrollAreaH > 0 ? Math.max(240, scrollAreaH - barH - addBarH - 8) : undefined}
+            maxHeightPx={scrollAreaH > 0 ? Math.max(240, scrollAreaH - paneTopGap - addBarH - 3) : undefined}
           />
         )}
         </div>
