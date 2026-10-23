@@ -877,7 +877,7 @@ function PhotoRow({
 
   const caption = a.caption ?? "";
   const uncaptioned = !dead && !caption.trim();
-  const size = compact ? 40 : 52;
+  const size = compact ? 48 : 64;
 
   /* THE RECORD COPY, NOT ONLY THE LOCAL BLOB — Sarel: "why do i get this
      error" (The image for this photograph is no longer stored), asking to
@@ -1042,9 +1042,21 @@ function PhotoRow({
                 assistant caption
               </span>
             )}
-            {a.ref && <span title="The name this photograph has in the export and the record store">{a.ref}</span>}
-            {a.takenAt && <span>taken {new Date(a.takenAt).toLocaleString("en-ZA")}</span>}
-            {a.width && a.height ? <span>{a.width}×{a.height}</span> : null}
+            {a.ref && (
+              <span title={`The name this photograph has in the export and the record store: ${a.ref}`}>
+                {a.ref.length > 10 ? `…${a.ref.slice(-10)}` : a.ref}
+              </span>
+            )}
+            {a.takenAt && (
+              <span title={new Date(a.takenAt).toLocaleString("en-ZA")}>
+                {new Date(a.takenAt).toLocaleDateString("en-ZA")}
+              </span>
+            )}
+            {a.width && a.height ? (
+              <span title={`${a.width}×${a.height} px`}>
+                {Math.round((a.width * a.height) / 100000) / 10}MP
+              </span>
+            ) : null}
             {a.bytes ? <span>{formatBytes(a.bytes)}</span> : null}
           </span>
         </span>
