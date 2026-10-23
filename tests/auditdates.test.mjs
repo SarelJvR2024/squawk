@@ -2,10 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-/* CORRECT AN AUDIT'S OWN DATES, FROM THE AUDITS PANEL.
+/* CORRECT AN AUDIT'S OWN NAME AND DATES, FROM THE AUDITS PANEL.
  *
  *  Sarel: "add option to change the date of the audit ie ORTIA audit of
- *  september was done early october, i need to change the date."
+ *  september was done early october, i need to change the date," and
+ *  later, 23 Oct 2026, the same correction named the other way: "add the
+ *  capability to change the Audit name ie from ORTIA Sept 2026 to ORTIA
+ *  Oct 2026."
  *
  *  A visit's id ("2026-09") decides which month it is FILED under — carry-
  *  forward sorts by it, and changing it would mean a different visit, not a
@@ -14,11 +17,13 @@ import { fileURLToPath } from "node:url";
  *  panel print, both plain `label`/`note` strings on the seeded Visit. The
  *  data layer for this (AuditDateOverride, setAuditDateOverride,
  *  clearAuditDateOverride) already existed in store.ts from an earlier ask
- *  of the same sentence — nothing had ever written one or read one back.
+ *  of the same sentence — nothing had ever written one or read one back, and
+ *  `label` itself had no UI field at all until the Audits panel grew one.
  *  This suite proves the whole path: write an override, confirm the merge
  *  function actually applies it the way auditWindow() formats every other
- *  audit window in this app, and that the Audits panel is wired to both
- *  ends of it.
+ *  audit window in this app, that the NAME override behaves exactly like
+ *  the dates one (set, fall-through-when-unset, cleared wholesale), and
+ *  that the Audits panel is wired to both ends of it.
  *
  *     node --import ./tests/alias.mjs tests/auditdates.test.mjs
  *
@@ -92,6 +97,38 @@ check(
   textOnly.note === "Final walk only, 14 Oct"
 );
 
+/* ------------------------- Part 2b: the NAME, not just the window ----
+   Sarel's later ask, 23 Oct 2026, in its own words: "add the capability
+   to change the Audit name ie from ORTIA Sept 2026 to ORTIA Oct 2026."
+   AuditDateOverride.label already existed for this; the only gap was
+   that nothing in the UI ever wrote it. A separate visit from VISIT
+   above, same reasoning as the free-text-note case: setAuditDateOverride
+   merges onto whatever is already stored, and VISIT already carries the
+   dated correction from Part 1. */
+
+useStore.getState().setAuditDateOverride(ENTITY, "2026-12", { label: "ORTIA Oct 2026" });
+const labelSeeded = { id: "2026-12", label: "ORTIA Sept 2026", entity: ENTITY, state: "scheduled", note: "scheduled" };
+const labelled = withDateOverride(labelSeeded, ENTITY, useStore.getState().auditDateOverrides);
+check(
+  "withDateOverride returns the overridden label when one is set",
+  labelled.label === "ORTIA Oct 2026"
+);
+check(
+  "the visit's id still says what month it's filed under — the correction is display-only",
+  labelled.id === "2026-12"
+);
+
+useStore.getState().setAuditDateOverride(ENTITY, "2026-01", { auditFrom: "2026-01-10", auditTo: "2026-01-12" });
+const noLabelOverride = withDateOverride(
+  { id: "2026-01", label: "Jan 2026 own label", entity: ENTITY, state: "scheduled", note: "scheduled" },
+  ENTITY,
+  useStore.getState().auditDateOverrides
+);
+check(
+  "withDateOverride falls back to the visit's own label when no label override is set — a dates-only correction does not touch the name",
+  noLabelOverride.label === "Jan 2026 own label"
+);
+
 /* ---------------------------------------- Part 3: clearing it --------- */
 
 useStore.getState().clearAuditDateOverride(ENTITY, VISIT);
@@ -103,6 +140,13 @@ const afterClear = withDateOverride(seeded, ENTITY, useStore.getState().auditDat
 check(
   "and the visit reads exactly as the programme seeded it again",
   afterClear === seeded
+);
+
+useStore.getState().clearAuditDateOverride(ENTITY, "2026-12");
+const afterLabelClear = withDateOverride(labelSeeded, ENTITY, useStore.getState().auditDateOverrides);
+check(
+  "clearing the override removes the label correction along with the dates — a full reset, not a partial one",
+  afterLabelClear.label === "ORTIA Sept 2026" && afterLabelClear === labelSeeded
 );
 
 /* -------------------------------------- Part 4: the UI is wired up --- */
@@ -136,6 +180,12 @@ check(
 check(
   "clearing the correction is only offered once one actually exists",
   /auditDateOverrides\[editingKey!\] &&/.test(panel)
+);
+check(
+  "the panel has a name field, initialized from the override the same way editFrom/editTo already are, and saves it the same way",
+  /\[editLabel, setEditLabel\] = useState\(""\)/.test(panel) &&
+    /setEditLabel\(o\?\.label \?\? ""\)/.test(panel) &&
+    /label: editLabel\.trim\(\) \|\| undefined|const label = editLabel\.trim\(\) \|\| undefined/.test(panel)
 );
 
 console.log(failures === 0 ? "\nAUDIT DATES OK" : `\n${failures} FAILURES`);

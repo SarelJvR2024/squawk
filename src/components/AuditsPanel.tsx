@@ -49,17 +49,23 @@ export default function AuditsPanel({ onClose }: { onClose: () => void }) {
 
   const newId = `${newYear}-${newMonth}`;
 
-  /* THE DATES SHOWN FOR A VISIT ARE FREE TEXT, 20 Oct 2026 — Sarel: "add
-   *  option to change the date of the audit ie ORTIA audit of september was
-   *  done early october, i need to change the date." A visit's id decides
-   *  which month it's FILED under for carry-forward's own ordering — that
-   *  is not what this corrects, and could not be without turning a visit
-   *  into a different visit. What this fixes is what a reader actually
-   *  SEES: the label and window text printed on the masthead strip and in
-   *  this same panel, both already reading through useVisits/useAllAudits
-   *  (store.ts), which apply AuditDateOverride once there so nothing else
-   *  has to know it exists. This is the one place that writes one. */
+  /* THE NAME AND DATES SHOWN FOR A VISIT ARE FREE TEXT, 20 Oct 2026 — Sarel:
+   *  "add option to change the date of the audit ie ORTIA audit of
+   *  september was done early october, i need to change the date," then,
+   *  23 Oct 2026, the same correction by its other name: "add the
+   *  capability to change the Audit name ie from ORTIA Sept 2026 to ORTIA
+   *  Oct 2026." A visit's id decides which month it's FILED under for
+   *  carry-forward's own ordering — that is not what this corrects, and
+   *  could not be without turning a visit into a different visit. What
+   *  this fixes is what a reader actually SEES: the label and window text
+   *  printed on the masthead strip and in this same panel, both already
+   *  reading through useVisits/useAllAudits (store.ts), which apply
+   *  AuditDateOverride once there so nothing else has to know it exists.
+   *  This is the one place that writes one — `label` below corrects the
+   *  NAME, the fields after it correct the WINDOW, and either can be
+   *  used without the other. */
   const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState("");
   const [editFrom, setEditFrom] = useState("");
   const [editTo, setEditTo] = useState("");
   const [editTbc, setEditTbc] = useState(false);
@@ -69,6 +75,7 @@ export default function AuditsPanel({ onClose }: { onClose: () => void }) {
     const key = scopeKey(entityCode, visitId);
     const o = auditDateOverrides[key];
     setEditingKey(key);
+    setEditLabel(o?.label ?? "");
     setEditFrom(o?.auditFrom ?? "");
     setEditTo(o?.auditTo ?? "");
     setEditTbc(o?.auditTbc ?? false);
@@ -76,14 +83,23 @@ export default function AuditsPanel({ onClose }: { onClose: () => void }) {
   };
 
   const saveEdit = (entityCode: string, visitId: string) => {
+    const label = editLabel.trim() || undefined;
+    const datesOrNote = !!(editFrom || editTo || editNote.trim());
     setAuditDateOverride(entityCode, visitId, {
+      label,
       auditFrom: editFrom || undefined,
       auditTo: editTo || undefined,
       auditTbc: editTbc,
       note: editNote.trim() || undefined,
     });
     setEditingKey(null);
-    setToast(`${entityOf(entityCode).short} · ${visitLabelFor(visitId)} dates updated.`);
+    /* "dates updated" was always true before this field existed. Now a
+       correction can touch the name alone — ORTIA Sept 2026 → ORTIA Oct
+       2026 with the visit still filed and sorted as 2026-09 — so the toast
+       has to say what actually changed rather than assuming it was always
+       the window. */
+    const what = label && datesOrNote ? "name and dates" : label ? "name" : "dates";
+    setToast(`${entityOf(entityCode).short} · ${visitLabelFor(visitId)} ${what} updated.`);
   };
 
   /* What each audit actually holds, so the list distinguishes "scheduled" from
@@ -315,8 +331,8 @@ export default function AuditsPanel({ onClose }: { onClose: () => void }) {
                             onClick={() =>
                               editingKey === key ? setEditingKey(null) : startEdit(e.code, v.id)
                             }
-                            aria-label={`Edit dates for ${e.short} ${v.label}`}
-                            title="Correct this audit's dates — the window shown here and on the masthead strip"
+                            aria-label={`Edit name or dates for ${e.short} ${v.label}`}
+                            title="Correct this audit's name or dates — what's shown here and on the masthead strip"
                             aria-pressed={editingKey === key}
                             className="flex h-[30px] w-[30px] items-center justify-center rounded-[8px] border"
                             style={
@@ -360,13 +376,32 @@ export default function AuditsPanel({ onClose }: { onClose: () => void }) {
                         return (
                           <>
                             <div className="mb-2 font-display text-[11.5px] font-semibold">
-                              Correct {e.short} · {v.label}&rsquo;s dates
+                              Correct {e.short} · {v.label}&rsquo;s name and dates
                             </div>
                             <p className="mb-2 text-[11px]" style={{ color: "var(--ink-3)" }}>
                               The visit stays filed under {v.id} — this only corrects what is
                               printed for it, here and on the masthead strip.
                             </p>
                             <div className="flex flex-wrap items-end gap-2">
+                              {/* THE NAME ITSELF — separate from the note field
+                                  further down. Note replaces the WINDOW TEXT
+                                  ("15–18 Sep 2026") when no dates are given below;
+                                  this replaces the NAME ("ORTIA Sept 2026" →
+                                  "ORTIA Oct 2026") that gets printed everywhere
+                                  `v.label` is rendered, with the visit still
+                                  filed and sorted as whatever month its id says.
+                                  Blank means "use the programme file's own
+                                  label", same as every other field here. */}
+                              <label className="flex min-w-[180px] flex-1 flex-col gap-1">
+                                <span className="label-xs">Name · optional</span>
+                                <input
+                                  value={editLabel}
+                                  onChange={(ev) => setEditLabel(ev.target.value)}
+                                  placeholder="e.g. ORTIA Oct 2026"
+                                  className="rounded-[8px] border px-2 py-[7px] text-[11.5px]"
+                                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                                />
+                              </label>
                               <label className="flex flex-col gap-1">
                                 <span className="label-xs">Actually started</span>
                                 <input
@@ -419,7 +454,7 @@ export default function AuditsPanel({ onClose }: { onClose: () => void }) {
                                   onClick={() => {
                                     clearAuditDateOverride(e.code, v.id);
                                     setEditingKey(null);
-                                    setToast(`${e.short} · ${v.label} back to the programme's own dates.`);
+                                    setToast(`${e.short} · ${v.label} back to the programme's own name and dates.`);
                                   }}
                                   className="ml-1 text-[11px] underline"
                                   style={{ color: "var(--ink-3)" }}
