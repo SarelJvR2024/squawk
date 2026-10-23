@@ -674,6 +674,22 @@ export default function ClosurePage() {
           </div>
 
           {active && (
+            <>
+              {/* THE BOUNDARY BETWEEN LIST AND EDITOR, below `lg` only.
+                  Today's mobile review: scrolling past the item list lands
+                  straight inside this finding's full editor with nothing
+                  marking the switch — at `lg` the two-column grid already
+                  makes list and editor two visibly separate things, so this
+                  divider has nothing to add there and stays hidden. Same
+                  quiet-divider shape this file already uses for "raised
+                  {round.label}" above, not a new pattern. */}
+              <div className="flex items-center gap-2 px-1 lg:hidden" aria-hidden="true">
+                <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+                <span className="font-mono text-[9px] tracking-[0.08em] uppercase" style={{ color: "var(--ink-4)" }}>
+                  Now editing
+                </span>
+                <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+              </div>
             <div className="rounded-[16px] border p-[18px]" style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "var(--e2)" }}>
               <div className="mb-1.5 flex flex-wrap items-center gap-[7px] font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
                 <span>{active.key}</span>
@@ -1299,6 +1315,7 @@ export default function ClosurePage() {
                 </Btn>
               </div>
             </div>
+            </>
           )}
         </div>
       </div>
