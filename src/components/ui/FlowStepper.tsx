@@ -42,7 +42,7 @@ export function FlowStepper({ current, className = "" }: { current: string; clas
         <Link
           href={prev.href}
           title={`Back to ${prev.label}`}
-          className="shrink-0 no-underline hover:underline"
+          className="shrink-0 -my-[13px] -mx-2 inline-flex items-center px-2 py-[13px] no-underline hover:underline"
           style={{ color: "var(--ink-3)" }}
         >
           ‹ {prev.label}
@@ -60,7 +60,7 @@ export function FlowStepper({ current, className = "" }: { current: string; clas
         <Link
           href={next.href}
           title={`Next: ${next.label}`}
-          className="shrink-0 no-underline hover:underline"
+          className="shrink-0 -my-[13px] -mx-2 inline-flex items-center px-2 py-[13px] no-underline hover:underline"
           style={{ color: "var(--ink-3)" }}
         >
           {next.label} ›
