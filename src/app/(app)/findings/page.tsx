@@ -64,8 +64,9 @@ import FindingDetail from "@/components/FindingDetail";
 import CheckDetail from "@/components/CheckDetail";
 import SystemTreatment from "@/components/SystemTreatment";
 import RaiseFindingSheet from "@/components/RaiseFindingSheet";
-import { IconInbox, IconLeft, IconPlus, IconSearch, IconX } from "@/components/ui/icons";
+import { IconCheck, IconInbox, IconLeft, IconPlus, IconSearch, IconX } from "@/components/ui/icons";
 import { FilterBar } from "@/components/ui/FilterBar";
+import PageHeading from "@/components/ui/PageHeading";
 import type { Check, Finding, Tolerance, Attachment, AdHocItem } from "@/lib/types";
 import { AttachmentStrip } from "@/components/Capture";
 
@@ -500,27 +501,74 @@ export default function FindingsPage() {
   const rated = Object.values(systems).filter((x) => x.ratingConfirmed).length;
   const totalSystems = tree.reduce((n, d) => n + d.systems.length, 0);
 
+  const ratedPct = totalSystems ? Math.round((rated / totalSystems) * 100) : 0;
+
   return (
+    /* THE PAGE-HEADING ROW, NOW SHARED WITH CHECKS AND INSPECTION —
+       desktop/tablet redesign round 5. The title and its one-line
+       explanation used to be the first in-flow block inside the scrolling
+       pane below, which meant it scrolled away with the tree — exactly the
+       defect PageHeading (src/components/ui/PageHeading.tsx) already fixed
+       for Checks and Inspection. Same shell, same placement: title left,
+       a progress readout beside it, pinned outside the scroll area. The
+       mode switch, the "Raise a finding" primary button, the search box and
+       the ratings-filter disclosure all stay exactly where they were, in
+       their own toolbar immediately below — PageHeading's actions slot is
+       for quiet, secondary controls only (see its own note), and
+       "Raise a finding" is this screen's one primary action, not a quiet
+       one. */
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <PageHeading
+        title={
+          <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+            {/* The site by the name the audit uses, not its ICAO code.
+                `entityCode` is FALE; the masthead, the nav and every other
+                heading say KSIA, and a screen that says FALE reads as a
+                different airport. */}
+            <h2 className="text-[15px] font-bold">Asset systems at {entity.short}</h2>
+            <p className="hidden text-[11.5px] sm:block" style={{ color: "var(--ink-2)" }}>
+              Rate each one as a group on ACSA&rsquo;s B170 001M matrix — band and strategy
+              calculated from the cell, never typed.
+            </p>
+          </div>
+        }
+        progress={
+          /* Asset systems rated, the one figure this whole screen exists to
+             move — same track-plus-words shape, and the same a11y.js fix
+             (sr-only text alongside the aria-hidden fill), as Checks' and
+             Inspection's own progress readouts. */
+          <div className="flex min-w-[160px] flex-1 items-center gap-2.5 sm:max-w-[320px] sm:flex-none">
+            <span
+              className="h-[4px] flex-1 overflow-hidden rounded-full"
+              style={{ background: "var(--line)" }}
+              role="img"
+              aria-label={`${rated} of ${totalSystems} asset systems rated, ${ratedPct}%`}
+            >
+              <span className="sr-only">
+                {rated} of {totalSystems} asset systems rated, {ratedPct}%
+              </span>
+              <span
+                className="block h-full rounded-full"
+                style={{ width: `${ratedPct}%`, background: "var(--acc)" }}
+                aria-hidden="true"
+              />
+            </span>
+            <span className="tnum shrink-0 font-mono text-[12px]" style={{ color: "var(--ink-2)" }} aria-hidden="true">
+              {rated} of {totalSystems} rated · {ratedPct}%
+            </span>
+            {totalSystems > 0 && rated === totalSystems && (
+              <IconCheck
+                width={13}
+                height={13}
+                aria-label="Every asset system rated"
+                style={{ color: "var(--acc)" }}
+              />
+            )}
+          </div>
+        }
+      />
     <div ref={scrollRef} className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto lg:overflow-hidden">
       <div className="mx-auto flex w-full max-w-[1240px] flex-col px-4 pt-3 pb-16 sm:px-6 lg:min-h-0 lg:flex-1 lg:pb-3">
-        {/* COMPACT, ON PURPOSE. This used to be a title line, a sentence of
-            prose beneath it, then the bar — three stacked blocks before any
-            work was visible. The prose folds into the title row itself (gone
-            below `sm`, same as before) and the vertical gaps tighten, so the
-            two panels below start noticeably higher without losing any of
-            the three things this header actually says: what screen this is,
-            how to rate, and the mode/search/filter controls. */}
-        <div className="mb-1 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
-          {/* The site by the name the audit uses, not its ICAO code. `entityCode`
-              is FALE; the masthead, the nav and every other heading say KSIA,
-              and a screen that says FALE reads as a different airport. */}
-          <h2 className="text-[15px] font-bold">Asset systems at {entity.short}</h2>
-          <p className="hidden text-[11.5px] sm:block" style={{ color: "var(--ink-2)" }}>
-            Rate each one as a group on ACSA&rsquo;s B170 001M matrix — band and strategy
-            calculated from the cell, never typed.
-          </p>
-        </div>
-
         <div
           ref={barRef}
           className="sticky top-0 z-10 -mx-4 mb-1.5 shrink-0 border-b px-4 py-[4px] sm:-mx-6 sm:px-6 sm:py-[5px]"
@@ -1448,6 +1496,7 @@ export default function FindingsPage() {
           {toast}
         </div>
       )}
+    </div>
     </div>
   );
 }
