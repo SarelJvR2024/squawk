@@ -39,6 +39,7 @@ import {
   useEntity,
   useEntityCode,
   useResponses,
+  scopeKey,
   useStore,
   useVerifications,
   useVisitFindings,
@@ -179,6 +180,7 @@ export default function HomePage() {
   const hazards = useVisitHazards();
   const progress = useAuditProgress();
   const openAudit = useStore((s) => s.openAudit);
+  const auditDateOverrides = useStore((s) => s.auditDateOverrides);
 
   /** 0 until the device's clock is known — see subscribeClock above. */
   const now = useNow();
@@ -622,8 +624,12 @@ export default function HomePage() {
                   /* An audit created in the app is not in the programme file,
                      so the raw id is the fallback — and "2026-11" beside a site
                      code is not a date anybody reads. visitLabelFor turns it
-                     into the same "Nov 2026" the seeded ones show. */
+                     into the same "Nov 2026" the seeded ones show. Checked
+                     against auditDateOverrides first, same as useVisits/
+                     useAllAudits, so a correction made in the Audits panel
+                     shows here too, not just on the masthead. */
                   const label =
+                    auditDateOverrides[scopeKey(r.entity, r.visit)]?.label ??
                     PROGRAMME_VISITS.find((v) => v.entity === r.entity && v.id === r.visit)?.label ??
                     visitLabelFor(r.visit);
                   return (

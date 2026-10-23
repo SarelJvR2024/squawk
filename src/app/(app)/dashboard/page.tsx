@@ -27,6 +27,7 @@ import {
   useEntityCode,
   useVisitFindings,
   useVisitId,
+  useVisits,
 } from "@/lib/store";
 import { isOutstanding } from "@/lib/evidence";
 import { portalIdFor } from "@/lib/sites";
@@ -98,8 +99,12 @@ export default function DashboardPage() {
   const contacts = useContacts();
   const contactsHere = contacts.filter((c) => c.site === entityCode).length;
   const visitId = useVisitId();
+  /* Through `useVisits`, not a raw `PROGRAMME_VISITS.find` — the latter
+     ignores a correction made in the Audits panel (AuditDateOverride.label),
+     so a renamed audit would still show its old name on the one screen this
+     round just made the title of. */
   const visitLabel =
-    PROGRAMME_VISITS.find((v) => v.id === visitId)?.label ?? visitId;
+    useVisits(entityCode).find((v) => v.id === visitId)?.label ?? visitId;
   const cycleVisits = useMemo(
     () => PROGRAMME_VISITS.filter((v) => v.entity === entityCode),
     [entityCode]
