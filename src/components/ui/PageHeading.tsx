@@ -58,7 +58,16 @@ export default function PageHeading({
       <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-0.5">{title}</div>
       <div className="flex flex-wrap items-center gap-3">
         {progress}
-        {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+        {/* `flex-wrap`, not `shrink-0` — Dashboard is this slot's first
+            consumer with more than one control in it (desktop/tablet
+            redesign round 5: the level toggle, the discipline filter and
+            the role pill), and a fixed-width, non-wrapping row of three
+            controls is exactly what ran a pill off the right edge of a
+            390px phone instead of wrapping it onto its own line, the same
+            overflow `min-w-0` elsewhere in this app exists to prevent.
+            Checks and Inspection pass no `actions` at all, so this is a
+            no-op for both — nothing about their own rendering changes. */}
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
     </div>
   );

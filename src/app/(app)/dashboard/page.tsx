@@ -37,6 +37,7 @@ import { mappingFor, worstRating } from "@/lib/crosswalk";
 import { AttachmentStrip } from "@/components/Capture";
 import { Panel, Pill, type Tone } from "@/components/ui/primitives";
 import { DisciplineSelect } from "@/components/ui/DisciplineSelect";
+import PageHeading from "@/components/ui/PageHeading";
 import {
   IconCamera,
   IconCheck,
@@ -317,24 +318,33 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <div className="mx-auto w-full max-w-[1180px] px-5 pt-5 pb-16">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-[18px] font-bold">
-              {level === "portfolio"
-                ? "ACSA network — cycle 2025–2027"
-                : disciplineFilter === "all"
-                  ? `${entity.name} — ${visitLabel}`
-                  : `${disciplineFilter} — ${entity.name}`}
-            </h2>
-            <p className="mt-1 max-w-[78ch] text-[12.5px]" style={{ color: "var(--ink-2)" }}>
-              {role === "acsa"
-                ? "ACSA view — read-only. Every figure traces to a captured response and its ACSA clause."
-                : "Live from capture, field inspection and closure verification."}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+    /* THE PAGE-HEADING ROW, NOW SHARED WITH CHECKS AND INSPECTION —
+       desktop/tablet redesign round 5. This used to be a bare title-plus-
+       controls row sitting directly on the page background and scrolling
+       away with the content beneath it — the one thing on this screen that
+       had not yet picked up the bordered, pinned shell PageHeading gives
+       Checks (capture/page.tsx) and Inspection (field/page.tsx). Same shell,
+       same placement (title left, controls right, outside the scrolling
+       area so it stays put) — nothing about the title's own wording, the
+       Airport/Portfolio toggle, the discipline filter or the role pill
+       changed, only the bar they sit in. No `progress` slot: unlike Checks
+       and Inspection this screen has no single done/total figure to lead
+       with — the five rating tiles just below ARE that reading, in full,
+       and repeating one of them here would misstate it as the one number
+       that matters. */
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <PageHeading
+        title={
+          <h2 className="text-[15px] font-bold">
+            {level === "portfolio"
+              ? "ACSA network — cycle 2025–2027"
+              : disciplineFilter === "all"
+                ? `${entity.name} — ${visitLabel}`
+                : `${disciplineFilter} — ${entity.name}`}
+          </h2>
+        }
+        actions={
+          <>
             <div className="flex gap-[2px] rounded-[11px] p-[3px]" style={{ background: "var(--sunken)" }}>
               {(["airport", "portfolio"] as Level[]).map((l) => (
                 <button
@@ -367,9 +377,25 @@ export default function DashboardPage() {
                 pass takes the brand accent off TPJV so it reads the same
                 neutral the ACSA case beside it already does. */}
             <Pill tone="neutral">{role === "acsa" ? "READ-ONLY" : "TPJV"}</Pill>
-          </div>
-        </div>
-
+          </>
+        }
+      />
+      {/* The subtitle moves down here, under the heading bar rather than
+          inside it — PageHeading's title slot is one baseline-aligned row
+          (see its own note on Checks'/Inspection's bare <h2>, never a
+          second stacked line), and the sentence itself is still exactly
+          what it said before this pass, in the same reduced, muted
+          register. */}
+      <p
+        className="shrink-0 px-5 pt-2 text-[12px]"
+        style={{ color: "var(--ink-2)" }}
+      >
+        {role === "acsa"
+          ? "ACSA view — read-only. Every figure traces to a captured response and its ACSA clause."
+          : "Live from capture, field inspection and closure verification."}
+      </p>
+    <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <div className="mx-auto w-full max-w-[1180px] px-5 pt-3 pb-16">
         {level === "portfolio" ? (
           <>
             {/* Reference information, not a status — item 4 of Sarel's
@@ -1064,6 +1090,7 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+    </div>
     </div>
   );
 }
