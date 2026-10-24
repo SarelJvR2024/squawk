@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   checksOf,
@@ -33,7 +33,7 @@ import { movement } from "@/lib/risk";
 import { worstRating } from "@/lib/crosswalk";
 import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
 import { FilterBar } from "@/components/ui/FilterBar";
-import { IconCheck, IconClock, IconDash, IconX } from "@/components/ui/icons";
+import { IconCheck, IconClock, IconDash, IconLeft, IconRight, IconX } from "@/components/ui/icons";
 import { AttachmentStrip, FileButton, PhotoButton, VoiceNoteButton } from "@/components/Capture";
 import type { VerificationOutcome } from "@/lib/types";
 
@@ -59,6 +59,70 @@ const FILTER_LABEL: Record<Filter, string> = {
   context: "Context only",
 };
 
+/** Same shape as CheckDetail.tsx's useEdgeScroll/ScrollEdges, kept local
+ *  here rather than imported — this lifecycle strip is the only thing on
+ *  this page that scrolls sideways, and a shared import across two
+ *  unrelated screens is a coupling this one small fade doesn't earn.
+ *
+ *  Day-2 mobile review: the lifecycle strip (Raised → Remediated →
+ *  Verified → Closed/Re-check) is `overflow-x-auto` with no cue at all —
+ *  measured scrollWidth ~425px against a ~295-334px clientWidth at both
+ *  375 and 414px, so roughly a third of it, including the final step, is
+ *  cut off at a hard edge with nothing suggesting it's swipeable. Unlike
+ *  Checks' tag row and tab strip (which already have this), this one
+ *  genuinely had no affordance. */
+function useEdgeScroll(ref: React.RefObject<HTMLDivElement | null>) {
+  const [edge, setEdge] = useState({ left: false, right: false });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      setEdge({
+        left: el.scrollLeft > 2,
+        right: el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
+      });
+    };
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      ro.disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return edge;
+}
+
+/** The fade+chevron, as edge-conditional siblings of the scroller rather
+ *  than its children — an absolutely positioned child would scroll away
+ *  with the content instead of staying put at the edge. */
+function ScrollEdges({ edge }: { edge: { left: boolean; right: boolean } }) {
+  return (
+    <>
+      {edge.left && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 left-0 flex w-[22px] items-center justify-start rounded-l-[11px]"
+          style={{ background: "linear-gradient(90deg, var(--sunken) 35%, transparent)" }}
+        >
+          <IconLeft width={10} height={10} style={{ color: "var(--ink-3)" }} />
+        </span>
+      )}
+      {edge.right && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 flex w-[22px] items-center justify-end rounded-r-[11px]"
+          style={{ background: "linear-gradient(270deg, var(--sunken) 35%, transparent)" }}
+        >
+          <IconRight width={10} height={10} style={{ color: "var(--ink-3)" }} />
+        </span>
+      )}
+    </>
+  );
+}
+
 export default function ClosurePage() {
   const router = useRouter();
   const responses = useResponses();
@@ -82,6 +146,11 @@ export default function ClosurePage() {
   const knownEvents = useKnownHazardousEvents();
   const [progressText, setProgressText] = useState("");
   const [discussionText, setDiscussionText] = useState("");
+  /* Called unconditionally here, not inside the `active &&` block the
+     lifecycle strip itself renders in — the strip is conditional, hooks
+     are not. */
+  const lifecycleRef = useRef<HTMLDivElement>(null);
+  const lifecycleEdge = useEdgeScroll(lifecycleRef);
   const updateFinding = useStore((s) => s.updateFinding);
   const entity = useEntity();
   const entityCode = useEntityCode();
@@ -750,9 +819,13 @@ export default function ClosurePage() {
                 </div>
               )}
 
-              {/* lifecycle */}
+              {/* lifecycle — relative wrapper so ScrollEdges can sit as an
+                  edge-conditional sibling of the scroller, not a child of
+                  it (a child would scroll away with the content). */}
+              <div className="relative my-3">
               <div
-                className="no-scrollbar my-3 flex items-center overflow-x-auto rounded-[11px] border px-[13px] py-[11px]"
+                ref={lifecycleRef}
+                className="no-scrollbar flex items-center overflow-x-auto rounded-[11px] border px-[13px] py-[11px]"
                 style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
               >
                 {[
@@ -798,6 +871,8 @@ export default function ClosurePage() {
                     )}
                   </span>
                 ))}
+              </div>
+              <ScrollEdges edge={lifecycleEdge} />
               </div>
 
               <div className="mb-2 flex items-center justify-between">
