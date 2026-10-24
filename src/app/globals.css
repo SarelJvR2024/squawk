@@ -542,8 +542,16 @@ h4 {
    button, hiding all but "...directly" of its label. `#work`'s top (the
    masthead + step line above it) sits at a fixed 84px on every width this
    app supports, independent of viewport height, so anchoring here instead
-   never lands on content that is about to change underneath it. */
+   never lands on content that is about to change underneath it.
+
+   96px cleared that masthead/step line but not this page's own h2 — "HIRA
+   — this audit's hazard identification & risk assessment" wraps to two
+   lines at every phone width and sits at 104-158px once the list is
+   populated, so a 96px toast landed squarely on top of it (confirmed by
+   measuring both rects: 96-152 vs 104-158, a real overlap, not just
+   visual proximity). 168px clears the heading with an 8px margin and is
+   still ~415px clear of the "Raise one directly" button above. */
 .toast-top-clear {
-  top: 96px;
+  top: 168px;
   bottom: auto;
 }
