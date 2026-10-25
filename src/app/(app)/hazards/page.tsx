@@ -867,7 +867,17 @@ export default function HazardsPage() {
             </div>
           </Panel>
         ) : (
-          <div className="grid gap-3 lg:grid-cols-[440px_minmax(0,1fr)]">
+          /* `grid-cols-1` below `lg`, not just `grid` on its own — a bare
+             `grid` sets no `grid-template-columns`, so the implicit single
+             column keeps `min-width: auto` and refuses to shrink below its
+             content's own min-content width. The editor panel's rating
+             matrix, pills and buttons pushed that past 400px, overflowing
+             the viewport with no way to scroll to the clipped half —
+             Severity/Likelihood columns 4-5, the help text beside the
+             matrix, and "Save & next"'s own label all cut off. Same
+             `grid-cols-1` fix already used on /closure and /dashboard for
+             the identical blowout. */
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[440px_minmax(0,1fr)]">
             <div
               className="overflow-hidden rounded-[16px] border"
               style={{ background: "var(--panel)", borderColor: "var(--line)" }}
