@@ -1011,7 +1011,13 @@ export default function DashboardPage() {
                       <summary className="cursor-pointer text-[12px] font-semibold">
                         {disciplineFilter === "all" ? `${p.discipline} · ` : ""}
                         {p.system}{" "}
-                        <span className="font-mono text-[10.5px] font-normal" style={{ color: "var(--ink-3)" }}>
+                        {/* whitespace-nowrap — without it, a long discipline·system
+                            name wraps mid-phrase and leaves "assessed" orphaned on
+                            its own line, repeatedly through this list on a phone. */}
+                        <span
+                          className="font-mono text-[10.5px] font-normal whitespace-nowrap"
+                          style={{ color: "var(--ink-3)" }}
+                        >
                           {done}/{cs.length} assessed
                         </span>
                       </summary>

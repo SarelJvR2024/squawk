@@ -1026,12 +1026,19 @@ export default function ClosurePage() {
               <div className="mt-4 mb-2 font-display text-[11px] font-semibold">
                 Next step — what happens next
               </div>
+              {/* min-h-[72px], not [54px] — on a 375px phone the full
+                  placeholder wraps to 3 lines, and 54px only gave room for
+                  2, so the last word was sliced off at the box's own bottom
+                  border. 72px is still a one-line box once something is
+                  typed (resize-y lets it grow from there); the extra height
+                  only shows while the placeholder itself is doing the
+                  wrapping. */}
               <textarea
                 value={v?.nextStep ?? ""}
                 onChange={(e) => patchVerification(active.key, { nextStep: e.target.value })}
                 placeholder="Who is being chased, what the site committed to, what is being waited for…"
                 aria-label="Next step"
-                className="min-h-[54px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                className="min-h-[72px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
                 style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
               />
 
@@ -1039,6 +1046,13 @@ export default function ClosurePage() {
                   typed over; this appends, keeping the author, the time and
                   the visit, and the export flattens it back into their cell. */}
               <div className="mt-4 mb-2 font-display text-[11px] font-semibold">Progress</div>
+              {/* `min-w-[200px]`, not `min-w-0` — plenty of room for "Add to
+                  the log" was being taken from the input first, down to
+                  179px at 375px wide, where the placeholder "What moved, in
+                  one line…" hard-clipped mid-word with no ellipsis. A real
+                  floor makes the button wrap to its own row below instead,
+                  which `flex-wrap` already does once there is somewhere to
+                  wrap to. */}
               <div className="flex flex-wrap gap-2">
                 <input
                   value={progressText}
@@ -1052,7 +1066,7 @@ export default function ClosurePage() {
                   }}
                   placeholder="What moved, in one line…"
                   aria-label="Progress note"
-                  className="min-w-0 flex-1 rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                  className="min-w-[200px] flex-1 rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
                   style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
                 />
                 <Btn
