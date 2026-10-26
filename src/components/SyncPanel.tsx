@@ -823,7 +823,12 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
       >
         <div className="mb-1 flex items-start justify-between gap-3">
           <h3 className="text-[15px] font-bold">Sync to the portal</h3>
-          <button onClick={onClose} aria-label="Close" style={{ color: "var(--ink-4)" }}>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[8px]"
+            style={{ color: "var(--ink-4)" }}
+          >
             <IconX width={15} height={15} />
           </button>
         </div>
