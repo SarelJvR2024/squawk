@@ -25,7 +25,7 @@
  *    than rendering an empty picker that reads like "no risk". Nothing here
  *    derives an ERM rating from the B170 001M one. */
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   BAND_META,
   LIKELIHOODS,
@@ -42,7 +42,7 @@ import { useAssistAvailable } from "@/lib/assist";
 import { Chip } from "@/components/ui/primitives";
 import AssetPicker from "@/components/AssetPicker";
 import { Btn } from "@/components/ui/primitives";
-import { IconSpark, IconX } from "@/components/ui/icons";
+import { IconLeft, IconRight, IconSpark, IconX } from "@/components/ui/icons";
 import type {
   ActionStatus,
   MitigationAction,
@@ -54,6 +54,59 @@ import type {
 } from "@/lib/types";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
+
+/** The B170 001M matrix doesn't wrap or reflow sideways on phones — it's a
+ *  fixed instrument, not a layout — so the fix is the same fade-plus-chevron
+ *  pair every other horizontal scroller in this app uses, not a new pattern.
+ *  See CheckDetail.tsx's own useEdgeScroll/ScrollEdges for the original. */
+function useEdgeScroll(ref: React.RefObject<HTMLDivElement | null>) {
+  const [edge, setEdge] = useState({ left: false, right: false });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      setEdge({
+        left: el.scrollLeft > 2,
+        right: el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
+      });
+    };
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      ro.disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return edge;
+}
+
+function ScrollEdges({ edge }: { edge: { left: boolean; right: boolean } }) {
+  return (
+    <>
+      {edge.left && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 left-0 flex w-[22px] items-center justify-start"
+          style={{ background: "linear-gradient(90deg, var(--panel) 35%, transparent)" }}
+        >
+          <IconLeft width={10} height={10} style={{ color: "var(--ink-3)" }} />
+        </span>
+      )}
+      {edge.right && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 flex w-[22px] items-center justify-end"
+          style={{ background: "linear-gradient(270deg, var(--panel) 35%, transparent)" }}
+        >
+          <IconRight width={10} height={10} style={{ color: "var(--ink-3)" }} />
+        </span>
+      )}
+    </>
+  );
+}
 
 /** The shape both findings and hazards satisfy. Deliberately structural: this
  *  component does not import either type, so it cannot start depending on a
@@ -140,6 +193,8 @@ export default function RecordActions({
   const say = (m: string) => onToast?.(m);
   const auditor = useStore((s) => s.auditor);
   const visitId = useVisitId();
+  const matrixRef = useRef<HTMLDivElement>(null);
+  const matrixEdge = useEdgeScroll(matrixRef);
 
   const band = bandFor(record.severity, record.likelihood);
 
@@ -159,7 +214,8 @@ export default function RecordActions({
           ACSA B170 001M · click the cell the group agrees on
         </span>
       </div>
-      <div className="overflow-x-auto">
+      <div className="relative">
+        <div ref={matrixRef} className="overflow-x-auto">
         <table style={{ borderSpacing: 5, borderCollapse: "separate" }}>
           <thead>
             <tr>
@@ -234,6 +290,8 @@ export default function RecordActions({
             ))}
           </tbody>
         </table>
+        </div>
+        <ScrollEdges edge={matrixEdge} />
       </div>
 
       <div
