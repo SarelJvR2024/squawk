@@ -536,7 +536,12 @@ export function photographsSheet(x: ExportInput): Sheet {
       rows.push([
         photoFilename(a),
         a.ref ?? "",
-        item.id,
+        /* Same fix as sharepoint.ts's own CheckID column (see the comment
+           there): once an office review sets item.checkId, this photo is
+           evidence for that register check, not for the WALK- id it was
+           typed under. The file's own name is untouched — only what this
+           column says it is evidence for. */
+        item.checkId ? portalIdFor(x.entity, item.checkId) : item.id,
         item.discipline ?? "",
         item.system ?? "",
         item.area,
