@@ -1686,8 +1686,21 @@ export function buildPlan(
            discarded here even when set. Still blank, not guessed, when the
            auditor genuinely left it unset — an empty column reads as "not
            applicable here", a wrong one reads as fact; this only stops
-           throwing away a real answer that was already sitting on the item. */
-        values: evidenceValues(a, item.id, item.discipline ?? "", item.system ?? ""),
+           throwing away a real answer that was already sitting on the item.
+           THE LIBRARY'S OWN CheckID COLUMN, THOUGH, was always item.id — the
+           WALK- id — even once an office review had set item.checkId to a
+           real register check. The file's own name and folder still keep
+           item.id (nothing about where this photograph came from or how it
+           was found should change), but the column a reader filters and
+           reports on must say what it is evidence FOR once that is known —
+           the same portal-formatted Title a check-point photo's own column
+           carries, not the internal KSIA- form. */
+        values: evidenceValues(
+          a,
+          item.checkId ? portalIdFor(x.entity, item.checkId) : item.id,
+          item.discipline ?? "",
+          item.system ?? ""
+        ),
         folder: dayFolder(folder, a.takenAt ?? a.createdAt),
       });
     }
