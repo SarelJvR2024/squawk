@@ -67,14 +67,14 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `reset.test.mjs` | no | 21 |
 | `reset-sync.test.mjs` | no | 13 |
 | `formssync.test.mjs` | no | 16 |
-| `completion.test.mjs` | no | 21 |
+| `completion.test.mjs` | no | 22 |
 | `location.test.mjs` | no | 48 |
 | `followup.test.mjs` | no | 74 |
 | `systems.test.mjs` | no | 98 |
 | `register-review.test.mjs` | no | 24 |
 | `reports.test.mjs` | no | 22 |
 | `ppe.test.mjs` | no | 53 |
-| `progress-restore.test.mjs` | no | 20 |
+| `progress-restore.test.mjs` | no | 23 |
 | `siteaccess.test.mjs` | no | 58 |
 | `formshub.test.mjs` | no | 45 |
 | `attendanceregister.test.mjs` | no | 66 |
@@ -142,7 +142,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,575 assertions in total**, every count above verified by running the suite,
+**3,579 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —

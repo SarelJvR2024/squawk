@@ -135,9 +135,27 @@ check(
 );
 
 check(
-  "the field view counts and greys out on the field half",
-  /fieldDone\(responses\[c\.id\]\)/.test(field) && /opacity: fieldDone\(r\)/.test(field),
+  "the field view greys out a card on the field half, independent of desk",
+  /opacity: fieldDone\(r\) && !itemOpen \? 0\.62 : 1,/.test(field),
   "a card must not grey out because someone read a document at a desk"
+);
+
+/* The progress FIGURE (the heading fraction and each asset system's own)
+   no longer reads fieldDone at all — Sarel, on the live audit: "make sure
+   it reflects how many audit checks has a comments and compliance to it
+   ... double check that it is an indication of all compliances
+   answered." `answered` layers on top of fieldDone rather than replacing
+   it here: compliance chosen AND a note typed. The grey-out above still
+   reads fieldDone unchanged — "saved" and "answered" stay two different
+   questions. See tests/progress-restore.test.mjs for the full real-store
+   proof of `answered`; this suite only needs to know the two concepts did
+   not collapse back into one. */
+check(
+  "the field view's progress figure counts `answered` (compliance and a note), not merely that the field half was saved",
+  /const answered = \(r\?: Response\) => !!r\?\.compliance && !!r\?\.observation\?\.trim\(\);/.test(field) &&
+    /doneOf = \(cs: Check\[\]\) => cs\.filter\(\(c\) => answered\(responses\[c\.id\]\)\)\.length;/.test(field) &&
+    /const doneCount = visible\.filter\(\(c\) => answered\(responses\[c\.id\]\)\)\.length;/.test(field),
+  "fieldDone alone would count a saved-but-undecided check as done, exactly the bug this change was asked to fix"
 );
 
 /* The badges read done-of-total now rather than a bare outstanding count, so

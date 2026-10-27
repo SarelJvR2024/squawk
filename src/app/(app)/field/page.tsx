@@ -19,7 +19,7 @@ import {
 } from "@/lib/store";
 import { locationAxis } from "@/lib/programme";
 import { portalIdFor } from "@/lib/sites";
-import type { AdHocItem, Check } from "@/lib/types";
+import type { AdHocItem, Check, Response } from "@/lib/types";
 import { Btn, Empty, Pill } from "@/components/ui/primitives";
 import PageHeading from "@/components/ui/PageHeading";
 import { DisciplineSelect } from "@/components/ui/DisciplineSelect";
@@ -775,6 +775,21 @@ export default function FieldPage() {
      The COUNTS still ignore them completely. `done` and `total` are of
      check-points; a walk item is reported beside the fraction, never inside it,
      because a denominator that grows as you work is not a denominator. */
+  /* DONE MEANS ANSWERED, NOT VISITED. `fieldDone` (store.ts) is true the
+     moment the field half is committed at all — Sarel, on store.ts's own
+     `commit()`: saving a walkabout note with nothing else decided is a real
+     state and must not snap compliance to a default, so `fieldDoneAt` is
+     stamped with compliance left null. That is correct for `fieldDoneAt`
+     itself (desk/field completion, exports, sync, the row's own fade below)
+     but wrong for THIS screen's own progress figures: "39/324" read as
+     compliances answered, and a tally that counts a check the auditor
+     opened and closed with no verdict and no note the same as one they
+     actually assessed was exactly the confusion reported — a bar that can
+     reach 100% while checks still carry no compliance at all. `answered`
+     requires both a compliance and a typed observation; it is local to this
+     screen's own counts, not a redefinition of `fieldDone`/`isComplete`,
+     which stay what they always were everywhere else in the app. */
+  const answered = (r?: Response) => !!r?.compliance && !!r?.observation?.trim();
   const tree = useMemo(() => {
     const systems = new Map<string, { checks: Check[]; walk: AdHocItem[] }>();
     const bucket = (key: string) => {
@@ -787,7 +802,20 @@ export default function FieldPage() {
        asset system is a real state — most are, because the auditor recording
        one is looking at something the register does not cover. */
     for (const it of walkVisible) bucket(it.system?.trim() || NO_SYSTEM).walk.push(it);
-    const doneOf = (cs: Check[]) => cs.filter((c) => fieldDone(responses[c.id])).length;
+    const doneOf = (cs: Check[]) => cs.filter((c) => answered(responses[c.id])).length;
+    /* PHOTOGRAPHS, counted separately from both check-points and walk items —
+       same reasoning as walkLinkage further up: a system can carry most of
+       its evidence in a handful of photographs on only one or two checks, a
+       fact the check-point fraction alone cannot say. Check-point photos and
+       walk-item photos both count; a reader standing at this system wants to
+       know how much was actually photographed, not which capture path took
+       it. */
+    const photosOf = (cs: Check[], walk: AdHocItem[]) => {
+      let n = 0;
+      for (const c of cs) n += (responses[c.id]?.attachments ?? []).filter((a) => a.kind === "photo").length;
+      for (const it of walk) n += (it.attachments ?? []).filter((a) => a.kind === "photo").length;
+      return n;
+    };
     return [...systems.entries()]
       .map(([sys, b]) => ({
         sys,
@@ -795,6 +823,7 @@ export default function FieldPage() {
         walk: b.walk,
         done: doneOf(b.checks),
         total: b.checks.length,
+        photos: photosOf(b.checks, b.walk),
       }))
       /* The unattributed bucket last, wherever its name would sort. It is a
          residue, not an asset system, and it must not head the list. */
@@ -831,7 +860,10 @@ export default function FieldPage() {
   /* Zones come from the programme file. Until ACSA gives us real ones the axis
      falls back to the register's categories, and the strip below says so. */
   const axis = locationAxis(entityCode);
-  const doneCount = visible.filter((c) => fieldDone(responses[c.id])).length;
+  /* See `answered`'s own comment above the tree — this bar counts the same
+     thing the per-system fractions do now: a compliance chosen and a note
+     typed, not merely that the field tab was saved once. */
+  const doneCount = visible.filter((c) => answered(responses[c.id])).length;
   /* THE PCT FOR THE RESTORED PAGE-HEADING FIGURE — desktop/tablet redesign,
      phase 1 checkpoint. `doneCount`/`visible.length` just above are the
      exact pair that used to sit beside the Filters button as
@@ -1423,7 +1455,7 @@ export default function FieldPage() {
               className="h-[4px] flex-1 overflow-hidden rounded-full"
               style={{ background: "var(--line)" }}
               role="img"
-              aria-label={`${doneCount} of ${visible.length} captured, ${visiblePct}%`}
+              aria-label={`${doneCount} of ${visible.length} answered, ${visiblePct}%`}
             >
               {/* a11y.js's "small round span" dot-check can mistake this fill
                   for an unlabelled status dot once it's 0% wide (0x4px, same
@@ -1431,7 +1463,7 @@ export default function FieldPage() {
                   it sits in real textContent so the check's own "aria-hidden
                   AND the row already says it in words" rule is satisfied. */}
               <span className="sr-only">
-                {doneCount} of {visible.length} captured, {visiblePct}%
+                {doneCount} of {visible.length} answered, {visiblePct}%
               </span>
               <span
                 className="block h-full rounded-full"
@@ -1440,13 +1472,13 @@ export default function FieldPage() {
               />
             </span>
             <span className="tnum shrink-0 font-mono text-[12px]" style={{ color: "var(--ink-2)" }} aria-hidden="true">
-              {doneCount} of {visible.length} captured · {visiblePct}%
+              {doneCount} of {visible.length} answered · {visiblePct}%
             </span>
             {visible.length > 0 && doneCount === visible.length && (
               <IconCheck
                 width={13}
                 height={13}
-                aria-label="All check-points captured"
+                aria-label="All check-points answered"
                 style={{ color: "var(--acc)" }}
               />
             )}
@@ -1765,11 +1797,16 @@ export default function FieldPage() {
                     sticky
                     stickyTop={barH}
                     showCheck
-                    title={`${g.sys} — ${g.done} of ${g.total} seen${
+                    title={`${g.sys} — ${g.done} of ${g.total} answered (compliance and a note)${
                       g.walk.length ? `, plus ${g.walk.length} added by hand` : ""
-                    }`}
+                    }${g.photos ? `, ${g.photos} photograph${g.photos === 1 ? "" : "s"}` : ""}`}
                   >
-                    {pf && <Pill tone="warn">{pf.key}</Pill>}
+                    {/* Bare "ORTIA-R19" named nothing on its own — the per-check
+                        instance of this same pill (below) reads "{key} · 2025
+                        {rating}" and this one should say exactly as much,
+                        since a reader scanning group headers never sees the
+                        per-check version at all. */}
+                    {pf && <Pill tone="warn">{pf.key} · 2025 {pf.rating.toUpperCase()}</Pill>}
                     {/* BESIDE THE FRACTION, NEVER INSIDE IT. Walk items are
                         counted separately and said separately, because adding
                         them would make the denominator a number that grows as
@@ -1777,6 +1814,16 @@ export default function FieldPage() {
                     {/* A count, not a status — item 4 of Sarel's second
                         visual-hierarchy pass takes the brand accent off it. */}
                     {g.walk.length > 0 && <Pill>+{g.walk.length}</Pill>}
+                    {/* PHOTOGRAPHS, separate from both fractions above — see
+                        `photosOf`'s own comment. A camera glyph so it reads
+                        as a different kind of count from the walk-item "+N"
+                        beside it, not a second, confusing total. */}
+                    {g.photos > 0 && (
+                      <Pill>
+                        <IconCamera width={9} height={9} />
+                        {g.photos}
+                      </Pill>
+                    )}
                   </GroupRow>
                   {gOpen && (
                     <>
