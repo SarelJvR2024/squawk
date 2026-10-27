@@ -375,6 +375,47 @@ check(
   "this was the second, independent copy of the Finding shape that let it drift — see raiseFindingFromAdhoc's own comment in store.ts"
 );
 
+/* ---- 7A · THE CATCH-UP FOR AN ITEM STUCK BEFORE THE GUARANTEE EXISTED --
+ *  The NC-auto-raises guarantee above only fires on a write (addAdhoc/
+ *  updateAdhoc). An internal item that was already NC before it existed,
+ *  and has not been touched since, never gets one — and per sharepoint.ts's
+ *  externallyVisible(), an internal item with no finding never reaches the
+ *  portal at all, so its photographs silently never reach a report either.
+ *  backfillInternalNcFindings is the one-time fix: the same write, done
+ *  once, for everything already stuck this way. */
+
+check(
+  "backfillInternalNcFindings exists on the store, scoped to internal+NC+un-findinged items",
+  /backfillInternalNcFindings: \(\) => \{\s*\n\s*const stuck = \(get\(\)\.visitData\(\)\.adhoc \?\? \[\]\)\.filter\(\s*\n\s*\(a\) => a\.internal && a\.outcome === "NC" && a\.findingId == null/.test(
+    store
+  ),
+  "the exact condition externallyVisible excludes on — see that function's own comment in sharepoint.ts"
+);
+
+check(
+  "it raises through the SAME helper every other path uses, not a fourth copy of the shape",
+  /backfillInternalNcFindings: \(\) => \{[\s\S]{0,400}get\(\)\.raiseFindingFromAdhoc\(item\)/.test(store),
+  "one shape, four callers now: addAdhoc, updateAdhoc, the manual buttons, and this catch-up"
+);
+
+check(
+  "it writes findingId back onto each item it raises for, not just the finding itself",
+  /backfillInternalNcFindings: \(\) => \{[\s\S]{0,500}get\(\)\.updateAdhoc\(item\.id, \{ findingId \}\)/.test(
+    store
+  ),
+  "raising the finding alone does not make the item externallyVisible — the item's own findingId is what the sync gate reads"
+);
+
+check(
+  "it returns how many it fixed, for the Sync panel to say so",
+  /return stuck\.length;/.test(store)
+);
+
+check(
+  "declared on the State interface too, not just the implementation",
+  /backfillInternalNcFindings: \(\) => number;/.test(store)
+);
+
 /* ---- 8 · AN OUTCOME IS NOT A RATING ------------------------------------ */
 
 const outcomeCode = codeOnly(outcome);
