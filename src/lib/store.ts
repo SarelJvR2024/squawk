@@ -941,6 +941,10 @@ interface State {
   raiseFindingFromAdhoc: (item: AdHocItem) => string;
   addAdhoc: (a: Omit<AdHocItem, "id" | "createdAt">) => string;
   updateAdhoc: (id: string, p: Partial<AdHocItem>) => void;
+  /** One-time catch-up for an internal item marked NC before the
+   *  NC-auto-raises-a-finding guarantee existed — see the implementation's
+   *  own comment. Returns how many it fixed. */
+  backfillInternalNcFindings: () => number;
   removeAdhoc: (id: string) => void;
   addAdhocAttachment: (id: string, a: Omit<Attachment, "id" | "createdAt">) => void;
   /** The adhoc twin of updateAttachment. It did not exist, and that is why an
@@ -3655,6 +3659,31 @@ export const useStore = create<State>()(
               get().updateAdhoc(id, { findingId });
             }
           }
+        },
+
+        /* THE ONE-TIME CATCH-UP the NC-auto-raises guarantee above cannot give
+           itself. An internal (Internal Working Area) item marked NC BEFORE
+           that guarantee existed got no finding at the time, and nothing
+           about it has changed since — so it sits forever exactly as
+           sharepoint.ts's externallyVisible() describes: internal and
+           un-findinged, invisible to every sync this visit ever runs, no
+           matter how many times. The guarantee only fires on a WRITE
+           (addAdhoc/updateAdhoc), and nobody is obliged to re-open an old
+           item just to trigger one.
+           This is that write, done once, for every item already stuck this
+           way on the current visit — the same raiseFindingFromAdhoc shape as
+           if somebody had set outcome to NC on each by hand today. Returns
+           the count so the caller (SyncPanel, next to the warning this
+           exact gap produces) can say how many it fixed. */
+        backfillInternalNcFindings: () => {
+          const stuck = (get().visitData().adhoc ?? []).filter(
+            (a) => a.internal && a.outcome === "NC" && a.findingId == null
+          );
+          for (const item of stuck) {
+            const findingId = get().raiseFindingFromAdhoc(item);
+            get().updateAdhoc(item.id, { findingId });
+          }
+          return stuck.length;
         },
 
         removeAdhoc: (id) => {

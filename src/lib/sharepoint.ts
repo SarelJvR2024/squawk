@@ -1628,6 +1628,29 @@ export function buildPlan(
     });
   }
 
+  /* THE SAME GAP, FOR INTERNAL ITEMS — but worse: a bare NC check-point above
+   *  still reaches the portal, just under-rated. An internal item marked NC
+   *  with no finding behind it reaches the portal NOT AT ALL — see
+   *  externallyVisible's own note above — so its photographs are invisible
+   *  to every sync and every report built from one, silently, with nothing
+   *  in this plan even naming it (it never gets far enough to be counted
+   *  anywhere else). The NC-auto-raises-a-finding guarantee (store.ts's
+   *  addAdhoc/updateAdhoc) only fires on a write; an item that was already
+   *  stuck this way before that guarantee existed, and has not been
+   *  touched since, stays stuck until something raises its finding by hand
+   *  — see store.ts's backfillInternalNcFindings for the one-time catch-up
+   *  this warning exists to point at. */
+  const internalNcNoFinding = (x.adhoc ?? []).filter(
+    (a) => a.internal && a.outcome === "NC" && a.findingId == null && !(a.discipline && excluded.has(a.discipline))
+  ).length;
+  if (internalNcNoFinding) {
+    warnings.push({
+      what: "internal working-area items marked non-compliant have no finding behind them",
+      why: "an internal item only reaches the portal once it is a finding — these, and their photographs, will not sync at all until each one has its finding raised",
+      count: internalNcNoFinding,
+    });
+  }
+
   /* --- AND THE INSPECTION ITEMS' PHOTOGRAPHS --------------------------
    *
    *  Sarel, 16 September 2026, having just captured one: "not sure how to sync

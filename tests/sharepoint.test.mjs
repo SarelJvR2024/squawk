@@ -1745,6 +1745,79 @@ check(
   })()
 );
 
+/* ---- THE SAME GAP, FOR AN INTERNAL ITEM — WORSE, AND SILENT -------------
+ *  A bare NC check-point above still reaches the portal, just under-rated.
+ *  An internal item marked NC with no finding reaches it NOT AT ALL — see
+ *  externallyVisible — so without this warning the gap is invisible until
+ *  somebody notices a photograph missing from a report. */
+
+check(
+  "an internal item marked NC with no finding is warned about, by name",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE, adhoc: [{ id: "WALK-1", internal: true, outcome: "NC", findingId: null }] },
+      NOTHING
+    );
+    return p.warnings.some(
+      (w) =>
+        w.what === "internal working-area items marked non-compliant have no finding behind them" &&
+        w.count === 1
+    );
+  })(),
+  "an internal item never reaches the portal without one — see externallyVisible"
+);
+
+check(
+  "an internal item marked NC WITH a finding is not warned about",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE, adhoc: [{ id: "WALK-1", internal: true, outcome: "NC", findingId: "F-1" }] },
+      NOTHING
+    );
+    return !p.warnings.some((w) => /internal working-area/.test(w.what));
+  })()
+);
+
+check(
+  "a NON-internal item marked NC with no finding is not warned about HERE",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE, adhoc: [{ id: "WALK-1", internal: false, outcome: "NC", findingId: null }] },
+      NOTHING
+    );
+    return !p.warnings.some((w) => /internal working-area/.test(w.what));
+  })(),
+  "this warning is about invisibility specifically — a non-internal item still reaches the portal with no finding behind it, same as a bare NC check-point does"
+);
+
+check(
+  "and a discipline held back this run does not also warn about it",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        adhoc: [{ id: "WALK-1", internal: true, outcome: "NC", findingId: null, discipline: "Electrical" }],
+        excludedDisciplines: ["Electrical"],
+      },
+      NOTHING
+    );
+    return !p.warnings.some((w) => /internal working-area/.test(w.what));
+  })(),
+  "held back this run, not lost — warning about a finding it will not need yet would be noise"
+);
+
+check(
+  "store.ts's backfillInternalNcFindings exists to fix exactly this gap, one press away",
+  /backfillInternalNcFindings: \(\) => \{/.test(src("lib", "store.ts")) &&
+    /a\.internal && a\.outcome === "NC" && a\.findingId == null/.test(src("lib", "store.ts")),
+  "the same shape raiseFindingFromAdhoc always builds, called once per stuck item"
+);
+
+check(
+  "and the Sync panel offers it right next to the warning it answers",
+  /fixInternalNcFindings/.test(panel) && /Raise findings for all \{w\.count\} now/.test(panel)
+);
+
 check(
   "warnings are told apart from skipped — one is written, the other is not",
   (() => {

@@ -219,6 +219,25 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
     setEarlyOk(false);
   }, [excludedDisciplines, unconsolidated]);
 
+  /* THE "internal working-area items marked non-compliant have no finding
+     behind them" WARNING's OWN FIX, one press away rather than a trip back
+     to field/page.tsx to re-open each item by hand. Raises every one in a
+     single store write, then re-plans the SAME way the discipline-toggle
+     effect above does — from lastPlanBase, patched with the now-current
+     adhoc list, since the plan's own frozen input still holds the stale
+     pre-fix items otherwise. */
+  function fixInternalNcFindings() {
+    useStore.getState().backfillInternalNcFindings();
+    if (!lastPlanBase.current) return;
+    lastPlanBase.current = {
+      ...lastPlanBase.current,
+      input: { ...lastPlanBase.current.input, adhoc: useStore.getState().visitData().adhoc ?? [] },
+    };
+    const { input, existing } = lastPlanBase.current;
+    setPlan(buildPlan({ ...input, excludedDisciplines: [...excludedDisciplines] }, existing, unconsolidated));
+    setEarlyOk(false);
+  }
+
   const configured = graph.graphConfigured();
 
   async function signIn() {
@@ -1191,6 +1210,24 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                 {plan.warnings.map((w) => (
                   <Note key={w.what} tone="warn">
                     <b>{w.count} {w.what}</b> — {w.why}.
+                    {/* THE ONE WARNING WITH A FIX ONE PRESS AWAY — see
+                        fixInternalNcFindings's own comment. Every other
+                        warning here needs a human decision (write a
+                        finding's own content, say); this one is purely
+                        mechanical; raising it the same way a write to the
+                        item today already would. */}
+                    {w.what === "internal working-area items marked non-compliant have no finding behind them" && (
+                      <>
+                        {" "}
+                        <button
+                          type="button"
+                          onClick={fixInternalNcFindings}
+                          className="font-semibold underline"
+                        >
+                          Raise findings for all {w.count} now
+                        </button>
+                      </>
+                    )}
                   </Note>
                 ))}
 
