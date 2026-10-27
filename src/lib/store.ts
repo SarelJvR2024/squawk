@@ -933,6 +933,12 @@ interface State {
   /** Things seen on the walk. See AdHocItem — these are NOT part of the 324
    *  and no count may treat them as though they were. */
   adhoc: () => AdHocItem[];
+  /** Raises a Finding from a non-compliant walk item, the one shape
+   *  addAdhoc/updateAdhoc both build it from — see their own comment. Not
+   *  meant to be called from a component; it exists on the store (rather
+   *  than as a private function) only so addAdhoc and updateAdhoc can each
+   *  reach it through `get()` without one calling the other. */
+  raiseFindingFromAdhoc: (item: AdHocItem) => string;
   addAdhoc: (a: Omit<AdHocItem, "id" | "createdAt">) => string;
   updateAdhoc: (id: string, p: Partial<AdHocItem>) => void;
   removeAdhoc: (id: string) => void;
@@ -3572,25 +3578,84 @@ export const useStore = create<State>()(
 
         adhoc: () => get().visitData().adhoc ?? [],
 
+        /* AN ITEM CAPTURED NON-COMPLIANT RAISES ITS OWN FINDING — GUARANTEED
+           HERE, not in a UI component. Sarel: "we moved away from using the
+           field for add finding. if something is captured as non-compliant
+           it should automatically be set as a finding." This used to live
+           only inside AddItemSheet.tsx's own save()/OutcomeControl handlers,
+           which meant anything that set outcome "NC" any other way — a
+           different screen, an import script, a future UI — silently
+           skipped it: an NC walk item with nobody having raised it is
+           exactly the gap that matters. Centred here, addAdhoc (an item
+           created already Non-compliant) and updateAdhoc (one changed to it
+           afterward) both go through this, once, the same shape
+           AddItemSheet.tsx used to build by hand. Not for anything else —
+           plenty of what is worth recording on a walk is context, and a
+           register that raises a finding for every observation is a
+           register nobody can work through; NC alone is where the decision
+           is already made. */
+        raiseFindingFromAdhoc: (item) =>
+          get().addFinding({
+            checkId: null,
+            discipline: item.discipline ?? "",
+            system: item.system ?? "",
+            area: item.area,
+            title: "Seen on the walk",
+            description: item.description,
+            issueIndex: null,
+            severity: null,
+            likelihood: null,
+            ratingConfirmed: false,
+            rootCause: "",
+            actions: [],
+            actionStatus: "Open",
+            originVisit: get().visit,
+            priorRating: null,
+            suggestedEvent: "",
+            progress: [],
+            adHoc: true,
+            createdBy: get().auditor,
+          }),
+
         addAdhoc: (a) => {
           /* WALK-, and random. A sequential number would read better and merge
              worse: two auditors on two devices would both mint WALK-03, the
              merge keys on id, and one of the two observations would vanish
              without anything saying so. Same reason findings are F-xxxxx. */
           const id = `WALK-${uid().toUpperCase().slice(0, 5)}`;
+          const item = { ...a, id, createdAt: Date.now(), updatedAt: Date.now() };
           writeScope((d) => ({
-            adhoc: [...(d.adhoc ?? []), { ...a, id, createdAt: Date.now(), updatedAt: Date.now() }],
+            adhoc: [...(d.adhoc ?? []), item],
           }));
           set({ lastSavedAt: Date.now() });
+          if (a.outcome === "NC" && a.findingId == null) {
+            const findingId = get().raiseFindingFromAdhoc(item);
+            get().updateAdhoc(id, { findingId });
+          }
           return id;
         },
 
-        updateAdhoc: (id, p) =>
+        updateAdhoc: (id, p) => {
           writeScope((d) => ({
             adhoc: (d.adhoc ?? []).map((x) =>
               x.id === id ? { ...x, ...p, updatedAt: Date.now() } : x
             ),
-          })),
+          }));
+          /* `p.findingId === undefined` — a caller that explicitly sets
+             findingId in the same patch (including this function's own
+             follow-up write just above) already decided; this must not
+             override it or recurse. Read the MERGED item back from the
+             store rather than `p` alone, so a patch that only touches
+             outcome still raises from the item's current description/
+             discipline/system/area, not from an empty one. */
+          if (p.outcome === "NC" && p.findingId === undefined) {
+            const item = (get().visitData().adhoc ?? []).find((x) => x.id === id);
+            if (item && item.findingId == null) {
+              const findingId = get().raiseFindingFromAdhoc(item);
+              get().updateAdhoc(id, { findingId });
+            }
+          }
+        },
 
         removeAdhoc: (id) => {
           /* The bytes go with it. An orphaned blob is invisible and counts

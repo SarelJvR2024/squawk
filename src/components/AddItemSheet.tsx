@@ -56,8 +56,6 @@ export default function AddItemSheet({
   const updateAdhoc = useStore((s) => s.updateAdhoc);
   const addAdhocAttachment = useStore((s) => s.addAdhocAttachment);
   const removeAdhocAttachment = useStore((s) => s.removeAdhocAttachment);
-  const addFinding = useStore((s) => s.addFinding);
-  const visitId = useStore((s) => s.visit);
   const adhocItems = useAdhoc();
   const aiOn = useAssistAvailable();
 
@@ -186,67 +184,39 @@ export default function AddItemSheet({
       addAdhocAttachment(id, rest);
     }
     setPendingAttachments([]);
-    /* NC raises automatically, same as it does when the outcome changes on
-       an item that already exists — see raiseFindingFrom's own comment.
-       This is the one path that case cannot cover: the outcome chosen
-       before Record it was ever pressed, when there was no id yet to
-       raise against. */
-    if (draft.outcome === "NC") {
-      const findingId = raiseFindingFrom(id, draft);
-      onSaved?.(findingId, `${id} recorded — not one of the 324 — ${findingId} raised automatically`);
-    } else {
-      onSaved?.(id, `${id} recorded — not one of the 324`);
-    }
+    /* NC raises its own finding automatically now, inside addAdhoc itself
+       (store.ts) — guaranteed for every caller, not just this sheet, see
+       that action's own comment. Read back whether it happened rather than
+       deciding here: calling raiseFindingFrom a second time on top of the
+       store's own would mint two findings for one observation. */
+    const saved = useStore.getState().visitData().adhoc?.find((x) => x.id === id);
+    onSaved?.(
+      saved?.findingId ?? id,
+      saved?.findingId
+        ? `${id} recorded — not one of the 324 — ${saved.findingId} raised automatically`
+        : `${id} recorded — not one of the 324`
+    );
     /* Stay open, on the SAME id — see createdId's own note. */
     setCreatedId(id);
   };
 
   /* An observation becomes a finding when somebody decides it is one, OR the
-     moment it is marked Non-Compliant — see the two call sites below.
-     Anything else is still offered, never automatic: plenty of what is worth
-     recording on a walk is context, and a register that raises a finding for
-     every observation is a register nobody can work through. NC is
-     different — Sarel: "if an item is marked Non Compliant... it should be
-     added as an additional item which is non compliant automatically." An
-     NC walk item with nobody having raised it is exactly the gap that
-     matters, so for that one outcome the decision is already made. The link
-     is kept both ways so the two stay one thing rather than becoming two
-     accounts of it. */
-  const raiseFindingFrom = (
-    targetId: string,
-    fields: { description: string; discipline: string | null; system: string | null; area: string }
-  ) => {
-    const id = addFinding({
-      checkId: null,
-      discipline: fields.discipline ?? "",
-      /* The asset system if one was named, and the item's own id if not —
-         never the string "Ad-hoc", which used to be written here and then
-         appeared as an asset system on every screen that groups by one. */
-      system: fields.system ?? "",
-      area: fields.area,
-      title: "Seen on the walk",
-      description: fields.description,
-      issueIndex: null,
-      severity: null,
-      likelihood: null,
-      ratingConfirmed: false,
-      rootCause: "",
-      actions: [],
-      actionStatus: "Open",
-      originVisit: visitId,
-      priorRating: null,
-      suggestedEvent: "",
-      progress: [],
-      adHoc: true,
-      createdBy: auditor,
-    });
-    updateAdhoc(targetId, { findingId: id });
-    return id;
-  };
-
+     moment it is marked Non-Compliant. The NC path is automatic now, and
+     guaranteed from one place regardless of which screen sets it — see
+     store.ts's addAdhoc/updateAdhoc and raiseFindingFromAdhoc (Sarel: "if an
+     item is marked Non Compliant... it should be added as an additional
+     item which is non compliant automatically"). This button is the OTHER
+     way a finding gets raised: a deliberate human decision on an
+     observation that is not, or not yet, marked NC — plenty of what is
+     worth recording on a walk is context, and a register that raises a
+     finding for every observation is a register nobody can work through, so
+     nothing here is automatic. Both paths build the exact same shape,
+     because both call the store's own raiseFindingFromAdhoc rather than
+     keeping a second copy of it here to drift from the first. */
   const raiseFinding = () => {
     if (!item || item.findingId) return;
-    const id = raiseFindingFrom(item.id, item);
+    const id = useStore.getState().raiseFindingFromAdhoc(item);
+    updateAdhoc(item.id, { findingId: id });
     onSaved?.(id, `${id} raised from ${item.id}`);
   };
 
@@ -416,13 +386,20 @@ export default function AddItemSheet({
                 value={value.outcome}
                 onChange={(o) => {
                   set({ outcome: o });
-                  /* NC raises automatically — see raiseFindingFrom's own
-                     comment. Only for an item that already exists (a brand
-                     new one takes this path in save() instead, once there
-                     is an id to raise against) and only once. */
-                  if (o === "NC" && item && !item.findingId) {
-                    const findingId = raiseFindingFrom(item.id, item);
-                    onSaved?.(findingId, `${findingId} raised automatically — marked Non-Compliant`);
+                  /* NC raises its own finding automatically now, inside
+                     updateAdhoc itself (store.ts) — see that action's own
+                     comment. `set` above already called it; read back
+                     whether it actually raised one rather than deciding
+                     here, so this never mints a second finding on top of
+                     the store's own. Only for an item that already exists —
+                     a brand new one takes save()'s own read-back path
+                     instead, once there is an id for the store to have
+                     raised against. */
+                  if (o === "NC" && item) {
+                    const saved = useStore.getState().visitData().adhoc?.find((x) => x.id === item.id);
+                    if (saved?.findingId) {
+                      onSaved?.(saved.findingId, `${saved.findingId} raised automatically — marked Non-Compliant`);
+                    }
                   }
                 }}
                 size={52}
