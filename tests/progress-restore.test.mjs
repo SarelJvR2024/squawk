@@ -16,6 +16,22 @@
  *  `visible.length` — never a hardcoded number and never a second formula
  *  that could drift from the first.
  *
+ *  Sarel, later, on the live audit, with Inspection open: "these number is
+ *  confusing, make sure it reflects how many audit checks has a comments
+ *  and compliance to it ... double check that it is an indication of all
+ *  compliances answered." `fieldDoneAt` means only "the field half was
+ *  saved" — store.ts's own commit() comment is explicit that compliance is
+ *  deliberately left untouched by a save, including null for "not yet
+ *  decided", so a check could read as done here with no verdict and no
+ *  note ever typed. Inspection's `doneCount`/`visible.length` therefore
+ *  swapped its source from `fieldDone` to a new, field/page.tsx-only
+ *  `answered` predicate — compliance chosen AND a note typed — and a
+ *  photo count per asset system was added beside it. AppShell's nav badge
+ *  and Capture's own siteDesk pair are untouched: they still read
+ *  `deskDone`/`fieldDone` exactly as before, because desk/field
+ *  completion and "answered with a real verdict" are different questions.
+ *  Only Inspection's heading and per-system fractions changed meaning.
+ *
  *  Part 1 drives the REAL store — not a mirror of commit(), the actual
  *  zustand action every Save button calls — and checks the figures this
  *  restoration renders are exactly what that run produces. Part 2 reads the
@@ -115,26 +131,56 @@ check(
   `desk total ${realDesk.total}, field total ${realField.total}, site checklist ${checksHere.length}`
 );
 
+/* ---- `answered` is Inspection's own predicate, layered on top of
+   fieldDone rather than replacing it anywhere else: compliance chosen AND
+   a note typed, exactly as field/page.tsx defines it. Four checks that
+   were never committed through either portal prove it stands on its own,
+   with nothing borrowed from fieldDoneAt. */
+const answered = (r) => !!r?.compliance && !!r?.observation?.trim();
+
+const answerScope = fieldScope.slice(N_FIELD, N_FIELD + 4);
+useStore.getState().patch(answerScope[0].id, { compliance: "C", observation: "looks fine" });
+useStore.getState().patch(answerScope[1].id, { compliance: "C", observation: "   " });
+useStore.getState().patch(answerScope[2].id, { compliance: null, observation: "note but no verdict" });
+useStore.getState().patch(answerScope[3].id, { compliance: "C", observation: "all good" });
+
+const responses2 = useStore.getState().visitData().responses;
+const N_ANSWERED = 2;
+const realAnswered = {
+  done: fieldScope.filter((c) => answered(responses2[c.id])).length,
+  total: fieldScope.length,
+};
+check(
+  "answered counts only a check with BOTH a compliance verdict and a non-blank note — a verdict alone or a note alone does not count",
+  realAnswered.done === N_ANSWERED,
+  `expected ${N_ANSWERED}, got ${realAnswered.done}`
+);
+check(
+  "a check can be answered without ever being committed through the field portal — compliance+note stand on their own, not borrowed from fieldDoneAt",
+  !answerScope.some((c) => fieldDone(responses2[c.id])) && answered(responses2[answerScope[0].id]),
+  `answerScope fieldDone: ${answerScope.map((c) => fieldDone(responses2[c.id]))}`
+);
+
 /* ---- Inspection's own `doneCount`/`visible.length`, unfiltered (the
    screen's default), are the SAME numbers by a different route: `visible`
    with no discipline/location filter and no search is
    `checksAt(entityCode).filter(needsField)` verbatim (see field/page.tsx's
    own `visible` useMemo) — so doneCount/visible.length must equal
-   realField.done/realField.total exactly, with nothing re-derived. */
+   realAnswered.done/realAnswered.total exactly, with nothing re-derived. */
 const inspectionVisible = checksAt(entityCode).filter(needsField);
-const inspectionDoneCount = inspectionVisible.filter((c) => fieldDone(responses[c.id])).length;
+const inspectionDoneCount = inspectionVisible.filter((c) => answered(responses2[c.id])).length;
 check(
   "Inspection's own doneCount/visible.length (unfiltered) is the identical figure, not a second formula",
-  inspectionDoneCount === realField.done && inspectionVisible.length === realField.total,
-  `doneCount ${inspectionDoneCount}/${inspectionVisible.length} vs field ${realField.done}/${realField.total}`
+  inspectionDoneCount === realAnswered.done && inspectionVisible.length === realAnswered.total,
+  `doneCount ${inspectionDoneCount}/${inspectionVisible.length} vs answered ${realAnswered.done}/${realAnswered.total}`
 );
 
 /* ---- one asset system's own done/total — the per-group figure GroupRow
-   and Capture's system row already rendered before this restoration, and
-   must go on rendering unchanged. */
+   renders reads the same `answered` predicate, not fieldDone, and must go
+   on rendering as a straight subset of the same checklist. */
 const oneSystem = checksHere[0].system;
 const systemChecks = checksHere.filter((c) => c.system === oneSystem);
-const systemDone = systemChecks.filter((c) => fieldDone(responses[c.id])).length;
+const systemDone = systemChecks.filter((c) => answered(responses2[c.id])).length;
 check(
   "a single asset system's figure is a straight subset of the same checklist, not the whole site's",
   systemChecks.length > 0 && systemChecks.length <= checksHere.length,
@@ -219,13 +265,20 @@ check(
 /* ----------------------------------------------------------- Inspection */
 
 check(
-  "Inspection's restored heading figure is the pre-existing doneCount/visible.length, read back, not recomputed",
-  /const doneCount = visible\.filter\(\(c\) => fieldDone\(responses\[c\.id\]\)\)\.length;/.test(fieldCode) &&
+  "Inspection's restored heading figure is doneCount/visible.length, now built from `answered` (compliance AND a note) rather than fieldDone",
+  /const answered = \(r\?: Response\) => !!r\?\.compliance && !!r\?\.observation\?\.trim\(\);/.test(fieldCode) &&
+    /const doneCount = visible\.filter\(\(c\) => answered\(responses\[c\.id\]\)\)\.length;/.test(fieldCode) &&
     /const visiblePct = visible\.length \? Math\.round\(\(doneCount \/ visible\.length\) \* 100\) : 0;/.test(
       fieldCode
     ) &&
-    /\{doneCount\} of \{visible\.length\} captured · \{visiblePct\}%/.test(fieldCode),
-  "doneCount/visible.length is the exact pair d7d79bb's item-7 commit deleted the text for — this must read it, not a copy"
+    /\{doneCount\} of \{visible\.length\} answered · \{visiblePct\}%/.test(fieldCode),
+  "doneCount/visible.length is still the pair d7d79bb's item-7 commit deleted the text for — Sarel's 'these numbers are confusing' ask changed what it counts, not whether it is read back or recomputed"
+);
+
+check(
+  "each system's new photo count is its own Pill with a camera glyph, never folded into the walk-item \"+N\" count",
+  /\{g\.photos > 0 && \(/.test(fieldCode) && /<IconCamera/.test(fieldCode),
+  "a photo count merged into the walk-item total would make that pill mean two different things"
 );
 
 check(
