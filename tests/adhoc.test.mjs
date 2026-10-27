@@ -222,11 +222,12 @@ check(
    description field, before anything is typed — that it should not have
    to wait for Record it at all. A capture taken before the item exists is
    held in pendingAttachments and folded in the moment it does. */
-/* Window widened 13 October 2026 from 1000 to 1800 chars — save() grew the
-   NC-auto-raise block (see "an item saved already marked NC raises on the
-   spot" below) between clearing pendingAttachments and setCreatedId(id).
-   The assertion's point is unchanged: Record it still ends on setCreatedId,
-   never onClose(). */
+/* Window widened 13 October 2026 from 1000 to 1800 chars — save() grew a
+   block between clearing pendingAttachments and setCreatedId(id) (see "an
+   item created already marked NC raises automatically" below — 27 October
+   2026's refactor changed that block's own content, reading back what the
+   store raised, but not its rough size). The assertion's point is
+   unchanged: Record it still ends on setCreatedId, never onClose(). */
 check(
   "Record it no longer closes the sheet — it creates the item and stays open",
   /const save = \(\) => \{[\s\S]{0,400}const id = addAdhoc\(\{[\s\S]{0,1800}setCreatedId\(id\);/.test(
@@ -301,40 +302,77 @@ check(
   !/system: "Ad-hoc"/.test(codeOnly(sheet)) && !/system: "Ad-hoc"/.test(codeOnly(field)),
   "that string used to appear as an asset system on every screen that groups by one"
 );
-/* REFACTORED 13 October 2026 — Sarel: "if an item is marked Non Compliant
-   ... it should be added as an additional item which is non compliant
-   automatically." raiseFinding() (the manual "Raise a finding from this"
-   button) and the two new automatic paths — outcome flips to NC on an
-   item that already exists, and an item is first saved already marked NC
-   — now share one helper, raiseFindingFrom(targetId, fields), so the link
-   is written the same way regardless of which path raised it. */
+/* MOVED TO THE STORE, 27 October 2026 — Sarel: "we moved away from using
+   the field for add finding. if something is captured as non-compliant it
+   should automatically be set as a finding." The 13 October refactor above
+   had already centralized the SHAPE into one helper, but that helper still
+   lived inside AddItemSheet.tsx — so the guarantee only held for items
+   whose outcome changed through that one sheet. A second screen quietly
+   had its own, third copy of the same shape (field/page.tsx's
+   raiseInternalFinding, for Internal Working Area items), and anything
+   that set outcome "NC" any other way — a different screen, an import
+   script — skipped the auto-raise entirely, which is exactly the gap
+   Sarel is describing here having reappeared.
+   The fix moves the guarantee into store.ts itself: addAdhoc (an item
+   created already NC) and updateAdhoc (one changed to it afterward) both
+   raise through raiseFindingFromAdhoc, a store action, so ANY caller gets
+   it — not just whichever UI component remembered to check. The two
+   components below now read back what the store did rather than raising a
+   second time. */
 check(
-  "raising a finding from an item links the two, from one shared helper",
-  /const raiseFindingFrom = \(\s*\n\s*targetId: string,/.test(sheet) &&
-    /updateAdhoc\(targetId, \{ findingId: id \}\);/.test(sheet)
+  "raising a finding from an adhoc item is built in exactly one place: the store's raiseFindingFromAdhoc",
+  /raiseFindingFromAdhoc: \(item\) =>\s*\n\s*get\(\)\.addFinding\(\{/.test(store) &&
+    /title: "Seen on the walk",/.test(
+      store.slice(store.indexOf("raiseFindingFromAdhoc: (item)"), store.indexOf("raiseFindingFromAdhoc: (item)") + 800)
+    ),
+  "a second copy of this shape is exactly what let field/page.tsx's version drift into a third"
 );
 check(
-  "the manual button still raises through that helper",
-  /const raiseFinding = \(\) => \{\s*\n\s*if \(!item \|\| item\.findingId\) return;\s*\n\s*const id = raiseFindingFrom\(item\.id, item\);/.test(
+  "an item created already marked NC raises automatically, from the store, not the component that called addAdhoc",
+  /if \(a\.outcome === "NC" && a\.findingId == null\) \{\s*\n\s*const findingId = get\(\)\.raiseFindingFromAdhoc\(item\);\s*\n\s*get\(\)\.updateAdhoc\(id, \{ findingId \}\);/.test(
+    store
+  ),
+  "the one path an outcome-change check on an existing item cannot cover — there is no existing item yet"
+);
+check(
+  "an existing item raises automatically the moment updateAdhoc sets its outcome to NC, regardless of which screen called it",
+  /if \(p\.outcome === "NC" && p\.findingId === undefined\) \{[\s\S]{0,200}get\(\)\.raiseFindingFromAdhoc\(item\);/.test(
+    store
+  ),
+  "this is the guarantee Sarel asked for: it fires for EVERY caller of updateAdhoc, not only AddItemSheet's own"
+);
+check(
+  "capture stays easy in the field — raising never requires a checkId",
+  /checkId: null,/.test(
+    store.slice(store.indexOf("raiseFindingFromAdhoc: (item)"), store.indexOf("raiseFindingFromAdhoc: (item)") + 400)
+  ),
+  "linking to a register check is deliberately a later, office-side step — see components/FindingDetail.tsx"
+);
+check(
+  "AddItemSheet no longer keeps its own copy of the raise-a-finding shape",
+  !/const raiseFindingFrom = /.test(sheet) && !/const addFinding = useStore/.test(sheet),
+  "a second copy of this shape next to the store's own is exactly the drift this change was asked to stop"
+);
+check(
+  "AddItemSheet's manual button raises through the store's helper",
+  /const raiseFinding = \(\) => \{\s*\n\s*if \(!item \|\| item\.findingId\) return;\s*\n\s*const id = useStore\.getState\(\)\.raiseFindingFromAdhoc\(item\);/.test(
     sheet
   )
 );
 check(
-  "an existing item raises automatically the moment its outcome becomes NC",
-  /if \(o === "NC" && item && !item\.findingId\) \{\s*\n\s*const findingId = raiseFindingFrom\(item\.id, item\);/.test(
+  "AddItemSheet's outcome control and save() read back what the store already did, rather than raising a second finding on top of it",
+  /if \(o === "NC" && item\) \{\s*\n\s*const saved = useStore\.getState\(\)\.visitData\(\)\.adhoc\?\.find\(\(x\) => x\.id === item\.id\);/.test(
     sheet
-  ),
-  "the gap Sarel flagged: an NC walk item nobody pressed the button on"
+  ) &&
+    /const saved = useStore\.getState\(\)\.visitData\(\)\.adhoc\?\.find\(\(x\) => x\.id === id\);/.test(sheet),
+  "calling raiseFindingFromAdhoc here too, on top of what addAdhoc/updateAdhoc already raised, would mint two findings for one observation"
 );
 check(
-  "an item saved already marked NC raises on the spot too",
-  /if \(draft\.outcome === "NC"\) \{\s*\n\s*const findingId = raiseFindingFrom\(id, draft\);/.test(sheet),
-  "the one path the outcome-change case above cannot cover — there is no item yet to watch"
-);
-check(
-  "capture stays easy in the field — raising never requires a checkId",
-  /checkId: null,/.test(sheet.slice(sheet.indexOf("raiseFindingFrom = ("), sheet.indexOf("raiseFindingFrom = (") + 1200)),
-  "linking to a register check is deliberately a later, office-side step — see components/FindingDetail.tsx"
+  "field/page.tsx's Internal Working Area items raise through the SAME store helper, not a third copy of the shape",
+  /const raiseInternalFinding = \(item: AdHocItem\) => \{\s*\n\s*if \(item\.findingId\) return;\s*\n\s*const id = useStore\.getState\(\)\.raiseFindingFromAdhoc\(item\);/.test(
+    field
+  ) && !/const addFinding = useStore/.test(field),
+  "this was the second, independent copy of the Finding shape that let it drift — see raiseFindingFromAdhoc's own comment in store.ts"
 );
 
 /* ---- 8 · AN OUTCOME IS NOT A RATING ------------------------------------ */

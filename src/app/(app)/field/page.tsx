@@ -334,15 +334,15 @@ export default function FieldPage() {
   const addHazard = useStore((s) => s.addHazard);
   /* The Internal Working Area, directly on a check — see the section inside
      the Inspection sheet below. Same AdHocItem mechanism as the general walk
-     items above; addFinding/updateAdhoc are the exact raise-a-finding pair
-     AddItemSheet already uses, reused rather than duplicated. */
+     items above; raiseFindingFromAdhoc/updateAdhoc (store.ts) are the exact
+     raise-a-finding pair AddItemSheet already uses, reused rather than
+     duplicated. */
   const addAdhoc = useStore((s) => s.addAdhoc);
   const updateAdhoc = useStore((s) => s.updateAdhoc);
   const removeAdhoc = useStore((s) => s.removeAdhoc);
   const addAdhocAttachment = useStore((s) => s.addAdhocAttachment);
   const removeAdhocAttachment = useStore((s) => s.removeAdhocAttachment);
   const updateAdhocAttachment = useStore((s) => s.updateAdhocAttachment);
-  const addFinding = useStore((s) => s.addFinding);
 
   const [q, setQ] = useState("");
   /* THE AXIS. Discipline is the default and location is the flip.
@@ -583,35 +583,17 @@ export default function FieldPage() {
   };
 
   /* AN INTERNAL WORKING AREA ITEM BECOMES A FINDING EXACTLY THE WAY AN
-     ORDINARY WALK ITEM DOES — see AddItemSheet's own raiseFinding, which this
-     mirrors field for field rather than inventing a second mechanism. The
-     link is kept both ways, same reason: the observation and the finding
-     stay one thing rather than becoming two accounts of it, and the item
-     drops out of the Internal Working Area list the moment findingId is
-     set — see that filter inside the check Sheet below. */
+     ORDINARY WALK ITEM DOES — the store's own raiseFindingFromAdhoc (see
+     store.ts's addAdhoc/updateAdhoc), the same one AddItemSheet's
+     raiseFinding calls, rather than a third copy of that shape kept here to
+     drift from the other two. The link is kept both ways, same reason: the
+     observation and the finding stay one thing rather than becoming two
+     accounts of it, and the item drops out of the Internal Working Area
+     list the moment findingId is set — see that filter inside the check
+     Sheet below. */
   const raiseInternalFinding = (item: AdHocItem) => {
     if (item.findingId) return;
-    const id = addFinding({
-      checkId: null,
-      discipline: item.discipline ?? "",
-      system: item.system ?? "",
-      area: item.area,
-      title: "Seen on the walk",
-      description: item.description,
-      issueIndex: null,
-      severity: null,
-      likelihood: null,
-      ratingConfirmed: false,
-      rootCause: "",
-      actions: [],
-      actionStatus: "Open",
-      originVisit: visitId,
-      priorRating: null,
-      suggestedEvent: "",
-      progress: [],
-      adHoc: true,
-      createdBy: auditor,
-    });
+    const id = useStore.getState().raiseFindingFromAdhoc(item);
     updateAdhoc(item.id, { findingId: id });
     say(`${id} raised from ${item.id}`);
   };

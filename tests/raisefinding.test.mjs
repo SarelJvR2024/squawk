@@ -15,18 +15,27 @@ import { fileURLToPath } from "node:url";
  * These assertions are source-read, like adhoc.test.mjs's own coverage of
  * AddItemSheet.tsx: the shape a UI call sends to addFinding is exactly as
  * checkable from the call site as from running it, and this repo's own
- * suites already draw that line (see AddItemSheet's own addFinding call,
+ * suites already draw that line (see the store's own raiseFindingFromAdhoc,
  * which no suite re-executes either). What genuinely needs RUNNING rather
  * than reading — whether a non-check finding actually carries into a later
  * visit's Follow-up screen — is proved separately, against the real
  * exported functions, in tests/carryforward.test.mjs's own "a finding raised
- * outside the register" section. */
+ * outside the register" section.
+ *
+ * MOVED, 27 October 2026 — the walk screen's own call used to sit right in
+ * AddItemSheet.tsx, which is what section 5 below used to compare this
+ * screen's shape against. Sarel: "if something is captured as non-compliant
+ * it should automatically be set as a finding" — AddItemSheet.tsx was not
+ * the only place that needed to guarantee that, so the shape moved to
+ * store.ts's raiseFindingFromAdhoc, called by addAdhoc, updateAdhoc, AND
+ * AddItemSheet's own manual button, from one place instead of three. This
+ * screen's own shape is unchanged; what it is compared against moved. */
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (...p) => fs.readFileSync(path.join(here, "..", ...p), "utf8");
 const types = read("src", "lib", "types.ts");
 const sheet = read("src", "components", "RaiseFindingSheet.tsx");
-const addItemSheet = read("src", "components", "AddItemSheet.tsx");
+const store = read("src", "lib", "store.ts");
 const findingsPage = read("src", "app", "(app)", "findings", "page.tsx");
 
 let failures = 0;
@@ -123,20 +132,22 @@ check(
   "one fuzzy-search rule in this app, built once in AppShell.tsx and reused here, not reinvented"
 );
 
-/* ---- 5 · the submit shape matches AddItemSheet's own raiseFinding call -- */
+/* ---- 5 · the submit shape matches the store's own raiseFindingFromAdhoc - */
 
 /* THE SAME DEFAULT SHAPE, FIELD FOR FIELD — so the two capture paths (the
-   walk screen's promote-an-observation flow, and this screen's general
-   capture) cannot drift into two different shapes of finding. Extracted as
-   its own block from each file so later fields cannot silently match on a
-   shorter prefix. */
+   walk screen's promote-an-observation flow, now built once in store.ts and
+   used by addAdhoc, updateAdhoc and AddItemSheet's manual button alike, and
+   this screen's general capture) cannot drift into two different shapes of
+   finding. Extracted as its own block from each file so later fields cannot
+   silently match on a shorter prefix. */
 const sheetCall = sheetCode.slice(
   sheetCode.indexOf("const id = addFinding({"),
   sheetCode.indexOf("});", sheetCode.indexOf("const id = addFinding({"))
 );
-const addItemCall = codeOnly(addItemSheet).slice(
-  codeOnly(addItemSheet).indexOf("const id = addFinding({"),
-  codeOnly(addItemSheet).indexOf("});", codeOnly(addItemSheet).indexOf("const id = addFinding({"))
+const storeCode = codeOnly(store);
+const storeRaiseCall = storeCode.slice(
+  storeCode.indexOf("raiseFindingFromAdhoc: (item) =>"),
+  storeCode.indexOf("}),", storeCode.indexOf("raiseFindingFromAdhoc: (item) =>"))
 );
 
 for (const field of [
@@ -154,22 +165,26 @@ for (const field of [
 ]) {
   check(
     `both capture paths default ${field.replace(/,$/, "")} identically`,
-    sheetCall.includes(field) && addItemCall.includes(field),
+    sheetCall.includes(field) && storeRaiseCall.includes(field),
     "a finding raised from the walk and one raised from this screen must be the same shape"
   );
 }
 check(
   "both stamp originVisit from the live visit, not a literal",
-  /originVisit: visitId,/.test(sheetCall) && /originVisit: visitId,/.test(addItemCall)
+  /originVisit: visitId,/.test(sheetCall) && /originVisit: get\(\)\.visit,/.test(storeRaiseCall),
+  "the store reaches the live visit through get().visit rather than a component prop of the same name — same value, different route to it"
 );
 check(
   "both stamp createdBy from the live auditor, not a literal",
-  /createdBy: auditor,/.test(sheetCall) && /createdBy: auditor,/.test(addItemCall)
+  /createdBy: auditor,/.test(sheetCall) && /createdBy: get\(\)\.auditor,/.test(storeRaiseCall),
+  "the store reaches the live auditor through get().auditor rather than a component prop of the same name — same value, different route to it"
 );
 check(
-  "checkId is passed straight through — null unless a check was actually picked",
-  /checkId,/.test(sheetCall) && !/checkId: null,/.test(sheetCall),
-  "AddItemSheet's own call hardcodes checkId: null because that flow can never have one; this screen's picker means checkId is a variable, not a literal"
+  "checkId is passed straight through on this screen — null unless a check was actually picked; the store's own call hardcodes it",
+  /checkId,/.test(sheetCall) &&
+    !/checkId: null,/.test(sheetCall) &&
+    /checkId: null,/.test(storeRaiseCall),
+  "raiseFindingFromAdhoc hardcodes checkId: null because every walk item it is called for can never have one; this screen's picker means checkId is a variable, not a literal"
 );
 
 console.log(failures === 0 ? "\nRAISE A FINDING OK" : `\n${failures} FAILURE${failures > 1 ? "S" : ""}`);

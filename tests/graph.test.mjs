@@ -142,5 +142,24 @@ for (const [name, fn] of [
   );
 }
 
+/* ------------------------------ Part 3: the retry budget, read ----------- */
+
+/* Seen twice on the same 211-photo run (21 Oct, then again 27 Oct): the
+   "Invalid request" still-indexing gap on setFileFields outlasted the four
+   attempts MAX_ATTEMPTS allowed, ~5.6s of backoff, for a backlog a bulk
+   upload of that size leaves behind. Not a new failure mode — the same one
+   under-budgeted — so this pins the number up rather than letting a future
+   edit quietly shrink it back to what already failed twice. */
+check(
+  "MAX_ATTEMPTS was raised from 4 to 6 after the same still-indexing gap outlasted it twice on one 211-photo run",
+  /const MAX_ATTEMPTS = 6;/.test(graphCode) && !/const MAX_ATTEMPTS = 4;/.test(graphCode),
+  "four attempts (~5.6s of backoff) were proven, twice, not long enough to outlast a bulk-upload indexing backlog"
+);
+
+check(
+  "'invalid request' is still in the retryable-message fallback this budget exists to serve",
+  /RETRYABLE_MESSAGE\s*=\s*\/[^/]*invalid request[^/]*\/i/.test(graphCode)
+);
+
 console.log(`\n${failures === 0 ? "ALL PASS" : `${failures} FAILED`}`);
 process.exit(failures ? 1 : 0);

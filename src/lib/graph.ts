@@ -290,6 +290,12 @@ export class GraphError extends Error {
  *  still-indexing gap again, not a malformed field — a real bad value would
  *  fail identically on attempt one, so retrying costs nothing when it is not.
  *
+ *  SEEN AGAIN, 27 October 2026, same 42 photographs, same 211-photo run — the
+ *  four attempts MAX_ATTEMPTS allowed at the time (~5.6s of backoff) were not
+ *  long enough to outlast the indexing backlog a run of that size leaves
+ *  behind. Not a new bug, the same one still under-budgeted; MAX_ATTEMPTS
+ *  moved from 4 to 6 (~25s) for exactly this reason — see tests/graph.test.mjs.
+ *
  *  A plain network failure (fetch itself throwing, no response at all) is
  *  deliberately NOT retried here: that is the one case where whether the
  *  write already committed server-side is genuinely unknown, and blindly
@@ -342,7 +348,7 @@ export function isRetryable(status: number, detail: string, retryOn409Message = 
   return RETRYABLE_MESSAGE.test(detail);
 }
 
-const MAX_ATTEMPTS = 4;
+const MAX_ATTEMPTS = 6;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function call<T>(
