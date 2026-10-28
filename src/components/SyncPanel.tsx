@@ -538,7 +538,25 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
             );
           }
         }
+        /* SIGNED OUT PARTWAY THROUGH A LARGE BATCH is one cause, not many.
+           A 211-photograph run can run long enough to outlast the signed-in
+           session, and from that moment every remaining upload throws the
+           same "Signed out" error — see graph.ts's `call()`. Letting each of
+           those print as its own failed photograph (60 of them, once, on a
+           real run) reads as 60 separate problems and buries the one thing
+           that is actually true: sign in again and re-run to pick up
+           everything after this point. One line says that; the loop below
+           stops reaching for the portal the moment it is told to. */
+        let signedOutAt: string | null = null;
+        /* Held so the second pass below can ask setFileFields again without
+           asking the portal to find the file by name a second time — the
+           upload already handed back its item id once. */
+        const unlabelledItemId = new Map<string, string>();
         for (const f of plan.evidence) {
+          if (signedOutAt) {
+            failed.push({ key: f.filename, why: `never attempted — signed out while uploading ${signedOutAt}` });
+            continue;
+          }
           const why = folderFailed.get(f.folder);
           if (why) {
             failed.push({ key: f.filename, why });
@@ -572,11 +590,46 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                   key: f.filename,
                   why: e instanceof Error ? e.message : "the columns could not be written",
                 });
+                unlabelledItemId.set(f.filename, up.id);
               }
             }
           } catch (e) {
-            failed.push({ key: f.filename, why: e instanceof Error ? e.message : "failed" });
+            const message = e instanceof Error ? e.message : "failed";
+            if (!graph.signedInAs()) signedOutAt = f.filename;
+            failed.push({ key: f.filename, why: message });
           }
+        }
+        /* A SECOND, LATER LOOK AT THE ONES THAT UPLOADED BUT DID NOT GET THEIR
+           COLUMNS. setFileFields already retries inside itself (see graph.ts,
+           MAX_ATTEMPTS) for the ordinary case — SharePoint has not finished
+           indexing a file that was PUT a second ago. On a 211-photograph run
+           that budget was raised from four attempts to six (25 October →
+           27 October 2026) and still left 39 of 211 unlabelled, barely fewer
+           than the 42 that prompted the change — the real indexing backlog on
+           a batch this size outlasts any retry budget paid for in the few
+           seconds right after ONE upload. What it has not outlasted is the
+           REST OF THE BATCH: by the time every photograph has been PUT, the
+           earliest ones have had minutes, not seconds, for SharePoint to
+           catch up. One more pass, now, over exactly the ones still missing
+           their columns — not a bigger number inside setFileFields, a later
+           moment to ask it from. */
+        if (resolved.driveMap && unlabelled.length) {
+          const stillUnlabelled: typeof unlabelled = [];
+          for (const u of unlabelled) {
+            const f = plan.evidence.find((e) => e.filename === u.key);
+            const itemId = unlabelledItemId.get(u.key);
+            if (!f || !itemId) {
+              stillUnlabelled.push(u);
+              continue;
+            }
+            try {
+              await graph.setFileFields(resolved.driveId, itemId, projectFields(resolved.driveMap, f.values, "create"));
+            } catch (e) {
+              stillUnlabelled.push({ key: u.key, why: e instanceof Error ? e.message : u.why });
+            }
+          }
+          unlabelled.length = 0;
+          unlabelled.push(...stillUnlabelled);
         }
         /* SIGNATURES, THE SAME WAY — same per-day folders, same device-then-
            record fallback, but no metadata step: EVIDENCE_FIELDS describes a
@@ -584,6 +637,10 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
            a signature has. The file itself, named by its own ref, is the
            whole of what goes across. */
         for (const s of plan.signatures) {
+          if (signedOutAt) {
+            failed.push({ key: s.filename, why: `never attempted — signed out while uploading ${signedOutAt}` });
+            continue;
+          }
           const why = folderFailed.get(s.folder);
           if (why) {
             failed.push({ key: s.filename, why });
@@ -595,7 +652,9 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
             await graph.uploadEvidence(resolved.driveId, s.folder, s.filename, blob);
             written++;
           } catch (e) {
-            failed.push({ key: s.filename, why: e instanceof Error ? e.message : "failed" });
+            const message = e instanceof Error ? e.message : "failed";
+            if (!graph.signedInAs()) signedOutAt = s.filename;
+            failed.push({ key: s.filename, why: message });
           }
         }
       }

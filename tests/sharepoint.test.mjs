@@ -4235,6 +4235,48 @@ check(
   "the removal must survive the merge AND the attachment must not be re-queued for upload"
 );
 
+/* ---- signed-out-mid-batch stops reaching for the portal, instead of
+   printing one "Signed out" failure per remaining photograph — 28 October
+   2026, a 211-photograph run with 60 of them all WALK- items, all the same
+   reason: the Microsoft Graph session expired partway through. ----------- */
+
+check(
+  "the writer notices it has been signed out, not just that one call failed",
+  /if \(!graph\.signedInAs\(\)\) signedOutAt = f\.filename;/.test(panel) &&
+    /if \(!graph\.signedInAs\(\)\) signedOutAt = s\.filename;/.test(panel),
+  "a 401 part-way through a large batch is one cause, not sixty"
+);
+
+check(
+  "every photograph and signature after that point is marked never-attempted, not individually failed",
+  (() => {
+    const hits = panel.match(/never attempted — signed out while uploading \$\{signedOutAt\}/g);
+    return !!hits && hits.length === 2 && /let signedOutAt: string \| null = null;/.test(panel);
+  })(),
+  "60 separate-looking failures hid the one true cause and the one true fix (sign in again, re-run)"
+);
+
+/* ---- a second, later pass over photographs whose columns did not write —
+   the retry budget inside setFileFields (MAX_ATTEMPTS, graph.ts) was raised
+   4 → 6 for this exact symptom and still left 39 of 211 unlabelled, barely
+   fewer than the 42 that prompted that change. The indexing backlog a batch
+   this size leaves behind outlasts any budget paid for in the few seconds
+   right after ONE upload; by the time the rest of the batch has gone
+   through, the earliest files have had minutes, not seconds. --------------- */
+
+check(
+  "an item whose columns failed to write once is tried again after the whole batch has uploaded",
+  /const unlabelledItemId = new Map<string, string>\(\);/.test(panel) &&
+    /unlabelledItemId\.set\(f\.filename, up\.id\);/.test(panel) &&
+    /if \(resolved\.driveMap && unlabelled\.length\) \{/.test(panel),
+  "the item id came back on the upload itself — a second lookup by name is a round trip and a chance to miss"
+);
+
+check(
+  "the second pass only retries what is STILL unlabelled after it runs, not what already succeeded",
+  /unlabelled\.length = 0;\s*\n\s*unlabelled\.push\(\.\.\.stillUnlabelled\);/.test(panel)
+);
+
 /* ------------------------------------------------------------------ result */
 
 console.log(failures === 0 ? "\nSHAREPOINT OK" : `\n${failures} FAILURE${failures > 1 ? "S" : ""}`);
