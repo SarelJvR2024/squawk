@@ -612,8 +612,16 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
            earliest ones have had minutes, not seconds, for SharePoint to
            catch up. One more pass, now, over exactly the ones still missing
            their columns — not a bigger number inside setFileFields, a later
-           moment to ask it from. */
-        if (resolved.driveMap && unlabelled.length) {
+           moment to ask it from.
+
+           NOT if the session signed out during the loop above, though:
+           every one of these would throw the same "Signed out" message
+           `setFileFields` throws for everything else once the token has
+           expired, overwriting the real, more useful reason (an indexing
+           race, say) with a misleading one that reads as "re-upload this",
+           when the photograph and its bytes are already fine — it is only
+           the retry itself that cannot succeed signed out. */
+        if (resolved.driveMap && unlabelled.length && !signedOutAt) {
           const stillUnlabelled: typeof unlabelled = [];
           for (const u of unlabelled) {
             const f = plan.evidence.find((e) => e.filename === u.key);

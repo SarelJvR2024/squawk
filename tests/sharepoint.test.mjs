@@ -4268,13 +4268,19 @@ check(
   "an item whose columns failed to write once is tried again after the whole batch has uploaded",
   /const unlabelledItemId = new Map<string, string>\(\);/.test(panel) &&
     /unlabelledItemId\.set\(f\.filename, up\.id\);/.test(panel) &&
-    /if \(resolved\.driveMap && unlabelled\.length\) \{/.test(panel),
+    /if \(resolved\.driveMap && unlabelled\.length/.test(panel),
   "the item id came back on the upload itself — a second lookup by name is a round trip and a chance to miss"
 );
 
 check(
   "the second pass only retries what is STILL unlabelled after it runs, not what already succeeded",
   /unlabelled\.length = 0;\s*\n\s*unlabelled\.push\(\.\.\.stillUnlabelled\);/.test(panel)
+);
+
+check(
+  "the second pass is skipped entirely once signed out — it cannot succeed and would overwrite the real reason",
+  /if \(resolved\.driveMap && unlabelled\.length && !signedOutAt\) \{/.test(panel),
+  'every retried setFileFields would throw the same "Signed out" message, erasing the actual cause (e.g. an indexing race) and misleadingly implying the photograph itself needs re-upload'
 );
 
 /* ------------------------------------------------------------------ result */
