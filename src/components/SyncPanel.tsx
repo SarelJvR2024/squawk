@@ -222,12 +222,16 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   /* THE "internal working-area items marked non-compliant have no finding
      behind them" WARNING's OWN FIX, one press away rather than a trip back
      to field/page.tsx to re-open each item by hand. Raises every one in a
-     single store write, then re-plans the SAME way the discipline-toggle
-     effect above does — from lastPlanBase, patched with the now-current
-     adhoc list, since the plan's own frozen input still holds the stale
-     pre-fix items otherwise. */
+     single store write — passing the SAME excludedDisciplines the warning
+     itself was computed with, so this never raises a finding for a
+     discipline the auditor asked this run to hold back; raising a finding
+     is a real register write, not something "held back this run" may
+     still trigger quietly — then re-plans the SAME way the
+     discipline-toggle effect above does — from lastPlanBase, patched with
+     the now-current adhoc list, since the plan's own frozen input still
+     holds the stale pre-fix items otherwise. */
   function fixInternalNcFindings() {
-    useStore.getState().backfillInternalNcFindings();
+    useStore.getState().backfillInternalNcFindings([...excludedDisciplines]);
     if (!lastPlanBase.current) return;
     lastPlanBase.current = {
       ...lastPlanBase.current,
