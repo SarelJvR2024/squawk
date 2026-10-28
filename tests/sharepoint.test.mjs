@@ -1808,9 +1808,17 @@ check(
 
 check(
   "store.ts's backfillInternalNcFindings exists to fix exactly this gap, one press away",
-  /backfillInternalNcFindings: \(\) => \{/.test(src("lib", "store.ts")) &&
-    /a\.internal && a\.outcome === "NC" && a\.findingId == null/.test(src("lib", "store.ts")),
+  /backfillInternalNcFindings: \(excludedDisciplines\) => \{/.test(src("lib", "store.ts")) &&
+    /a\.internal &&\s*\n\s*a\.outcome === "NC" &&\s*\n\s*a\.findingId == null/.test(src("lib", "store.ts")),
   "the same shape raiseFindingFromAdhoc always builds, called once per stuck item"
+);
+
+check(
+  "and it is held back by the SAME exclusion this warning was computed with",
+  /backfillInternalNcFindings: \(excludedDisciplines\) => \{[\s\S]{0,400}!\(a\.discipline && excluded\.has\(a\.discipline\)\)/.test(
+    src("lib", "store.ts")
+  ),
+  "a discipline held back this run must not get a finding raised for it just because this button was pressed"
 );
 
 check(

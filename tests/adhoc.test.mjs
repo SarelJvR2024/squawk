@@ -27,6 +27,7 @@ const exports_ = read("src", "lib", "exports.ts");
 const outcome = read("src", "components", "OutcomeControl.tsx");
 const sheet = read("src", "components", "AddItemSheet.tsx");
 const field = read("src", "app", "(app)", "field", "page.tsx");
+const panel = read("src", "components", "SyncPanel.tsx");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -386,21 +387,29 @@ check(
 
 check(
   "backfillInternalNcFindings exists on the store, scoped to internal+NC+un-findinged items",
-  /backfillInternalNcFindings: \(\) => \{\s*\n\s*const stuck = \(get\(\)\.visitData\(\)\.adhoc \?\? \[\]\)\.filter\(\s*\n\s*\(a\) => a\.internal && a\.outcome === "NC" && a\.findingId == null/.test(
+  /backfillInternalNcFindings: \(excludedDisciplines\) => \{\s*\n\s*const excluded = new Set\(excludedDisciplines \?\? \[\]\);\s*\n\s*const stuck = \(get\(\)\.visitData\(\)\.adhoc \?\? \[\]\)\.filter\(\s*\n\s*\(a\) =>\s*\n\s*a\.internal &&\s*\n\s*a\.outcome === "NC" &&\s*\n\s*a\.findingId == null/.test(
     store
   ),
   "the exact condition externallyVisible excludes on — see that function's own comment in sharepoint.ts"
 );
 
 check(
+  "and it holds back the SAME disciplines the warning it answers already excludes from its count",
+  /backfillInternalNcFindings: \(excludedDisciplines\) => \{[\s\S]{0,400}!\(a\.discipline && excluded\.has\(a\.discipline\)\)/.test(
+    store
+  ),
+  "raising a finding is a real register write — a discipline held back this run must not get one quietly just because its photos would not have synced either"
+);
+
+check(
   "it raises through the SAME helper every other path uses, not a fourth copy of the shape",
-  /backfillInternalNcFindings: \(\) => \{[\s\S]{0,400}get\(\)\.raiseFindingFromAdhoc\(item\)/.test(store),
+  /backfillInternalNcFindings: \(excludedDisciplines\) => \{[\s\S]{0,600}get\(\)\.raiseFindingFromAdhoc\(item\)/.test(store),
   "one shape, four callers now: addAdhoc, updateAdhoc, the manual buttons, and this catch-up"
 );
 
 check(
   "it writes findingId back onto each item it raises for, not just the finding itself",
-  /backfillInternalNcFindings: \(\) => \{[\s\S]{0,500}get\(\)\.updateAdhoc\(item\.id, \{ findingId \}\)/.test(
+  /backfillInternalNcFindings: \(excludedDisciplines\) => \{[\s\S]{0,700}get\(\)\.updateAdhoc\(item\.id, \{ findingId \}\)/.test(
     store
   ),
   "raising the finding alone does not make the item externallyVisible — the item's own findingId is what the sync gate reads"
@@ -413,7 +422,13 @@ check(
 
 check(
   "declared on the State interface too, not just the implementation",
-  /backfillInternalNcFindings: \(\) => number;/.test(store)
+  /backfillInternalNcFindings: \(excludedDisciplines\?: string\[\]\) => number;/.test(store)
+);
+
+check(
+  "and the Sync panel's own button passes its own excludedDisciplines through, not an empty default",
+  /useStore\.getState\(\)\.backfillInternalNcFindings\(\[\.\.\.excludedDisciplines\]\);/.test(panel),
+  "calling it with no argument would raise findings for every held-back discipline too — the bug this pairing exists to prevent"
 );
 
 /* ---- 8 · AN OUTCOME IS NOT A RATING ------------------------------------ */

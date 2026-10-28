@@ -943,8 +943,11 @@ interface State {
   updateAdhoc: (id: string, p: Partial<AdHocItem>) => void;
   /** One-time catch-up for an internal item marked NC before the
    *  NC-auto-raises-a-finding guarantee existed — see the implementation's
-   *  own comment. Returns how many it fixed. */
-  backfillInternalNcFindings: () => number;
+   *  own comment. excludedDisciplines mirrors buildPlan's own parameter of
+   *  the same name, so this backfill holds back exactly what the Sync
+   *  panel's own warning already excludes from its count. Returns how many
+   *  it fixed. */
+  backfillInternalNcFindings: (excludedDisciplines?: string[]) => number;
   removeAdhoc: (id: string) => void;
   addAdhocAttachment: (id: string, a: Omit<Attachment, "id" | "createdAt">) => void;
   /** The adhoc twin of updateAttachment. It did not exist, and that is why an
@@ -3674,10 +3677,23 @@ export const useStore = create<State>()(
            way on the current visit — the same raiseFindingFromAdhoc shape as
            if somebody had set outcome to NC on each by hand today. Returns
            the count so the caller (SyncPanel, next to the warning this
-           exact gap produces) can say how many it fixed. */
-        backfillInternalNcFindings: () => {
+           exact gap produces) can say how many it fixed.
+           excludedDisciplines — SAME RULE, SAME EXCLUSION, AS THE WARNING
+           THIS BUTTON ANSWERS (sharepoint.ts's own internalNcNoFinding).
+           Raising a finding is a real, visible write to the Findings
+           register — not something "held back this run" may still trigger
+           quietly just because the item's photos would not have synced
+           this run either. Without this, the button could raise more
+           findings than the number the warning showed, for a discipline
+           the auditor explicitly asked this sync to leave alone. */
+        backfillInternalNcFindings: (excludedDisciplines) => {
+          const excluded = new Set(excludedDisciplines ?? []);
           const stuck = (get().visitData().adhoc ?? []).filter(
-            (a) => a.internal && a.outcome === "NC" && a.findingId == null
+            (a) =>
+              a.internal &&
+              a.outcome === "NC" &&
+              a.findingId == null &&
+              !(a.discipline && excluded.has(a.discipline))
           );
           for (const item of stuck) {
             const findingId = get().raiseFindingFromAdhoc(item);
