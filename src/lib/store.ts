@@ -948,6 +948,13 @@ interface State {
    *  panel's own warning already excludes from its count. Returns how many
    *  it fixed. */
   backfillInternalNcFindings: (excludedDisciplines?: string[]) => number;
+  /** Ties several walk items to the same check-point in one action — see
+   *  BulkLinkWalkItemsSheet's own comment for why this exists. Loops
+   *  updateAdhoc rather than writing the scope directly, so a bulk link
+   *  goes through the one place an outcome-driven auto-raise can also fire
+   *  (updateAdhoc's own NC guarantee), the same way every other multi-item
+   *  write in this file does. Returns how many it set `checkId` on. */
+  bulkLinkAdhocToCheck: (ids: string[], checkId: string) => number;
   removeAdhoc: (id: string) => void;
   addAdhocAttachment: (id: string, a: Omit<Attachment, "id" | "createdAt">) => void;
   /** The adhoc twin of updateAttachment. It did not exist, and that is why an
@@ -3700,6 +3707,13 @@ export const useStore = create<State>()(
             get().updateAdhoc(item.id, { findingId });
           }
           return stuck.length;
+        },
+
+        bulkLinkAdhocToCheck: (ids, checkId) => {
+          const byId = new Map((get().visitData().adhoc ?? []).map((a) => [a.id, a]));
+          const targets = ids.filter((id) => byId.has(id) && byId.get(id)!.checkId !== checkId);
+          for (const id of targets) get().updateAdhoc(id, { checkId });
+          return targets.length;
         },
 
         removeAdhoc: (id) => {

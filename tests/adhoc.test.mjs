@@ -28,6 +28,7 @@ const outcome = read("src", "components", "OutcomeControl.tsx");
 const sheet = read("src", "components", "AddItemSheet.tsx");
 const field = read("src", "app", "(app)", "field", "page.tsx");
 const panel = read("src", "components", "SyncPanel.tsx");
+const bulkLinkSheet = read("src", "components", "BulkLinkWalkItemsSheet.tsx");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -429,6 +430,84 @@ check(
   "and the Sync panel's own button passes its own excludedDisciplines through, not an empty default",
   /useStore\.getState\(\)\.backfillInternalNcFindings\(\[\.\.\.excludedDisciplines\]\);/.test(panel),
   "calling it with no argument would raise findings for every held-back discipline too — the bug this pairing exists to prevent"
+);
+
+/* ---- 7B · TYING A WALK ITEM TO A CHECK-POINT, IN BULK ------------------
+ *  sharepoint.ts's own evidenceValues() writes a walk item's internal WALK-
+ *  id into the portal's CheckID column until item.checkId is set — only
+ *  then does a photograph's evidence row carry a real check-point the
+ *  report can place under an asset system. Nothing in the app ever set
+ *  checkId on an ordinary (non-internal) walk item after capture, so an
+ *  auditor who left photographs untied had no way to close that gap except
+ *  one item at a time. bulkLinkAdhocToCheck + BulkLinkWalkItemsSheet are
+ *  the bulk way — 28 October 2026, Sarel: "can you build a way to tie them
+ *  in bulk", having found the same unlinked photographs unchanged across
+ *  three consecutive syncs. */
+
+check(
+  "bulkLinkAdhocToCheck exists on the store, declared on the State interface",
+  /bulkLinkAdhocToCheck: \(ids: string\[\], checkId: string\) => number;/.test(store)
+);
+
+check(
+  "it only touches items that exist AND are not already on that check-point",
+  /bulkLinkAdhocToCheck: \(ids, checkId\) => \{[\s\S]{0,300}byId\.has\(id\) && byId\.get\(id\)!\.checkId !== checkId/.test(
+    store
+  ),
+  "a no-op re-link should not count toward, or re-stamp updatedAt on, items already on the target check"
+);
+
+check(
+  "it links through updateAdhoc — the one write path — not a direct scope patch",
+  /bulkLinkAdhocToCheck: \(ids, checkId\) => \{[\s\S]{0,400}get\(\)\.updateAdhoc\(id, \{ checkId \}\)/.test(store),
+  "going through updateAdhoc keeps this consistent with every other adhoc write in the file, including its own NC-raises-a-finding guarantee"
+);
+
+check(
+  "it patches checkId ALONE — discipline and system are never touched by a bulk link",
+  !/bulkLinkAdhocToCheck: \(ids, checkId\) => \{[\s\S]{0,400}get\(\)\.updateAdhoc\(id, \{ checkId, (discipline|system)/.test(
+    store
+  ),
+  "a walk item carries its own discipline/system (AddItemSheet lets the auditor set both) — sharepoint.ts's evidenceValues() already reads them independently of checkId; overwriting a real answer silently on a bulk action is exactly the wrong-but-plausible value this app's conventions elsewhere refuse to guess"
+);
+
+check(
+  "it returns how many it actually linked, for the toast to say so",
+  /return targets\.length;/.test(store)
+);
+
+const fieldCode = codeOnly(field);
+
+check(
+  "the Checks/Inspection screen offers a checkbox on a walk item ONLY while it has no checkId",
+  /\{!it\.checkId && \(\s*\n\s*<label/.test(field),
+  "an item already linked has nothing a bulk action here would do to it"
+);
+
+check(
+  "selection is tracked as a Set, cleared on Clear and after a successful link",
+  /const \[selectedWalkIds, setSelectedWalkIds\] = useState<Set<string>>\(new Set\(\)\);/.test(field) &&
+    /setSelectedWalkIds\(new Set\(\)\)/.test(fieldCode),
+  "session state only — see the checkbox's own note: a selection surviving a reload with nothing open would be a trap, not a convenience"
+);
+
+check(
+  "a live selection replaces the Add item bar rather than adding a third sticky layer",
+  /selectedWalkIds\.size > 0 \? \(/.test(field) && /\{selectedWalkIds\.size\} selected/.test(field),
+  "the existing bar's own comment: \"the thing it must not become is a third stacked layer\""
+);
+
+check(
+  "the bulk-link sheet is fed exactly the selected items, and confirming calls the store action",
+  /<BulkLinkWalkItemsSheet[\s\S]{0,200}items=\{adhocItems\.filter\(\(it\) => selectedWalkIds\.has\(it\.id\)\)\}/.test(
+    field
+  ) && /bulkLinkAdhocToCheck\(\[\.\.\.selectedWalkIds\], checkId\)/.test(field)
+);
+
+check(
+  "BulkLinkWalkItemsSheet's own confirm hands back a bare checkId, not a patch object — the no-overwrite rule lives in ONE place",
+  /onConfirm: \(checkId: string\) => void;/.test(bulkLinkSheet) && /onConfirm\(checkId\);/.test(bulkLinkSheet),
+  "if this sheet ever started passing discipline/system back too, store.ts's own no-overwrite behaviour would be bypassed from here"
 );
 
 /* ---- 8 · AN OUTCOME IS NOT A RATING ------------------------------------ */

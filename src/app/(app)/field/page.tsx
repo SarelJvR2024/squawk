@@ -25,6 +25,7 @@ import PageHeading from "@/components/ui/PageHeading";
 import { DisciplineSelect } from "@/components/ui/DisciplineSelect";
 import { FilterPopover } from "@/components/ui/FilterPopover";
 import AddItemSheet from "@/components/AddItemSheet";
+import BulkLinkWalkItemsSheet from "@/components/BulkLinkWalkItemsSheet";
 import GroupRow from "@/components/ui/GroupRow";
 import Sheet from "@/components/ui/Sheet";
 import OutcomeControl, { OUTCOMES } from "@/components/OutcomeControl";
@@ -555,6 +556,16 @@ export default function FieldPage() {
   const findings = useVisitFindings();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  /* BULK-LINK: walk items the auditor has ticked to tie to one check-point
+   *  in a single action — see BulkLinkWalkItemsSheet's own comment. Session
+   *  state, not persisted, the same as `expanded` above: a selection that
+   *  survived a reload with the sheet closed would be a trap, not a
+   *  convenience. Cleared whenever an item leaves the untied set (gets
+   *  linked, or is removed) so the action bar's own count never drifts
+   *  ahead of what is still actually selectable. */
+  const [selectedWalkIds, setSelectedWalkIds] = useState<Set<string>>(new Set());
+  const [bulkLinkOpen, setBulkLinkOpen] = useState(false);
+  const bulkLinkAdhocToCheck = useStore((s) => s.bulkLinkAdhocToCheck);
   /* A hazard seen on the walk. It is not a finding first and it never becomes
      one: nobody wrote up a check-point about it, and consolidating findings
      afterwards cannot invent it. See the modal below. */
@@ -1961,16 +1972,43 @@ export default function FieldPage() {
                           <div
                             key={it.id}
                             data-walk={it.id}
-                            className="border-b"
+                            className="flex items-stretch border-b"
                             style={{ borderColor: "var(--line)" }}
                           >
+                            {/* BULK-LINK SELECTION — only on an item with no
+                                check-point yet; one already linked has
+                                nothing a bulk action here would do to it.
+                                A sibling of the button below, not nested
+                                inside it, so a tap on the checkbox does not
+                                also open the edit sheet. */}
+                            {!it.checkId && (
+                              <label
+                                className="flex shrink-0 cursor-pointer items-center pl-3"
+                                style={{ minHeight: 56 }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedWalkIds.has(it.id)}
+                                  onChange={(e) =>
+                                    setSelectedWalkIds((prev) => {
+                                      const next = new Set(prev);
+                                      if (e.target.checked) next.add(it.id);
+                                      else next.delete(it.id);
+                                      return next;
+                                    })
+                                  }
+                                  aria-label={`Select ${it.id} to link to a check-point`}
+                                  className="h-[18px] w-[18px]"
+                                />
+                              </label>
+                            )}
                             <button
                               onClick={() => {
                                 setEditingId(it.id);
                                 setSheetOpen(true);
                               }}
                               aria-haspopup="dialog"
-                              className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left"
+                              className="flex min-w-0 flex-1 items-start gap-2.5 px-3 py-2.5 text-left"
                               style={{ minHeight: 56 }}
                             >
                               <span
@@ -2095,64 +2133,93 @@ export default function FieldPage() {
           paddingBottom: "calc(10px + var(--sticky-safe))",
         }}
       >
-        {/* IT RAN OFF THE RIGHT EDGE ON A REAL PHONE. Four controls plus the
-            unassigned badge came to more than 375px, so "Add item" — the
-            primary, and the one control the brief says must always be hittable
-            — was clipped. The two secondaries are icon-only below sm now, with
-            their names on aria-label, and the primary takes the room that
-            frees. `min-w-0` so a flex child can actually shrink. */}
-        <Btn
-          variant="primary"
-          className="order-last min-h-[56px] min-w-0 flex-1 justify-center sm:order-none sm:flex-none"
-          onClick={() => {
-            setEditingId(null);
-            setSheetOpen(true);
-          }}
-        >
-          <IconPlus width={16} height={16} />
-          Add item
-        </Btn>
-        {/* Still the fastest path to a photograph: no record, no fields, assign
-            it later from the tray. Different from Add item, which creates the
-            record the photograph belongs to. */}
-        <PhotoButton
-          compact
-          className="min-h-[44px] w-[44px] shrink-0 justify-center sm:w-auto sm:px-[13px]"
-          onCaptured={(m) => {
-            addCapture({
-              ...m,
-              area: "Unspecified",
-              createdBy: auditor,
-            });
-            say("Captured — assign it whenever you like");
-          }}
-        />
-        {/* The walk is where hazards are actually spotted. Until this existed
-            the only route to the register was consolidating findings, which
-            cannot produce a hazard nobody wrote a finding about. */}
-        <Btn
-          className="min-h-[44px] shrink-0 justify-center px-0 sm:px-[15px]"
-          style={{ width: 44 }}
-          aria-label="Raise a hazard seen on the walk"
-          onClick={() => setHazardOpen(true)}
-        >
-          <IconFlag width={16} height={16} />
-          <span className="hidden sm:inline">Hazard</span>
-        </Btn>
-        {captures.length > 0 && (
-          <Btn
-            className="min-h-[44px] shrink-0 px-[11px] sm:px-[15px]"
-            aria-label={`${captures.length} unassigned captures`}
-            onClick={() => setTray(true)}
-            style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}
-          >
-            {captures.length}
-            <span className="hidden sm:inline"> unassigned</span>
-          </Btn>
+        {selectedWalkIds.size > 0 ? (
+          /* BULK-LINK MODE — the same bar, different content, not a third
+             sticky layer (see the comment this replaces: "the thing it must
+             not become is a third stacked layer"). Replaces Add item's row
+             entirely while a selection is live, the same way this bar
+             already has exactly one job at a time. */
+          <>
+            <Btn
+              variant="ghost"
+              className="min-h-[44px] shrink-0"
+              onClick={() => setSelectedWalkIds(new Set())}
+            >
+              Clear
+            </Btn>
+            <span className="text-[12px] font-semibold" style={{ color: "var(--ink-2)" }}>
+              {selectedWalkIds.size} selected
+            </span>
+            <Btn
+              variant="primary"
+              className="order-last ml-auto min-h-[56px] min-w-0 flex-1 justify-center sm:order-none sm:flex-none"
+              onClick={() => setBulkLinkOpen(true)}
+            >
+              Link to check-point
+            </Btn>
+          </>
+        ) : (
+          <>
+            {/* IT RAN OFF THE RIGHT EDGE ON A REAL PHONE. Four controls plus the
+                unassigned badge came to more than 375px, so "Add item" — the
+                primary, and the one control the brief says must always be hittable
+                — was clipped. The two secondaries are icon-only below sm now, with
+                their names on aria-label, and the primary takes the room that
+                frees. `min-w-0` so a flex child can actually shrink. */}
+            <Btn
+              variant="primary"
+              className="order-last min-h-[56px] min-w-0 flex-1 justify-center sm:order-none sm:flex-none"
+              onClick={() => {
+                setEditingId(null);
+                setSheetOpen(true);
+              }}
+            >
+              <IconPlus width={16} height={16} />
+              Add item
+            </Btn>
+            {/* Still the fastest path to a photograph: no record, no fields, assign
+                it later from the tray. Different from Add item, which creates the
+                record the photograph belongs to. */}
+            <PhotoButton
+              compact
+              className="min-h-[44px] w-[44px] shrink-0 justify-center sm:w-auto sm:px-[13px]"
+              onCaptured={(m) => {
+                addCapture({
+                  ...m,
+                  area: "Unspecified",
+                  createdBy: auditor,
+                });
+                say("Captured — assign it whenever you like");
+              }}
+            />
+            {/* The walk is where hazards are actually spotted. Until this existed
+                the only route to the register was consolidating findings, which
+                cannot produce a hazard nobody wrote a finding about. */}
+            <Btn
+              className="min-h-[44px] shrink-0 justify-center px-0 sm:px-[15px]"
+              style={{ width: 44 }}
+              aria-label="Raise a hazard seen on the walk"
+              onClick={() => setHazardOpen(true)}
+            >
+              <IconFlag width={16} height={16} />
+              <span className="hidden sm:inline">Hazard</span>
+            </Btn>
+            {captures.length > 0 && (
+              <Btn
+                className="min-h-[44px] shrink-0 px-[11px] sm:px-[15px]"
+                aria-label={`${captures.length} unassigned captures`}
+                onClick={() => setTray(true)}
+                style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }}
+              >
+                {captures.length}
+                <span className="hidden sm:inline"> unassigned</span>
+              </Btn>
+            )}
+            <span className="ml-auto hidden font-mono text-[10px] sm:block" style={{ color: "var(--ink-3)" }}>
+              offline-capable · syncs when connected
+            </span>
+          </>
         )}
-        <span className="ml-auto hidden font-mono text-[10px] sm:block" style={{ color: "var(--ink-3)" }}>
-          offline-capable · syncs when connected
-        </span>
       </div>
 
       {/* unassigned tray */}
@@ -2422,6 +2489,18 @@ export default function FieldPage() {
         }}
       />
 
+      <BulkLinkWalkItemsSheet
+        open={bulkLinkOpen}
+        onClose={() => setBulkLinkOpen(false)}
+        items={adhocItems.filter((it) => selectedWalkIds.has(it.id))}
+        onConfirm={(checkId) => {
+          const n = bulkLinkAdhocToCheck([...selectedWalkIds], checkId);
+          setSelectedWalkIds(new Set());
+          say(
+            `${n} item${n === 1 ? "" : "s"} linked to ${portalIdFor(entityCode, checkId)}`
+          );
+        }}
+      />
 
       {/* One datalist for every location box on this screen — the inspection's
           and every photograph's. See LocationOptions. */}
