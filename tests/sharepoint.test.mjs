@@ -544,6 +544,65 @@ check(
   sp.flattenProgress(undefined) === "" && sp.flattenProgress([]) === ""
 );
 
+/* ---- ProgressNote.outcome reaches the portal — 28 October 2026, caught by
+   the scheduled sync-integrity review. Same bug class as MitigationAction.
+   system in flattenActions: written correctly and shown correctly in the
+   app's own Follow-up/Closure timeline, exports.ts's Progress/Update cell
+   already carried it, but this flatten — the one ACSA's portal actually
+   reads — never did. ------------------------------------------------------ */
+
+check(
+  "an entry with an outcome carries it into the flattened line",
+  sp.flattenProgress([
+    { at: 1_757_000_000_000, by: "Sarel", visit: "2026-09", outcome: "Closed", note: "remedied" },
+  ]) === `${new Date(1_757_000_000_000).toLocaleDateString("en-ZA")} — Sarel · Closed: remedied`,
+  "the outcome is what lets the log say WHEN a status moved — dropping it on the way to the portal makes it just another note"
+);
+
+check(
+  "a plain note with no outcome is unchanged — nothing reads as Closed that was never recorded as such",
+  sp.flattenProgress([
+    { at: 1_757_000_000_000, by: "Sarel", visit: "2026-09", outcome: null, note: "checked in" },
+  ]) === `${new Date(1_757_000_000_000).toLocaleDateString("en-ZA")} — Sarel: checked in`
+);
+
+check(
+  "a log with a mix of outcome and plain entries keeps each one's own — the outcome is per entry, not carried over from the last one that had it",
+  (() => {
+    const flat = sp.flattenProgress([
+      { at: 1_757_000_000_000, by: "Sarel", visit: "2026-09", outcome: "Open - repeat", note: "first" },
+      { at: 1_757_100_000_000, by: "Thabile", visit: "2026-09", outcome: null, note: "second" },
+      { at: 1_757_200_000_000, by: "Sarel", visit: "2026-09", outcome: "Closed", note: "third" },
+    ]).split("\n");
+    return (
+      flat[0].includes("Open - repeat") &&
+      !flat[1].includes("Open - repeat") &&
+      !flat[1].includes("Closed") &&
+      flat[2].includes("Closed") &&
+      !flat[2].includes("Open - repeat")
+    );
+  })()
+);
+
+check(
+  "the outcome reaches the portal through all three callers of flattenProgress, not just one",
+  (() => {
+    const log = [{ at: 1_757_000_000_000, by: "Sarel", visit: "2026-09", outcome: "Closed", note: "remedied" }];
+    const prior = [{ portalId: "KSIA-ELE-P04", entityCode: "FALE" }];
+    const verifications = {
+      "KSIA-ELE-P04": {
+        pf: "KSIA-ELE-P04", outcome: "Closed", evidence: "", attachments: [],
+        verifiedBy: "Sarel", verifiedAt: 1, progress: log, discussionLog: log,
+      },
+    };
+    const p = sp.buildPlan({ ...BASE, prior, verifications, hazards: [HAZARD({ progress: log })] }, NOTHING);
+    const v = p.findings.find((f) => f.key === "KSIA-ELE-P04")?.values;
+    const h = p.findings.find((f) => f.hazardId === "h1")?.values;
+    return !!v && !!h && v.progress.includes("Closed") && v.discussionLog.includes("Closed") && h.progress.includes("Closed");
+  })(),
+  "Verification.progress, Verification.discussionLog and Hazard.progress all flow through the same flattenProgress; a fix to it must reach every caller without a separate edit to each"
+);
+
 /* THE PATH IS RELATIVE TO THE LIBRARY, and it was not until 16 September 2026.
  * The library on the ACSA site is itself called "Evidence", and the folder was
  * prefixed "Evidence/" regardless, so the first five real photographs landed in

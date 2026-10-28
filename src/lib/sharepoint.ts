@@ -929,13 +929,28 @@ export interface SyncPlan {
 }
 
 /** ACSA's Progress/Update is ONE cell that gets typed over at every follow-up.
- *  Squawk keeps the entries with their author and date; this is where the log
- *  is flattened back into their format on the way out — their shape, our
- *  history, and nothing lost at this end. */
+ *  Squawk keeps the entries with their author, date and outcome; this is
+ *  where the log is flattened back into their format on the way out —
+ *  their shape, our history, and nothing lost at this end.
+ *
+ *  THE OUTCOME. `ProgressNote.outcome` exists so "a status that moved from
+ *  'Open - repeat' to 'Closed' shows WHEN it moved" (see its own doc comment
+ *  in types.ts) — kept per entry rather than only on the record. It was
+ *  written correctly and shown correctly in the app's own Follow-up/Closure
+ *  timeline (carryforward.ts's `streamFor`), and exports.ts's own Progress/
+ *  Update cell already includes it — but this flatten, the one that reaches
+ *  ACSA's portal (used for Verification.progress, Hazard.progress, and
+ *  Verification.discussionLog, and reused by exports.ts for the last of
+ *  those), never read it. Same bug class as MitigationAction.system in
+ *  flattenActions just below: a field captured and shown on-device, silently
+ *  dropped on the way to the one place ACSA and management actually read. */
 export function flattenProgress(notes: ProgressNote[] | undefined): string {
   if (!notes?.length) return "";
   return notes
-    .map((n) => `${new Date(n.at).toLocaleDateString("en-ZA")} — ${n.by}: ${n.note}`)
+    .map(
+      (n) =>
+        `${new Date(n.at).toLocaleDateString("en-ZA")} — ${n.by}${n.outcome ? ` · ${n.outcome}` : ""}: ${n.note}`
+    )
     .join("\n");
 }
 
