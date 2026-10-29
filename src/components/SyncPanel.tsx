@@ -22,6 +22,7 @@ import {
   checksAt,
   priorFindingsAt,
   useEntityCode,
+  useEntityPendingLabelFixes,
   useEvidenceItems,
   useResponses,
   useStore,
@@ -126,6 +127,17 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
   const auditor = useStore((s) => s.auditor);
   const updateHazard = useStore((s) => s.updateHazard);
   const recordSyncRun = useStore((s) => s.recordSyncRun);
+  const recordPendingLabelFixes = useStore((s) => s.recordPendingLabelFixes);
+  const clearPendingLabelFix = useStore((s) => s.clearPendingLabelFix);
+  const resolvePendingLabelFix = useStore((s) => s.resolvePendingLabelFix);
+  const pendingLabelFixes = useEntityPendingLabelFixes();
+  /* "FINISH LABELLING" — see PendingLabelFix's own comment in types.ts.
+     Its own small stage, separate from the main sync's: it reads nothing
+     from the portal and writes nothing but the columns a past run already
+     failed to, so it does not need read()'s plan or run()'s confirm step —
+     only a sign-in, same gate the rest of this screen already shares. */
+  const [labelFixBusy, setLabelFixBusy] = useState(false);
+  const [labelFixResult, setLabelFixResult] = useState<{ fixed: number; stillFailed: number } | null>(null);
 
   const [who, setWho] = useState<string | null>(graph.signedInAs());
   const [stage, setStage] = useState<Stage>("idle");
@@ -585,6 +597,10 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                   up.id,
                   projectFields(resolved.driveMap, f.values, "create")
                 );
+                /* An earlier run may have given up on this exact photo and
+                   left it in "Finish labelling" — this write just did what
+                   that was waiting for. */
+                clearPendingLabelFix(resolved.driveId, up.id);
               } catch (e) {
                 unlabelled.push({
                   key: f.filename,
@@ -632,12 +648,42 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
             }
             try {
               await graph.setFileFields(resolved.driveId, itemId, projectFields(resolved.driveMap, f.values, "create"));
+              clearPendingLabelFix(resolved.driveId, itemId);
             } catch (e) {
               stillUnlabelled.push({ key: u.key, why: e instanceof Error ? e.message : u.why });
             }
           }
           unlabelled.length = 0;
           unlabelled.push(...stillUnlabelled);
+        }
+        /* WHAT IS STILL MISSING ITS COLUMNS AFTER BOTH PASSES, carried
+           forward past this run entirely — see PendingLabelFix in types.ts.
+           Two attempts inside one sync (the per-photo retry in setFileFields
+           itself, then the second pass just above) is still a few minutes at
+           most; SharePoint's own indexing backlog on a large batch can
+           outlast that by hours. Recording these is what makes "Finish
+           labelling" below able to try again later, once it genuinely has. */
+        if (resolved.driveMap && resolved.driveId && unlabelled.length) {
+          const driveId = resolved.driveId;
+          const driveMap = resolved.driveMap;
+          recordPendingLabelFixes(
+            unlabelled
+              .map((u) => {
+                const f = plan.evidence.find((e) => e.filename === u.key);
+                const itemId = unlabelledItemId.get(u.key);
+                if (!f || !itemId) return null;
+                return {
+                  entity: entityCode,
+                  originVisit: visitId,
+                  driveId,
+                  itemId,
+                  filename: u.key,
+                  values: projectFields(driveMap, f.values, "create"),
+                  why: u.why,
+                };
+              })
+              .filter((e): e is NonNullable<typeof e> => e !== null)
+          );
         }
         /* SIGNATURES, THE SAME WAY — same per-day folders, same device-then-
            record fallback, but no metadata step: EVIDENCE_FIELDS describes a
@@ -706,6 +752,30 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
     } finally {
       setProgress(null);
     }
+  }
+
+  /** "FINISH LABELLING" — retries exactly the photographs this entity has
+   *  standing in PendingLabelFix, nothing else. No read(), no plan, no
+   *  confirm step: it writes nothing new, only the columns a past sync
+   *  already tried and failed to. Needs a sign-in, the same one the rest of
+   *  this screen shares, because it is still a write against the portal. */
+  async function finishLabelling() {
+    if (!pendingLabelFixes.length || labelFixBusy) return;
+    setLabelFixBusy(true);
+    setLabelFixResult(null);
+    let fixed = 0;
+    let stillFailed = 0;
+    for (const p of pendingLabelFixes) {
+      try {
+        await graph.setFileFields(p.driveId, p.itemId, p.values);
+        resolvePendingLabelFix(p.id);
+        fixed++;
+      } catch {
+        stillFailed++;
+      }
+    }
+    setLabelFixResult({ fixed, stillFailed });
+    setLabelFixBusy(false);
   }
 
   const totals = plan ? planTotals(plan) : null;
@@ -1042,6 +1112,45 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
               >
                 {error}
               </p>
+            )}
+
+            {/* --- finish labelling ----------------------------------------
+                See PendingLabelFix in types.ts. Shown whenever this entity
+                has any standing, independent of the read()/plan/confirm
+                flow below — the auditor who comes back a day later to find
+                SharePoint has finally caught up should not have to read the
+                whole portal again just to retry a handful of photographs. */}
+            {pendingLabelFixes.length > 0 && (
+              <div
+                className="mb-3 rounded-[11px] border px-[11px] py-[9px] text-[11.5px] leading-[1.5]"
+                style={{ background: "var(--warn-bg)", borderColor: "var(--warn-line)" }}
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span style={{ color: "var(--warn)" }}>
+                    <b>{pendingLabelFixes.length}</b> photograph{pendingLabelFixes.length === 1 ? "" : "s"} from an
+                    earlier sync {pendingLabelFixes.length === 1 ? "is" : "are"} in the library without their
+                    columns — SharePoint had not finished indexing {pendingLabelFixes.length === 1 ? "it" : "them"}{" "}
+                    at the time.
+                  </span>
+                  <Btn
+                    variant="primary"
+                    className="ml-auto"
+                    onClick={finishLabelling}
+                    disabled={!who || labelFixBusy}
+                    title={who ? undefined : "Sign in first — this still writes to the portal"}
+                  >
+                    {labelFixBusy ? "Trying again…" : `Finish labelling ${pendingLabelFixes.length}`}
+                  </Btn>
+                </div>
+                {labelFixResult && (
+                  <div className="mt-1.5" style={{ color: "var(--ink-3)" }}>
+                    {labelFixResult.fixed} fixed
+                    {labelFixResult.stillFailed > 0
+                      ? `, ${labelFixResult.stillFailed} still not caught up — try again later`
+                      : "."}
+                  </div>
+                )}
+              </div>
             )}
 
             {/* --- the plan ----------------------------------------------- */}

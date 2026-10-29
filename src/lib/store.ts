@@ -58,6 +58,7 @@ import type {
   SiteDay,
   Severity,
   SyncRun,
+  PendingLabelFix,
   Verification,
 } from "./types";
 import {
@@ -415,6 +416,13 @@ interface State {
    *  looking at September is still the record a November visit needs to see
    *  when asking whether anything was ever actually sent. */
   syncRuns: SyncRun[];
+  /** Photographs the portal has the bytes of but not the columns, carried
+   *  across sessions — see PendingLabelFix in types.ts. Flat and never
+   *  visit-reset for the same reason syncRuns is: a photo stuck this way
+   *  from a September sync is still stuck in November until somebody
+   *  retries the write that failed, and a dry run starting over must not
+   *  make the app forget SharePoint is still missing it. */
+  pendingLabelFixes: PendingLabelFix[];
   /** Immediate Safety Findings. Flat for the same reason findings are: an ISF
    *  raised at O.R. Tambo in September is still the thing a March visit has to
    *  ask about, and a per-visit slice would hide it. */
@@ -544,6 +552,19 @@ interface State {
    *  after it is written, so there is no updateSyncRun: a sync either
    *  happened a certain way or it did not, and the log says which. */
   recordSyncRun: (r: Omit<SyncRun, "id" | "at">) => string;
+
+  /** Upserts the still-unlabelled photographs from a sync's own second pass
+   *  (SyncPanel.tsx) into the standing list a later "Finish labelling" can
+   *  retry. Keyed on driveId+itemId: a photo already recorded this way gets
+   *  its reason and recordedAt refreshed, not a second row. */
+  recordPendingLabelFixes: (entries: Omit<PendingLabelFix, "id" | "recordedAt">[]) => void;
+  /** One fix, resolved — removed after a later retry actually writes the
+   *  columns. Never "resolved" by anything else; a row here means SharePoint
+   *  still does not have this photo's columns, full stop. */
+  resolvePendingLabelFix: (id: string) => void;
+  /** The same fix, resolved by a DIFFERENT success — a fresh sync's own
+   *  passes succeeding on a photo an earlier run had given up on. */
+  clearPendingLabelFix: (driveId: string, itemId: string) => void;
 
   /* ---- Immediate Safety Findings. See src/lib/isf.ts for the SWP-07 rules. ----
      Only the description is required. An ISF is raised standing in front of the
@@ -1072,6 +1093,7 @@ export const useStore = create<State>()(
         findings: [],
         hazards: [],
         syncRuns: [],
+        pendingLabelFixes: [],
         safetyFindings: [],
         interviewDays: [],
         siteDays: [],
@@ -1458,6 +1480,36 @@ export const useStore = create<State>()(
           set((s) => ({ syncRuns: [...s.syncRuns, { ...r, id, at: Date.now() }] }));
           return id;
         },
+
+        recordPendingLabelFixes: (entries) => {
+          if (!entries.length) return;
+          set((s) => {
+            const rest = s.pendingLabelFixes.filter(
+              (p) => !entries.some((e) => e.driveId === p.driveId && e.itemId === p.itemId)
+            );
+            const fresh = entries.map((e) => ({
+              ...e,
+              id: `LABEL-${uid().toUpperCase().slice(0, 5)}`,
+              recordedAt: Date.now(),
+            }));
+            return { pendingLabelFixes: [...rest, ...fresh] };
+          });
+        },
+
+        resolvePendingLabelFix: (id) =>
+          set((s) => ({ pendingLabelFixes: s.pendingLabelFixes.filter((p) => p.id !== id) })),
+
+        /** The same photo's columns wrote successfully some OTHER way — a
+         *  fresh sync's own two passes, say — after an earlier run had
+         *  already given up on it. Keyed the same way recordPendingLabelFixes
+         *  upserts, so this is the one other place that needs to know the
+         *  shape rather than the generated id. */
+        clearPendingLabelFix: (driveId, itemId) =>
+          set((s) => ({
+            pendingLabelFixes: s.pendingLabelFixes.filter(
+              (p) => !(p.driveId === driveId && p.itemId === itemId)
+            ),
+          })),
 
         addSafetyFinding: (description, seed) => {
           const id = `ISF-${uid().toUpperCase().slice(0, 5)}`;
@@ -3829,11 +3881,12 @@ export const useStore = create<State>()(
             incidentReports: s.incidentReports.filter(mine),
             attendanceRegisters: s.attendanceRegisters.filter(mine),
           };
-          /* syncRuns is DELIBERATELY ABSENT from `scoped` and from the set()
-             below. It is a record of what already happened to real SharePoint
-             data, independent of whether this visit's local draft gets reset —
-             wiping it here would destroy exactly the trail an audit log exists
-             to keep. */
+          /* syncRuns, and pendingLabelFixes alongside it, are DELIBERATELY
+             ABSENT from `scoped` and from the set() below. Both are records
+             of what already happened to real SharePoint data, independent of
+             whether this visit's local draft gets reset — wiping either here
+             would destroy exactly the trail (or the still-open fix) an audit
+             log exists to keep. */
           /* Drop this visit's media before its records go, or the blobs become
              orphans nothing can reach and nothing will clean up. */
           if (data) {
@@ -3902,10 +3955,11 @@ export const useStore = create<State>()(
             toolboxTalks: [],
             incidentReports: [],
             attendanceRegisters: [],
-            /* syncRuns stays out of this reset too, same reasoning as
-               resetVisit's — a dry run starting from nothing twice in a
-               morning should not also forget that SharePoint already has
-               real data in it from before. */
+            /* syncRuns, and pendingLabelFixes with it, stay out of this reset
+               too, same reasoning as resetVisit's — a dry run starting from
+               nothing twice in a morning should not also forget that
+               SharePoint already has real data in it from before, or that a
+               photograph from it is still waiting on its columns. */
             lastSavedAt: null,
           });
         },
@@ -4684,6 +4738,7 @@ export const useStore = create<State>()(
         attendanceRegisters: s.attendanceRegisters,
         contacts: s.contacts,
         lastSavedAt: s.lastSavedAt,
+        pendingLabelFixes: s.pendingLabelFixes,
       }),
     }
   )
@@ -4812,6 +4867,20 @@ export function useEntitySyncRuns(): SyncRun[] {
   const entity = useStore((s) => s.entity);
   return useMemo(
     () => all.filter((r) => r.entity === entity).sort((a, b) => b.at - a.at),
+    [all, entity]
+  );
+}
+
+/** Photographs at the entity in view that the portal has the bytes of but
+ *  not the columns — see PendingLabelFix in types.ts and SyncPanel.tsx's
+ *  "Finish labelling" action. Entity only, not visit, same reasoning as
+ *  useEntitySyncRuns: a photo stuck this way from an earlier visit is still
+ *  this airport's problem until somebody retries the write. */
+export function useEntityPendingLabelFixes(): PendingLabelFix[] {
+  const all = useStore((s) => s.pendingLabelFixes);
+  const entity = useStore((s) => s.entity);
+  return useMemo(
+    () => all.filter((p) => p.entity === entity).sort((a, b) => b.recordedAt - a.recordedAt),
     [all, entity]
   );
 }

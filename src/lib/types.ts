@@ -871,6 +871,32 @@ export interface SyncRun {
   error: string | null;
 }
 
+/** A photograph the portal already has the BYTES of, but not the columns —
+ *  SharePoint's own indexer lost the race against the metadata write that
+ *  links it to a check-point, same symptom `SyncRun.unlabelled` counts.
+ *  Kept across sessions, unlike that count, because the fix for it is not
+ *  "retry harder inside one sync" — it is "ask again once SharePoint has
+ *  genuinely caught up," which can be hours away. See store.ts's own
+ *  recordPendingLabelFixes and SyncPanel.tsx's "Finish labelling" action. */
+export interface PendingLabelFix {
+  id: string;
+  entity: string;
+  originVisit: string;
+  /** The library and the item already uploaded into it — the retry PATCHes
+   *  the same file, it never re-uploads. */
+  driveId: string;
+  itemId: string;
+  /** For the list the auditor actually reads — the portal path, not the id. */
+  filename: string;
+  /** Exactly what the failed write was trying to set, built once at the
+   *  time of the original sync and replayed unchanged — a later retry is
+   *  not a chance to recompute the plan against data that may have moved
+   *  on since. The shape projectFields() itself returns. */
+  values: Record<string, unknown>;
+  why: string;
+  recordedAt: number;
+}
+
 export interface Finding {
   id: string;
   checkId: string | null;

@@ -296,6 +296,18 @@ export class GraphError extends Error {
  *  behind. Not a new bug, the same one still under-budgeted; MAX_ATTEMPTS
  *  moved from 4 to 6 (~25s) for exactly this reason — see tests/graph.test.mjs.
  *
+ *  SEEN A THIRD TIME, 28–29 October 2026, a 194-photo run: 28 still lost the
+ *  race even with six attempts and SyncPanel.tsx's own second pass after the
+ *  whole batch. Sarel, asked whether anything more could be done from the
+ *  app: yes to a longer window here, and separately to PendingLabelFix
+ *  (types.ts) — a standing "Finish labelling" retry that does not need to
+ *  wait for a sync to be open at all, for the backlog this budget still
+ *  cannot outlast. MAX_ATTEMPTS moved from 6 to 8 (~25s → ~102s) — a bigger
+ *  jump bought diminishing returns last time (4→6 barely moved the count),
+ *  so this is deliberately not pushed further: the standing retry is where
+ *  the real reliability gain is meant to come from, not an ever-longer wait
+ *  inside one sync the auditor is sitting through.
+ *
  *  A plain network failure (fetch itself throwing, no response at all) is
  *  deliberately NOT retried here: that is the one case where whether the
  *  write already committed server-side is genuinely unknown, and blindly
@@ -348,7 +360,7 @@ export function isRetryable(status: number, detail: string, retryOn409Message = 
   return RETRYABLE_MESSAGE.test(detail);
 }
 
-const MAX_ATTEMPTS = 6;
+const MAX_ATTEMPTS = 8;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function call<T>(
