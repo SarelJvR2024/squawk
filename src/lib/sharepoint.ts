@@ -2059,6 +2059,32 @@ export function buildPlan(
         folder: dayFolder(folder, item.signature.signedAt),
       });
     }
+    /* AND THE DOCUMENT'S OWN PHOTOGRAPHS — EvidenceItem.attachments, where
+       that is how it was captured (a photo of the page rather than a scan
+       on file). Every other evidence loop in this file queues its own
+       `.attachments` into `evidence`; this one only ever pushed the
+       signature. Same bug class as MitigationAction.system and
+       ProgressNote.outcome before it — captured correctly, shown correctly
+       in the Evidence screen's own UI, silently never reaching the portal.
+       `checkId` here is the column a reader filters and reports on, same
+       rule the walk-item loop above follows: one check named, use it; more
+       than one or none, fall back to this row's own key rather than
+       guessing which check the photograph is really of. EvidenceItem
+       carries no discipline/asset system of its own — see its own shape in
+       types.ts — so those stay blank rather than invented. */
+    const singleCheckId = item.checkIds.length === 1 ? item.checkIds[0] : null;
+    for (const a of item.attachments ?? []) {
+      if (a.kind !== "photo" || a.unavailable) continue;
+      if (!a.blobKey && !a.cloudUrl) continue;
+      evidence.push({
+        checkId: singleCheckId ? portalIdFor(x.entity, singleCheckId) : key,
+        filename: photoFilename(a),
+        attachment: a,
+        caption: a.caption?.trim() ?? "",
+        values: evidenceValues(a, singleCheckId ? portalIdFor(x.entity, singleCheckId) : key, "", ""),
+        folder: dayFolder(folder, a.takenAt ?? a.createdAt),
+      });
+    }
   }
   if (blankDocuments) {
     skipped.push({
