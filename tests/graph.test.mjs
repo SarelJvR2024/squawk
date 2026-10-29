@@ -144,16 +144,19 @@ for (const [name, fn] of [
 
 /* ------------------------------ Part 3: the retry budget, read ----------- */
 
-/* Seen twice on the same 211-photo run (21 Oct, then again 27 Oct): the
-   "Invalid request" still-indexing gap on setFileFields outlasted the four
-   attempts MAX_ATTEMPTS allowed, ~5.6s of backoff, for a backlog a bulk
-   upload of that size leaves behind. Not a new failure mode — the same one
-   under-budgeted — so this pins the number up rather than letting a future
-   edit quietly shrink it back to what already failed twice. */
+/* Seen three times now on bulk-upload runs (21 Oct, 27 Oct, 28-29 Oct): the
+   "Invalid request" still-indexing gap on setFileFields outlasted whatever
+   MAX_ATTEMPTS allowed at the time — four attempts (~5.6s), then six
+   (~25s), then still 28 of 194 on the third run. Not a new failure mode —
+   the same one under-budgeted — so this pins the number up rather than
+   letting a future edit quietly shrink it back to what already failed
+   three times. */
 check(
-  "MAX_ATTEMPTS was raised from 4 to 6 after the same still-indexing gap outlasted it twice on one 211-photo run",
-  /const MAX_ATTEMPTS = 6;/.test(graphCode) && !/const MAX_ATTEMPTS = 4;/.test(graphCode),
-  "four attempts (~5.6s of backoff) were proven, twice, not long enough to outlast a bulk-upload indexing backlog"
+  "MAX_ATTEMPTS was raised from 6 to 8 after the same still-indexing gap outlasted it a third time",
+  /const MAX_ATTEMPTS = 8;/.test(graphCode) &&
+    !/const MAX_ATTEMPTS = 4;/.test(graphCode) &&
+    !/const MAX_ATTEMPTS = 6;/.test(graphCode),
+  "six attempts (~25s of backoff) were proven not long enough to outlast a bulk-upload indexing backlog a third time"
 );
 
 check(

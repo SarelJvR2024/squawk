@@ -53,6 +53,7 @@ const panel = src("components", "SyncPanel.tsx");
 const callback = src("app", "graph-callback", "page.tsx");
 const shell = src("components", "AppShell.tsx");
 const types = src("lib", "types.ts");
+const storeSrc = src("lib", "store.ts");
 
 /* ------------------------- Part 1: the portal's vocabulary ---------------- */
 
@@ -4435,6 +4436,72 @@ check(
   "the second pass is skipped entirely once signed out — it cannot succeed and would overwrite the real reason",
   /if \(resolved\.driveMap && unlabelled\.length && !signedOutAt\) \{/.test(panel),
   'every retried setFileFields would throw the same "Signed out" message, erasing the actual cause (e.g. an indexing race) and misleadingly implying the photograph itself needs re-upload'
+);
+
+/* ---- "FINISH LABELLING" — a photograph still missing its columns after
+   BOTH in-sync passes is carried forward past the run entirely, so a later
+   retry does not need a sync open at all — 28/29 October 2026, Sarel: "is
+   there nothing we can do from the app... to improve this". See
+   PendingLabelFix in types.ts. ------------------------------------------- */
+
+check(
+  "PendingLabelFix exists on the store's own State, flat and never visit-reset — same treatment as SyncRun",
+  /pendingLabelFixes: PendingLabelFix\[\];/.test(storeSrc) &&
+    /recordPendingLabelFixes: \(entries: Omit<PendingLabelFix, "id" \| "recordedAt">\[\]\) => void;/.test(storeSrc) &&
+    /resolvePendingLabelFix: \(id: string\) => void;/.test(storeSrc) &&
+    /clearPendingLabelFix: \(driveId: string, itemId: string\) => void;/.test(storeSrc)
+);
+
+check(
+  "pendingLabelFixes is deliberately absent from both resetVisit's scoped object and resetAll's reset — same reasoning as syncRuns",
+  /syncRuns, and pendingLabelFixes alongside it, are DELIBERATELY/.test(storeSrc) &&
+    /syncRuns, and pendingLabelFixes with it, stay out of this reset/.test(storeSrc),
+  "a dry run starting from nothing must not also forget SharePoint is still missing a photo's columns"
+);
+
+check(
+  "recordPendingLabelFixes upserts by driveId+itemId — a photo recorded twice gets one row refreshed, not two",
+  /const rest = s\.pendingLabelFixes\.filter\(\s*\n\s*\(p\) => !entries\.some\(\(e\) => e\.driveId === p\.driveId && e\.itemId === p\.itemId\)/.test(
+    storeSrc
+  )
+);
+
+check(
+  "clearPendingLabelFix removes by the SAME key a later success writes under, not the generated id",
+  /clearPendingLabelFix: \(driveId, itemId\) =>\s*\n\s*set\(\(s\) => \(\{\s*\n\s*pendingLabelFixes: s\.pendingLabelFixes\.filter\(\s*\n\s*\(p\) => !\(p\.driveId === driveId && p\.itemId === itemId\)/.test(
+    storeSrc
+  )
+);
+
+check(
+  "the second pass clears a prior run's standing fix the moment it succeeds, not just the main upload pass",
+  (() => {
+    const hits = panel.match(/clearPendingLabelFix\(resolved\.driveId, (up\.id|itemId)\);/g);
+    return !!hits && hits.length === 2;
+  })(),
+  "a photo that finally labels on retry must stop showing up in Finish labelling, whichever pass it succeeded on"
+);
+
+check(
+  "a run records exactly what is STILL unlabelled after both passes, not what the first pass alone left behind",
+  (() => {
+    const i1 = panel.indexOf("unlabelled.push(...stillUnlabelled);");
+    const i2 = panel.indexOf("recordPendingLabelFixes(");
+    return i1 > 0 && i2 > i1;
+  })(),
+  "recording before the second pass runs would persist photos the second pass was about to fix anyway"
+);
+
+check(
+  "Finish labelling replays the EXACT values a failed write already tried, rather than recomputing the plan",
+  /values: projectFields\(driveMap, f\.values, "create"\),/.test(panel) &&
+    /await graph\.setFileFields\(p\.driveId, p\.itemId, p\.values\);/.test(panel),
+  "a later retry is not a chance to recompute against data that may have moved on since the original sync"
+);
+
+check(
+  "Finish labelling needs a sign-in — it still writes to the portal, the same gate the rest of the screen shares",
+  /disabled=\{!who \|\| labelFixBusy\}/.test(panel)
 );
 
 /* ------------------------------------------------------------------ result */
