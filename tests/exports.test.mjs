@@ -410,5 +410,64 @@ check(
   })()
 );
 
+/* ---- EvidenceItem.attachments reaches the Photographs sheet — same cycle,
+   same bug class as the Closure sheet's own fields (see this file's own
+   header comment): captured correctly, shown correctly on the Evidence
+   screen, never reaching the workbook's one consolidated photo sheet. ---- */
+
+check(
+  "a chain-of-custody document's own photograph is its OWN row on the consolidated Photographs sheet",
+  (() => {
+    const x = {
+      ...BASE_CLOSURE,
+      evidenceItems: [
+        {
+          id: "DOC-1", entity: "FALE", originVisit: "2026-09",
+          title: "Maintenance log book", documentNo: "", revision: "", documentDate: null,
+          requestedAt: null, requestedFrom: "", receivedAt: null, receivedFrom: "", receivedBy: "",
+          medium: null, isOriginal: false, returnedAt: null, returnedTo: "",
+          unavailableAt: null, unavailableReason: "", checkIds: [], notes: "",
+          createdAt: 1, updatedAt: 1, signature: null,
+          attachments: [
+            { id: "e1", kind: "photo", name: "n1", ref: "DOC-1_P01", caption: "the logbook cover", createdBy: "Sarel" },
+            { id: "e2", kind: "voice", name: "n2" },
+          ],
+        },
+      ],
+    };
+    const sheet = ex.photographsSheet(x);
+    return (
+      sheet.rows.length === 1 &&
+      cellOf(sheet, 0, "File") === "DOC-1_P01.jpg" &&
+      cellOf(sheet, 0, "Check") === "DOC-1" &&
+      cellOf(sheet, 0, "Caption") === "the logbook cover" &&
+      /Evidence log|TK-003/.test(String(cellOf(sheet, 0, "Source")))
+    );
+  })(),
+  "a voice note must not count as a photograph here either; with no checkIds this falls back to the document's own id"
+);
+
+check(
+  "and a document naming exactly one check carries that check's portal id on this sheet too",
+  (() => {
+    const x = {
+      ...BASE_CLOSURE,
+      evidenceItems: [
+        {
+          id: "DOC-1", entity: "FALE", originVisit: "2026-09",
+          title: "t", documentNo: "", revision: "", documentDate: null,
+          requestedAt: null, requestedFrom: "", receivedAt: null, receivedFrom: "", receivedBy: "",
+          medium: null, isOriginal: false, returnedAt: null, returnedTo: "",
+          unavailableAt: null, unavailableReason: "", checkIds: ["KSIA-ELE-001"], notes: "",
+          createdAt: 1, updatedAt: 1, signature: null,
+          attachments: [{ id: "e1", kind: "photo", name: "n1", ref: "DOC-1_P01" }],
+        },
+      ],
+    };
+    const sheet = ex.photographsSheet(x);
+    return cellOf(sheet, 0, "Check") === "KSIA-ELE-001";
+  })()
+);
+
 console.log(`\n${failures === 0 ? "ALL PASS" : `${failures} FAILED`}`);
 process.exit(failures ? 1 : 0);

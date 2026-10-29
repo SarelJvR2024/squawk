@@ -2404,6 +2404,101 @@ check(
   })()
 );
 
+/* ---- EvidenceItem.attachments reaches the portal — 28/29 October 2026,
+   caught by the scheduled sync-integrity review. Same bug class as
+   MitigationAction.system and ProgressNote.outcome before it: a photograph
+   of the document itself was captured correctly, shown correctly in the
+   Evidence screen's own UI, and silently never queued for upload — only
+   item.signature ever reached `evidence`/`signatures`. ------------------- */
+
+check(
+  "a photograph of the document itself IS queued for upload",
+  (() => {
+    const doc = DOC("DOC-1", {
+      attachments: [{ id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "DOC-1_P01", caption: "the logbook cover" }],
+    });
+    const p = sp.buildPlan({ ...BASE_EV, evidenceItems: [doc] }, NOTHING_EV);
+    return p.evidence.length === 1 && p.evidence[0].filename && p.evidence[0].caption === "the logbook cover";
+  })(),
+  "every other evidence loop in this file queues its own .attachments; this one only ever pushed the signature"
+);
+
+check(
+  "a document with no checkIds falls back to its own row key, not a guessed check",
+  (() => {
+    const doc = DOC("DOC-1", {
+      attachments: [{ id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "DOC-1_P01" }],
+    });
+    const p = sp.buildPlan({ ...BASE_EV, evidenceItems: [doc] }, NOTHING_EV);
+    const siteCode = sites.siteCodeFor("FALE");
+    return p.evidence[0].values.checkId === `${siteCode}-DOC-1`;
+  })()
+);
+
+check(
+  "a document naming EXACTLY ONE check carries that check's portal id instead",
+  (() => {
+    const doc = DOC("DOC-1", {
+      checkIds: ["KSIA-ELE-001"],
+      attachments: [{ id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "DOC-1_P01" }],
+    });
+    const p = sp.buildPlan({ ...BASE_EV, evidenceItems: [doc] }, NOTHING_EV);
+    const siteCode = sites.siteCodeFor("FALE");
+    return p.evidence[0].values.checkId === `${siteCode}-ELE-001`;
+  })()
+);
+
+check(
+  "a document naming MORE than one check still falls back to its own row key — no guessing which one",
+  (() => {
+    const doc = DOC("DOC-1", {
+      checkIds: ["KSIA-ELE-001", "KSIA-ELE-002"],
+      attachments: [{ id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "DOC-1_P01" }],
+    });
+    const p = sp.buildPlan({ ...BASE_EV, evidenceItems: [doc] }, NOTHING_EV);
+    const siteCode = sites.siteCodeFor("FALE");
+    return p.evidence[0].values.checkId === `${siteCode}-DOC-1`;
+  })()
+);
+
+check(
+  "discipline and asset system are blank, not invented — EvidenceItem carries neither field",
+  (() => {
+    const doc = DOC("DOC-1", {
+      attachments: [{ id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "DOC-1_P01" }],
+    });
+    const p = sp.buildPlan({ ...BASE_EV, evidenceItems: [doc] }, NOTHING_EV);
+    return p.evidence[0].values.discipline === "" && p.evidence[0].values.assetSystem === "";
+  })()
+);
+
+check(
+  "a voice note or an unavailable/bodyless photo is never queued — same gate every other evidence loop uses",
+  (() => {
+    const doc = DOC("DOC-1", {
+      attachments: [
+        { id: "a1", kind: "voice", name: "n", blobKey: "b1" },
+        { id: "a2", kind: "photo", name: "n", blobKey: "b2", unavailable: true },
+        { id: "a3", kind: "photo", name: "n" },
+      ],
+    });
+    const p = sp.buildPlan({ ...BASE_EV, evidenceItems: [doc] }, NOTHING_EV);
+    return p.evidence.length === 0;
+  })()
+);
+
+check(
+  "and it is still filtered to THIS visit's documents, same as the row it belongs to",
+  (() => {
+    const doc = DOC("DOC-1", {
+      originVisit: "2025-03",
+      attachments: [{ id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "DOC-1_P01" }],
+    });
+    const p = sp.buildPlan({ ...BASE_EV, evidenceItems: [doc] }, NOTHING_EV);
+    return p.evidence.length === 0;
+  })()
+);
+
 check(
   "the writer sends the evidence log to its own list, never the photo library",
   /writeRows\(plan\.evidenceLog, resolved\.evidenceLogList, "evidence log entry"\)/.test(panel)

@@ -611,6 +611,52 @@ export function photographsSheet(x: ExportInput): Sheet {
       ]);
     }
   }
+  /* Photographs of a chain-of-custody document itself — EvidenceItem.
+     attachments, the Evidence screen's TK-003 form 7 log. Same sheet as the
+     other three sources: a reader should not have to know which screen
+     captured a photograph to find it here. Same originVisit filter
+     evidenceLogSheet's own rows already apply, and the same Check-column
+     rule sharepoint.ts's matching fix uses — a document naming exactly one
+     check gets that check's portal id; more than one or none falls back to
+     the evidence log's own row key rather than guessing which check the
+     photograph is really of. EvidenceItem carries no discipline/asset
+     system/area of its own — see its own shape in types.ts — so those stay
+     blank rather than invented. */
+  for (const item of (x.evidenceItems ?? []).filter((e) => e.originVisit === x.visit)) {
+    const singleCheckId = item.checkIds.length === 1 ? item.checkIds[0] : null;
+    for (const a of item.attachments) {
+      if (a.kind !== "photo") continue;
+      rows.push([
+        photoFilename(a),
+        a.ref ?? "",
+        singleCheckId ? portalIdFor(x.entity, singleCheckId) : item.id,
+        "",
+        "",
+        "",
+        a.location?.trim() ?? "",
+        a.assetName?.trim() ?? "",
+        a.assetRef?.trim() ?? "",
+        a.caption?.trim() ?? "",
+        a.caption?.trim()
+          ? a.captionSource === "assistant"
+            ? "Assistant, accepted by the auditor"
+            : "Auditor"
+          : "NO CAPTION",
+        when(a.takenAt) ?? "",
+        when(a.createdAt),
+        a.createdBy,
+        a.width && a.height ? `${a.width}×${a.height}` : "",
+        a.bytes ? Math.round(a.bytes / 1024) : "",
+        a.unavailable
+          ? "No image stored"
+          : a.cloudUrl
+            ? "On the device and in the record store"
+            : "On the device only",
+        a.cloudUrl ?? "",
+        "Evidence log document (TK-003) — NOT one of the register check-points",
+      ]);
+    }
+  }
 
   return {
     name: "Photographs",
