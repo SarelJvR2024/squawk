@@ -164,5 +164,33 @@ check(
   /RETRYABLE_MESSAGE\s*=\s*\/[^/]*invalid request[^/]*\/i/.test(graphCode)
 );
 
+/* --------------------------- Part 4: findItemIdByTitle -------------------- */
+
+/* Six hazard rows failed outright on a real sync, 30 October 2026 — "Field
+   'Title' cannot be referenced in filter or orderby as it is not indexed."
+   Not retryable by anything above (a 400, and the message matches neither
+   RETRYABLE_MESSAGE nor isRetryableStatus), so MAX_ATTEMPTS was never the
+   issue here — the query itself needs the header Graph's own error names. */
+const findItemIdByTitleBlock = graphCode.slice(
+  graphCode.indexOf("export async function findItemIdByTitle")
+);
+check(
+  "findItemIdByTitle sends the Prefer header Graph's own error names for a non-indexed Title filter",
+  /Prefer:\s*"HonorNonIndexedQueriesWarningMayFailRandomly"/.test(
+    findItemIdByTitleBlock.slice(0, 1200)
+  )
+);
+
+check(
+  "and the header rides the SAME call() that still honours the retry budget for everything else that can fail transiently",
+  (() => {
+    const i = findItemIdByTitleBlock.indexOf("await call<");
+    const header = findItemIdByTitleBlock.indexOf("HonorNonIndexedQueriesWarningMayFailRandomly");
+    const close = findItemIdByTitleBlock.indexOf(");", header);
+    return i > 0 && header > i && close > header;
+  })(),
+  "a header added outside call()'s own fetch would never reach the actual request"
+);
+
 console.log(`\n${failures === 0 ? "ALL PASS" : `${failures} FAILED`}`);
 process.exit(failures ? 1 : 0);
