@@ -199,6 +199,180 @@ check("the right audit is not refused", refuse(bundle(), HERE) === null);
         String(out.report.attachmentsAdded));
 }
 
+/* ------- SAME PHOTO, BOTH SIDES: A FIELD EDIT MUST NOT BE LOST ------------
+ *
+ *  Found 30 October 2026: a caption written straight to the shared record
+ *  (bypassing the device entirely) was still there right after the write,
+ *  then gone again the moment the capturing device's own next sync merged
+ *  it — because unionAttachmentsWithTombstones kept `mine`'s copy of a
+ *  shared id unconditionally, discarding `theirs`' edit outright, no matter
+ *  which side the rest of the record had just favoured. The newer SIDE's
+ *  whole copy of a shared id now wins, same rule 2 already applies
+ *  everywhere else in a record.
+ *
+ *  ONLY THE FIRST BLOCK BELOW ACTUALLY PINS THE BUG — reverting the fix and
+ *  rerunning this file fails only that one. The second block's `mine` is
+ *  already the newer side, which is exactly where the old, buggy "mine
+ *  always wins" code and the fix agree; no assertion in that direction can
+ *  tell old code from new, so it is a correctness check on the fix's other
+ *  branch, not a regression test. The third strengthens past a bare
+ *  id-survives-and-is-not-duplicated check to the shared id's actual merged
+ *  content, so it pins a second, independent instance of the same bug. */
+
+{
+  const out = mergeBundle(
+    mine({
+      visitData: {
+        responses: {
+          X: response("X", {
+            updatedAt: T,
+            attachments: [{ ...photo("p1"), caption: "" }],
+          }),
+        },
+      },
+    }),
+    bundle({
+      visit: {
+        responses: {
+          X: response("X", {
+            updatedAt: T + 1000,
+            attachments: [{ ...photo("p1"), caption: "Water leak at the chiller plant" }],
+          }),
+        },
+      },
+    })
+  );
+  check(
+    "a caption written on the newer side survives the merge, same id",
+    out.visitData.responses.X.attachments.find((a) => a.id === "p1")?.caption ===
+      "Water leak at the chiller plant",
+    JSON.stringify(out.visitData.responses.X.attachments)
+  );
+}
+
+{
+  const out = mergeBundle(
+    mine({
+      visitData: {
+        responses: {
+          X: response("X", {
+            updatedAt: T + 1000,
+            attachments: [{ ...photo("p1"), caption: "Local caption, written after theirs" }],
+          }),
+        },
+      },
+    }),
+    bundle({
+      visit: {
+        responses: {
+          X: response("X", {
+            updatedAt: T,
+            attachments: [{ ...photo("p1"), caption: "Stale caption from a snapshot" }],
+          }),
+        },
+      },
+    })
+  );
+  check(
+    "an older side's copy of the SAME id does not overwrite a newer one",
+    out.visitData.responses.X.attachments.find((a) => a.id === "p1")?.caption ===
+      "Local caption, written after theirs",
+    JSON.stringify(out.visitData.responses.X.attachments)
+  );
+}
+
+{
+  const out = mergeBundle(
+    mine({
+      visitData: {
+        responses: {
+          X: response("X", {
+            updatedAt: T,
+            attachments: [{ ...photo("p1"), caption: "" }, { ...photo("p2"), caption: "Untouched" }],
+          }),
+        },
+      },
+    }),
+    bundle({
+      visit: {
+        responses: {
+          X: response("X", {
+            updatedAt: T + 1000,
+            attachments: [{ ...photo("p1"), caption: "Filled in on the other side" }],
+          }),
+        },
+      },
+    })
+  );
+  const atts = out.visitData.responses.X.attachments;
+  const ids = atts.map((a) => a.id);
+  check(
+    "a photo only one side still has is neither duplicated nor dropped by the same fix",
+    ids.filter((id) => id === "p2").length === 1,
+    ids.join(", ")
+  );
+  check(
+    "and the shared id's own content is still the newer side's, not just its id surviving",
+    atts.find((a) => a.id === "p1")?.caption === "Filled in on the other side",
+    JSON.stringify(atts)
+  );
+  check(
+    "and the side that only had p2 keeps its own content untouched",
+    atts.find((a) => a.id === "p2")?.caption === "Untouched",
+    JSON.stringify(atts)
+  );
+}
+
+/* ----- A RESIDUAL GAP, DOCUMENTED RATHER THAN LEFT IMPLICIT -----
+ *
+ *  Attachment (types.ts) carries no `updatedAt` of its own — only the
+ *  record around it does, so a shared id's conflict is resolved by SIDE,
+ *  not by comparing the two copies of the attachment directly. That is
+ *  deliberate (see unionAttachmentsWithTombstones's own comment: splicing
+ *  field-by-field would invent a merge of two auditors' free text that
+ *  neither wrote) but it has a real edge: if `theirs` wins the record-level
+ *  comparison for a reason that has NOTHING to do with this photo — some
+ *  other field edited later — and `theirs` happens to still be carrying a
+ *  stale, pre-upload copy of an id `mine` already finished uploading, the
+ *  whole-object swap regresses that attachment from "uploaded" back to
+ *  "local only". This block does not assert that away — doing so needs a
+ *  per-attachment timestamp, which is bigger than this fix — it pins
+ *  today's actual behaviour so a future change to this area has to notice
+ *  it rather than trip over it. */
+{
+  const out = mergeBundle(
+    mine({
+      visitData: {
+        responses: {
+          X: response("X", {
+            updatedAt: T,
+            attachments: [photo("p1", true)],
+          }),
+        },
+      },
+    }),
+    bundle({
+      visit: {
+        responses: {
+          X: response("X", {
+            /* Newer only because of something else about this record —
+               nothing to do with p1, which this side never got round to
+               uploading. */
+            updatedAt: T + 1000,
+            attachments: [photo("p1", false)],
+          }),
+        },
+      },
+    })
+  );
+  const p1 = out.visitData.responses.X.attachments.find((a) => a.id === "p1");
+  check(
+    "KNOWN GAP: a newer side's stale pre-upload copy can regress an uploaded photo — not fixed here, pinned so it is not silent",
+    p1 && !p1.cloudUrl,
+    JSON.stringify(p1)
+  );
+}
+
 {
   const shared = { at: T, by: "Prince", visit: "2026-09", outcome: null, note: "Raised with the SHE lead" };
   const out = mergeBundle(
