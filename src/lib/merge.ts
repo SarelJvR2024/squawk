@@ -389,9 +389,19 @@ function mergeSystemEvents(mine: PossibleEvent[] = [], theirs: PossibleEvent[] =
   const merged = mine.map((m) => {
     const t = theirsById.get(m.id);
     if (!t) return m;
-    const rootCauses = unionById(m.rootCauses ?? [], t.rootCauses ?? []);
-    const actions = unionById(m.actions ?? [], t.actions ?? []);
-    const newer = when(t) > when(m) ? t : m;
+    /* mAt/tAt passed through as the fallback for a RootCauseNote, which
+       carries no updatedAt of its own even though SystemTreatment.tsx does
+       let the group edit one's text after it is typed — patchSystemEvent
+       always re-stamps the EVENT's own updatedAt on that edit (see
+       patchSystemEventRootCause in store.ts), which is exactly this
+       fallback, so a cause edited on one side still wins the same way a
+       MitigationAction's own updatedAt lets it win directly. See
+       unionById's own header for the 30 October 2026 incident this fixes. */
+    const mAt = when(m);
+    const tAt = when(t);
+    const rootCauses = unionById(m.rootCauses ?? [], t.rootCauses ?? [], mAt, tAt);
+    const actions = unionById(m.actions ?? [], t.actions ?? [], mAt, tAt);
+    const newer = tAt > mAt ? t : m;
     return { ...newer, rootCauses, actions };
   });
   return [...merged, ...theirs.filter((e) => !mineIds.has(e.id))].sort(
@@ -402,10 +412,48 @@ function mergeSystemEvents(mine: PossibleEvent[] = [], theirs: PossibleEvent[] =
 /** Union by id, theirs appended where this device has never seen it. The
  *  generic form of unionAttachments, for the lists an asset-system assessment
  *  carries: two auditors add root causes and mitigation actions independently
- *  at the same out-brief, and keeping only the later save loses one of them. */
-function unionById<T extends { id: string }>(mine: T[], theirs: T[]): T[] {
+ *  at the same out-brief, and keeping only the later save loses one of them.
+ *
+ *  AN ID BOTH SIDES HOLD used to keep `mine`'s copy unconditionally — correct
+ *  for a genuine duplicate, wrong the moment the item itself can be EDITED
+ *  after creation, which a MitigationAction can (`status`, `system`, `owner`,
+ *  `dueDate` — it carries its own `updatedAt`). Found 30 October 2026,
+ *  immediately after unionAttachmentsWithTombstones' own version of this same
+ *  bug (see that function's header): a mitigation action's `status` edited on
+ *  one device, through the shared record, was silently overwritten back to
+ *  stale by the OTHER device's next merge, with nothing on screen to say so
+ *  — the exact field (MitigationAction.system) the SharePoint sync's own
+ *  integrity review was founded on, resurfacing one layer up.
+ *
+ *  THE FIX, same shape as unionAttachmentsWithTombstones: an item whose OWN
+ *  `updatedAt` is newer wins outright. An item with no `updatedAt` of its own
+ *  (a RootCauseNote, say — it carries none, even though its `cause`/`note`
+ *  text CAN be edited after creation, via SystemTreatment.tsx) or a tie
+ *  falls back to `mineAt`/`theirsAt`, the ENCLOSING record's own updatedAt
+ *  — the same side-level rule that function uses for Attachment, which has
+ *  no per-item timestamp either, and the same protection a RootCauseNote
+ *  edit gets in practice: patchSystemEventRootCause (store.ts) always
+ *  re-stamps the parent EVENT's own updatedAt, which mergeSystemEvents
+ *  passes through as exactly this fallback. Callers that do not pass
+ *  mineAt/theirsAt keep exactly today's behaviour (mine wins a shared id),
+ *  so this is backward compatible everywhere until a call site opts in. */
+function unionById<T extends { id: string; updatedAt?: number }>(
+  mine: T[],
+  theirs: T[],
+  mineAt = 0,
+  theirsAt = 0
+): T[] {
   const seen = new Set(mine.map((x) => x.id));
-  return [...mine, ...theirs.filter((x) => !seen.has(x.id))];
+  const theirsById = new Map(theirs.map((x) => [x.id, x]));
+  const merged = mine.map((m) => {
+    const t = theirsById.get(m.id);
+    if (!t) return m;
+    const mItemAt = m.updatedAt ?? 0;
+    const tItemAt = t.updatedAt ?? 0;
+    if (tItemAt !== mItemAt) return tItemAt > mItemAt ? t : m;
+    return theirsAt > mineAt ? t : m;
+  });
+  return [...merged, ...theirs.filter((x) => !seen.has(x.id))];
 }
 
 /** Why a bundle cannot be merged here, or null if it can. */
@@ -616,15 +664,21 @@ export function mergeBundle(mine: MergeInput, theirs: Bundle): MergeResult {
        alongside it. */
     const assignedCauseIds = new Set(events.flatMap((e) => (e.rootCauses ?? []).map((r) => r.id)));
     const assignedActionIds = new Set(events.flatMap((e) => (e.actions ?? []).map((a) => a.id)));
+    const mAt = when(m);
+    const tAt = when(t);
     const unassignedRootCauses = unionById(
       m.unassignedRootCauses ?? [],
-      t.unassignedRootCauses ?? []
+      t.unassignedRootCauses ?? [],
+      mAt,
+      tAt
     ).filter((r) => !assignedCauseIds.has(r.id));
     const unassignedActions = unionById(
       m.unassignedActions ?? [],
-      t.unassignedActions ?? []
+      t.unassignedActions ?? [],
+      mAt,
+      tAt
     ).filter((a) => !assignedActionIds.has(a.id));
-    const newer = when(t) > when(m) ? t : m;
+    const newer = tAt > mAt ? t : m;
     assessedSystems[key] = { ...newer, events, unassignedRootCauses, unassignedActions };
   }
 
@@ -800,7 +854,17 @@ function mergeRecords<T extends { id: string; updatedAt?: number; progress?: Pro
  *  findings; a form's own entries are no different, just named differently
  *  per form. No report bucket of its own, same as adhoc — there is no
  *  progress log to reconcile and nothing for a person to arbitrate beyond
- *  "newer wins," so added/updated/kept is enough. */
+ *  "newer wins," so added/updated/kept is enough.
+ *
+ *  AN ID BOTH SIDES HOLD used to keep ONLY mine's copy of that entry — fine
+ *  for an append-only list (a PPE check's people, say) and wrong the moment
+ *  an entry can be edited after it exists, which an EvidenceItem/SafetyFinding/
+ *  SiteDay/IncidentReport's `attachments` (a caption) and a SafetyFinding/
+ *  IncidentReport's `actions` (a MitigationAction) both can. unionById now
+ *  takes the ENCLOSING record's own mine/theirs updatedAt — already computed
+ *  just below as `newer` — as the fallback for an item with no timestamp of
+ *  its own; see that function's header for the 30 October 2026 incident this
+ *  generalises from Response/Verification photos to every Tier 1 form. */
 function mergeFlatRecords<T extends { id: string; updatedAt?: number }>(
   mine: T[] = [],
   theirs: T[] = [],
@@ -815,15 +879,17 @@ function mergeFlatRecords<T extends { id: string; updatedAt?: number }>(
       counts.added.push(t.id);
       continue;
     }
-    const newer = when(t) > when(m) ? t : m;
+    const mAt = when(m);
+    const tAt = when(t);
+    const newer = tAt > mAt ? t : m;
     const merged = { ...newer } as T;
     for (const field of listFields) {
-      const mv = (m[field] as unknown as { id: string }[] | undefined) ?? [];
-      const tv = (t[field] as unknown as { id: string }[] | undefined) ?? [];
-      (merged as Record<string, unknown>)[field as string] = unionById(mv, tv);
+      const mv = (m[field] as unknown as { id: string; updatedAt?: number }[] | undefined) ?? [];
+      const tv = (t[field] as unknown as { id: string; updatedAt?: number }[] | undefined) ?? [];
+      (merged as Record<string, unknown>)[field as string] = unionById(mv, tv, mAt, tAt);
     }
     byId.set(t.id, merged);
-    if (when(t) > when(m)) counts.updated.push(t.id);
+    if (tAt > mAt) counts.updated.push(t.id);
     else counts.kept.push(t.id);
   }
   const order = [...mine.map((r) => r.id), ...theirs.map((r) => r.id).filter((id) => !mine.some((r) => r.id === id))];
