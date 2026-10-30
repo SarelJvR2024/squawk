@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Ninety-one suites, no framework. Thirteen need a running server; seventy-eight do not.
+Ninety-two suites, no framework. Thirteen need a running server; seventy-nine do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -112,6 +112,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `field-search-prominence.test.mjs` | no | 6 |
 | `home.test.mjs` | no | 58 |
 | `adhoc.test.mjs` | no | 79 |
+| `compliancefinding.test.mjs` | no | 15 |
 | `raisefinding.test.mjs` | no | 25 |
 | `raisefinding-chooser.test.mjs` | no | 6 |
 | `findings-mobile-nav.test.mjs` | no | 10 |
@@ -142,7 +143,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,661 assertions in total**, every count above verified by running the suite,
+**3,676 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -591,6 +592,37 @@ Tolerable one. Those tokens are banned from the control, state is carried by an
 icon and a word as well as a fill, and the same segment tapped twice clears the
 outcome — a status set by mistake that cannot be unset turns a blank "not
 captured" into an untrue Pass.
+
+## `compliancefinding.test.mjs`
+
+Guards the register's own half of "non-compliant becomes a finding." The walk
+already had this rule (see `addAdhoc`/`updateAdhoc` in `adhoc.test.mjs`); the
+324 register checks did not — marking one Non-compliant through the Checks
+screen's three buttons (`setCompliance`) raised nothing unless an auditor also
+ticked a specific pre-defined "issue," and that picker was removed from
+`CheckDetail.tsx` months ago. Found 30 October 2026, reading a live Electrical
+report: plenty of Non-compliant checks with no finding tracking them toward
+closure at the next visit.
+
+```bash
+node tests/compliancefinding.test.mjs
+```
+
+Source-read, like `adhoc.test.mjs` — `store.ts` is a "use client" zustand
+store wired to IndexedDB, not something this offline suite runs directly.
+Asserts `raiseFindingFromCheck` is the register's mirror of
+`raiseFindingFromAdhoc` (`checkId` set rather than null, `adHoc: false`,
+`issueIndex: null`, seeded from the check's own requirement text and
+observation rather than a walk item's description), that `setCompliance`
+raises it only once per check — guarded by checking for ANY existing
+finding on that check first, from any source, so re-confirming an
+already-non-compliant check or one a desk reviewer already wrote up by hand
+never mints a second — and, deliberately, that nothing withdraws it when the
+verdict later changes away from NC: unlike the old issue picker's own
+`removeFindingsForIssue`, this mechanism owns no `issueIndex` that uniquely
+marks "its" finding, so a desk reviewer's own finding against the same check
+would look identical, and leaving a stale finding for a person to close is
+the safer of the two wrong answers.
 
 ## `raisefinding.test.mjs`
 

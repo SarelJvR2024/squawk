@@ -960,6 +960,11 @@ interface State {
    *  than as a private function) only so addAdhoc and updateAdhoc can each
    *  reach it through `get()` without one calling the other. */
   raiseFindingFromAdhoc: (item: AdHocItem) => string;
+  /** The same thing, for a non-compliant REGISTER check-point — see
+   *  setCompliance's own comment for why it exists and when it is (and is
+   *  not) called. Not meant to be called from a component directly, same
+   *  reasoning as raiseFindingFromAdhoc above. */
+  raiseFindingFromCheck: (checkId: string) => string;
   addAdhoc: (a: Omit<AdHocItem, "id" | "createdAt">) => string;
   updateAdhoc: (id: string, p: Partial<AdHocItem>) => void;
   /** One-time catch-up for an internal item marked NC before the
@@ -1232,12 +1237,39 @@ export const useStore = create<State>()(
            "evidence pending" a trustworthy filter for the RFI list rather
            than a stale marker left behind by a changed answer. Sets the
            CHECKS screen's own verdict only — see `setFieldCompliance`
-           immediately below for the Inspection screen's separate one. */
-        setCompliance: (checkId, c, evidencePending = false) =>
+           immediately below for the Inspection screen's separate one.
+
+           NON-COMPLIANT BECOMES A FINDING, same rule the walk already
+           follows (see addAdhoc/updateAdhoc below) — Sarel: "if it is
+           non-compliant that audit check becomes a finding." The old
+           issue-button picker that used to raise one (toggleIssue) is no
+           longer reachable from the UI (its checkbox list was removed from
+           CheckDetail), so marking a check Non-compliant through these
+           three buttons was the one path left with nothing tracking it.
+           Raised only when this check has NO finding yet, from any source
+           — an issue button on data from before the picker was removed, or
+           one written up by hand on the Findings screen — so re-confirming
+           an already-non-compliant check never mints a second. Marking it
+           back off NC does NOT withdraw a finding this raised: unlike
+           toggleIssue's own removeFindingsForIssue, there is no `issueIndex`
+           this mechanism owns exclusively, so withdrawing on a verdict
+           change risks deleting one a desk reviewer has since written up by
+           hand against the same check — this file has no way to tell the
+           two apart once raised, and leaving a stale finding for a person to
+           close is the safer of the two wrong answers. */
+        setCompliance: (checkId, c, evidencePending = false) => {
           get().patch(checkId, {
             compliance: c,
             evidencePending: c === "C" ? evidencePending : false,
-          }),
+          });
+          if (c === "NC") {
+            const { entity, visit } = get();
+            const hasFinding = get().findings.some(
+              (f) => f.checkId === checkId && f.entity === entity && f.originVisit === visit
+            );
+            if (!hasFinding) get().raiseFindingFromCheck(checkId);
+          }
+        },
 
         /* No evidencePending flag to carry, unlike setCompliance above — see
            that field's own doc comment in types.ts for why the Inspection
@@ -3682,6 +3714,41 @@ export const useStore = create<State>()(
             adHoc: true,
             createdBy: get().auditor,
           }),
+
+        /* THE CHECK-POINT EQUIVALENT, for setCompliance's own "Non-compliant
+           becomes a finding" rule — see that function's doc comment for why
+           it exists and when it is (and is not) called. Same shape as
+           raiseFindingFromAdhoc above, seeded from the REGISTER check's own
+           text rather than a walk item's, and `checkId` set rather than
+           null — `adHoc: false`, because this came off the 324-check
+           register, not something seen free-form on the walk. `title` falls
+           back to a plain label rather than the check's own requirement text
+           being silently blank if the register entry is ever missing one. */
+        raiseFindingFromCheck: (checkId) => {
+          const c = checkById.get(checkId);
+          const r = get().response(checkId);
+          return get().addFinding({
+            checkId,
+            discipline: c?.discipline ?? "",
+            system: c?.system ?? "",
+            area: c?.area ?? "",
+            title: c?.requirement || "Not compliant",
+            description: r.observation || c?.requirement || "",
+            issueIndex: null,
+            severity: null,
+            likelihood: null,
+            ratingConfirmed: false,
+            rootCause: "",
+            actions: [],
+            actionStatus: "Open",
+            originVisit: get().visit,
+            priorRating: null,
+            suggestedEvent: "",
+            progress: [],
+            adHoc: false,
+            createdBy: get().auditor,
+          });
+        },
 
         addAdhoc: (a) => {
           /* WALK-, and random. A sequential number would read better and merge
