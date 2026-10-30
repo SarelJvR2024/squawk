@@ -4534,6 +4534,140 @@ check(
   /disabled=\{!who \|\| labelFixBusy\}/.test(panel)
 );
 
+/* ---- A PHOTOGRAPH'S OWN FindingID COLUMN — Prince Mahlangu, 29 October
+   2026: "A photograph prints beside a finding, in every report, only when
+   the file's Finding ID column holds the finding's ID … No file carries a
+   Finding ID yet." The OTHER half of that sentence — a finding's own
+   `photos` column, via hazardPhotoRefs() — already existed and is covered
+   by the HAZ/HAZ_WALK checks above; these cover the file's own column. */
+
+check(
+  "findingId is a real field candidate, in Prince's own column name",
+  /findingId: \["FindingID", "Finding ID", "Finding-ID"\]/.test(spSrc) &&
+    sp.EVIDENCE_FIELDS.includes("findingId")
+);
+
+check(
+  "a check-point photo gets its finding's own hazard key when EXACTLY ONE finding sits on that check",
+  (() => {
+    const v = sp.buildPlan(HAZ, NOTHING).evidence.find(
+      (e) => e.filename === "KSIA-ELE-002_P01.jpg"
+    ).values;
+    return v.findingId === "KSIA-ELE-P01";
+  })(),
+  "KSIA-ELE-002 carries only f2 — nothing to disambiguate, so this one is safe to write"
+);
+
+check(
+  "and it is blank, not guessed, when TWO findings sit on the same check",
+  (() => {
+    const vs = sp.buildPlan(HAZ, NOTHING).evidence.filter(
+      (e) => e.filename === "KSIA-ELE-001_P01.jpg" || e.filename === "KSIA-ELE-001_P02.jpg"
+    );
+    return vs.length === 2 && vs.every((e) => e.values.findingId === "");
+  })(),
+  "f1 and f3 are both raised against KSIA-ELE-001 — a check's photographs are captured once, not per issue, so there is no way to say which finding either one is evidence for. The finding's own `photos` column already carries this correctly at the hazard level either way"
+);
+
+check(
+  "a check with no finding at all writes no findingId either — nothing to name",
+  (() => {
+    const v = sp.buildPlan(
+      { ...BASE, responses: { "KSIA-ELE-001": { compliance: "C", attachments: [
+        { id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-001_P01", caption: "c" },
+      ] } } },
+      NOTHING
+    ).evidence[0].values;
+    return v.findingId === "";
+  })()
+);
+
+check(
+  "a walk item's OWN findingId reaches its photo's column too, the same unambiguous way a check's single finding does",
+  (() => {
+    const v = sp.buildPlan(HAZ_WALK, NOTHING).evidence.find(
+      (e) => e.filename === "WALK-A1F2K_P01.jpg"
+    ).values;
+    return v.findingId === "KSIA-ELE-P01";
+  })(),
+  "WALK-A1F2K's own findingId is f4, consolidated into the same hazard as the register findings"
+);
+
+check(
+  "a walk item with no findingId yet (the normal state, before promotion) writes blank",
+  (() => {
+    const v = sp.buildPlan(HAZ_WALK, NOTHING).evidence.find(
+      (e) => e.filename === "WALK-B2G3L_P01.jpg"
+    ).values;
+    return v.findingId === "";
+  })()
+);
+
+check(
+  "a walk item raised into a finding whose hazard was held back this run writes blank, not a key that will never exist",
+  (() => {
+    /* f5 (WALK-C3H4M) is a real finding, just not one of HAZ_WALK's own
+       hazard's findingIds — same as "contributes nothing" to `photos`
+       above, checked from the file's own column instead of the row's. */
+    const v = sp.buildPlan(HAZ_WALK, NOTHING).evidence.find(
+      (e) => e.filename === "WALK-C3H4M_P01.jpg"
+    ).values;
+    return v.findingId === "";
+  })()
+);
+
+check(
+  "a Verification photo's findingId is the carried finding's own portal key, always — it is evidence for exactly that one finding, by construction",
+  (() => {
+    const v = sp.buildPlan(
+      {
+        ...BASE,
+        prior: [{ portalId: "KSIA-ELE-P01", entityCode: "FALE", discipline: "Electrical", assetSystem: "AGL" }],
+        verifications: {
+          "KSIA-ELE-P01": {
+            pf: "KSIA-ELE-P01", outcome: "Closed", evidence: "", attachments: [
+              { id: "v1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-P01_P01", caption: "c" },
+            ],
+            verifiedBy: "Sarel", verifiedAt: 1,
+          },
+        },
+      },
+      NOTHING
+    ).evidence[0].values;
+    return v.findingId === "KSIA-ELE-P01";
+  })()
+);
+
+check(
+  "an Evidence Log document's own photograph writes no findingId — EvidenceItem carries no finding concept at all",
+  (() => {
+    const doc = DOC("DOC-1", {
+      checkIds: ["KSIA-ELE-001"],
+      attachments: [{ id: "ea1", kind: "photo", name: "n", blobKey: "b1", ref: "DOC-1_P01", caption: "c" }],
+    });
+    const v = sp.buildPlan({ ...BASE_EV, evidenceItems: [doc] }, NOTHING_EV).evidence.find(
+      (e) => e.filename === "DOC-1_P01.jpg"
+    )?.values;
+    return v && v.findingId === "";
+  })()
+);
+
+check(
+  "the key a check-point photo's findingId carries is EXACTLY the hazard row's own minted key — not a second, independently-computed guess at it",
+  (() => {
+    /* No portalId given, and "KSIA-ELE-P01" already taken (a prior sync's
+       row) — so the hazard here mints KSIA-ELE-P02, and the photo's
+       findingId has to agree with whatever that comes out to, not with a
+       hardcoded string, or the two would be free to drift apart. */
+    const haz = { ...HAZ, hazards: [{ ...HAZ.hazards[0], portalId: undefined }] };
+    const existingTaken = { checkpoints: new Map(), findings: new Map([["KSIA-ELE-P01", "old-item-id"]]) };
+    const p = sp.buildPlan(haz, existingTaken);
+    const row = p.findings.find((r) => r.hazardId === "h1");
+    const photo = p.evidence.find((e) => e.filename === "KSIA-ELE-002_P01.jpg");
+    return !!row && !!photo && row.key === "KSIA-ELE-P02" && photo.values.findingId === row.key;
+  })()
+);
+
 /* ------------------------------------------------------------------ result */
 
 console.log(failures === 0 ? "\nSHAREPOINT OK" : `\n${failures} FAILURE${failures > 1 ? "S" : ""}`);
