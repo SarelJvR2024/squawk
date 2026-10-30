@@ -4494,9 +4494,39 @@ check(
 
 check(
   "Finish labelling replays the EXACT values a failed write already tried, rather than recomputing the plan",
-  /values: projectFields\(driveMap, f\.values, "create"\),/.test(panel) &&
+  /values: projectFields\(driveMap, f\.values, "update"\),/.test(panel) &&
     /await graph\.setFileFields\(p\.driveId, p\.itemId, p\.values\);/.test(panel),
   "a later retry is not a chance to recompute against data that may have moved on since the original sync"
+);
+
+/* ---- photo metadata writes use "update", not "create" — Prince Mahlangu,
+   29 October 2026, reading the O.R. Tambo library directly: "the sync
+   writes null into a column it does not carry, so a value set in the
+   library by hand is cleared at the next run." Every one of these three
+   call sites writes to a file `uploadEvidence` just PUT with
+   conflictBehavior=replace — always the same file whether it is brand new
+   or has existed (and been hand-corrected) for weeks — so "create", which
+   never skips an empty string, was blanking columns that already had a
+   value on every single re-sync. ------------------------------------- */
+
+check(
+  "the main upload pass and the second-pass retry both project photo fields as an update, never a create",
+  (() => {
+    const hits = panel.match(/projectFields\(resolved\.driveMap, f\.values, "update"\)/g);
+    return !!hits && hits.length === 2;
+  })(),
+  "a field Squawk has nothing for must be skipped on a re-sync, not written over whatever is already there"
+);
+
+check(
+  "no photo field write anywhere in the sync projects as a create",
+  !/projectFields\(resolved\.driveMap, f\.values, "create"\)/.test(panel) &&
+    !/values: projectFields\(driveMap, f\.values, "create"\)/.test(panel)
+);
+
+check(
+  'PhotoDescription — the real O.R. Tambo library\'s own column name — leads the caption field\'s candidates',
+  /caption: \["PhotoDescription", "Photo description", "Caption", "Description", "What it shows"\]/.test(spSrc)
 );
 
 check(

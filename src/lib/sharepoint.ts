@@ -250,7 +250,14 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
   ],
   captionSource: ["CaptionSource", "Caption source", "Caption Source"],
   attachedBy: ["AttachedBy", "Attached by", "Attached By", "Captured by", "Photographer"],
-  caption: ["Caption", "Description", "What it shows"],
+  /* "PhotoDescription" leads here too — Prince Mahlangu, 29 October 2026,
+     reading the real O.R. Tambo library's column list: the column is one
+     word, which `norm()`'s space/case-insensitive match cannot bridge to
+     "Description" or "What it shows" below. Without it, a list built with
+     that exact name reported `caption` as missing and never wrote a single
+     photograph's text — the same class of silent gap as every other entry
+     in this block. */
+  caption: ["PhotoDescription", "Photo description", "Caption", "Description", "What it shows"],
   location: ["Location", "Where", "Where taken"],
   takenAt: ["TakenAt", "Taken at", "Taken On", "Date taken", "Photograph date"],
   /* WHAT the photograph is of, not where it was taken — an auditor fills

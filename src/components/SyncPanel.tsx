@@ -592,10 +592,27 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                It is still said out loud; it is not swallowed. */
             if (resolved.driveMap) {
               try {
+                /* "update", not "create" — same rule as the register rows
+                   just above (see projectFields' own comment and this
+                   file's own line 491). `uploadEvidence` PUTs with
+                   conflictBehavior=replace, so EVERY run writes this file's
+                   bytes again, including ones already in the library with
+                   their columns already filled in by hand or by an earlier
+                   sync. "create" never skips an empty string, so a field
+                   Squawk's own record has nothing for was overwriting
+                   whatever was already there with blank on every single
+                   re-sync. Prince Mahlangu, 29 October 2026, reading the
+                   O.R. Tambo library directly: "the sync writes null into a
+                   column it does not carry, so a value set in the library
+                   by hand is cleared at the next run." "update" fills a
+                   blank and changes a value, and never empties one — a
+                   brand-new photo loses nothing by this, since an omitted
+                   column on a fresh row is exactly as blank as one written
+                   as "". */
                 await graph.setFileFields(
                   resolved.driveId,
                   up.id,
-                  projectFields(resolved.driveMap, f.values, "create")
+                  projectFields(resolved.driveMap, f.values, "update")
                 );
                 /* An earlier run may have given up on this exact photo and
                    left it in "Finish labelling" — this write just did what
@@ -647,7 +664,10 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
               continue;
             }
             try {
-              await graph.setFileFields(resolved.driveId, itemId, projectFields(resolved.driveMap, f.values, "create"));
+              /* "update" — same reasoning as the main pass above: this file
+                 already exists (it is the one THIS run just uploaded), so a
+                 field Squawk has nothing for must be skipped, not blanked. */
+              await graph.setFileFields(resolved.driveId, itemId, projectFields(resolved.driveMap, f.values, "update"));
               clearPendingLabelFix(resolved.driveId, itemId);
             } catch (e) {
               stillUnlabelled.push({ key: u.key, why: e instanceof Error ? e.message : u.why });
@@ -678,7 +698,12 @@ export function SyncPanel({ onClose }: { onClose: () => void }) {
                   driveId,
                   itemId,
                   filename: u.key,
-                  values: projectFields(driveMap, f.values, "create"),
+                  /* "update" — these values are replayed verbatim by
+                     finishLabelling() below, against a file that by then has
+                     existed in the library for however long this stayed
+                     pending. Recording them with "create" would bake the
+                     clobbering bug into the replay too. */
+                  values: projectFields(driveMap, f.values, "update"),
                   why: u.why,
                 };
               })
