@@ -60,6 +60,7 @@ const NEEDS_ALIAS = new Set([
   "exports.test.mjs",
   "graph.test.mjs",
   "progress-restore.test.mjs",
+  "compliancefinding.test.mjs",
 ]);
 /* graph.test.mjs ALSO needs --experimental-transform-types: GraphError's
    constructor uses TS parameter properties, which Node's type-stripping

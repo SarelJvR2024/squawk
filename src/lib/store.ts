@@ -1246,28 +1246,47 @@ export const useStore = create<State>()(
            longer reachable from the UI (its checkbox list was removed from
            CheckDetail), so marking a check Non-compliant through these
            three buttons was the one path left with nothing tracking it.
-           Raised only when this check has NO finding yet, from any source
-           — an issue button on data from before the picker was removed, or
-           one written up by hand on the Findings screen — so re-confirming
-           an already-non-compliant check never mints a second. Marking it
-           back off NC does NOT withdraw a finding this raised: unlike
-           toggleIssue's own removeFindingsForIssue, there is no `issueIndex`
-           this mechanism owns exclusively, so withdrawing on a verdict
-           change risks deleting one a desk reviewer has since written up by
-           hand against the same check — this file has no way to tell the
-           two apart once raised, and leaving a stale finding for a person to
-           close is the safer of the two wrong answers. */
+
+           GUARDED BY actionStatus, NOT BY VISIT. A finding's whole point is
+           to persist across visits until it is actually closed — so the
+           first version of this guard, scoped to `originVisit === visit`,
+           found independent review 30 October 2026: a check still broken
+           at the NEXT visit gets re-tapped Non-compliant (every Response
+           starts fresh per visit, compliance included), the guard looks
+           only at THIS visit's findings, never sees the one still open from
+           before, and mints a second. That is not an edge case — a
+           persisting non-compliance re-confirmed visit after visit is
+           exactly what this feature exists to track, so the bug fired on
+           the normal case, not a rare one. The same review caught a second
+           path into it: FindingDetail.tsx's "link to a check" flow calls
+           `updateFinding` to attach checkId to an orphan finding raised on
+           an EARLIER visit, then calls this function — the old
+           visit-scoped guard missed that finding too and raised a second
+           one on the check the reviewer had just finished linking the
+           first to. Scoping by `checkId` + `entity` + "not already Closed"
+           instead fixes both at once: a still-open finding from any visit
+           blocks a duplicate, and a CLOSED one does not — a check that
+           regresses after being fixed is a new non-compliance and
+           correctly gets a fresh finding of its own.
+
+           Marking it back off NC does NOT withdraw a finding this raised:
+           unlike toggleIssue's own removeFindingsForIssue, there is no
+           `issueIndex` this mechanism owns exclusively, so withdrawing on a
+           verdict change risks deleting one a desk reviewer has since
+           written up by hand against the same check — this file has no way
+           to tell the two apart once raised, and leaving a stale finding
+           for a person to close is the safer of the two wrong answers. */
         setCompliance: (checkId, c, evidencePending = false) => {
           get().patch(checkId, {
             compliance: c,
             evidencePending: c === "C" ? evidencePending : false,
           });
           if (c === "NC") {
-            const { entity, visit } = get();
-            const hasFinding = get().findings.some(
-              (f) => f.checkId === checkId && f.entity === entity && f.originVisit === visit
+            const entity = get().entity;
+            const hasOpenFinding = get().findings.some(
+              (f) => f.checkId === checkId && f.entity === entity && f.actionStatus !== "Closed"
             );
-            if (!hasFinding) get().raiseFindingFromCheck(checkId);
+            if (!hasOpenFinding) get().raiseFindingFromCheck(checkId);
           }
         },
 

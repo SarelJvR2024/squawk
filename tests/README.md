@@ -112,7 +112,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `field-search-prominence.test.mjs` | no | 6 |
 | `home.test.mjs` | no | 58 |
 | `adhoc.test.mjs` | no | 79 |
-| `compliancefinding.test.mjs` | no | 15 |
+| `compliancefinding.test.mjs` | no | 16 |
 | `raisefinding.test.mjs` | no | 25 |
 | `raisefinding-chooser.test.mjs` | no | 6 |
 | `findings-mobile-nav.test.mjs` | no | 10 |
@@ -143,7 +143,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,680 assertions in total**, every count above verified by running the suite,
+**3,681 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -605,20 +605,29 @@ report: plenty of Non-compliant checks with no finding tracking them toward
 closure at the next visit.
 
 ```bash
-node tests/compliancefinding.test.mjs
+node --import ./tests/alias.mjs tests/compliancefinding.test.mjs
 ```
 
-Source-read, like `adhoc.test.mjs` — `store.ts` is a "use client" zustand
-store wired to IndexedDB, not something this offline suite runs directly.
-Asserts `raiseFindingFromCheck` is the register's mirror of
-`raiseFindingFromAdhoc` (`checkId` set rather than null, `adHoc: false`,
-`issueIndex: null`, seeded from the check's own requirement text and
-observation rather than a walk item's description), that `setCompliance`
-raises it only once per check — guarded by checking for ANY existing
-finding on that check first, from any source, so re-confirming an
-already-non-compliant check or one a desk reviewer already wrote up by hand
-never mints a second — and, deliberately, that nothing withdraws it when the
-verdict later changes away from NC: unlike the old issue picker's own
+Runs the REAL store, like `sync-coverage.test.mjs` — `useStore.getState()`,
+not a source-text stand-in for it. The first version of this file was
+regex-on-source only, like `adhoc.test.mjs`; independent review 30 October
+2026 found a real duplicate-raise bug none of its static checks could have
+caught, because none of them called `setCompliance` and looked at what
+findings actually came out. The guard was scoped by `originVisit === visit`,
+but a finding's whole point is to persist across visits until closed — a
+check still broken at the next visit gets re-tapped Non-compliant, the old
+guard never saw the still-open finding from before, and minted a second. The
+same bug independently broke `FindingDetail.tsx`'s "link to a check" flow,
+which attaches `checkId` to an orphan finding raised on an EARLIER visit then
+calls `setCompliance` — the visit-scoped guard missed the just-linked finding
+and raised a duplicate on the check the reviewer had just finished linking it
+to. The fix scopes the guard by `checkId` + `entity` + "not already Closed"
+instead, and this suite pins both scenarios live: a non-compliance
+re-confirmed across two different visits raises only once, and the
+link-to-a-check flow raises nothing extra — plus that a CLOSED prior finding
+correctly does NOT block a fresh one (a regression after a real fix is a new
+non-compliance), and that nothing withdraws a raised finding when the verdict
+later changes away from NC: unlike the old issue picker's own
 `removeFindingsForIssue`, this mechanism owns no `issueIndex` that uniquely
 marks "its" finding, so a desk reviewer's own finding against the same check
 would look identical, and leaving a stale finding for a person to close is
