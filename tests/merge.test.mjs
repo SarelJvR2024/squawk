@@ -373,6 +373,146 @@ check("the right audit is not refused", refuse(bundle(), HERE) === null);
   );
 }
 
+/* --------- THE SAME BUG, THREE MORE PLACES — unionById, generalised ------
+ *
+ *  Found 30 October 2026, straight after the attachments fix above:
+ *  unionById (the generic union behind mergeSystemEvents' rootCauses/
+ *  actions, unassignedRootCauses/unassignedActions, and mergeFlatRecords'
+ *  per-form listFields — EvidenceItem/SafetyFinding/SiteDay/IncidentReport's
+ *  attachments and actions) had the IDENTICAL "keep mine unconditionally"
+ *  bug unionAttachmentsWithTombstones did, just never fixed when that one
+ *  was. Two live, reproduced consequences:
+ *
+ *    · a caption written to an EvidenceItem's photograph through the shared
+ *      record vanished the same way a Response's did — and EvidenceItem
+ *      DOES reach sharepoint.ts (its caption is read there), unlike the
+ *      three Tier 1 forms that share this exact code path but don't yet
+ *      reach the portal at all;
+ *    · a MitigationAction's `status`/`system` edited on one device was
+ *      silently overwritten back to stale by the other device's next merge
+ *      — the exact field (MitigationAction.system) this whole SharePoint
+ *      sync integrity review series was founded on, resurfacing one layer
+ *      up, at the merge, rather than at the sharepoint.ts read.
+ *
+ *  unionById now takes the per-item updatedAt when the item has one
+ *  (MitigationAction does), falling back to the enclosing record's own
+ *  updatedAt when it does not (RootCauseNote, Attachment) — see that
+ *  function's own header. */
+
+{
+  const out = mergeBundle(
+    { ...mine(), evidenceItems: [
+      { id: "doc1", entity: "KSIA", updatedAt: T, attachments: [{ ...photo("p1"), caption: "" }] },
+    ] },
+    { ...bundle(), evidenceItems: [
+      { id: "doc1", entity: "KSIA", updatedAt: T + 1000, attachments: [{ ...photo("p1"), caption: "Fire certificate, page 2" }] },
+    ] }
+  );
+  check(
+    "an EvidenceItem's caption written on the newer side survives the merge, same id — reaches sharepoint.ts, unlike the sibling forms below",
+    out.evidenceItems[0].attachments.find((a) => a.id === "p1")?.caption === "Fire certificate, page 2",
+    JSON.stringify(out.evidenceItems[0].attachments)
+  );
+}
+
+{
+  const out = mergeBundle(
+    { ...mine(), safetyFindings: [
+      { id: "isf1", entity: "KSIA", updatedAt: T, actions: [
+        { id: "a1", action: "Fix it", owner: "Sarel", dueDate: "", status: "open", createdAt: T, createdBy: "Sarel", updatedAt: T },
+      ] },
+    ] },
+    { ...bundle(), safetyFindings: [
+      { id: "isf1", entity: "KSIA", updatedAt: T, actions: [
+        { id: "a1", action: "Fix it", owner: "Sarel", dueDate: "", status: "closed", createdAt: T, createdBy: "Sarel", updatedAt: T + 1000 },
+      ] },
+    ] }
+  );
+  check(
+    "a MitigationAction's own newer updatedAt wins outright, even when the enclosing record's updatedAt ties",
+    out.safetyFindings[0].actions.find((a) => a.id === "a1")?.status === "closed",
+    JSON.stringify(out.safetyFindings[0].actions)
+  );
+}
+
+{
+  const out = mergeBundle(
+    { ...mine(), safetyFindings: [
+      { id: "isf1", entity: "KSIA", updatedAt: T + 1000, actions: [
+        { id: "a1", action: "Fix it", owner: "Sarel", dueDate: "", status: "closed", createdAt: T, createdBy: "Sarel", updatedAt: T + 1000 },
+      ] },
+    ] },
+    { ...bundle(), safetyFindings: [
+      { id: "isf1", entity: "KSIA", updatedAt: T, actions: [
+        /* A snapshot from before the close — must not win just because it
+           arrived in the same sync as a genuinely newer record elsewhere. */
+        { id: "a1", action: "Fix it", owner: "Sarel", dueDate: "", status: "open", createdAt: T, createdBy: "Sarel", updatedAt: T },
+      ] },
+    ] }
+  );
+  check(
+    "and an OLDER side's copy of the same action id does not overwrite the newer one",
+    out.safetyFindings[0].actions.find((a) => a.id === "a1")?.status === "closed",
+    JSON.stringify(out.safetyFindings[0].actions)
+  );
+}
+
+{
+  const out = mergeBundle(
+    {
+      ...mine(),
+      visitData: {
+        ...mine().visitData,
+        systems: {
+          "Mechanical|HVAC": {
+            key: "Mechanical|HVAC", discipline: "Mechanical", system: "HVAC",
+            severity: null, likelihood: null, ratingConfirmed: false, ratingRationale: "",
+            updatedAt: T,
+            events: [
+              {
+                id: "ev1", event: "Smoke spread", likelihood: null, note: "", updatedAt: T,
+                actions: [
+                  { id: "ma1", action: "Flow-test smoke extraction", owner: "", dueDate: "", status: "open", createdAt: T, createdBy: "Sarel", updatedAt: T },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    },
+    {
+      ...bundle(),
+      visit: {
+        ...bundle().visit,
+        systems: {
+          "Mechanical|HVAC": {
+            key: "Mechanical|HVAC", discipline: "Mechanical", system: "HVAC",
+            severity: null, likelihood: null, ratingConfirmed: false, ratingRationale: "",
+            updatedAt: T,
+            events: [
+              {
+                id: "ev1", event: "Smoke spread", likelihood: null, note: "", updatedAt: T,
+                actions: [
+                  /* `system` filled in AND status closed, on an action whose
+                     own updatedAt is newer than mine's copy — exactly the
+                     live repro this test pins. */
+                  { id: "ma1", action: "Flow-test smoke extraction", owner: "", dueDate: "", system: "HVAC", status: "closed", createdAt: T, createdBy: "Sarel", updatedAt: T + 1000 },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    }
+  );
+  const action = out.visitData.systems["Mechanical|HVAC"].events[0].actions.find((a) => a.id === "ma1");
+  check(
+    "a SystemAssessment event's MitigationAction edit (status AND system) is not silently reverted by the other device's next merge",
+    action?.status === "closed" && action?.system === "HVAC",
+    JSON.stringify(action)
+  );
+}
+
 {
   const shared = { at: T, by: "Prince", visit: "2026-09", outcome: null, note: "Raised with the SHE lead" };
   const out = mergeBundle(

@@ -662,9 +662,9 @@ check(
   /function mergeSystemEvents\(mine: PossibleEvent\[\] = \[\], theirs: PossibleEvent\[\] = \[\]\): PossibleEvent\[\] \{/.test(
     merge
   ) &&
-    /const rootCauses = unionById\(m\.rootCauses \?\? \[\], t\.rootCauses \?\? \[\]\);/.test(merge) &&
-    /const actions = unionById\(m\.actions \?\? \[\], t\.actions \?\? \[\]\);/.test(merge),
-  "an id both devices have cannot just keep one side's copy wholesale now that the event carries its own causes/actions — that would silently drop whichever side's were not on the kept copy"
+    /const rootCauses = unionById\(m\.rootCauses \?\? \[\], t\.rootCauses \?\? \[\], mAt, tAt\);/.test(merge) &&
+    /const actions = unionById\(m\.actions \?\? \[\], t\.actions \?\? \[\], mAt, tAt\);/.test(merge),
+  "an id both devices have cannot just keep one side's copy wholesale now that the event carries its own causes/actions — that would silently drop whichever side's were not on the kept copy. mAt/tAt — the event's own updatedAt — is the 30 October 2026 fix: a MitigationAction's own newer updatedAt now wins a shared id outright, instead of mine's copy winning unconditionally"
 );
 
 check(
@@ -700,15 +700,15 @@ check(
 
 check(
   "root causes and mitigation actions union on merge",
-  /function unionById<T extends \{ id: string \}>/.test(merge) &&
-    /const rootCauses = unionById\(m\.rootCauses \?\? \[\], t\.rootCauses \?\? \[\]\);/.test(merge) &&
-    /const actions = unionById\(m\.actions \?\? \[\], t\.actions \?\? \[\]\);/.test(merge),
+  /function unionById<T extends \{ id: string; updatedAt\?: number \}>/.test(merge) &&
+    /const rootCauses = unionById\(m\.rootCauses \?\? \[\], t\.rootCauses \?\? \[\], mAt, tAt\);/.test(merge) &&
+    /const actions = unionById\(m\.actions \?\? \[\], t\.actions \?\? \[\], mAt, tAt\);/.test(merge),
   "two people add causes independently at the same out-brief; last-writer-wins loses one list entirely"
 );
 
 check(
   "while the band itself is last-writer-wins",
-  /const newer = when\(t\) > when\(m\) \? t : m;\s*\n\s*assessedSystems\[key\] = \{ \.\.\.newer, events, unassignedRootCauses, unassignedActions \};/.test(
+  /const newer = tAt > mAt \? t : m;\s*\n\s*assessedSystems\[key\] = \{ \.\.\.newer, events, unassignedRootCauses, unassignedActions \};/.test(
     merge
   ),
   "a band is one decision the group made, so the later copy is the one to keep"

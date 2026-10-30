@@ -92,7 +92,8 @@ check(
 check(
   "mergeFlatRecords unions the listFields by id and lets the newer record win on the rest",
   /function mergeFlatRecords<T extends \{ id: string; updatedAt\?: number \}>/.test(merge) &&
-    /\(merged as Record<string, unknown>\)\[field as string\] = unionById\(mv, tv\);/.test(merge)
+    /\(merged as Record<string, unknown>\)\[field as string\] = unionById\(mv, tv, mAt, tAt\);/.test(merge),
+  "mAt/tAt — the enclosing record's own updatedAt — is passed through since 30 October 2026, so an item with no timestamp of its own (an Attachment) still gets a side-level newer-wins fallback instead of unconditionally keeping mine's copy; see unionById's own header"
 );
 
 check(
