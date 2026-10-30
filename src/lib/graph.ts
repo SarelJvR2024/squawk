@@ -513,10 +513,23 @@ export async function findItemIdByTitle(
   title: string
 ): Promise<string | null> {
   const escaped = title.replace(/'/g, "''");
+  /* Sarel, 30 October 2026, from a real sync: ORTIA-MEC-P09 through P15
+   *  (six hazard rows — see this function's own comment, above, for why it
+   *  is only ever hazards) all failed the same way, immediately, with no
+   *  retry: "Field 'Title' cannot be referenced in filter or orderby as it
+   *  is not indexed." SharePoint refuses a filter on a non-indexed column
+   *  outright unless asked otherwise — a 400 with a fixed cause, not a
+   *  transient one, so `isRetryable` correctly never retries it (see
+   *  RETRYABLE_MESSAGE in this file) and MAX_ATTEMPTS would not have
+   *  helped either way. The error names its own fix: this header, which
+   *  Graph documents for exactly this case. The Findings list here is a
+   *  few hundred rows, nowhere near the 5,000-item threshold the header's
+   *  own "may fail randomly" caveat is actually about. */
   const page = await call<{ value: GraphItem[] }>(
     `/sites/${siteId}/lists/${listId}/items?$filter=${encodeURIComponent(
       `fields/Title eq '${escaped}'`
-    )}&$top=1&$select=id`
+    )}&$top=1&$select=id`,
+    { headers: { Prefer: "HonorNonIndexedQueriesWarningMayFailRandomly" } }
   );
   return page.value[0]?.id ?? null;
 }
