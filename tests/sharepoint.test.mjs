@@ -1188,6 +1188,64 @@ check(
   "a caption an auditor wrote and one a model proposed are not the same evidence"
 );
 
+/* ---- THE ACTUAL SCENARIO THIS PR FIXES, END TO END — not just at the
+   evidenceValues()/buildPlan() level above, but through mapFields() and
+   projectFields() the way a real sync run resolves and writes them. A
+   library with only "Description" must not get a second, silent write of
+   the same value onto that one column under the "descriptionOfSubject"
+   name; a library with both must get two distinct keys in the PATCH body,
+   both carrying the identical caption text. ------------------------- */
+
+check(
+  "a library with only Description: caption resolves to it, descriptionOfSubject is reported missing — no collision",
+  (() => {
+    const cols = [{ name: "Description", displayName: "Description", readOnly: false }];
+    const map = sp.mapFields(cols, [...sp.EVIDENCE_FIELDS]);
+    const fields = sp.projectFields(
+      map,
+      { caption: "Corroded busbar, MV board 3B", descriptionOfSubject: "Corroded busbar, MV board 3B" },
+      "update"
+    );
+    return (
+      map.resolved.caption === "Description" &&
+      map.missing.includes("descriptionOfSubject") &&
+      fields.Description === "Corroded busbar, MV board 3B" &&
+      Object.keys(fields).length === 1
+    );
+  })(),
+  "only one column exists, so only one write lands — never a forced second write onto the column caption already claimed"
+);
+
+check(
+  "a library with BOTH columns: each resolves to its own distinct column, and the PATCH carries both, same text",
+  (() => {
+    const cols = [
+      { name: "Description", displayName: "Description", readOnly: false },
+      { name: "field_7", displayName: "Description of subject", readOnly: false },
+    ];
+    const map = sp.mapFields(cols, [...sp.EVIDENCE_FIELDS]);
+    const fields = sp.projectFields(
+      map,
+      { caption: "Corroded busbar, MV board 3B", descriptionOfSubject: "Corroded busbar, MV board 3B" },
+      "update"
+    );
+    return (
+      map.resolved.caption === "Description" &&
+      map.resolved.descriptionOfSubject === "field_7" &&
+      map.resolved.caption !== map.resolved.descriptionOfSubject &&
+      fields.Description === "Corroded busbar, MV board 3B" &&
+      fields.field_7 === "Corroded busbar, MV board 3B"
+    );
+  })(),
+  JSON.stringify({ resolved: sp.mapFields(
+    [
+      { name: "Description", displayName: "Description", readOnly: false },
+      { name: "field_7", displayName: "Description of subject", readOnly: false },
+    ],
+    [...sp.EVIDENCE_FIELDS]
+  ).resolved })
+);
+
 check(
   "where the photograph was taken and when it was taken travel too",
   (() => {

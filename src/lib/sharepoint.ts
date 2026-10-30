@@ -488,6 +488,16 @@ export interface FieldMap {
 
 /** Build the map from the list's own columns.
  *
+ *  NO STRUCTURAL GUARD AGAINST TWO KEYS RESOLVING TO ONE COLUMN. Safety here
+ *  is candidate-list discipline alone — see `evidenceLink`'s own comment,
+ *  above, for the incident that discipline exists to prevent: two logical
+ *  fields sharing a column means the second key processed silently
+ *  overwrites the first in the PATCH body, with nothing in `missing` or
+ *  `choiceMismatches` to say so, because both keys legitimately "resolved".
+ *  `caption`/`descriptionOfSubject` are deliberately disjoint candidate
+ *  lists for exactly this reason. Adding a third near-duplicate field is
+ *  the moment this should become a real check rather than a comment.
+ *
  *  A read-only column (Created, Modified, computed) is treated as absent: it
  *  exists, and writing to it fails the whole PATCH, which would take the rows
  *  that were fine down with it. */
