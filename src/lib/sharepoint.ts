@@ -265,6 +265,24 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
      photograph's text — the same class of silent gap as every other entry
      in this block. */
   caption: ["PhotoDescription", "Photo description", "Caption", "Description", "What it shows"],
+  /* A SECOND, DELIBERATELY DUPLICATE WRITE OF THE SAME TEXT, AS ITS OWN
+     FIELD — found 30 October 2026, reading the real O.R. Tambo Evidence
+     library directly: it carries BOTH a "Description" column (`caption`'s
+     own first match above, already correct — confirmed holding every
+     synced photo's own caption, word for word) AND a separate "Description
+     of subject" column that the external ACSA report tool reads from
+     instead, which was empty for every synced photo because nothing ever
+     wrote to it. Squawk has no way to know which of a site's own columns a
+     downstream tool was built against, so rather than guess which one is
+     "the real one" and risk drifting out of sync with the report the
+     moment that guess is wrong, `evidenceValues()` below sends the
+     identical string to both logical fields. Each resolves independently
+     against ITS OWN candidates (mapFields never shares a hit across keys),
+     so a library with only one of the two columns gets exactly the one
+     write it has room for and reports the other as missing, same as any
+     column a site genuinely does not have — never a forced second write
+     onto the column `caption` already claimed. */
+  descriptionOfSubject: ["Description of subject", "Description of Subject"],
   location: ["Location", "Where", "Where taken"],
   takenAt: ["TakenAt", "Taken at", "Taken On", "Date taken", "Photograph date"],
   /* WHAT the photograph is of, not where it was taken — an auditor fills
@@ -427,6 +445,7 @@ export const ASSET_RISK_FIELDS = [
  *  the first upload produced, and the reason this list exists. */
 export const EVIDENCE_FIELDS = [
   "checkId", "findingId", "photographReference", "discipline", "assetSystem", "caption",
+  "descriptionOfSubject",
   "captionSource", "attachedBy", "location", "takenAt", "assetName", "assetRef",
 ] as const;
 
@@ -1325,6 +1344,9 @@ function evidenceValues(
     discipline,
     assetSystem,
     caption: a.caption?.trim() ?? "",
+    /* Same string as `caption`, as its own field — see descriptionOfSubject's
+       own candidates, above, for why this is deliberately written twice. */
+    descriptionOfSubject: a.caption?.trim() ?? "",
     captionSource:
       a.captionSource === "assistant"
         ? "Assistant, accepted by the auditor"

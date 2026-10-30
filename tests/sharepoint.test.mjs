@@ -1140,6 +1140,45 @@ check(
   "a library row keyed on anything else links to nothing"
 );
 
+/* ---- THE SAME CAPTION, WRITTEN TO A SECOND COLUMN TOO — found 30 October
+   2026, reading the real O.R. Tambo Evidence library directly: it carries
+   both "Description" (caption's own column, already correct) and a
+   separate "Description of subject" that the external ACSA report tool
+   reads from instead — empty for every synced photo because nothing ever
+   wrote to it. descriptionOfSubject carries the identical string so
+   either column a downstream reader was built against has it. ---------- */
+
+check(
+  "descriptionOfSubject carries the identical text as caption, not a second value to keep in sync by hand",
+  (() => {
+    const v = sp.buildPlan(WITH_PHOTO, NOTHING).evidence[0].values;
+    return v.descriptionOfSubject === v.caption && v.caption === "Corroded busbar, MV board 3B";
+  })(),
+  JSON.stringify(sp.buildPlan(WITH_PHOTO, NOTHING).evidence[0].values)
+);
+
+check(
+  "an assistant's caption duplicates into descriptionOfSubject too — same field, same source",
+  sp.buildPlan(WITH_PHOTO, NOTHING).evidence[1].values.descriptionOfSubject === "Assistant wrote this one"
+);
+
+check(
+  "an uncaptioned photo's descriptionOfSubject writes blank, not undefined — same rule as caption itself",
+  (() => {
+    const bare = {
+      ...BASE,
+      responses: {
+        "KSIA-ELE-001": {
+          compliance: "NC",
+          attachments: [{ id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-001_P01" }],
+        },
+      },
+    };
+    const v = sp.buildPlan(bare, NOTHING).evidence[0].values;
+    return v.descriptionOfSubject === "" && v.caption === "";
+  })()
+);
+
 check(
   "an assistant's caption says so, in words, not as a token nobody can read",
   (() => {
@@ -4527,6 +4566,12 @@ check(
 check(
   'PhotoDescription — the real O.R. Tambo library\'s own column name — leads the caption field\'s candidates',
   /caption: \["PhotoDescription", "Photo description", "Caption", "Description", "What it shows"\]/.test(spSrc)
+);
+
+check(
+  "descriptionOfSubject is a real field candidate, writing to the SECOND column the real library carries",
+  /descriptionOfSubject: \["Description of subject", "Description of Subject"\]/.test(spSrc) &&
+    sp.EVIDENCE_FIELDS.includes("descriptionOfSubject")
 );
 
 check(
