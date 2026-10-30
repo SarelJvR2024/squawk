@@ -244,6 +244,13 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
      is an image in a folder, not evidence. His own column names lead each
      list, because those are the ones the library actually has. */
   checkId: ["CheckID", "Check ID", "Check-point", "Check point", "CheckPoint"],
+  /* THE OTHER HALF OF "a photograph prints beside a finding" — Prince
+     Mahlangu, 29 October 2026: a report matches EITHER this column on the
+     file, or the finding's own `photos` column (hazardPhotoRefs(), on the
+     Findings list) naming the file's reference. That second half already
+     existed; this one did not. Only ever written when exactly one finding
+     can be named without guessing — see findingIdForCheck() in buildPlan. */
+  findingId: ["FindingID", "Finding ID", "Finding-ID"],
   photographReference: [
     "PhotographReference", "Photograph reference", "Photograph Reference",
     "Photo reference", "PhotoRef",
@@ -419,7 +426,7 @@ export const ASSET_RISK_FIELDS = [
  *  A library with no `checkId` on its files is a folder of JPEGs. That is what
  *  the first upload produced, and the reason this list exists. */
 export const EVIDENCE_FIELDS = [
-  "checkId", "photographReference", "discipline", "assetSystem", "caption",
+  "checkId", "findingId", "photographReference", "discipline", "assetSystem", "caption",
   "captionSource", "attachedBy", "location", "takenAt", "assetName", "assetRef",
 ] as const;
 
@@ -1304,10 +1311,16 @@ function evidenceValues(
   a: Attachment,
   checkId: string,
   discipline: string,
-  assetSystem: string
+  assetSystem: string,
+  /** The consolidating hazard's own portal key, or "" when there is none to
+   *  write — see findingIdForCheck() and the walk-item/Verification call
+   *  sites, each of which decides this for its own kind of photograph
+   *  rather than this function guessing from `checkId` alone. */
+  findingId: string
 ): Record<string, string> {
   return {
     checkId,
+    findingId,
     photographReference: a.ref ?? "",
     discipline,
     assetSystem,
@@ -1432,6 +1445,69 @@ export function buildPlan(
   const entityHazards = sameEntity(x.hazards);
   const entityAttendanceRegisters = sameEntity(x.attendanceRegisters);
   const entityEvidenceItems = sameEntity(x.evidenceItems);
+
+  /* A PHOTOGRAPH'S OWN FindingID COLUMN — Prince Mahlangu, 29 October 2026:
+   *  "A photograph prints beside a finding, in every report, only when the
+   *  file's Finding ID column holds the finding's ID … or the finding's
+   *  Photograph references column lists the file's reference." The second
+   *  half already exists (`hazardPhotoRefs()` below, written into the
+   *  Findings row's own `photos` column); this is the first half, and it
+   *  needs a hazard's portal key — the exact Title the Findings-list row
+   *  below mints — BEFORE the check-point loop a few lines down runs, since
+   *  a check's photographs are evaluated well ahead of the hazards loop
+   *  that would otherwise mint it.
+   *
+   *  So the minting happens HERE instead, once, in the same order and off
+   *  the same `taken` set the hazards loop used to carry on its own — see
+   *  that loop's own comment, a few hundred lines down, where it now just
+   *  reads this map rather than minting a second time. Two mints of the
+   *  same deterministic function over the same inputs would always agree,
+   *  but a lookup cannot silently drift from a second copy of the logic
+   *  the way two copies of the SAME loop eventually do in this file. */
+  const hazardKeyTaken = new Set(existing.findings.keys());
+  const hazardPortalKey = new Map<string, string>();
+  for (const h of entityHazards) {
+    /* Mirrors the real loop's own hold-back, below: an excluded hazard
+       never reaches the portal this run, so it mints no key here either —
+       a photograph behind it must read as unlinked, not as linked to a key
+       that will never actually exist on the list. */
+    if (h.disciplines.some((d) => excluded.has(d))) continue;
+    const key = h.portalId ?? mintPortalId(x.entity, h.disciplines, hazardKeyTaken);
+    hazardKeyTaken.add(key);
+    hazardPortalKey.set(h.id, key);
+  }
+  /* finding.id -> the hazard it was consolidated into's portal key, for
+   *  every finding that actually made it into a (non-excluded) hazard. A
+   *  finding nobody has consolidated yet, or whose hazard was held back,
+   *  is simply absent — findingIdForCheck() below reads that as "nothing
+   *  to write", not as a reason to guess. */
+  const findingPortalKey = new Map<string, string>();
+  for (const h of entityHazards) {
+    const key = hazardPortalKey.get(h.id);
+    if (!key) continue;
+    for (const fid of h.findingIds ?? []) findingPortalKey.set(fid, key);
+  }
+  /** A CHECK-POINT'S photographs carry no finding of their own — a check's
+   *  attachments are captured at the check, not per-issue — so a photograph
+   *  can only be attributed to ONE finding when the check behind it has
+   *  exactly one. Two findings on the same check (two issues raised against
+   *  it) leaves every one of its photographs unable to say which finding it
+   *  is evidence for; the finding's own `photos` column (hazardPhotoRefs())
+   *  already carries this correctly at the hazard level in that case, so
+   *  nothing is lost by leaving the file's own column blank rather than
+   *  guessing between them. */
+  const findingsByCheckId = new Map<string, Finding[]>();
+  for (const f of entityFindings) {
+    if (!f.checkId) continue;
+    const list = findingsByCheckId.get(f.checkId) ?? [];
+    list.push(f);
+    findingsByCheckId.set(f.checkId, list);
+  }
+  const findingIdForCheck = (checkId: string): string => {
+    const fs = findingsByCheckId.get(checkId);
+    if (!fs || fs.length !== 1) return "";
+    return findingPortalKey.get(fs[0].id) ?? "";
+  };
   const checkpoints: PlannedRow[] = [];
   const findings: PlannedRow[] = [];
   const attendance: PlannedRow[] = [];
@@ -1592,7 +1668,7 @@ export function buildPlan(
         filename: photoFilename(a),
         attachment: a,
         caption: a.caption?.trim() ?? "",
-        values: evidenceValues(a, key, c.discipline, c.system),
+        values: evidenceValues(a, key, c.discipline, c.system, findingIdForCheck(c.id)),
         folder: dayFolder(folder, a.takenAt ?? a.createdAt),
       });
       /* And the other direction: the check-point row names its photographs, so
@@ -1744,7 +1820,11 @@ export function buildPlan(
           a,
           item.checkId ? portalIdFor(x.entity, item.checkId) : item.id,
           item.discipline ?? "",
-          item.system ?? ""
+          item.system ?? "",
+          /* A walk item's OWN findingId, singular — "promote to finding"
+             raises exactly one, never several, so this is never the
+             multi-finding ambiguity findingIdForCheck() exists to avoid. */
+          item.findingId ? findingPortalKey.get(item.findingId) ?? "" : ""
         ),
         folder: dayFolder(folder, a.takenAt ?? a.createdAt),
       });
@@ -1759,7 +1839,6 @@ export function buildPlan(
   }
 
   /* --- this visit's hazards ------------------------------------------- */
-  const taken = new Set(existing.findings.keys());
   let unrated = 0;
   let excludedHazards = 0;
   for (const h of entityHazards) {
@@ -1784,8 +1863,11 @@ export function buildPlan(
     const agreed = h.ermConfirmed && !!h.ermConsequence && !!h.ermLikelihood;
     if (!agreed) unrated++;
 
-    const key = h.portalId ?? mintPortalId(x.entity, h.disciplines, taken);
-    taken.add(key);
+    /* Minted once already, above — see hazardPortalKey's own comment, at
+       the top of this function, for why it has to happen there and not
+       here. Every hazard that reaches this line passed the same exclusion
+       check that loop applied, so the key is always there. */
+    const key = hazardPortalKey.get(h.id)!;
     const itemId = existing.findings.get(key);
     const priority = agreed ? erm.ermPriority(h.ermConsequence!, h.ermLikelihood!) : null;
     const hazardRefs = hazardPhotoRefs(h, entityFindings, x.responses, x.adhoc);
@@ -1929,8 +2011,11 @@ export function buildPlan(
            under, same as the check-point loop reads them off the register's
            own check rather than guessing. `p.assetSystem` is the mapped
            register system (nullable); `p.discipline` is never blank — see
-           PriorFinding in types.ts. */
-        values: evidenceValues(a, p.portalId, p.discipline, p.assetSystem ?? ""),
+           PriorFinding in types.ts. A Verification photo is evidence FOR
+           this one carried finding and nothing else, by construction —
+           the auditor attached it on THIS finding's own Follow-up screen —
+           so `p.portalId` is always the answer, no lookup needed. */
+        values: evidenceValues(a, p.portalId, p.discipline, p.assetSystem ?? "", p.portalId),
         folder: dayFolder(folder, a.takenAt ?? a.createdAt),
       });
     }
@@ -2088,7 +2173,10 @@ export function buildPlan(
         filename: photoFilename(a),
         attachment: a,
         caption: a.caption?.trim() ?? "",
-        values: evidenceValues(a, singleCheckId ? portalIdFor(x.entity, singleCheckId) : key, "", ""),
+        /* No finding concept on an EvidenceItem — see its own shape in
+           types.ts, same reason discipline/asset system above stay blank
+           rather than invented. */
+        values: evidenceValues(a, singleCheckId ? portalIdFor(x.entity, singleCheckId) : key, "", "", ""),
         folder: dayFolder(folder, a.takenAt ?? a.createdAt),
       });
     }
