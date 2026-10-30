@@ -311,7 +311,19 @@ function unionTombstones(mine: Tombstone[] = [], theirs: Tombstone[] = []): Tomb
  *  field splice, which would invent a merge of two different auditors' free
  *  text that neither one actually wrote. A side with nothing newer than the
  *  other keeps its own copy, exactly as before; only a side that genuinely
- *  IS newer now gets to say so for an id it shares with the other. */
+ *  IS newer now gets to say so for an id it shares with the other.
+ *
+ *  A RESIDUAL GAP THIS DOES NOT CLOSE: Attachment carries no `updatedAt` of
+ *  its own, only the record around it does, so the choice above is by SIDE,
+ *  not by comparing the two copies of the photo directly. A side that wins
+ *  the record-level comparison for a reason that has nothing to do with
+ *  this particular photo — some other field edited later — can still be
+ *  carrying a stale, pre-upload copy of an id the OTHER side already
+ *  finished uploading, and the whole-object swap would regress that photo
+ *  from "uploaded" back to "local only". Closing this needs a per-
+ *  attachment timestamp, which is a bigger change than this fix; see
+ *  tests/merge.test.mjs's own block pinning today's actual behaviour so it
+ *  stays visible rather than being tripped over later. */
 function unionAttachmentsWithTombstones(
   mine: Attachment[],
   theirs: Attachment[],
