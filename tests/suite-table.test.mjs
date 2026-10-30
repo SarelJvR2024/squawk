@@ -60,6 +60,7 @@ const NEEDS_ALIAS = new Set([
   "exports.test.mjs",
   "graph.test.mjs",
   "progress-restore.test.mjs",
+  "compliancefinding.test.mjs",
 ]);
 /* graph.test.mjs ALSO needs --experimental-transform-types: GraphError's
    constructor uses TS parameter properties, which Node's type-stripping
@@ -162,7 +163,7 @@ const WORDS = {
   "seventy-eight": 78, "seventy-nine": 79, eighty: 80, "eighty-one": 81,
   "eighty-two": 82, "eighty-three": 83, "eighty-four": 84, "eighty-five": 85,
   "eighty-six": 86, "eighty-seven": 87, "eighty-eight": 88, "eighty-nine": 89, ninety: 90,
-  "ninety-one": 91,
+  "ninety-one": 91, "ninety-two": 92,
   "thirty-seven": 37,
   "twenty-four": 24, "twenty-five": 25, "twenty-six": 26,
   "twenty-seven": 27, "twenty-eight": 28, "twenty-nine": 29,

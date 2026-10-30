@@ -47,7 +47,7 @@ for f in tests/*.test.mjs; do
     # constructor uses TS parameter properties, which Node's type-stripping
     # alone cannot erase (actual code generation, not just a type to drop).
     *graph*) args="--experimental-transform-types --import ./tests/alias.mjs" ;;
-    *sharepoint*|*merge*|*figures*|*attendance*|*isf*|*toolbox*|*incident*|*sync-coverage*|*import-pack*|*ortia-v3-pack*|*hazardpromotion*|*carryforward*|*auditdates*|*relinkphoto*|*exports*|*progress-restore*) args="--import ./tests/alias.mjs" ;;
+    *sharepoint*|*merge*|*figures*|*attendance*|*isf*|*toolbox*|*incident*|*sync-coverage*|*import-pack*|*ortia-v3-pack*|*hazardpromotion*|*carryforward*|*auditdates*|*relinkphoto*|*exports*|*progress-restore*|*compliancefinding*) args="--import ./tests/alias.mjs" ;;
     *) args="" ;;
   esac
   out=$(node $args "$f" 2>&1)
