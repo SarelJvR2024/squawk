@@ -1140,6 +1140,45 @@ check(
   "a library row keyed on anything else links to nothing"
 );
 
+/* ---- THE SAME CAPTION, WRITTEN TO A SECOND COLUMN TOO — found 30 October
+   2026, reading the real O.R. Tambo Evidence library directly: it carries
+   both "Description" (caption's own column, already correct) and a
+   separate "Description of subject" that the external ACSA report tool
+   reads from instead — empty for every synced photo because nothing ever
+   wrote to it. descriptionOfSubject carries the identical string so
+   either column a downstream reader was built against has it. ---------- */
+
+check(
+  "descriptionOfSubject carries the identical text as caption, not a second value to keep in sync by hand",
+  (() => {
+    const v = sp.buildPlan(WITH_PHOTO, NOTHING).evidence[0].values;
+    return v.descriptionOfSubject === v.caption && v.caption === "Corroded busbar, MV board 3B";
+  })(),
+  JSON.stringify(sp.buildPlan(WITH_PHOTO, NOTHING).evidence[0].values)
+);
+
+check(
+  "an assistant's caption duplicates into descriptionOfSubject too — same field, same source",
+  sp.buildPlan(WITH_PHOTO, NOTHING).evidence[1].values.descriptionOfSubject === "Assistant wrote this one"
+);
+
+check(
+  "an uncaptioned photo's descriptionOfSubject writes blank, not undefined — same rule as caption itself",
+  (() => {
+    const bare = {
+      ...BASE,
+      responses: {
+        "KSIA-ELE-001": {
+          compliance: "NC",
+          attachments: [{ id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-001_P01" }],
+        },
+      },
+    };
+    const v = sp.buildPlan(bare, NOTHING).evidence[0].values;
+    return v.descriptionOfSubject === "" && v.caption === "";
+  })()
+);
+
 check(
   "an assistant's caption says so, in words, not as a token nobody can read",
   (() => {
@@ -1147,6 +1186,64 @@ check(
     return /assistant/i.test(e[1].values.captionSource) && e[0].values.captionSource === "Auditor";
   })(),
   "a caption an auditor wrote and one a model proposed are not the same evidence"
+);
+
+/* ---- THE ACTUAL SCENARIO THIS PR FIXES, END TO END — not just at the
+   evidenceValues()/buildPlan() level above, but through mapFields() and
+   projectFields() the way a real sync run resolves and writes them. A
+   library with only "Description" must not get a second, silent write of
+   the same value onto that one column under the "descriptionOfSubject"
+   name; a library with both must get two distinct keys in the PATCH body,
+   both carrying the identical caption text. ------------------------- */
+
+check(
+  "a library with only Description: caption resolves to it, descriptionOfSubject is reported missing — no collision",
+  (() => {
+    const cols = [{ name: "Description", displayName: "Description", readOnly: false }];
+    const map = sp.mapFields(cols, [...sp.EVIDENCE_FIELDS]);
+    const fields = sp.projectFields(
+      map,
+      { caption: "Corroded busbar, MV board 3B", descriptionOfSubject: "Corroded busbar, MV board 3B" },
+      "update"
+    );
+    return (
+      map.resolved.caption === "Description" &&
+      map.missing.includes("descriptionOfSubject") &&
+      fields.Description === "Corroded busbar, MV board 3B" &&
+      Object.keys(fields).length === 1
+    );
+  })(),
+  "only one column exists, so only one write lands — never a forced second write onto the column caption already claimed"
+);
+
+check(
+  "a library with BOTH columns: each resolves to its own distinct column, and the PATCH carries both, same text",
+  (() => {
+    const cols = [
+      { name: "Description", displayName: "Description", readOnly: false },
+      { name: "field_7", displayName: "Description of subject", readOnly: false },
+    ];
+    const map = sp.mapFields(cols, [...sp.EVIDENCE_FIELDS]);
+    const fields = sp.projectFields(
+      map,
+      { caption: "Corroded busbar, MV board 3B", descriptionOfSubject: "Corroded busbar, MV board 3B" },
+      "update"
+    );
+    return (
+      map.resolved.caption === "Description" &&
+      map.resolved.descriptionOfSubject === "field_7" &&
+      map.resolved.caption !== map.resolved.descriptionOfSubject &&
+      fields.Description === "Corroded busbar, MV board 3B" &&
+      fields.field_7 === "Corroded busbar, MV board 3B"
+    );
+  })(),
+  JSON.stringify({ resolved: sp.mapFields(
+    [
+      { name: "Description", displayName: "Description", readOnly: false },
+      { name: "field_7", displayName: "Description of subject", readOnly: false },
+    ],
+    [...sp.EVIDENCE_FIELDS]
+  ).resolved })
 );
 
 check(
@@ -4527,6 +4624,12 @@ check(
 check(
   'PhotoDescription — the real O.R. Tambo library\'s own column name — leads the caption field\'s candidates',
   /caption: \["PhotoDescription", "Photo description", "Caption", "Description", "What it shows"\]/.test(spSrc)
+);
+
+check(
+  "descriptionOfSubject is a real field candidate, writing to the SECOND column the real library carries",
+  /descriptionOfSubject: \["Description of subject", "Description of Subject"\]/.test(spSrc) &&
+    sp.EVIDENCE_FIELDS.includes("descriptionOfSubject")
 );
 
 check(
