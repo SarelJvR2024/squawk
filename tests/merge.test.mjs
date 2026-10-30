@@ -199,6 +199,110 @@ check("the right audit is not refused", refuse(bundle(), HERE) === null);
         String(out.report.attachmentsAdded));
 }
 
+/* ------- SAME PHOTO, BOTH SIDES: A FIELD EDIT MUST NOT BE LOST ------------
+ *
+ *  Found 30 October 2026: a caption written straight to the shared record
+ *  (bypassing the device entirely) was still there right after the write,
+ *  then gone again the moment the capturing device's own next sync merged
+ *  it — because unionAttachmentsWithTombstones kept `mine`'s copy of a
+ *  shared id unconditionally, discarding `theirs`' edit outright, no matter
+ *  which side the rest of the record had just favoured. These three blocks
+ *  pin the fix: the newer SIDE's whole copy of a shared id wins, same rule
+ *  2 already applies everywhere else in a record. */
+
+{
+  const out = mergeBundle(
+    mine({
+      visitData: {
+        responses: {
+          X: response("X", {
+            updatedAt: T,
+            attachments: [{ ...photo("p1"), caption: "" }],
+          }),
+        },
+      },
+    }),
+    bundle({
+      visit: {
+        responses: {
+          X: response("X", {
+            updatedAt: T + 1000,
+            attachments: [{ ...photo("p1"), caption: "Water leak at the chiller plant" }],
+          }),
+        },
+      },
+    })
+  );
+  check(
+    "a caption written on the newer side survives the merge, same id",
+    out.visitData.responses.X.attachments.find((a) => a.id === "p1")?.caption ===
+      "Water leak at the chiller plant",
+    JSON.stringify(out.visitData.responses.X.attachments)
+  );
+}
+
+{
+  const out = mergeBundle(
+    mine({
+      visitData: {
+        responses: {
+          X: response("X", {
+            updatedAt: T + 1000,
+            attachments: [{ ...photo("p1"), caption: "Local caption, written after theirs" }],
+          }),
+        },
+      },
+    }),
+    bundle({
+      visit: {
+        responses: {
+          X: response("X", {
+            updatedAt: T,
+            attachments: [{ ...photo("p1"), caption: "Stale caption from a snapshot" }],
+          }),
+        },
+      },
+    })
+  );
+  check(
+    "an older side's copy of the SAME id does not overwrite a newer one",
+    out.visitData.responses.X.attachments.find((a) => a.id === "p1")?.caption ===
+      "Local caption, written after theirs",
+    JSON.stringify(out.visitData.responses.X.attachments)
+  );
+}
+
+{
+  const out = mergeBundle(
+    mine({
+      visitData: {
+        responses: {
+          X: response("X", {
+            updatedAt: T,
+            attachments: [{ ...photo("p1"), caption: "" }, { ...photo("p2"), caption: "Untouched" }],
+          }),
+        },
+      },
+    }),
+    bundle({
+      visit: {
+        responses: {
+          X: response("X", {
+            updatedAt: T + 1000,
+            attachments: [{ ...photo("p1"), caption: "Filled in on the other side" }],
+          }),
+        },
+      },
+    })
+  );
+  const ids = out.visitData.responses.X.attachments.map((a) => a.id);
+  check(
+    "a photo only one side still has is neither duplicated nor dropped by the same fix",
+    ids.filter((id) => id === "p2").length === 1,
+    ids.join(", ")
+  );
+}
+
 {
   const shared = { at: T, by: "Prince", visit: "2026-09", outcome: null, note: "Raised with the SHE lead" };
   const out = mergeBundle(

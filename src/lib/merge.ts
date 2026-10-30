@@ -289,7 +289,29 @@ function unionTombstones(mine: Tombstone[] = [], theirs: Tombstone[] = []): Tomb
  *  copy through, even though attachment ids are minted fresh per
  *  `addAttachment` call, so a genuine re-add under the SAME id after a
  *  removal should not actually happen in practice; this does not assert that
- *  it can't. */
+ *  it can't.
+ *
+ *  SAME ID, BOTH SIDES SURVIVING THE TOMBSTONE CHECK: until this fix, this
+ *  function kept `mine`'s copy unconditionally whenever an id existed on
+ *  both sides — correct for a brand new photo (nothing to compare against),
+ *  wrong for the SAME photo whose caption, asset tag or other field was
+ *  edited on only one side. A device whose local copy of a photo was never
+ *  touched again after capture would permanently shadow any field-level
+ *  edit written through a different path — the shared record's own `/api/
+ *  sync`, say — forever, because `theirs`' copy of an id `mine` already held
+ *  was simply discarded, no matter which side the record-level "newer wins"
+ *  comparison (rule 2, see this file's header) had just favoured for every
+ *  OTHER field of the same record. Found 30 October 2026: a caption written
+ *  straight to the shared record survived there, then vanished the moment
+ *  the capturing device's own next sync merged it back out.
+ *
+ *  THE FIX: for an id both sides still hold, pick the SIDE's whole
+ *  attachment object by the same per-side `updatedAt` comparison rule 2
+ *  already applies to every other field of the record — never a field-by-
+ *  field splice, which would invent a merge of two different auditors' free
+ *  text that neither one actually wrote. A side with nothing newer than the
+ *  other keeps its own copy, exactly as before; only a side that genuinely
+ *  IS newer now gets to say so for an id it shares with the other. */
 function unionAttachmentsWithTombstones(
   mine: Attachment[],
   theirs: Attachment[],
@@ -303,9 +325,16 @@ function unionAttachmentsWithTombstones(
     return removedAt === undefined || sideUpdatedAt > removedAt;
   };
   const keptMine = mine.filter((a) => survives(a, mineUpdatedAt));
-  const seen = new Set(keptMine.map((a) => a.id));
-  const toAdd = theirs.filter((a) => !seen.has(a.id) && survives(a, theirsUpdatedAt));
-  return [...keptMine, ...toAdd];
+  const keptTheirs = theirs.filter((a) => survives(a, theirsUpdatedAt));
+  const theirsById = new Map(keptTheirs.map((a) => [a.id, a]));
+  const mineIds = new Set(keptMine.map((a) => a.id));
+  const merged = keptMine.map((a) => {
+    const t = theirsById.get(a.id);
+    if (!t) return a;
+    return theirsUpdatedAt > mineUpdatedAt ? t : a;
+  });
+  const toAdd = keptTheirs.filter((a) => !mineIds.has(a.id));
+  return [...merged, ...toAdd];
 }
 
 /** Progress notes have no id — they are an append-only log. Two devices can
