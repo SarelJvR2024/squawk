@@ -389,10 +389,13 @@ function mergeSystemEvents(mine: PossibleEvent[] = [], theirs: PossibleEvent[] =
   const merged = mine.map((m) => {
     const t = theirsById.get(m.id);
     if (!t) return m;
-    /* mAt/tAt passed through as the fallback for a RootCauseNote (no
-       updatedAt of its own, causes are typed once and not edited after) —
-       a MitigationAction's own updatedAt, when present, is compared
-       directly and wins on its own regardless of the event's. See
+    /* mAt/tAt passed through as the fallback for a RootCauseNote, which
+       carries no updatedAt of its own even though SystemTreatment.tsx does
+       let the group edit one's text after it is typed — patchSystemEvent
+       always re-stamps the EVENT's own updatedAt on that edit (see
+       patchSystemEventRootCause in store.ts), which is exactly this
+       fallback, so a cause edited on one side still wins the same way a
+       MitigationAction's own updatedAt lets it win directly. See
        unionById's own header for the 30 October 2026 incident this fixes. */
     const mAt = when(m);
     const tAt = when(t);
@@ -424,12 +427,16 @@ function mergeSystemEvents(mine: PossibleEvent[] = [], theirs: PossibleEvent[] =
  *
  *  THE FIX, same shape as unionAttachmentsWithTombstones: an item whose OWN
  *  `updatedAt` is newer wins outright. An item with no `updatedAt` of its own
- *  (a RootCauseNote, say — causes are typed once and not edited after,
- *  unlike actions) or a tie falls back to `mineAt`/`theirsAt`, the ENCLOSING
- *  record's own updatedAt — the same side-level rule that function uses for
- *  Attachment, which has no per-item timestamp either. Callers that do not
- *  pass them keep exactly today's behaviour (mine wins a shared id), so this
- *  is backward compatible everywhere until a call site opts in. */
+ *  (a RootCauseNote, say — it carries none, even though its `cause`/`note`
+ *  text CAN be edited after creation, via SystemTreatment.tsx) or a tie
+ *  falls back to `mineAt`/`theirsAt`, the ENCLOSING record's own updatedAt
+ *  — the same side-level rule that function uses for Attachment, which has
+ *  no per-item timestamp either, and the same protection a RootCauseNote
+ *  edit gets in practice: patchSystemEventRootCause (store.ts) always
+ *  re-stamps the parent EVENT's own updatedAt, which mergeSystemEvents
+ *  passes through as exactly this fallback. Callers that do not pass
+ *  mineAt/theirsAt keep exactly today's behaviour (mine wins a shared id),
+ *  so this is backward compatible everywhere until a call site opts in. */
 function unionById<T extends { id: string; updatedAt?: number }>(
   mine: T[],
   theirs: T[],
