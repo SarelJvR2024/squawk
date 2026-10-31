@@ -50,3 +50,8 @@ yarn-error.log*
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# a Claude Code review agent's own isolated checkout (Agent isolation: "worktree"),
+# a nested git worktree under here — never content to commit, and never real
+# project state; it is removed once the agent finishes.
+/.claude/worktrees/
