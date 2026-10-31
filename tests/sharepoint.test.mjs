@@ -4771,6 +4771,107 @@ check(
   })()
 );
 
+/* ---- A PHOTOGRAPH'S OWN COMPLIANCE COLUMN — Chandre Smit, reading the
+   Electrical report, 31 October 2026: not one of the 79 walkabout photographs
+   in it showed "Non-compliant", even where the caption plainly said so, while
+   every register check-point photograph did. The check-point column was never
+   on the photo at all — only a `checkId` the report could join against the
+   Check-points list's own Compliance column — and a WALK- id is not a row on
+   that list (see the walk-item loop's own note on why not), so there was
+   nothing for that join to find. This writes the outcome straight onto the
+   photograph itself, under the same `compliance` key the Check-points list
+   already resolves, so a walk item's own photograph carries it with no join
+   required. ------------------------------------------------------------- */
+
+check(
+  "compliance is a real EVIDENCE_FIELDS entry, under the same key the Check-points list already resolves",
+  sp.EVIDENCE_FIELDS.includes("compliance")
+);
+
+check(
+  "a check-point photo's own evidence row carries the check's own compliance",
+  (() => {
+    const v = sp.buildPlan(HAZ, NOTHING).evidence.find(
+      (e) => e.filename === "KSIA-ELE-001_P01.jpg"
+    ).values;
+    return v.compliance === "NC";
+  })(),
+  "KSIA-ELE-001 is NC in the fixture — the photo's own row must say so too, not just the Check-points list"
+);
+
+check(
+  "a Compliant check's photo carries Compliant, not NC left over from some other row",
+  (() => {
+    const v = sp.buildPlan(
+      { ...BASE, responses: { "KSIA-ELE-001": { compliance: "C", attachments: [
+        { id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-001_P01", caption: "c" },
+      ] } } },
+      NOTHING
+    ).evidence[0].values;
+    return v.compliance === "C";
+  })()
+);
+
+check(
+  "a WALK ITEM'S OWN photo carries ITS OWN outcome — the fix itself, the gap the Electrical report showed",
+  (() => {
+    const v = sp.buildPlan(
+      { ...HAZ_WALK, adhoc: [{ ...HAZ_WALK.adhoc[1], outcome: "NC" }] },
+      NOTHING
+    ).evidence.find((e) => e.filename === "WALK-B2G3L_P01.jpg").values;
+    return v.compliance === "NC";
+  })(),
+  "WALK-B2G3L carries no findingId yet (the normal pre-promotion state) — before this, its photo had no outcome of any kind to show"
+);
+
+check(
+  "a walk item with no outcome recorded yet writes null, not an empty string",
+  (() => {
+    const v = sp.buildPlan(HAZ_WALK, NOTHING).evidence.find(
+      (e) => e.filename === "WALK-B2G3L_P01.jpg"
+    ).values;
+    return v.compliance === null;
+  })(),
+  "HAZ_WALK's own WALK-B2G3L carries no outcome field at all — a genuinely unanswered walk must not read as a cleared one"
+);
+
+check(
+  "a Verification photo writes compliance as null, never the Verification's own (different) outcome vocabulary",
+  (() => {
+    const v = sp.buildPlan(
+      {
+        ...BASE,
+        prior: [{ portalId: "KSIA-ELE-P01", entityCode: "FALE", discipline: "Electrical", assetSystem: "AGL" }],
+        verifications: {
+          "KSIA-ELE-P01": {
+            pf: "KSIA-ELE-P01", outcome: "Closed", evidence: "", attachments: [
+              { id: "v1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-P01_P01", caption: "c" },
+            ],
+            verifiedBy: "Sarel", verifiedAt: 1,
+          },
+        },
+      },
+      NOTHING
+    ).evidence[0].values;
+    return v.compliance === null;
+  })(),
+  "'Closed' is a Verification outcome, not a Compliance one — writing it under `compliance` would read as a code that vocabulary does not have"
+);
+
+check(
+  "an Evidence Log document's own photograph writes compliance as null too — no outcome concept on an EvidenceItem",
+  (() => {
+    const doc = DOC("DOC-1", {
+      checkIds: ["KSIA-ELE-001"],
+      attachments: [{ id: "ea1", kind: "photo", name: "n", blobKey: "b1", ref: "DOC-1_P01", caption: "c" }],
+    });
+    const v = sp.buildPlan({ ...BASE_EV, evidenceItems: [doc] }, NOTHING_EV).evidence.find(
+      (e) => e.filename === "DOC-1_P01.jpg"
+    )?.values;
+    return v && v.compliance === null;
+  })()
+);
+
 /* ------------------------------------------------------------------ result */
 
 console.log(failures === 0 ? "\nSHAREPOINT OK" : `\n${failures} FAILURE${failures > 1 ? "S" : ""}`);
