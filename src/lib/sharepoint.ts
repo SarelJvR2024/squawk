@@ -63,6 +63,7 @@ import type {
   Attachment,
   AttendanceRegister,
   Check,
+  Compliance,
   EvidenceItem,
   Finding,
   ErmConsequence,
@@ -446,7 +447,7 @@ export const ASSET_RISK_FIELDS = [
 export const EVIDENCE_FIELDS = [
   "checkId", "findingId", "photographReference", "discipline", "assetSystem", "caption",
   "descriptionOfSubject",
-  "captionSource", "attachedBy", "location", "takenAt", "assetName", "assetRef",
+  "captionSource", "attachedBy", "location", "takenAt", "assetName", "assetRef", "compliance",
 ] as const;
 
 export const FINDING_FIELDS = [
@@ -910,8 +911,10 @@ export interface PlannedFile {
   /** The library columns for this file, in the same shape as PlannedRow.values
    *  so projectFields writes both the same way. Everything the library cannot
    *  work out from the bytes: which check-point it answers, what it shows, who
-   *  attached it. See EVIDENCE_FIELDS. */
-  values: Record<string, string>;
+   *  attached it. See EVIDENCE_FIELDS. `| null` only for `compliance` — see
+   *  evidenceValues()'s own note on why a genuinely unanswered outcome is not
+   *  the same as "". */
+  values: Record<string, string | null>;
   /** The day folder this file's own bytes upload into — see `dayFolder`. Not
    *  `SyncPlan.folder`: that is the visit's own folder, used for EvidenceLink;
    *  this is one day's subfolder inside it, and two files in the same plan
@@ -1345,8 +1348,27 @@ function evidenceValues(
    *  write — see findingIdForCheck() and the walk-item/Verification call
    *  sites, each of which decides this for its own kind of photograph
    *  rather than this function guessing from `checkId` alone. */
-  findingId: string
-): Record<string, string> {
+  findingId: string,
+  /** THE OUTCOME BEHIND THIS PHOTOGRAPH — a register check's own `compliance`
+   *  for a check-point photo, a walk item's own `outcome` for one seen on the
+   *  walk, `null` where neither applies (a Verification or asset-risk photo —
+   *  see those call sites' own notes).
+   *
+   *  Chandre Smit, reading the Electrical report, 31 October 2026: a
+   *  walkabout photograph never shows "Non-compliant" at all, even where the
+   *  caption plainly says so, because the EVIDENCE PHOTOGRAPHS page only ever
+   *  had a `checkId`, and a WALK- id is not a row on the Check-points list for
+   *  a report to join it against (see the walk-item loop's own note on why a
+   *  walk item does not become a portal row). Written raw ("C"/"NC"/"N/A"/
+   *  "NV") under the SAME `compliance` key the Check-points list already
+   *  resolves through `portalChoice()` — not a new column name to guess at;
+   *  if the Evidence library has (or gets) a Compliance-shaped column, this
+   *  starts landing in it immediately, the same as every other EVIDENCE_FIELDS
+   *  entry. `null`, not "", for the same reason `evidenceVerdict` above is
+   *  sent as `null`: a genuinely unanswered outcome must not read as a
+   *  cleared one. */
+  outcome: Compliance | null
+): Record<string, string | null> {
   return {
     checkId,
     findingId,
@@ -1368,6 +1390,10 @@ function evidenceValues(
     takenAt: a.takenAt ? new Date(a.takenAt).toISOString() : "",
     assetName: a.assetName?.trim() ?? "",
     assetRef: a.assetRef?.trim() ?? "",
+    /* `?? null`, not just `outcome` — a record from before AdHocItem.outcome
+       existed has it `undefined`, not `null`, and the two must read the same
+       way here: genuinely unanswered, never a cleared one. */
+    compliance: outcome ?? null,
   };
 }
 
@@ -1700,7 +1726,7 @@ export function buildPlan(
         filename: photoFilename(a),
         attachment: a,
         caption: a.caption?.trim() ?? "",
-        values: evidenceValues(a, key, c.discipline, c.system, findingIdForCheck(c.id)),
+        values: evidenceValues(a, key, c.discipline, c.system, findingIdForCheck(c.id), r.compliance),
         folder: dayFolder(folder, a.takenAt ?? a.createdAt),
       });
       /* And the other direction: the check-point row names its photographs, so
@@ -1856,7 +1882,12 @@ export function buildPlan(
           /* A walk item's OWN findingId, singular — "promote to finding"
              raises exactly one, never several, so this is never the
              multi-finding ambiguity findingIdForCheck() exists to avoid. */
-          item.findingId ? findingPortalKey.get(item.findingId) ?? "" : ""
+          item.findingId ? findingPortalKey.get(item.findingId) ?? "" : "",
+          /* THE WALK'S OWN VERDICT — the whole point of this parameter
+             existing, see evidenceValues()'s own note: a walk item is never a
+             row on the Check-points list, so this is the only outcome its
+             photographs will ever carry. */
+          item.outcome
         ),
         folder: dayFolder(folder, a.takenAt ?? a.createdAt),
       });
@@ -2047,7 +2078,11 @@ export function buildPlan(
            this one carried finding and nothing else, by construction —
            the auditor attached it on THIS finding's own Follow-up screen —
            so `p.portalId` is always the answer, no lookup needed. */
-        values: evidenceValues(a, p.portalId, p.discipline, p.assetSystem ?? "", p.portalId),
+        /* `null` — a Verification's own outcome lives on a different
+           vocabulary (Closed/Partially closed/Open - repeat/Not verified,
+           not Compliant/Non-compliant/N/A) and writing it under `compliance`
+           would read as one of THOSE values, which it is not. */
+        values: evidenceValues(a, p.portalId, p.discipline, p.assetSystem ?? "", p.portalId, null),
         folder: dayFolder(folder, a.takenAt ?? a.createdAt),
       });
     }
@@ -2207,8 +2242,9 @@ export function buildPlan(
         caption: a.caption?.trim() ?? "",
         /* No finding concept on an EvidenceItem — see its own shape in
            types.ts, same reason discipline/asset system above stay blank
-           rather than invented. */
-        values: evidenceValues(a, singleCheckId ? portalIdFor(x.entity, singleCheckId) : key, "", "", ""),
+           rather than invented. Same reasoning for `null` here: no outcome
+           of its own either. */
+        values: evidenceValues(a, singleCheckId ? portalIdFor(x.entity, singleCheckId) : key, "", "", "", null),
         folder: dayFolder(folder, a.takenAt ?? a.createdAt),
       });
     }
