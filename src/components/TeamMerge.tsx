@@ -192,9 +192,11 @@ export default function TeamMerge() {
                 {report.duplicates.length} possible duplicate
                 {report.duplicates.length === 1 ? "" : "s"}
               </b>{" "}
-              — the same issue button on the same check, raised on both devices. Kept as
-              separate findings, because the same button is legitimately raised once per
-              asset. Open Findings and settle them, or one defect is counted twice.
+              — the same issue button, or the same check marked Non-compliant with no
+              issue button, raised on both devices. Kept as separate findings, because
+              the same button is legitimately raised once per asset, and the same check
+              can genuinely fail again at a later visit. Open Findings and settle them,
+              or one defect is counted twice.
               <ul className="mt-1.5 flex flex-col gap-[3px]">
                 {report.duplicates.map((d) => (
                   <li key={`${d.checkId}-${d.issueIndex}`} className="font-mono text-[10.5px]">
