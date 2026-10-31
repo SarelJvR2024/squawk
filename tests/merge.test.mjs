@@ -702,9 +702,14 @@ check("the right audit is not refused", refuse(bundle(), HERE) === null);
     duplicateFindings([wholeCheck("F-CCCCC"), wholeCheck("F-DDDDD", { checkId: "KSIA-ELE-021" })])
       .length === 0
   );
+  /* Same checkId on both — the case the "|whole-check" key exists to keep
+     apart from a numeric "|issueIndex" key. dup()'s own default issueIndex
+     (3) must be carried onto the SAME checkId as wholeCheck's, or this never
+     actually exercises the collision it claims to. */
   check(
-    "a whole-check finding and an issue-button finding on the same check don't mix groups",
-    duplicateFindings([wholeCheck("F-CCCCC"), dup("F-EEEEE")]).length === 0
+    "a whole-check finding and an issue-button finding on the SAME check don't mix groups",
+    duplicateFindings([wholeCheck("F-CCCCC"), dup("F-EEEEE", { checkId: "KSIA-ELE-020" })])
+      .length === 0
   );
 
   /* A duplicate somebody has already looked at and kept must not be raised
