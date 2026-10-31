@@ -669,6 +669,44 @@ check("the right audit is not refused", refuse(bundle(), HERE) === null);
     ]).length === 0
   );
 
+  /* 31 October 2026 — raiseFindingFromCheck's shape: no issue button
+     (issueIndex null) but adHoc false, because it came off the register, not
+     typed free-form. setCompliance's hasOpenFinding guard is local-state-only,
+     so two devices marking the same check Non-compliant before either syncs
+     each raise one, and until this fix they fell through the same gap as a
+     free-text ad-hoc pair even though checkId alone is a reliable match key. */
+  const wholeCheck = (id, extra = {}) =>
+    dup(id, { checkId: "KSIA-ELE-020", issueIndex: null, adHoc: false, ...extra });
+  check(
+    "a whole-check finding raised on two devices (no issue button) IS flagged",
+    duplicateFindings([wholeCheck("F-CCCCC"), wholeCheck("F-DDDDD")]).length === 1 &&
+      duplicateFindings([wholeCheck("F-CCCCC"), wholeCheck("F-DDDDD")])[0].issueIndex === null,
+    JSON.stringify(duplicateFindings([wholeCheck("F-CCCCC"), wholeCheck("F-DDDDD")]))
+  );
+  check(
+    "it still goes through mergeBundle keeping both findings, not folding them",
+    (() => {
+      const r = mergeBundle(
+        mine({ findings: [wholeCheck("F-CCCCC")] }),
+        bundle({ findings: [wholeCheck("F-DDDDD")] })
+      );
+      return (
+        r.findings.length === 2 &&
+        r.report.duplicates.length === 1 &&
+        r.report.duplicates[0].checkId === "KSIA-ELE-020"
+      );
+    })()
+  );
+  check(
+    "a whole-check finding on a different check is not grouped with it",
+    duplicateFindings([wholeCheck("F-CCCCC"), wholeCheck("F-DDDDD", { checkId: "KSIA-ELE-021" })])
+      .length === 0
+  );
+  check(
+    "a whole-check finding and an issue-button finding on the same check don't mix groups",
+    duplicateFindings([wholeCheck("F-CCCCC"), dup("F-EEEEE")]).length === 0
+  );
+
   /* A duplicate somebody has already looked at and kept must not be raised
      again on every sync. A system that repeats a settled question gets muted. */
   const again = mergeBundle(

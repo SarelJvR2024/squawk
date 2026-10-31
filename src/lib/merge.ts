@@ -196,7 +196,9 @@ export interface MergeReport {
 /** Two or more findings that look like one defect. */
 export interface Duplicate {
   checkId: string;
-  issueIndex: number;
+  /** Null for a whole-check finding (raiseFindingFromCheck — no issue button,
+   *  the register check itself is the match key). */
+  issueIndex: number | null;
   /** The finding titles are identical by construction — they came from the same
    *  issue button — so one is enough to say what it is about. */
   title: string;
@@ -926,25 +928,44 @@ function mergeForm<T extends { id: string; updatedAt?: number }>(
  *  finding, which is a worse failure than the duplicate. So the rule is only
  *  ever used to ASK.
  *
- *  Ad-hoc findings (issueIndex null) are never grouped — they were typed by a
- *  person, and two people describing the same defect in their own words is not
+ *  Ad-hoc findings (adHoc: true, typed by a person on the walk) are never
+ *  grouped — two people describing the same defect in their own words is not
  *  something a key can detect.
+ *
+ *  A whole-check finding (raiseFindingFromCheck: a register check marked
+ *  Non-compliant, no issue button — issueIndex null, adHoc false) DOES have a
+ *  reliable match key even without an issueIndex: the check itself, since one
+ *  check mints at most one such finding per device. Two devices marking the
+ *  same check Non-compliant before either syncs — easy to reach, nothing in
+ *  setCompliance can see the other device's not-yet-merged finding — raises
+ *  one each, and without this they'd never be flagged: they fall through the
+ *  issueIndex-based grouping below exactly like a free-text ad-hoc finding,
+ *  even though they are not one. Grouped separately from the issueIndex keys
+ *  (added 31 October 2026) so a register check with real issue buttons still
+ *  gets its per-button grouping untouched.
  */
 export function duplicateFindings(findings: Finding[]): Duplicate[] {
   const groups = new Map<string, Finding[]>();
   for (const f of findings) {
-    if (!f.checkId || f.issueIndex === null || f.issueIndex === undefined) continue;
-    const key = `${f.checkId}|${f.issueIndex}`;
-    const g = groups.get(key);
-    if (g) g.push(f);
-    else groups.set(key, [f]);
+    if (!f.checkId) continue;
+    if (f.issueIndex !== null && f.issueIndex !== undefined) {
+      const key = `${f.checkId}|${f.issueIndex}`;
+      const g = groups.get(key);
+      if (g) g.push(f);
+      else groups.set(key, [f]);
+    } else if (!f.adHoc) {
+      const key = `${f.checkId}|whole-check`;
+      const g = groups.get(key);
+      if (g) g.push(f);
+      else groups.set(key, [f]);
+    }
   }
   const out: Duplicate[] = [];
   for (const g of groups.values()) {
     if (g.length < 2) continue;
     out.push({
       checkId: g[0].checkId as string,
-      issueIndex: g[0].issueIndex as number,
+      issueIndex: g[0].issueIndex ?? null,
       title: g[0].title,
       ids: g.map((f) => f.id),
       assets: g.map((f) => f.assetIds ?? []),

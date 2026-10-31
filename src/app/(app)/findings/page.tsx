@@ -398,10 +398,12 @@ export default function FindingsPage() {
   /* ONE DEFECT COUNTED TWICE REACHES ACSA AS TWO — and this is the only place
      that says so.
 
-     Two auditors who both tap the same issue button on the same check each mint
-     a finding with its own random id, and the merge keys on id, so it keeps
-     both. Over the shared record that happens silently: the merge report is
-     only shown for a file merge, so nothing would ever say it out loud.
+     Two auditors who both tap the same issue button — or both mark the same
+     check Non-compliant with no issue button at all — on the same check each
+     mint a finding with its own random id, and the merge keys on id, so it
+     keeps both. Over the shared record that happens silently: the merge
+     report is only shown for a file merge, so nothing would ever say it out
+     loud.
 
      The warning lived on the old flat findings list, and it only means anything
      where the two rows are side by side — which, on this screen, is the asset
