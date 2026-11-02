@@ -287,7 +287,7 @@ check(
 );
 check(
   "the box reserves room for them rather than running text underneath",
-  /pr-\[124px\]/.test(codeOnly)
+  /pr-\[164px\]/.test(codeOnly)
 );
 check(
   "and they are anchored to the top, so they do not walk down a box that grows on focus",
@@ -296,15 +296,26 @@ check(
 /* Sarel, later: "remove the paperclip and photo icon, introduce them in
    the evidence section — all photos and evidence will be uploaded in the
    evidence section." Photo and File moved out of this bar into the
-   Evidence status panel, the one place an auditor now reaches for either,
-   rather than a second copy floating under every tab. */
+   Evidence status panel, the one place an auditor reached for either,
+   rather than a second copy floating under every tab.
+
+   PHOTO CAME BACK, INLINE, 31 October 2026 — the field-capture mobile pass.
+   Camera is the one of the two used constantly on a walk, and reaching it
+   meant leaving the always-visible bar for the Evidence status tab, against
+   a ten-second-per-item budget. It writes into the exact same
+   r.attachments array via the exact same addAttachment call the Evidence
+   panel's own PhotoButton already uses — one photo, two places to reach
+   for it, never two copies of what attaching one does. File — opened far
+   less often, and never in gloves on an apron — stays Evidence-status-only;
+   Sarel's reasoning for moving it out still holds for File even though it
+   no longer holds for Photo. */
 check(
-  "PHOTO AND FILE MOVED TO THE EVIDENCE STATUS PANEL, NOT THE PINNED BAR",
-  !/<PhotoButton/.test(pinned) &&
+  "PHOTO IS BACK IN THE PINNED BAR, INLINE WITH VOICE; FILE STAYS EVIDENCE-STATUS-ONLY",
+  /<PhotoButton\s+inline/.test(pinned) &&
     !/<FileButton/.test(pinned) &&
     /<PhotoButton/.test(codeOnly) &&
     /<FileButton/.test(codeOnly),
-  "one upload surface, reached from Evidence status, not a second one under every tab"
+  "Camera reachable without leaving the always-visible bar; File stays the one place an auditor reaches for it"
 );
 check(
   "the remaining row still scrolls sideways rather than wrapping to a second 50px band",

@@ -226,17 +226,21 @@ ok(
 );
 ok(
   "the textarea reserves room for them rather than running text underneath",
-  /pr-\[124px\]/.test(detail)
+  /pr-\[164px\]/.test(detail)
 );
-/* A DECISION OF SAREL'S THAT HE LATER REVERSED: "remove the paperclip and
-   photo icon, introduce them in the evidence section — all photos and
+/* A DECISION OF SAREL'S THAT HE LATER REVERSED, TWICE: "remove the paperclip
+   and photo icon, introduce them in the evidence section — all photos and
    evidence will be uploaded in the evidence section." Photo kept its own
    44px target in this bar for exactly the reason below while compose/draft/
-   the mic moved into the observation box; it has since moved again, into
-   the Evidence status panel, so this bar no longer carries it at all. */
+   the mic moved into the observation box; it then moved again, into the
+   Evidence status panel, so the bar carried it not at all — and came back a
+   third time, 31 October 2026, inline beside the mic, when the field-capture
+   mobile pass found that tab switch costing real seconds against a
+   ten-second-per-item budget. Still also in Evidence status (File stayed
+   there too) — one photo, reachable from either place now. */
 ok(
-  "PHOTO MOVED OUT OF THE BAR, INTO EVIDENCE STATUS, NOT LOST",
-  /<PhotoButton/.test(detail)
+  "PHOTO IS IN BOTH PLACES NOW: INLINE IN THE PINNED BAR, AND IN EVIDENCE STATUS",
+  /<PhotoButton/.test(detail) && /<PhotoButton\s+inline/.test(detail)
 );
 ok(
   "the inline mic is a distinct base class, not a Tailwind override gamble",

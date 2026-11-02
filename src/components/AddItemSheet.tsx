@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Btn, Pill } from "@/components/ui/primitives";
 import { AttachmentStrip, PhotoButton, VoiceNoteButton, forgetMedia } from "@/components/Capture";
+import DisciplineChips from "@/components/DisciplineChips";
 import OutcomeControl from "@/components/OutcomeControl";
 import { areasAt, disciplinesAt, systemsOf, useAdhoc, useEntityCode, useStore } from "@/lib/store";
 import { checksAt } from "@/lib/register";
@@ -436,20 +437,17 @@ export default function AddItemSheet({
             </span>
           </label>
 
-          <label className="mt-4 block">
+          <div className="mt-4">
             <span className={label}>Discipline · optional</span>
-            <select
-              value={value.discipline ?? ""}
-              onChange={(e) => set({ discipline: e.target.value || null, system: null })}
-              className={box}
-              style={boxStyle}
-            >
-              <option value="">Not attributed</option>
-              {disciplines.map((d) => (
-                <option key={d}>{d}</option>
-              ))}
-            </select>
-          </label>
+            <div className="mt-1.5">
+              <DisciplineChips
+                value={value.discipline}
+                onChange={(d) => set({ discipline: d, system: null })}
+                options={disciplines}
+                clearLabel="Not attributed"
+              />
+            </div>
+          </div>
 
           <div className="mt-4">
             <span className={label}>Asset system · optional</span>
