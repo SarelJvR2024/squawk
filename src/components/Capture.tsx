@@ -233,6 +233,18 @@ export function VoiceNoteButton({
               }
         }
       >
+        {/* An unmistakable recording state for the field — Sarel's field-capture
+           mobile pass: a still mic icon on a red button is easy to miss glancing
+           down mid-walk; a pulsing dot beside it reads as "this is live" the way
+           a running timer alone does not. Decorative only — the red fill, the
+           timer and the aria-label already carry the actual state. */}
+        {recording && (
+          <span
+            aria-hidden
+            className="h-[7px] w-[7px] shrink-0 animate-pulse rounded-full"
+            style={{ background: "#fff" }}
+          />
+        )}
         <IconMic width={15} height={15} />
         {rec.state === "requesting"
           ? inline
@@ -314,12 +326,19 @@ export function PhotoButton({
   label,
   primary = false,
   className = "",
+  inline = false,
 }: {
   onCaptured: (m: PhotoCapture) => void;
   compact?: boolean;
   label?: string;
   primary?: boolean;
   className?: string;
+  /** Square and 34px, for sitting beside VoiceNoteButton's own `inline` form
+   *  inside the observation box — added for the field-capture mobile pass so
+   *  Camera is reachable from the one place on CheckDetail that is always on
+   *  screen without scrolling or switching tabs, same reasoning as
+   *  VoiceNoteButton's own `inline` prop. Implies `compact`. */
+  inline?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const entityCode = useEntityCode();
@@ -391,7 +410,7 @@ export function PhotoButton({
         type="button"
         onClick={() => inputRef.current?.click()}
         aria-label={label ?? "Take a photograph"}
-        className={`${TAP} ${className}`}
+        className={`${inline ? TAP_INLINE : TAP} ${className}`}
         style={
           primary
             ? {
@@ -408,7 +427,7 @@ export function PhotoButton({
         }
       >
         <IconCamera width={15} height={15} />
-        {compact ? null : (label ?? "Photo")}
+        {compact || inline ? null : (label ?? "Photo")}
       </button>
       {failed && (
         /* Kept until the next capture succeeds rather than flashed for two

@@ -1202,7 +1202,13 @@ export default function CheckDetail({
             as "attributed". Not summarised, not truncated, not title-cased. */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <div className="label-xs mb-[2px]" style={{ color: "var(--ink-4)" }}>
+            {/* FIELD-CAPTURE MOBILE PASS: this attribution line is useful
+               context at a desk, and costs nothing there — hidden below lg
+               only, where every line between opening a check and reaching
+               the question itself is a line of the question you cannot see
+               yet. The portal id, system and mode pills above already carry
+               the identifying context on a phone. */}
+            <div className="label-xs mb-[2px] hidden lg:block" style={{ color: "var(--ink-4)" }}>
               ACSA check-point · the register&rsquo;s wording
             </div>
             {/* 27 register rows run past 140 characters and one reaches 569. Left
@@ -1707,11 +1713,14 @@ export default function CheckDetail({
                  of stopping at a fraction of the viewport with the rest of
                  the panel sitting empty beneath it.
 
-                 pr-[124px] keeps the text clear of the icon cluster. The
-                 padding is on the RIGHT rather than the bottom because the box
-                 is 44px at rest — a bottom gutter would leave a single line of
+                 pr-[164px] keeps the text clear of the icon cluster — widened
+                 from 124px, field-capture mobile pass, when Photo joined
+                 Voice in that cluster as a fourth possible icon (Compose from
+                 taps, Draft with AI when aiOn, Photo, Voice). The padding is
+                 on the RIGHT rather than the bottom because the box is 44px
+                 at rest — a bottom gutter would leave a single line of
                  writing nowhere to sit. */
-              className="max-h-[26vh] min-h-[44px] w-full resize-y rounded-[11px] border py-2 pr-[124px] pl-3 text-[12.5px] leading-[1.55] outline-none transition-[var(--t)] focus:min-h-[112px] focus:border-[var(--acc)] sm:min-h-[68px] sm:py-2.5 lg:max-h-none lg:min-h-0 lg:flex-1"
+              className="max-h-[26vh] min-h-[44px] w-full resize-y rounded-[11px] border py-2 pr-[164px] pl-3 text-[12.5px] leading-[1.55] outline-none transition-[var(--t)] focus:min-h-[112px] focus:border-[var(--acc)] sm:min-h-[68px] sm:py-2.5 lg:max-h-none lg:min-h-0 lg:flex-1"
               style={{ background: "var(--focus-surface)", borderColor: "var(--line-2)" }}
             />
             {/* top-right, not centred: the box grows to 112px on focus and a
@@ -1758,6 +1767,26 @@ export default function CheckDetail({
                   <IconSpark width={14} height={14} />
                 </button>
               )}
+              {/* CAMERA, REACHABLE WITHOUT A TAB SWITCH — field-capture mobile
+                 pass. Photo used to live only in the Evidence status panel
+                 (see that panel's own note — a deliberate move, Sarel: "all
+                 photos and evidence will be uploaded in the evidence
+                 section"), which meant the one control used most on a walk
+                 was one tab away from the only part of this screen that is
+                 always on screen without scrolling. Writes into the exact
+                 same r.attachments array via the exact same addAttachment
+                 call the Evidence panel's own PhotoButton already uses — a
+                 photo taken here and one taken there are the same thing,
+                 just two places to reach for it now. The photo count pill
+                 in the bar below already says how many are attached; this
+                 does not duplicate it with a second count. */}
+              <PhotoButton
+                inline
+                onCaptured={(m) => {
+                  addAttachment(check.id, { ...m, createdBy: auditor });
+                  onSaved(`Photo attached to ${portalId}`);
+                }}
+              />
               <VoiceNoteButton
                 inline
                 onCaptured={(m) => {

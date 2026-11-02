@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type { Check } from "@/lib/types";
 
 /** ACSA's own requirement for one check, read-only, independent of any
@@ -10,10 +13,34 @@ import type { Check } from "@/lib/types";
  *  Extracted from CheckDetail's "standard" panel rather than duplicated —
  *  see that file's history for why this reads as one subject (the standard,
  *  the site's override of it, and ACSA's own words for it) rather than
- *  three. */
+ *  three.
+ *
+ *  COLLAPSED BY DEFAULT BELOW lg, field-capture mobile pass. On a 390px
+ *  screen this text alone used to run 300-400px before an auditor reached
+ *  the outcome buttons or the capture tools below it — on Checks it is the
+ *  tab already open by default (see CheckDetail's own note on `panel`), so
+ *  it was the FIRST thing on screen, every time. The toggle is below lg
+ *  only (`lg:hidden`); from lg the content is always shown
+ *  (`lg:block` beats the `hidden` class outright, same trick the rest of
+ *  this codebase uses for a breakpoint-gated reveal), so nothing changes on
+ *  a desk-width window — this is the one component both CheckDetail's
+ *  "standard" tab and field/page.tsx's own ACSA tab render, so the same
+ *  collapse applies wherever either shows it. */
 export default function AcsaRequirementPanel({ check }: { check: Check }) {
+  const [open, setOpen] = useState(false);
   return (
     <>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="mb-1.5 flex min-h-[38px] w-full items-center justify-between gap-2 font-display text-[12px] font-semibold lg:hidden"
+        style={{ color: "var(--acc)" }}
+      >
+        <span>{open ? "Hide ACSA Requirement & Specs" : "View ACSA Requirement & Specs"}</span>
+        <span aria-hidden>{open ? "▾" : "▸"}</span>
+      </button>
+      <div className={`${open ? "block" : "hidden"} lg:block`}>
       {/* ACSA'S OWN WORDS FIRST, verbatim and in quotation marks where the
           register quotes them, with the document and clause that carry them.
           This is the only text on this screen that can be put to ACSA as
@@ -177,6 +204,7 @@ export default function AcsaRequirementPanel({ check }: { check: Check }) {
           </div>
         </div>
       )}
+      </div>
     </>
   );
 }

@@ -4,8 +4,14 @@ import { useMemo, useState } from "react";
 import Sheet from "@/components/ui/Sheet";
 import { Btn, Pill } from "@/components/ui/primitives";
 import { IconSearch, IconX } from "@/components/ui/icons";
+import { AttachmentStrip, PhotoButton, VoiceNoteButton, forgetMedia } from "@/components/Capture";
+import DisciplineChips from "@/components/DisciplineChips";
+import { adhocTranscriptContext, assist, useAssistAvailable } from "@/lib/assist";
 import { checksAt, disciplinesAt, systemsOf, useEntityCode, useStore } from "@/lib/store";
 import { portalIdFor } from "@/lib/sites";
+import type { Attachment } from "@/lib/types";
+
+const uid = () => Math.random().toString(36).slice(2, 10);
 
 /** RAISE A FINDING THAT IS NOT TIED TO ANY SPECIFIC CHECK.
  *
@@ -51,6 +57,8 @@ export default function RaiseFindingSheet({
   const auditor = useStore((s) => s.auditor);
   const visitId = useStore((s) => s.visit);
   const addFinding = useStore((s) => s.addFinding);
+  const addAttachment = useStore((s) => s.addAttachment);
+  const aiOn = useAssistAvailable();
 
   const disciplines = useMemo(() => disciplinesAt(entityCode), [entityCode]);
   const checks = useMemo(() => checksAt(entityCode), [entityCode]);
@@ -63,6 +71,27 @@ export default function RaiseFindingSheet({
   const [checkId, setCheckId] = useState<string | null>(null);
   const [checkQuery, setCheckQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  /* PHOTOS AND A VOICE NOTE, CAPTURED BEFORE ANYTHING ELSE IS TYPED —
+   *  field-capture mobile pass, matching AddItemSheet's own "take the
+   *  photograph, keep moving" brief.
+   *
+   *  HELD HERE, NOT ON THE FINDING — Finding (src/lib/types.ts) carries no
+   *  attachments field of its own; every existing photograph or voice note
+   *  a Finding ever shows (FindingDetail.tsx) is read from its CHECK's
+   *  Response instead, via `checkId`. A finding raised from here with no
+   *  check-point picked has no Response to write into and nowhere of its
+   *  own to put one — adding that field would be a schema change, out of
+   *  scope for a layout/interaction pass. So a capture taken here is held
+   *  local until Raise it is pressed: if a check-point has been picked by
+   *  then, it joins that check's own attachments via the exact same
+   *  addAttachment action CheckDetail's own Photo/Voice buttons already
+   *  use; if not, save() refuses rather than silently dropping it — see
+   *  its own comment. "Evidence that was not stored must never be silent"
+   *  is Capture.tsx's own rule for a failed write; losing a capture to a
+   *  field this schema does not have yet is the same failure by another
+   *  name. */
+  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
 
   /* Scoped to the discipline once one is chosen — same rule AddItemSheet's
      own asset-system picker uses — and searched otherwise. */
@@ -105,9 +134,14 @@ export default function RaiseFindingSheet({
     setCheckId(null);
     setCheckQuery("");
     setError(null);
+    setPendingAttachments([]);
   };
 
   const close = () => {
+    /* Never assigned anywhere, so never recorded anywhere else — the same
+       forgetting AddItemSheet gives a capture that never becomes a real
+       item. */
+    for (const a of pendingAttachments) void forgetMedia(a.blobKey);
     reset();
     onClose();
   };
@@ -120,6 +154,17 @@ export default function RaiseFindingSheet({
     }
     if (!discipline) {
       setError("Pick a discipline. Asset system and check-point are both optional, this is not.");
+      return;
+    }
+    /* THE ONE CASE save() REFUSES RATHER THAN DROPS — see the note on
+       pendingAttachments. A finding with no check-point picked has nowhere
+       of its own to keep a photo or voice note yet; saying so here, before
+       anything is lost, is the whole point of holding them locally instead
+       of writing straight through. */
+    if (pendingAttachments.length > 0 && !checkId) {
+      setError(
+        "Photos and voice notes need a check-point picked below to be saved against — pick one, or remove them to raise this finding without them."
+      );
       return;
     }
     /* SAME DEFAULT SHAPE AS AddItemSheet.tsx'S raiseFinding — copied field for
@@ -147,6 +192,17 @@ export default function RaiseFindingSheet({
       adHoc: true,
       createdBy: auditor,
     });
+    /* checkId is guaranteed set here whenever there is anything to attach —
+       the refusal above is what makes that true. Each capture joins that
+       check's own Response.attachments via the exact same store action
+       CheckDetail's Photo/Voice buttons already use; a photo taken from
+       this sheet and one taken from the check screen end up in the same
+       place, read back the same way everywhere that reads it. */
+    for (const { id: _pid, createdAt: _pc, ...rest } of pendingAttachments) {
+      void _pid;
+      void _pc;
+      if (checkId) addAttachment(checkId, rest);
+    }
     onSaved?.(id, `${id} raised${checkId ? "" : " — not tied to a check-point"}`);
     reset();
     onClose();
@@ -161,7 +217,6 @@ export default function RaiseFindingSheet({
       open={open}
       onClose={close}
       title="Raise a finding"
-      subtitle="A non-compliance picked up that may or may not tie to a specific check-point. It carries into every later visit's Follow-up screen until it is closed, same as any other finding."
       footer={
         <>
           <Btn variant="ghost" onClick={close}>
@@ -173,7 +228,57 @@ export default function RaiseFindingSheet({
         </>
       }
     >
-      <label className="block">
+      {/* PHOTO AND VOICE, FIRST — field-capture mobile pass. See the note on
+         pendingAttachments above for where a capture taken here actually
+         ends up. */}
+      <div className="flex flex-wrap items-center gap-[10px]">
+        <PhotoButton
+          onCaptured={(m) => {
+            setPendingAttachments((cur) => [...cur, { ...m, createdBy: auditor, id: uid(), createdAt: Date.now() }]);
+          }}
+        />
+        <VoiceNoteButton
+          onCaptured={(m) => {
+            setPendingAttachments((cur) => [...cur, { ...m, createdBy: auditor, id: uid(), createdAt: Date.now() }]);
+          }}
+        />
+      </div>
+      {pendingAttachments.length > 0 && (
+        <div className="mt-2.5">
+          <AttachmentStrip
+            attachments={pendingAttachments}
+            thumbSize={40}
+            onRemove={(id) => {
+              const a = pendingAttachments.find((x) => x.id === id);
+              if (a) void forgetMedia(a.blobKey);
+              setPendingAttachments((cur) => cur.filter((x) => x.id !== id));
+            }}
+            onUpdate={(id, p) =>
+              setPendingAttachments((cur) => cur.map((a) => (a.id === id ? { ...a, ...p } : a)))
+            }
+            writeUp={
+              aiOn
+                ? (t) =>
+                    assist(
+                      "transcript",
+                      adhocTranscriptContext(t, { description, discipline, system, area: "" })
+                    )
+                : undefined
+            }
+            onAccept={(text) =>
+              setDescription((cur) => (cur.trim() ? `${cur}\n${text}` : text))
+            }
+          />
+        </div>
+      )}
+      {!checkId && pendingAttachments.length === 0 && (
+        <span className="mt-1.5 block text-[10.5px]" style={{ color: "var(--ink-4)" }}>
+          Pick a check-point below to attach a photo or voice note here — a finding with no
+          check-point has nowhere of its own to keep one yet.
+        </span>
+      )}
+
+      <label className="mt-4 block">
         <span className={label}>What you found</span>
         <textarea
           autoFocus
@@ -205,25 +310,21 @@ export default function RaiseFindingSheet({
         </div>
       )}
 
-      <label className="mt-4 block">
+      <div className="mt-4">
         <span className={label}>Discipline</span>
-        <select
-          value={discipline}
-          onChange={(e) => {
-            setError(null);
-            setDiscipline(e.target.value);
-            setSystem(null);
-            setCheckId(null);
-          }}
-          className={box}
-          style={boxStyle}
-        >
-          <option value="">Pick one…</option>
-          {disciplines.map((d) => (
-            <option key={d}>{d}</option>
-          ))}
-        </select>
-      </label>
+        <div className="mt-1.5">
+          <DisciplineChips
+            value={discipline || null}
+            onChange={(d) => {
+              setError(null);
+              setDiscipline(d ?? "");
+              setSystem(null);
+              setCheckId(null);
+            }}
+            options={disciplines}
+          />
+        </div>
+      </div>
 
       <div className="mt-4">
         <span className={label}>Asset system · optional</span>
@@ -291,9 +392,6 @@ export default function RaiseFindingSheet({
                 )}
               </div>
             )}
-            <span className="mt-1 block text-[10.5px]" style={{ color: "var(--ink-4)" }}>
-              Leave it blank if this is not about a specific asset system.
-            </span>
           </>
         )}
       </div>
