@@ -953,7 +953,14 @@ export default function FieldPage() {
       </span>
     );
 
-    const subtitle = "ACSA check-point · the register's wording";
+    /* DESKTOP ONLY — field-capture mobile pass. WideCheckPane (lg+) still
+       carries this attribution line; the mobile Sheet does not — same fix
+       CheckDetail.tsx's own tag row already got, for the same reason: this
+       is a line between opening a check and reaching the question itself
+       on a screen that is for standing in front of the thing with a camera
+       in hand, not for reading where the wording came from. The portal id
+       and system in `badges` already carry the identifying context. */
+    const subtitle = isWideDetail ? "ACSA check-point · the register's wording" : undefined;
 
     const footer = (
       <>

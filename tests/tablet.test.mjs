@@ -31,6 +31,7 @@ const field = src("app", "(app)", "field", "page.tsx");
 const capture = src("components", "Capture.tsx");
 const shell = src("components", "AppShell.tsx");
 const sticky = src("components", "StickyActions.tsx");
+const addItem = src("components", "AddItemSheet.tsx");
 
 let failures = 0;
 const check = (name, cond, detailText = "") => {
@@ -514,6 +515,31 @@ check(
     src("app", "(app)", "findings", "page.tsx")
   ),
   "every site has asset systems; one with nothing found against it is the one that most needs rating"
+);
+
+/* ---- THE INSPECTION TAB (/field), ROUND 2 — Sarel, on a real phone
+   screenshot of "Add an inspection item": "doesnt look like you made any
+   changes tonight on the inspections page for mobile." The earlier
+   field-capture mobile pass touched CheckDetail.tsx — the "Checks" tab in
+   the bottom nav (/capture) — not "Inspection" (/field), a different
+   screen. This closes the two gaps a real screenshot of /field's own
+   AddItemSheet showed: the same attribution-line clutter CheckDetail.tsx
+   already lost, and icon-only Photo/Voice buttons that read as no
+   different from before. ------------------------------------------------ */
+
+check(
+  "the per-check sheet's own attribution line is desktop-only on /field too, same as CheckDetail's",
+  /const subtitle = isWideDetail \? "ACSA check-point/.test(field)
+);
+
+check(
+  "the Add-item sheet's own explanatory paragraph is desktop-only, not on every phone screen",
+  /hidden text-\[11px\] sm:block/.test(addItem)
+);
+
+check(
+  "Photo and Voice note on the Add-item sheet are labelled, not bare icons — the visible difference a screenshot can show",
+  !/<PhotoButton\s*\n\s*compact/.test(addItem) && !/<VoiceNoteButton\s*\n\s*compact/.test(addItem)
 );
 
 /* ------------------------------------------------------------------ result */
