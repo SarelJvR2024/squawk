@@ -1802,6 +1802,30 @@ export default function CheckDetail({
             </div>
           </div>
 
+          {/* A NOTE PER PHOTO, BELOW THE ONE GENERAL NOTE ABOVE — Sarel,
+             field-capture mobile pass: a general note for the check and a
+             note per photo are two different things, and an auditor who
+             took three photographs on one check needs to say what each one
+             shows without leaving this screen. This REVERSES "photos should
+             not come up in the evidence view... they should not be visible
+             from there" (13 October 2026, see the Evidence status panel's
+             own note) for THIS bar specifically — that decision was about
+             not duplicating the Evidence status tab's upload surface;
+             today's ask is the opposite problem, a caption an auditor
+             cannot currently reach without leaving for the separate Review
+             screen. Same PhotoRow/AttachmentStrip Review already uses for
+             this, so a caption typed here and one typed there are the same
+             field, read back the same way everywhere that reads it. */}
+          {r.attachments.some((a) => a.kind === "photo") && (
+            <div className="mt-[7px] max-h-[34vh] overflow-y-auto">
+              <AttachmentStrip
+                attachments={r.attachments.filter((a) => a.kind === "photo")}
+                thumbSize={40}
+                onRemove={(id) => removeAttachment(check.id, id)}
+                onUpdate={(id, p) => updateAttachment(check.id, id, p)}
+              />
+            </div>
+          )}
         </div>
 
         {/* THE ANSWER, AND WHAT COMMITS IT, IN THE SAME PINNED BAR.
