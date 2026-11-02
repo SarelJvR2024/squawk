@@ -1063,11 +1063,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                         the SAME shared.syncNow() the "Sync now" button inside
                         the Shared record sheet already uses (SharedPanel.tsx)
                         — one action, reached from two places, never a second
-                        copy of what a sync actually does. Hidden where there
-                        is nothing to refresh (no shared record configured for
-                        this deployment at all), same gate the removed gesture
-                        used. */}
-                    {shared && shared.state !== "off" && (
+                        copy of what a sync actually does. Gated the same way
+                        that button is: hidden with nothing to refresh (no
+                        shared record at all), and also hidden on a locked
+                        device, since syncNow() has no passphrase to sync with
+                        yet and would otherwise no-op silently — "Shared
+                        record" is where that device unlocks. */}
+                    {shared && shared.state !== "off" && shared.unlocked && (
                       <MoreItem
                         icon={<IconLoop width={14} height={14} />}
                         label="Refresh"

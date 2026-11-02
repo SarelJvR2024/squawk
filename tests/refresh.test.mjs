@@ -56,7 +56,15 @@ check(
 
 check(
   "hidden entirely where there is nothing to refresh (no shared record configured for this deployment)",
-  /\{shared && shared\.state !== "off" && \(/.test(shell)
+  /\{shared && shared\.state !== "off" && shared\.unlocked && \(/.test(shell)
+);
+
+check(
+  "ALSO hidden on a locked device, same as the Shared record panel's own Sync-now button — " +
+    "syncNow() has no passphrase to sync with yet there and would otherwise silently do nothing",
+  /\{shared && shared\.state !== "off" && shared\.unlocked && \(/.test(shell) &&
+    /shared\.unlocked \? \(/.test(panel),
+  "a looser gate here than SharedPanel's own is how a locked device gets a dead button"
 );
 
 console.log(failures === 0 ? "\nREFRESH OK" : `\n${failures} FAILURE${failures > 1 ? "S" : ""}`);

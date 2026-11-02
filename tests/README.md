@@ -63,7 +63,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `reviewcompliance.test.mjs` | no | 7 |
 | `syncwatermark.test.mjs` | no | 14 |
 | `tablet.test.mjs` | no | 46 |
-| `refresh.test.mjs` | no | 5 |
+| `refresh.test.mjs` | no | 6 |
 | `portals.test.mjs` | no | 32 |
 | `reset.test.mjs` | no | 21 |
 | `reset-sync.test.mjs` | no | 13 |
@@ -144,7 +144,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,708 assertions in total**, every count above verified by running the suite,
+**3,709 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -740,9 +740,12 @@ masthead dropdown, not a flow worth standing up a browser for. Checks that
 no touch-gesture component was left behind to sit beside the button; that
 Refresh is a plain one-tap MoreItem; that it calls the exact same
 `shared.syncNow()` the Shared record sheet's own "Sync now" button already
-uses (SharedPanel.tsx) rather than a second copy of what a sync does; and
-that it is hidden entirely where there is nothing to refresh (no shared
-record configured for this deployment at all).
+uses (SharedPanel.tsx) rather than a second copy of what a sync does; that
+it is hidden entirely where there is nothing to refresh (no shared record
+configured for this deployment at all); and that it is ALSO hidden on a
+locked device, the same gate SharedPanel's own button already uses —
+`syncNow()` has no passphrase to sync with there, and without this gate the
+button would sit in the menu and silently do nothing when tapped.
 
 ## `checkscreen.test.mjs`
 
