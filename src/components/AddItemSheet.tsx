@@ -256,7 +256,15 @@ export default function AddItemSheet({
                   visual-hierarchy pass takes the brand accent off it. */}
               {item?.importKey && <Pill>IMPORTED, TPJV-PROPOSED</Pill>}
             </h3>
-            <p className="mt-[2px] text-[11px]" style={{ color: "var(--ink-3)" }}>
+            {/* DESKTOP/TABLET ONLY — field-capture mobile pass, same reason
+               as CheckDetail.tsx's own attribution line and this file's
+               subtitle in field/page.tsx: a line between opening the sheet
+               and reaching the camera on a screen for standing in front of
+               the thing. */}
+            <p
+              className="mt-[2px] hidden text-[11px] sm:block"
+              style={{ color: "var(--ink-3)" }}
+            >
               Something on site the 324 check-points do not cover. It is recorded as
               ours, kept out of the completion count, and marked as such in every export.
             </p>
@@ -302,9 +310,14 @@ export default function AddItemSheet({
             const attachments = item ? item.attachments : pendingAttachments;
             return (
               <>
-                <div className="mt-2 flex justify-end gap-2">
+                {/* LABELLED, NOT ICON-ONLY — field-capture mobile pass. Same
+                   two buttons, same position (WP5's own layout, unchanged:
+                   full-width text, capture buttons below it), just no
+                   longer `compact` — "Photo"/"Voice note" read as the
+                   prominent, obvious next step they are meant to be,
+                   matching RaiseFindingSheet's own identical buttons. */}
+                <div className="mt-2 flex flex-wrap justify-end gap-2">
                   <PhotoButton
-                    compact
                     onCaptured={(m) => {
                       const a = {
                         ...m,
@@ -319,7 +332,6 @@ export default function AddItemSheet({
                     }}
                   />
                   <VoiceNoteButton
-                    compact
                     onCaptured={(m) => {
                       const a = { ...m, createdBy: auditor };
                       if (item) addAdhocAttachment(item.id, a);

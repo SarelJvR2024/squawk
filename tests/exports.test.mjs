@@ -469,5 +469,105 @@ check(
   })()
 );
 
+/* ========================================================== Bug 3 ========
+ *  Chandre Smit, reading the Electrical report, 31 October 2026: a
+ *  walkabout photograph never showed Non-compliant, even where the caption
+ *  plainly said so — the Photographs sheet carried no Compliance column at
+ *  all, and a walk item promoted to a finding without its own three-way
+ *  outcome ever tapped synced blank everywhere, SharePoint included (see
+ *  sharepoint.ts's effectiveWalkOutcome()). Real execution against
+ *  photographsSheet()/walkSheet(), same reason as every other check in this
+ *  file — a column that exists but reads the wrong field is a bug a text
+ *  search for "Compliance" would call fixed while it is still wrong. */
+
+check(
+  "the Photographs sheet has its own Compliance column, from the check's own r.compliance",
+  (() => {
+    const x = {
+      ...BASE,
+      responses: { "KSIA-ELE-001": RESP({ checkId: "KSIA-ELE-001", compliance: "NC",
+        attachments: [{ id: "r1", kind: "photo", name: "n", ref: "KSIA-ELE-001_P01" }] }) },
+    };
+    const sheet = ex.photographsSheet(x);
+    return cellOf(sheet, 0, "Compliance") === "Non-compliant";
+  })()
+);
+
+check(
+  "a walk item's own explicit outcome reaches its photograph's Compliance column",
+  (() => {
+    const x = {
+      ...BASE, checks: [], responses: {},
+      adhoc: [{ id: "WALK-1", outcome: "C", findingId: null,
+        attachments: [{ id: "a1", kind: "photo", name: "n", ref: "WALK-1_P01" }] }],
+    };
+    const sheet = ex.photographsSheet(x);
+    return cellOf(sheet, 0, "Compliance") === "Compliant";
+  })()
+);
+
+check(
+  "A WALK ITEM PROMOTED TO A FINDING READS NON-COMPLIANT even with no outcome ever tapped",
+  (() => {
+    const x = {
+      ...BASE, checks: [], responses: {},
+      adhoc: [{ id: "WALK-1", outcome: null, findingId: "F-AAAAA",
+        attachments: [{ id: "a1", kind: "photo", name: "n", ref: "WALK-1_P01" }] }],
+    };
+    const sheet = ex.photographsSheet(x);
+    return cellOf(sheet, 0, "Compliance") === "Non-compliant";
+  })(),
+  "raiseFindingFromAdhoc never required the outcome control to be tapped first — a raised finding IS a non-compliance regardless"
+);
+
+check(
+  "and the same item's row on the Walk sheet itself reads Non-compliant, not blank",
+  (() => {
+    const x = {
+      ...BASE, checks: [], responses: {},
+      adhoc: [{ id: "WALK-1", origin: "field", description: "d", discipline: null, system: null,
+        area: "", outcome: null, note: "", attachments: [], findingId: "F-AAAAA",
+        createdAt: 1, createdBy: "Sarel" }],
+    };
+    const sheet = ex.walkSheet(x);
+    return cellOf(sheet, 0, "Outcome") === "Non-compliant";
+  })()
+);
+
+check(
+  "an item with neither an outcome nor a finding stays genuinely blank — unanswered is still a real state",
+  (() => {
+    const x = {
+      ...BASE, checks: [], responses: {},
+      adhoc: [{ id: "WALK-1", outcome: null, findingId: null,
+        attachments: [{ id: "a1", kind: "photo", name: "n", ref: "WALK-1_P01" }] }],
+    };
+    const sheet = ex.photographsSheet(x);
+    return cellOf(sheet, 0, "Compliance") === "";
+  })()
+);
+
+check(
+  "a Verification's and an evidence-log document's photographs stay blank — neither carries a Compliance verdict",
+  (() => {
+    const x = {
+      ...BASE_CLOSURE,
+      verifications: {
+        "KSIA-ELE-P01": { pf: "KSIA-ELE-P01", outcome: "Closed", evidence: "", verifiedBy: "Sarel", verifiedAt: 1,
+          attachments: [{ id: "v1", kind: "photo", name: "n", ref: "KSIA-ELE-P01_P01" }] },
+      },
+      evidenceItems: [{
+        id: "DOC-1", entity: "FALE", originVisit: "2026-09", title: "t", documentNo: "", revision: "",
+        documentDate: null, requestedAt: null, requestedFrom: "", receivedAt: null, receivedFrom: "",
+        receivedBy: "", medium: null, isOriginal: false, returnedAt: null, returnedTo: "",
+        unavailableAt: null, unavailableReason: "", checkIds: [], notes: "", createdAt: 1, updatedAt: 1,
+        signature: null, attachments: [{ id: "e1", kind: "photo", name: "n", ref: "DOC-1_P01" }],
+      }],
+    };
+    const sheet = ex.photographsSheet(x);
+    return sheet.rows.length === 2 && sheet.rows.every((_, i) => cellOf(sheet, i, "Compliance") === "");
+  })()
+);
+
 console.log(`\n${failures === 0 ? "ALL PASS" : `${failures} FAILED`}`);
 process.exit(failures ? 1 : 0);

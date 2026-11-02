@@ -1332,6 +1332,32 @@ function list(xs: string[]): string {
   return `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
 }
 
+/** A WALK ITEM'S OWN TAP, OR — WHERE THAT WAS NEVER MADE — WHAT RAISING A
+ *  FINDING FROM IT ALREADY SAYS.
+ *
+ *  Chandre Smit, reading the Electrical report, 31 October 2026 (see
+ *  evidenceValues()'s own `outcome` parameter note, just below): a walk
+ *  item promoted to a finding never required the three-way outcome control
+ *  to be tapped first — AddItemSheet.tsx's raiseFinding only checks
+ *  `!item.findingId` before calling the store's own raiseFindingFromAdhoc —
+ *  so an auditor who typed the description, attached a photograph and
+ *  pressed "Raise a finding from this" straight away leaves `item.outcome`
+ *  null even though `item.findingId` now names a real, non-compliant
+ *  finding. "Every Finding IS a non-compliance in this schema" is not a
+ *  guess here, it is this app's own definition (see RaiseFindingSheet.tsx's
+ *  own header) — so a raised finding with no explicit outcome reads as NC
+ *  everywhere its photographs and its row in the walk sheet are read, never
+ *  as a blank cell nobody can tell apart from "not yet looked at". An item
+ *  with neither an outcome nor a finding stays genuinely unanswered (null),
+ *  which is still a real, visible state on a walk.
+ *
+ *  ONE FUNCTION, imported into exports.ts the same way flattenProgress
+ *  already is — see that import — so the live sync and the exported
+ *  workbook can never derive this two different ways. */
+export function effectiveWalkOutcome(item: AdHocItem): Compliance | null {
+  return item.outcome ?? (item.findingId ? "NC" : null);
+}
+
 /** The library columns for one photograph.
  *
  *  `captionSource` is spelled out rather than passed through as the stored
@@ -1886,8 +1912,11 @@ export function buildPlan(
           /* THE WALK'S OWN VERDICT — the whole point of this parameter
              existing, see evidenceValues()'s own note: a walk item is never a
              row on the Check-points list, so this is the only outcome its
-             photographs will ever carry. */
-          item.outcome
+             photographs will ever carry. Through effectiveWalkOutcome(), not
+             item.outcome raw — see that function's own note: a promoted
+             item's photographs must read NC even where the three-way
+             control itself was never tapped. */
+          effectiveWalkOutcome(item)
         ),
         folder: dayFolder(folder, a.takenAt ?? a.createdAt),
       });

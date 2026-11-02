@@ -31,7 +31,7 @@ import { entity as entityOf, PROGRAMME_VISITS } from "./programme";
 import { portalIdFor } from "./sites";
 import { priorFor } from "./register";
 import { mappingFor } from "./crosswalk";
-import { flattenProgress } from "./sharepoint";
+import { effectiveWalkOutcome, flattenProgress } from "./sharepoint";
 import * as erm from "./erm";
 
 /** Who raised the hazard, spelled out for a reader of the workbook. */
@@ -491,6 +491,16 @@ export function photographsSheet(x: ExportInput): Sheet {
         photoFilename(a),
         a.ref ?? "",
         portalIdFor(x.entity, c.id),
+        /* Chandre Smit, reading the Electrical report, 31 October 2026: a
+           walkabout photograph never showed Non-compliant at all, even
+           where the caption plainly said so, because this sheet carried no
+           Compliance column of its own — see sharepoint.ts's own
+           evidenceValues()/effectiveWalkOutcome() for the live-sync half of
+           the same fix. Same source per row below: the check's own
+           r.compliance here, effectiveWalkOutcome(item) for a walk
+           photograph, blank for a Verification or evidence-log document
+           photograph — neither carries a Compliance-shaped verdict. */
+        r.compliance ? STATUS_WORD[r.compliance] : "",
         c.discipline,
         c.system,
         c.area,
@@ -542,6 +552,14 @@ export function photographsSheet(x: ExportInput): Sheet {
            typed under. The file's own name is untouched — only what this
            column says it is evidence for. */
         item.checkId ? portalIdFor(x.entity, item.checkId) : item.id,
+        /* effectiveWalkOutcome(), not item.outcome raw — see that
+           function's own note in sharepoint.ts: a walk item promoted to a
+           finding reads NC here even where the three-way control itself
+           was never tapped. */
+        (() => {
+          const o = effectiveWalkOutcome(item);
+          return o ? STATUS_WORD[o] : "";
+        })(),
         item.discipline ?? "",
         item.system ?? "",
         item.area,
@@ -582,6 +600,12 @@ export function photographsSheet(x: ExportInput): Sheet {
         photoFilename(a),
         a.ref ?? "",
         p.portalId,
+        /* Blank, not guessed — a Verification's own `outcome` is Closed /
+           Partially closed / Deferred, a different vocabulary from
+           Compliance entirely (see sharepoint.ts's evidenceValues() call
+           site for this same photograph, which sends `null` for the same
+           reason). */
+        "",
         p.discipline,
         p.assetSystem ?? p.assetSystemRecorded,
         /* PriorFinding carries no `area` of its own — see types.ts — so this
@@ -630,6 +654,9 @@ export function photographsSheet(x: ExportInput): Sheet {
         photoFilename(a),
         a.ref ?? "",
         singleCheckId ? portalIdFor(x.entity, singleCheckId) : item.id,
+        /* Blank — an evidence-log document carries no Compliance verdict of
+           its own, same reason as the Verification loop just above. */
+        "",
         "",
         "",
         "",
@@ -664,6 +691,7 @@ export function photographsSheet(x: ExportInput): Sheet {
       { header: "File", width: 26 },
       { header: "Reference", width: 22 },
       { header: "Check", width: 15 },
+      { header: "Compliance", width: 16 },
       { header: "Discipline", width: 20 },
       { header: "Asset system", width: 26 },
       { header: "Area", width: 20 },
@@ -709,7 +737,15 @@ export function walkSheet(x: ExportInput): Sheet {
     a.system ?? "",
     a.area,
     a.description,
-    a.outcome ? STATUS_WORD[a.outcome] : "",
+    /* Through effectiveWalkOutcome(), not a.outcome raw — see that
+       function's own note in sharepoint.ts: an item promoted to a finding
+       (a.findingId set) reads NC here even where the three-way control was
+       never explicitly tapped, the same fix the Evidence library's own
+       Compliance column already got in sharepoint.ts. */
+    (() => {
+      const o = effectiveWalkOutcome(a);
+      return o ? STATUS_WORD[o] : "";
+    })(),
     a.note,
     a.attachments.filter((t) => t.kind === "photo").length,
     a.attachments.filter((t) => t.kind === "voice").length,

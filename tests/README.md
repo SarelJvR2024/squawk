@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Ninety-three suites, no framework. Thirteen need a running server; eighty do not.
+Ninety-four suites, no framework. Thirteen need a running server; eighty-one do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -62,7 +62,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `review.test.mjs` | no | 41 |
 | `reviewcompliance.test.mjs` | no | 7 |
 | `syncwatermark.test.mjs` | no | 14 |
-| `tablet.test.mjs` | no | 43 |
+| `tablet.test.mjs` | no | 46 |
 | `refresh.test.mjs` | no | 5 |
 | `portals.test.mjs` | no | 32 |
 | `reset.test.mjs` | no | 21 |
@@ -96,7 +96,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `auditdates.test.mjs` | no | 20 |
 | `relinkphoto.test.mjs` | no | 16 |
 | `erm-matrix.test.mjs` | no | 80 |
-| `sharepoint.test.mjs` | no | 371 |
+| `sharepoint.test.mjs` | no | 373 |
 | `graph.test.mjs` | no | 16 |
 | `activity.test.mjs` | no | 34 |
 | `assets.test.mjs` | no | 21 |
@@ -128,7 +128,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `import-pack.test.mjs` | no | 63 |
 | `ortia-v3-pack.test.mjs` | no | 84 |
 | `sheet.test.mjs` | no | 17 |
-| `exports.test.mjs` | no | 11 |
+| `exports.test.mjs` | no | 17 |
 | `field-wide-detail.test.mjs` | no | 15 |
 | `e2e.js` | yes | 24 |
 | `robustness.js` | yes | 53 |
@@ -144,7 +144,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,697 assertions in total**, every count above verified by running the suite,
+**3,708 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -708,7 +708,15 @@ node tests/tablet.test.mjs
 Five parts: a `pointer: coarse` floor a mouse never sees; capture never below
 the fold; field mode doing the walkabout it exists for, including the library's
 own "wants a photograph" flag; fewer scrolls; and the two scope bugs this pass
-turned up.
+turned up. A sixth, added later: Sarel, on a real phone screenshot of "Add an
+inspection item" — "doesnt look like you made any changes tonight on the
+inspections page for mobile." The earlier field-capture mobile pass had
+touched CheckDetail.tsx, the "Checks" tab (`/capture`) — not "Inspection"
+(`/field`), a different screen the bottom nav's own label names. Closes the
+same attribution-line clutter on `/field`'s own per-check sheet and
+AddItemSheet's explanatory paragraph, and un-compacts AddItemSheet's Photo/
+Voice note buttons so they read as labelled and prominent, same as
+RaiseFindingSheet's own.
 
 ## `refresh.test.mjs`
 
