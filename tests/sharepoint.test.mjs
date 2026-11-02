@@ -4872,6 +4872,41 @@ check(
   })()
 );
 
+/* ---- A WALK ITEM PROMOTED TO A FINDING WITH NO OUTCOME EVER TAPPED ------
+   Sarel, after the fix above: "make sure... the compliance status get
+   synced to sharepoint and into the report, even if the finding is not
+   linked to an audit check." AddItemSheet's "Raise a finding from this"
+   never required the three-way outcome control to be tapped first — only
+   `!item.findingId` — so WALK-A1F2K in HAZ_WALK (findingId: "f4", no
+   `outcome` field at all) is exactly that real state, already sitting in
+   this file's own fixture, just never asserted on before now. "Every
+   Finding IS a non-compliance in this schema" is this app's own
+   definition, not a guess — see effectiveWalkOutcome() in sharepoint.ts
+   itself. ------------------------------------------------------------- */
+
+check(
+  "A PROMOTED WALK ITEM'S PHOTO READS NC EVEN WITH NO OUTCOME EVER TAPPED — the gap Sarel asked to close",
+  (() => {
+    const v = sp.buildPlan(HAZ_WALK, NOTHING).evidence.find(
+      (e) => e.filename === "WALK-A1F2K_P01.jpg"
+    ).values;
+    return v.compliance === "NC";
+  })(),
+  "WALK-A1F2K carries findingId: \"f4\" and no outcome field at all in this file's own HAZ_WALK fixture"
+);
+
+check(
+  "an explicit outcome on a promoted item still wins over the findingId-implies-NC fallback",
+  (() => {
+    const v = sp.buildPlan(
+      { ...HAZ_WALK, adhoc: [{ ...HAZ_WALK.adhoc[0], outcome: "C" }, ...HAZ_WALK.adhoc.slice(1)] },
+      NOTHING
+    ).evidence.find((e) => e.filename === "WALK-A1F2K_P01.jpg").values;
+    return v.compliance === "C";
+  })(),
+  "a corrected finding (C after the fact) must not be silently overridden back to NC by the fallback"
+);
+
 /* ------------------------------------------------------------------ result */
 
 console.log(failures === 0 ? "\nSHAREPOINT OK" : `\n${failures} FAILURE${failures > 1 ? "S" : ""}`);
