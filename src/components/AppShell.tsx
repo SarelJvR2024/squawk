@@ -1052,6 +1052,29 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       hint={sharedHint}
                       onClick={() => { setMore(false); setSharedOpen(true); }}
                     />
+                    {/* ONE TAP TO PULL THE LATEST, no sheet to open first —
+                        Sarel: "add functionakity that when i swipe down on
+                        mobile that the screen refresh." A swipe gesture was
+                        built and then deliberately backed out — "maybe to be
+                        safe add a refresh button instead" — a touch gesture on
+                        a screen that already scrolls for 168,000 pixels is
+                        exactly the kind of thing worth being cautious about
+                        two days before a live audit; a button is not. Calls
+                        the SAME shared.syncNow() the "Sync now" button inside
+                        the Shared record sheet already uses (SharedPanel.tsx)
+                        — one action, reached from two places, never a second
+                        copy of what a sync actually does. Hidden where there
+                        is nothing to refresh (no shared record configured for
+                        this deployment at all), same gate the removed gesture
+                        used. */}
+                    {shared && shared.state !== "off" && (
+                      <MoreItem
+                        icon={<IconLoop width={14} height={14} />}
+                        label="Refresh"
+                        hint="Pull the latest from the team record now"
+                        onClick={() => { setMore(false); shared.syncNow(); }}
+                      />
+                    )}
                     {role !== "acsa" && (
                       <MoreItem
                         icon={<IconDownload width={14} height={14} />}

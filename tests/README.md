@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Ninety-two suites, no framework. Thirteen need a running server; seventy-nine do not.
+Ninety-three suites, no framework. Thirteen need a running server; eighty do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -63,6 +63,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `reviewcompliance.test.mjs` | no | 7 |
 | `syncwatermark.test.mjs` | no | 14 |
 | `tablet.test.mjs` | no | 43 |
+| `refresh.test.mjs` | no | 5 |
 | `portals.test.mjs` | no | 32 |
 | `reset.test.mjs` | no | 21 |
 | `reset-sync.test.mjs` | no | 13 |
@@ -143,7 +144,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,692 assertions in total**, every count above verified by running the suite,
+**3,697 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -708,6 +709,32 @@ Five parts: a `pointer: coarse` floor a mouse never sees; capture never below
 the fold; field mode doing the walkabout it exists for, including the library's
 own "wants a photograph" flag; fewer scrolls; and the two scope bugs this pass
 turned up.
+
+## `refresh.test.mjs`
+
+Guards the "Refresh" menu item Sarel asked for — the second version of this
+feature. The first was a swipe-down gesture, built and then deliberately
+backed out: "maybe to be safe add a refresh button instead of adding the
+scroll down to refresh." A custom touch gesture on a screen that already
+scrolls for 168,000 pixels, two days before a live audit, was worth being
+cautious about; a menu button that calls the same action is not. The
+browser's own pull-to-refresh stays off on purpose either way
+(`overscroll-behavior-y: contain`, guarded separately by tablet.test.mjs's
+own "pull-to-refresh cannot reload the app mid-walkabout") — a reload
+mid-walkabout throws away where the auditor was and what was half-typed.
+
+```bash
+node tests/refresh.test.mjs
+```
+
+A source-read, same as tablet.test.mjs — this is a menu item inside a
+masthead dropdown, not a flow worth standing up a browser for. Checks that
+no touch-gesture component was left behind to sit beside the button; that
+Refresh is a plain one-tap MoreItem; that it calls the exact same
+`shared.syncNow()` the Shared record sheet's own "Sync now" button already
+uses (SharedPanel.tsx) rather than a second copy of what a sync does; and
+that it is hidden entirely where there is nothing to refresh (no shared
+record configured for this deployment at all).
 
 ## `checkscreen.test.mjs`
 
