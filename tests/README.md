@@ -62,7 +62,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `review.test.mjs` | no | 41 |
 | `reviewcompliance.test.mjs` | no | 7 |
 | `syncwatermark.test.mjs` | no | 14 |
-| `tablet.test.mjs` | no | 43 |
+| `tablet.test.mjs` | no | 46 |
 | `portals.test.mjs` | no | 32 |
 | `reset.test.mjs` | no | 21 |
 | `reset-sync.test.mjs` | no | 13 |
@@ -143,7 +143,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,700 assertions in total**, every count above verified by running the suite,
+**3,703 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -707,7 +707,15 @@ node tests/tablet.test.mjs
 Five parts: a `pointer: coarse` floor a mouse never sees; capture never below
 the fold; field mode doing the walkabout it exists for, including the library's
 own "wants a photograph" flag; fewer scrolls; and the two scope bugs this pass
-turned up.
+turned up. A sixth, added later: Sarel, on a real phone screenshot of "Add an
+inspection item" — "doesnt look like you made any changes tonight on the
+inspections page for mobile." The earlier field-capture mobile pass had
+touched CheckDetail.tsx, the "Checks" tab (`/capture`) — not "Inspection"
+(`/field`), a different screen the bottom nav's own label names. Closes the
+same attribution-line clutter on `/field`'s own per-check sheet and
+AddItemSheet's explanatory paragraph, and un-compacts AddItemSheet's Photo/
+Voice note buttons so they read as labelled and prominent, same as
+RaiseFindingSheet's own.
 
 ## `checkscreen.test.mjs`
 
