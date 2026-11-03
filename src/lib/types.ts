@@ -421,6 +421,26 @@ export interface Response {
    *
    *  `null` is "not yet answered on this screen," same as `compliance`. */
   fieldCompliance: Compliance | null;
+  /** THE INSPECTION SCREEN'S OWN NOTE — same pairing as fieldCompliance just
+   *  above, this time for `observation` rather than `compliance`.
+   *
+   *  Sarel, after testing the walk screen pre-filling the desk's interview
+   *  note into its own note box: "The note populated there is from the
+   *  interview of the audit check, it should not be populated here. We
+   *  should be able to capture separate notes for the audit check and or
+   *  the inspection. The reports will pick up both notes separately. We
+   *  must be able to separate the audit check interview note, from the
+   *  inspection note of the same audit check." Until this field existed,
+   *  `src/app/(app)/field/page.tsx`'s own note textarea read and wrote
+   *  `observation` directly — the same field Capture's own desk textarea
+   *  sets — so the walk's own words and the desk's interview write-up were
+   *  one and the same text, each overwriting the other depending on which
+   *  screen was used last.
+   *
+   *  Optional and absent-means-empty, same reasoning as Response.location:
+   *  a record from before this field existed reads as "no field note yet"
+   *  rather than needing a migration to backfill it. */
+  fieldObservation?: string;
   /** ACSA SAYS COMPLIANT, AND THE EVIDENCE IS STILL TO COME.
    *
    *  Sarel, 2026-09-12: "ACSA's explanation is that they are compliant but

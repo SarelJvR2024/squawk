@@ -295,6 +295,68 @@ check(
   "a regression check: the two fields must never be folded into one on the way to the portal either"
 );
 
+/* Response.fieldObservation — the Inspection screen's OWN note, distinct
+ *  from Response.observation (the Checks screen's own write-up). Same bug
+ *  class as fieldCompliance above, found the same day by the same standing
+ *  review: the walk's own note box used to read and write `observation`
+ *  directly, so a note typed/spoken on the walk and the desk's interview
+ *  write-up were literally the same text — and whichever reached the
+ *  portal was only ever `observation`, never the walk's own words as a
+ *  thing distinguishable from the desk's. */
+check(
+  "A CHECK'S fieldObservation REACHES THE PORTAL, INDEPENDENTLY OF observation",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": {
+            compliance: "C",
+            observation: "Fine on the desk",
+            fieldObservation: "Fine on the walk",
+            attachments: [],
+          },
+        },
+      },
+      NOTHING
+    );
+    return (
+      p.checkpoints[0].values.observation.includes("Fine on the desk") &&
+      p.checkpoints[0].values.fieldObservation === "Fine on the walk" &&
+      !p.checkpoints[0].values.fieldObservation.includes("Fine on the desk") &&
+      !p.checkpoints[0].values.observation.includes("Fine on the walk")
+    );
+  })(),
+  JSON.stringify(
+    sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": {
+            compliance: "C",
+            observation: "Fine on the desk",
+            fieldObservation: "Fine on the walk",
+            attachments: [],
+          },
+        },
+      },
+      NOTHING
+    ).checkpoints[0]?.values
+  )
+);
+
+check(
+  "a check with no fieldObservation typed yet sends an empty string, not a copy of observation",
+  sp.buildPlan(
+    {
+      ...BASE,
+      responses: { "KSIA-ELE-001": { compliance: "C", observation: "Fine", attachments: [] } },
+    },
+    NOTHING
+  ).checkpoints[0].values.fieldObservation === "",
+  "a regression check: the two notes must never be folded into one on the way to the portal either"
+);
+
 check(
   "an AGREED ERM cell reaches the portal, in the portal's own words",
   (() => {

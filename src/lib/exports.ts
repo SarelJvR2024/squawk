@@ -242,6 +242,7 @@ export function registerSheet(x: ExportInput): Sheet {
          somebody walk back to the thing and close the finding. */
       r?.location?.trim() ?? "",
       r?.observation ?? "",
+      r?.fieldObservation ?? "",
       evidence ?? "",
       issues ?? "",
       walk,
@@ -310,6 +311,14 @@ export function registerSheet(x: ExportInput): Sheet {
       { header: "Field compliance", width: 16 },
       { header: "Where it was inspected", width: 28 },
       { header: "Observation", width: 60, wrap: true },
+      /* THE INSPECTION SCREEN'S OWN NOTE — Response.fieldObservation, never
+         `observation` above, same reasoning as "Field compliance" right
+         beside it: an independent question answered on an independent
+         screen. Sarel: "the note populated there is from the interview of
+         the audit check, it should not be populated here. We must be able
+         to capture separate notes for the audit check and or the
+         inspection. The reports will pick up both notes separately." */
+      { header: "Field observation", width: 60, wrap: true },
       { header: "Evidence requested", width: 42, wrap: true },
       { header: "Issues found", width: 52, wrap: true },
       { header: "Walkabout observation", width: 38, wrap: true },

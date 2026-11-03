@@ -327,7 +327,7 @@ export default function FieldPage() {
   const addAttachment = useStore((s) => s.addAttachment);
   const removeAttachment = useStore((s) => s.removeAttachment);
   const updateAttachment = useStore((s) => s.updateAttachment);
-  const appendObservation = useStore((s) => s.appendObservation);
+  const appendFieldObservation = useStore((s) => s.appendFieldObservation);
   const aiOn = useAssistAvailable();
   const addCapture = useStore((s) => s.addCapture);
   const assignCapture = useStore((s) => s.assignCapture);
@@ -425,6 +425,18 @@ export default function FieldPage() {
      button below) — opening one check's ACSA wording must not leave the
      next one open to it too. */
   const [checkTab, setCheckTab] = useState<"walkabout" | "acsa">("walkabout");
+  /* THE WALKABOUT NOTE ITSELF, COLLAPSED BY DEFAULT — Sarel: "by default
+     dont show the Walkabout note, it must be minimised until the user
+     clicks the button then expand and show the notes... the same
+     functionality should apply to the ACSA requirement button." The ACSA
+     side already works this way (AcsaRequirementPanel's own "View ACSA
+     Requirement & Specs" disclosure, collapsed below lg); this is the same
+     pattern for TPJV's own walkabout guidance text, which used to render
+     unconditionally the moment the Walkabout tab was open — on a short
+     phone screen that pushed the outcome buttons below the fold before an
+     auditor could even answer. Reset alongside `checkTab` whenever a
+     different check opens, same reasoning. */
+  const [walkaboutNoteOpen, setWalkaboutNoteOpen] = useState(false);
 
   /* WHERE A STICKY GROUP HEADER HAS TO STOP.
      The filter bar is sticky at top 0. A group header also sticky at top 0
@@ -781,8 +793,17 @@ export default function FieldPage() {
      reach 100% while checks still carry no compliance at all. `answered`
      requires both a compliance and a typed observation; it is local to this
      screen's own counts, not a redefinition of `fieldDone`/`isComplete`,
-     which stay what they always were everywhere else in the app. */
-  const answered = (r?: Response) => !!r?.compliance && !!r?.observation?.trim();
+     which stay what they always were everywhere else in the app.
+
+     READS fieldObservation, NOT observation, since Response.fieldObservation
+     started existing — this screen's own note box no longer writes
+     `observation` at all (see that field's own doc comment in types.ts), so
+     checking `observation` here would have silently zeroed this screen's
+     own "answered" count the moment that change shipped. `compliance`
+     (not `fieldCompliance`) is untouched and stays exactly what the
+     paragraph above already explains; nothing about that half changed
+     today. */
+  const answered = (r?: Response) => !!r?.compliance && !!r?.fieldObservation?.trim();
   const tree = useMemo(() => {
     const systems = new Map<string, { checks: Check[]; walk: AdHocItem[] }>();
     const bucket = (key: string) => {
@@ -1084,18 +1105,35 @@ export default function FieldPage() {
         ) : (
           <>
             {/* OURS, AND IT SAYS SO. 25 of the 324 have no walkabout written;
-                an empty one renders nothing at all. */}
+                an empty one renders nothing at all. COLLAPSED BY DEFAULT,
+                same disclosure pattern as AcsaRequirementPanel's own "View
+                ACSA Requirement & Specs" — see walkaboutNoteOpen's doc
+                comment above. */}
             {c.walkabout?.trim() && (
-              <div
-                className="mb-3 rounded-[8px] border-l-[2px] pl-[9px]"
-                style={{ borderColor: "var(--line-2)" }}
-              >
-                <div className="label-xs" style={{ color: "var(--ink-4)" }}>
-                  TPJV walkabout — physical check
-                </div>
-                <div className="mt-[2px] text-[12px] leading-[1.5]" style={{ color: "var(--ink-3)" }}>
-                  {c.walkabout}
-                </div>
+              <div className="mb-3">
+                <button
+                  type="button"
+                  onClick={() => setWalkaboutNoteOpen((v) => !v)}
+                  aria-expanded={walkaboutNoteOpen}
+                  className="flex min-h-[32px] w-full items-center justify-between gap-2 font-display text-[11px] font-semibold"
+                  style={{ color: "var(--acc)" }}
+                >
+                  <span>{walkaboutNoteOpen ? "Hide walkabout note" : "View walkabout note"}</span>
+                  <span aria-hidden>{walkaboutNoteOpen ? "▾" : "▸"}</span>
+                </button>
+                {walkaboutNoteOpen && (
+                  <div
+                    className="mt-1 rounded-[8px] border-l-[2px] pl-[9px]"
+                    style={{ borderColor: "var(--line-2)" }}
+                  >
+                    <div className="label-xs" style={{ color: "var(--ink-4)" }}>
+                      TPJV walkabout — physical check
+                    </div>
+                    <div className="mt-[2px] text-[12px] leading-[1.5]" style={{ color: "var(--ink-3)" }}>
+                      {c.walkabout}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1191,9 +1229,19 @@ export default function FieldPage() {
                   for anyone using a screen reader, and "Observation" says
                   that in three words instead of nine. */}
               <span className="sr-only">Observation</span>
+              {/* THIS SCREEN'S OWN NOTE, NOT THE DESK'S — Response.
+                  fieldObservation, not `observation`. Sarel: "the note
+                  populated there is from the interview of the audit check,
+                  it should not be populated here... We must be able to
+                  separate the audit check interview note, from the
+                  inspection note of the same audit check." Before this, a
+                  note typed or spoken on the walk and the desk's own
+                  interview write-up were literally the same field, each
+                  silently overwriting whichever screen had been used last;
+                  see fieldObservation's own doc comment in types.ts. */}
               <textarea
-                value={r?.observation ?? ""}
-                onChange={(e) => patch(c.id, { observation: e.target.value })}
+                value={r?.fieldObservation ?? ""}
+                onChange={(e) => patch(c.id, { fieldObservation: e.target.value })}
                 placeholder="Speak it if it is long — the microphone writes into this field."
                 className="mt-1 min-h-[88px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] leading-[1.5] outline-none"
                 style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
@@ -1211,7 +1259,10 @@ export default function FieldPage() {
                     aiOn ? (t) => assist("transcript", transcriptContext(t, c, r)) : undefined
                   }
                   onAccept={(text) => {
-                    appendObservation(c.id, text);
+                    /* appendFieldObservation, NOT appendObservation — a note
+                       spoken or written up on the walk joins THIS screen's
+                       own field, never the desk's interview write-up. */
+                    appendFieldObservation(c.id, text);
                     say(`Written up into ${portalIdFor(entityCode, c.id)}`);
                   }}
                 />
@@ -1853,7 +1904,7 @@ export default function FieldPage() {
                           >
                             {/* THE COLLAPSED ROW. Full width, one tap. */}
                             <button
-                              onClick={() => { setOpenItem(c.id); setCheckTab("walkabout"); }}
+                              onClick={() => { setOpenItem(c.id); setCheckTab("walkabout"); setWalkaboutNoteOpen(false); }}
                               aria-haspopup="dialog"
                               aria-expanded={itemOpen}
                               className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left"
@@ -1946,7 +1997,7 @@ export default function FieldPage() {
                                   {r?.location?.trim() && <span>{r.location}</span>}
                                   {photos.length > 0 && <span>{photos.length}📷</span>}
                                   {voices.length > 0 && <span>{voices.length}🎙</span>}
-                                  {r?.observation?.trim() && <span>note</span>}
+                                  {r?.fieldObservation?.trim() && <span>note</span>}
                                   {raised > 0 && (
                                     <span style={{ color: "var(--warn)" }}>
                                       {raised} finding{raised === 1 ? "" : "s"}

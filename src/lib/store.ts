@@ -526,6 +526,9 @@ interface State {
   ) => void;
   setWalkabout: (checkId: string, i: number | null, sets?: Compliance) => void;
   appendObservation: (checkId: string, text: string) => void;
+  /** field/page.tsx's own counterpart to appendObservation — see
+   *  Response.fieldObservation's doc comment in types.ts. */
+  appendFieldObservation: (checkId: string, text: string) => void;
   commit: (checkId: string, portal: Portal) => void;
 
   addFinding: (f: Omit<Finding, "id" | "createdAt" | "entity">) => string;
@@ -1344,6 +1347,20 @@ export const useStore = create<State>()(
           const r = get().response(checkId);
           const obs = r.observation ? `${r.observation.replace(/\s*$/, "")} ${text}` : text;
           get().patch(checkId, { observation: obs });
+        },
+
+        /* THE INSPECTION SCREEN'S OWN APPEND — same shape as appendObservation
+           above, writing `fieldObservation` instead. field/page.tsx's own
+           voice-note "Use it, word for word" calls this, never
+           appendObservation, so a note spoken on the walk joins the walk's
+           own field, not the desk's interview write-up. See
+           Response.fieldObservation's own doc comment in types.ts. */
+        appendFieldObservation: (checkId, text) => {
+          const r = get().response(checkId);
+          const obs = r.fieldObservation
+            ? `${r.fieldObservation.replace(/\s*$/, "")} ${text}`
+            : text;
+          get().patch(checkId, { fieldObservation: obs });
         },
 
         addAttachment: (checkId, a) => {

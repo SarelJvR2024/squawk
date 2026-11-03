@@ -38,14 +38,13 @@
  *  to keep a photograph, and the sheet this screen is built from used to
  *  refuse rather than silently drop one. It no longer has to. */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AttachmentStrip, PhotoButton, VoiceNoteButton, forgetMedia } from "@/components/Capture";
 import DisciplineChips from "@/components/DisciplineChips";
 import { Btn, Panel } from "@/components/ui/primitives";
 import { IconCheck, IconEdit } from "@/components/ui/icons";
 import { areasAt, disciplinesAt, systemsOf, useEntityCode, useStore } from "@/lib/store";
 import { checksAt } from "@/lib/register";
-import { adhocTranscriptContext, assist, useAssistAvailable } from "@/lib/assist";
 import type { Attachment } from "@/lib/types";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -122,7 +121,6 @@ export default function RaisePage() {
   const visitId = useStore((s) => s.visit);
   const addFinding = useStore((s) => s.addFinding);
   const addFindingAttachment = useStore((s) => s.addFindingAttachment);
-  const aiOn = useAssistAvailable();
 
   const disciplines = disciplinesAt(entityCode);
   const areas = areasAt(entityCode);
@@ -151,6 +149,48 @@ export default function RaisePage() {
     ? systemsOf(entityCode, discipline)
     : Array.from(new Set(checks.map((c) => c.system)));
 
+  /* A VOICE NOTE'S TRANSCRIPT GOES STRAIGHT INTO ITS OWN FIELD, AUTOMATICALLY
+   *  — no click required, in either direction:
+   *
+   *  Sarel, first round: "when capturing a voice note in the top, it should
+   *  save the note in the top box as a note on the finding and not at the
+   *  bottom as a note for the photo." Fixed by auto-applying a finding-level
+   *  note's transcript (no photoId) straight into the headline.
+   *
+   *  Sarel, after seeing that work: "it should just auto populate the
+   *  correct text box and not rely on the user to click... to copy to the
+   *  notes" — meaning the "Use it, word for word" button itself, now dead
+   *  weight once its own job already happened automatically. So this does
+   *  the SAME thing for a photo-specific note (photoId set): its transcript
+   *  sets that photo's own caption, also automatically, and the button is
+   *  hidden everywhere on this screen (AttachmentStrip's own
+   *  `hideVoiceAccept`, below) rather than left sitting there doing nothing
+   *  useful — or, for the headline, re-appending text already there.
+   *
+   *  ONCE PER ATTACHMENT, NOT ONCE PER TRANSCRIPT — a real bug caught live:
+   *  without a guard, EVERY transcript update re-applies, including a
+   *  manual "Transcribe again" on the same recording — eight presses during
+   *  testing produced the same sentence eight times over in the headline. A
+   *  ref (not state — this must never itself trigger a render) remembers
+   *  which attachment ids have already been applied, so a given voice note
+   *  lands in its field exactly once. Editing the transcribed text by hand
+   *  afterward (Capture.tsx's VoiceRow) does NOT re-trigger this — that
+   *  correction stays in the transcript itself; the field it was first
+   *  applied to is not rewritten a second time out from under whatever the
+   *  auditor may have typed into it since. */
+  const pushedNoteIds = useRef<Set<string>>(new Set());
+  const applyVoiceNote = (attachmentId: string, text: string, photoId?: string) => {
+    if (pushedNoteIds.current.has(attachmentId)) return;
+    pushedNoteIds.current.add(attachmentId);
+    if (photoId) {
+      setPendingAttachments((cur) =>
+        cur.map((a) => (a.id === photoId ? { ...a, caption: text, captionSource: "auditor" } : a))
+      );
+    } else {
+      setTitle((cur) => (cur.trim() ? `${cur}\n${text}` : text));
+    }
+  };
+
   const reset = () => {
     setTitle("");
     setDiscipline(null);
@@ -159,6 +199,7 @@ export default function RaisePage() {
     setError(null);
     setOpenStep("discipline");
     setPendingAttachments([]);
+    pushedNoteIds.current = new Set();
   };
 
   const save = () => {
@@ -272,9 +313,14 @@ export default function RaisePage() {
           />
           <VoiceNoteButton
             large
-            onCaptured={(m) =>
-              setPendingAttachments((cur) => [...cur, { ...m, createdBy: auditor, id: uid(), createdAt: Date.now() }])
-            }
+            onCaptured={(m) => {
+              const noteId = uid();
+              setPendingAttachments((cur) => [...cur, { ...m, createdBy: auditor, id: noteId, createdAt: Date.now() }]);
+              /* Live dictation can hand back a transcript the instant
+                 recording stops — straight into the headline, not left
+                 sitting in the card below waiting for a tap. */
+              if (m.transcript) applyVoiceNote(noteId, m.transcript);
+            }}
           />
         </div>
         {pendingAttachments.length > 0 && (
@@ -298,21 +344,41 @@ export default function RaisePage() {
                     .map((x) => (x.kind === "voice" && x.photoId === id ? { ...x, photoId: undefined } : x))
                 );
               }}
-              onUpdate={(id, p) =>
-                setPendingAttachments((cur) => cur.map((a) => (a.id === id ? { ...a, ...p } : a)))
-              }
-              writeUp={
-                aiOn
-                  ? (t) => assist("transcript", adhocTranscriptContext(t, { description: title, discipline, system, area }))
-                  : undefined
-              }
+              onUpdate={(id, p) => {
+                setPendingAttachments((cur) => cur.map((a) => (a.id === id ? { ...a, ...p } : a)));
+                /* The same rule for a transcript that arrives LATER —
+                   pressing "Transcribe" also applies automatically, exactly
+                   once (see applyVoiceNote's own doc comment above). */
+                if (p.transcript) {
+                  const a = pendingAttachments.find((x) => x.id === id);
+                  if (a?.kind === "voice") applyVoiceNote(id, p.transcript, a.photoId);
+                }
+              }}
+              /* No AI rewrite step on this screen either — Sarel: "remove
+                 button 'write it up'." Omitting `writeUp` entirely hides
+                 it (see VoiceRow's own `showWriteUp` gate in Capture.tsx);
+                 the transcript itself is editable instead, so a mis-heard
+                 word is fixed by hand rather than reworded by a model. */
+              /* "Use it, word for word" is hidden everywhere on this
+                 screen — applyVoiceNote above already does its job the
+                 moment a transcript arrives, automatically, so the button
+                 would only ever be dead weight or a duplicate re-apply
+                 (see applyVoiceNote's own doc comment). onAccept is kept
+                 as a fallback matching the button's old behavior in case
+                 hideVoiceAccept is ever lifted, not because it still does
+                 anything on screen today. */
+              hideVoiceAccept
               onAccept={(text) => setTitle((cur) => (cur.trim() ? `${cur}\n${text}` : text))}
-              onAddVoice={(photoId, m) =>
+              onAddVoice={(photoId, m) => {
+                const noteId = uid();
                 setPendingAttachments((cur) => [
                   ...cur,
-                  { ...m, photoId, createdBy: auditor, id: uid(), createdAt: Date.now() },
-                ])
-              }
+                  { ...m, photoId, createdBy: auditor, id: noteId, createdAt: Date.now() },
+                ]);
+                /* Same as the finding-level button: live dictation can
+                   already have the words the instant recording stops. */
+                if (m.transcript) applyVoiceNote(noteId, m.transcript, photoId);
+              }}
             />
           </div>
         )}
