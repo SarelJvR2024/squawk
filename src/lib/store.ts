@@ -533,8 +533,10 @@ interface State {
   /** A finding's OWN evidence — see Finding.attachments' own doc comment for
    *  why this exists alongside addAttachment/addAdhocAttachment rather than
    *  reusing either: this is the one that works whether or not a check-point
-   *  was ever picked. Same shape as addAdhocAttachment/addIsfAttachment. */
-  addFindingAttachment: (id: string, a: Omit<Attachment, "id" | "createdAt">) => void;
+   *  was ever picked. Same shape as addAdhocAttachment/addIsfAttachment,
+   *  except this one RETURNS the new attachment's id (an empty string if the
+   *  finding does not exist) — see the implementation's own doc comment. */
+  addFindingAttachment: (id: string, a: Omit<Attachment, "id" | "createdAt">) => string;
   updateFindingAttachment: (
     id: string,
     attachmentId: string,
@@ -1485,7 +1487,7 @@ export const useStore = create<State>()(
 
         addFindingAttachment: (id, a) => {
           const f = get().findings.find((x) => x.id === id);
-          if (!f) return;
+          if (!f) return "";
           /* `?? []` throughout this trio — attachments is required on
              Finding's own type, but a record built by hand (a fixture, an
              older import path, anything outside the real migrate() above)
@@ -1494,12 +1496,13 @@ export const useStore = create<State>()(
              codebase already makes everywhere else an attachments array is
              read (`r?.attachments ?? []`, item.attachments ?? [], …). */
           const existing = f.attachments ?? [];
+          const newId = uid();
           get().updateFinding(id, {
             attachments: [
               ...existing,
               {
                 ...a,
-                id: uid(),
+                id: newId,
                 /* F-7K2P9_P01 — the finding's own id is the prefix, same
                    convention as addAdhocAttachment/addIsfAttachment, so an
                    image in the export zip names the finding it belongs to. */
@@ -1508,6 +1511,14 @@ export const useStore = create<State>()(
               },
             ],
           });
+          /* Returned so a caller juggling several not-yet-saved attachments
+             at once (raise/page.tsx: a voice note tagged to a particular
+             pending photo via Attachment.photoId) can learn the REAL id this
+             store just minted and rewrite its own temporary one to match —
+             otherwise that link points at an id that only ever existed in
+             the caller's local state and breaks the moment this finding is
+             reloaded. */
+          return newId;
         },
 
         updateFindingAttachment: (id, attachmentId, patch) => {

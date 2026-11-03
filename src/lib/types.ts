@@ -376,6 +376,16 @@ export interface Attachment {
    *  the record exists but there is no audio or image behind it. Shown as
    *  unavailable rather than silently rendering an empty player. */
   unavailable?: boolean;
+  /** Set on a voice note that is about ONE particular photograph in the same
+   *  strip, rather than about the finding/check as a whole — the id of that
+   *  photograph's own Attachment. Sarel: "there should be a voice note
+   *  button for the photo as well to add a voice note for the photo." A
+   *  voice note with no photoId is a note for the finding/check itself,
+   *  same as every voice note before this field existed — absent-means-
+   *  general, so nothing written before this needs a migration. Never set
+   *  on a photo or a file; see Capture.tsx's AttachmentStrip for how the
+   *  two kinds of voice note are told apart and rendered. */
+  photoId?: string;
   createdAt: number;
   createdBy: string;
 }

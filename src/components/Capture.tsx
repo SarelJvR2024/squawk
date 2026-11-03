@@ -86,6 +86,18 @@ const TAP =
 const TAP_INLINE =
   "inline-flex h-[34px] w-[34px] items-center justify-center rounded-[8px] border text-[12px] font-semibold transition-[var(--t)] active:translate-y-[1px] disabled:opacity-40 disabled:cursor-not-allowed";
 
+/** Two big tiles, not a row of small pills — Sarel, on the Raise screen:
+ *  "make the photo and voice note buttons bigger, more prominent." A
+ *  separate constant for the same reason TAP_INLINE is one and not a
+ *  `className` override: Tailwind resolves two classes setting the same
+ *  property by the order it emitted the underlying rules, not by the order
+ *  they appear on the element, so `${TAP} h-[60px]` is not reliably taller
+ *  than TAP — only a different base class is. `flex-1` so two of these
+ *  side by side split the width evenly and read as the primary action on
+ *  the screen, the way Photo/Voice note is meant to on this one. */
+const TAP_LARGE =
+  "inline-flex h-[60px] flex-1 items-center justify-center gap-[9px] rounded-[14px] border text-[14px] font-bold transition-[var(--t)] active:translate-y-[1px] disabled:opacity-40 disabled:cursor-not-allowed";
+
 /** What to say when this device cannot store a capture.
  *
  *  EVIDENCE THAT WAS NOT STORED MUST NEVER BE SILENT. Both write paths used to
@@ -113,6 +125,7 @@ export function VoiceNoteButton({
   onCaptured,
   compact = false,
   inline = false,
+  large = false,
   className = "",
 }: {
   onCaptured: (m: VoiceCapture) => void;
@@ -122,6 +135,10 @@ export function VoiceNoteButton({
    *  widens to carry the running timer, because a recording that does not
    *  show it is running is how an auditor loses a note. */
   inline?: boolean;
+  /** 60px and flex-1 — see TAP_LARGE's own doc comment. Takes priority over
+   *  `inline`; a button cannot be both a corner-fitting square and a
+   *  prominent tile. */
+  large?: boolean;
   /* So a caller can stretch it in a grid cell, as PhotoButton already allows.
      It lands on the wrapper AND the button, because the wrapper is what a
      grid or flex parent actually measures. */
@@ -194,8 +211,9 @@ export function VoiceNoteButton({
 
   /* Recording always shows the timer, so the inline form drops its fixed
      width for as long as it is running rather than clipping the clock. */
-  const base = inline ? (recording ? `${TAP_INLINE} w-auto px-[9px] gap-[5px]` : TAP_INLINE) : TAP;
+  const base = inline ? (recording ? `${TAP_INLINE} w-auto px-[9px] gap-[5px]` : TAP_INLINE) : large ? TAP_LARGE : TAP;
   const labelled = !compact && !inline;
+  const iconSize = large ? 20 : 15;
 
   if (!supported) {
     return (
@@ -208,7 +226,7 @@ export function VoiceNoteButton({
         }}
         title="This browser cannot record audio. Type the observation instead."
       >
-        <IconMic width={15} height={15} />
+        <IconMic width={iconSize} height={iconSize} />
         {labelled ? "Voice unavailable" : null}
       </span>
     );
@@ -245,7 +263,7 @@ export function VoiceNoteButton({
             style={{ background: "#fff" }}
           />
         )}
-        <IconMic width={15} height={15} />
+        <IconMic width={iconSize} height={iconSize} />
         {rec.state === "requesting"
           ? inline
             ? null
@@ -327,6 +345,7 @@ export function PhotoButton({
   primary = false,
   className = "",
   inline = false,
+  large = false,
 }: {
   onCaptured: (m: PhotoCapture) => void;
   compact?: boolean;
@@ -339,6 +358,9 @@ export function PhotoButton({
    *  screen without scrolling or switching tabs, same reasoning as
    *  VoiceNoteButton's own `inline` prop. Implies `compact`. */
   inline?: boolean;
+  /** 60px and flex-1 — see TAP_LARGE's own doc comment. Takes priority over
+   *  `inline`. */
+  large?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const entityCode = useEntityCode();
@@ -410,7 +432,7 @@ export function PhotoButton({
         type="button"
         onClick={() => inputRef.current?.click()}
         aria-label={label ?? "Take a photograph"}
-        className={`${inline ? TAP_INLINE : TAP} ${className}`}
+        className={`${inline ? TAP_INLINE : large ? TAP_LARGE : TAP} ${className}`}
         style={
           primary
             ? {
@@ -426,7 +448,7 @@ export function PhotoButton({
               }
         }
       >
-        <IconCamera width={15} height={15} />
+        <IconCamera width={large ? 20 : 15} height={large ? 20 : 15} />
         {compact || inline ? null : (label ?? "Photo")}
       </button>
       {failed && (
@@ -908,6 +930,12 @@ function PhotoRow({
   onUpdate,
   onMove,
   compact = false,
+  hideDescribe = false,
+  onAddVoice,
+  voiceNotes,
+  onRemoveVoiceNote,
+  onUpdateVoiceNote,
+  writeUpVoiceNote,
 }: {
   a: Attachment;
   onRemove?: () => void;
@@ -916,6 +944,25 @@ function PhotoRow({
    *  photograph to a different check. */
   onMove?: () => void;
   compact?: boolean;
+  /** Hides the "Describe" (AI auto-caption) button on this one row. See
+   *  AttachmentStrip's own `hideDescribe` — raise/page.tsx is the first
+   *  caller that wants a manual, voice-first flow with no AI step; every
+   *  other screen keeps Describe. */
+  hideDescribe?: boolean;
+  /** Offers a "Voice note" button that records audio tied to THIS
+   *  photograph (Attachment.photoId), separate from a note for the
+   *  finding/check as a whole — Sarel: "there should be a voice note
+   *  button for the photo as well." Omit it and no per-photo recording
+   *  control is shown. */
+  onAddVoice?: (m: VoiceCapture) => void;
+  /** Voice notes already tied to THIS photograph (Attachment.photoId ===
+   *  a.id), rendered directly under it so it is never ambiguous which one
+   *  a note belongs to — "make sure it's clear where note is captured,
+   *  either for the finding or for the photo." */
+  voiceNotes?: Attachment[];
+  onRemoveVoiceNote?: (id: string) => void;
+  onUpdateVoiceNote?: (id: string, patch: Partial<Attachment>) => void;
+  writeUpVoiceNote?: (transcript: string) => Promise<string>;
 }) {
   const { url, missing } = useBlobUrl(a.blobKey);
   const src = url ?? a.thumbDataUrl ?? a.dataUrl ?? null;
@@ -1116,7 +1163,7 @@ function PhotoRow({
         </span>
 
         <span className="flex shrink-0 items-center gap-[5px]">
-          {aiOn && onUpdate && !dead && (
+          {!hideDescribe && aiOn && onUpdate && !dead && (
             <button
               type="button"
               onClick={describe}
@@ -1133,6 +1180,7 @@ function PhotoRow({
               {busy ? "Looking…" : "Describe"}
             </button>
           )}
+          {onAddVoice && !dead && <VoiceNoteButton inline onCaptured={onAddVoice} />}
           {onMove && !dead && (
             <button
               type="button"
@@ -1158,6 +1206,35 @@ function PhotoRow({
           )}
         </span>
       </div>
+
+      {voiceNotes && voiceNotes.length > 0 && (
+        <div
+          className="ml-[2px] flex flex-col gap-[6px] border-l-2 pl-[9px]"
+          style={{ borderColor: "var(--line-2)" }}
+        >
+          <span className="label-xs" style={{ color: "var(--ink-4)" }}>
+            Note for this photo
+          </span>
+          {voiceNotes.map((v) => (
+            <VoiceRow
+              key={v.id}
+              a={v}
+              onRemove={onRemoveVoiceNote ? () => onRemoveVoiceNote(v.id) : undefined}
+              onUpdate={onUpdateVoiceNote ? (patch) => onUpdateVoiceNote(v.id, patch) : undefined}
+              writeUp={writeUpVoiceNote}
+              /* "Use it, word for word" on a note tied to THIS photo fills
+                 the photo's own caption, not the finding/check's field —
+                 the whole point of a photo-specific note being distinct
+                 from a general one. */
+              onAccept={
+                onUpdate
+                  ? (text) => onUpdate({ caption: caption ? `${caption}\n${text}` : text, captionSource: "auditor" })
+                  : undefined
+              }
+            />
+          ))}
+        </div>
+      )}
 
       {error && (
         <span className="text-[10.5px]" style={{ color: "var(--bad)" }}>
@@ -1279,6 +1356,8 @@ export function AttachmentStrip({
   writeUp,
   onAccept,
   thumbSize = 44,
+  hideDescribe = false,
+  onAddVoice,
 }: {
   attachments: Attachment[];
   onRemove?: (id: string) => void;
@@ -1303,10 +1382,31 @@ export function AttachmentStrip({
   /** Put an accepted rewrite into the record. This component never does it. */
   onAccept?: (text: string) => void;
   thumbSize?: number;
+  /** Hides the "Describe" (AI auto-caption) button and its VisionNote
+   *  banner on every photo in this strip — Sarel, on the Raise screen:
+   *  "remove the describe button." A screen built around a manual,
+   *  voice-first note (raise/page.tsx) has no use for an AI captioning
+   *  step; every other screen that renders a strip keeps it, so this
+   *  defaults to false. */
+  hideDescribe?: boolean;
+  /** Offers a "Voice note" button on each photo that records audio tied to
+   *  THAT photo (Attachment.photoId) rather than to the finding/check as a
+   *  whole — Sarel: "there should be a voice note button for the photo as
+   *  well." Supplied by the caller because only it knows how to persist a
+   *  newly captured attachment, same reasoning as onAccept; omit it and no
+   *  per-photo recording control is offered. */
+  onAddVoice?: (photoId: string, m: VoiceCapture) => void;
 }) {
   const aiOn = useAssistAvailable();
   const photos = attachments.filter((a) => a.kind === "photo");
-  const voices = attachments.filter((a) => a.kind === "voice");
+  /* VOICE NOTES SPLIT IN TWO: one tied to a particular photograph
+     (a.photoId, set only by the per-photo "Voice note" button above)
+     renders directly under that photograph instead of here, so it is never
+     ambiguous which one a note is about — Sarel: "make sure it's clear
+     where note is captured, either for the finding or for the photo."
+     Everything else — the normal case, unchanged from before photoId
+     existed — is a note for the finding/check as a whole. */
+  const voices = attachments.filter((a) => a.kind === "voice" && !a.photoId);
   const files = attachments.filter((a) => a.kind === "file");
   if (attachments.length === 0) return null;
 
@@ -1317,7 +1417,7 @@ export function AttachmentStrip({
           a site photograph of a national key point leaves the device is the
           whole point of the ASSIST_VISION gate, so it is a line on the page and
           not a tooltip. */}
-      {photos.length > 0 && aiOn && onUpdate && <VisionNote />}
+      {photos.length > 0 && aiOn && onUpdate && !hideDescribe && <VisionNote />}
       {photos.map((a) => (
         <PhotoRow
           key={a.id}
@@ -1326,6 +1426,12 @@ export function AttachmentStrip({
           onRemove={onRemove ? () => onRemove(a.id) : undefined}
           onUpdate={onUpdate ? (patch) => onUpdate(a.id, patch) : undefined}
           onMove={onMove ? () => onMove(a.id) : undefined}
+          hideDescribe={hideDescribe}
+          onAddVoice={onAddVoice ? (m) => onAddVoice(a.id, m) : undefined}
+          voiceNotes={attachments.filter((v) => v.kind === "voice" && v.photoId === a.id)}
+          onRemoveVoiceNote={onRemove}
+          onUpdateVoiceNote={onUpdate}
+          writeUpVoiceNote={writeUp}
         />
       ))}
       {voices.map((a) => (

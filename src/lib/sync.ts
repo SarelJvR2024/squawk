@@ -29,6 +29,7 @@ import type { VisitData } from "./store";
 import type {
   Attachment,
   EvidenceItem,
+  Finding,
   IncidentReport,
   SafetyFinding,
   SiteDay,
@@ -67,7 +68,16 @@ function wantsUpload(a: Attachment): boolean {
  *  confirmed, left out rather than built for nothing. The Follow-up screen
  *  now does (Sarel: "upload 'verification' photo's or information for
  *  closure… doesn't make sense to keep them under 'inspection'"), so it is
- *  the eighth record in this loop, same pattern as the seven before it. */
+ *  the eighth record in this loop, same pattern as the seven before it.
+ *
+ *  FINDING IS THE NINTH, 3 November 2026 — caught by the standing SharePoint
+ *  sync-integrity review the same day `Finding.attachments` shipped (the
+ *  Raise tab: a finding with no check-point now keeps its own photos). The
+ *  field reached sharepoint.ts and exports.ts in that same change, but not
+ *  this queue — so a photograph attached here stayed local-only, correct in
+ *  the portal export run from the SAME device, invisible ("the image is no
+ *  longer stored on this device") from any other. Same bug class as the
+ *  eight above it, one layer earlier. */
 interface AttachmentActions {
   updateAttachment: (checkId: string, attachmentId: string, p: Partial<Attachment>) => void;
   updateAdhocAttachment: (id: string, attachmentId: string, p: Partial<Attachment>) => void;
@@ -82,6 +92,7 @@ interface AttachmentActions {
   updateEvidenceAttachment: (id: string, attachmentId: string, p: Partial<Attachment>) => void;
   updateIncidentAttachment: (id: string, attachmentId: string, p: Partial<Attachment>) => void;
   updateVerificationAttachment: (pf: string, attachmentId: string, p: Partial<Attachment>) => void;
+  updateFindingAttachment: (id: string, attachmentId: string, p: Partial<Attachment>) => void;
 }
 
 function collectOutstanding(
@@ -91,6 +102,7 @@ function collectOutstanding(
   siteDays: SiteDay[],
   evidenceItems: EvidenceItem[],
   incidentReports: IncidentReport[],
+  findings: Finding[],
   actions: AttachmentActions
 ): Outstanding[] {
   const out: Outstanding[] = [];
@@ -140,6 +152,11 @@ function collectOutstanding(
           });
         }
       }
+    }
+  }
+  for (const x of findings.filter(mine)) {
+    for (const a of x.attachments ?? []) {
+      if (wantsUpload(a)) out.push({ checkId: x.id, a, write: (p) => actions.updateFindingAttachment(x.id, a.id, p) });
     }
   }
   return out;
@@ -199,6 +216,7 @@ export function usePhotoSync(): SyncState {
   const siteDays = useStore((s) => s.siteDays);
   const evidenceItems = useStore((s) => s.evidenceItems);
   const incidentReports = useStore((s) => s.incidentReports);
+  const findings = useStore((s) => s.findings);
   const updateAttachment = useStore((s) => s.updateAttachment);
   const updateAdhocAttachment = useStore((s) => s.updateAdhocAttachment);
   const updateIsfAttachment = useStore((s) => s.updateIsfAttachment);
@@ -207,6 +225,7 @@ export function usePhotoSync(): SyncState {
   const updateEvidenceAttachment = useStore((s) => s.updateEvidenceAttachment);
   const updateIncidentAttachment = useStore((s) => s.updateIncidentAttachment);
   const updateVerificationAttachment = useStore((s) => s.updateVerificationAttachment);
+  const updateFindingAttachment = useStore((s) => s.updateFindingAttachment);
 
   const [uploading, setUploading] = useState(false);
   const [online, setOnline] = useState(true);
@@ -234,6 +253,7 @@ export function usePhotoSync(): SyncState {
     updateEvidenceAttachment,
     updateIncidentAttachment,
     updateVerificationAttachment,
+    updateFindingAttachment,
   };
   const outstanding = collectOutstanding(
     entity,
@@ -242,6 +262,7 @@ export function usePhotoSync(): SyncState {
     siteDays,
     evidenceItems,
     incidentReports,
+    findings,
     actions
   );
   const failed = outstanding.filter(({ a }) => a.cloudError).length;
@@ -259,6 +280,7 @@ export function usePhotoSync(): SyncState {
         s.siteDays,
         s.evidenceItems,
         s.incidentReports,
+        s.findings,
         s
       );
       /* One at a time. Eight parallel uploads on airport wifi is eight
