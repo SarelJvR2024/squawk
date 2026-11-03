@@ -208,6 +208,16 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
      walk) is sent through as-is, same as `evidenceVerdict` below — a
      genuinely unset verdict must not be mistaken for a cleared one. */
   fieldCompliance: ["Field compliance", "Field Compliance", "Inspection compliance", "Site verdict"],
+  /* THE INSPECTION SCREEN'S OWN NOTE, SEPARATE FROM `observation` BELOW —
+     Response.fieldObservation, same reasoning as fieldCompliance right
+     above it. Sarel, on the walk screen pre-filling the desk's interview
+     note into its own text box: "the note populated there is from the
+     interview of the audit check, it should not be populated here...
+     The reports will pick up both notes separately." Never had a column
+     until now, so a portal reader saw only `observation` (the desk half)
+     — same "aliases that read unambiguously as the OTHER column"
+     reasoning fieldCompliance's own comment gives. */
+  fieldObservation: ["Field observation", "Field Observation", "Inspection note", "Site observation"],
   /* THE EVIDENCE QUESTION, SEPARATE FROM THE CHECK'S OWN VERDICT. Replaced
      the chip-picking "Evidence to request" tab (never synced) — see the
      note at the checkpoints loop's values object in buildPlan(). */
@@ -1680,6 +1690,11 @@ export function buildPlan(
            portal, not fold into (or get confused with) `compliance` above,
            which is a different question answered on a different screen. */
         fieldCompliance: r.fieldCompliance,
+        /* THE INSPECTION SCREEN'S OWN NOTE — see Response.fieldObservation's
+           doc comment and the fieldObservation entry in FIELD_CANDIDATES
+           above. Never folded into `observation` above, same reasoning as
+           fieldCompliance never folding into `compliance`. */
+        fieldObservation: r.fieldObservation?.trim() || "",
         /* EVIDENCE PENDING GOES ACROSS, IN THE OBSERVATION.
            The portal's compliance column has four values and "Compliant,
            evidence pending" is not one of them — it is a C with a flag on it,

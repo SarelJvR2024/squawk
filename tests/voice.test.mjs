@@ -255,7 +255,13 @@ check(
 check(
   "accepting appends rather than replacing what the auditor typed",
   /onAccept=\{\(text\) => \{\s*\n\s*appendObservation\(check\.id, text\);/.test(detail) &&
-    /appendObservation\(c\.id, text\);/.test(field),
+    /appendFieldObservation\(c\.id, text\);/.test(field),
+  /* field/page.tsx moved from appendObservation to appendFieldObservation
+     3 November 2026 — Response.fieldObservation split the walk's own note
+     away from the desk's interview write-up (see that field's own doc
+     comment in types.ts); CheckDetail.tsx (the desk screen, `detail`
+     above) still writes `observation` through appendObservation,
+     unchanged, since that is still its own field. */
   "an auditor who already wrote something has not asked for it to be discarded"
 );
 

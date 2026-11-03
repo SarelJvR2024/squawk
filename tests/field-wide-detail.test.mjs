@@ -132,7 +132,11 @@ check(
 
 check(
   "picking a check-point row still just sets openItem — no separate wide-mode click handler",
-  /onClick=\{\(\) => \{ setOpenItem\(c\.id\); setCheckTab\("walkabout"\); \}\}/.test(page)
+  /* setWalkaboutNoteOpen(false) joined this same handler 3 November 2026,
+     alongside Response.fieldObservation — still one handler, still no
+     wide-mode-specific branch; this just resets one more piece of local
+     UI state the same way setCheckTab("walkabout") already did. */
+  /onClick=\{\(\) => \{ setOpenItem\(c\.id\); setCheckTab\("walkabout"\); setWalkaboutNoteOpen\(false\); \}\}/.test(page)
 );
 
 /* ---- the mobile Sheet's own hard-won behaviour is untouched --------------- */

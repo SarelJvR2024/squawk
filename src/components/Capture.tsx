@@ -233,7 +233,15 @@ export function VoiceNoteButton({
   }
 
   return (
-    <span className={`inline-flex items-center gap-2 ${className}`}>
+    /* `flex-1` lands HERE, not only on the button inside — Sarel: "make the
+       photo and voice note button the same size." This span, not the
+       button, is the actual flex item in a caller's `flex` row (it exists
+       to hold the Discard button and the live-transcript readout beside
+       the mic button while recording), so a `large` button whose grow
+       class only reached the button never actually grew: the span sized
+       itself to its content and the button's flex-1 had nothing to expand
+       into. */
+    <span className={`inline-flex items-center gap-2 ${large ? "flex-1" : ""} ${className}`}>
       <button
         type="button"
         onClick={toggle}
@@ -800,9 +808,28 @@ function VoiceRow({
                 ? "Heard live by the browser · word for word"
                 : "Typed"}
           </span>
-          <span className="text-[11px] italic" style={{ color: "var(--ink-3)" }}>
-            “{a.transcript}”
-          </span>
+          {/* EDITABLE, NOT JUST READ — Sarel: "allow the user to edit the
+             transcribed text." A transcription service or a browser's live
+             dictation mishears a word often enough that a quoted, read-only
+             span left the only fix as discard-and-redo. Editing it by hand
+             clears `transcriptSource`: the words are no longer purely what
+             a machine heard, the same "absent means an auditor typed it"
+             convention this field already used for a note typed from
+             scratch. */}
+          {onUpdate ? (
+            <textarea
+              value={a.transcript}
+              onChange={(e) => onUpdate({ transcript: e.target.value, transcriptSource: undefined })}
+              aria-label="Edit the transcribed text"
+              rows={2}
+              className="w-full resize-y rounded-[6px] border px-[8px] py-[5px] text-[11px] italic outline-none"
+              style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+            />
+          ) : (
+            <span className="text-[11px] italic" style={{ color: "var(--ink-3)" }}>
+              “{a.transcript}”
+            </span>
+          )}
           {/* USE IT, VERBATIM — THE GAP Sarel found: "when I add a voice note
              to a new finding, it saves it linked to the photo and not in the
              main finding description box, which means I have to copy it out
@@ -936,6 +963,7 @@ function PhotoRow({
   onRemoveVoiceNote,
   onUpdateVoiceNote,
   writeUpVoiceNote,
+  hideVoiceAccept = false,
 }: {
   a: Attachment;
   onRemove?: () => void;
@@ -963,6 +991,9 @@ function PhotoRow({
   onRemoveVoiceNote?: (id: string) => void;
   onUpdateVoiceNote?: (id: string, patch: Partial<Attachment>) => void;
   writeUpVoiceNote?: (transcript: string) => Promise<string>;
+  /** Hides this photo's own nested voice note's "Use it, word for word"
+   *  button — see AttachmentStrip's own `hideVoiceAccept`. */
+  hideVoiceAccept?: boolean;
 }) {
   const { url, missing } = useBlobUrl(a.blobKey);
   const src = url ?? a.thumbDataUrl ?? a.dataUrl ?? null;
@@ -1225,9 +1256,13 @@ function PhotoRow({
               /* "Use it, word for word" on a note tied to THIS photo fills
                  the photo's own caption, not the finding/check's field —
                  the whole point of a photo-specific note being distinct
-                 from a general one. */
+                 from a general one. Suppressed entirely where the caller
+                 already applies a transcript to the caption itself the
+                 moment it arrives (hideVoiceAccept) — Sarel: "it should
+                 just auto populate the correct text box and not rely on
+                 the user to click... to copy to the notes." */
               onAccept={
-                onUpdate
+                onUpdate && !hideVoiceAccept
                   ? (text) => onUpdate({ caption: caption ? `${caption}\n${text}` : text, captionSource: "auditor" })
                   : undefined
               }
@@ -1358,6 +1393,7 @@ export function AttachmentStrip({
   thumbSize = 44,
   hideDescribe = false,
   onAddVoice,
+  hideVoiceAccept = false,
 }: {
   attachments: Attachment[];
   onRemove?: (id: string) => void;
@@ -1396,6 +1432,17 @@ export function AttachmentStrip({
    *  newly captured attachment, same reasoning as onAccept; omit it and no
    *  per-photo recording control is offered. */
   onAddVoice?: (photoId: string, m: VoiceCapture) => void;
+  /** Hides every "Use it, word for word" button in this strip — the
+   *  finding-level one (by never rendering it: `onAccept` below only ever
+   *  reaches VoiceRow when this is false) and each photo's own nested one.
+   *  For a caller that already applies a transcript to its destination
+   *  field itself, the moment it arrives, rather than waiting for this
+   *  button — Sarel: "it should just auto populate the correct text box
+   *  and not rely on the user to click... to copy to the notes." Leaving
+   *  the button up after that point is dead, confusing UI: a tap on it
+   *  either does nothing new or, for the finding-level field, re-appends
+   *  text already there. */
+  hideVoiceAccept?: boolean;
 }) {
   const aiOn = useAssistAvailable();
   const photos = attachments.filter((a) => a.kind === "photo");
@@ -1432,6 +1479,7 @@ export function AttachmentStrip({
           onRemoveVoiceNote={onRemove}
           onUpdateVoiceNote={onUpdate}
           writeUpVoiceNote={writeUp}
+          hideVoiceAccept={hideVoiceAccept}
         />
       ))}
       {voices.map((a) => (
@@ -1441,7 +1489,7 @@ export function AttachmentStrip({
           onRemove={onRemove ? () => onRemove(a.id) : undefined}
           onUpdate={onUpdate ? (patch) => onUpdate(a.id, patch) : undefined}
           writeUp={writeUp}
-          onAccept={onAccept}
+          onAccept={hideVoiceAccept ? undefined : onAccept}
         />
       ))}
       {files.map((a) => (

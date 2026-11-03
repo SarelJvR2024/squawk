@@ -152,7 +152,12 @@ check(
    not collapse back into one. */
 check(
   "the field view's progress figure counts `answered` (compliance and a note), not merely that the field half was saved",
-  /const answered = \(r\?: Response\) => !!r\?\.compliance && !!r\?\.observation\?\.trim\(\);/.test(field) &&
+  /* reads fieldObservation, not observation — 3 November 2026,
+     Response.fieldObservation split this screen's own note away from the
+     desk's interview write-up (see that field's own doc comment in
+     types.ts), and `answered` was updated to match so this screen's own
+     "answered" count keeps meaning what this paragraph says it means. */
+  /const answered = \(r\?: Response\) => !!r\?\.compliance && !!r\?\.fieldObservation\?\.trim\(\);/.test(field) &&
     /doneOf = \(cs: Check\[\]\) => cs\.filter\(\(c\) => answered\(responses\[c\.id\]\)\)\.length;/.test(field) &&
     /const doneCount = visible\.filter\(\(c\) => answered\(responses\[c\.id\]\)\)\.length;/.test(field),
   "fieldDone alone would count a saved-but-undecided check as done, exactly the bug this change was asked to fix"
