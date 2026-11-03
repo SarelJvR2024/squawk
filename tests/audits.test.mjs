@@ -172,6 +172,39 @@ check(
   "creating something and then having to find it is two steps too many"
 );
 
+/* ------------- Part N: the whole row opens the audit, not just "Open" ----- */
+
+/* Sarel, on mobile, trying to switch to the East London audit: "i cant
+ * change the audit to the East London audit, clicking on it doesnt do
+ * anything." The row already reads as a tappable card — border, fill,
+ * rounded corners — but only the small pill-shaped "Open" button inside it
+ * actually had an onClick. A thumb landing anywhere else on the row, which
+ * is most of it, got nothing back. */
+
+check(
+  "an unopened audit's row carries its own onClick, not just the Open button inside it",
+  /onClick=\{\s*\n\s*on\s*\n\s*\? undefined\s*\n\s*: \(\) => \{\s*\n\s*openAudit\(e\.code, v\.id\);/.test(panel),
+  "the row has to do what the Open button already does, not something new"
+);
+
+check(
+  "the row is reachable from a keyboard too — role, tabIndex and Enter/Space all gated the same way onClick is",
+  /role=\{on \? undefined : "button"\}/.test(panel) &&
+    /tabIndex=\{on \? undefined : 0\}/.test(panel) &&
+    /ev\.key !== "Enter" && ev\.key !== " "/.test(panel)
+);
+
+check(
+  "an ALREADY-OPEN row has no click handler of its own — there is nothing left for a tap on it to do",
+  /onClick=\{\s*\n\s*on\s*\n\s*\? undefined/.test(panel),
+  "a second openAudit onto the same entity/visit would be a no-op, but the row should say so by doing nothing, not by quietly firing one"
+);
+
+check(
+  "Open/Edit/Remove stop the click from also reaching the row — correcting or deleting a visit must never also switch into it",
+  /className="ml-auto flex items-center gap-1\.5"\s*\n\s*onClick=\{\(ev\) => ev\.stopPropagation\(\)\}/.test(panel)
+);
+
 console.log(
   failures === 0 ? "\nAUDITS OK" : `\n${failures} FAILURE${failures > 1 ? "S" : ""}`
 );

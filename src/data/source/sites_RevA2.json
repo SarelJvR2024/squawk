@@ -15,10 +15,9 @@
       "name": "King Shaka International Airport",
       "class": "international",
       "audit": {
-        "from": "2026-12-01",
-        "to": "2026-12-31",
-        "visit": "2026-09",
-        "tbc": true
+        "from": "2026-11-17",
+        "to": "2026-11-20",
+        "visit": "2026-09"
       },
       "checks": 324,
       "inPortal": true
@@ -86,8 +85,8 @@
       "name": "King Phalo Airport",
       "class": "regional",
       "audit": {
-        "from": "2026-11-03",
-        "to": "2026-11-05",
+        "from": "2026-11-05",
+        "to": "2026-11-06",
         "visit": "2026-11"
       },
       "checks": 319,
@@ -101,7 +100,7 @@
       "class": "regional",
       "audit": {
         "from": "2026-11-10",
-        "to": "2026-11-12",
+        "to": "2026-11-11",
         "visit": "2026-11"
       },
       "checks": 319,

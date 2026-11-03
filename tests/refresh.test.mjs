@@ -67,5 +67,38 @@ check(
   "a looser gate here than SharedPanel's own is how a locked device gets a dead button"
 );
 
+/* ---------------------------------------------------------------------
+ * A DIFFERENT "REFRESH" — THE APP ITSELF, NOT THE DATA.
+ *
+ * Sarel, after not seeing a shipped change on his phone: "add a refresh
+ * button to the ap so that i can click to refresh it to make sure i get
+ * the latest version of the app and pages." The item above already
+ * covers pulling the latest DATA from the shared record; this is a
+ * separate concern — pulling the latest CODE — and needed a separate
+ * button, not a second job piled onto the first one's. */
+
+check(
+  "Refresh app is a distinct menu item, not folded into the data Refresh above",
+  /label="Refresh app"/.test(shell) &&
+    /hint="Check for the latest version and reload it"/.test(shell)
+);
+
+check(
+  "it forces an update check rather than waiting for the browser's own clock to get around to it",
+  /const reg = await navigator\.serviceWorker\?\.getRegistration\(\);/.test(shell) &&
+    /await reg\?\.update\(\);/.test(shell)
+);
+
+check(
+  "it always ends in a reload — found update or not, that is the honest answer to \"refresh it\"",
+  /location\.reload\(\);\s*\n\s*\};/.test(shell)
+);
+
+check(
+  "it is not gated on the shared record the way the data Refresh item is — the app itself needs no team record configured to be worth updating",
+  /onClick=\{\(\) => \{ setMore\(false\); void refreshApp\(\); \}\}/.test(shell) &&
+    !/shared[\s\S]{0,40}refreshApp/.test(shell)
+);
+
 console.log(failures === 0 ? "\nREFRESH OK" : `\n${failures} FAILURE${failures > 1 ? "S" : ""}`);
 process.exit(failures === 0 ? 0 : 1);
