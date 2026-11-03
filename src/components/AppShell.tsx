@@ -342,6 +342,38 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const sync = usePhotoSync();
   const sigSync = useSignatureSync();
 
+  /* "ADD A REFRESH BUTTON SO I CAN MAKE SURE I GET THE LATEST VERSION" —
+   *  Sarel, after not seeing a shipped change on his phone. This is a
+   *  DIFFERENT problem from the "Refresh" item above: that one pulls the
+   *  latest DATA from the shared record; this one forces a check for the
+   *  latest CODE. A browser only re-fetches /sw.js (and so notices a new
+   *  build at all) roughly once a day on its own — OfflineReady.tsx already
+   *  auto-activates and reloads the instant it DOES notice (Sarel, 13
+   *  October: "auto-update the builds and apps, instantly"), so the actual
+   *  gap is that nobody ever told it to go look sooner. `reg.update()` is
+   *  exactly that ask, forced on demand instead of waiting for the browser's
+   *  own clock. If it finds a new build, OfflineReady's own listeners on this
+   *  same registration take it from there — install, auto-activate, reload —
+   *  and the fallback reload below becomes a harmless no-op on top of that.
+   *  If it finds nothing (already current), the fallback reload is still the
+   *  honest answer to "refresh it": the device checked, for real, and this
+   *  is what's actually live. */
+  const refreshApp = async () => {
+    try {
+      const reg = await navigator.serviceWorker?.getRegistration();
+      await reg?.update();
+      /* Give a found update a moment to install and hand off control —
+         OfflineReady's own `controllerchange` reload fires first if so, and
+         this call becomes a no-op; a plain reload still goes ahead either
+         way, as the device's own confirmation that it checked. */
+      await new Promise((r) => setTimeout(r, 1200));
+    } catch {
+      /* No service worker, or the check itself failed — a plain reload is
+         still the right fallback, same as if nothing had gone wrong. */
+    }
+    location.reload();
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const typing = /INPUT|TEXTAREA/.test(
@@ -1001,6 +1033,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       }
                       selected={pathname === "/preflight"}
                       onClick={() => { setMore(false); router.push("/preflight"); }}
+                    />
+                    {/* FORCE A CHECK FOR A NEWER BUILD, RIGHT NOW — see
+                        refreshApp's own doc comment above for why this exists
+                        and how it differs from the data "Refresh" item below. */}
+                    <MoreItem
+                      icon={<IconLoop width={14} height={14} />}
+                      label="Refresh app"
+                      hint="Check for the latest version and reload it"
+                      onClick={() => { setMore(false); void refreshApp(); }}
                     />
                     {/* THE ONE ENTRY POINT for every TK-003 form and register
                         (Sarel, 2 October 2026: "remove the individual forms

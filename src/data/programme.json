@@ -16,10 +16,9 @@
       "live": true,
       "zones": [],
       "class": "international",
-      "auditFrom": "2026-12-01",
-      "auditTo": "2026-12-31",
-      "auditTbc": true,
-      "auditNote": "Moved from 15-18 Sep 2026; December 2026 confirmed, exact dates not yet."
+      "auditFrom": "2026-11-17",
+      "auditTo": "2026-11-20",
+      "auditNote": "Moved from 15-18 Sep 2026, then December 2026 TBC; confirmed for 17-20 Nov 2026."
     },
     {
       "code": "FAOR",
@@ -73,8 +72,8 @@
       "live": false,
       "zones": [],
       "class": "regional",
-      "auditFrom": "2026-11-03",
-      "auditTo": "2026-11-05"
+      "auditFrom": "2026-11-05",
+      "auditTo": "2026-11-06"
     },
     {
       "code": "FAPE",
@@ -85,7 +84,7 @@
       "zones": [],
       "class": "regional",
       "auditFrom": "2026-11-10",
-      "auditTo": "2026-11-12"
+      "auditTo": "2026-11-11"
     },
     {
       "code": "FAGG",
@@ -211,14 +210,14 @@
       "label": "Nov 2026",
       "entity": "FAEL",
       "state": "scheduled",
-      "note": "Round 1 · 03–05 Nov · baseline"
+      "note": "Round 1 · 05–06 Nov · baseline"
     },
     {
       "id": "2026-11",
       "label": "Nov 2026",
       "entity": "FAPE",
       "state": "scheduled",
-      "note": "Round 1 · 10–12 Nov · baseline"
+      "note": "Round 1 · 10–11 Nov · baseline"
     },
     {
       "id": "2026-11",

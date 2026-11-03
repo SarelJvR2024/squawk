@@ -63,7 +63,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `reviewcompliance.test.mjs` | no | 7 |
 | `syncwatermark.test.mjs` | no | 14 |
 | `tablet.test.mjs` | no | 46 |
-| `refresh.test.mjs` | no | 6 |
+| `refresh.test.mjs` | no | 10 |
 | `portals.test.mjs` | no | 32 |
 | `reset.test.mjs` | no | 21 |
 | `reset-sync.test.mjs` | no | 13 |
@@ -87,7 +87,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `photoview.test.mjs` | no | 25 |
 | `people.test.mjs` | no | 36 |
 | `saveall.test.mjs` | no | 5 |
-| `audits.test.mjs` | no | 18 |
+| `audits.test.mjs` | no | 22 |
 | `voice.test.mjs` | no | 37 |
 | `sites.test.mjs` | no | 42 |
 | `photos.test.mjs` | no | 113 |
@@ -144,7 +144,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,709 assertions in total**, every count above verified by running the suite,
+**3,717 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -747,6 +747,19 @@ locked device, the same gate SharedPanel's own button already uses —
 `syncNow()` has no passphrase to sync with there, and without this gate the
 button would sit in the menu and silently do nothing when tapped.
 
+A SECOND, DIFFERENT "REFRESH" lives in the same file now — Sarel, after not
+seeing a shipped change on his phone: "add a refresh button to the ap so
+that i can click to refresh it to make sure i get the latest version of the
+app and pages." The item above pulls the latest DATA; this one pulls the
+latest CODE, by forcing `registration.update()` rather than waiting for the
+browser's own once-a-day check. Checks that "Refresh app" is its own menu
+item, not folded into the data one; that it calls `getRegistration()` and
+`update()` rather than just reloading and hoping; that it always ends in a
+`location.reload()`, found update or not, since a device that checked and
+found nothing current is still the honest answer to "refresh it"; and that
+it carries no shared-record gate of its own — the app itself needs no team
+record configured to be worth updating.
+
 ## `checkscreen.test.mjs`
 
 Guards the shape of the check screen after it was cut down to a brief, and then
@@ -990,6 +1003,18 @@ visit id is validated as `YYYY-MM` on the way in, because carry-forward decides
 what came before by sorting it; deletion cannot lose work — seeded audits are
 never removable and one holding responses *or findings* is refused; and the way
 in is visible, since the strip was already clickable and nobody clicked it.
+
+A SIXTH PART, added after Sarel — on mobile, trying to switch to the East
+London audit — reported "i cant change the audit to the East London audit,
+clicking on it doesnt do anything." The row read as a tappable card but only
+the small "Open" button inside it actually had an onClick; a thumb landing
+anywhere else on the row, which is most of it, got nothing back. Checks that
+an unopened row's own click (and its keyboard equivalent — role, tabIndex,
+Enter/Space) calls the same `openAudit` the Open button does; that an
+already-open row carries no click handler of its own, so there is nothing
+for a stray tap to quietly repeat; and that Open/Edit/Remove each stop their
+own click from also reaching the row, so correcting a date or removing an
+empty audit never also switches into it.
 
 ## The browser suites
 

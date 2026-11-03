@@ -289,7 +289,40 @@ export default function AuditsPanel({ onClose }: { onClose: () => void }) {
                     return (
                       <div
                         key={key}
-                        className="flex flex-wrap items-center gap-2 rounded-[11px] border px-[12px] py-[9px]"
+                        /* THE WHOLE ROW OPENS THE AUDIT, NOT JUST THE "OPEN" BUTTON —
+                         * Sarel, on mobile: "i cant change the audit to the East
+                         * London audit, clicking on it doesn't do anything." The row
+                         * already reads as a tappable card (border, fill, rounded
+                         * corners); the only thing that actually responded to a tap
+                         * was the small pill-shaped "Open" button inside it, which a
+                         * thumb can land beside on a phone without the row's label
+                         * or dates giving any feedback at all. The explicit Open
+                         * button stays, for anyone who lands on it precisely, but a
+                         * tap anywhere else on an already-closed row now does the
+                         * same thing. Edit and Remove stop their own propagation
+                         * below so correcting or deleting a visit never ALSO
+                         * switches into it. */
+                        onClick={
+                          on
+                            ? undefined
+                            : () => {
+                                openAudit(e.code, v.id);
+                                setToast(`Opened ${e.short} · ${v.label}.`);
+                              }
+                        }
+                        role={on ? undefined : "button"}
+                        tabIndex={on ? undefined : 0}
+                        onKeyDown={
+                          on
+                            ? undefined
+                            : (ev) => {
+                                if (ev.key !== "Enter" && ev.key !== " ") return;
+                                ev.preventDefault();
+                                openAudit(e.code, v.id);
+                                setToast(`Opened ${e.short} · ${v.label}.`);
+                              }
+                        }
+                        className={`flex flex-wrap items-center gap-2 rounded-[11px] border px-[12px] py-[9px] ${on ? "" : "cursor-pointer"}`}
                         style={
                           on
                             ? { background: "var(--acc-soft)", borderColor: "var(--acc-line)" }
@@ -317,7 +350,12 @@ export default function AuditsPanel({ onClose }: { onClose: () => void }) {
                             ? `${st!.captured} complete · ${st!.media} media · ${st!.findings} findings`
                             : v.note}
                         </span>
-                        <span className="ml-auto flex items-center gap-1.5">
+                        {/* Open/Edit/Remove each have their own meaning — none of
+                            them should also trigger the row's own onClick above. */}
+                        <span
+                          className="ml-auto flex items-center gap-1.5"
+                          onClick={(ev) => ev.stopPropagation()}
+                        >
                           {!on && (
                             <Btn onClick={() => {
                               openAudit(e.code, v.id);

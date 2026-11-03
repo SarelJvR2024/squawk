@@ -903,24 +903,25 @@ check(
   "derived from the site table, so a rescheduled audit moves the warning with it"
 );
 
-/* KING SHAKA MOVED TO DECEMBER with no dates confirmed (Sarel, 17 September
- * 2026). The month is agreed and the days are not, so from/to are the month's
- * bounds — everything that sorts or compares still works — and `tbc` stops them
- * being printed as a four-week audit nobody agreed to. */
+/* KING SHAKA MOVED TWICE — first to December with no dates confirmed
+ * (Sarel, 17 September 2026), then to a confirmed 17–20 November 2026
+ * (Sarel, 3 November 2026). The TBC window is history now, but the guard
+ * that watched it move still has to watch it move again: a confirmed window
+ * is still a window, and syncing before it opens is still worth a warning. */
 
 check(
-  "an unconfirmed window still warns, and says the dates are not confirmed",
+  "a confirmed window warns with real dates, not the month's bounds",
   (() => {
     const e = sp.syncedBeforeAudit("FALE", "2026-09-17");
-    return e && e.tbc === true && e.from.startsWith("2026-12");
+    return e && !e.tbc && e.from === "2026-11-17" && e.to === "2026-11-20";
   })(),
   JSON.stringify(sp.syncedBeforeAudit("FALE", "2026-09-17"))
 );
 
 check(
-  "KING SHAKA HAS A GUARD AGAIN — a slipped audit must not silently lose one",
+  "KING SHAKA HAS A GUARD AGAIN — a slipped, then confirmed, audit must not silently lose one",
   sp.syncedBeforeAudit("FALE", "2026-09-17") !== null,
-  "its September window had passed, so the warning had gone quiet for the one site whose audit did not happen"
+  "its original September window had passed, so the warning had gone quiet for the one site whose audit did not happen on time"
 );
 
 check(
