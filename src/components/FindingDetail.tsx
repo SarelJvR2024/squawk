@@ -333,7 +333,12 @@ export default function FindingDetail({
           <RootCauseAdvice
             finding={f}
             check={f.checkId ? checksAt(entityCode).find((c) => c.id === f.checkId) : undefined}
-            attachments={f.checkId ? (responses[f.checkId]?.attachments ?? []) : []}
+            /* PLUS the finding's own attachments now — see
+               Finding.attachments' own doc comment. A finding raised with
+               no check-point picked used to send this advice component no
+               evidence at all to ground its suggestion in, even once it had
+               its own photos. */
+            attachments={[...(f.checkId ? (responses[f.checkId]?.attachments ?? []) : []), ...(f.attachments ?? [])]}
             onPick={(rc) => updateFinding(f.id, { rootCause: rc })}
           />
         }
@@ -342,12 +347,12 @@ export default function FindingDetail({
       {/* THE OTHER HALF OF THE SAME MOMENT: what event does this expose?
           Named here, it gives the hazard register something a person wrote
           to consolidate from. Same props shape as RootCauseAdvice above —
-          both read the finding's own check and attachments, both only
-          propose. */}
+          both read the finding's own check, its own attachments and the
+          check's response attachments, both only propose. */}
       <HazardAdvice
         finding={f}
         check={f.checkId ? checksAt(entityCode).find((c) => c.id === f.checkId) : undefined}
-        attachments={f.checkId ? (responses[f.checkId]?.attachments ?? []) : []}
+        attachments={[...(f.checkId ? (responses[f.checkId]?.attachments ?? []) : []), ...(f.attachments ?? [])]}
         onAccept={(event) => {
           updateFinding(f.id, { suggestedEvent: event });
           say(`Hazard noted · ${event}`);

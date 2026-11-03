@@ -1604,7 +1604,20 @@ function SystemEvidence({
           const from = adhocByFindingId.get(f.id);
           const checkResponse = f.checkId ? responses[f.checkId] : undefined;
           const note = from ? from.note : (checkResponse?.observation ?? "");
-          const attachments = from ? from.attachments : (checkResponse?.attachments ?? []);
+          /* PLUS THE FINDING'S OWN ATTACHMENTS, always — see
+             Finding.attachments' own doc comment in types.ts. Neither
+             `from` nor `checkResponse` exists for a finding raised through
+             the "Raise a finding" tab with no walk item or check-point
+             behind it, which left this row showing no evidence at all for
+             exactly the findings that tab is built to make easy to
+             photograph. Added on top of whichever other source applies,
+             never in place of it — a finding can carry a check's own
+             response evidence AND its own capture at the same time, two
+             genuinely separate arrays, not a replacement for either. */
+          const attachments = [
+            ...(from ? from.attachments : (checkResponse?.attachments ?? [])),
+            ...(f.attachments ?? []),
+          ];
           return (
             <FindingRow
               key={f.id}

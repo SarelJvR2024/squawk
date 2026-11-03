@@ -332,7 +332,16 @@ check(
 
 check(
   "the verbatim accept button is gated on onAccept being supplied, same as the rewrite one already is",
-  /\{a\.transcript && \([\s\S]{0,1800}onAccept && \(/.test(capture)
+  /* Non-greedy and anchored to the button's OWN label — the first version
+     of this check used a greedy 1800-char window from `{a.transcript &&`,
+     which was wide enough to also match the PRE-EXISTING rewrite button's
+     own `onAccept &&` gate inside the separate `{a.revised && (…)}` block
+     below, so it passed even on the unmodified file (caught by PR #216's
+     own independent review). `[\s\S]*?` stops at the first `onAccept && (`
+     after `{a.transcript && (`, and requiring "Use it, word for word" right
+     after it ties the gate to the specific button this check is about, not
+     to any onAccept gate anywhere later in the file. */
+  /\{a\.transcript && \([\s\S]*?onAccept && \([\s\S]*?Use it, word for word/.test(capture)
 );
 
 /* ------------------------------------------------------------------ result */
