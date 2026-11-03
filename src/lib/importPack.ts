@@ -945,6 +945,7 @@ export function applyImportPlan(plan: ImportPlan, actions: ImportActions): Apply
       createdBy: actions.auditor,
       importKey: f.importKey,
       fromItemId: f.row.fromItem ? adhocIdByRef.get(f.row.fromItem) ?? null : null,
+      attachments: [],
     });
     findingIdByRef.set(f.row.ref, id);
     result.findingsWritten++;

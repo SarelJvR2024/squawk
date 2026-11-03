@@ -88,6 +88,7 @@ const ROUTES = [
   "/home",
   "/capture",
   "/field",
+  "/raise",
   "/findings",
   "/hazards",
   "/closure",

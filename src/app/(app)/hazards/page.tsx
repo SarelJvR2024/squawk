@@ -143,15 +143,27 @@ export default function HazardsPage() {
 
   /* Photographs behind a set of findings, de-duplicated. A photograph lives on
      the CHECK, so two findings raised at one check share it and it must not be
-     counted or sent twice. */
+     counted or sent twice. PLUS the finding's own attachments (see
+     Finding.attachments' own doc comment) — a finding raised through the
+     "Raise a finding" tab usually has no checkId at all, and used to
+     contribute nothing here: no photo in the hazard's own strip, nothing
+     grounding the AI's consolidate()/rereadNow() vision step, nothing in the
+     proposal card's preview. A finding's own attachments and its check's
+     response attachments are genuinely separate arrays with separate ids
+     (see addFindingAttachment vs addAttachment), so `seen` still does its
+     job without needing to know which source an id came from. */
   const photosOf = useMemo(() => {
     return (ids: string[]): Attachment[] => {
       const seen = new Set<string>();
       const out: Attachment[] = [];
       for (const id of ids) {
         const f = findings.find((x) => x.id === id);
-        if (!f?.checkId) continue;
-        for (const a of responses[f.checkId]?.attachments ?? []) {
+        if (!f) continue;
+        const candidates = [
+          ...(f.checkId ? (responses[f.checkId]?.attachments ?? []) : []),
+          ...(f.attachments ?? []),
+        ];
+        for (const a of candidates) {
           if (a.kind !== "photo" || !a.blobKey || a.unavailable || seen.has(a.id)) continue;
           seen.add(a.id);
           out.push(a);

@@ -57,7 +57,7 @@ export default function RaiseFindingSheet({
   const auditor = useStore((s) => s.auditor);
   const visitId = useStore((s) => s.visit);
   const addFinding = useStore((s) => s.addFinding);
-  const addAttachment = useStore((s) => s.addAttachment);
+  const addFindingAttachment = useStore((s) => s.addFindingAttachment);
   const aiOn = useAssistAvailable();
 
   const disciplines = useMemo(() => disciplinesAt(entityCode), [entityCode]);
@@ -76,21 +76,15 @@ export default function RaiseFindingSheet({
    *  field-capture mobile pass, matching AddItemSheet's own "take the
    *  photograph, keep moving" brief.
    *
-   *  HELD HERE, NOT ON THE FINDING — Finding (src/lib/types.ts) carries no
-   *  attachments field of its own; every existing photograph or voice note
-   *  a Finding ever shows (FindingDetail.tsx) is read from its CHECK's
-   *  Response instead, via `checkId`. A finding raised from here with no
-   *  check-point picked has no Response to write into and nowhere of its
-   *  own to put one — adding that field would be a schema change, out of
-   *  scope for a layout/interaction pass. So a capture taken here is held
-   *  local until Raise it is pressed: if a check-point has been picked by
-   *  then, it joins that check's own attachments via the exact same
-   *  addAttachment action CheckDetail's own Photo/Voice buttons already
-   *  use; if not, save() refuses rather than silently dropping it — see
-   *  its own comment. "Evidence that was not stored must never be silent"
-   *  is Capture.tsx's own rule for a failed write; losing a capture to a
-   *  field this schema does not have yet is the same failure by another
-   *  name. */
+   *  HELD HERE UNTIL Raise it IS PRESSED, same as before — Finding did not
+   *  carry its own attachments when this was first written, so a capture
+   *  taken before a check-point was picked had nowhere to go and save()
+   *  refused rather than silently dropping it. Finding.attachments now
+   *  exists (see its own doc comment in types.ts, added after Sarel: "after
+   *  you raise a finding, you should be able to capture multiple photos"),
+   *  so every capture here joins the FINDING's own attachments via
+   *  addFindingAttachment once it exists — a check-point, if one is ever
+   *  picked, is no longer a precondition for keeping a photo. */
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
 
   /* Scoped to the discipline once one is chosen — same rule AddItemSheet's
@@ -156,17 +150,6 @@ export default function RaiseFindingSheet({
       setError("Pick a discipline. Asset system and check-point are both optional, this is not.");
       return;
     }
-    /* THE ONE CASE save() REFUSES RATHER THAN DROPS — see the note on
-       pendingAttachments. A finding with no check-point picked has nowhere
-       of its own to keep a photo or voice note yet; saying so here, before
-       anything is lost, is the whole point of holding them locally instead
-       of writing straight through. */
-    if (pendingAttachments.length > 0 && !checkId) {
-      setError(
-        "Photos and voice notes need a check-point picked below to be saved against — pick one, or remove them to raise this finding without them."
-      );
-      return;
-    }
     /* SAME DEFAULT SHAPE AS AddItemSheet.tsx'S raiseFinding — copied field for
        field so the two capture paths produce a consistently-shaped finding.
        checkId is null unless a check was picked here, which is exactly the
@@ -191,17 +174,16 @@ export default function RaiseFindingSheet({
       progress: [],
       adHoc: true,
       createdBy: auditor,
+      attachments: [],
     });
-    /* checkId is guaranteed set here whenever there is anything to attach —
-       the refusal above is what makes that true. Each capture joins that
-       check's own Response.attachments via the exact same store action
-       CheckDetail's Photo/Voice buttons already use; a photo taken from
-       this sheet and one taken from the check screen end up in the same
-       place, read back the same way everywhere that reads it. */
+    /* Always the FINDING's own attachments now, checkId picked or not — see
+       Finding.attachments' own doc comment. addFindingAttachment generates
+       each photo's own F-xxxxx_P01 reference the same way addAttachment
+       always has for a check-point photo. */
     for (const { id: _pid, createdAt: _pc, ...rest } of pendingAttachments) {
       void _pid;
       void _pc;
-      if (checkId) addAttachment(checkId, rest);
+      addFindingAttachment(id, rest);
     }
     onSaved?.(id, `${id} raised${checkId ? "" : " — not tied to a check-point"}`);
     reset();
@@ -270,12 +252,6 @@ export default function RaiseFindingSheet({
             }
           />
         </div>
-      )}
-      {!checkId && pendingAttachments.length === 0 && (
-        <span className="mt-1.5 block text-[10.5px]" style={{ color: "var(--ink-4)" }}>
-          Pick a check-point below to attach a photo or voice note here — a finding with no
-          check-point has nowhere of its own to keep one yet.
-        </span>
       )}
 
       <label className="mt-4 block">

@@ -187,10 +187,11 @@ export default function ReviewDetail({
    *  genuinely be about a related system. Photo/voice/file capture writes
    *  into THIS check's own Response.attachments via the same `addAttachment`
    *  action and AttachmentStrip the "Evidence received" section above
-   *  already uses — a finding has no attachments field of its own anywhere
-   *  in this app (see Finding in types.ts); every screen that shows a
-   *  finding's photos reads them off the check (or ad-hoc item) it is tied
-   *  to, and this keeps that the one rule rather than inventing a second. */
+   *  already uses. Finding.attachments exists now too (for findings raised
+   *  with no check-point to hold evidence against — see that field's own
+   *  doc comment), but a finding raised HERE is always tied to `check.id`
+   *  already, so its evidence keeps going through the check the way it
+   *  always has; nothing about this screen's own capture path changes. */
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newDiscipline, setNewDiscipline] = useState(check.discipline);
@@ -225,6 +226,7 @@ export default function ReviewDetail({
       progress: [],
       adHoc: true,
       createdBy: auditor,
+      attachments: [],
     });
     setNewTitle("");
     setNewDescription("");

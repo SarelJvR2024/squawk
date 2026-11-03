@@ -684,6 +684,52 @@ export function photographsSheet(x: ExportInput): Sheet {
       ]);
     }
   }
+  /* A FINDING'S OWN EVIDENCE — Finding.attachments, new (see that field's
+     own doc comment in types.ts): photos and voice notes captured when a
+     finding is raised, whether or not a check-point was ever picked. Same
+     sheet as the other four sources, same reasoning: a reader should not
+     have to know which screen captured a photograph to find it here.
+     Compliance reads Non-compliant unconditionally — "Every Finding IS a
+     non-compliance in this schema" (RaiseFindingSheet.tsx's own doc
+     comment), the one photo source in this sheet where that column is
+     never blank or borrowed from a Response. */
+  for (const f of x.findings) {
+    for (const a of f.attachments ?? []) {
+      if (a.kind !== "photo") continue;
+      rows.push([
+        photoFilename(a),
+        a.ref ?? "",
+        f.checkId ? portalIdFor(x.entity, f.checkId) : f.id,
+        STATUS_WORD.NC,
+        f.discipline,
+        f.system,
+        f.area,
+        a.location?.trim() ?? "",
+        a.assetName?.trim() ?? "",
+        a.assetRef?.trim() ?? "",
+        a.caption?.trim() ?? "",
+        a.caption?.trim()
+          ? a.captionSource === "assistant"
+            ? "Assistant, accepted by the auditor"
+            : "Auditor"
+          : "NO CAPTION",
+        when(a.takenAt) ?? "",
+        when(a.createdAt),
+        a.createdBy,
+        a.width && a.height ? `${a.width}×${a.height}` : "",
+        a.bytes ? Math.round(a.bytes / 1024) : "",
+        a.unavailable
+          ? "No image stored"
+          : a.cloudUrl
+            ? "On the device and in the record store"
+            : "On the device only",
+        a.cloudUrl ?? "",
+        f.checkId
+          ? "Finding's own evidence — also tied to a register check-point"
+          : "Finding's own evidence — NOT one of the register check-points",
+      ]);
+    }
+  }
 
   return {
     name: "Photographs",
