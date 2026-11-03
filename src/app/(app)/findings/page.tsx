@@ -1539,6 +1539,7 @@ function SystemEvidence({
     {
       compliance?: string | null;
       observation?: string;
+      fieldObservation?: string;
       evidenceStatus?: string | null;
       evidenceVerdict?: string | null;
       evidenceProves?: string;
@@ -1603,7 +1604,22 @@ function SystemEvidence({
              evidence. */
           const from = adhocByFindingId.get(f.id);
           const checkResponse = f.checkId ? responses[f.checkId] : undefined;
-          const note = from ? from.note : (checkResponse?.observation ?? "");
+          /* THE DESK'S OBSERVATION, PLUS THE INSPECTION SCREEN'S OWN NOTE —
+             Response.fieldObservation, separate from Response.observation
+             since 3 November 2026 (see that field's own doc comment in
+             types.ts). A note typed only on the walk used to be invisible
+             here once the two fields split apart from the one they used to
+             share. Labelled so the two are never mistaken for one voice. */
+          const note = from
+            ? from.note
+            : [
+                checkResponse?.observation?.trim() || "",
+                checkResponse?.fieldObservation?.trim()
+                  ? `Inspection: ${checkResponse.fieldObservation.trim()}`
+                  : "",
+              ]
+                .filter(Boolean)
+                .join("\n");
           /* PLUS THE FINDING'S OWN ATTACHMENTS, always — see
              Finding.attachments' own doc comment in types.ts. Neither
              `from` nor `checkResponse` exists for a finding raised through

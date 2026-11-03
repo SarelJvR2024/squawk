@@ -1041,6 +1041,21 @@ export default function DashboardPage() {
                                   {r.observation}
                                 </p>
                               )}
+                              {/* Response.fieldObservation — the Inspection
+                                  screen's own, separate note (see that
+                                  field's own doc comment in types.ts). Shown
+                                  alongside, not merged into, the desk's
+                                  observation above: a note typed only on the
+                                  walk used to be invisible here once the two
+                                  fields split apart. */}
+                              {r?.fieldObservation?.trim() && (
+                                <p className="mt-1 text-[11px]" style={{ color: "var(--ink-3)" }}>
+                                  <span className="label-xs" style={{ color: "var(--ink-4)" }}>
+                                    Inspection:{" "}
+                                  </span>
+                                  {r.fieldObservation}
+                                </p>
+                              )}
                               {photos.length > 0 && (
                                 <div className="mt-1.5">
                                   <AttachmentStrip attachments={photos} thumbSize={40} />
