@@ -39,11 +39,10 @@
  *  refuse rather than silently drop one. It no longer has to. */
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { AttachmentStrip, PhotoButton, VoiceNoteButton, forgetMedia } from "@/components/Capture";
 import DisciplineChips from "@/components/DisciplineChips";
 import { Btn, Panel } from "@/components/ui/primitives";
-import { IconCheck, IconEdit, IconSearch } from "@/components/ui/icons";
+import { IconCheck, IconEdit } from "@/components/ui/icons";
 import { areasAt, disciplinesAt, systemsOf, useEntityCode, useStore } from "@/lib/store";
 import { checksAt } from "@/lib/register";
 import { adhocTranscriptContext, assist, useAssistAvailable } from "@/lib/assist";
@@ -118,7 +117,6 @@ function Step({
 }
 
 export default function RaisePage() {
-  const router = useRouter();
   const entityCode = useEntityCode();
   const auditor = useStore((s) => s.auditor);
   const visitId = useStore((s) => s.visit);
@@ -133,7 +131,6 @@ export default function RaisePage() {
   const [title, setTitle] = useState("");
   const [discipline, setDiscipline] = useState<string | null>(null);
   const [system, setSystem] = useState<string | null>(null);
-  const [systemQuery, setSystemQuery] = useState("");
   const [area, setArea] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -147,18 +144,17 @@ export default function RaisePage() {
 
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
 
+  /* AUTO-POPULATED, NOT SEARCHED — Sarel: "dont show a search for assets,
+     auto populate buttons based on discipline selected." Same chip picker
+     Discipline itself uses, one tap, no typing. */
   const systems = discipline
     ? systemsOf(entityCode, discipline)
     : Array.from(new Set(checks.map((c) => c.system)));
-  const systemResults = systemQuery.trim()
-    ? systems.filter((s) => s.toLowerCase().includes(systemQuery.trim().toLowerCase())).slice(0, 40)
-    : [];
 
   const reset = () => {
     setTitle("");
     setDiscipline(null);
     setSystem(null);
-    setSystemQuery("");
     setArea("");
     setError(null);
     setOpenStep("discipline");
@@ -195,11 +191,25 @@ export default function RaisePage() {
     });
     /* Each capture joins the FINDING's own attachments — addFindingAttachment
        generates its own F-xxxxx_P01 reference, same convention as every
-       other evidence source in this app. */
-    for (const { id: _pid, createdAt: _pc, ...rest } of pendingAttachments) {
-      void _pid;
+       other evidence source in this app. PHOTOS GO FIRST, and this screen
+       remembers the REAL id the store just minted for each one: a
+       photo-specific voice note's own `photoId` still points at the
+       TEMPORARY id this screen used to key pending state and group the two
+       on screen before saving (see AttachmentStrip's onAddVoice below), and
+       that link has to be rewritten to the real id or it points nowhere the
+       moment this finding reloads. */
+    const realPhotoId = new Map<string, string>();
+    for (const a of pendingAttachments.filter((x) => x.kind === "photo")) {
+      const { id: tempId, createdAt: _pc, photoId: _ppid, ...rest } = a;
       void _pc;
-      addFindingAttachment(id, rest);
+      void _ppid;
+      realPhotoId.set(tempId, addFindingAttachment(id, rest));
+    }
+    for (const a of pendingAttachments.filter((x) => x.kind !== "photo")) {
+      const { id: _vid, createdAt: _vc, photoId, ...rest } = a;
+      void _vid;
+      void _vc;
+      addFindingAttachment(id, { ...rest, photoId: photoId ? realPhotoId.get(photoId) : undefined });
     }
     setToast(`${id} raised${pendingAttachments.length ? ` · ${pendingAttachments.length} attached` : ""}.`);
     reset();
@@ -214,11 +224,6 @@ export default function RaisePage() {
       <div className="mx-auto w-full max-w-[640px] px-4 pb-24 pt-3">
         <header className="mb-3">
           <h2 className="font-display text-[15px] font-semibold">Raise a finding</h2>
-          <p className="mt-1 text-[11px]" style={{ color: "var(--ink-3)" }}>
-            Not tied to one of the {checks.length} check-points — something on site worth
-            recording on its own. Link it to a check-point later, from the finding itself, if it
-            turns out to be about one.
-          </p>
         </header>
 
         {toast && (
@@ -251,14 +256,22 @@ export default function RaisePage() {
 
         {/* PHOTO AND VOICE — multiple, each with its own caption via
             AttachmentStrip's own per-item editor (already built; nothing
-            new needed for "a note per photo"). */}
-        <div className="mt-3 flex flex-wrap items-center gap-[10px]">
+            new needed for "a note per photo"). Large, side by side: Sarel,
+            "make the photo and voice note buttons bigger, more prominent" —
+            these ARE the screen, not a pair of toolbar icons. A voice note
+            recorded HERE is a note for the finding — it never joins a
+            photo; a note for one particular photograph has its own button
+            on that photo's own row, below. */}
+        <div className="mt-3 flex gap-[10px]">
           <PhotoButton
+            large
+            primary
             onCaptured={(m) =>
               setPendingAttachments((cur) => [...cur, { ...m, createdBy: auditor, id: uid(), createdAt: Date.now() }])
             }
           />
           <VoiceNoteButton
+            large
             onCaptured={(m) =>
               setPendingAttachments((cur) => [...cur, { ...m, createdBy: auditor, id: uid(), createdAt: Date.now() }])
             }
@@ -269,10 +282,21 @@ export default function RaisePage() {
             <AttachmentStrip
               attachments={pendingAttachments}
               thumbSize={44}
+              /* No AI step on this screen — Sarel: "remove the describe
+                 button." Captions come from typing or from a photo's own
+                 voice note instead (see onAddVoice below). */
+              hideDescribe
               onRemove={(id) => {
                 const a = pendingAttachments.find((x) => x.id === id);
                 if (a) void forgetMedia(a.blobKey);
-                setPendingAttachments((cur) => cur.filter((x) => x.id !== id));
+                setPendingAttachments((cur) =>
+                  cur
+                    .filter((x) => x.id !== id)
+                    /* A photo's own voice note is not lost with it — it
+                       becomes a note for the finding instead. Evidence
+                       that was captured must never silently disappear. */
+                    .map((x) => (x.kind === "voice" && x.photoId === id ? { ...x, photoId: undefined } : x))
+                );
               }}
               onUpdate={(id, p) =>
                 setPendingAttachments((cur) => cur.map((a) => (a.id === id ? { ...a, ...p } : a)))
@@ -283,6 +307,12 @@ export default function RaisePage() {
                   : undefined
               }
               onAccept={(text) => setTitle((cur) => (cur.trim() ? `${cur}\n${text}` : text))}
+              onAddVoice={(photoId, m) =>
+                setPendingAttachments((cur) => [
+                  ...cur,
+                  { ...m, photoId, createdBy: auditor, id: uid(), createdAt: Date.now() },
+                ])
+              }
             />
           </div>
         )}
@@ -326,43 +356,19 @@ export default function RaisePage() {
             setOpenStep("system");
           }}
         >
-          <div className="flex items-center gap-2 rounded-[11px] border px-3" style={boxStyle}>
-            <IconSearch width={14} height={14} style={{ color: "var(--ink-3)" }} />
-            <input
-              value={systemQuery}
-              onChange={(e) => setSystemQuery(e.target.value)}
-              placeholder="Search the register's asset systems…"
-              aria-label="Search asset systems"
-              className="min-h-[44px] w-full border-none bg-transparent text-[13px] outline-none"
-            />
-          </div>
-          {systemQuery.trim() && (
-            <div
-              className="no-scrollbar mt-1.5 max-h-[160px] overflow-y-auto rounded-[11px] border"
-              style={{ borderColor: "var(--line)" }}
-            >
-              {systemResults.length === 0 ? (
-                <div className="px-3 py-3 text-center text-[11.5px]" style={{ color: "var(--ink-3)" }}>
-                  Nothing matches.
-                </div>
-              ) : (
-                systemResults.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => {
-                      setSystem(s);
-                      setSystemQuery("");
-                      /* Auto-advance to Area — same rule as Discipline. */
-                      setOpenStep("area");
-                    }}
-                    className="flex w-full items-center px-3 py-2 text-left text-[12.5px] hover:bg-[var(--acc-soft)]"
-                  >
-                    {s}
-                  </button>
-                ))
-              )}
-            </div>
-          )}
+          <DisciplineChips
+            value={system}
+            onChange={(s) => {
+              setSystem(s);
+              /* Auto-advance to Area — same rule as Discipline, including
+                 "Not linked to a system" (s === null): Sarel wants Area
+                 reachable either way, not a dead end that sends him back to
+                 Discipline to move on. */
+              setOpenStep("area");
+            }}
+            options={systems}
+            clearLabel="Not linked to a system"
+          />
         </Step>
 
         <Step
@@ -387,13 +393,10 @@ export default function RaisePage() {
           </datalist>
         </Step>
 
-        <div className="mt-5 flex items-center gap-2">
+        <div className="mt-5">
           <Btn variant="primary" onClick={save} style={{ minHeight: 44 }}>
             <IconCheck width={14} height={14} />
             Raise it
-          </Btn>
-          <Btn variant="ghost" onClick={() => router.push("/findings")}>
-            See all findings
           </Btn>
         </div>
       </div>

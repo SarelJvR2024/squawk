@@ -160,6 +160,7 @@ const CARRIERS = [
   ["evidence-log attachments", "updateEvidenceAttachment"],
   ["incident-report attachments", "updateIncidentAttachment"],
   ["a Verification's own attachments", "updateVerificationAttachment"],
+  ["a Finding's own attachments (no check-point — the Raise tab)", "updateFindingAttachment"],
 ];
 for (const [label, fn] of CARRIERS) {
   check(`the upload queue scans ${label}`, sync.includes(fn));
@@ -173,6 +174,20 @@ check(
   "the comment says WHEN Verification joined the loop, not that it never would",
   /The Follow-up screen[\s\S]{0,12}now does/.test(sync),
   "the eighth-carrier history has to be readable from the comment, not just from git blame"
+);
+/* 3 November 2026: Finding.attachments shipped the same day in the same
+   sync-integrity review's own cadence (the Raise tab), and reached
+   sharepoint.ts/exports.ts but NOT this queue — caught by the standing
+   review, same bug class as the eight carriers above it, one layer
+   earlier. Pinned the same way: the comment has to say when the ninth
+   carrier joined, not leave the next reader to assume it always had. */
+check(
+  "the comment says WHEN Finding joined the loop, not that it never would",
+  /FINDING IS THE NINTH/.test(sync)
+);
+check(
+  "findings are scanned by id, filtered to this entity same as safetyFindings/siteDays/evidenceItems/incidentReports",
+  /for \(const x of findings\.filter\(mine\)\) \{/.test(sync)
 );
 check(
   "verifications are scanned by pf, same shape as the walk's own items by id",
