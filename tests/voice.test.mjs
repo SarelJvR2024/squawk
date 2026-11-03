@@ -304,6 +304,37 @@ check(
   ""
 );
 
+/* ---------------- Part N: the verbatim transcript can be used directly --- */
+
+/* Sarel: "when I add a voice note to a new finding, it saves it linked to
+ * the photo and not in the main finding description box, which means I
+ * have to copy it out of that box and paste it into the main finding
+ * again." Before this, the ONLY way any of a voice note's words reached
+ * onAccept was through "Write it up" — which needs the assistant
+ * configured — so a verbatim transcript sat on its own card, read-only,
+ * and a manual copy/paste was the only way out. */
+
+check(
+  "the verbatim transcript has its own accept button, independent of the rewrite step",
+  /onClick=\{\(\) => onAccept\(a\.transcript!\)\}/.test(capture),
+  "a transcript needs no model to be usable — only the rewrite does"
+);
+
+check(
+  "it is labelled for what it sends, not a bare \"Use it\" that could mean either card",
+  /Use it, word for word/.test(capture)
+);
+
+check(
+  "the rewrite's own accept button is now distinguishable from it — same label on two buttons on one card is the exact ambiguity this fix removes",
+  /Use the rewrite/.test(capture) && !/>\s*Use it\s*</.test(capture)
+);
+
+check(
+  "the verbatim accept button is gated on onAccept being supplied, same as the rewrite one already is",
+  /\{a\.transcript && \([\s\S]{0,1800}onAccept && \(/.test(capture)
+);
+
 /* ------------------------------------------------------------------ result */
 
 console.log(

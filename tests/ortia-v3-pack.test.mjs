@@ -494,10 +494,11 @@ const storeSrc = fs.readFileSync(path.join(root, "src", "lib", "store.ts"), "utf
 check('the persist key "acsa-assurance-v1" is unchanged', /name: "acsa-assurance-v1"/.test(storeSrc));
 /* UX-audit P1 added disciplineFilterByEntity (src/lib/store.ts), an
    unrelated persisted field, and bumped the version 37 -> 38 for it.
+   Finding.attachments (types.ts) did the same, unrelated again, 38 -> 39.
    This assertion's own point — that this import pack adds no new
    stored field of its own — still holds; re-pinned to the version that
    change actually landed on. */
-check("the migration version is unchanged — this import adds no new stored field", /version: 38,/.test(storeSrc));
+check("the migration version is unchanged — this import adds no new stored field", /version: 39,/.test(storeSrc));
 
 console.log(failures === 0 ? "\nORTIA V3 PACK OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

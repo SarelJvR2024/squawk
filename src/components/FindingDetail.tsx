@@ -35,7 +35,7 @@ import { Btn, Pill } from "@/components/ui/primitives";
 import RecordActions from "@/components/RecordActions";
 import RootCauseAdvice from "@/components/RootCauseAdvice";
 import HazardAdvice from "@/components/HazardAdvice";
-import { AttachmentStrip } from "@/components/Capture";
+import { AttachmentStrip, PhotoButton, VoiceNoteButton } from "@/components/Capture";
 import type { Finding } from "@/lib/types";
 
 /** LINK AN UNLINKED FINDING TO ONE OF THE 324 AUDIT CHECKS, LATER.
@@ -155,6 +155,10 @@ export default function FindingDetail({
   const adhocItems = useAdhoc();
   const updateFinding = useStore((s) => s.updateFinding);
   const addFindingProgress = useStore((s) => s.addFindingProgress);
+  const addFindingAttachment = useStore((s) => s.addFindingAttachment);
+  const updateFindingAttachment = useStore((s) => s.updateFindingAttachment);
+  const removeFindingAttachment = useStore((s) => s.removeFindingAttachment);
+  const auditor = useStore((s) => s.auditor);
   const say = (m: string) => onToast?.(m);
 
   return (
@@ -185,6 +189,39 @@ export default function FindingDetail({
         )}
       </div>
       <h3 className="mb-3 text-[14.5px] leading-[1.35] font-bold">{f.description}</h3>
+
+      {/* THIS FINDING'S OWN EVIDENCE — see Finding.attachments' own doc
+          comment. Independent of whatever a linked check's own
+          Response.attachments separately holds, and the one place in this
+          app where a checkless finding's photos can be viewed, captioned
+          or added to after the moment it was raised. */}
+      <div className="mb-3.5">
+        <div className="mb-1.5 flex items-center justify-between gap-2">
+          <span className="font-display text-[11px] font-semibold" style={{ color: "var(--ink-3)" }}>
+            Evidence
+          </span>
+          <span className="flex items-center gap-[6px]">
+            <PhotoButton
+              compact
+              className="min-h-[36px] w-[36px] justify-center"
+              onCaptured={(m) => addFindingAttachment(f.id, { ...m, createdBy: auditor })}
+            />
+            <VoiceNoteButton
+              compact
+              className="min-h-[36px] w-[36px] justify-center"
+              onCaptured={(m) => addFindingAttachment(f.id, { ...m, createdBy: auditor })}
+            />
+          </span>
+        </div>
+        {(f.attachments ?? []).length > 0 && (
+          <AttachmentStrip
+            attachments={f.attachments ?? []}
+            thumbSize={40}
+            onRemove={(id) => removeFindingAttachment(f.id, id)}
+            onUpdate={(id, p) => updateFindingAttachment(f.id, id, p)}
+          />
+        )}
+      </div>
 
       {!f.checkId && (
         <div className="mb-3.5">

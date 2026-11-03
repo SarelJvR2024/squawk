@@ -38,7 +38,7 @@ import { useDictationEnabled, useEntityCode, useStore } from "@/lib/store";
 import { useRecordStore } from "@/lib/sync";
 import { fullPhotoBlob } from "@/lib/recordimage";
 import type { Attachment } from "@/lib/types";
-import { IconCamera, IconDownload, IconEdit, IconMic, IconPaperclip, IconSpark, IconX } from "./ui/icons";
+import { IconCamera, IconCheck, IconDownload, IconEdit, IconMic, IconPaperclip, IconSpark, IconX } from "./ui/icons";
 import { Pill } from "./ui/primitives";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -767,7 +767,7 @@ function VoiceRow({
       )}
 
       {a.transcript && (
-        <div className="flex flex-col gap-[2px]">
+        <div className="flex flex-col gap-[5px]">
           <span
             className="text-[9px] font-semibold tracking-[.05em] uppercase"
             style={{ color: "var(--ink-4)" }}
@@ -781,6 +781,36 @@ function VoiceRow({
           <span className="text-[11px] italic" style={{ color: "var(--ink-3)" }}>
             “{a.transcript}”
           </span>
+          {/* USE IT, VERBATIM — THE GAP Sarel found: "when I add a voice note
+             to a new finding, it saves it linked to the photo and not in the
+             main finding description box, which means I have to copy it out
+             of that box and paste it into the main finding again." Before
+             this button, the ONLY way anything here reached the record was
+             via "Write it up" — which needs the assistant configured — so a
+             transcript sat on this card, read-only, and the only way out was
+             a manual copy/paste. The rewrite step stays optional and stays
+             manual (see this component's own doc comment on why); this is
+             the exact same "Use it" action, just for the words actually
+             spoken rather than a model's rewrite of them, and it needs
+             nothing configured to work. Named for where it goes, not just
+             what it does, so recording a voice note never again leaves
+             somebody wondering why the words are not where they typed
+             everything else. */}
+          {onAccept && (
+            <button
+              type="button"
+              onClick={() => onAccept(a.transcript!)}
+              className={MINI}
+              style={{
+                background: "var(--panel)",
+                borderColor: "var(--line-2)",
+                color: "var(--ink-2)",
+              }}
+            >
+              <IconCheck width={12} height={12} />
+              Use it, word for word
+            </button>
+          )}
         </div>
       )}
 
@@ -810,7 +840,12 @@ function VoiceRow({
                   color: "var(--on-acc)",
                 }}
               >
-                Use it
+                {/* "Use the rewrite", not bare "Use it" — now that the
+                   verbatim transcript just above has its own "Use it, word
+                   for word" button, two buttons both reading "Use it" on
+                   the same card is exactly the ambiguity Sarel asked this
+                   fix to remove. */}
+                Use the rewrite
               </button>
             )}
             {onUpdate && (

@@ -73,6 +73,15 @@ import { Pill } from "@/components/ui/primitives";
 const NAV = [
   { href: "/capture", label: "Checks", icon: IconClipboard },
   { href: "/field", label: "Inspection", icon: IconPin },
+  /* RAISE — a fresh, dedicated screen, alongside Inspection rather than
+     replacing it. Sarel, after testing the Inspection tab's own
+     declutter pass on his phone: "I really think we must create a new
+     tab, start fresh. There's too many things that's not working there
+     ... Keep the structure for raising a finding." Both stay in the bar
+     together on purpose — Sarel's own plan was to prove this one works
+     before disabling the other, not to cut over blind. See
+     src/app/(app)/raise/page.tsx for the screen itself. */
+  { href: "/raise", label: "Raise a finding", short: "Raise", icon: IconCamera },
   /* SAFETY MOVED TO THE MORE MENU (Sarel, 30 Sep): "move safety and review
      menu items out of the main menu bar."
      THEN: it sat here, second, on the reasoning that it was the rarest

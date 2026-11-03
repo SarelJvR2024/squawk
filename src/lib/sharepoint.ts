@@ -1461,8 +1461,21 @@ function hazardPhotoRefs(
   const mine = new Set(h.findingIds);
   const refs = new Set<string>();
   for (const f of findings ?? []) {
-    if (!mine.has(f.id) || !f.checkId) continue;
-    for (const a of responses[f.checkId]?.attachments ?? []) {
+    if (!mine.has(f.id)) continue;
+    if (f.checkId) {
+      for (const a of responses[f.checkId]?.attachments ?? []) {
+        if (a.kind !== "photo" || a.unavailable || !a.ref) continue;
+        if (!a.blobKey && !a.cloudUrl) continue;
+        refs.add(a.ref);
+      }
+    }
+    /* A THIRD HOP, new: the finding's OWN attachments (Finding.attachments —
+       see its own doc comment), independent of whether it also carries a
+       checkId. A finding raised through the new capture flow usually has
+       neither a check nor an ad-hoc item behind it, so without this a
+       hazard consolidating one would link to none of its photographs at
+       all. */
+    for (const a of f.attachments ?? []) {
       if (a.kind !== "photo" || a.unavailable || !a.ref) continue;
       if (!a.blobKey && !a.cloudUrl) continue;
       refs.add(a.ref);
@@ -1927,6 +1940,59 @@ export function buildPlan(
       what: "walk photographs (discipline held back)",
       why: `held back this run — ${[...excluded].join(", ")} excluded from this sync, not from the audit`,
       count: excludedWalkPhotos,
+    });
+  }
+
+  /* --- AND A FINDING'S OWN PHOTOGRAPHS --------------------------------
+   *
+   *  Finding.attachments is new — see that field's own doc comment in
+   *  types.ts. Same gap this whole section exists to close, one hop
+   *  shorter: a finding raised with no check-point picked used to have
+   *  nowhere of its own to keep a capture at all (the "raise a finding"
+   *  sheets refused rather than silently dropped one); now it does, and
+   *  those photographs need the same path to the portal every other
+   *  source here already has. `findingPortalKey.get(f.id)` is the
+   *  finding's own reference — always itself here, never borrowed from a
+   *  check or hazard, since this loop is reading the finding's OWN
+   *  evidence rather than evidence filed under something else that later
+   *  names this finding. */
+  let excludedFindingPhotos = 0;
+  for (const f of entityFindings) {
+    if (f.discipline && excluded.has(f.discipline)) {
+      excludedFindingPhotos += (f.attachments ?? []).filter(
+        (a) => a.kind === "photo" && !a.unavailable && (a.blobKey || a.cloudUrl)
+      ).length;
+      continue;
+    }
+    for (const a of f.attachments ?? []) {
+      if (a.kind !== "photo" || a.unavailable) continue;
+      if (!a.blobKey && !a.cloudUrl) continue;
+      evidence.push({
+        checkId: f.checkId ? portalIdFor(x.entity, f.checkId) : f.id,
+        filename: photoFilename(a),
+        attachment: a,
+        caption: a.caption?.trim() ?? "",
+        values: evidenceValues(
+          a,
+          f.checkId ? portalIdFor(x.entity, f.checkId) : f.id,
+          f.discipline,
+          f.system,
+          findingPortalKey.get(f.id) ?? "",
+          /* Every Finding IS a non-compliance in this schema — see
+             RaiseFindingSheet.tsx's own doc comment — so a finding's own
+             photograph always carries NC, the one evidence source in this
+             function where the outcome is never read off a response. */
+          "NC"
+        ),
+        folder: dayFolder(folder, a.takenAt ?? a.createdAt),
+      });
+    }
+  }
+  if (excludedFindingPhotos) {
+    skipped.push({
+      what: "finding photographs (discipline held back)",
+      why: `held back this run — ${[...excluded].join(", ")} excluded from this sync, not from the audit`,
+      count: excludedFindingPhotos,
     });
   }
 

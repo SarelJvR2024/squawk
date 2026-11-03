@@ -530,6 +530,17 @@ interface State {
 
   addFinding: (f: Omit<Finding, "id" | "createdAt" | "entity">) => string;
   updateFinding: (id: string, p: Partial<Finding>) => void;
+  /** A finding's OWN evidence — see Finding.attachments' own doc comment for
+   *  why this exists alongside addAttachment/addAdhocAttachment rather than
+   *  reusing either: this is the one that works whether or not a check-point
+   *  was ever picked. Same shape as addAdhocAttachment/addIsfAttachment. */
+  addFindingAttachment: (id: string, a: Omit<Attachment, "id" | "createdAt">) => void;
+  updateFindingAttachment: (
+    id: string,
+    attachmentId: string,
+    patch: Partial<Attachment>
+  ) => void;
+  removeFindingAttachment: (id: string, attachmentId: string) => void;
   /** Appends a dated, attributed entry to a finding's remediation log. */
   addFindingProgress: (id: string, note: string) => void;
   /** By id, flat across the programme like the array itself — nothing a
@@ -1470,6 +1481,59 @@ export const useStore = create<State>()(
             ],
           }));
           return id;
+        },
+
+        addFindingAttachment: (id, a) => {
+          const f = get().findings.find((x) => x.id === id);
+          if (!f) return;
+          /* `?? []` throughout this trio — attachments is required on
+             Finding's own type, but a record built by hand (a fixture, an
+             older import path, anything outside the real migrate() above)
+             can still genuinely lack it at runtime, and "not iterable" is a
+             worse failure than treating absent as empty, the same call this
+             codebase already makes everywhere else an attachments array is
+             read (`r?.attachments ?? []`, item.attachments ?? [], …). */
+          const existing = f.attachments ?? [];
+          get().updateFinding(id, {
+            attachments: [
+              ...existing,
+              {
+                ...a,
+                id: uid(),
+                /* F-7K2P9_P01 — the finding's own id is the prefix, same
+                   convention as addAdhocAttachment/addIsfAttachment, so an
+                   image in the export zip names the finding it belongs to. */
+                ...(a.kind === "photo" ? { ref: nextPhotoRef(id, existing) } : {}),
+                createdAt: Date.now(),
+              },
+            ],
+          });
+        },
+
+        updateFindingAttachment: (id, attachmentId, patch) => {
+          const f = get().findings.find((x) => x.id === id);
+          if (!f) return;
+          /* Same stripping as updateAttachment/updateAdhocAttachment: id,
+             blobKey and createdAt identify the photograph and point at its
+             bytes, so a caller passing them would be renaming the evidence. */
+          const { id: _i, blobKey: _b, createdAt: _c, ...safe } = patch;
+          void _i; void _b; void _c;
+          get().updateFinding(id, {
+            attachments: (f.attachments ?? []).map((x) =>
+              x.id === attachmentId ? { ...x, ...safe } : x
+            ),
+          });
+        },
+
+        removeFindingAttachment: (id, attachmentId) => {
+          const f = get().findings.find((x) => x.id === id);
+          if (!f) return;
+          const existing = f.attachments ?? [];
+          const a = existing.find((x) => x.id === attachmentId);
+          if (a?.blobKey) void delBlob(a.blobKey);
+          get().updateFinding(id, {
+            attachments: existing.filter((x) => x.id !== attachmentId),
+          });
         },
 
         /* Append, never overwrite — see ProgressNote. */
@@ -3732,6 +3796,7 @@ export const useStore = create<State>()(
             progress: [],
             adHoc: true,
             createdBy: get().auditor,
+            attachments: [],
           }),
 
         /* THE CHECK-POINT EQUIVALENT, for setCompliance's own "Non-compliant
@@ -3766,6 +3831,7 @@ export const useStore = create<State>()(
             progress: [],
             adHoc: false,
             createdBy: get().auditor,
+            attachments: [],
           });
         },
 
@@ -4059,7 +4125,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 38,
+      version: 39,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -4797,6 +4863,18 @@ export const useStore = create<State>()(
              none, same backfill shape as customVisits: absent-means-none is
              honest here, not a gap to guess at. */
           st.auditDateOverrides = {};
+        }
+        if (from < 39 && Array.isArray(st.findings)) {
+          /* Finding.attachments is new and required, same backfill shape as
+             SafetyFinding's own attachments field got when that one was
+             added: every finding that predates this simply never had any
+             evidence of its own (whatever it carries today still reads
+             through checkId, exactly as before), so an empty array is the
+             honest value, not a gap to guess at. */
+          st.findings = st.findings.map((f) => ({
+            ...f,
+            attachments: f.attachments ?? [],
+          }));
         }
         return st;
       },

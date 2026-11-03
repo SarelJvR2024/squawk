@@ -949,6 +949,22 @@ export interface Finding {
   originVisit: string;
   priorRating: string | null;
   adHoc: boolean;
+  /** Evidence this finding carries itself, independent of any check-point.
+   *
+   *  Every OTHER photo or voice note a finding shows was always read through
+   *  `checkId` — see the "raise a finding" sheets' own notes on why that left
+   *  a real gap: a finding with no check-point picked had nowhere of its own
+   *  to keep a capture, so one taken before a check was chosen was refused
+   *  rather than silently dropped. Sarel: after raising a finding, capture
+   *  multiple photos, a note per photo and a note for the finding itself —
+   *  that needs a finding to hold its own evidence whether or not a
+   *  check-point is ever picked. Same shape as SafetyFinding.attachments,
+   *  same reasoning: required, not optional, so "no evidence yet" is an
+   *  empty array rather than a field that might not exist. A finding WITH a
+   *  check-point can still carry its own attachments here too, separate from
+   *  whatever that check's own Response.attachments independently holds —
+   *  two different capture paths, not one drifting into the other. */
+  attachments: Attachment[];
   /** The event this finding exposes, proposed early at the check and refined at
    *  consolidation. A suggestion until a hazard is actually created from it. */
   suggestedEvent: string;
