@@ -1836,12 +1836,47 @@ export function systemsSheet(x: ExportInput): Sheet {
 /* ------------------------------------------------------------------- summary */
 
 export function summarySheet(x: ExportInput): Sheet {
-  const disciplines = Array.from(new Set(x.checks.map((c) => c.discipline)));
+  /* EVERY FINDING GETS A ROW TO COUNT AGAINST, whichever screen raised it —
+   *  Sarel: "when a finding is raised, it should... get pulled through to
+   *  the report for the discipline as a non-compliance," then, after
+   *  confirming that already happens (findings have counted into this
+   *  sheet's own "Findings raised" column for every discipline the
+   *  register itself declares since this sheet existed): "I just want to
+   *  make sure that the same logic is also working similar to the
+   *  inspections tab" — i.e. not only for the Raise tab.
+   *
+   *  It already does: `fs` below reads `x.findings` with no regard for
+   *  where a finding came from — the Raise tab (checkId null, adHoc true),
+   *  a check answered Non-compliant on the Checks screen
+   *  (raiseFindingFromCheck), or a walk item answered Non-compliant on the
+   *  Inspection screen (raiseFindingFromAdhoc, store.ts's `addAdhoc`) all
+   *  produce the same Finding shape and are counted identically here.
+   *
+   *  THE ONE GAP a careful look found: `disciplines` used to come ONLY from
+   *  the register's own 324 check-points (`x.checks`), so a finding raised
+   *  with no discipline attributed — "Not attributed" is offered on both
+   *  the Raise tab and the Inspection screen's own discipline chips — had
+   *  no row of its own to count against anywhere on this sheet, from
+   *  EITHER screen equally. Now every discipline actually named on a
+   *  finding gets a row even if the register's own check-points never use
+   *  it, and anything raised with none at all gets one shared "Not
+   *  attributed" row, so a finding is counted here exactly once,
+   *  regardless of how specifically — or not — it was tagged. */
+  const registerDisciplines = Array.from(new Set(x.checks.map((c) => c.discipline)));
+  const findingDisciplines = Array.from(
+    new Set(x.findings.map((f) => f.discipline?.trim()).filter((d): d is string => !!d))
+  );
+  const disciplines = Array.from(new Set([...registerDisciplines, ...findingDisciplines]));
+  const hasUnattributed = x.findings.some((f) => !f.discipline?.trim());
+  if (hasUnattributed) disciplines.push("Not attributed");
   const rows = disciplines.map((d) => {
     const cs = x.checks.filter((c) => c.discipline === d);
     const rs = cs.map((c) => x.responses[c.id]).filter(Boolean) as Response[];
     const count = (k: string) => rs.filter((r) => r.compliance === k).length;
-    const fs = x.findings.filter((f) => f.discipline === d);
+    const fs =
+      d === "Not attributed"
+        ? x.findings.filter((f) => !f.discipline?.trim())
+        : x.findings.filter((f) => f.discipline === d);
     const agreed = fs.filter((f) => f.ratingConfirmed);
     const inBand = (b: string) =>
       agreed.filter((f) => bandFor(f.severity, f.likelihood) === b).length;
