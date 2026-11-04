@@ -2,19 +2,19 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-/* THE AUDIT TAB — one reusable capture for the "is there a current, valid
- *  document" checks, instead of the full Checks screen rebuilt once per
- *  certificate/appointment/permit.
+/* THE AUDIT TAB — all 324 check-points, grouped by asset system, instead
+ *  of the full Checks screen rebuilt once per certificate/appointment/
+ *  permit/record.
  *
  *  Sarel: "Build this for me under a new tab. Called audit. Streamline
  *  the capturing." Two investigation passes (this session) found that
  *  merging similar-looking checks mostly loses real information — 207 of
  *  324 share a question SHAPE (certificates, appointments, permits,
  *  training, maintenance records) but are almost all genuinely distinct
- *  facts. The win is reuse, not merging, and `Check.confirmedBy ===
- *  "Document"` — a field that already existed, already meant exactly
- *  this — is what decides scope, not a freshly invented classifier that
- *  could drift from it.
+ *  facts. Later, Sarel: "Keep all 324 checks in the audit tab as well" —
+ *  so this screen does not scope down to a subset at all; the win is
+ *  reuse and organisation (grouped by `Check.system`, a field that
+ *  already existed), never merging two checks' answers into one.
  *
  *  THE HARD REQUIREMENT this suite is really pinning down: every answer
  *  given here has to be traceable back to the original 324 check-points,
@@ -39,16 +39,16 @@ const check = (name, cond, detail = "") => {
   }
 };
 
-/* ---- scope: the already-existing confirmedBy field, not a new one ------- */
+/* ---- scope: all 324, no subsetting field at all -------------------------- */
 
 check(
-  "scope comes from Check.confirmedBy === \"Document\", not a freshly invented classifier",
-  /checksAt\(entityCode\)\.filter\(\(c\) => c\.confirmedBy === "Document"\)/.test(audit)
+  "the full register is in scope — no confirmedBy/vtype/inspect filter narrows it to a subset",
+  /const allChecks = useMemo\(\(\) => checksAt\(entityCode\), \[entityCode\]\)/.test(audit)
 );
 
 check(
-  "the screen's own header explains why confirmedBy, not text-matching or a category guess",
-  /already a first/.test(audit) && /-class field/.test(audit) && /180 of the 324/.test(audit)
+  "the screen's own header says plainly that all 324 stay in scope, per Sarel's own words",
+  /Keep all 324 checks in the audit tab/.test(audit)
 );
 
 /* ---- traceability: the SAME store actions the Checks screen uses -------- */
@@ -83,14 +83,108 @@ check(
 
 check(
   "exactly one check is expanded at a time — collapsed rows are a tap target back to it, not a second copy",
-  /const activeId = openId && scoped\.some/.test(audit)
+  /const activeId = explicitlyClosed[\s\S]{0,40}: openId && scoped\.some/.test(audit)
 );
 
 check(
   "answering the open check advances to the next unanswered one automatically",
-  /const nextPending = scoped\.find\(\(x\) => x\.id !== c\.id && responses\[x\.id\]\?\.compliance == null\)/.test(
+  /const nextPending = scoped\.find\(\s*\(x\) => x\.id !== c\.id && responses\[x\.id\]\?\.compliance == null/.test(
     audit
   )
+);
+
+check(
+  "the open card shows the check's own requirement text, not just the asset system name",
+  /\{c\.requirement\}/.test(audit)
+);
+
+check(
+  "tapping the open card collapses it back — it does not reopen on the next render just because it is still first-pending",
+  /aria-label="Collapse this check"/.test(audit) && /setExplicitlyClosed\(true\)/.test(audit)
+);
+
+/* ---- the higher-level heading and the per-row short note, Sarel: "add a
+   higher level heading grouping similar questions. And a short note next
+   to the asset type" ------------------------------------------------------ */
+
+check(
+  "checks are grouped under a heading by a key field (system or topic), not a per-row computed text",
+  /const byKey = new Map<string, typeof scoped>\(\)/.test(audit) && /\[\.\.\.byKey\.entries\(\)\]/.test(audit)
+);
+
+check(
+  "each collapsed row shows a short note (the check's own requirement text) instead of repeating the system name the heading already gives",
+  /const shortNote = \(requirement: string/.test(audit) && /: shortNote\(c\.requirement\)\}/.test(audit)
+);
+
+check(
+  "the group heading previews a real check's own question (the group's first member), not a synthesised shared one",
+  /\{shortNote\(group\[0\]\.requirement, 72\)\}/.test(audit)
+);
+
+/* ---- the topic grouping for interviews, Sarel: "Find ways how to group
+   the audit checks ie by documentation, by compliance certification, by
+   maintenance tasks, Planned maintenance, inspections, measurements,
+   training and personel. This will help with the interview questions" --- */
+
+check(
+  "a By system / By topic toggle exists and switching it resets which card is open",
+  /\["system", "By system"\]/.test(audit) &&
+    /\["topic", "By topic"\]/.test(audit) &&
+    /const changeGroupMode = \(mode: "system" \| "topic"\) => \{/.test(audit)
+);
+
+check(
+  "topic mode groups by a static, hand-curated lookup (auditTopics.json), not a regex/keyword classifier",
+  /import auditTopicsData from "@\/data\/auditTopics\.json"/.test(audit) &&
+    !/\.test\(c\.requirement|\.match\(c\.requirement|new RegExp/.test(audit)
+);
+
+check(
+  "the screen's own header explains why a regex classifier was tried and rejected, not just asserted",
+  /A REGEX CLASSIFIER WAS TRIED AND REJECTED/.test(audit) && /ILS/.test(audit)
+);
+
+check(
+  "a check with no entry in auditTopics.json falls back to an honest \"Other\", never silently disappearing",
+  /const topicFor = \(checkId: string\) => auditTopics\[checkId\] \?\? "Other"/.test(audit)
+);
+
+/* ---- the topic data file itself: every one of the 324 checks is mapped,
+   to one of exactly the 9 allowed topics — the same kind of self-check
+   sites.test.mjs and portals.test.mjs already run on their own data. ----- */
+
+const checksJson = JSON.parse(src("data", "checks.json"));
+const topics = JSON.parse(src("data", "auditTopics.json"));
+const ALLOWED_TOPICS = new Set([
+  "Documentation",
+  "Compliance certification",
+  "Maintenance tasks",
+  "Planned maintenance",
+  "Inspections",
+  "Measurements",
+  "Training",
+  "Personnel",
+  "Other",
+]);
+
+const missing = checksJson.filter((c) => !(c.id in topics)).map((c) => c.id);
+check("every one of the 324 checks has a topic assigned", missing.length === 0, missing.slice(0, 5).join(", "));
+
+const badValues = Object.entries(topics)
+  .filter(([, v]) => !ALLOWED_TOPICS.has(v))
+  .map(([k, v]) => `${k}: ${v}`);
+check(
+  "every assigned topic is one of the 9 allowed names, no typos or stray categories",
+  badValues.length === 0,
+  badValues.slice(0, 5).join(", ")
+);
+
+const extraIds = Object.keys(topics).filter((id) => !checksJson.some((c) => c.id === id));
+check(
+  "the topic file carries no ids that aren't real checks — a stale id from a prior register revision",
+  extraIds.length === 0,
+  extraIds.slice(0, 5).join(", ")
 );
 
 /* ---- wired into the shell and the offline shell, same as every other
