@@ -77,9 +77,19 @@ function Step({
   children: React.ReactNode;
 }) {
   if (!open && value) {
+    /* THE WHOLE ROW IS THE BUTTON, NOT JUST THE PENCIL — Sarel: "I want to
+       be able to click on the box to edit the discipline or asset. The
+       pencil is too small." A 13px icon in a 32px corner was the only
+       tappable spot on a row that spans the full width of the screen; now
+       the entire collapsed row opens the step, and the pencil is purely
+       decorative (aria-hidden), there to say "tap to change" rather than
+       to be the one place that does. */
     return (
-      <div
-        className="mt-3 flex items-center justify-between gap-2 rounded-[11px] border px-3 py-2.5"
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`Change ${label.toLowerCase()}`}
+        className="mt-3 flex w-full items-center justify-between gap-2 rounded-[11px] border px-3 py-2.5 text-left"
         style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
       >
         <div className="min-w-0">
@@ -88,15 +98,14 @@ function Step({
           </span>
           <span className="block truncate text-[13px] font-semibold">{value}</span>
         </div>
-        <button
-          onClick={onOpen}
-          aria-label={`Change ${label.toLowerCase()}`}
+        <span
+          aria-hidden
           className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[8px]"
           style={{ color: "var(--ink-3)" }}
         >
           <IconEdit width={13} height={13} />
-        </button>
-      </div>
+        </span>
+      </button>
     );
   }
   if (!open) return null;
@@ -462,7 +471,7 @@ export default function RaisePage() {
         <div className="mt-5">
           <Btn variant="primary" onClick={save} style={{ minHeight: 44 }}>
             <IconCheck width={14} height={14} />
-            Raise it
+            Raise Finding
           </Btn>
         </div>
       </div>
