@@ -53,6 +53,19 @@ import { IconCheck, IconClock, IconDash, IconX } from "@/components/ui/icons";
 const VERDICT_ICON = { C: IconCheck, NC: IconX, "N/A": IconDash, NV: IconClock } as const;
 const VERDICT_COLOR = { C: "var(--good)", NC: "var(--bad)", "N/A": "var(--ink-3)", NV: "var(--warn)" } as const;
 
+/** THE SHORT NOTE. Sarel: "a short note next to the asset type to know what
+ *  the question and check is so that all dont look the same" — collapsed
+ *  under one system heading, several checks about the same AGL circuit or
+ *  the same switchgear used to read as identical rows with nothing but a
+ *  portal id telling them apart. The first line of the check's own
+ *  `requirement` (the same text the Checks screen headlines) is what
+ *  distinguishes them, so this reads it rather than inventing a second
+ *  summary that could drift from what the check actually asks. */
+const shortNote = (requirement: string, max = 54) => {
+  const line = requirement.split("\n")[0].trim();
+  return line.length > max ? `${line.slice(0, max - 1).trimEnd()}…` : line;
+};
+
 export default function AuditPage() {
   const entityCode = useEntityCode();
   const auditor = useStore((s) => s.auditor);
@@ -73,7 +86,13 @@ export default function AuditPage() {
   const removeAttachment = useStore((s) => s.removeAttachment);
   const updateAttachment = useStore((s) => s.updateAttachment);
 
+  /* `explicitlyClosed` is tracked separately from `openId` because `openId:
+     null` already means something — "nothing tapped yet, show the next
+     unanswered check" — and reusing it for "the auditor just collapsed the
+     open card" would make the card reopen itself on the very next render
+     whenever the closed check was still the first pending one. */
   const [openId, setOpenId] = useState<string | null>(null);
+  const [explicitlyClosed, setExplicitlyClosed] = useState(false);
 
   const allDocChecks = useMemo(
     () => checksAt(entityCode).filter((c) => c.confirmedBy === "Document"),
@@ -84,16 +103,46 @@ export default function AuditPage() {
     [allDocChecks, discipline]
   );
 
+  /* THE HIGHER-LEVEL HEADING. Sarel: "add a higher level heading grouping
+     similar questions." `Check.system` — the asset system every check
+     already carries, not a freshly invented category — is exactly that:
+     checks about the same AGL circuit or the same switchgear ARE the
+     "similar questions" grouping is for, and the register is already
+     ordered by system within a discipline, so this costs nothing to derive
+     and nothing to keep in sync. A text-matched evidence category (tried
+     earlier this session) risks miscategorising a check nobody can then
+     find; grouping by the field the register itself already states cannot
+     drift or mislabel. */
+  const groups = useMemo(() => {
+    const bySystem = new Map<string, typeof scoped>();
+    for (const c of scoped) {
+      const list = bySystem.get(c.system);
+      if (list) list.push(c);
+      else bySystem.set(c.system, [c]);
+    }
+    return [...bySystem.entries()];
+  }, [scoped]);
+
   const pending = scoped.filter((c) => responses[c.id]?.compliance == null);
   const done = scoped.filter((c) => responses[c.id]?.compliance != null);
   /* The open item — whichever row the auditor tapped, or the next
      unanswered one. Exactly one at a time, same reasoning the Inspection
      screen's own accordion gives: everything expanded is nothing read. */
-  const activeId = openId && scoped.some((c) => c.id === openId) ? openId : (pending[0]?.id ?? null);
+  const activeId = explicitlyClosed
+    ? null
+    : openId && scoped.some((c) => c.id === openId)
+      ? openId
+      : (pending[0]?.id ?? null);
 
   const changeDiscipline = (v: string) => {
     setDiscipline(v);
     setOpenId(null);
+    setExplicitlyClosed(false);
+  };
+
+  const openCheck = (id: string) => {
+    setOpenId(id);
+    setExplicitlyClosed(false);
   };
 
   return (
@@ -121,104 +170,141 @@ export default function AuditPage() {
         {scoped.length === 0 ? (
           <Empty>No document checks in this discipline.</Empty>
         ) : (
-          <div className="flex flex-col gap-2">
-            {scoped.map((c) => {
-              const r = responses[c.id];
-              const open = c.id === activeId;
-              const verdict = r?.compliance ?? null;
-
-              if (!open) {
-                const Icon = verdict ? VERDICT_ICON[verdict] : null;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setOpenId(c.id)}
-                    className="flex min-h-[48px] w-full items-center gap-[10px] rounded-[12px] border px-[13px] py-[9px] text-left"
-                    style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-                  >
-                    {Icon ? (
-                      <Icon width={14} height={14} style={{ color: VERDICT_COLOR[verdict!], flexShrink: 0 }} />
-                    ) : (
-                      <span
-                        aria-hidden
-                        className="h-[14px] w-[14px] shrink-0 rounded-full border"
-                        style={{ borderColor: "var(--line-2)" }}
-                      />
-                    )}
-                    <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold">{c.system}</span>
-                    <span className="shrink-0 font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
-                      {portalIdFor(entityCode, c.id)}
-                    </span>
-                  </button>
-                );
-              }
-
-              const attachments = r?.attachments ?? [];
-
+          <div className="flex flex-col gap-4">
+            {groups.map(([system, group]) => {
+              const groupDone = group.filter((c) => responses[c.id]?.compliance != null).length;
               return (
-                <div
-                  key={c.id}
-                  className="flex flex-col gap-[11px] rounded-[14px] border px-[16px] py-[14px]"
-                  style={{
-                    background: "var(--panel)",
-                    borderColor: "var(--acc)",
-                    boxShadow: "0 0 0 3px var(--acc-soft)",
-                  }}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[14px] font-bold">{c.system}</span>
-                    <span className="font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
-                      {portalIdFor(entityCode, c.id)}
+                <div key={system} className="flex flex-col gap-2">
+                  <div className="flex items-baseline justify-between px-[2px]">
+                    <h3
+                      className="font-display text-[11.5px] font-bold uppercase tracking-[.03em]"
+                      style={{ color: "var(--ink-3)" }}
+                    >
+                      {system}
+                    </h3>
+                    <span className="font-mono text-[10px]" style={{ color: "var(--ink-4)" }}>
+                      {groupDone}/{group.length}
                     </span>
                   </div>
 
-                  <OutcomeControl
-                    value={verdict}
-                    idPrefix={c.id}
-                    size={44}
-                    onChange={(next) => {
-                      setCompliance(c.id, next);
-                      commit(c.id, "desk");
-                      if (next !== null) {
-                        const nextPending = scoped.find((x) => x.id !== c.id && responses[x.id]?.compliance == null);
-                        setOpenId(nextPending?.id ?? null);
-                      }
-                    }}
-                  />
+                  {group.map((c) => {
+                    const r = responses[c.id];
+                    const open = c.id === activeId;
+                    const verdict = r?.compliance ?? null;
 
-                  <textarea
-                    value={r?.observation ?? ""}
-                    onChange={(e) => patch(c.id, { observation: e.target.value })}
-                    placeholder="Number, issuer, dates…"
-                    className="min-h-[40px] w-full resize-y rounded-[10px] border px-[10px] py-[7px] text-[11.5px] outline-none"
-                    style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
-                  />
+                    if (!open) {
+                      const Icon = verdict ? VERDICT_ICON[verdict] : null;
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => openCheck(c.id)}
+                          className="flex min-h-[48px] w-full items-center gap-[10px] rounded-[12px] border px-[13px] py-[9px] text-left"
+                          style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                        >
+                          {Icon ? (
+                            <Icon width={14} height={14} style={{ color: VERDICT_COLOR[verdict!], flexShrink: 0 }} />
+                          ) : (
+                            <span
+                              aria-hidden
+                              className="h-[14px] w-[14px] shrink-0 rounded-full border"
+                              style={{ borderColor: "var(--line-2)" }}
+                            />
+                          )}
+                          <span className="min-w-0 flex-1 truncate text-[12px] font-medium">
+                            {shortNote(c.requirement)}
+                          </span>
+                          <span className="shrink-0 font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
+                            {portalIdFor(entityCode, c.id)}
+                          </span>
+                        </button>
+                      );
+                    }
 
-                  <div className="flex gap-[8px]">
-                    <PhotoButton
-                      compact
-                      onCaptured={(m) => addAttachment(c.id, { ...m, createdBy: auditor })}
-                    />
-                    <VoiceNoteButton
-                      compact
-                      onCaptured={(m) => addAttachment(c.id, { ...m, createdBy: auditor })}
-                    />
-                  </div>
+                    const attachments = r?.attachments ?? [];
 
-                  {attachments.length > 0 && (
-                    <AttachmentStrip
-                      attachments={attachments}
-                      thumbSize={40}
-                      hideDescribe
-                      onRemove={(id) => {
-                        const a = attachments.find((x) => x.id === id);
-                        if (a) void forgetMedia(a.blobKey);
-                        removeAttachment(c.id, id);
-                      }}
-                      onUpdate={(id, p) => updateAttachment(c.id, id, p)}
-                    />
-                  )}
+                    return (
+                      <div
+                        key={c.id}
+                        className="flex flex-col gap-[11px] rounded-[14px] border px-[16px] py-[14px]"
+                        style={{
+                          background: "var(--panel)",
+                          borderColor: "var(--acc)",
+                          boxShadow: "0 0 0 3px var(--acc-soft)",
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setExplicitlyClosed(true)}
+                          aria-label="Collapse this check"
+                          className="flex items-start justify-between gap-2 text-left"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-[14px] font-bold">{c.system}</div>
+                            <div
+                              className="mt-[3px] text-[12px] font-medium leading-snug"
+                              style={{ color: "var(--ink-2)" }}
+                            >
+                              {c.requirement}
+                            </div>
+                          </div>
+                          <span className="shrink-0 font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
+                            {portalIdFor(entityCode, c.id)}
+                          </span>
+                        </button>
+
+                        <OutcomeControl
+                          value={verdict}
+                          idPrefix={c.id}
+                          size={44}
+                          onChange={(next) => {
+                            setCompliance(c.id, next);
+                            commit(c.id, "desk");
+                            if (next !== null) {
+                              const nextPending = scoped.find(
+                                (x) => x.id !== c.id && responses[x.id]?.compliance == null
+                              );
+                              setOpenId(nextPending?.id ?? null);
+                              setExplicitlyClosed(false);
+                            }
+                          }}
+                        />
+
+                        <textarea
+                          value={r?.observation ?? ""}
+                          onChange={(e) => patch(c.id, { observation: e.target.value })}
+                          placeholder="Number, issuer, dates…"
+                          className="min-h-[40px] w-full resize-y rounded-[10px] border px-[10px] py-[7px] text-[11.5px] outline-none"
+                          style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+                        />
+
+                        <div className="flex gap-[8px]">
+                          <PhotoButton
+                            compact
+                            onCaptured={(m) => addAttachment(c.id, { ...m, createdBy: auditor })}
+                          />
+                          <VoiceNoteButton
+                            compact
+                            onCaptured={(m) => addAttachment(c.id, { ...m, createdBy: auditor })}
+                          />
+                        </div>
+
+                        {attachments.length > 0 && (
+                          <AttachmentStrip
+                            attachments={attachments}
+                            thumbSize={40}
+                            hideDescribe
+                            onRemove={(id) => {
+                              const a = attachments.find((x) => x.id === id);
+                              if (a) void forgetMedia(a.blobKey);
+                              removeAttachment(c.id, id);
+                            }}
+                            onUpdate={(id, p) => updateAttachment(c.id, id, p)}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}

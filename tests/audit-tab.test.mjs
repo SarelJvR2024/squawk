@@ -83,14 +83,38 @@ check(
 
 check(
   "exactly one check is expanded at a time — collapsed rows are a tap target back to it, not a second copy",
-  /const activeId = openId && scoped\.some/.test(audit)
+  /const activeId = explicitlyClosed[\s\S]{0,40}: openId && scoped\.some/.test(audit)
 );
 
 check(
   "answering the open check advances to the next unanswered one automatically",
-  /const nextPending = scoped\.find\(\(x\) => x\.id !== c\.id && responses\[x\.id\]\?\.compliance == null\)/.test(
+  /const nextPending = scoped\.find\(\s*\(x\) => x\.id !== c\.id && responses\[x\.id\]\?\.compliance == null/.test(
     audit
   )
+);
+
+check(
+  "the open card shows the check's own requirement text, not just the asset system name",
+  /\{c\.requirement\}/.test(audit)
+);
+
+check(
+  "tapping the open card collapses it back — it does not reopen on the next render just because it is still first-pending",
+  /aria-label="Collapse this check"/.test(audit) && /setExplicitlyClosed\(true\)/.test(audit)
+);
+
+/* ---- the higher-level heading and the per-row short note, Sarel: "add a
+   higher level heading grouping similar questions. And a short note next
+   to the asset type" ------------------------------------------------------ */
+
+check(
+  "checks are grouped under a heading by Check.system — the field the register already carries, not a freshly invented category",
+  /bySystem\.get\(c\.system\)/.test(audit) && /\[\.\.\.bySystem\.entries\(\)\]/.test(audit)
+);
+
+check(
+  "each collapsed row shows a short note (the check's own requirement text) instead of repeating the system name the heading already gives",
+  /const shortNote = \(requirement: string/.test(audit) && /\{shortNote\(c\.requirement\)\}/.test(audit)
 );
 
 /* ---- wired into the shell and the offline shell, same as every other
