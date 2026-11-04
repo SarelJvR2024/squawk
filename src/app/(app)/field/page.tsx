@@ -1165,7 +1165,7 @@ export default function FieldPage() {
                 visual-hierarchy pass, item 3: delete a label that only
                 restates what the content already says. The four buttons
                 immediately below read "Compliant", "Non-compliant", "N/A",
-                "Later" — nobody needs told that is the outcome before
+                "Not verified" — nobody needs told that is the outcome before
                 reading the word "Compliant" on a button. OutcomeControl's
                 own radiogroup still carries aria-label="Outcome"
                 (OutcomeControl.tsx), so the accessible name survives; only
