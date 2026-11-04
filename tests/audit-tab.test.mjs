@@ -2,19 +2,19 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-/* THE AUDIT TAB — one reusable capture for the "is there a current, valid
- *  document" checks, instead of the full Checks screen rebuilt once per
- *  certificate/appointment/permit.
+/* THE AUDIT TAB — all 324 check-points, grouped by asset system, instead
+ *  of the full Checks screen rebuilt once per certificate/appointment/
+ *  permit/record.
  *
  *  Sarel: "Build this for me under a new tab. Called audit. Streamline
  *  the capturing." Two investigation passes (this session) found that
  *  merging similar-looking checks mostly loses real information — 207 of
  *  324 share a question SHAPE (certificates, appointments, permits,
  *  training, maintenance records) but are almost all genuinely distinct
- *  facts. The win is reuse, not merging, and `Check.confirmedBy ===
- *  "Document"` — a field that already existed, already meant exactly
- *  this — is what decides scope, not a freshly invented classifier that
- *  could drift from it.
+ *  facts. Later, Sarel: "Keep all 324 checks in the audit tab as well" —
+ *  so this screen does not scope down to a subset at all; the win is
+ *  reuse and organisation (grouped by `Check.system`, a field that
+ *  already existed), never merging two checks' answers into one.
  *
  *  THE HARD REQUIREMENT this suite is really pinning down: every answer
  *  given here has to be traceable back to the original 324 check-points,
@@ -39,16 +39,16 @@ const check = (name, cond, detail = "") => {
   }
 };
 
-/* ---- scope: the already-existing confirmedBy field, not a new one ------- */
+/* ---- scope: all 324, no subsetting field at all -------------------------- */
 
 check(
-  "scope comes from Check.confirmedBy === \"Document\", not a freshly invented classifier",
-  /checksAt\(entityCode\)\.filter\(\(c\) => c\.confirmedBy === "Document"\)/.test(audit)
+  "the full register is in scope — no confirmedBy/vtype/inspect filter narrows it to a subset",
+  /const allChecks = useMemo\(\(\) => checksAt\(entityCode\), \[entityCode\]\)/.test(audit)
 );
 
 check(
-  "the screen's own header explains why confirmedBy, not text-matching or a category guess",
-  /already a first/.test(audit) && /-class field/.test(audit) && /180 of the 324/.test(audit)
+  "the screen's own header says plainly that all 324 stay in scope, per Sarel's own words",
+  /Keep all 324 checks in the audit tab/.test(audit)
 );
 
 /* ---- traceability: the SAME store actions the Checks screen uses -------- */
@@ -115,6 +115,11 @@ check(
 check(
   "each collapsed row shows a short note (the check's own requirement text) instead of repeating the system name the heading already gives",
   /const shortNote = \(requirement: string/.test(audit) && /\{shortNote\(c\.requirement\)\}/.test(audit)
+);
+
+check(
+  "the group heading previews a real check's own question (the group's first member), not a synthesised shared one",
+  /\{shortNote\(group\[0\]\.requirement, 72\)\}/.test(audit)
 );
 
 /* ---- wired into the shell and the offline shell, same as every other

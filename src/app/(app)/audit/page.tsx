@@ -1,8 +1,9 @@
 "use client";
 
-/** AUDIT — one reusable capture for every "is there a current, valid
- *  document" check, instead of the full Checks screen rebuilt once per
- *  certificate, appointment, permit or record.
+/** AUDIT — all 324 check-points, grouped by asset system instead of the
+ *  Checks screen's one-full-workspace-per-check flow, for an auditor who
+ *  wants to move fast through a discipline without losing track of which
+ *  question they are answering.
  *
  *  Sarel: "I want to look at a different way of grouping the audit check
  *  questions to have less repetition by per discipline... we always need to
@@ -15,15 +16,19 @@
  *  question SHAPE but are almost all genuinely distinct facts (a different
  *  certificate, a different appointee), so merging them would silently
  *  lose one's answer behind another's, exactly what the quote above rules
- *  out. The real win is reuse, not merging: one compact template, answered
- *  207 times, never 207 bespoke screens.
+ *  out. Later, Sarel: "Keep all 324 checks in the audit tab" — so this
+ *  screen does not scope down to a subset at all; the win is reuse and
+ *  organisation, never merging two checks' answers into one.
  *
- *  `Check.confirmedBy === "Document"` IS that 207-ish set, already a first
- *  -class field (180 of the 324 — see its own doc comment in types.ts: "a
- *  certificate, report, register, drawing or lab result. The number or the
- *  signature IS the compliance"). Using it, not a freshly-invented
- *  classifier, means this screen can never drift from what the rest of the
- *  app already agrees a document check is.
+ *  THE GROUPING: `Check.system` — a field every check already carries, not
+ *  a freshly invented category — groups "similar questions" exactly as
+ *  asked, because checks about the same AGL circuit or the same switchgear
+ *  genuinely are related, and the register is already ordered by system
+ *  within a discipline. Each group's heading previews the first check's own
+ *  requirement text so the question is readable before opening anything,
+ *  and each row below carries a short note of its OWN requirement — a real
+ *  check's real wording, never a synthesised "shared question" standing in
+ *  for several different ones.
  *
  *  TRACEABILITY BY CONSTRUCTION, NOT BY PROMISE — every answer here calls
  *  the exact same store actions the Checks screen's own buttons call
@@ -58,7 +63,8 @@ const VERDICT_COLOR = { C: "var(--good)", NC: "var(--bad)", "N/A": "var(--ink-3)
  *  under one system heading, several checks about the same AGL circuit or
  *  the same switchgear used to read as identical rows with nothing but a
  *  portal id telling them apart. The first line of the check's own
- *  `requirement` (the same text the Checks screen headlines) is what
+ *  `requirement` (the same text the Checks screen headlines, and the same
+ *  text the group heading below previews for its first check) is what
  *  distinguishes them, so this reads it rather than inventing a second
  *  summary that could drift from what the check actually asks. */
 const shortNote = (requirement: string, max = 54) => {
@@ -94,13 +100,10 @@ export default function AuditPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [explicitlyClosed, setExplicitlyClosed] = useState(false);
 
-  const allDocChecks = useMemo(
-    () => checksAt(entityCode).filter((c) => c.confirmedBy === "Document"),
-    [entityCode]
-  );
+  const allChecks = useMemo(() => checksAt(entityCode), [entityCode]);
   const scoped = useMemo(
-    () => allDocChecks.filter((c) => c.discipline === discipline),
-    [allDocChecks, discipline]
+    () => allChecks.filter((c) => c.discipline === discipline),
+    [allChecks, discipline]
   );
 
   /* THE HIGHER-LEVEL HEADING. Sarel: "add a higher level heading grouping
@@ -160,7 +163,7 @@ export default function AuditPage() {
           value={discipline ?? ""}
           onChange={changeDiscipline}
           options={disciplines.map((d) => {
-            const cs = allDocChecks.filter((c) => c.discipline === d);
+            const cs = allChecks.filter((c) => c.discipline === d);
             const n = cs.filter((c) => responses[c.id]?.compliance != null).length;
             return { value: d, label: `${d} — ${n}/${cs.length}` };
           })}
@@ -168,21 +171,31 @@ export default function AuditPage() {
         />
 
         {scoped.length === 0 ? (
-          <Empty>No document checks in this discipline.</Empty>
+          <Empty>No checks in this discipline.</Empty>
         ) : (
           <div className="flex flex-col gap-4">
             {groups.map(([system, group]) => {
               const groupDone = group.filter((c) => responses[c.id]?.compliance != null).length;
               return (
                 <div key={system} className="flex flex-col gap-2">
-                  <div className="flex items-baseline justify-between px-[2px]">
-                    <h3
-                      className="font-display text-[11.5px] font-bold uppercase tracking-[.03em]"
-                      style={{ color: "var(--ink-3)" }}
-                    >
-                      {system}
-                    </h3>
-                    <span className="font-mono text-[10px]" style={{ color: "var(--ink-4)" }}>
+                  <div className="flex items-start justify-between gap-2 px-[2px]">
+                    <div className="min-w-0">
+                      <h3
+                        className="font-display text-[11.5px] font-bold uppercase tracking-[.03em]"
+                        style={{ color: "var(--ink-3)" }}
+                      >
+                        {system}
+                      </h3>
+                      {/* The heading previews the FIRST check's own requirement —
+                          a real question, not a synthesised one standing in for
+                          several different checks — so a system with more than
+                          one check still reads honestly: this is an example of
+                          what this group asks, not a claim every row asks it. */}
+                      <div className="mt-[2px] text-[11px] leading-snug" style={{ color: "var(--ink-3)" }}>
+                        {shortNote(group[0].requirement, 72)}
+                      </div>
+                    </div>
+                    <span className="shrink-0 font-mono text-[10px]" style={{ color: "var(--ink-4)" }}>
                       {groupDone}/{group.length}
                     </span>
                   </div>
@@ -273,7 +286,7 @@ export default function AuditPage() {
                         <textarea
                           value={r?.observation ?? ""}
                           onChange={(e) => patch(c.id, { observation: e.target.value })}
-                          placeholder="Number, issuer, dates…"
+                          placeholder="Observation, number, issuer, dates…"
                           className="min-h-[40px] w-full resize-y rounded-[10px] border px-[10px] py-[7px] text-[11.5px] outline-none"
                           style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
                         />
@@ -314,7 +327,7 @@ export default function AuditPage() {
         {pending.length === 0 && done.length > 0 && (
           <div className="mt-3 flex items-center justify-between gap-2">
             <span className="text-[11.5px]" style={{ color: "var(--ink-3)" }}>
-              All document checks answered in {discipline}.
+              All checks answered in {discipline}.
             </span>
             <Btn
               variant="ghost"
