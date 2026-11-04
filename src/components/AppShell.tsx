@@ -50,6 +50,7 @@ import {
   IconLeft,
   IconRight,
   IconHelp,
+  IconInbox,
   IconLock,
   IconLoop,
   IconMore,
@@ -72,6 +73,14 @@ import { Pill } from "@/components/ui/primitives";
  *  to match a label is churn with a real cost and no reader benefit. */
 const NAV = [
   { href: "/capture", label: "Checks", icon: IconClipboard },
+  /* AUDIT — one reusable capture for the ~180 "is there a current, valid
+     document" checks (Check.confirmedBy === "Document"), instead of the
+     full Checks screen rebuilt once per certificate/appointment/permit.
+     Sarel: "Build this for me under a new tab. Called audit. Streamline
+     the capturing." See src/app/(app)/audit/page.tsx for the screen
+     itself and why confirmedBy, not a new field, decides what is in
+     scope. */
+  { href: "/audit", label: "Audit", icon: IconInbox },
   { href: "/field", label: "Inspection", icon: IconPin },
   /* RAISE — a fresh, dedicated screen, alongside Inspection rather than
      replacing it. Sarel, after testing the Inspection tab's own
