@@ -50,6 +50,7 @@ import {
   IconLeft,
   IconRight,
   IconHelp,
+  IconInbox,
   IconLock,
   IconLoop,
   IconMore,
@@ -72,7 +73,24 @@ import { Pill } from "@/components/ui/primitives";
  *  to match a label is churn with a real cost and no reader benefit. */
 const NAV = [
   { href: "/capture", label: "Checks", icon: IconClipboard },
+  /* AUDIT — one reusable capture for the ~180 "is there a current, valid
+     document" checks (Check.confirmedBy === "Document"), instead of the
+     full Checks screen rebuilt once per certificate/appointment/permit.
+     Sarel: "Build this for me under a new tab. Called audit. Streamline
+     the capturing." See src/app/(app)/audit/page.tsx for the screen
+     itself and why confirmedBy, not a new field, decides what is in
+     scope. */
+  { href: "/audit", label: "Audit", icon: IconInbox },
   { href: "/field", label: "Inspection", icon: IconPin },
+  /* RAISE — a fresh, dedicated screen, alongside Inspection rather than
+     replacing it. Sarel, after testing the Inspection tab's own
+     declutter pass on his phone: "I really think we must create a new
+     tab, start fresh. There's too many things that's not working there
+     ... Keep the structure for raising a finding." Both stay in the bar
+     together on purpose — Sarel's own plan was to prove this one works
+     before disabling the other, not to cut over blind. See
+     src/app/(app)/raise/page.tsx for the screen itself. */
+  { href: "/raise", label: "Raise a finding", short: "Finding", icon: IconCamera },
   /* SAFETY MOVED TO THE MORE MENU (Sarel, 30 Sep): "move safety and review
      menu items out of the main menu bar."
      THEN: it sat here, second, on the reasoning that it was the rarest
@@ -1224,6 +1242,40 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </>
             )}
           </div>
+
+          {/* PULL THE LATEST, RIGHT FROM THE BAR — Sarel: "add a refresh sync
+              feature which you put as a button on the top bar." The same
+              action already existed one tap deeper, in the More menu (see
+              that MoreItem's own doc comment on why a button rather than a
+              swipe gesture) and inside the Shared record sheet
+              (SharedPanel.tsx's own "Sync now") — this is the SAME
+              shared.syncNow() call, not a third copy, just reachable
+              without opening anything first. Gated identically to the
+              More-menu item: hidden with nothing to sync (state "off") and
+              on a locked device (syncNow() has no passphrase to sync with
+              yet and would otherwise no-op silently — the Shared record
+              sheet is where that device unlocks). The icon itself carries
+              the "syncing now" state via shared.state, the same vocabulary
+              sharedHint above already reads — no second status to keep in
+              step. */}
+          {shared && shared.state !== "off" && shared.unlocked && (
+            <button
+              type="button"
+              onClick={() => shared.syncNow()}
+              disabled={shared.state === "syncing"}
+              title={sharedHint}
+              aria-label="Refresh — pull the latest from the team record"
+              className="flex min-h-[36px] min-w-[36px] shrink-0 items-center justify-center rounded-[8px] border"
+              style={{
+                background: shared.state === "error" ? "var(--warn-bg)" : "var(--panel)",
+                borderColor: shared.state === "error" ? "var(--warn-line)" : "var(--line-2)",
+                color: shared.state === "error" ? "var(--warn)" : "var(--ink-3)",
+                opacity: shared.state === "syncing" ? 0.6 : 1,
+              }}
+            >
+              <IconLoop width={14} height={14} />
+            </button>
+          )}
 
           {/* Whether the evidence has left the tablet yet. An auditor who has
               captured forty photographs on an apron is entitled to know they

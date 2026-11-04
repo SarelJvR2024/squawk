@@ -391,8 +391,9 @@ src/
     HazardAdvice.tsx  the event a finding exposes, named at the check
     RecordActions.tsx the rating and treatment block — findings AND hazards
     AddItemSheet.tsx  record something the register does not cover, in ten seconds
-    OutcomeControl.tsx  Pass · Fail · N/A · Later — one segmented control, brand
-                      palette only, because an outcome is not a rating
+    OutcomeControl.tsx  Compliant · Non-compliant · N/A · Not verified — one
+                      segmented control, brand palette only, because an
+                      outcome is not a rating
     VisitStrip.tsx    one carried item across every audit, as a shape
     ui/GroupRow.tsx   the collapsible group header, shared by every screen that groups
     ExportPanel.tsx   the export sheet

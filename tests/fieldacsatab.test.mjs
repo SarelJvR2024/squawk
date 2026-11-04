@@ -78,7 +78,7 @@ check(
 
 check(
   "opening a different check resets the tab to walkabout",
-  /onClick=\{\(\) => \{ setOpenItem\(c\.id\); setCheckTab\("walkabout"\); \}\}/.test(field),
+  /onClick=\{\(\) => \{ setOpenItem\(c\.id\); setCheckTab\("walkabout"\); setWalkaboutNoteOpen\(false\); \}\}/.test(field),
   "a check opened to ACSA's wording must not leave the next one open to it too"
 );
 
@@ -118,16 +118,47 @@ check(
        second visual-hierarchy pass, item 3: a label that only restates
        what the field already is. The textarea itself, and an accessible
        name for it (now an sr-only "Observation"), are still exactly here;
-       this probes for those instead of the deleted visible copy. */
+       this probes for those instead of the deleted visible copy.
+
+       value={r?.fieldObservation, NOT r?.observation — 3 November 2026,
+       Response.fieldObservation split the walk's own note away from the
+       desk's interview write-up (see that field's own doc comment in
+       types.ts); the textarea on THIS screen reads/writes its own field
+       now, same reasoning fieldCompliance already set for the verdict
+       buttons just above it. */
     return (
       /TPJV walkabout — physical check/.test(slice) &&
       /<OutcomeControl/.test(slice) &&
       /sr-only">Observation<\/span>/.test(slice) &&
-      /value=\{r\?\.observation/.test(slice) &&
+      /value=\{r\?\.fieldObservation/.test(slice) &&
       /<AttachmentStrip/.test(slice)
     );
   })(),
   "the ACSA tab is additive — nothing the walk already captured should have moved or disappeared"
+);
+
+/* ---- the walkabout note itself: collapsed by default, same pattern as
+   AcsaRequirementPanel's own disclosure ----------------------------------- */
+
+check(
+  "the walkabout note state starts collapsed",
+  /const \[walkaboutNoteOpen, setWalkaboutNoteOpen\] = useState\(false\);/.test(field),
+  "Sarel: \"by default dont show the Walkabout note, it must be minimised\""
+);
+
+check(
+  "a disclosure button, not the note itself, is what renders unconditionally",
+  (() => {
+    const i = field.indexOf("c.walkabout?.trim() && (");
+    if (i === -1) return false;
+    const slice = field.slice(i, i + 900);
+    return (
+      /onClick=\{\(\) => setWalkaboutNoteOpen\(\(v\) => !v\)\}/.test(slice) &&
+      /aria-expanded=\{walkaboutNoteOpen\}/.test(slice) &&
+      /\{walkaboutNoteOpen && \(/.test(slice)
+    );
+  })(),
+  "the note card itself must be conditional on walkaboutNoteOpen, not always rendered the moment the tab is"
 );
 
 console.log(

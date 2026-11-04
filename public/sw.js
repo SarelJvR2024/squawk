@@ -87,7 +87,9 @@ const ASSETS = `${VERSION}-assets`;
 const ROUTES = [
   "/home",
   "/capture",
+  "/audit",
   "/field",
+  "/raise",
   "/findings",
   "/hazards",
   "/closure",

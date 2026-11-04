@@ -35,7 +35,7 @@ import { Btn, Pill } from "@/components/ui/primitives";
 import RecordActions from "@/components/RecordActions";
 import RootCauseAdvice from "@/components/RootCauseAdvice";
 import HazardAdvice from "@/components/HazardAdvice";
-import { AttachmentStrip } from "@/components/Capture";
+import { AttachmentStrip, PhotoButton, VoiceNoteButton } from "@/components/Capture";
 import type { Finding } from "@/lib/types";
 
 /** LINK AN UNLINKED FINDING TO ONE OF THE 324 AUDIT CHECKS, LATER.
@@ -155,6 +155,10 @@ export default function FindingDetail({
   const adhocItems = useAdhoc();
   const updateFinding = useStore((s) => s.updateFinding);
   const addFindingProgress = useStore((s) => s.addFindingProgress);
+  const addFindingAttachment = useStore((s) => s.addFindingAttachment);
+  const updateFindingAttachment = useStore((s) => s.updateFindingAttachment);
+  const removeFindingAttachment = useStore((s) => s.removeFindingAttachment);
+  const auditor = useStore((s) => s.auditor);
   const say = (m: string) => onToast?.(m);
 
   return (
@@ -185,6 +189,39 @@ export default function FindingDetail({
         )}
       </div>
       <h3 className="mb-3 text-[14.5px] leading-[1.35] font-bold">{f.description}</h3>
+
+      {/* THIS FINDING'S OWN EVIDENCE — see Finding.attachments' own doc
+          comment. Independent of whatever a linked check's own
+          Response.attachments separately holds, and the one place in this
+          app where a checkless finding's photos can be viewed, captioned
+          or added to after the moment it was raised. */}
+      <div className="mb-3.5">
+        <div className="mb-1.5 flex items-center justify-between gap-2">
+          <span className="font-display text-[11px] font-semibold" style={{ color: "var(--ink-3)" }}>
+            Evidence
+          </span>
+          <span className="flex items-center gap-[6px]">
+            <PhotoButton
+              compact
+              className="min-h-[36px] w-[36px] justify-center"
+              onCaptured={(m) => addFindingAttachment(f.id, { ...m, createdBy: auditor })}
+            />
+            <VoiceNoteButton
+              compact
+              className="min-h-[36px] w-[36px] justify-center"
+              onCaptured={(m) => addFindingAttachment(f.id, { ...m, createdBy: auditor })}
+            />
+          </span>
+        </div>
+        {(f.attachments ?? []).length > 0 && (
+          <AttachmentStrip
+            attachments={f.attachments ?? []}
+            thumbSize={40}
+            onRemove={(id) => removeFindingAttachment(f.id, id)}
+            onUpdate={(id, p) => updateFindingAttachment(f.id, id, p)}
+          />
+        )}
+      </div>
 
       {!f.checkId && (
         <div className="mb-3.5">
@@ -296,7 +333,12 @@ export default function FindingDetail({
           <RootCauseAdvice
             finding={f}
             check={f.checkId ? checksAt(entityCode).find((c) => c.id === f.checkId) : undefined}
-            attachments={f.checkId ? (responses[f.checkId]?.attachments ?? []) : []}
+            /* PLUS the finding's own attachments now — see
+               Finding.attachments' own doc comment. A finding raised with
+               no check-point picked used to send this advice component no
+               evidence at all to ground its suggestion in, even once it had
+               its own photos. */
+            attachments={[...(f.checkId ? (responses[f.checkId]?.attachments ?? []) : []), ...(f.attachments ?? [])]}
             onPick={(rc) => updateFinding(f.id, { rootCause: rc })}
           />
         }
@@ -305,12 +347,12 @@ export default function FindingDetail({
       {/* THE OTHER HALF OF THE SAME MOMENT: what event does this expose?
           Named here, it gives the hazard register something a person wrote
           to consolidate from. Same props shape as RootCauseAdvice above —
-          both read the finding's own check and attachments, both only
-          propose. */}
+          both read the finding's own check, its own attachments and the
+          check's response attachments, both only propose. */}
       <HazardAdvice
         finding={f}
         check={f.checkId ? checksAt(entityCode).find((c) => c.id === f.checkId) : undefined}
-        attachments={f.checkId ? (responses[f.checkId]?.attachments ?? []) : []}
+        attachments={[...(f.checkId ? (responses[f.checkId]?.attachments ?? []) : []), ...(f.attachments ?? [])]}
         onAccept={(event) => {
           updateFinding(f.id, { suggestedEvent: event });
           say(`Hazard noted · ${event}`);

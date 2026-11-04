@@ -387,7 +387,7 @@ check(
   "NAVIGATION IS UNDER THE THUMB ON A PHONE",
   /\.app-nav \{[\s\S]{0,200}position: fixed;[\s\S]{0,200}bottom: 0;/.test(css) &&
     /@media \(max-width: 639\.98px\)/.test(css),
-  "seven destinations pinned to the top of a 664px screen, on a walkabout done one-handed"
+  "eight destinations pinned to the top of a 664px screen, on a walkabout done one-handed"
 );
 
 check(

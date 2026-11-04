@@ -100,6 +100,7 @@ const RESP = (over = {}) => ({
   combinedComment: "",
   combinedCommentAt: null,
   observation: "",
+  fieldObservation: "",
   evidencePicked: [],
   issuesPicked: [],
   walkaboutPicked: null,
@@ -181,6 +182,69 @@ check(
     const sheet = ex.registerSheet({ ...BASE, responses: {} });
     return cellOf(sheet, 0, "Field compliance") === "" && cellOf(sheet, 0, /^Status/) === "";
   })()
+);
+
+/* ========================================================== Bug 5 ========
+ *  Response.fieldObservation — the Inspection screen's OWN note (its own
+ *  textarea, on the walk) — distinct from Response.observation (the Checks
+ *  screen's own write-up). Found the same day, by the same standing review,
+ *  as the sync.ts cross-device gap: before fieldObservation existed, the
+ *  walk's note box read and wrote `observation` directly, so the two notes
+ *  were one and the same text in the workbook too — this pins them apart
+ *  here the same way Bug 1 above pins fieldCompliance apart from Status. */
+
+check(
+  "Response.fieldObservation has its OWN column in the Register sheet, independent of Observation",
+  (() => {
+    const x = {
+      ...BASE,
+      responses: {
+        "KSIA-ELE-001": RESP({
+          checkId: "KSIA-ELE-001",
+          compliance: "C",
+          observation: "Fine on the desk",
+          fieldObservation: "Fine on the walk",
+        }),
+      },
+    };
+    const sheet = ex.registerSheet(x);
+    return (
+      cellOf(sheet, 0, "Observation").includes("Fine on the desk") &&
+      cellOf(sheet, 0, "Field observation") === "Fine on the walk" &&
+      !cellOf(sheet, 0, "Field observation").includes("Fine on the desk") &&
+      !cellOf(sheet, 0, "Observation").includes("Fine on the walk")
+    );
+  })(),
+  (() => {
+    const x = {
+      ...BASE,
+      responses: {
+        "KSIA-ELE-001": RESP({
+          checkId: "KSIA-ELE-001",
+          compliance: "C",
+          observation: "Fine on the desk",
+          fieldObservation: "Fine on the walk",
+        }),
+      },
+    };
+    const sheet = ex.registerSheet(x);
+    return JSON.stringify(sheet.rows[0]);
+  })()
+);
+
+check(
+  "a check with no fieldObservation typed yet renders BLANK, not a copy of Observation",
+  (() => {
+    const x = {
+      ...BASE,
+      responses: {
+        "KSIA-ELE-001": RESP({ checkId: "KSIA-ELE-001", compliance: "C", observation: "Fine" }),
+      },
+    };
+    const sheet = ex.registerSheet(x);
+    return cellOf(sheet, 0, "Field observation") === "" && cellOf(sheet, 0, "Observation") === "Fine";
+  })(),
+  "a regression check: the two notes must never be folded into one on the way into the workbook either"
 );
 
 /* ========================================================== Bug 2 ========

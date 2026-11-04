@@ -5,7 +5,8 @@ import { IconCheck, IconClock, IconDash, IconX } from "@/components/ui/icons";
 
 /** THE OUTCOME OF ONE INSPECTION. One control, four segments.
  *
- *  ACSA's four values: C Compliant · NC Non-compliant · N/A N/A · NV Later.
+ *  ACSA's four values: C Compliant · NC Non-compliant · N/A N/A · NV Not
+ *  verified.
  *  Sarel, 7 October 2026: "the check is pass or fail, it should stick to
  *  compliant and not compliant, the same as the checks view" — this screen
  *  used to say Pass/Fail where CheckDetail.tsx's own verdict buttons say
@@ -28,7 +29,7 @@ import { IconCheck, IconClock, IconDash, IconX } from "@/components/ui/icons";
  *  Tolerable — they are band colours, in the report, on the dashboard and on
  *  every rating pill in the product. The four inspection buttons used to fill
  *  with them, so a Fail rendered in the colour of an Unacceptable rating and a
- *  Later in the colour of a Tolerable one. A reader who learns that
+ *  Not verified in the colour of a Tolerable one. A reader who learns that
  *  equivalence on this screen then misreads every genuine band elsewhere,
  *  which is the more expensive half of the mistake.
  *
@@ -46,7 +47,7 @@ export const OUTCOMES: { key: Compliance; label: string; Icon: typeof IconCheck 
   { key: "C", label: "Compliant", Icon: IconCheck },
   { key: "NC", label: "Non-compliant", Icon: IconX },
   { key: "N/A", label: "N/A", Icon: IconDash },
-  { key: "NV", label: "Later", Icon: IconClock },
+  { key: "NV", label: "Not verified", Icon: IconClock },
 ];
 
 export default function OutcomeControl({

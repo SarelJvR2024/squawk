@@ -242,6 +242,7 @@ export function registerSheet(x: ExportInput): Sheet {
          somebody walk back to the thing and close the finding. */
       r?.location?.trim() ?? "",
       r?.observation ?? "",
+      r?.fieldObservation ?? "",
       evidence ?? "",
       issues ?? "",
       walk,
@@ -310,6 +311,14 @@ export function registerSheet(x: ExportInput): Sheet {
       { header: "Field compliance", width: 16 },
       { header: "Where it was inspected", width: 28 },
       { header: "Observation", width: 60, wrap: true },
+      /* THE INSPECTION SCREEN'S OWN NOTE — Response.fieldObservation, never
+         `observation` above, same reasoning as "Field compliance" right
+         beside it: an independent question answered on an independent
+         screen. Sarel: "the note populated there is from the interview of
+         the audit check, it should not be populated here. We must be able
+         to capture separate notes for the audit check and or the
+         inspection. The reports will pick up both notes separately." */
+      { header: "Field observation", width: 60, wrap: true },
       { header: "Evidence requested", width: 42, wrap: true },
       { header: "Issues found", width: 52, wrap: true },
       { header: "Walkabout observation", width: 38, wrap: true },
@@ -681,6 +690,52 @@ export function photographsSheet(x: ExportInput): Sheet {
             : "On the device only",
         a.cloudUrl ?? "",
         "Evidence log document (TK-003) — NOT one of the register check-points",
+      ]);
+    }
+  }
+  /* A FINDING'S OWN EVIDENCE — Finding.attachments, new (see that field's
+     own doc comment in types.ts): photos and voice notes captured when a
+     finding is raised, whether or not a check-point was ever picked. Same
+     sheet as the other four sources, same reasoning: a reader should not
+     have to know which screen captured a photograph to find it here.
+     Compliance reads Non-compliant unconditionally — "Every Finding IS a
+     non-compliance in this schema" (RaiseFindingSheet.tsx's own doc
+     comment), the one photo source in this sheet where that column is
+     never blank or borrowed from a Response. */
+  for (const f of x.findings) {
+    for (const a of f.attachments ?? []) {
+      if (a.kind !== "photo") continue;
+      rows.push([
+        photoFilename(a),
+        a.ref ?? "",
+        f.checkId ? portalIdFor(x.entity, f.checkId) : f.id,
+        STATUS_WORD.NC,
+        f.discipline,
+        f.system,
+        f.area,
+        a.location?.trim() ?? "",
+        a.assetName?.trim() ?? "",
+        a.assetRef?.trim() ?? "",
+        a.caption?.trim() ?? "",
+        a.caption?.trim()
+          ? a.captionSource === "assistant"
+            ? "Assistant, accepted by the auditor"
+            : "Auditor"
+          : "NO CAPTION",
+        when(a.takenAt) ?? "",
+        when(a.createdAt),
+        a.createdBy,
+        a.width && a.height ? `${a.width}×${a.height}` : "",
+        a.bytes ? Math.round(a.bytes / 1024) : "",
+        a.unavailable
+          ? "No image stored"
+          : a.cloudUrl
+            ? "On the device and in the record store"
+            : "On the device only",
+        a.cloudUrl ?? "",
+        f.checkId
+          ? "Finding's own evidence — also tied to a register check-point"
+          : "Finding's own evidence — NOT one of the register check-points",
       ]);
     }
   }
@@ -1781,12 +1836,47 @@ export function systemsSheet(x: ExportInput): Sheet {
 /* ------------------------------------------------------------------- summary */
 
 export function summarySheet(x: ExportInput): Sheet {
-  const disciplines = Array.from(new Set(x.checks.map((c) => c.discipline)));
+  /* EVERY FINDING GETS A ROW TO COUNT AGAINST, whichever screen raised it —
+   *  Sarel: "when a finding is raised, it should... get pulled through to
+   *  the report for the discipline as a non-compliance," then, after
+   *  confirming that already happens (findings have counted into this
+   *  sheet's own "Findings raised" column for every discipline the
+   *  register itself declares since this sheet existed): "I just want to
+   *  make sure that the same logic is also working similar to the
+   *  inspections tab" — i.e. not only for the Raise tab.
+   *
+   *  It already does: `fs` below reads `x.findings` with no regard for
+   *  where a finding came from — the Raise tab (checkId null, adHoc true),
+   *  a check answered Non-compliant on the Checks screen
+   *  (raiseFindingFromCheck), or a walk item answered Non-compliant on the
+   *  Inspection screen (raiseFindingFromAdhoc, store.ts's `addAdhoc`) all
+   *  produce the same Finding shape and are counted identically here.
+   *
+   *  THE ONE GAP a careful look found: `disciplines` used to come ONLY from
+   *  the register's own 324 check-points (`x.checks`), so a finding raised
+   *  with no discipline attributed — "Not attributed" is offered on both
+   *  the Raise tab and the Inspection screen's own discipline chips — had
+   *  no row of its own to count against anywhere on this sheet, from
+   *  EITHER screen equally. Now every discipline actually named on a
+   *  finding gets a row even if the register's own check-points never use
+   *  it, and anything raised with none at all gets one shared "Not
+   *  attributed" row, so a finding is counted here exactly once,
+   *  regardless of how specifically — or not — it was tagged. */
+  const registerDisciplines = Array.from(new Set(x.checks.map((c) => c.discipline)));
+  const findingDisciplines = Array.from(
+    new Set(x.findings.map((f) => f.discipline?.trim()).filter((d): d is string => !!d))
+  );
+  const disciplines = Array.from(new Set([...registerDisciplines, ...findingDisciplines]));
+  const hasUnattributed = x.findings.some((f) => !f.discipline?.trim());
+  if (hasUnattributed) disciplines.push("Not attributed");
   const rows = disciplines.map((d) => {
     const cs = x.checks.filter((c) => c.discipline === d);
     const rs = cs.map((c) => x.responses[c.id]).filter(Boolean) as Response[];
     const count = (k: string) => rs.filter((r) => r.compliance === k).length;
-    const fs = x.findings.filter((f) => f.discipline === d);
+    const fs =
+      d === "Not attributed"
+        ? x.findings.filter((f) => !f.discipline?.trim())
+        : x.findings.filter((f) => f.discipline === d);
     const agreed = fs.filter((f) => f.ratingConfirmed);
     const inBand = (b: string) =>
       agreed.filter((f) => bandFor(f.severity, f.likelihood) === b).length;

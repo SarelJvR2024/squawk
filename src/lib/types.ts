@@ -376,6 +376,16 @@ export interface Attachment {
    *  the record exists but there is no audio or image behind it. Shown as
    *  unavailable rather than silently rendering an empty player. */
   unavailable?: boolean;
+  /** Set on a voice note that is about ONE particular photograph in the same
+   *  strip, rather than about the finding/check as a whole — the id of that
+   *  photograph's own Attachment. Sarel: "there should be a voice note
+   *  button for the photo as well to add a voice note for the photo." A
+   *  voice note with no photoId is a note for the finding/check itself,
+   *  same as every voice note before this field existed — absent-means-
+   *  general, so nothing written before this needs a migration. Never set
+   *  on a photo or a file; see Capture.tsx's AttachmentStrip for how the
+   *  two kinds of voice note are told apart and rendered. */
+  photoId?: string;
   createdAt: number;
   createdBy: string;
 }
@@ -411,6 +421,26 @@ export interface Response {
    *
    *  `null` is "not yet answered on this screen," same as `compliance`. */
   fieldCompliance: Compliance | null;
+  /** THE INSPECTION SCREEN'S OWN NOTE — same pairing as fieldCompliance just
+   *  above, this time for `observation` rather than `compliance`.
+   *
+   *  Sarel, after testing the walk screen pre-filling the desk's interview
+   *  note into its own note box: "The note populated there is from the
+   *  interview of the audit check, it should not be populated here. We
+   *  should be able to capture separate notes for the audit check and or
+   *  the inspection. The reports will pick up both notes separately. We
+   *  must be able to separate the audit check interview note, from the
+   *  inspection note of the same audit check." Until this field existed,
+   *  `src/app/(app)/field/page.tsx`'s own note textarea read and wrote
+   *  `observation` directly — the same field Capture's own desk textarea
+   *  sets — so the walk's own words and the desk's interview write-up were
+   *  one and the same text, each overwriting the other depending on which
+   *  screen was used last.
+   *
+   *  Optional and absent-means-empty, same reasoning as Response.location:
+   *  a record from before this field existed reads as "no field note yet"
+   *  rather than needing a migration to backfill it. */
+  fieldObservation?: string;
   /** ACSA SAYS COMPLIANT, AND THE EVIDENCE IS STILL TO COME.
    *
    *  Sarel, 2026-09-12: "ACSA's explanation is that they are compliant but
@@ -949,6 +979,22 @@ export interface Finding {
   originVisit: string;
   priorRating: string | null;
   adHoc: boolean;
+  /** Evidence this finding carries itself, independent of any check-point.
+   *
+   *  Every OTHER photo or voice note a finding shows was always read through
+   *  `checkId` — see the "raise a finding" sheets' own notes on why that left
+   *  a real gap: a finding with no check-point picked had nowhere of its own
+   *  to keep a capture, so one taken before a check was chosen was refused
+   *  rather than silently dropped. Sarel: after raising a finding, capture
+   *  multiple photos, a note per photo and a note for the finding itself —
+   *  that needs a finding to hold its own evidence whether or not a
+   *  check-point is ever picked. Same shape as SafetyFinding.attachments,
+   *  same reasoning: required, not optional, so "no evidence yet" is an
+   *  empty array rather than a field that might not exist. A finding WITH a
+   *  check-point can still carry its own attachments here too, separate from
+   *  whatever that check's own Response.attachments independently holds —
+   *  two different capture paths, not one drifting into the other. */
+  attachments: Attachment[];
   /** The event this finding exposes, proposed early at the check and refined at
    *  consolidation. A suggestion until a hazard is actually created from it. */
   suggestedEvent: string;

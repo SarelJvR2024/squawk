@@ -133,16 +133,21 @@ check(
 
 /* ---- `answered` is Inspection's own predicate, layered on top of
    fieldDone rather than replacing it anywhere else: compliance chosen AND
-   a note typed, exactly as field/page.tsx defines it. Four checks that
-   were never committed through either portal prove it stands on its own,
-   with nothing borrowed from fieldDoneAt. */
-const answered = (r) => !!r?.compliance && !!r?.observation?.trim();
+   a note typed, exactly as field/page.tsx defines it.
+   READS fieldObservation, NOT observation — 3 November 2026,
+   Response.fieldObservation split this screen's own note away from the
+   desk's interview write-up; field/page.tsx's own `answered` reads
+   fieldObservation now, so this mirror has to patch and read the same
+   field or it is proving something the real screen no longer does. Four
+   checks that were never committed through either portal prove it stands
+   on its own, with nothing borrowed from fieldDoneAt. */
+const answered = (r) => !!r?.compliance && !!r?.fieldObservation?.trim();
 
 const answerScope = fieldScope.slice(N_FIELD, N_FIELD + 4);
-useStore.getState().patch(answerScope[0].id, { compliance: "C", observation: "looks fine" });
-useStore.getState().patch(answerScope[1].id, { compliance: "C", observation: "   " });
-useStore.getState().patch(answerScope[2].id, { compliance: null, observation: "note but no verdict" });
-useStore.getState().patch(answerScope[3].id, { compliance: "C", observation: "all good" });
+useStore.getState().patch(answerScope[0].id, { compliance: "C", fieldObservation: "looks fine" });
+useStore.getState().patch(answerScope[1].id, { compliance: "C", fieldObservation: "   " });
+useStore.getState().patch(answerScope[2].id, { compliance: null, fieldObservation: "note but no verdict" });
+useStore.getState().patch(answerScope[3].id, { compliance: "C", fieldObservation: "all good" });
 
 const responses2 = useStore.getState().visitData().responses;
 const N_ANSWERED = 2;
@@ -266,7 +271,7 @@ check(
 
 check(
   "Inspection's restored heading figure is doneCount/visible.length, now built from `answered` (compliance AND a note) rather than fieldDone",
-  /const answered = \(r\?: Response\) => !!r\?\.compliance && !!r\?\.observation\?\.trim\(\);/.test(fieldCode) &&
+  /const answered = \(r\?: Response\) => !!r\?\.compliance && !!r\?\.fieldObservation\?\.trim\(\);/.test(fieldCode) &&
     /const doneCount = visible\.filter\(\(c\) => answered\(responses\[c\.id\]\)\)\.length;/.test(fieldCode) &&
     /const visiblePct = visible\.length \? Math\.round\(\(doneCount \/ visible\.length\) \* 100\) : 0;/.test(
       fieldCode

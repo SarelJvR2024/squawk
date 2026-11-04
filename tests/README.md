@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Ninety-three suites, no framework. Thirteen need a running server; eighty do not.
+Ninety-seven suites, no framework. Thirteen need a running server; eighty-four do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -58,7 +58,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `crosswalk.test.mjs` | no | 13 |
 | `faor-import.test.mjs` | no | 28 |
 | `faor-import-other-disciplines.test.mjs` | no | 26 |
-| `sync-coverage.test.mjs` | no | 24 |
+| `sync-coverage.test.mjs` | no | 27 |
 | `review.test.mjs` | no | 41 |
 | `reviewcompliance.test.mjs` | no | 7 |
 | `syncwatermark.test.mjs` | no | 14 |
@@ -88,7 +88,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `people.test.mjs` | no | 36 |
 | `saveall.test.mjs` | no | 5 |
 | `audits.test.mjs` | no | 22 |
-| `voice.test.mjs` | no | 37 |
+| `voice.test.mjs` | no | 41 |
 | `sites.test.mjs` | no | 42 |
 | `photos.test.mjs` | no | 113 |
 | `hazards.test.mjs` | no | 121 |
@@ -96,7 +96,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `auditdates.test.mjs` | no | 20 |
 | `relinkphoto.test.mjs` | no | 16 |
 | `erm-matrix.test.mjs` | no | 80 |
-| `sharepoint.test.mjs` | no | 373 |
+| `sharepoint.test.mjs` | no | 375 |
 | `graph.test.mjs` | no | 16 |
 | `activity.test.mjs` | no | 34 |
 | `assets.test.mjs` | no | 21 |
@@ -109,7 +109,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `dataloss.test.mjs` | no | 17 |
 | `merge.test.mjs` | no | 78 |
 | `figures.test.mjs` | no | 7 |
-| `fieldacsatab.test.mjs` | no | 15 |
+| `fieldacsatab.test.mjs` | no | 17 |
 | `field-search-prominence.test.mjs` | no | 6 |
 | `home.test.mjs` | no | 58 |
 | `adhoc.test.mjs` | no | 79 |
@@ -128,8 +128,12 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `import-pack.test.mjs` | no | 63 |
 | `ortia-v3-pack.test.mjs` | no | 84 |
 | `sheet.test.mjs` | no | 17 |
-| `exports.test.mjs` | no | 17 |
+| `exports.test.mjs` | no | 19 |
 | `field-wide-detail.test.mjs` | no | 15 |
+| `fieldobservation-display.test.mjs` | no | 6 |
+| `summary-discipline-coverage.test.mjs` | no | 5 |
+| `topbar-refresh.test.mjs` | no | 4 |
+| `audit-tab.test.mjs` | no | 23 |
 | `e2e.js` | yes | 24 |
 | `robustness.js` | yes | 53 |
 | `exports.js` | yes | 32 |
@@ -144,7 +148,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,717 assertions in total**, every count above verified by running the suite,
+**3,768 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -588,7 +592,7 @@ blocks a save.
 
 The eighth part is the outcome control. An outcome is not a rating: the four
 inspection buttons used to fill with `--bad` and `--warn`, so a Fail rendered
-in the colour of an Unacceptable rating and a Later in the colour of a
+in the colour of an Unacceptable rating and a Not verified in the colour of a
 Tolerable one. Those tokens are banned from the control, state is carried by an
 icon and a word as well as a fill, and the same segment tapped twice clears the
 outcome — a status set by mistake that cannot be unset turns a blank "not
