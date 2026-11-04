@@ -592,7 +592,7 @@ blocks a save.
 
 The eighth part is the outcome control. An outcome is not a rating: the four
 inspection buttons used to fill with `--bad` and `--warn`, so a Fail rendered
-in the colour of an Unacceptable rating and a Later in the colour of a
+in the colour of an Unacceptable rating and a Not verified in the colour of a
 Tolerable one. Those tokens are banned from the control, state is carried by an
 icon and a word as well as a fill, and the same segment tapped twice clears the
 outcome — a status set by mistake that cannot be unset turns a blank "not
