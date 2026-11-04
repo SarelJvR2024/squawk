@@ -54,9 +54,52 @@ import { AttachmentStrip, PhotoButton, VoiceNoteButton, forgetMedia } from "@/co
 import { Btn, Empty } from "@/components/ui/primitives";
 import { DisciplineSelect } from "@/components/ui/DisciplineSelect";
 import { IconCheck, IconClock, IconDash, IconX } from "@/components/ui/icons";
+import auditTopicsData from "@/data/auditTopics.json";
 
 const VERDICT_ICON = { C: IconCheck, NC: IconX, "N/A": IconDash, NV: IconClock } as const;
 const VERDICT_COLOR = { C: "var(--good)", NC: "var(--bad)", "N/A": "var(--ink-3)", NV: "var(--warn)" } as const;
+
+/** THE INTERVIEW GROUPING. Sarel: "Find ways how to group the audit checks
+ *  ie by documentation, by compliance certification, by maintenance tasks,
+ *  Planned maintenance, inspections, measurements, training and personel.
+ *  This will help with the interview questions to ask the question and
+ *  cover multiple sequential topics in the same questions manner without
+ *  repeating ie do you perform planned maintenance for grass cutting,
+ *  painting, FoD etc."
+ *
+ *  A REGEX CLASSIFIER WAS TRIED AND REJECTED. Keyword-matching the register's
+ *  free text put "ILS" under Training (a loose "train" match elsewhere in
+ *  its evidence text) and an HVAC "Fresh air induction Fans" check under
+ *  Training too ("induction" means something different in ventilation than
+ *  in a safety onboarding sense, and no regex can tell them apart). Tightening
+ *  the patterns to kill those false positives dropped over 200 of the 324
+ *  into an unhelpful "Other" bucket. Exactly the failure this session's
+ *  earlier evidence-category investigation already found — text-matching
+ *  this register is not reliable enough to show an auditor as fact.
+ *
+ *  So the topic for each check is a HAND-JUDGED, STATIC lookup —
+ *  `src/data/auditTopics.json`, one topic per checkId — the same pattern
+ *  this app already uses for `priorFindings.json`/`priorRatings.json`: data
+ *  that needs real judgment is curated once and stored, not derived at
+ *  runtime from a pattern that can quietly misfire on the next odd phrasing
+ *  the register adds. It is reviewable and correctable exactly like those
+ *  files, by anyone reading plain JSON, which a regex is not. */
+const TOPIC_ORDER = [
+  "Documentation",
+  "Compliance certification",
+  "Maintenance tasks",
+  "Planned maintenance",
+  "Inspections",
+  "Measurements",
+  "Training",
+  "Personnel",
+  "Other",
+] as const;
+const auditTopics = auditTopicsData as Record<string, string>;
+/** "Other" rather than silently dropping a check some future register edit
+ *  left unmapped — the alternative is a check that vanishes from Topic mode
+ *  entirely, which is worse than one sitting in an honestly-labelled bucket. */
+const topicFor = (checkId: string) => auditTopics[checkId] ?? "Other";
 
 /** THE SHORT NOTE. Sarel: "a short note next to the asset type to know what
  *  the question and check is so that all dont look the same" — collapsed
@@ -99,6 +142,14 @@ export default function AuditPage() {
      whenever the closed check was still the first pending one. */
   const [openId, setOpenId] = useState<string | null>(null);
   const [explicitlyClosed, setExplicitlyClosed] = useState(false);
+  /* "System" is the capture-friendly default — one physical thing, the
+     checks about it right there together. "Topic" is the interview-friendly
+     view: Sarel's own example is asking every planned-maintenance question
+     (grass cutting, painting, FOD) in one run rather than jumping back to
+     it once per asset system. Neither reorders or merges anything that gets
+     written — both are the same 324 rows, same store actions, just grouped
+     by a different one of the check's own fields. */
+  const [groupMode, setGroupMode] = useState<"system" | "topic">("system");
 
   const allChecks = useMemo(() => checksAt(entityCode), [entityCode]);
   const scoped = useMemo(
@@ -107,24 +158,31 @@ export default function AuditPage() {
   );
 
   /* THE HIGHER-LEVEL HEADING. Sarel: "add a higher level heading grouping
-     similar questions." `Check.system` — the asset system every check
-     already carries, not a freshly invented category — is exactly that:
-     checks about the same AGL circuit or the same switchgear ARE the
+     similar questions." In System mode, `Check.system` — a field every
+     check already carries, not a freshly invented category — is exactly
+     that: checks about the same AGL circuit or the same switchgear ARE the
      "similar questions" grouping is for, and the register is already
      ordered by system within a discipline, so this costs nothing to derive
-     and nothing to keep in sync. A text-matched evidence category (tried
-     earlier this session) risks miscategorising a check nobody can then
-     find; grouping by the field the register itself already states cannot
-     drift or mislabel. */
+     and nothing to keep in sync. In Topic mode the grouping key comes from
+     `topicFor()` — the hand-judged static lookup documented above — instead
+     of `Check.system`; everything else about how a group renders is
+     identical. */
   const groups = useMemo(() => {
-    const bySystem = new Map<string, typeof scoped>();
+    const byKey = new Map<string, typeof scoped>();
+    const keyOf = groupMode === "topic" ? (c: (typeof scoped)[number]) => topicFor(c.id) : (c: (typeof scoped)[number]) => c.system;
     for (const c of scoped) {
-      const list = bySystem.get(c.system);
+      const key = keyOf(c);
+      const list = byKey.get(key);
       if (list) list.push(c);
-      else bySystem.set(c.system, [c]);
+      else byKey.set(key, [c]);
     }
-    return [...bySystem.entries()];
-  }, [scoped]);
+    if (groupMode === "topic") {
+      return [...byKey.entries()].sort(
+        ([a], [b]) => TOPIC_ORDER.indexOf(a as (typeof TOPIC_ORDER)[number]) - TOPIC_ORDER.indexOf(b as (typeof TOPIC_ORDER)[number])
+      );
+    }
+    return [...byKey.entries()];
+  }, [scoped, groupMode]);
 
   const pending = scoped.filter((c) => responses[c.id]?.compliance == null);
   const done = scoped.filter((c) => responses[c.id]?.compliance != null);
@@ -139,6 +197,12 @@ export default function AuditPage() {
 
   const changeDiscipline = (v: string) => {
     setDiscipline(v);
+    setOpenId(null);
+    setExplicitlyClosed(false);
+  };
+
+  const changeGroupMode = (mode: "system" | "topic") => {
+    setGroupMode(mode);
     setOpenId(null);
     setExplicitlyClosed(false);
   };
@@ -167,24 +231,60 @@ export default function AuditPage() {
             const n = cs.filter((c) => responses[c.id]?.compliance != null).length;
             return { value: d, label: `${d} — ${n}/${cs.length}` };
           })}
-          className="mb-3 w-full"
+          className="mb-2 w-full"
         />
+
+        {/* GROUP BY. Sarel: group by asset system for capture, or by topic
+            (documentation, planned maintenance, training, ...) to run an
+            interview through one theme at a time across several systems
+            without repeating the question shape per asset. */}
+        <div
+          role="radiogroup"
+          aria-label="Group by"
+          className="mb-3 grid w-full grid-cols-2 gap-[3px] rounded-[10px] border p-[3px]"
+          style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+        >
+          {(
+            [
+              ["system", "By system"],
+              ["topic", "By topic"],
+            ] as const
+          ).map(([mode, label]) => {
+            const on = groupMode === mode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => changeGroupMode(mode)}
+                className="min-h-[36px] rounded-[7px] font-display text-[11.5px] font-semibold"
+                style={{
+                  background: on ? "var(--acc)" : "transparent",
+                  color: on ? "var(--on-acc)" : "var(--ink-2)",
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
 
         {scoped.length === 0 ? (
           <Empty>No checks in this discipline.</Empty>
         ) : (
           <div className="flex flex-col gap-4">
-            {groups.map(([system, group]) => {
+            {groups.map(([groupKey, group]) => {
               const groupDone = group.filter((c) => responses[c.id]?.compliance != null).length;
               return (
-                <div key={system} className="flex flex-col gap-2">
+                <div key={groupKey} className="flex flex-col gap-2">
                   <div className="flex items-start justify-between gap-2 px-[2px]">
                     <div className="min-w-0">
                       <h3
                         className="font-display text-[11.5px] font-bold uppercase tracking-[.03em]"
                         style={{ color: "var(--ink-3)" }}
                       >
-                        {system}
+                        {groupKey}
                       </h3>
                       {/* The heading previews the FIRST check's own requirement —
                           a real question, not a synthesised one standing in for
@@ -225,7 +325,7 @@ export default function AuditPage() {
                             />
                           )}
                           <span className="min-w-0 flex-1 truncate text-[12px] font-medium">
-                            {shortNote(c.requirement)}
+                            {groupMode === "topic" ? `${c.system} — ${shortNote(c.requirement, 42)}` : shortNote(c.requirement)}
                           </span>
                           <span className="shrink-0 font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
                             {portalIdFor(entityCode, c.id)}

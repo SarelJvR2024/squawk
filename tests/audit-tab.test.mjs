@@ -108,18 +108,83 @@ check(
    to the asset type" ------------------------------------------------------ */
 
 check(
-  "checks are grouped under a heading by Check.system — the field the register already carries, not a freshly invented category",
-  /bySystem\.get\(c\.system\)/.test(audit) && /\[\.\.\.bySystem\.entries\(\)\]/.test(audit)
+  "checks are grouped under a heading by a key field (system or topic), not a per-row computed text",
+  /const byKey = new Map<string, typeof scoped>\(\)/.test(audit) && /\[\.\.\.byKey\.entries\(\)\]/.test(audit)
 );
 
 check(
   "each collapsed row shows a short note (the check's own requirement text) instead of repeating the system name the heading already gives",
-  /const shortNote = \(requirement: string/.test(audit) && /\{shortNote\(c\.requirement\)\}/.test(audit)
+  /const shortNote = \(requirement: string/.test(audit) && /: shortNote\(c\.requirement\)\}/.test(audit)
 );
 
 check(
   "the group heading previews a real check's own question (the group's first member), not a synthesised shared one",
   /\{shortNote\(group\[0\]\.requirement, 72\)\}/.test(audit)
+);
+
+/* ---- the topic grouping for interviews, Sarel: "Find ways how to group
+   the audit checks ie by documentation, by compliance certification, by
+   maintenance tasks, Planned maintenance, inspections, measurements,
+   training and personel. This will help with the interview questions" --- */
+
+check(
+  "a By system / By topic toggle exists and switching it resets which card is open",
+  /\["system", "By system"\]/.test(audit) &&
+    /\["topic", "By topic"\]/.test(audit) &&
+    /const changeGroupMode = \(mode: "system" \| "topic"\) => \{/.test(audit)
+);
+
+check(
+  "topic mode groups by a static, hand-curated lookup (auditTopics.json), not a regex/keyword classifier",
+  /import auditTopicsData from "@\/data\/auditTopics\.json"/.test(audit) &&
+    !/\.test\(c\.requirement|\.match\(c\.requirement|new RegExp/.test(audit)
+);
+
+check(
+  "the screen's own header explains why a regex classifier was tried and rejected, not just asserted",
+  /A REGEX CLASSIFIER WAS TRIED AND REJECTED/.test(audit) && /ILS/.test(audit)
+);
+
+check(
+  "a check with no entry in auditTopics.json falls back to an honest \"Other\", never silently disappearing",
+  /const topicFor = \(checkId: string\) => auditTopics\[checkId\] \?\? "Other"/.test(audit)
+);
+
+/* ---- the topic data file itself: every one of the 324 checks is mapped,
+   to one of exactly the 9 allowed topics — the same kind of self-check
+   sites.test.mjs and portals.test.mjs already run on their own data. ----- */
+
+const checksJson = JSON.parse(src("data", "checks.json"));
+const topics = JSON.parse(src("data", "auditTopics.json"));
+const ALLOWED_TOPICS = new Set([
+  "Documentation",
+  "Compliance certification",
+  "Maintenance tasks",
+  "Planned maintenance",
+  "Inspections",
+  "Measurements",
+  "Training",
+  "Personnel",
+  "Other",
+]);
+
+const missing = checksJson.filter((c) => !(c.id in topics)).map((c) => c.id);
+check("every one of the 324 checks has a topic assigned", missing.length === 0, missing.slice(0, 5).join(", "));
+
+const badValues = Object.entries(topics)
+  .filter(([, v]) => !ALLOWED_TOPICS.has(v))
+  .map(([k, v]) => `${k}: ${v}`);
+check(
+  "every assigned topic is one of the 9 allowed names, no typos or stray categories",
+  badValues.length === 0,
+  badValues.slice(0, 5).join(", ")
+);
+
+const extraIds = Object.keys(topics).filter((id) => !checksJson.some((c) => c.id === id));
+check(
+  "the topic file carries no ids that aren't real checks — a stale id from a prior register revision",
+  extraIds.length === 0,
+  extraIds.slice(0, 5).join(", ")
 );
 
 /* ---- wired into the shell and the offline shell, same as every other
