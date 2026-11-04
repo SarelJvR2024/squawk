@@ -102,6 +102,17 @@ export default function AddItemSheet({
   });
   const [systemQuery, setSystemQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
+  /* ASSET SYSTEM AND NOTES START COLLAPSED — Sarel, on mobile: "there's
+     still a lot of text... not minimized... I need to scroll." Both are
+     explicitly optional (see this file's own header comment) and both used
+     to render their full UI — a search box, a scrollable 40-chip list, a
+     caveat sentence, or a whole second textarea — on every single open,
+     whether or not the auditor ever touches them. Each now opens on a tap,
+     same one field away, or stays open from the start if the item already
+     carries a value, so editing an existing item never hides something it
+     already has. */
+  const [assetOpen, setAssetOpen] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
 
   const item = editing ?? createdItem;
   const value = item
@@ -478,7 +489,7 @@ export default function AddItemSheet({
                   <IconX width={14} height={14} />
                 </button>
               </div>
-            ) : (
+            ) : assetOpen ? (
               <>
                 <div
                   className="mt-1 flex items-center gap-2 rounded-[11px] border px-3"
@@ -486,6 +497,7 @@ export default function AddItemSheet({
                 >
                   <IconSearch width={14} height={14} style={{ color: "var(--ink-3)" }} />
                   <input
+                    autoFocus
                     value={systemQuery}
                     onChange={(e) => setSystemQuery(e.target.value)}
                     placeholder="Search the register's asset systems…"
@@ -517,19 +529,39 @@ export default function AddItemSheet({
                   asset system on our list is worth knowing about.
                 </span>
               </>
+            ) : (
+              <button
+                onClick={() => setAssetOpen(true)}
+                className={`${box} text-left`}
+                style={{ ...boxStyle, color: "var(--ink-3)" }}
+              >
+                <IconSearch width={13} height={13} style={{ display: "inline", marginRight: 6 }} />
+                Search the register&rsquo;s asset systems…
+              </button>
             )}
           </div>
 
-          <label className="mt-4 block">
-            <span className={label}>Notes · optional</span>
-            <textarea
-              value={value.note}
-              onChange={(e) => set({ note: e.target.value })}
-              placeholder="Anything else worth recording…"
-              className={`${box} min-h-[64px] resize-y`}
-              style={boxStyle}
-            />
-          </label>
+          {noteOpen || value.note ? (
+            <label className="mt-4 block">
+              <span className={label}>Notes · optional</span>
+              <textarea
+                autoFocus={noteOpen && !value.note}
+                value={value.note}
+                onChange={(e) => set({ note: e.target.value })}
+                placeholder="Anything else worth recording…"
+                className={`${box} min-h-[64px] resize-y`}
+                style={boxStyle}
+              />
+            </label>
+          ) : (
+            <button
+              onClick={() => setNoteOpen(true)}
+              className="mt-4 text-[11px] font-semibold"
+              style={{ color: "var(--ink-3)" }}
+            >
+              + Add a note · optional
+            </button>
+          )}
 
           {item && (
             <div

@@ -1295,6 +1295,16 @@ export default function FieldPage() {
                   className="mt-5 rounded-[11px] border border-dashed p-3"
                   style={{ borderColor: "var(--acc-line)", background: "var(--acc-soft)" }}
                 >
+                  {/* THE EXPLANATION PARAGRAPH AND "NOTHING PARKED HERE YET"
+                      ARE GONE — Sarel, on mobile: "there's still a lot of
+                      text... not minimized... I need to scroll." This block
+                      used to cost two lines of prose on every single check,
+                      whether or not anybody had ever parked anything here —
+                      the common case, by far, is zero. The explanation moved
+                      to the Add button's own title attribute, read on long-
+                      press/hover rather than printed unconditionally; the
+                      heading and button are all that renders when the list
+                      is empty, same information, a fifth of the height. */}
                   <div className="mb-1 flex items-center justify-between gap-2">
                     <span
                       className="font-display text-[11px] font-semibold"
@@ -1305,6 +1315,7 @@ export default function FieldPage() {
                     <Btn
                       variant="ghost"
                       className="min-h-[32px] px-2 py-1 text-[10.5px]"
+                      title="Not visible externally and not linked to any report — a place to park what you are not ready to call a finding yet."
                       onClick={() =>
                         addAdhoc({
                           origin: "field",
@@ -1326,17 +1337,9 @@ export default function FieldPage() {
                       Add item
                     </Btn>
                   </div>
-                  <p className="mb-2.5 text-[15px] leading-[1.4]" style={{ color: "var(--ink-3)" }}>
-                    Not visible externally and not linked to any report — a place to park what
-                    you are not ready to call a finding yet.
-                  </p>
 
-                  {internalItems.length === 0 ? (
-                    <p className="text-[10.5px]" style={{ color: "var(--ink-4)" }}>
-                      Nothing parked here yet.
-                    </p>
-                  ) : (
-                    <div className="flex flex-col gap-2.5">
+                  {internalItems.length > 0 && (
+                    <div className="mt-2 flex flex-col gap-2.5">
                       {internalItems.map((it) => (
                         <div
                           key={it.id}
