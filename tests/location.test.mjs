@@ -242,8 +242,23 @@ check(
 
 check(
   "and the link off to the desk screen is gone",
-  !/Full check-point →/.test(fieldCode) && !/useRouter/.test(fieldCode),
+  !/Full check-point →/.test(fieldCode),
   "it left the walk for the desk screen mid-walk, which is the opposite of what this screen is for"
+);
+
+/* THE GUARD ABOVE USED TO BE "no useRouter at all" — a fully accurate proxy
+ * right up until findings-inspection-link.test.mjs gave this screen a
+ * genuine, different reason to navigate: Sarel, "make sure that link is
+ * maintained between asset systems and disciplines on findings and
+ * inspections, so that I can jump between the two tabs." That jump goes
+ * FORWARD, to what the walk has already raised, never sideways back to redo
+ * the same work at a desk — so the guard narrows to the one thing it was
+ * ever actually protecting (the literal link text above) instead of banning
+ * the hook outright, and this pins what the hook is for now that it exists:
+ * one push, to Findings, never to the desk screen this test is named for. */
+check(
+  "useRouter exists now only for the Findings jump — never a reintroduced escape to the desk screen",
+  /router\.push\(\s*`\/findings\?open=/.test(fieldCode) && !/router\.push\(\s*`\/capture/.test(fieldCode)
 );
 
 /* ---- 6 · the top level is a filter ---------------------------------------- */

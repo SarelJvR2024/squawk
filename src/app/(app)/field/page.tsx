@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import {
   areasAt,
   checksAt,
@@ -19,7 +20,7 @@ import {
 } from "@/lib/store";
 import { locationAxis } from "@/lib/programme";
 import { portalIdFor } from "@/lib/sites";
-import type { AdHocItem, Check, Response } from "@/lib/types";
+import type { AdHocItem, Check, Finding, Response } from "@/lib/types";
 import { Btn, Empty, Pill } from "@/components/ui/primitives";
 import PageHeading from "@/components/ui/PageHeading";
 import { DisciplineSelect } from "@/components/ui/DisciplineSelect";
@@ -309,6 +310,7 @@ function WideCheckPane({
 }
 
 export default function FieldPage() {
+  const router = useRouter();
   const responses = useResponses();
   const captures = useCaptures();
   const visitId = useVisitId();
@@ -729,6 +731,45 @@ export default function FieldPage() {
     });
   }, [walkCandidates, q, activeFilter, groupBy]);
 
+  /* FINDINGS, BY CHECK AND BY SYSTEM — Sarel: "I've captured two findings...
+     but they're not reflecting in the inspections. Make sure that the link
+     is maintained between asset systems and disciplines on findings and
+     inspections." A finding raised through the Findings tab's own "Raise a
+     finding" sheet very often carries no `checkId` at all — discipline and
+     asset system are the only fields that sheet requires, by design (see
+     RaiseFindingSheet.tsx's own header: "there might be findings... which is
+     not relating to a specific audit check"). The PER-CHECK count below
+     (`findingsByCheck`) only ever counted the ones that DO carry a checkId,
+     so a finding raised without one was invisible here no matter which
+     system it was filed under — captured on one tab, silently absent from
+     the other. `checklessFindingsBySystem` closes that gap, scoped by the
+     same filter axis (`groupBy`/`activeFilter`) the checks and walk items
+     above already use, so a system's own findings count never disagrees
+     with what the discipline/location filter currently shows. */
+  const findingsByCheck = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const f of findings) {
+      if (!f.checkId) continue;
+      m.set(f.checkId, (m.get(f.checkId) ?? 0) + 1);
+    }
+    return m;
+  }, [findings]);
+  const checklessFindingsBySystem = useMemo(() => {
+    const m = new Map<string, Finding[]>();
+    for (const f of findings) {
+      if (f.checkId) continue;
+      if (activeFilter) {
+        const own = (groupBy === "area" ? f.area : f.discipline)?.trim();
+        if (own && own !== activeFilter) continue;
+      }
+      const key = f.system?.trim() || NO_SYSTEM;
+      const l = m.get(key);
+      if (l) l.push(f);
+      else m.set(key, [f]);
+    }
+    return m;
+  }, [findings, activeFilter, groupBy]);
+
   /* LINKED, OR NOT — TWO SEPARATE QUESTIONS, EACH WITH ITS OWN COUNT.
      Sarel: "give a clear update on number of photos linked vs not linked to
      audit checks, linked vs not linked to asset system and add those as
@@ -831,31 +872,29 @@ export default function FieldPage() {
       return n;
     };
     return [...systems.entries()]
-      .map(([sys, b]) => ({
-        sys,
-        checks: b.checks,
-        walk: b.walk,
-        done: doneOf(b.checks),
-        total: b.checks.length,
-        photos: photosOf(b.checks, b.walk),
-      }))
+      .map(([sys, b]) => {
+        const checkless = checklessFindingsBySystem.get(sys) ?? [];
+        const onChecks = b.checks.reduce((n, c) => n + (findingsByCheck.get(c.id) ?? 0), 0);
+        return {
+          sys,
+          checks: b.checks,
+          walk: b.walk,
+          done: doneOf(b.checks),
+          total: b.checks.length,
+          photos: photosOf(b.checks, b.walk),
+          /* Checkless findings filed under this system, carried through so the
+             header can say how many and the jump link below can reach them —
+             see checklessFindingsBySystem's own doc comment. */
+          checklessFindings: checkless,
+          findingsTotal: onChecks + checkless.length,
+        };
+      })
       /* The unattributed bucket last, wherever its name would sort. It is a
          residue, not an asset system, and it must not head the list. */
       .sort((a, b) =>
         a.sys === NO_SYSTEM ? 1 : b.sys === NO_SYSTEM ? -1 : a.sys.localeCompare(b.sys)
       );
-  }, [visible, walkVisible, responses]);
-
-  /* How many findings each check has raised, so the collapsed row can say so
-     without opening. Counted once for the list rather than filtered per row. */
-  const findingsHere = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const f of findings) {
-      if (!f.checkId) continue;
-      m.set(f.checkId, (m.get(f.checkId) ?? 0) + 1);
-    }
-    return m;
-  }, [findings]);
+  }, [visible, walkVisible, responses, findingsByCheck, checklessFindingsBySystem]);
 
   const toggle = (key: string) =>
     setExpanded((e) => (e.includes(key) ? e.filter((x) => x !== key) : [...e, key]));
@@ -1878,7 +1917,45 @@ export default function FieldPage() {
                         {g.photos}
                       </Pill>
                     )}
+                    {/* THE LINK BACK TO FINDINGS, SAID AT A GLANCE — whether or
+                        not it carries a checkId, a finding filed under this
+                        system now shows here, collapsed or open, the same way
+                        the walk-item and photo counts beside it already do.
+                        See checklessFindingsBySystem's own doc comment for
+                        why the checkless ones needed adding at all. */}
+                    {g.findingsTotal > 0 && (
+                      <Pill tone="warn">
+                        <IconFlag width={9} height={9} />
+                        {g.findingsTotal}
+                      </Pill>
+                    )}
                   </GroupRow>
+                  {/* THE JUMP, OUTSIDE THE HEADER'S OWN BUTTON — GroupRow's
+                      root element is itself a <button> (its onToggle), and an
+                      interactive child nested inside one is both invalid HTML
+                      and a tap that would fire both handlers at once. This
+                      sits as its own row instead, shown with the group open
+                      since it is this system's own detail, same as the checks
+                      and walk items below it. Sarel: "make sure that link is
+                      maintained... so that I can jump between the two tabs." */}
+                  {gOpen && g.findingsTotal > 0 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        router.push(
+                          `/findings?open=${encodeURIComponent(
+                            `${g.checks[0]?.discipline ?? g.checklessFindings[0]?.discipline ?? activeFilter ?? ""}|${g.sys}`
+                          )}`
+                        )
+                      }
+                      className="flex w-full items-center gap-[6px] border-b px-3 py-[7px] text-left font-mono text-[9.5px]"
+                      style={{ borderColor: "var(--line)", color: "var(--warn)" }}
+                    >
+                      <IconFlag width={10} height={10} />
+                      {g.findingsTotal} finding{g.findingsTotal === 1 ? "" : "s"} for {g.sys} — view in
+                      Findings →
+                    </button>
+                  )}
                   {gOpen && (
                     <>
                       {g.checks.map((c) => {
@@ -1897,7 +1974,7 @@ export default function FieldPage() {
                            your place. */
                         const itemOpen = openItem === c.id;
                         const outcome = OUTCOMES.find((o) => o.key === r?.fieldCompliance);
-                        const raised = findingsHere.get(c.id) ?? 0;
+                        const raised = findingsByCheck.get(c.id) ?? 0;
                         return (
                           <div
                             key={c.id}
