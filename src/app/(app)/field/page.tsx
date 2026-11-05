@@ -746,18 +746,42 @@ export default function FieldPage() {
      same filter axis (`groupBy`/`activeFilter`) the checks and walk items
      above already use, so a system's own findings count never disagrees
      with what the discipline/location filter currently shows. */
+  /* HOLDS THE FINDINGS THEMSELVES, NOT JUST A COUNT — Sarel: "I want to be
+     able to see the raised finding notes and photos when I am on the
+     inspections tab." A count told a reader a finding existed under this
+     check; it gave no way to read what it said or see what it showed
+     without leaving for the Findings tab. The row below reads straight off
+     this map's own Finding objects (description + attachments) instead. */
   const findingsByCheck = useMemo(() => {
-    const m = new Map<string, number>();
+    const m = new Map<string, Finding[]>();
     for (const f of findings) {
       if (!f.checkId) continue;
-      m.set(f.checkId, (m.get(f.checkId) ?? 0) + 1);
+      const l = m.get(f.checkId);
+      if (l) l.push(f);
+      else m.set(f.checkId, [f]);
     }
     return m;
   }, [findings]);
+  /* A WALK ITEM PROMOTED TO A FINDING (raiseFindingFromAdhoc) IS THE SAME
+     ISSUE, NOT A SECOND ONE — Sarel: "issues raised either as a finding or
+     as an inspection must be shown the same way." The promoted Finding
+     always carries `checkId: null` and `attachments: []` (store.ts's own
+     raiseFindingFromAdhoc — the photos stay on the walk item, never copied
+     across), so without this exclusion it would land in
+     checklessFindingsBySystem too: the same description shown twice, once
+     with its real photos (the walk item, below) and once with none (the
+     Finding this block would otherwise render). Excluded here rather than
+     left to look like a second, evidence-less finding next to the one that
+     has the evidence. */
+  const promotedFindingIds = useMemo(
+    () => new Set(adhocItems.map((it) => it.findingId).filter((id): id is string => !!id)),
+    [adhocItems]
+  );
   const checklessFindingsBySystem = useMemo(() => {
     const m = new Map<string, Finding[]>();
     for (const f of findings) {
       if (f.checkId) continue;
+      if (promotedFindingIds.has(f.id)) continue;
       if (activeFilter) {
         const own = (groupBy === "area" ? f.area : f.discipline)?.trim();
         if (own && own !== activeFilter) continue;
@@ -768,7 +792,7 @@ export default function FieldPage() {
       else m.set(key, [f]);
     }
     return m;
-  }, [findings, activeFilter, groupBy]);
+  }, [findings, activeFilter, groupBy, promotedFindingIds]);
 
   /* LINKED, OR NOT — TWO SEPARATE QUESTIONS, EACH WITH ITS OWN COUNT.
      Sarel: "give a clear update on number of photos linked vs not linked to
@@ -874,7 +898,7 @@ export default function FieldPage() {
     return [...systems.entries()]
       .map(([sys, b]) => {
         const checkless = checklessFindingsBySystem.get(sys) ?? [];
-        const onChecks = b.checks.reduce((n, c) => n + (findingsByCheck.get(c.id) ?? 0), 0);
+        const onChecks = b.checks.reduce((n, c) => n + (findingsByCheck.get(c.id)?.length ?? 0), 0);
         return {
           sys,
           checks: b.checks,
@@ -1956,6 +1980,41 @@ export default function FieldPage() {
                       Findings →
                     </button>
                   )}
+                  {/* THE CHECKLESS FINDINGS' OWN NOTES AND PHOTOS, READ HERE
+                      TOO — same ask as the per-check ones below: "I want to be
+                      able to see the raised finding notes and photos when I am
+                      on the inspections tab." These carry no checkId, so they
+                      never reach the per-check block further down; this is the
+                      only place under this asset system they are shown at all
+                      (besides the jump link above, which still works for
+                      editing one). */}
+                  {gOpen && g.checklessFindings.length > 0 && (
+                    <div className="border-b" style={{ borderColor: "var(--line)" }}>
+                      {g.checklessFindings.map((f) => (
+                        <div
+                          key={f.id}
+                          className="border-b px-3 py-2 last:border-b-0"
+                          style={{ borderColor: "var(--line)", background: "var(--sunken)" }}
+                        >
+                          <span
+                            className="mb-[2px] flex items-center gap-1.5 font-mono text-[9px]"
+                            style={{ color: "var(--warn)" }}
+                          >
+                            <IconFlag width={9} height={9} />
+                            {f.id}
+                          </span>
+                          <span className="block text-[11.5px] leading-[1.4]">
+                            {f.description || f.title}
+                          </span>
+                          {f.attachments.length > 0 && (
+                            <div className="mt-[6px]">
+                              <AttachmentStrip attachments={f.attachments} thumbSize={32} />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {gOpen && (
                     <>
                       {g.checks.map((c) => {
@@ -1974,7 +2033,8 @@ export default function FieldPage() {
                            your place. */
                         const itemOpen = openItem === c.id;
                         const outcome = OUTCOMES.find((o) => o.key === r?.fieldCompliance);
-                        const raised = findingsByCheck.get(c.id) ?? 0;
+                        const raisedFindings = findingsByCheck.get(c.id) ?? [];
+                        const raised = raisedFindings.length;
                         return (
                           <div
                             key={c.id}
@@ -2089,6 +2149,41 @@ export default function FieldPage() {
                                 </span>
                               </span>
                             </button>
+                            {/* THE FINDING'S OWN NOTE AND PHOTOS, READ RIGHT HERE —
+                                Sarel: "I want to be able to see the raised finding
+                                notes and photos when I am on the inspections tab."
+                                A sibling of the row's button, never nested inside
+                                it: AttachmentStrip renders its own per-photo
+                                `<button>`, and the row above IS a button, so
+                                nesting would both be invalid HTML and let a photo
+                                tap also reopen the check (same reasoning as
+                                FindingRow/CheckRow on the Findings tab). */}
+                            {raisedFindings.length > 0 && (
+                              <div
+                                className="border-t px-3 py-2"
+                                style={{ borderColor: "var(--line)", background: "var(--sunken)" }}
+                              >
+                                {raisedFindings.map((f) => (
+                                  <div key={f.id} className="mb-2 last:mb-0">
+                                    <span
+                                      className="mb-[2px] flex items-center gap-1.5 font-mono text-[9px]"
+                                      style={{ color: "var(--warn)" }}
+                                    >
+                                      <IconFlag width={9} height={9} />
+                                      {f.id}
+                                    </span>
+                                    <span className="block text-[11.5px] leading-[1.4]">
+                                      {f.description || f.title}
+                                    </span>
+                                    {f.attachments.length > 0 && (
+                                      <div className="mt-[6px]">
+                                        <AttachmentStrip attachments={f.attachments} thumbSize={32} />
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -2107,11 +2202,9 @@ export default function FieldPage() {
                         const voices = it.attachments.filter((a) => a.kind === "voice").length;
                         const outcome = OUTCOMES.find((o) => o.key === it.outcome);
                         return (
+                          <div key={it.id} data-walk={it.id} className="border-b" style={{ borderColor: "var(--line)" }}>
                           <div
-                            key={it.id}
-                            data-walk={it.id}
-                            className="flex items-stretch border-b"
-                            style={{ borderColor: "var(--line)" }}
+                            className="flex items-stretch"
                           >
                             {/* BULK-LINK SELECTION — only on an item with no
                                 check-point yet; one already linked has
@@ -2226,6 +2319,18 @@ export default function FieldPage() {
                                 </span>
                               </span>
                             </button>
+                          </div>
+                            {/* THE SAME FULL STRIP A FINDING GETS, NOT JUST A
+                                COUNT — Sarel: "issues raised either as a
+                                finding or as an inspection must be shown the
+                                same way." A sibling of the row's own button,
+                                for the same nesting reason as the finding
+                                blocks above. */}
+                            {it.attachments.length > 0 && (
+                              <div className="px-3 pb-2" style={{ background: "var(--sunken)" }}>
+                                <AttachmentStrip attachments={it.attachments} thumbSize={32} />
+                              </div>
+                            )}
                           </div>
                         );
                       })}
