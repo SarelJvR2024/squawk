@@ -1135,62 +1135,29 @@ function PhotoRow({
             </span>
           ) : null}
 
-          <span className="flex flex-wrap items-center gap-[6px] font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-            {!onUpdate && a.location && <span>{a.location}</span>}
-            {/* Where this one actually is. "On this device only" is the honest
-                state for most of an audit and is not an error — but an auditor
-                is entitled to see it rather than assume a copy exists
-                somewhere. */}
-            {recordStore && !dead && (
-              a.cloudUrl ? (
-                <span style={{ color: "var(--good)" }} title={`Record copy stored ${a.cloudAt ? new Date(a.cloudAt).toLocaleString("en-ZA") : ""}`}>
-                  in the record store
-                </span>
-              ) : a.cloudError ? (
-                /* The WHOLE message, wrapped, on its own line.
-                 *
-                 *  This used to be 40 characters with the rest in a `title`
-                 *  attribute. On the iPad this app is built for there is no
-                 *  hover, so the part that says what to do — which store, which
-                 *  token, create it Private — was unreachable on the only device
-                 *  that matters. An upload failure a person cannot read is an
-                 *  upload failure nobody can fix. */
-                <span
-                  role="alert"
-                  className="block w-full max-w-full whitespace-pre-wrap"
-                  style={{ color: "var(--bad)" }}
-                >
-                  not sent — {a.cloudError}
-                </span>
-              ) : (
-                <span style={{ color: "var(--warn)" }}>on this device only</span>
-              )
-            )}
-            {uncaptioned && (
-              <span style={{ color: "var(--warn)" }}>Caption needed</span>
-            )}
-            {a.captionSource === "assistant" && caption && (
-              <span title="Proposed by the assistant and accepted. Edit it to make it yours.">
-                assistant caption
-              </span>
-            )}
-            {a.ref && (
-              <span title={`The name this photograph has in the export and the record store: ${a.ref}`}>
-                {a.ref.length > 10 ? `…${a.ref.slice(-10)}` : a.ref}
-              </span>
-            )}
-            {a.takenAt && (
-              <span title={new Date(a.takenAt).toLocaleString("en-ZA")}>
-                {new Date(a.takenAt).toLocaleDateString("en-ZA")}
-              </span>
-            )}
-            {a.width && a.height ? (
-              <span title={`${a.width}×${a.height} px`}>
-                {Math.round((a.width * a.height) / 100000) / 10}MP
-              </span>
-            ) : null}
-            {a.bytes ? <span>{formatBytes(a.bytes)}</span> : null}
-          </span>
+          {/* THE FILENAME/DATE/SIZE/SYNC-STATUS LINE THAT USED TO SIT HERE IS
+              GONE — Sarel: "remove the text next to the image... this adds no
+              value." Covered every photo on every screen this row renders on
+              (Capture, Review, Findings, Inspection, Asset Assurance). Normal
+              sync status ("in the record store"/"on this device only") is
+              still visible in aggregate from AppShell's own banner and
+              SharedPanel's counts, rather than repeated per photo.
+
+              A FAILED UPLOAD IS THE ONE THING STILL SHOWN HERE, THOUGH — this
+              is not decorative metadata, it is the one actionable thing an
+              auditor standing at the asset can still do something about, and
+              it was deliberately put where there is no hover to find it on
+              (see the comment this used to carry): "An upload failure a
+              person cannot read is an upload failure nobody can fix." */}
+          {recordStore && !dead && a.cloudError && (
+            <span
+              role="alert"
+              className="block w-full max-w-full whitespace-pre-wrap font-mono text-[9px]"
+              style={{ color: "var(--bad)" }}
+            >
+              not sent — {a.cloudError}
+            </span>
+          )}
         </span>
 
         <span className="flex shrink-0 items-center gap-[5px]">
