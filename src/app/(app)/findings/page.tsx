@@ -37,7 +37,8 @@
  *  seeing both halves makes it visible.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   checksAt,
   priorFor,
@@ -206,7 +207,8 @@ function Marks({
   );
 }
 
-export default function FindingsPage() {
+function FindingsPageInner() {
+  const params = useSearchParams();
   const entityCode = useEntityCode();
   const entity = useEntity();
   const findings = useVisitFindings();
@@ -250,6 +252,25 @@ export default function FindingsPage() {
      contradicts the panel beside it has lost track of what it is showing. */
   const [expanded, setExpanded] = useState<string[] | null>(null);
   const [activeKey, setActiveKey] = useState<string | null>(null);
+  /* THE LINK FROM INSPECTION — Sarel: "make sure that link is maintained
+     between asset systems and disciplines on findings and inspections, so
+     that I can jump between the two tabs." The Inspection screen's own
+     per-system findings jump (field/page.tsx) links here with
+     `?open=<discipline>|<system>` — the exact key this screen already
+     addresses a system by (`activeKey`, just above). Read at render time,
+     not in an effect, so the right panel paints on the linked system
+     immediately instead of flashing whatever `firstKey` would have shown
+     for one frame first — same reasoning as `linked`/`linkedTo` on
+     capture/page.tsx, which this mirrors. `openedFrom` remembers which
+     link has been honoured, so an auditor who navigates elsewhere on this
+     screen afterwards is not dragged back to it on every render. */
+  const openParam = params.get("open");
+  const [openedFrom, setOpenedFrom] = useState<string | null>(null);
+  if (openParam && openParam !== openedFrom) {
+    setOpenedFrom(openParam);
+    setActiveKey(openParam);
+    setExpanded([openParam.split("|")[0]]);
+  }
   /* MOBILE LIST → DETAIL, AS ITS OWN VIEW STATE — overnight refinement, task
      2. Below `lg` the hierarchy and the assessment panel stack in one column
      (see the grid two reasons above this), so picking a row used to leave
@@ -1500,6 +1521,14 @@ export default function FindingsPage() {
       )}
     </div>
     </div>
+  );
+}
+
+export default function FindingsPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-[12px]">Loading…</div>}>
+      <FindingsPageInner />
+    </Suspense>
   );
 }
 
