@@ -54,8 +54,25 @@ check(
 
 check(
   "a system's findingsTotal is check-linked findings PLUS checkless ones — neither bucket alone",
-  /const onChecks = b\.checks\.reduce\(\(n, c\) => n \+ \(findingsByCheck\.get\(c\.id\) \?\? 0\), 0\);/.test(field) &&
-    /findingsTotal: onChecks \+ checkless\.length,/.test(field)
+  /const onChecks = b\.checks\.reduce\(\(n, c\) => n \+ \(findingsByCheck\.get\(c\.id\)\?\.length \?\? 0\), 0\);/.test(
+    field
+  ) && /findingsTotal: onChecks \+ checkless\.length,/.test(field)
+);
+
+check(
+  "findingsByCheck holds the Finding objects themselves, not just a count, so their notes and photos can be read straight off it",
+  /const findingsByCheck = useMemo\(\(\) => \{\s*const m = new Map<string, Finding\[\]>\(\);/.test(field)
+);
+
+check(
+  "a raised finding's own description and photos render as a sibling of the check row's button, never nested inside it",
+  /\{raisedFindings\.length > 0 && \(/.test(field) &&
+    /<AttachmentStrip attachments=\{f\.attachments\} thumbSize=\{32\} \/>/.test(field)
+);
+
+check(
+  "checkless findings filed under an asset system show their own description and photos too, not just the jump link",
+  /\{gOpen && g\.checklessFindings\.length > 0 && \(/.test(field)
 );
 
 check(
