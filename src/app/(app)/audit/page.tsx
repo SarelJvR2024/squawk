@@ -49,11 +49,12 @@ import {
   useStore,
 } from "@/lib/store";
 import { portalIdFor } from "@/lib/sites";
+import { useShared } from "@/lib/shared";
 import OutcomeControl from "@/components/OutcomeControl";
 import { AttachmentStrip, PhotoButton, VoiceNoteButton, forgetMedia } from "@/components/Capture";
 import { Btn, Empty } from "@/components/ui/primitives";
 import { DisciplineSelect } from "@/components/ui/DisciplineSelect";
-import { IconCheck, IconClock, IconDash, IconX } from "@/components/ui/icons";
+import { IconCheck, IconClock, IconDash, IconLoop, IconX } from "@/components/ui/icons";
 import auditTopicsData from "@/data/auditTopics.json";
 
 const VERDICT_ICON = { C: IconCheck, NC: IconX, "N/A": IconDash, NV: IconClock } as const;
@@ -119,6 +120,7 @@ export default function AuditPage() {
   const entityCode = useEntityCode();
   const auditor = useStore((s) => s.auditor);
   const responses = useResponses();
+  const shared = useShared();
 
   const disciplines = useMemo(() => disciplinesAt(entityCode), [entityCode]);
   const pickedDiscipline = useDisciplineFilter();
@@ -217,9 +219,53 @@ export default function AuditPage() {
       <div className="mx-auto w-full max-w-[640px] px-4 pb-24 pt-3">
         <header className="mb-3 flex items-center justify-between gap-2">
           <h2 className="font-display text-[15px] font-semibold">Audit</h2>
-          <span className="font-mono text-[11px]" style={{ color: "var(--ink-3)" }}>
-            {done.length}/{scoped.length}
-          </span>
+          <div className="flex items-center gap-[8px]">
+            <span className="font-mono text-[11px]" style={{ color: "var(--ink-3)" }}>
+              {done.length}/{scoped.length}
+            </span>
+            {/* SAVE, RIGHT WHERE THE WORK IS. Sarel: "Add a save button on
+                audit page so that info can be saved and synced." Every
+                verdict here already commits to this device the moment it is
+                tapped — setCompliance/commit above are called immediately,
+                same as everywhere else in this app, so there is never an
+                unsaved draft sitting in memory. What this button adds is the
+                network half: the SAME shared.syncNow() the top-bar Refresh
+                button and the Shared record sheet's own "Sync now" call —
+                not a third copy — reachable without leaving this screen, so
+                an auditor can push a batch of answers to the team record on
+                demand instead of waiting for the 30-second poll. Gated
+                identically to the top-bar button: hidden with nothing to
+                sync to (state "off") or on a locked device, since syncNow()
+                has no passphrase to sync with yet and would otherwise no-op
+                silently. */}
+            {shared && shared.state !== "off" && shared.unlocked && (
+              <button
+                type="button"
+                onClick={() => shared.syncNow()}
+                disabled={shared.state === "syncing"}
+                title={
+                  shared.state === "syncing"
+                    ? "Saving to the team record…"
+                    : shared.lastSyncAt
+                      ? `Save — last saved ${new Date(shared.lastSyncAt).toLocaleTimeString("en-ZA", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}`
+                      : "Save to the team record"
+                }
+                className="flex min-h-[32px] items-center gap-[5px] rounded-[8px] border px-[10px] font-display text-[11px] font-semibold"
+                style={{
+                  background: shared.state === "error" ? "var(--warn-bg)" : "var(--panel)",
+                  borderColor: shared.state === "error" ? "var(--warn-line)" : "var(--line-2)",
+                  color: shared.state === "error" ? "var(--warn)" : "var(--ink-2)",
+                  opacity: shared.state === "syncing" ? 0.6 : 1,
+                }}
+              >
+                <IconLoop width={13} height={13} />
+                {shared.state === "syncing" ? "Saving…" : "Save"}
+              </button>
+            )}
+          </div>
         </header>
 
         <DisciplineSelect
