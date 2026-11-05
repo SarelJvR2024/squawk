@@ -75,6 +75,21 @@ check(
   /\{gOpen && g\.checklessFindings\.length > 0 && \(/.test(field)
 );
 
+/* ---- issues raised either as a finding or on the walk: shown the same way --- */
+
+check(
+  "a walk item promoted to a finding (raiseFindingFromAdhoc) is excluded from the checkless-findings list — it is the same issue the walk item already shows, not a second, evidence-less one",
+  /const promotedFindingIds = useMemo\(/.test(field) &&
+    /it\.findingId\)\.filter\(\(id\): id is string => !!id\)/.test(field) &&
+    /if \(promotedFindingIds\.has\(f\.id\)\) continue;/.test(field)
+);
+
+check(
+  "a walk item's own photos and voice notes render as a full strip, the same treatment a finding's attachments get, not just a count",
+  /it\.attachments\.length > 0 && \(/.test(field) &&
+    /<AttachmentStrip attachments=\{it\.attachments\} thumbSize=\{32\} \/>/.test(field)
+);
+
 check(
   "the tree memo actually depends on the findings maps, so it recomputes when a finding is raised",
   /\}, \[visible, walkVisible, responses, findingsByCheck, checklessFindingsBySystem\]\);/.test(field)

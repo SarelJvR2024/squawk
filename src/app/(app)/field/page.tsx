@@ -762,10 +762,26 @@ export default function FieldPage() {
     }
     return m;
   }, [findings]);
+  /* A WALK ITEM PROMOTED TO A FINDING (raiseFindingFromAdhoc) IS THE SAME
+     ISSUE, NOT A SECOND ONE — Sarel: "issues raised either as a finding or
+     as an inspection must be shown the same way." The promoted Finding
+     always carries `checkId: null` and `attachments: []` (store.ts's own
+     raiseFindingFromAdhoc — the photos stay on the walk item, never copied
+     across), so without this exclusion it would land in
+     checklessFindingsBySystem too: the same description shown twice, once
+     with its real photos (the walk item, below) and once with none (the
+     Finding this block would otherwise render). Excluded here rather than
+     left to look like a second, evidence-less finding next to the one that
+     has the evidence. */
+  const promotedFindingIds = useMemo(
+    () => new Set(adhocItems.map((it) => it.findingId).filter((id): id is string => !!id)),
+    [adhocItems]
+  );
   const checklessFindingsBySystem = useMemo(() => {
     const m = new Map<string, Finding[]>();
     for (const f of findings) {
       if (f.checkId) continue;
+      if (promotedFindingIds.has(f.id)) continue;
       if (activeFilter) {
         const own = (groupBy === "area" ? f.area : f.discipline)?.trim();
         if (own && own !== activeFilter) continue;
@@ -776,7 +792,7 @@ export default function FieldPage() {
       else m.set(key, [f]);
     }
     return m;
-  }, [findings, activeFilter, groupBy]);
+  }, [findings, activeFilter, groupBy, promotedFindingIds]);
 
   /* LINKED, OR NOT — TWO SEPARATE QUESTIONS, EACH WITH ITS OWN COUNT.
      Sarel: "give a clear update on number of photos linked vs not linked to
@@ -2186,11 +2202,9 @@ export default function FieldPage() {
                         const voices = it.attachments.filter((a) => a.kind === "voice").length;
                         const outcome = OUTCOMES.find((o) => o.key === it.outcome);
                         return (
+                          <div key={it.id} data-walk={it.id} className="border-b" style={{ borderColor: "var(--line)" }}>
                           <div
-                            key={it.id}
-                            data-walk={it.id}
-                            className="flex items-stretch border-b"
-                            style={{ borderColor: "var(--line)" }}
+                            className="flex items-stretch"
                           >
                             {/* BULK-LINK SELECTION — only on an item with no
                                 check-point yet; one already linked has
@@ -2305,6 +2319,18 @@ export default function FieldPage() {
                                 </span>
                               </span>
                             </button>
+                          </div>
+                            {/* THE SAME FULL STRIP A FINDING GETS, NOT JUST A
+                                COUNT — Sarel: "issues raised either as a
+                                finding or as an inspection must be shown the
+                                same way." A sibling of the row's own button,
+                                for the same nesting reason as the finding
+                                blocks above. */}
+                            {it.attachments.length > 0 && (
+                              <div className="px-3 pb-2" style={{ background: "var(--sunken)" }}>
+                                <AttachmentStrip attachments={it.attachments} thumbSize={32} />
+                              </div>
+                            )}
                           </div>
                         );
                       })}
