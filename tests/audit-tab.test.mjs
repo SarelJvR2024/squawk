@@ -187,6 +187,24 @@ check(
   extraIds.slice(0, 5).join(", ")
 );
 
+/* ---- save & sync, Sarel: "Add a save button on audit page so that info
+   can be saved and synced" ------------------------------------------------- */
+
+check(
+  "a Save button calls the SAME shared.syncNow() the top-bar Refresh button and the Shared record sheet's own \"Sync now\" call — not a third copy",
+  /import \{ useShared \} from "@\/lib\/shared"/.test(audit) && /onClick=\{\(\) => shared\.syncNow\(\)\}/.test(audit)
+);
+
+check(
+  "the Save button is gated identically to the top-bar Refresh button — hidden with nothing to sync to (state \"off\") or on a locked device",
+  /\{shared && shared\.state !== "off" && shared\.unlocked && \(/.test(audit)
+);
+
+check(
+  "the Save button disables itself while a sync is already running, not a second one racing it",
+  /disabled=\{shared\.state === "syncing"\}/.test(audit)
+);
+
 /* ---- wired into the shell and the offline shell, same as every other
    nav destination ---------------------------------------------------------- */
 
