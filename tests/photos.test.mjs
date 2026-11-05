@@ -183,9 +183,9 @@ check(
 check(
   "an uncaptioned photograph is shown as incomplete",
   /const uncaptioned = !dead && !caption\.trim\(\);/.test(capture) &&
-    /Caption needed/.test(capture) &&
+    /\{caption \|\| "No caption"\}/.test(capture) &&
     /borderColor: uncaptioned \? "var\(--warn-line\)"/.test(capture),
-  "the same warn treatment a finding with no owner gets"
+  "the same warn treatment a finding with no owner gets — the standalone \"Caption needed\" tag was removed (Sarel: the metadata line next to a photo added no value), so \"No caption\" itself is now the only text saying so"
 );
 
 check(

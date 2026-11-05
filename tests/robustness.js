@@ -203,16 +203,21 @@ const fresh = async (ctx) => { const p = await ctx.newPage(); await pinSite(p, B
     ok('a photograph attaches and gets a caption field',
        (await p.locator('input[aria-label^="Caption for"]').count()) === before + 1);
 
-    const body1 = await p.locator('body').innerText();
-    ok('an uncaptioned photograph is shown as incomplete', /Caption needed/.test(body1),
-       body1.slice(0,100).replace(/\n/g,' '));
+    /* The "Caption needed" text tag this used to check for next to the input
+       is gone (Sarel: the metadata line beside a photo added no value) — the
+       incomplete state now shows only as the input's own warn background
+       (PhotoRow's `style={{ background: uncaptioned ? "var(--warn-bg)" :
+       "var(--sunken)" }}`), so that is what this checks instead. */
+    const capStyle1 = await capField.getAttribute('style');
+    ok('an uncaptioned photograph is shown as incomplete', /--warn-bg/.test(capStyle1 || ''),
+       capStyle1 || '');
     ok('the observation is untouched by attaching a photograph',
        (await p.locator('textarea').first().inputValue()).trim() === '');
 
     await capField.fill('Hydrant pit coupler, lid missing');
     await p.waitForTimeout(900);
-    const body2 = await p.locator('body').innerText();
-    ok('captioning clears the incomplete state', !/Caption needed/.test(body2));
+    const capStyle2 = await capField.getAttribute('style');
+    ok('captioning clears the incomplete state', !/--warn-bg/.test(capStyle2 || ''));
 
     // survives a reload — the image is in IndexedDB, the caption in the store
     await p.reload({waitUntil:'networkidle'}); await p.waitForTimeout(2000);

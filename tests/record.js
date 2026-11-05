@@ -129,6 +129,41 @@ const mediaKeys = (page) =>
       })
   );
 
+/* THE RECORD-STORE STATE, READ DIRECTLY, NOT SCRAPED FROM THE ROW —
+   Sarel: "remove the text next to the image... this adds no value" removed
+   the per-photo "in the record store"/"on this device only" label this file
+   used to check in the DOM. That text only ever stood in for the thing that
+   actually matters: whether `cloudUrl` got set on the attachment. Read it
+   straight off the persisted store instead (same "keyval-store" IndexedDB
+   database `mediaKeys` above already opens, under the persist middleware's
+   own key — store.ts's `name: "acsa-assurance-v1"`), which is both more
+   direct and survives the UI text changing again later. */
+const anyAttachmentHasCloudUrl = (page) =>
+  page.evaluate(
+    () =>
+      new Promise((res) => {
+        const req = indexedDB.open("keyval-store");
+        req.onsuccess = () => {
+          const get = req.result.transaction("keyval").objectStore("keyval").get("acsa-assurance-v1");
+          get.onsuccess = () => {
+            try {
+              const state = JSON.parse(get.result).state;
+              // scopeKey(entityCode, visitId) in store.ts: `${entityCode}/${visitId}`.
+              const scopeKey = `${state.entity}/${state.visit}`;
+              const responses = state?.byVisit?.[scopeKey]?.responses ?? {};
+              res(
+                Object.values(responses).some((r) =>
+                  (r?.attachments ?? []).some((a) => !!a.cloudUrl)
+                )
+              );
+            } catch {
+              res(false);
+            }
+          };
+        };
+      })
+  );
+
 (async () => {
   let app, browser;
   try {
@@ -188,11 +223,12 @@ const mediaKeys = (page) =>
        keysAfterUpload === keysAfterCapture, `${keysAfterCapture} -> ${keysAfterUpload}`);
 
     await p.waitForTimeout(1200);
-    const after = await p.locator("body").innerText();
-    ok("the row says where the photograph now is", /in the record store/.test(after),
-       after.slice(0, 120).replace(/\n/g, " "));
-    ok("and the shell stops warning once nothing is outstanding",
-       !/on device only/.test(after));
+    /* The row's own "in the record store"/"on device only" label is gone
+       (Sarel: the metadata line next to a photo added no value) — checked
+       against the persisted `cloudUrl` directly instead; see
+       anyAttachmentHasCloudUrl's own comment. */
+    ok("the attachment's record-store copy is recorded once uploaded",
+       await anyAttachmentHasCloudUrl(p));
 
     /* It survives a reload with both copies intact and is not re-uploaded. */
     const before = stored.length;
