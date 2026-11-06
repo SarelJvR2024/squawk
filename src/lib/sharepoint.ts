@@ -1407,24 +1407,40 @@ function evidenceValues(
    *  entry. `null`, not "", for the same reason `evidenceVerdict` above is
    *  sent as `null`: a genuinely unanswered outcome must not read as a
    *  cleared one. */
-  outcome: Compliance | null
+  outcome: Compliance | null,
+  /* THE RECORD'S OWN DESCRIPTION, WHEN NOBODY CAPTIONED THE PHOTO ITSELF —
+   *  Sarel: "the note is captured for the finding and not the photo...
+   *  make sure... each photo carry that finding description." A finding
+   *  (or a walk item) is typed up once, as its own description — the
+   *  photograph is evidence FOR that description, not a second place to
+   *  type the same thing again, so most never get their own caption. Before
+   *  this, that meant every one of them read "No caption" in the report
+   *  next to a finding that plainly says what is wrong. Only used when
+   *  `a.caption` is empty; a caption someone actually typed on the photo
+   *  always wins. Empty string ("", the default) keeps every OTHER call
+   *  site's behaviour exactly as it was — a check-point's or a
+   *  Verification's photograph is still only ever captioned by itself. */
+  fallbackCaption = ""
 ): Record<string, string | null> {
+  const caption = a.caption?.trim() || fallbackCaption;
   return {
     checkId,
     findingId,
     photographReference: a.ref ?? "",
     discipline,
     assetSystem,
-    caption: a.caption?.trim() ?? "",
+    caption,
     /* Same string as `caption`, as its own field — see descriptionOfSubject's
        own candidates, above, for why this is deliberately written twice. */
-    descriptionOfSubject: a.caption?.trim() ?? "",
+    descriptionOfSubject: caption,
     captionSource:
       a.captionSource === "assistant"
         ? "Assistant, accepted by the auditor"
         : a.caption?.trim()
           ? "Auditor"
-          : "",
+          : caption
+            ? "Carried from the record's own description — not captioned separately"
+            : "",
     attachedBy: a.createdBy ?? "",
     location: a.location?.trim() ?? "",
     takenAt: a.takenAt ? new Date(a.takenAt).toISOString() : "",
@@ -1911,11 +1927,16 @@ export function buildPlan(
     for (const a of item.attachments ?? []) {
       if (a.kind !== "photo" || a.unavailable) continue;
       if (!a.blobKey && !a.cloudUrl) continue;
+      /* SAME FALLBACK AS A FINDING'S OWN PHOTOGRAPH, ABOVE — a walk item's
+         `description` ("what you found") is required and typed once; most
+         of its photographs never get a caption of their own because that
+         text already exists. */
+      const fallbackCaption = item.description?.trim() || "";
       evidence.push({
         checkId: item.id,
         filename: photoFilename(a),
         attachment: a,
-        caption: a.caption?.trim() ?? "",
+        caption: a.caption?.trim() || fallbackCaption,
         /* NOT the register's discipline/asset system — a walk item is not off
            the list, so there is no check to read those from. But the item
            carries its OWN discipline/system (AddItemSheet lets the auditor
@@ -1948,7 +1969,8 @@ export function buildPlan(
              item.outcome raw — see that function's own note: a promoted
              item's photographs must read NC even where the three-way
              control itself was never tapped. */
-          effectiveWalkOutcome(item)
+          effectiveWalkOutcome(item),
+          fallbackCaption
         ),
         folder: dayFolder(folder, a.takenAt ?? a.createdAt),
       });
@@ -1986,11 +2008,12 @@ export function buildPlan(
     for (const a of f.attachments ?? []) {
       if (a.kind !== "photo" || a.unavailable) continue;
       if (!a.blobKey && !a.cloudUrl) continue;
+      const fallbackCaption = f.description?.trim() || f.title || "";
       evidence.push({
         checkId: f.checkId ? portalIdFor(x.entity, f.checkId) : f.id,
         filename: photoFilename(a),
         attachment: a,
-        caption: a.caption?.trim() ?? "",
+        caption: a.caption?.trim() || fallbackCaption,
         values: evidenceValues(
           a,
           f.checkId ? portalIdFor(x.entity, f.checkId) : f.id,
@@ -2001,7 +2024,8 @@ export function buildPlan(
              RaiseFindingSheet.tsx's own doc comment — so a finding's own
              photograph always carries NC, the one evidence source in this
              function where the outcome is never read off a response. */
-          "NC"
+          "NC",
+          fallbackCaption
         ),
         folder: dayFolder(folder, a.takenAt ?? a.createdAt),
       });
