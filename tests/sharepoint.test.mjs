@@ -5061,6 +5061,80 @@ check(
   "a corrected finding (C after the fact) must not be silently overridden back to NC by the fallback"
 );
 
+/* ---- AN UNCAPTIONED PHOTO CARRIES ITS OWN RECORD'S DESCRIPTION — Sarel:
+ *  "the note is captured for the finding and not the photo... make sure...
+ *  each photo carry that finding description." A finding (or a walk item)
+ *  is typed up once, so its photographs rarely get their own caption; before
+ *  this they read "No caption" next to a record that plainly says what is
+ *  wrong. Only kicks in when nobody captioned the photo itself. --------- */
+
+check(
+  "a finding's own uncaptioned photo carries the finding's own description as caption AND descriptionOfSubject",
+  (() => {
+    const findings = [{
+      id: "F-LDA3G", entity: "FALE", checkId: null, discipline: "Electrical", system: "AGL",
+      title: "Seen on the walk", description: "Corrosion on the mounting bracket",
+      attachments: [{ id: "fa1", kind: "photo", name: "n", blobKey: "fb1", ref: "F-LDA3G_P01" }],
+    }];
+    const v = sp.buildPlan({ ...BASE, findings }, NOTHING).evidence.find(
+      (e) => e.filename === "F-LDA3G_P01.jpg"
+    ).values;
+    return (
+      v.caption === "Corrosion on the mounting bracket" &&
+      v.descriptionOfSubject === "Corrosion on the mounting bracket" &&
+      /Carried from the record's own description/.test(v.captionSource)
+    );
+  })()
+);
+
+check(
+  "a caption someone actually typed on the finding's photo always wins over the finding's own description",
+  (() => {
+    const findings = [{
+      id: "F-LDA3G", entity: "FALE", checkId: null, discipline: "Electrical", system: "AGL",
+      title: "t", description: "Corrosion on the mounting bracket",
+      attachments: [{ id: "fa1", kind: "photo", name: "n", blobKey: "fb1", ref: "F-LDA3G_P01", caption: "Close-up of the crack" }],
+    }];
+    const v = sp.buildPlan({ ...BASE, findings }, NOTHING).evidence.find(
+      (e) => e.filename === "F-LDA3G_P01.jpg"
+    ).values;
+    return v.caption === "Close-up of the crack" && v.captionSource === "Auditor";
+  })()
+);
+
+check(
+  "a walk item's own uncaptioned photo carries ITS OWN description the same way",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE,
+        adhoc: [{
+          id: "WALK-ZZZ99", findingId: null, description: "Door sensor not resetting",
+          attachments: [{ id: "wz1", kind: "photo", name: "n", blobKey: "wzb1", ref: "WALK-ZZZ99_P01" }],
+        }],
+      },
+      NOTHING
+    );
+    const v = p.evidence.find((e) => e.filename === "WALK-ZZZ99_P01.jpg").values;
+    return v.caption === "Door sensor not resetting" && v.descriptionOfSubject === "Door sensor not resetting";
+  })()
+);
+
+check(
+  "a register check-point's uncaptioned photo is UNCHANGED — no fallback invented for it",
+  (() => {
+    const v = sp.buildPlan(
+      { ...BASE, responses: { "KSIA-ELE-001": {
+        compliance: "NC", observation: "Busbar corroded",
+        attachments: [{ id: "a1", kind: "photo", name: "n", blobKey: "b1", ref: "KSIA-ELE-001_P01" }],
+      } } },
+      NOTHING
+    ).evidence[0].values;
+    return v.caption === "" && v.descriptionOfSubject === "";
+  })(),
+  "a check's own observation is a different field, read by a different column already — this fallback is scoped to findings and walk items only"
+);
+
 /* ------------------------------------------------------------------ result */
 
 console.log(failures === 0 ? "\nSHAREPOINT OK" : `\n${failures} FAILURE${failures > 1 ? "S" : ""}`);
