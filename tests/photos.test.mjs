@@ -35,6 +35,7 @@ const types = src("lib", "types.ts");
 const capture = src("components", "Capture.tsx");
 const assistLib = src("lib", "assist.ts");
 const route = src("app", "api", "assist", "route.ts");
+const prompts = src("lib", "assistPrompts.ts");
 const advice = src("components", "RootCauseAdvice.tsx");
 const detail = src("components", "CheckDetail.tsx");
 const findings = src("app", "(app)", "findings", "page.tsx");
@@ -278,8 +279,8 @@ check(
 
 check(
   "the system prompt tells the model what a photograph is and is not",
-  /Photographs are evidence, not proof of the auditor's conclusion/.test(route) &&
-    /the plate is not legible in this photograph/.test(route),
+  /Photographs are evidence, not proof of the auditor's conclusion/.test(prompts) &&
+    /the plate is not legible in this photograph/.test(prompts),
   ""
 );
 
@@ -315,7 +316,7 @@ check(
 
 check(
   "the prompt says the question is the deliverable",
-  /Your real job here is to sharpen the QUESTION, not to answer it/.test(route),
+  /Your real job here is to sharpen the QUESTION, not to answer it/.test(prompts),
   ""
 );
 

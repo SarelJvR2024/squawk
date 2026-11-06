@@ -38,6 +38,7 @@ const types = src("lib", "types.ts");
 const media = src("lib", "media.ts");
 const assistLib = src("lib", "assist.ts");
 const assistRoute = src("app", "api", "assist", "route.ts");
+const prompts = src("lib", "assistPrompts.ts");
 const transcribeRoute = src("app", "api", "transcribe", "route.ts");
 const capture = src("components", "Capture.tsx");
 const detail = src("components", "CheckDetail.tsx");
@@ -207,21 +208,21 @@ check(
 );
 
 check(
-  "the assist route carries the task",
-  /\| "transcript"/.test(assistRoute) && /^\s*transcript:/m.test(assistRoute),
+  "the assist prompts carry the task",
+  /\| "transcript"/.test(prompts) && /^\s*transcript:/m.test(prompts),
   ""
 );
 
 check(
   "the prompt forbids inventing and insists the numbers carry across",
-  /Carry across every fact, number, unit, quantity, location and item/.test(assistRoute) &&
-    /Do not add a fact the auditor did not say/.test(assistRoute),
+  /Carry across every fact, number, unit, quantity, location and item/.test(prompts) &&
+    /Do not add a fact the auditor did not say/.test(prompts),
   "a misheard 40mm silently corrupts a trend for months"
 );
 
 check(
   "the prompt would rather say it cannot than make something up",
-  /too garbled or too sparse[\s\S]{0,80}say exactly that/.test(assistRoute),
+  /too garbled or too sparse[\s\S]{0,80}say exactly that/.test(prompts),
   ""
 );
 
@@ -304,7 +305,7 @@ check(
    audio never. */
 check(
   "and it says exactly what it does send",
-  /and — only when ASSIST_VISION is 1 — the photographs the auditor is asking\s*\n\s*about\. It never sends audio\./.test(
+  /and — only when ASSIST_VISION is 1 — the photographs the auditor is\s+asking\s+about\. It never sends audio\./.test(
     assistRoute
   ),
   ""
