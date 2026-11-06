@@ -364,7 +364,11 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
      and folding it into `checkId` would make the second one quietly overwrite
      the first. */
   checkPoints: ["Check-points", "Check points", "Checkpoints", "Related check-points"],
-  notes: ["Notes", "Note", "Comments"],
+  /* "Observation" is listed too — the ACSA Asset Risk list's own column
+     header on the live portal (see assetRisk.push() below) is "Observation",
+     not "Notes"; tried after the more generic names so an Evidence Log list
+     that genuinely has both columns keeps matching "Notes" first. */
+  notes: ["Notes", "Note", "Comments", "Observation"],
 
   /* THE ASSET RISK LIST'S OWN COLUMNS. One row per (discipline, asset system)
      pair — the same rows systemsSheet's workbook export already derives by
@@ -2373,24 +2377,59 @@ export function buildPlan(
    *  register's own checks, so the two never disagree about which pairs
    *  exist. A pair with nothing recorded against it yet is skipped entirely
    *  — there is nothing here to tell apart from "not reached" and inventing
-   *  a row for it would read as an assessment nobody made. */
+   *  a row for it would read as an assessment nobody made.
+   *
+   *  "NOTHING RECORDED" NO LONGER MEANS "NO FINDING EITHER" — Sarel: "not
+   *  hazards, the photos are findings linked to asset systems, non
+   *  compliant." A Finding already carries its own discipline, asset system
+   *  and description — it IS a non-compliance by definition (see
+   *  RaiseFindingSheet.tsx's own doc comment) — whether or not anyone has
+   *  since done the separate, human-judgement work of rating it on HIRA.
+   *  Severity/likelihood/priority/tolerance stay gated exactly as before
+   *  (nobody invents a risk rating here), but a pair with an open finding
+   *  and nothing else is no longer indistinguishable from a pair nobody has
+   *  reached at all — that was always the actual bug Sarel was pointing at.
+   *  This does NOT reopen the "same fuse synced twice" risk buildPlan's own
+   *  header warns about: that was about ONE ROW PER FINDING on the Findings
+   *  list, two disciplines each getting their own. This is still one row
+   *  per (discipline, asset system) PAIR — a discipline's own findings
+   *  against its own asset system fold into that discipline's own existing
+   *  row, never a new one. */
+  const findingsByPair = new Map<string, Finding[]>();
+  for (const f of entityFindings) {
+    if (f.discipline && excluded.has(f.discipline)) continue;
+    const system = f.system?.trim() || "No asset system recorded";
+    const pairKey = `${f.discipline}|${system}`;
+    const l = findingsByPair.get(pairKey);
+    if (l) l.push(f);
+    else findingsByPair.set(pairKey, [f]);
+  }
   const existingAssetRisk = existing.assetRisk ?? new Map<string, string>();
   const seenPairs = new Set<string>();
   let emptyPairs = 0;
   let excludedPairs = 0;
+  /* Every pair the register's own checks define, PLUS any pair a finding
+     names that no check happens to share — "Raise a finding" lets an
+     auditor pick any asset system, not only one the register already has a
+     check-point under. */
+  const allPairKeys = new Set<string>();
   for (const c of x.checks) {
-    const system = c.system?.trim() || "No asset system recorded";
-    const pairKey = `${c.discipline}|${system}`;
+    allPairKeys.add(`${c.discipline}|${c.system?.trim() || "No asset system recorded"}`);
+  }
+  for (const key of findingsByPair.keys()) allPairKeys.add(key);
+  for (const pairKey of allPairKeys) {
     if (seenPairs.has(pairKey)) continue;
     seenPairs.add(pairKey);
+    const [discipline, system] = pairKey.split("|");
     /* Held back with the rest of the discipline — see
        SyncInput.excludedDisciplines. After the dedup above, so this counts
        distinct PAIRS the same way emptyPairs does, not one per check. */
-    if (excluded.has(c.discipline)) {
+    if (excluded.has(discipline)) {
       excludedPairs++;
       continue;
     }
     const a = x.systems?.[pairKey];
+    const pairFindings = findingsByPair.get(pairKey) ?? [];
     /* ROOT CAUSES AND ACTIONS NOW LIVE ON EACH HAZARDOUS EVENT, NOT POOLED AT
        THE SYSTEM LEVEL — see PossibleEvent's own header. Flattened across
        every event (plus anything still waiting in unassignedRootCauses/
@@ -2407,54 +2446,63 @@ export function buildPlan(
       ...(a?.unassignedActions ?? []),
     ];
     const hasContent =
-      !!a &&
-      (a.ratingConfirmed ||
-        allRootCauses.length > 0 ||
-        allActions.length > 0 ||
-        a.events.length > 0 ||
-        a.note.trim() !== "" ||
-        a.ratingRationale.trim() !== "" ||
-        !!a.directionOfRisk?.trim());
+      (!!a &&
+        (a.ratingConfirmed ||
+          allRootCauses.length > 0 ||
+          allActions.length > 0 ||
+          a.events.length > 0 ||
+          a.note.trim() !== "" ||
+          a.ratingRationale.trim() !== "" ||
+          !!a.directionOfRisk?.trim())) ||
+      pairFindings.length > 0;
     if (!hasContent) {
       emptyPairs++;
       continue;
     }
-    const key = assetRiskTitle(x.entity, c.discipline, system);
+    const key = assetRiskTitle(x.entity, discipline, system);
     const itemId = existingAssetRisk.get(key);
     /* THE RATING ITSELF IS GATED, exactly as a hazard's is — a severity and
        likelihood nobody confirmed is a suggestion, not a fact for a portal
        the Audit & Risk Committee reads. Root causes, actions and events
        still go across unconfirmed: unfinished work in progress has value,
        the same reasoning an unrated hazard's own fields already get. */
-    const agreed = a!.ratingConfirmed === true;
+    const agreed = a?.ratingConfirmed === true;
     const band = agreed ? bandFor(a!.severity, a!.likelihood) : null;
+    /* THE OBSERVATION COLUMN — Sarel: "the photos are findings linked to
+       asset systems, non compliant." The assessor's own typed note wins
+       when there is one; otherwise, rather than leaving a non-compliant
+       pair's Observation blank, it reads straight off the findings raised
+       against it — exactly the evidence those photographs already are. */
+    const findingsObservation = pairFindings
+      .map((f) => `${f.id}: ${f.description?.trim() || f.title}`)
+      .join("\n");
     assetRisk.push({
       key,
       action: itemId ? "update" : "create",
       itemId,
       values: {
         title: key,
-        discipline: c.discipline,
+        discipline,
         assetSystem: system,
         severity: agreed ? a!.severity : null,
         likelihood: agreed ? a!.likelihood : null,
         band: agreed && band ? BAND_META[band].label : null,
         strategy: agreed && band ? BAND_META[band].strategy : null,
         ratingAgreed: agreed ? "Yes" : "No",
-        rationale: a!.ratingRationale ?? "",
+        rationale: a?.ratingRationale ?? "",
         rootCause: allRootCauses
           .map((r) => (r.note ? `${r.cause} — ${r.note}` : r.cause))
           .join("\n"),
         treatment: flattenActions(allActions),
         owner: firstOwner(allActions),
         targetDate: firstDueDate(allActions),
-        events: a!.events
+        events: (a?.events ?? [])
           .map((e) => [e.event, e.likelihood, e.note].filter(Boolean).join(" · "))
           .join("\n"),
-        auditor: a!.assessedBy ?? "",
-        assessedOn: a!.assessedAt ? new Date(a!.assessedAt).toISOString() : null,
-        notes: a!.note ?? "",
-        directionOfRisk: a!.directionOfRisk ?? "",
+        auditor: a?.assessedBy ?? "",
+        assessedOn: a?.assessedAt ? new Date(a.assessedAt).toISOString() : null,
+        notes: a?.note?.trim() || findingsObservation,
+        directionOfRisk: a?.directionOfRisk ?? "",
         /* NEVER a!.internalNote HERE. It is the team's own working note on
            this asset system — see the field's own doc comment in types.ts —
            and this values object is what gets written to the live
@@ -2462,13 +2510,15 @@ export function buildPlan(
       },
       summary: agreed
         ? `${key} · ${band ? BAND_META[band].label : ""}`
-        : `${key} · no agreed rating — the work goes across, the rating does not`,
+        : pairFindings.length
+          ? `${key} · ${pairFindings.length} finding${pairFindings.length === 1 ? "" : "s"} — no agreed rating yet`
+          : `${key} · no agreed rating — the work goes across, the rating does not`,
     });
   }
   if (emptyPairs) {
     skipped.push({
       what: "asset systems",
-      why: "no rating, root cause, action or event recorded against them yet",
+      why: "no rating, root cause, action, event or finding recorded against them yet",
       count: emptyPairs,
     });
   }

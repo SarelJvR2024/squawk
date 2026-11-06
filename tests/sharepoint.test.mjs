@@ -2693,6 +2693,97 @@ check(
   "an empty assessment is 'not reached', not a rating of Green — inventing a row would say otherwise"
 );
 
+/* ---- a non-compliant finding alone is enough for a row — Sarel: "not
+ *  hazards, the photos are findings linked to asset systems, non
+ *  compliant." No HIRA rating required; severity/likelihood/tolerance stay
+ *  gated exactly as before. ---- */
+
+check(
+  "a finding alone, with NO SystemAssessment at all, still gets an asset-risk row",
+  (() => {
+    const findings = [{
+      id: "F-LDA3G", entity: "FALE", checkId: null, discipline: "Electrical", system: "AGL",
+      title: "Seen on the walk", description: "Corrosion on the mounting bracket",
+    }];
+    const p = sp.buildPlan({ ...BASE_AR, findings }, NOTHING_AR);
+    const v = p.assetRisk[0]?.values;
+    return (
+      p.assetRisk.length === 1 &&
+      v.discipline === "Electrical" &&
+      v.assetSystem === "AGL" &&
+      v.severity === null &&
+      v.likelihood === null &&
+      v.ratingAgreed === "No" &&
+      /F-LDA3G: Corrosion on the mounting bracket/.test(v.notes)
+    );
+  })(),
+  "the finding is factual evidence, not a risk judgement — no rating gets invented to carry it across"
+);
+
+check(
+  "several findings against the SAME pair fold into one row's Observation, not several rows",
+  (() => {
+    const findings = [
+      { id: "F-AAA01", entity: "FALE", checkId: null, discipline: "Electrical", system: "AGL", title: "t", description: "Corrosion" },
+      { id: "F-BBB02", entity: "FALE", checkId: null, discipline: "Electrical", system: "AGL", title: "t", description: "Loose fixing" },
+    ];
+    const p = sp.buildPlan({ ...BASE_AR, findings }, NOTHING_AR);
+    const v = p.assetRisk[0]?.values;
+    return (
+      p.assetRisk.length === 1 &&
+      /F-AAA01: Corrosion/.test(v.notes) &&
+      /F-BBB02: Loose fixing/.test(v.notes)
+    );
+  })(),
+  "this is still one row per (discipline, asset system) pair — the 'same fuse synced twice' risk buildPlan's own header warns about is about the Findings list, a different list entirely"
+);
+
+check(
+  "the assessor's own typed note wins over the findings fallback when both exist",
+  (() => {
+    const sys = { "Electrical|AGL": SYS({ note: "Rated at desk review" }) };
+    const findings = [{
+      id: "F-LDA3G", entity: "FALE", checkId: null, discipline: "Electrical", system: "AGL",
+      title: "t", description: "Corrosion on the mounting bracket",
+    }];
+    const p = sp.buildPlan({ ...BASE_AR, systems: sys, findings }, NOTHING_AR);
+    const v = p.assetRisk[0].values;
+    return v.notes === "Rated at desk review" && !/Corrosion/.test(v.notes);
+  })(),
+  "a human's own words are never silently replaced by a derived fallback"
+);
+
+check(
+  "a finding naming a pair no check-point shares still gets its own row",
+  (() => {
+    /* \"Raise a finding\" only requires discipline + asset system — it can
+       name a pair the register's own checks never mention. */
+    const findings = [{
+      id: "F-ZZZ99", entity: "FALE", checkId: null, discipline: "Mechanical", system: "Lifts",
+      title: "t", description: "Door sensor not resetting",
+    }];
+    const p = sp.buildPlan({ ...BASE_AR, findings }, NOTHING_AR);
+    return (
+      p.assetRisk.length === 1 &&
+      p.assetRisk[0].values.discipline === "Mechanical" &&
+      p.assetRisk[0].values.assetSystem === "Lifts"
+    );
+  })()
+);
+
+check(
+  "a finding under an EXCLUDED discipline mints no asset-risk row either",
+  (() => {
+    const findings = [{
+      id: "F-LDA3G", entity: "FALE", checkId: null, discipline: "Electrical", system: "AGL",
+      title: "t", description: "Corrosion",
+    }];
+    const p = sp.buildPlan({ ...BASE_AR, findings, excludedDisciplines: ["Electrical"] }, NOTHING_AR);
+    return p.assetRisk.length === 0;
+  })(),
+  "held back with the rest of the discipline, same as every other list"
+);
+
 check(
   "a CONFIRMED rating goes across with severity, likelihood, band and strategy all populated",
   (() => {
