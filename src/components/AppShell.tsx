@@ -47,6 +47,7 @@ import {
   IconDownload,
   IconFlag,
   IconGauge,
+  IconWand,
   IconLeft,
   IconRight,
   IconHelp,
@@ -1052,6 +1053,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       selected={pathname === "/preflight"}
                       onClick={() => { setMore(false); router.push("/preflight"); }}
                     />
+                    {/* BULK CLEANUP — Sarel: "build polish notes in app...
+                        select which discipline it needs to clean up and
+                        clean up all audit check notes and photo captions in
+                        bulk." TPJV-only, same reasoning as Forms/People
+                        below: a report-polish tool has no business in
+                        ACSA's own view of the audit. */}
+                    {role !== "acsa" && (
+                      <MoreItem
+                        icon={<IconWand width={14} height={14} />}
+                        label="Cleanup"
+                        hint="Polish notes and captions, link stray photos — by discipline"
+                        selected={pathname === "/cleanup"}
+                        onClick={() => { setMore(false); router.push("/cleanup"); }}
+                      />
+                    )}
                     {/* FORCE A CHECK FOR A NEWER BUILD, RIGHT NOW — see
                         refreshApp's own doc comment above for why this exists
                         and how it differs from the data "Refresh" item below. */}

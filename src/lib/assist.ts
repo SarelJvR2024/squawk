@@ -79,7 +79,8 @@ export type AssistTask =
   | "rootcause"
   | "hazard"
   | "consolidate"
-  | "reassess";
+  | "reassess"
+  | "polish";
 
 /* One probe per endpoint per page load, shared by every component that asks.
    Each of these is a separate deployment decision — a site may have a model and
@@ -595,6 +596,46 @@ export function reassessContext(
       : "No findings behind it — raised directly at the register.",
     captions.length && `\nPhotographs: ${captions.map((c) => `"${c}"`).join("; ")}`,
     "If no image is supplied with this request, say so in `note` and leave `photographsSeen` empty rather than describing photographs you cannot see.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/** What goes with a "polish" run — rewriting a note or caption that is
+ *  ALREADY TYPED into a finished, technical audit-record entry. Generic
+ *  across every kind of text the Cleanup screen's bulk polish covers (a
+ *  check's own observation, a finding's description, a photo's caption),
+ *  since the model is always doing the same job: grammar and tone, not a
+ *  fresh read of the evidence — see the `polish` task's own house rules in
+ *  /api/assist for why it never invents a fact, a spec or a clause number
+ *  the text itself does not already carry.
+ *
+ *  Kept well away from captionContext() above, deliberately — see that
+ *  function's own neighbour, photos.test.mjs's "the caption context does
+ *  not hand the model the conclusion first": it reads everything between
+ *  captionContext's definition and the next exported function as
+ *  captionContext's OWN body, and this one's text (which has to say "not a
+ *  full observation" to tell the two kinds apart) would otherwise be read
+ *  as part of it. */
+export function polishContext(
+  text: string,
+  discipline: string,
+  system: string,
+  kind: "note" | "caption",
+  /** The check's own requirement, or a finding's title — whatever names
+   *  what this text is actually about, so a one-line caption rewrite does
+   *  not have to guess what it is evidence of. Omit when there is none. */
+  about?: string
+): string {
+  return [
+    `Discipline: ${discipline} · Asset system: ${system}`,
+    about && `About: ${about}`,
+    kind === "caption"
+      ? "This is a PHOTO CAPTION, not a full observation — the rewrite stays one short line."
+      : "This is a written note captured during the audit.",
+    "",
+    "TEXT TO REWRITE:",
+    text,
   ]
     .filter(Boolean)
     .join("\n");

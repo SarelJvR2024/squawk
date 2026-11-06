@@ -165,7 +165,7 @@ const WORDS = {
   "eighty-two": 82, "eighty-three": 83, "eighty-four": 84, "eighty-five": 85,
   "eighty-six": 86, "eighty-seven": 87, "eighty-eight": 88, "eighty-nine": 89, ninety: 90,
   "ninety-one": 91, "ninety-two": 92, "ninety-three": 93, "ninety-four": 94,
-  "ninety-five": 95, "ninety-six": 96, "ninety-seven": 97, "ninety-eight": 98,
+  "ninety-five": 95, "ninety-six": 96, "ninety-seven": 97, "ninety-eight": 98, "ninety-nine": 99,
   "thirty-seven": 37,
   "twenty-four": 24, "twenty-five": 25, "twenty-six": 26,
   "twenty-seven": 27, "twenty-eight": 28, "twenty-nine": 29,
