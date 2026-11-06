@@ -633,5 +633,88 @@ check(
   })()
 );
 
+/* ---- AN UNCAPTIONED PHOTO CARRIES ITS OWN RECORD'S DESCRIPTION — same
+ *  fallback as sharepoint.ts's evidenceValues() (see tests/sharepoint.test.mjs's
+ *  own block on this), ported here because exports.ts had drifted: it kept
+ *  reading "NO CAPTION" for the identical photo after sharepoint.ts started
+ *  carrying the finding/walk item's own description across. Only kicks in
+ *  when nobody captioned the photo itself. ------------------------------ */
+
+check(
+  "a finding's own uncaptioned photo carries the finding's own description as its Caption, source marked as carried across",
+  (() => {
+    const x = {
+      ...BASE,
+      checks: [],
+      responses: {},
+      findings: [{
+        id: "F-LDA3G", entity: "FALE", checkId: null, discipline: "Electrical", system: "AGL",
+        title: "Seen on the walk", description: "Corrosion on the mounting bracket",
+        attachments: [{ id: "fa1", kind: "photo", name: "n", ref: "F-LDA3G_P01" }],
+      }],
+    };
+    const sheet = ex.photographsSheet(x);
+    return (
+      cellOf(sheet, 0, "Caption") === "Corrosion on the mounting bracket" &&
+      /Carried from the record's own description/.test(String(cellOf(sheet, 0, "Caption source")))
+    );
+  })()
+);
+
+check(
+  "a caption someone actually typed on the finding's photo always wins over the finding's own description",
+  (() => {
+    const x = {
+      ...BASE,
+      checks: [],
+      responses: {},
+      findings: [{
+        id: "F-LDA3G", entity: "FALE", checkId: null, discipline: "Electrical", system: "AGL",
+        title: "t", description: "Corrosion on the mounting bracket",
+        attachments: [{
+          id: "fa1", kind: "photo", name: "n", ref: "F-LDA3G_P01",
+          caption: "Close-up of the crack", captionSource: "auditor",
+        }],
+      }],
+    };
+    const sheet = ex.photographsSheet(x);
+    return cellOf(sheet, 0, "Caption") === "Close-up of the crack" && cellOf(sheet, 0, "Caption source") === "Auditor";
+  })()
+);
+
+check(
+  "a walk item's own uncaptioned photo carries ITS OWN description the same way",
+  (() => {
+    const x = {
+      ...BASE, checks: [], responses: {},
+      adhoc: [{
+        id: "WALK-ZZZ99", findingId: null, description: "Door sensor not resetting",
+        attachments: [{ id: "wz1", kind: "photo", name: "n", ref: "WALK-ZZZ99_P01" }],
+      }],
+    };
+    const sheet = ex.photographsSheet(x);
+    return (
+      cellOf(sheet, 0, "Caption") === "Door sensor not resetting" &&
+      /Carried from the record's own description/.test(String(cellOf(sheet, 0, "Caption source")))
+    );
+  })()
+);
+
+check(
+  "a register check-point's uncaptioned photo is UNCHANGED — no fallback invented for it",
+  (() => {
+    const x = {
+      ...BASE,
+      responses: { "KSIA-ELE-001": RESP({
+        checkId: "KSIA-ELE-001", compliance: "NC", observation: "Busbar corroded",
+        attachments: [{ id: "a1", kind: "photo", name: "n", ref: "KSIA-ELE-001_P01" }],
+      }) },
+    };
+    const sheet = ex.photographsSheet(x);
+    return cellOf(sheet, 0, "Caption") === "" && cellOf(sheet, 0, "Caption source") === "NO CAPTION";
+  })(),
+  "a check's own observation is a different field, read by a different column already — this fallback is scoped to findings and walk items only"
+);
+
 console.log(`\n${failures === 0 ? "ALL PASS" : `${failures} FAILED`}`);
 process.exit(failures ? 1 : 0);

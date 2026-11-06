@@ -550,8 +550,15 @@ export function photographsSheet(x: ExportInput): Sheet {
      was captured from — and the last column says which it was. */
   for (const item of x.adhoc ?? []) {
     if (!externallyVisible(item)) continue;
+    /* SAME FALLBACK AS sharepoint.ts's evidenceValues() — a walk item's
+       `description` ("what you found") is required and typed once; most of
+       its photographs never get a caption of their own because that text
+       already exists. Only used when a.caption is empty; a caption someone
+       actually typed on the photo always wins. */
+    const fallbackCaption = item.description?.trim() || "";
     for (const a of item.attachments) {
       if (a.kind !== "photo") continue;
+      const caption = a.caption?.trim() || fallbackCaption;
       rows.push([
         photoFilename(a),
         a.ref ?? "",
@@ -575,12 +582,14 @@ export function photographsSheet(x: ExportInput): Sheet {
         a.location?.trim() ?? "",
         a.assetName?.trim() ?? "",
         a.assetRef?.trim() ?? "",
-        a.caption?.trim() ?? "",
+        caption,
         a.caption?.trim()
           ? a.captionSource === "assistant"
             ? "Assistant, accepted by the auditor"
             : "Auditor"
-          : "NO CAPTION",
+          : caption
+            ? "Carried from the record's own description — not captioned separately"
+            : "NO CAPTION",
         when(a.takenAt) ?? "",
         when(a.createdAt),
         a.createdBy,
@@ -703,8 +712,15 @@ export function photographsSheet(x: ExportInput): Sheet {
      comment), the one photo source in this sheet where that column is
      never blank or borrowed from a Response. */
   for (const f of x.findings) {
+    /* SAME FALLBACK AS sharepoint.ts's evidenceValues() — a finding is typed
+       up once, as its own description; the photograph is evidence FOR that
+       description, not a second place to type the same thing again, so most
+       never get their own caption. Only used when a.caption is empty; a
+       caption someone actually typed on the photo always wins. */
+    const fallbackCaption = f.description?.trim() || f.title || "";
     for (const a of f.attachments ?? []) {
       if (a.kind !== "photo") continue;
+      const caption = a.caption?.trim() || fallbackCaption;
       rows.push([
         photoFilename(a),
         a.ref ?? "",
@@ -716,12 +732,14 @@ export function photographsSheet(x: ExportInput): Sheet {
         a.location?.trim() ?? "",
         a.assetName?.trim() ?? "",
         a.assetRef?.trim() ?? "",
-        a.caption?.trim() ?? "",
+        caption,
         a.caption?.trim()
           ? a.captionSource === "assistant"
             ? "Assistant, accepted by the auditor"
             : "Auditor"
-          : "NO CAPTION",
+          : caption
+            ? "Carried from the record's own description — not captioned separately"
+            : "NO CAPTION",
         when(a.takenAt) ?? "",
         when(a.createdAt),
         a.createdBy,
