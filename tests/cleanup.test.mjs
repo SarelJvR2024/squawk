@@ -32,6 +32,7 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "..");
 const route = fs.readFileSync(path.join(root, "src", "app", "api", "assist", "route.ts"), "utf8");
+const prompts = fs.readFileSync(path.join(root, "src", "lib", "assistPrompts.ts"), "utf8");
 const assistLib = fs.readFileSync(path.join(root, "src", "lib", "assist.ts"), "utf8");
 const cleanup = fs.readFileSync(
   path.join(root, "src", "app", "(app)", "cleanup", "page.tsx"),
@@ -51,8 +52,8 @@ const check = (name, cond, detail = "") => {
 /* ---- the "polish" task itself, server and client ---------------------- */
 
 check(
-  "polish is a real Task on the server, not a client-only string nothing answers",
-  /\| "polish";/.test(route) && /polish:\s*\n?\s*"Rewrite the note below/.test(route)
+  "polish is a real Task, defined where every task's prompt lives (src/lib/assistPrompts.ts), not a client-only string nothing answers",
+  /\| "polish";/.test(prompts) && /polish:\s*\n?\s*"Rewrite the note below/.test(prompts)
 );
 
 check(
@@ -62,22 +63,27 @@ check(
 
 check(
   "the polish prompt carries the same house rule every other task in this file keeps: never invent a fact, a clause or a standard",
-  /Do NOT invent, guess at or supply a clause, standard or document reference that is not already given to you/.test(route)
+  /Do NOT invent, guess at or supply a clause, standard or document reference that is not already given to you/.test(prompts)
 );
 
 check(
   "the polish prompt is explicit about carrying every fact across unchanged, not just 'be accurate'",
-  /Carry across every fact, measurement, location, quantity and item named below, exactly as given/.test(route)
+  /Carry across every fact, measurement, location, quantity and item named below, exactly as given/.test(prompts)
 );
 
 check(
   "the polish prompt names the asset system explicitly as something the rewrite must say",
-  /Name the asset system given below explicitly in the rewrite/.test(route)
+  /Name the asset system given below explicitly in the rewrite/.test(prompts)
 );
 
 check(
   "a caption-length rewrite stays caption-length — the prompt does not let a one-line caption balloon into paragraphs",
-  /do not expand a caption into paragraphs/.test(route)
+  /do not expand a caption into paragraphs/.test(prompts)
+);
+
+check(
+  "the route itself no longer defines the prompts inline — it imports them from the one config file",
+  /from "@\/lib\/assistPrompts"/.test(route) && !/const TASK_PROMPT: Record<Task, string> = \{/.test(route)
 );
 
 check(
