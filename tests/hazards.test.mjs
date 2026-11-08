@@ -45,6 +45,7 @@ const types = src("lib", "types.ts");
 const store = src("lib", "store.ts");
 const assistLib = src("lib", "assist.ts");
 const route = src("app", "api", "assist", "route.ts");
+const prompts = src("lib", "assistPrompts.ts");
 const actions = src("components", "RecordActions.tsx");
 const hazardsPage = src("app", "(app)", "hazards", "page.tsx");
 const findingsPage = src("app", "(app)", "findings", "page.tsx");
@@ -383,48 +384,48 @@ check(
 
 /* ------------------------------- Part 7: the prompts, and the rules in them */
 
-check("the route has a hazard task", /\bhazard\b/.test(route) && /hazards":\[\{"event"/.test(route));
-check("a consolidate task", /consolidate:/.test(route));
-check("a reassess task", /reassess:/.test(route));
+check("the hazard task exists", /\bhazard\b/.test(prompts) && /hazards":\[\{"event"/.test(prompts));
+check("a consolidate task", /consolidate:/.test(prompts));
+check("a reassess task", /reassess:/.test(prompts));
 check(
   "the hazard prompt says to rate the hazard, not the document",
-  /Rate the hazard, not the document/.test(route)
+  /Rate the hazard, not the document/.test(prompts)
 );
 check(
   "it refuses to rate — severity and likelihood are the team's",
-  /Do not rate it\./.test(route)
+  /Do not rate it\./.test(prompts)
 );
 check(
   "the consolidate prompt puts a finding in at most one group",
-  /may appear in at most one group/.test(route)
+  /may appear in at most one group/.test(prompts)
 );
 check(
   "it groups by the physical thing, not by discipline or severity",
-  /Do not group by discipline, by asset system or by severity/.test(route)
+  /Do not group by discipline, by asset system or by severity/.test(prompts)
 );
 check(
   "it uses photographs to test whether two write-ups are one thing",
-  /same physical item/.test(route)
+  /same physical item/.test(prompts)
 );
 check(
   "and says so in the note when a photograph is what grouped them",
-  /name which photographs/.test(route)
+  /name which photographs/.test(prompts)
 );
 check(
   "THE RULE THAT MATTERS: a photograph may not raise a likelihood on its own",
-  /may not be used to raise a likelihood on its own/.test(route)
+  /may not be used to raise a likelihood on its own/.test(prompts)
 );
 check(
   "and the reason is given, so it survives an edit",
-  /likelihood on this scale is occurrence history, which a photograph cannot show/.test(route)
+  /likelihood on this scale is occurrence history, which a photograph cannot show/.test(prompts)
 );
 check(
   "the re-read may raise a new hazard from something visible",
-  /raise that as a separate hazard/.test(route)
+  /raise that as a separate hazard/.test(prompts)
 );
 check(
   '"nothing changed" is named as a good answer',
-  /is a good answer and often the right one/.test(route)
+  /is a good answer and often the right one/.test(prompts)
 );
 
 /* ----------------------- Part 8: attribution — which photograph, which finding */

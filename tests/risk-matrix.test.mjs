@@ -206,14 +206,14 @@ check("the bands are not numbered I / II / III", !/\bPriority\s+(I|II|III)\b/.te
    "restate it correctly", it is DERIVE IT — and that is what this asserts. */
 
 const routeSrc = fs.readFileSync(
-  path.join(here, "..", "src", "app", "api", "assist", "route.ts"),
+  path.join(here, "..", "src", "lib", "assistPrompts.ts"),
   "utf8"
 );
 /* Comments quote the old wording deliberately, so they must not be searched. */
 const routeCode = routeSrc.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
 
 check(
-  "the assist route derives the scales from risk.ts rather than restating them",
+  "src/lib/assistPrompts.ts derives the scales from risk.ts rather than restating them",
   /from "@\/lib\/risk"/.test(routeCode) &&
     /SEVERITIES\.map/.test(routeCode) &&
     /LIKELIHOODS\.map/.test(routeCode),
