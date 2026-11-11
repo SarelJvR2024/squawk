@@ -326,8 +326,20 @@ export interface RecorderResult {
 }
 
 /** Microphone recording. Returns the real blob and the real elapsed duration —
- *  both measured, neither assumed. */
-export function useRecorder() {
+ *  both measured, neither assumed.
+ *
+ *  `onInterrupted` — Sarel: "make sure that voice recordings... are not
+ *  lost when any compliance buttons are captured or updated." A recording
+ *  used to be cut off bare on unmount: the stream stopped, the recorder
+ *  reference dropped, and whatever audio had already been captured never
+ *  turned into a blob at all. That is not hypothetical — the component
+ *  holding this hook can disappear mid-recording for a reason that has
+ *  nothing to do with the recording itself (the check it belongs to
+ *  re-keying the detail pane onto a different check the instant it is
+ *  answered — see capture/page.tsx's own fix for the side of that which
+ *  should not have been happening). This callback is the caller's one
+ *  chance to still save what was captured instead of losing it silently. */
+export function useRecorder(onInterrupted?: (result: RecorderResult) => void) {
   const [state, setState] = useState<RecorderState>("idle");
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -337,6 +349,14 @@ export function useRecorder() {
   const streamRef = useRef<MediaStream | null>(null);
   const startedAtRef = useRef<number>(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /* Read only from the unmount effect below, which must not itself depend
+     on `onInterrupted` — a new function identity on every render (the
+     common case, from an inline arrow at the call site) would tear the
+     whole recorder down and rebuild it mid-recording otherwise. */
+  const onInterruptedRef = useRef(onInterrupted);
+  useEffect(() => {
+    onInterruptedRef.current = onInterrupted;
+  }, [onInterrupted]);
 
   const cleanup = useCallback(() => {
     if (tickRef.current) {
@@ -349,8 +369,31 @@ export function useRecorder() {
   }, []);
 
   /* Release the microphone if the auditor navigates away mid-recording —
-     otherwise the tablet keeps the mic indicator lit and the stream open. */
-  useEffect(() => cleanup, [cleanup]);
+     otherwise the tablet keeps the mic indicator lit and the stream open.
+     STILL RECORDING AT THIS POINT is handled first, and finalised exactly
+     as a manual Stop would (same onstop body as `stop()` below): MediaRecorder
+     flushes whatever it already has on `.stop()` regardless of whether the
+     underlying tracks are released a moment later, so stopping the recorder
+     before `cleanup()` releases the stream loses nothing already captured. */
+  useEffect(() => {
+    return () => {
+      const rec = recorderRef.current;
+      if (rec && rec.state !== "inactive") {
+        rec.onstop = () => {
+          const durationSec = Math.max(
+            1,
+            Math.round((Date.now() - startedAtRef.current) / 1000)
+          );
+          const mimeType = rec.mimeType || pickAudioMime() || "audio/webm";
+          const blob = new Blob(chunksRef.current, { type: mimeType });
+          chunksRef.current = [];
+          if (blob.size > 0) onInterruptedRef.current?.({ blob, mimeType, durationSec });
+        };
+        rec.stop();
+      }
+      cleanup();
+    };
+  }, [cleanup]);
 
   const start = useCallback(async () => {
     setError(null);

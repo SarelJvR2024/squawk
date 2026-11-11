@@ -10,7 +10,7 @@
  *  rather than press-and-hold: holding a tablet steady against an ear defeater
  *  while talking is not a thing anyone manages one-handed. */
 
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   delBlob,
   extensionFor,
@@ -24,6 +24,7 @@ import {
   useIsClient,
   useDictation,
   useRecorder,
+  type RecorderResult,
 } from "@/lib/media";
 import {
   assist,
@@ -144,7 +145,6 @@ export function VoiceNoteButton({
      grid or flex parent actually measures. */
   className?: string;
 }) {
-  const rec = useRecorder();
   const dict = useDictation();
   const entityCode = useEntityCode();
   /* Opt-in, and read here rather than inside useDictation so the hook stays a
@@ -158,6 +158,59 @@ export function VoiceNoteButton({
      hydration and flash a disabled button at an auditor who has a microphone. */
   const isClient = useIsClient();
   const supported = !isClient || supportsRecording();
+
+  /* Read by `finishRecording` below AFTER this component may already have
+     unmounted (see useRecorder's own `onInterrupted`) — a ref, not state,
+     so the interrupted-recording path still sees whatever the live
+     transcript actually said right up to the moment it was cut off. */
+  const transcriptRef = useRef(dict.transcript);
+  useEffect(() => {
+    transcriptRef.current = dict.transcript;
+  }, [dict.transcript]);
+
+  /* THE SAME SAVE, WHETHER THE AUDITOR STOPPED IT OR SOMETHING ELSE DID.
+   *  Sarel: "make sure that voice recordings... are not lost when any
+   *  compliance buttons are captured or updated." Shared between the manual
+   *  Stop in `toggle()` below and `useRecorder`'s own `onInterrupted` (fired
+   *  from its unmount effect when this component disappears mid-recording)
+   *  so a recording cut off by something else is stored exactly the way one
+   *  stopped on purpose is — not a second, thinner save path that could drift
+   *  from the real one. */
+  const finishRecording = useCallback(
+    async (result: RecorderResult) => {
+      const blobKey = `voice-${uid()}`;
+      await putBlob(blobKey, result.blob);
+      onCaptured({
+        kind: "voice",
+        name: `${entityCode}-voice-${new Date()
+          .toISOString()
+          .slice(11, 19)
+          .replace(/:/g, "")}.${extensionFor(result.mimeType)}`,
+        blobKey,
+        mimeType: result.mimeType,
+        durationSec: result.durationSec,
+        /* Only what the engine actually heard. Empty is a correct answer. */
+        transcript: (dictationOn && transcriptRef.current.trim()) || undefined,
+        transcriptSource:
+          dictationOn && transcriptRef.current.trim() ? "browser" : undefined,
+      });
+    },
+    [entityCode, dictationOn, onCaptured]
+  );
+
+  const rec = useRecorder((result) => {
+    /* CUT OFF MID-RECORDING, NOT DISCARDED — see finishRecording's own
+       comment. There is nobody left on screen to show "Voice note
+       attached" to by the time this fires, so it is silent on success;
+       the point is that the recording itself still reaches the record,
+       the same one it would have joined had the auditor pressed Stop. */
+    void finishRecording(result).catch(() => {
+      /* Best-effort. Nothing is left mounted to tell a failure to — see
+         whyItFailed's own note on why a silent loss is the worse half of
+         this problem; a failed save here is at least no worse than the
+         bug this exists to fix, not a new way to lose the same note. */
+    });
+  });
 
   const recording = rec.state === "recording";
 
@@ -178,22 +231,7 @@ export function VoiceNoteButton({
     try {
       const result = await rec.stop();
       if (result) {
-        const blobKey = `voice-${uid()}`;
-        await putBlob(blobKey, result.blob);
-        onCaptured({
-          kind: "voice",
-          name: `${entityCode}-voice-${new Date()
-            .toISOString()
-            .slice(11, 19)
-            .replace(/:/g, "")}.${extensionFor(result.mimeType)}`,
-          blobKey,
-          mimeType: result.mimeType,
-          durationSec: result.durationSec,
-          /* Only what the engine actually heard. Empty is a correct answer. */
-          transcript: (dictationOn && dict.transcript.trim()) || undefined,
-          transcriptSource:
-            dictationOn && dict.transcript.trim() ? "browser" : undefined,
-        });
+        await finishRecording(result);
         setFailed(null);
       }
     } catch (err) {

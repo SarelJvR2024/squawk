@@ -44,6 +44,7 @@ const capture = src("components", "Capture.tsx");
 const detail = src("components", "CheckDetail.tsx");
 const field = src("app", "(app)", "field", "page.tsx");
 const shell = src("components", "AppShell.tsx");
+const capturePage = src("app", "(app)", "capture", "page.tsx");
 
 let failures = 0;
 const check = (name, cond, detailText = "") => {
@@ -110,8 +111,17 @@ check(
 
 check(
   "a transcript is only taken from the engine when it was allowed to run",
-  /transcript: \(dictationOn && dict\.transcript\.trim\(\)\) \|\| undefined,/.test(capture),
+  /transcript: \(dictationOn && transcriptRef\.current\.trim\(\)\) \|\| undefined,/.test(capture),
   "otherwise a stale transcript from a previous note could be stamped on this one"
+);
+
+check(
+  "that ref is read, never written, during render — it is kept current by an effect instead",
+  /const transcriptRef = useRef\(dict\.transcript\);/.test(capture) &&
+    /useEffect\(\(\) => \{\s*\n\s*transcriptRef\.current = dict\.transcript;\s*\n\s*\}, \[dict\.transcript\]\);/.test(
+      capture
+    ),
+  "writing a ref during render is exactly the stale-closure bug this file's own useRecorder fix (below) exists to avoid"
 );
 
 check(
@@ -349,6 +359,73 @@ check(
      after it ties the gate to the specific button this check is about, not
      to any onAccept gate anywhere later in the file. */
   /\{a\.transcript && \([\s\S]*?onAccept && \([\s\S]*?Use it, word for word/.test(capture)
+);
+
+/* ---- A RECORDING INTERRUPTED MID-NOTE IS FINALISED, NOT DROPPED — Sarel:
+ *  "make sure that voice recordings... are not lost when any compliance
+ *  buttons are captured or updated." Before this, the component holding a
+ *  live recording unmounting for any reason (the Checks screen re-keying
+ *  its detail pane onto a different check the instant the current one is
+ *  answered — the exact case Part 6 below closes off — a sheet closing, a
+ *  navigation) tore the microphone stream down bare: whatever audio had
+ *  already been captured via the recorder's periodic chunks never turned
+ *  into a blob, never reached putBlob, and the auditor had no way to know
+ *  it was gone. ------------------------------------------------------- */
+
+check(
+  "useRecorder takes a callback for a recording cut off by something other than Stop",
+  /export function useRecorder\(onInterrupted\?: \(result: RecorderResult\) => void\)/.test(media),
+  ""
+);
+
+check(
+  "that callback is read from a ref, not a dependency — a new function identity every render must not tear the recorder down mid-recording",
+  /const onInterruptedRef = useRef\(onInterrupted\);/.test(media) &&
+    /onInterruptedRef\.current = onInterrupted;/.test(media),
+  ""
+);
+
+check(
+  "the unmount effect finalises a still-running recorder exactly like a manual Stop, instead of only releasing the stream",
+  /if \(rec && rec\.state !== "inactive"\) \{\s*\n\s*rec\.onstop = \(\) => \{/.test(media) &&
+    /if \(blob\.size > 0\) onInterruptedRef\.current\?\.\(\{ blob, mimeType, durationSec \}\);/.test(media) &&
+    /rec\.stop\(\);\s*\n\s*\}\s*\n\s*cleanup\(\);/.test(media),
+  "cleanup() (which stops the tracks) must run AFTER rec.stop(), not before — stopping the mic first would cut off the final flush this depends on"
+);
+
+check(
+  "VoiceNoteButton wires that callback to the SAME save path a manual Stop uses, not a second thinner one",
+  /const finishRecording = useCallback\(/.test(capture) &&
+    /const rec = useRecorder\(\(result\) => \{/.test(capture) &&
+    /void finishRecording\(result\)\.catch/.test(capture) &&
+    /const result = await rec\.stop\(\);\s*\n\s*if \(result\) \{\s*\n\s*await finishRecording\(result\);/.test(
+      capture
+    ),
+  "a recording saved one way and a recording saved the other way must end up in the record the identical way"
+);
+
+/* ---- PART 6: THE SPECIFIC UNMOUNT THIS WAS WRITTEN FOR — answering a check
+ *  while a filter is applied used to swap which check the desk's detail pane
+ *  was showing, mid-tap, with nothing deliberate asked for. Sarel: "remove
+ *  the flow to automatically go to the next question... Don't remove the
+ *  flow" is not read literally, as the two sentences would otherwise
+ *  contradict each other — he is still keeping Save & next, ArrowRight and
+ *  Prev/Next (none of this touches `move()`); what goes is the SIDE EFFECT
+ *  below, which was never a deliberate "next" at all. ----------------- */
+
+check(
+  "the active check is looked up in the whole discipline's checks, not the currently filtered list",
+  /\(activeId \? deskChecks\.find\(\(c\) => c\.id === activeId\) : undefined\) \?\? visible\[0\];/.test(
+    capturePage
+  ),
+  "looking it up in `visible` was the bug: answering a check is often exactly what removes it from the current filter"
+);
+
+check(
+  "move() still steps through the filtered list for the deliberate Prev/Next/ArrowRight case, and no longer breaks when the active check has fallen outside it",
+  /const i = visible\.findIndex\(\(c\) => c\.id === active\.id\);/.test(capturePage) &&
+    /const next = i === -1 \? visible\[0\] : visible\[i \+ delta\];/.test(capturePage),
+  ""
 );
 
 /* ------------------------------------------------------------------ result */

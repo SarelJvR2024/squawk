@@ -135,7 +135,7 @@ check(
    field when the engine heard nothing. */
 check(
   "an absent transcript is left undefined rather than filled",
-  /transcript: \(dictationOn && dict\.transcript\.trim\(\)\) \|\| undefined,/.test(capture),
+  /transcript: \(dictationOn && transcriptRef\.current\.trim\(\)\) \|\| undefined,/.test(capture),
   "an empty transcript is a correct answer"
 );
 

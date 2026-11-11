@@ -140,9 +140,26 @@ function CaptureInner() {
      It also had a cost. Filtering a check out of view snapped `activeId` to the
      top of the list permanently, so clearing the filter left you at the top
      instead of back on the check you were working on. Now the id survives the
-     filter and the fallback is purely a display choice. */
+     filter and the fallback is purely a display choice.
+
+     LOOKED UP IN `deskChecks`, NOT `visible` — Sarel: "remove the flow to
+     automatically go to the next question... make sure that voice recordings
+     [are] not lost when any compliance buttons are captured or updated."
+     Answering a check is often exactly what moves it out of the current
+     filter (Save on the "Open" filter, a verdict on "NC"/"N/A"): looking the
+     active id up in the FILTERED list, with a fallback to its first row, used
+     to silently swap `active` to a different check the instant that happened
+     — the fallback firing was never a deliberate "go to the next question",
+     only this lookup choosing to treat "not in this filtered view right now"
+     the same as "nothing is open". `<CheckDetail key={active.id}>` below
+     remounts on that swap, and a voice note still recording in the one being
+     left behind is lost with it (see useRecorder's own `onInterrupted` note
+     in src/lib/media.ts for the other half of this fix). Reading `deskChecks`
+     instead keeps the SAME check on screen regardless of which filter is
+     applied; only an explicit Prev/Next, the ArrowRight/Left keys, or tapping
+     a different row ever changes it now. */
   const active: Check | undefined =
-    visible.find((c) => c.id === activeId) ?? visible[0];
+    (activeId ? deskChecks.find((c) => c.id === activeId) : undefined) ?? visible[0];
 
   /* Save & next walks the WHOLE discipline, not the open group — the tree
      decides what is on the screen, never what is next. So when the walk
@@ -168,7 +185,11 @@ function CaptureInner() {
   const move = (delta: number) => {
     if (!active) return;
     const i = visible.findIndex((c) => c.id === active.id);
-    const next = visible[i + delta];
+    /* `active` can now be a check the current filter has excluded (see its
+       own comment above) — there is no "it" to step forward or back from
+       inside `visible` in that case, so land on the first thing the filter
+       is actually showing rather than doing nothing or indexing negative. */
+    const next = i === -1 ? visible[0] : visible[i + delta];
     if (next) setActiveId(next.id);
   };
 
