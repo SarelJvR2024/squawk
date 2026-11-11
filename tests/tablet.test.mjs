@@ -427,13 +427,18 @@ check(
  *  audit check"; see tests/review.test.mjs), so it inherited the same
  *  exception for the same reason: CheckDetail is what scrolls, and a second
  *  `.app-scroll` wrapped around it here would be a second scroller for one
- *  scrollable thing. */
+ *  scrollable thing.
+ *
+ *  UPDATED again — /workspace (the consolidated capture tree, see its own
+ *  page header) is the same shape a third time: a tree rail with its own
+ *  `overflow-y-auto` plus CheckDetail on the right when a check is active.
+ *  Same reason, same exception. */
 const appDir = path.join(here, "..", "src", "app", "(app)");
 const screenDirs = fs
   .readdirSync(appDir, { withFileTypes: true })
   .filter((d) => d.isDirectory() && fs.existsSync(path.join(appDir, d.name, "page.tsx")))
   .map((d) => d.name)
-  .filter((name) => name !== "capture" && name !== "review");
+  .filter((name) => name !== "capture" && name !== "review" && name !== "workspace");
 const missingScroller = screenDirs.filter(
   (name) => !/app-scroll/.test(src("app", "(app)", name, "page.tsx"))
 );

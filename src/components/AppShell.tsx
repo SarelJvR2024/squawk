@@ -56,6 +56,7 @@ import {
   IconLoop,
   IconMore,
   IconPin,
+  IconPlus,
   IconSearch,
   IconTeam,
 } from "@/components/ui/icons";
@@ -182,6 +183,14 @@ const OFF_NAV: Record<string, string> = {
   "/isf": "Safety",
   "/review": "Review",
   "/preflight": "Pre-flight",
+  /* WORKSPACE — the consolidated capture tree, see its own page header for
+     why it exists and why it is additional rather than a replacement. In
+     the More menu for now, same "prove it before it earns a bar slot"
+     rollout /raise got before Checks/Inspection/Raise a finding/Asset
+     Assurance/HIRA/Follow-up/Dashboard's own eight-wide bar had room for a
+     ninth without reopening the mobile label-wrapping problem noted above
+     /findings's own NAV entry. */
+  "/workspace": "Capture (all)",
 };
 
 /** Hidden for now — Sarel, 5 October 2026: official O.R. Tambo work has
@@ -1034,6 +1043,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       hint="Where an engineer reads back what came in"
                       selected={pathname === "/review"}
                       onClick={() => { setMore(false); router.push("/review"); }}
+                    />
+                    {/* CAPTURE (ALL) — the new consolidated tree, see
+                        src/app/(app)/workspace/page.tsx's own header. */}
+                    <MoreItem
+                      icon={<IconPlus width={14} height={14} />}
+                      label="Capture (all)"
+                      hint="Every discipline, one Add button — trying this alongside Checks/Inspection/Raise a finding"
+                      selected={pathname === "/workspace"}
+                      onClick={() => { setMore(false); router.push("/workspace"); }}
                     />
                     {/* PRE-FLIGHT, added to this group a moment later than
                         Safety and Review — Sarel, on the same screenshot:
