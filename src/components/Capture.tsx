@@ -104,11 +104,18 @@ const TAP_INLINE =
  *  `className` override: Tailwind resolves two classes setting the same
  *  property by the order it emitted the underlying rules, not by the order
  *  they appear on the element, so `${TAP} h-[60px]` is not reliably taller
- *  than TAP — only a different base class is. `flex-1` so two of these
- *  side by side split the width evenly and read as the primary action on
- *  the screen, the way Photo/Voice note is meant to on this one. */
+ *  than TAP — only a different base class is. `flex-1` so two (now three)
+ *  of these side by side split the width evenly and read as the primary
+ *  action on the screen, the way Photo/Voice note is meant to on this one.
+ *
+ *  `px-[12px]` — Sarel: "make sure the text is nicely inside the boxes."
+ *  This had no horizontal padding at all: `justify-center` kept short text
+ *  clear of the border by luck of the width, not by design, and a label as
+ *  long as "Upload photo" wrapping to two lines had nothing holding it off
+ *  the rounded corners. Every other tap target in this file (`TAP`) already
+ *  carries its own `px-`; this one just never did. */
 const TAP_LARGE =
-  "inline-flex h-[60px] flex-1 items-center justify-center gap-[9px] rounded-[14px] border text-[14px] font-bold transition-[var(--t)] active:translate-y-[1px] disabled:opacity-40 disabled:cursor-not-allowed";
+  "inline-flex h-[60px] flex-1 items-center justify-center gap-[9px] rounded-[14px] border px-[12px] text-[14px] font-bold transition-[var(--t)] active:translate-y-[1px] disabled:opacity-40 disabled:cursor-not-allowed";
 
 /** What to say when this device cannot store a capture.
  *
