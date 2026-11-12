@@ -34,7 +34,7 @@
  *  EVIDENCE REQUESTS ARE NOT IN THIS PASS. They are the one piece of the
  *  original brief with no existing record to reuse (see
  *  docs/capture-review/discovery.md §4) — a real, separate addition, not a
- *  UI consolidation, and btuilding it into this screen's Add menu before it
+ *  UI consolidation, and building it into this screen's Add menu before it
  *  has a record of its own would be a button that does nothing. Phase 2. */
 
 import { useEffect, useMemo, useState } from "react";
@@ -59,7 +59,17 @@ import type { AdHocItem, Check, Compliance } from "@/lib/types";
 type AddTarget =
   | { level: "discipline"; discipline: string }
   | { level: "system"; discipline: string; system: string }
-  | { level: "check"; check: Check };
+  | { level: "check"; check: Check }
+  | { level: "unassigned" };
+
+/** Same string /field uses for the same reason — AdHocItem.discipline is
+ *  explicitly nullable ("null is a real answer", see its own doc comment in
+ *  types.ts), and /field never hides such an item behind its own
+ *  NO_DISCIPLINE bucket. This tree is discipline-rooted, so it needs the
+ *  same bucket or an unattributed item would count toward nothing and be
+ *  unreachable from here — the independent review that caught this put it
+ *  plainly: "a real miscount, not just a missing feature". */
+const NO_DISCIPLINE = "No discipline recorded";
 
 const STORAGE_KEY = "squawk.workspace.expanded";
 
@@ -97,7 +107,12 @@ function tally(checks: Check[], responses: ReturnType<typeof useResponses>, adho
   }
   for (const a of adhoc) {
     if (a.outcome === "NC") nc++;
-    else if (a.description.trim()) obs++;
+    /* `a.description` is required (AddItemSheet refuses to save a blank
+       one) and therefore always truthy — unlike a check's `observation`,
+       it says nothing about whether this item has been verdicted. Only an
+       item with NO outcome at all is an unresolved observation; one marked
+       C, N/A or NV is a closed question, not one still sitting as a note. */
+    else if (a.outcome == null && a.description.trim()) obs++;
   }
   return { nc, obs };
 }
@@ -127,6 +142,12 @@ export default function WorkspacePage() {
   const [activeCheck, setActiveCheck] = useState<Check | null>(null);
   const [addTarget, setAddTarget] = useState<AddTarget | null>(null);
   const [addMenuFor, setAddMenuFor] = useState<string | null>(null);
+  /** Reopening an EXISTING unassigned walk item for editing — see the
+     NO_DISCIPLINE bucket below. Separate from addTarget, which is only ever
+     a fresh draft. */
+  const [editingItem, setEditingItem] = useState<AdHocItem | null>(null);
+
+  const unassigned = useMemo(() => adhocAll.filter((a) => !a.discipline), [adhocAll]);
 
   const findingsOn = (checkId: string) => findings.filter((f) => f.checkId === checkId);
 
@@ -310,6 +331,66 @@ export default function WorkspacePage() {
             );
           })}
 
+          {/* NO_DISCIPLINE — a walk item is never required to carry one (see
+              AdHocItem.discipline's own doc comment: "null is a real
+              answer"), and this tree is discipline-rooted. Without this
+              bucket such an item matched no row at all: invisible, and its
+              own Non-compliance never counted toward anything, anywhere on
+              this screen. /field never hides one behind its own equivalent
+              bucket; this doesn't either. */}
+          {unassigned.length > 0 && (!q || matches(NO_DISCIPLINE)) && (
+            <div data-discipline={NO_DISCIPLINE}>
+              <div
+                className="flex items-center gap-[7px] border-b px-[10px] py-[8px]"
+                style={{ borderColor: "var(--line)", background: "var(--panel-2)" }}
+              >
+                <button
+                  onClick={() => toggle(NO_DISCIPLINE)}
+                  aria-expanded={expanded.has(NO_DISCIPLINE) || !!q}
+                  aria-label={`${expanded.has(NO_DISCIPLINE) ? "Collapse" : "Expand"} ${NO_DISCIPLINE}`}
+                  className="font-mono text-[9px]"
+                  style={{ color: "var(--ink-4)" }}
+                >
+                  {expanded.has(NO_DISCIPLINE) || q ? "▼" : "▶"}
+                </button>
+                <b className="min-w-0 flex-1 truncate text-[12.5px]" style={{ color: "var(--ink-3)" }}>
+                  {NO_DISCIPLINE}
+                </b>
+                {(() => {
+                  const { nc, obs } = tally([], responses, unassigned);
+                  return (
+                    <>
+                      {nc > 0 && <Pill tone="bad">{nc} NC</Pill>}
+                      {obs > 0 && <Pill tone="neutral">{obs} Obs</Pill>}
+                    </>
+                  );
+                })()}
+                <AddButton
+                  label={`Add to ${NO_DISCIPLINE}`}
+                  menuOpen={addMenuFor === NO_DISCIPLINE}
+                  onOpen={() => setAddMenuFor(addMenuFor === NO_DISCIPLINE ? null : NO_DISCIPLINE)}
+                  onPick={(kind) => openAdd({ level: "unassigned" }, kind)}
+                />
+              </div>
+
+              {(expanded.has(NO_DISCIPLINE) || !!q) &&
+                unassigned.map((a) => (
+                  <button
+                    key={a.id}
+                    data-walk-item={a.id}
+                    onClick={() => setEditingItem(a)}
+                    className="flex w-full items-center gap-[7px] border-b py-[7px] pr-[10px] pl-[26px] text-left"
+                    style={{ borderColor: "var(--line)" }}
+                  >
+                    <span className="min-w-0 flex-1 truncate text-[11.5px]">
+                      {a.description || "(no description)"}
+                    </span>
+                    {a.outcome === "NC" && <Pill tone="bad">NC</Pill>}
+                  </button>
+                ))}
+            </div>
+          )}
+
           {disciplines.every((d) => q && !matches(d) && !systemsOf(entityCode, d).some((s) => matches(s))) &&
             q && (
               <Empty>
@@ -338,11 +419,16 @@ export default function WorkspacePage() {
       )}
 
       <AddItemSheet
-        open={!!addTarget}
-        onClose={() => setAddTarget(null)}
-        editing={null}
+        open={!!addTarget || !!editingItem}
+        onClose={() => {
+          setAddTarget(null);
+          setEditingItem(null);
+        }}
+        editing={editingItem}
         presetDiscipline={
-          addTarget && addTarget.level !== "check" ? addTarget.discipline : null
+          addTarget && (addTarget.level === "discipline" || addTarget.level === "system")
+            ? addTarget.discipline
+            : null
         }
         presetSystem={addTarget && addTarget.level === "system" ? addTarget.system : null}
         presetOutcome={addOutcome}

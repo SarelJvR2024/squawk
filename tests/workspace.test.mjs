@@ -156,5 +156,58 @@ check(
   "this pass adds a new screen alongside them — it does not rewrite or link to the ones it may one day replace"
 );
 
+/* ---- 8 · a verdicted (not just blank) walk item never counts as "Obs" ---- */
+
+/* An independent review caught this: AdHocItem.description is required
+   (AddItemSheet refuses to save a blank one), so a bare `a.description.trim()`
+   check is always true and silently counted a Compliant/N/A/Not-verified walk
+   item as an open "Observation" too — a wrong number an auditor is meant to
+   trust at a glance. */
+
+check(
+  "the adhoc half of tally() only counts an Observation when there is NO outcome at all, not merely when there is text",
+  /else if \(a\.outcome == null && a\.description\.trim\(\)\) obs\+\+;/.test(page)
+);
+
+check(
+  "the old, buggy 'any description counts' condition is gone",
+  !/else if \(a\.description\.trim\(\)\) obs\+\+;/.test(page)
+);
+
+/* ---- 9 · an unattributed walk item is never invisible or uncounted ------- */
+
+/* The same review: AdHocItem.discipline is explicitly nullable ("null is a
+   real answer"), this tree is discipline-rooted, and without a bucket for it
+   such an item matched no row — silently dropped from every count and
+   unreachable from this screen, exactly the gap /field's own NO_DISCIPLINE
+   bucket exists to avoid. */
+
+check(
+  "the same NO_DISCIPLINE string /field already uses, not a second name for the same bucket",
+  /const NO_DISCIPLINE = "No discipline recorded";/.test(page)
+);
+
+check(
+  "unassigned walk items are computed straight off AdHocItem.discipline, not guessed",
+  /const unassigned = useMemo\(\(\) => adhocAll\.filter\(\(a\) => !a\.discipline\), \[adhocAll\]\);/.test(
+    page
+  )
+);
+
+check(
+  "the bucket's own tally is computed the same way every other row's is — no checks, just its unassigned items",
+  /tally\(\[\], responses, unassigned\)/.test(page)
+);
+
+check(
+  "the bucket has its own Add button, reaching the same openAdd/AddItemSheet path every other row uses",
+  /onPick=\{\(kind\) => openAdd\(\{ level: "unassigned" \}, kind\)\}/.test(page)
+);
+
+check(
+  "an existing unassigned item can be reopened for editing, not just added to blindly",
+  /onClick=\{\(\) => setEditingItem\(a\)\}/.test(page) && /editing=\{editingItem\}/.test(page)
+);
+
 console.log(failures === 0 ? "\nWORKSPACE OK" : `\n${failures} FAILURE${failures > 1 ? "S" : ""}`);
 process.exit(failures === 0 ? 0 : 1);
