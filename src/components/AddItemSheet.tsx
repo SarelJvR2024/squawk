@@ -41,6 +41,16 @@ export default function AddItemSheet({
   /** What the list is filtered to right now, if anything. */
   presetDiscipline,
   presetArea,
+  /** Set together with presetDiscipline by a caller that already knows which
+   *  asset system this is for (the Capture workspace's own tree, tapping "+"
+   *  on an asset-system row) — the existing chip search still lets the
+   *  auditor change it, same as presetDiscipline always could. */
+  presetSystem,
+  /** Set by a caller that already knows which of the three the auditor meant
+   *  (the Capture workspace's own Add menu asks Observation/Non-compliance
+   *  up front) so OutcomeControl opens on that answer rather than unset —
+   *  still just a starting value, still freely changed inside the sheet. */
+  presetOutcome,
   onSaved,
 }: {
   open: boolean;
@@ -49,6 +59,8 @@ export default function AddItemSheet({
   editing: AdHocItem | null;
   presetDiscipline?: string | null;
   presetArea?: string | null;
+  presetSystem?: string | null;
+  presetOutcome?: Compliance | null;
   onSaved?: (id: string, message: string) => void;
 }) {
   const entityCode = useEntityCode();
@@ -95,9 +107,9 @@ export default function AddItemSheet({
   }>({
     description: "",
     discipline: presetDiscipline ?? null,
-    system: null,
+    system: presetSystem ?? null,
     area: presetArea ?? "",
-    outcome: null,
+    outcome: presetOutcome ?? null,
     note: "",
   });
   const [systemQuery, setSystemQuery] = useState("");
@@ -160,9 +172,9 @@ export default function AddItemSheet({
     setDraft({
       description: "",
       discipline: presetDiscipline ?? null,
-      system: null,
+      system: presetSystem ?? null,
       area: presetArea ?? "",
-      outcome: null,
+      outcome: presetOutcome ?? null,
       note: "",
     });
     onClose();
