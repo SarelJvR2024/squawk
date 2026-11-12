@@ -39,14 +39,30 @@ export function FlowStepper({ current, className = "" }: { current: string; clas
       aria-label="Where this screen sits in the audit flow"
     >
       {prev ? (
-        <Link
-          href={prev.href}
-          title={`Back to ${prev.label}`}
-          className="shrink-0 -my-[13px] -mx-2 inline-flex items-center px-2 py-[13px] no-underline hover:underline"
-          style={{ color: "var(--ink-3)" }}
-        >
-          ‹ {prev.label}
-        </Link>
+        <>
+          <Link
+            href={prev.href}
+            title={`Back to ${prev.label}`}
+            className="shrink-0 -my-[13px] -mx-2 inline-flex items-center px-2 py-[13px] no-underline hover:underline"
+            style={{ color: "var(--ink-3)" }}
+          >
+            ‹ {prev.label}
+          </Link>
+          {/* A VISIBLE SEPARATOR, not just the flex gap either side of it —
+              review-risk-fields addendum §1: Sarel, 12 Nov 2026, on this
+              exact breadcrumb: "runs together — add separators and
+              spacing." The links either side carry their own negative
+              margin (`-mx-2`, so the 44px tap target does not visually push
+              the text it wraps) and that margin was eating the `gap-[6px]`
+              between flex children, so "‹ Inspection" and "Step 3 of 7 ·
+              Review" sat close enough to read as one run of words. A
+              separator with its own ordinary margin holds its space
+              regardless of what the tap-target trick either side of it
+              does. */}
+          <span aria-hidden className="shrink-0 px-[2px] opacity-50">
+            ·
+          </span>
+        </>
       ) : (
         <span aria-hidden className="shrink-0 opacity-0">
           ‹
@@ -57,14 +73,19 @@ export function FlowStepper({ current, className = "" }: { current: string; clas
         <b style={{ color: "var(--ink-2)" }}>{step.label}</b>
       </span>
       {next && (
-        <Link
-          href={next.href}
-          title={`Next: ${next.label}`}
-          className="shrink-0 -my-[13px] -mx-2 inline-flex items-center px-2 py-[13px] no-underline hover:underline"
-          style={{ color: "var(--ink-3)" }}
-        >
-          {next.label} ›
-        </Link>
+        <>
+          <span aria-hidden className="shrink-0 px-[2px] opacity-50">
+            ·
+          </span>
+          <Link
+            href={next.href}
+            title={`Next: ${next.label}`}
+            className="shrink-0 -my-[13px] -mx-2 inline-flex items-center px-2 py-[13px] no-underline hover:underline"
+            style={{ color: "var(--ink-3)" }}
+          >
+            {next.label} ›
+          </Link>
+        </>
       )}
     </div>
   );

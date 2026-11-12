@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Hundred suites, no framework. Thirteen need a running server; eighty-seven do not.
+Hundred-and-one suites, no framework. Thirteen need a running server; eighty-eight do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -57,12 +57,12 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `carryforward.test.mjs` | no | 58 |
 | `crosswalk.test.mjs` | no | 13 |
 | `faor-import.test.mjs` | no | 28 |
-| `faor-import-other-disciplines.test.mjs` | no | 26 |
+| `faor-import-other-disciplines.test.mjs` | no | 25 |
 | `sync-coverage.test.mjs` | no | 27 |
 | `review.test.mjs` | no | 41 |
 | `reviewcompliance.test.mjs` | no | 7 |
 | `syncwatermark.test.mjs` | no | 14 |
-| `tablet.test.mjs` | no | 46 |
+| `tablet.test.mjs` | no | 47 |
 | `refresh.test.mjs` | no | 10 |
 | `portals.test.mjs` | no | 32 |
 | `reset.test.mjs` | no | 21 |
@@ -81,6 +81,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `attendanceregister.test.mjs` | no | 66 |
 | `suite-table.test.mjs` | no | 5 |
 | `reviewfields.test.mjs` | no | 20 |
+| `review-risk-fields.test.mjs` | no | 35 |
 | `evidencepending.test.mjs` | no | 31 |
 | `evidencestatus.test.mjs` | no | 23 |
 | `evidenceverdict.test.mjs` | no | 10 |
@@ -126,8 +127,8 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `evidence.test.mjs` | no | 80 |
 | `toolbox.test.mjs` | no | 35 |
 | `incident.test.mjs` | no | 41 |
-| `import-pack.test.mjs` | no | 63 |
-| `ortia-v3-pack.test.mjs` | no | 84 |
+| `import-pack.test.mjs` | no | 62 |
+| `ortia-v3-pack.test.mjs` | no | 83 |
 | `sheet.test.mjs` | no | 17 |
 | `exports.test.mjs` | no | 23 |
 | `field-wide-detail.test.mjs` | no | 15 |
@@ -151,7 +152,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,858 assertions in total**, every count above verified by running the suite,
+**3,891 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —

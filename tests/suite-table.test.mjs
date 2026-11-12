@@ -62,6 +62,7 @@ const NEEDS_ALIAS = new Set([
   "progress-restore.test.mjs",
   "compliancefinding.test.mjs",
   "summary-discipline-coverage.test.mjs",
+  "review-risk-fields.test.mjs",
 ]);
 /* graph.test.mjs ALSO needs --experimental-transform-types: GraphError's
    constructor uses TS parameter properties, which Node's type-stripping
@@ -167,6 +168,13 @@ const WORDS = {
   "ninety-one": 91, "ninety-two": 92, "ninety-three": 93, "ninety-four": 94,
   "ninety-five": 95, "ninety-six": 96, "ninety-seven": 97, "ninety-eight": 98, "ninety-nine": 99,
   hundred: 100,
+  /* review-risk-fields.test.mjs's own row pushed the table past 100 rows.
+     English does not hyphenate "a hundred and one" as one word; this file's
+     opening-line regex requires one (`\S+`), so this is the one entry in
+     this table that is a convention for THIS FILE rather than standard
+     English — same trade tablet.test.mjs's own arbitrary-value breakpoints
+     make for a nav bar's one callsite. */
+  "hundred-and-one": 101,
   "thirty-seven": 37,
   "twenty-four": 24, "twenty-five": 25, "twenty-six": 26,
   "twenty-seven": 27, "twenty-eight": 28, "twenty-nine": 29,

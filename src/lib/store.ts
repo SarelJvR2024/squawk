@@ -150,13 +150,10 @@ export function responsibleFor(entityCode: string): string[] {
   ];
 }
 
-export const ROOT_CAUSES = [
-  "Maintenance backlog",
-  "Documentation gap",
-  "Design / original installation",
-  "Resourcing / staffing",
-  "Other",
-];
+/** Moved to riskVocab.ts (see its own header) so a pure module can read it
+ *  without importing this whole file. Re-exported here, unchanged, so every
+ *  existing `import { ROOT_CAUSES } from "@/lib/store"` keeps working. */
+export { ROOT_CAUSES } from "./riskVocab";
 
 /* ---------- scope ----------
 
@@ -4153,7 +4150,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 39,
+      version: 40,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -4902,6 +4899,24 @@ export const useStore = create<State>()(
           st.findings = st.findings.map((f) => ({
             ...f,
             attachments: f.attachments ?? [],
+          }));
+        }
+        if (from < 40 && Array.isArray(st.findings)) {
+          /* Review risk-fields addendum — see docs/capture-review/
+             review-risk-fields-discovery.md. Both new multi-selects
+             backfill to an empty array, same reasoning as attachments'
+             own v39 migration just above: a finding captured before this
+             existed has not had either question asked of it yet, and an
+             empty array is the honest read, not a gap to guess at.
+             `rootCauseNote` and `rootCauseConfirmed` are left genuinely
+             absent (undefined) rather than "" / false — both are already
+             optional and every reader treats absent as "nothing written
+             yet" / "not confirmed", so writing an explicit empty value here
+             would say nothing an absent field does not already say. */
+          st.findings = st.findings.map((f) => ({
+            ...f,
+            rootCauseCategories: f.rootCauseCategories ?? [],
+            impactAreas: f.impactAreas ?? [],
           }));
         }
         return st;

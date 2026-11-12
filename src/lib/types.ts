@@ -964,6 +964,53 @@ export interface Finding {
    *  still shown, as itself — see assetsById(). */
   assetIds?: string[];
   rootCause: string;
+  /** REVIEW-ONLY RISK CATEGORISATION — added for the Review risk-fields
+   *  addendum (see docs/capture-review/review-risk-fields-discovery.md).
+   *  Severity, likelihood and ratingConfirmed above already existed and are
+   *  unchanged; these three are the genuinely new fields, and all three are
+   *  edited on /review only — Capture, Field, Raise-a-finding and Workspace
+   *  must never render them (the addendum: "Capture page shows none of
+   *  these fields").
+   *
+   *  Optional and absent-means-empty, same convention as attachments got
+   *  when it was added: a finding raised before this existed, or raised
+   *  from any capture surface, simply has none yet — no migration needed to
+   *  read it, see v40 in store.ts for the one that backfills it anyway so
+   *  every persisted finding carries the same shape.
+   *
+   *  `rootCauseCategories` DELIBERATELY REUSES ROOT_CAUSES (src/lib/
+   *  riskVocab.ts) rather than the addendum's own root-cause-category list
+   *  (Maintenance, People & training, Procedure, Equipment & design,
+   *  Resources, Oversight, External) — that list is marked PROVISIONAL in
+   *  the addendum itself and does not match the vocabulary this app
+   *  already uses for the exact same question elsewhere (RecordActions'
+   *  root-cause chips, RootCauseNote.cause). Flagged for Sarel rather than
+   *  shipping a second, conflicting root-cause vocabulary; see the
+   *  discovery note. Multi-select, zero or more. */
+  rootCauseCategories?: string[];
+  /** The addendum's "Impact areas" — IMPACT_AREAS in riskVocab.ts,
+   *  verbatim from the addendum and NOT provisional. Multi-select, zero or
+   *  more; one finding with two impact areas counts once in each on the
+   *  roll-up (reviewRisk.ts's countByMultiSelect). */
+  impactAreas?: string[];
+  /** The addendum's "Root cause notes" — "Possible root cause /
+   *  contributing factor", free text. DELIBERATELY NOT the same field as
+   *  `rootCause` above: that field is a SINGLE category chosen from
+   *  ROOT_CAUSES (RecordActions' chip row sets it to exactly one of that
+   *  list, and findingContext() in assist.ts reads it as "Root cause
+   *  selected: …" — a selection, not a note), and `rootCauseCategories`
+   *  just above is now its multi-select successor for the same question.
+   *  Overloading `rootCause` with free text here would have made one field
+   *  mean two different things depending which screen last wrote it —
+   *  exactly the kind of drift this codebase's own comments elsewhere warn
+   *  against. This is a new, separate field, scoped to /review. See the
+   *  discovery note for the full reasoning. */
+  rootCauseNote?: string;
+  /** The addendum's "Confirmed-with-airport toggle" on the root cause note
+   *  above — default off (absent reads as false, same as every other
+   *  boolean in this app that defaults to "no" by omission). Independent of
+   *  `ratingConfirmed`, which gates severity/likelihood only. */
+  rootCauseConfirmed?: boolean;
   /** Plural — see MitigatingAction. */
   actions: MitigationAction[];
   /** Dated, attributed updates on the remediation.
