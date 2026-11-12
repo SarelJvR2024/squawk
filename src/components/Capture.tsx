@@ -11,6 +11,7 @@
  *  while talking is not a thing anyone manages one-handed. */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import {
   delBlob,
   extensionFor,
@@ -39,7 +40,17 @@ import { useDictationEnabled, useEntityCode, useStore } from "@/lib/store";
 import { useRecordStore } from "@/lib/sync";
 import { fullPhotoBlob } from "@/lib/recordimage";
 import type { Attachment } from "@/lib/types";
-import { IconCamera, IconCheck, IconDownload, IconEdit, IconMic, IconPaperclip, IconSpark, IconX } from "./ui/icons";
+import {
+  IconCamera,
+  IconCheck,
+  IconDownload,
+  IconEdit,
+  IconMic,
+  IconPaperclip,
+  IconSpark,
+  IconUpload,
+  IconX,
+} from "./ui/icons";
 import { Pill } from "./ui/primitives";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -392,6 +403,7 @@ export function PhotoButton({
   className = "",
   inline = false,
   large = false,
+  fromLibrary = false,
 }: {
   onCaptured: (m: PhotoCapture) => void;
   compact?: boolean;
@@ -407,77 +419,103 @@ export function PhotoButton({
   /** 60px and flex-1 — see TAP_LARGE's own doc comment. Takes priority over
    *  `inline`. */
   large?: boolean;
+  /** Sarel, on Raise a finding: "upload a photo... already on the phone...
+   *  select a photo from my gallery." `capture="environment"` below sends a
+   *  phone straight to its camera app with no way back to an existing photo
+   *  — correct for "take one now," wrong for "I already have one." This is
+   *  the same input and the same preparePhoto/putBlob pipeline, just without
+   *  that attribute, so the OS shows its own picker (Photos/gallery) instead
+   *  of opening the camera. Everything stored is identical either way: a
+   *  `kind: "photo"` attachment is a `kind: "photo"` attachment regardless
+   *  of which picker handed it over. */
+  fromLibrary?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const entityCode = useEntityCode();
   const [failed, setFailed] = useState<string | null>(null);
 
+  /* Shared by both inputs below — the camera one and the gallery one store an
+     identical PhotoCapture either way, so the only difference between them is
+     whether `capture="environment"` is present, never this logic. */
+  const handlePhotoFiles = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    /* Let the same photograph be picked/taken twice in a row — without this
+       the input holds the previous value and fires nothing. */
+    e.target.value = "";
+    let stored = 0;
+    const lost: string[] = [];
+    for (const file of files) {
+      try {
+        /* Downscaled and re-encoded before it is stored. A phone photo is
+           4-12 MB as taken; twenty of those fill the tablet's quota and
+           the audit stops mid-morning. See preparePhoto in
+           src/lib/media.ts. */
+        const prepared = await preparePhoto(file);
+        const blobKey = `photo-${uid()}`;
+        await putBlob(blobKey, prepared.blob);
+        onCaptured({
+          kind: "photo",
+          name: file.name || `${entityCode}-photo.${extensionFor(prepared.mimeType)}`,
+          blobKey,
+          mimeType: prepared.mimeType,
+          thumbDataUrl: prepared.thumbDataUrl || undefined,
+          width: prepared.width || undefined,
+          height: prepared.height || undefined,
+          bytes: prepared.bytes,
+          takenAt: prepared.takenAt ?? undefined,
+          /* Deliberately empty. An uncaptioned photograph reads as
+             incomplete until a person says what it shows. */
+          caption: "",
+        });
+        stored++;
+      } catch (err) {
+        /* PER FILE, and the loop goes on. Selecting eight photographs and
+           having the second one fail used to abort the rest as well — six
+           more photographs of a defect gone, with nothing said. */
+        lost.push(file.name || "a photograph");
+        setFailed(whyItFailed(err));
+      }
+    }
+    /* One clear line when SOME got through, because "3 stored, 2 not" is
+       the only version of this an auditor can act on. When none did, the
+       message from the catch already says why, and saying "0 stored" over
+       the top of it would be noise. */
+    if (lost.length && stored > 0) {
+      setFailed(
+        `${stored} stored, ${lost.length} NOT stored (${lost.join(", ")}). ` +
+          "Open Export, download this audit's photographs, then clear them and take these again."
+      );
+    } else if (!lost.length) {
+      setFailed(null);
+    }
+  };
+
   return (
     <>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        multiple
-        onChange={async (e) => {
-          const files = Array.from(e.target.files ?? []);
-          /* Let the same photograph be taken twice in a row — without this the
-             input holds the previous value and fires nothing. */
-          e.target.value = "";
-          let stored = 0;
-          const lost: string[] = [];
-          for (const file of files) {
-            try {
-              /* Downscaled and re-encoded before it is stored. A phone photo is
-                 4-12 MB as taken; twenty of those fill the tablet's quota and
-                 the audit stops mid-morning. See preparePhoto in
-                 src/lib/media.ts. */
-              const prepared = await preparePhoto(file);
-              const blobKey = `photo-${uid()}`;
-              await putBlob(blobKey, prepared.blob);
-              onCaptured({
-                kind: "photo",
-                name: file.name || `${entityCode}-photo.${extensionFor(prepared.mimeType)}`,
-                blobKey,
-                mimeType: prepared.mimeType,
-                thumbDataUrl: prepared.thumbDataUrl || undefined,
-                width: prepared.width || undefined,
-                height: prepared.height || undefined,
-                bytes: prepared.bytes,
-                takenAt: prepared.takenAt ?? undefined,
-                /* Deliberately empty. An uncaptioned photograph reads as
-                   incomplete until a person says what it shows. */
-                caption: "",
-              });
-              stored++;
-            } catch (err) {
-              /* PER FILE, and the loop goes on. Selecting eight photographs and
-                 having the second one fail used to abort the rest as well — six
-                 more photographs of a defect gone, with nothing said. */
-              lost.push(file.name || "a photograph");
-              setFailed(whyItFailed(err));
-            }
-          }
-          /* One clear line when SOME got through, because "3 stored, 2 not" is
-             the only version of this an auditor can act on. When none did, the
-             message from the catch already says why, and saying "0 stored" over
-             the top of it would be noise. */
-          if (lost.length && stored > 0) {
-            setFailed(
-              `${stored} stored, ${lost.length} NOT stored (${lost.join(", ")}). ` +
-                "Open Export, download this audit's photographs, then clear them and take these again."
-            );
-          } else if (!lost.length) {
-            setFailed(null);
-          }
-        }}
-      />
+      {fromLibrary ? (
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          multiple
+          onChange={handlePhotoFiles}
+        />
+      ) : (
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          multiple
+          onChange={handlePhotoFiles}
+        />
+      )}
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        aria-label={label ?? "Take a photograph"}
+        aria-label={label ?? (fromLibrary ? "Upload a photo from your gallery" : "Take a photograph")}
         className={`${inline ? TAP_INLINE : large ? TAP_LARGE : TAP} ${className}`}
         style={
           primary
@@ -494,8 +532,12 @@ export function PhotoButton({
               }
         }
       >
-        <IconCamera width={large ? 20 : 15} height={large ? 20 : 15} />
-        {compact || inline ? null : (label ?? "Photo")}
+        {fromLibrary ? (
+          <IconUpload width={large ? 20 : 15} height={large ? 20 : 15} />
+        ) : (
+          <IconCamera width={large ? 20 : 15} height={large ? 20 : 15} />
+        )}
+        {compact || inline ? null : (label ?? (fromLibrary ? "Upload photo" : "Photo"))}
       </button>
       {failed && (
         /* Kept until the next capture succeeds rather than flashed for two
