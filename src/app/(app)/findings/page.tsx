@@ -594,7 +594,7 @@ function FindingsPageInner() {
       <div className="mx-auto flex w-full max-w-[1240px] flex-col px-4 pt-3 pb-16 sm:px-6 lg:min-h-0 lg:flex-1 lg:pb-3">
         <div
           ref={barRef}
-          className="sticky top-0 z-10 -mx-4 mb-1.5 shrink-0 border-b px-4 py-[4px] sm:-mx-6 sm:px-6 sm:py-[5px]"
+          className="sticky top-0 z-10 -mx-4 mb-1 shrink-0 border-b px-4 py-[4px] sm:-mx-6 sm:px-6 sm:py-[5px]"
           style={{ background: "var(--bg)", borderColor: "var(--line)" }}
         >
           {/* THREE ROWS, EACH A DIFFERENT KIND OF CONTROL — overnight
@@ -685,7 +685,7 @@ function FindingsPageInner() {
               which is how it ended up at 240px wide (and easy to miss) on
               a desk-width window and cramped on a phone. */}
           <div
-            className="mt-2 flex min-w-0 items-center gap-2 rounded-[11px] border px-3 py-[6px]"
+            className="mt-1.5 flex min-w-0 items-center gap-2 rounded-[11px] border px-3 py-[6px]"
             style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
           >
             <IconSearch width={14} height={14} className="shrink-0" style={{ color: "var(--ink-3)" }} />
@@ -1103,12 +1103,19 @@ function FindingsPageInner() {
               style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "var(--e2)" }}
             >
               <div
-                className="rounded-t-[16px] px-[18px] pt-[18px] pb-3 lg:sticky lg:top-0 lg:z-10 lg:shrink-0 lg:border-b"
+                /* COMPACTED, at Sarel's explicit request — "the top third of
+                   the screen stays stuck... minimize open space and allow me
+                   to scroll down and have more space on the right-hand
+                   panel." This block still pins (that choice stands, per the
+                   note above); what changed is only how much of the panel it
+                   takes to do it — tighter padding and margins throughout,
+                   same content, same order. */
+                className="rounded-t-[16px] px-[18px] pt-3 pb-2 lg:sticky lg:top-0 lg:z-10 lg:shrink-0 lg:border-b"
                 style={{ background: "var(--panel)", borderColor: "var(--line)" }}
               >
                 {backBtn}
                 <div
-                  className="mb-1.5 flex flex-wrap items-center gap-[7px] font-mono text-[10px]"
+                  className="mb-1 flex flex-wrap items-center gap-[7px] font-mono text-[10px]"
                   style={{ color: "var(--ink-3)" }}
                 >
                   <span>{active.discipline}</span>
@@ -1128,7 +1135,7 @@ function FindingsPageInner() {
                     and typing either by hand is how a register ends up with a Red
                     system whose strategy says "monitor". */}
                 <div
-                  className="mb-2 rounded-[11px] border px-3 py-[7px]"
+                  className="mb-1.5 rounded-[11px] border px-3 py-[6px]"
                   style={{
                     /* The band's surface, off the tone tokens the whole app
                        shares. BAND_META carries a tone, not colours — the colours
