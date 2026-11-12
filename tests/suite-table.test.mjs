@@ -63,6 +63,7 @@ const NEEDS_ALIAS = new Set([
   "compliancefinding.test.mjs",
   "summary-discipline-coverage.test.mjs",
   "review-risk-fields.test.mjs",
+  "review-table-v2.test.mjs",
 ]);
 /* graph.test.mjs ALSO needs --experimental-transform-types: GraphError's
    constructor uses TS parameter properties, which Node's type-stripping
@@ -175,6 +176,7 @@ const WORDS = {
      English — same trade tablet.test.mjs's own arbitrary-value breakpoints
      make for a nav bar's one callsite. */
   "hundred-and-one": 101,
+  "hundred-and-two": 102,
   "thirty-seven": 37,
   "twenty-four": 24, "twenty-five": 25, "twenty-six": 26,
   "twenty-seven": 27, "twenty-eight": 28, "twenty-nine": 29,

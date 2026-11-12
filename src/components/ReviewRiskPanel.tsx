@@ -23,8 +23,18 @@
  *  definition or a band label, for the same reason risk.ts's own header
  *  explains at length. */
 
+import { useRouter } from "next/navigation";
 import { LIKELIHOOD_DEF, LIKELIHOODS, SEVERITIES, SEVERITY_DEF, BAND_META, bandFor } from "@/lib/risk";
-import { IMPACT_AREAS, ROOT_CAUSES, priorityFor, toggleMulti } from "@/lib/reviewRisk";
+import {
+  FINDING_TYPE_LABEL,
+  IMPACT_AREAS,
+  ROOT_CAUSES,
+  findingTypeFor,
+  priorityFor,
+  toggleMulti,
+} from "@/lib/reviewRisk";
+import { TRACKING_LABEL, trackingStage } from "@/lib/evidence";
+import { useStore, useEvidenceItems } from "@/lib/store";
 import RatingPicker from "@/components/RatingPicker";
 import { Chip, Pill } from "@/components/ui/primitives";
 import type { Finding, Likelihood, Severity } from "@/lib/types";
@@ -38,6 +48,7 @@ export type RiskPatch = Pick<
   | "rootCauseCategories"
   | "rootCauseNote"
   | "rootCauseConfirmed"
+  | "findingType"
 >;
 
 export default function ReviewRiskPanel({
@@ -50,9 +61,25 @@ export default function ReviewRiskPanel({
   onChange: (patch: Partial<RiskPatch>) => void;
 }) {
   const priority = priorityFor(finding);
+  const type = findingTypeFor(finding);
 
   return (
     <div>
+      {/* 0 — the Type tag. GENUINELY NEW (see
+          docs/capture-review/review-table-v2-discovery.md §2): neither
+          issueIndex nor adHoc says whether this is a rule violation or a
+          milder observation, so this is a real choice for the auditor,
+          defaulting to Non-compliance — see findingTypeFor's own doc
+          comment for why. */}
+      <div className="mb-2 font-display text-[11px] font-semibold">Type</div>
+      <div className="mb-3.5 flex gap-[6px]">
+        {(["non-compliance", "observation"] as const).map((t) => (
+          <Chip key={t} selected={type === t} onClick={() => onChange({ findingType: t })}>
+            {FINDING_TYPE_LABEL[t]}
+          </Chip>
+        ))}
+      </div>
+
       <div className="mb-2 font-display text-[11px] font-semibold">Risk</div>
 
       {/* 1 & 2 — Severity, then Likelihood. Same control, same vocabulary,
@@ -161,7 +188,100 @@ export default function ReviewRiskPanel({
           <Pill tone="neutral">Not confirmed</Pill>
         )}
       </label>
+
+      <EvidenceSection finding={finding} />
     </div>
+  );
+}
+
+/** REVIEW TABLE V2 — evidence at any level of the hierarchy, from this
+ *  finding's own panel. See docs/capture-review/review-table-v2-discovery.md
+ *  §3: "reusing the same EvidenceItem record and the real /evidence page's
+ *  own request-creation logic — not a second, parallel evidence-request
+ *  mechanism." This does not re-implement that form: it mints a stub record
+ *  with the SAME store action `/evidence`'s own "Log it" button calls
+ *  (`addEvidenceItem`), seeded with whichever of this finding's
+ *  discipline/system/check the auditor picked, then hands off to the real
+ *  page — deep-linked straight to the new row — to fill in who it was asked
+ *  of, medium, custody and the rest. */
+function EvidenceSection({ finding }: { finding: Finding }) {
+  const router = useRouter();
+  const items = useEvidenceItems();
+  const addEvidenceItem = useStore((s) => s.addEvidenceItem);
+
+  /* Scoped to whichever of this finding's three levels an item was raised
+     against — a document bearing on the whole discipline is just as
+     relevant here as one bearing on this exact check. */
+  const scoped = items.filter(
+    (e) =>
+      (!!finding.checkId && e.checkIds.includes(finding.checkId)) ||
+      (!!finding.system && e.system === finding.system) ||
+      (!!finding.discipline && e.discipline === finding.discipline)
+  );
+
+  const request = (seed: { discipline?: string; system?: string; checkIds?: string[] }, label: string) => {
+    const id = addEvidenceItem(`Evidence for ${finding.title || label}`, seed);
+    router.push(`/evidence?open=${id}`);
+  };
+
+  return (
+    <div className="mt-4 border-t pt-3.5" style={{ borderColor: "var(--line-2)" }}>
+      <div className="mb-2 font-display text-[11px] font-semibold">Evidence</div>
+
+      {scoped.length === 0 ? (
+        <div className="mb-2 text-[11px]" style={{ color: "var(--ink-4)" }}>
+          Nothing requested yet for this check, asset system or discipline.
+        </div>
+      ) : (
+        <div className="mb-2 flex flex-col gap-[4px]">
+          {scoped.map((e) => (
+            <button
+              key={e.id}
+              type="button"
+              onClick={() => router.push(`/evidence?open=${e.id}`)}
+              className="flex items-center justify-between gap-2 rounded-[8px] border px-2 py-[6px] text-left text-[11px]"
+              style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+            >
+              <span className="min-w-0 truncate">{e.title || e.id}</span>
+              <Pill tone={trackingStage(e) === "analysis" ? "good" : trackingStage(e) === "received" ? "good" : trackingStage(e) === "requested" ? "warn" : "neutral"}>
+                {TRACKING_LABEL[trackingStage(e)]}
+              </Pill>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-[6px]">
+        {finding.checkId && (
+          <SmallBtn onClick={() => request({ checkIds: [finding.checkId!] }, "this check")}>
+            Request for this check
+          </SmallBtn>
+        )}
+        {finding.system && (
+          <SmallBtn onClick={() => request({ system: finding.system }, finding.system)}>
+            Request for {finding.system}
+          </SmallBtn>
+        )}
+        {finding.discipline && (
+          <SmallBtn onClick={() => request({ discipline: finding.discipline }, finding.discipline)}>
+            Request for {finding.discipline} (discipline)
+          </SmallBtn>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SmallBtn({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-[8px] border px-[9px] py-[6px] text-[10.5px] font-semibold"
+      style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+    >
+      {children}
+    </button>
   );
 }
 

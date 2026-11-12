@@ -235,6 +235,7 @@ export default function ReviewPage() {
         <div className="flex min-h-0 flex-1">
           <ReviewRiskTable
             findings={findings}
+            entityCode={entityCode}
             activeId={riskActive?.id ?? null}
             onActivate={setRiskActiveId}
             onChange={(id, patch) => updateFinding(id, patch)}

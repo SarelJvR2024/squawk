@@ -32,7 +32,10 @@
 
 import { useMemo, useState } from "react";
 import {
+  ALL_DISCIPLINES,
   checksAt,
+  systemsAt,
+  systemsOf,
   useEntityCode,
   useEvidenceItems,
   useResponses,
@@ -41,7 +44,10 @@ import {
 import {
   MEDIUM_LABEL,
   RETURNABLE,
+  TRACKING_LABEL,
+  disciplineFor,
   evidenceStage,
+  groupByDiscipline,
   heldMs,
   heldOriginals,
   isHeldOriginal,
@@ -49,6 +55,7 @@ import {
   logText,
   outstanding,
   pendingWithoutEntry,
+  trackingStage,
   unbackedSignatures,
 } from "@/lib/evidence";
 import { portalIdFor, siteCodeFor, siteFor } from "@/lib/sites";
@@ -59,6 +66,7 @@ import { SignaturePad } from "@/components/SignaturePad";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconX } from "@/components/ui/icons";
 import type { EvidenceMedium, EvidenceStage } from "@/lib/types";
+import type { DisciplineEvidenceGroup, EvidenceTrackingStage } from "@/lib/evidence";
 
 const MEDIA: EvidenceMedium[] = ["paper", "digital", "photographed", "portal", "verbal"];
 
@@ -106,6 +114,11 @@ export default function EvidencePage() {
   const updatePhoto = useStore((s) => s.updateEvidenceAttachment);
 
   const [draft, setDraft] = useState("");
+  /* REVIEW TABLE V2 — "By discipline" is the new grouped tracking view (see
+     docs/capture-review/review-table-v2-discovery.md §4); "By document" is
+     this screen exactly as it was, and stays the default so nothing about
+     how the screen opens today changes. */
+  const [view, setView] = useState<"document" | "discipline">("document");
   const [openId, setOpenId] = useState<string | null>(null);
   const [signing, setSigning] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -139,6 +152,38 @@ export default function EvidencePage() {
 
   const still = outstanding(items);
   const held = heldOriginals(items);
+
+  /* The discipline each item is tracked under — its own, else its first
+     linked check's, else "Unassigned". `checksAt` is already read above for
+     the check-point picker; reused here rather than a second lookup. */
+  const checkDisciplineOf = useMemo(() => {
+    const m = new Map([...docs, ...rest].map((c) => [c.id, c.discipline]));
+    return (id: string) => m.get(id);
+  }, [docs, rest]);
+  const groups = useMemo(
+    () => groupByDiscipline(items, (e) => disciplineFor(e, checkDisciplineOf)),
+    [items, checkDisciplineOf]
+  );
+
+  /* Switching from the grouped view back to "By document" unmounts every
+     item card, so the one just tapped is not in the DOM on this same tick —
+     same short poll useFormsHubDeepLink's own scroll-into-view already uses
+     for exactly this reason, rather than a single timed guess. */
+  const openInDocumentView = (id: string) => {
+    setView("document");
+    setOpenId(id);
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      tries += 1;
+      const el = document.querySelector(`[data-record-id="${id}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        window.clearInterval(timer);
+      } else if (tries >= 10) {
+        window.clearInterval(timer);
+      }
+    }, 100);
+  };
 
   function log() {
     const title = draft.trim();
@@ -180,6 +225,39 @@ export default function EvidencePage() {
         </p>
       </header>
 
+      {/* View switch — "By document" is this screen exactly as it always
+          was; "By discipline" groups the same log by discipline and shows
+          where each item has got to (not started / requested / received /
+          analysis), per Sarel's own four states. */}
+      <div className="mb-3 flex items-center gap-[6px]">
+        {(
+          [
+            ["document", "By document"],
+            ["discipline", "By discipline"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setView(key)}
+            aria-pressed={view === key}
+            className="rounded-[8px] px-[11px] py-[6px] text-[11.5px] font-semibold"
+            style={
+              view === key
+                ? { background: "var(--acc-soft)", color: "var(--acc)" }
+                : { background: "var(--panel)", color: "var(--ink-2)", border: "1px solid var(--line-2)" }
+            }
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === "discipline" ? (
+        <DisciplineTrackingView groups={groups} onOpen={openInDocumentView} />
+      ) : null}
+
+      {view === "document" && <>
       {/* LOG ONE. Pinned, one field. */}
       <Panel tone={still.length ? "warn" : undefined} className="mb-4">
         <Field label="WHAT DOCUMENT?" hint="the only field needed to log it">
@@ -407,6 +485,42 @@ export default function EvidencePage() {
                     </Field>
                   )}
 
+                  {/* ANALYSIS — the new stage Sarel named, see
+                      docs/capture-review/review-table-v2-discovery.md §4.
+                      Only meaningful once something has actually been
+                      received — there is nothing to form a view on before
+                      then. Not cleared by anything else, unlike
+                      unavailableAt: analysing a received document never
+                      contradicts a later fact about it. */}
+                  {e.receivedAt ? (
+                    <Field
+                      label="ANALYSIS"
+                      hint={e.analysisAt ? `RECORDED ${dayOnly(e.analysisAt)}` : "what it shows or proves, once read"}
+                    >
+                      <textarea
+                        value={e.analysisNote}
+                        onChange={(ev) => patch(e.id, { analysisNote: ev.target.value })}
+                        rows={2}
+                        aria-label={`Analysis of ${e.id}`}
+                        placeholder="What this document shows or proves, having read it"
+                        className={`mb-2 ${inputCls}`}
+                        style={inputStyle}
+                      />
+                      {!e.analysisAt ? (
+                        <Btn
+                          onClick={() => patch(e.id, { analysisAt: Date.now() })}
+                          disabled={!e.analysisNote.trim()}
+                        >
+                          Mark as analysed
+                        </Btn>
+                      ) : (
+                        <Btn onClick={() => patch(e.id, { analysisAt: null })}>
+                          <IconX /> Withdraw that
+                        </Btn>
+                      )}
+                    </Field>
+                  ) : null}
+
                   {/* CUSTODY. Only where something actually changed hands. */}
                   {e.medium && RETURNABLE.includes(e.medium) ? (
                     <Field label="CUSTODY" hint="ACSA's only copy, or ours to keep">
@@ -473,6 +587,47 @@ export default function EvidencePage() {
                       )}
                     </Field>
                   ) : null}
+
+                  {/* SCOPE — discipline and/or asset system, alongside the
+                      check-points below. REVIEW TABLE V2 (see
+                      docs/capture-review/review-table-v2-discovery.md §3):
+                      "the asset register for Electrical, overall" bears on a
+                      whole discipline with no check-point behind it at all —
+                      any of the three, together or alone. */}
+                  <Field label="ALSO BEARS ON — A DISCIPLINE OR ASSET SYSTEM, OVERALL">
+                    <div className="flex flex-wrap gap-2">
+                      <select
+                        value={e.discipline ?? ""}
+                        onChange={(ev) =>
+                          patch(e.id, { discipline: ev.target.value || undefined, system: undefined })
+                        }
+                        aria-label={`Discipline for ${e.id}`}
+                        className={`${inputCls} flex-1 min-w-[160px]`}
+                        style={inputStyle}
+                      >
+                        <option value="">No discipline, overall</option>
+                        {ALL_DISCIPLINES.map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={e.system ?? ""}
+                        onChange={(ev) => patch(e.id, { system: ev.target.value || undefined })}
+                        aria-label={`Asset system for ${e.id}`}
+                        className={`${inputCls} flex-1 min-w-[160px]`}
+                        style={inputStyle}
+                      >
+                        <option value="">No asset system, overall</option>
+                        {(e.discipline ? systemsOf(entityCode, e.discipline) : systemsAt(entityCode)).map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </Field>
 
                   {/* CHECK-POINTS. */}
                   <Field label="BEARS ON — DOES NOT SETTLE — THESE CHECK-POINTS">
@@ -599,7 +754,81 @@ export default function EvidencePage() {
           </div>
         );
       })}
+      </>}
       </div>
+    </div>
+  );
+}
+
+/** REVIEW TABLE V2 — grouped-by-discipline tracking view, see
+ *  docs/capture-review/review-table-v2-discovery.md §4. One summary row per
+ *  discipline with Sarel's four states as counts, expandable to the items
+ *  behind them; opening one hands off to the real item card in "By
+ *  document" (`onOpen`) rather than growing a second editor here. */
+function DisciplineTrackingView({
+  groups,
+  onOpen,
+}: {
+  groups: DisciplineEvidenceGroup[];
+  onOpen: (id: string) => void;
+}) {
+  const [open, setOpen] = useState<string | null>(null);
+
+  const tone = (s: EvidenceTrackingStage): "good" | "warn" | undefined =>
+    s === "received" || s === "analysis" ? "good" : s === "requested" || s === "unavailable" ? "warn" : undefined;
+
+  if (groups.length === 0) {
+    return (
+      <Empty>
+        <b>Nothing logged.</b>
+        <span>Grouped by discipline once something is requested or received.</span>
+      </Empty>
+    );
+  }
+
+  return (
+    <div className="mb-4 flex flex-col gap-2">
+      {groups.map((g) => {
+        const isOpen = open === g.discipline;
+        return (
+          <Panel key={g.discipline} className="p-0">
+            <button
+              type="button"
+              onClick={() => setOpen(isOpen ? null : g.discipline)}
+              className="flex w-full items-center justify-between gap-3 px-[13px] py-[11px] text-left"
+            >
+              <b className="text-[13px]">{g.discipline}</b>
+              <span className="flex flex-wrap items-center justify-end gap-[6px]">
+                {(["notStarted", "requested", "received", "analysis"] as const).map((s) => (
+                  <Pill key={s} tone={tone(s)}>
+                    {TRACKING_LABEL[s]} {g.counts[s]}
+                  </Pill>
+                ))}
+                {g.counts.returned > 0 && <Pill>{TRACKING_LABEL.returned} {g.counts.returned}</Pill>}
+              </span>
+            </button>
+            {isOpen ? (
+              <div className="flex flex-col gap-[6px] border-t px-[13px] py-[10px]" style={{ borderColor: "var(--line)" }}>
+                {g.items.map((e) => (
+                  <button
+                    key={e.id}
+                    type="button"
+                    onClick={() => onOpen(e.id)}
+                    className="flex items-center justify-between gap-2 rounded-[8px] border px-2 py-[6px] text-left text-[11.5px]"
+                    style={{ background: "var(--bg)", borderColor: "var(--line)" }}
+                  >
+                    <span className="min-w-0 truncate">
+                      {e.title || e.id}
+                      {e.system ? <span className="ml-1 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>· {e.system}</span> : null}
+                    </span>
+                    <Pill tone={tone(trackingStage(e))}>{TRACKING_LABEL[trackingStage(e)]}</Pill>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </Panel>
+        );
+      })}
     </div>
   );
 }

@@ -2421,6 +2421,8 @@ export const useStore = create<State>()(
                 returnedTo: "",
                 unavailableAt: null,
                 unavailableReason: "",
+                analysisAt: null,
+                analysisNote: "",
                 checkIds: [],
                 attachments: [],
                 signature: null,
@@ -4150,7 +4152,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 40,
+      version: 41,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -4917,6 +4919,21 @@ export const useStore = create<State>()(
             ...f,
             rootCauseCategories: f.rootCauseCategories ?? [],
             impactAreas: f.impactAreas ?? [],
+          }));
+        }
+        if (from < 41 && Array.isArray(st.evidenceItems)) {
+          /* Review table v2 — see docs/capture-review/
+             review-table-v2-discovery.md §4. `analysisAt`/`analysisNote` are
+             new and required, same backfill shape as the v40 migration just
+             above: an item logged before "Analysis" existed simply has not
+             been through that step, and null/"" is the honest read, not a
+             gap to guess at. `discipline`/`system` need no backfill — both
+             are optional and absent already means "not scoped to one",
+             exactly the reading a pre-existing item should have. */
+          st.evidenceItems = st.evidenceItems.map((e) => ({
+            ...e,
+            analysisAt: e.analysisAt ?? null,
+            analysisNote: e.analysisNote ?? "",
           }));
         }
         return st;

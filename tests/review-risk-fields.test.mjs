@@ -316,7 +316,12 @@ check(
 const storeSrc = read("src", "lib", "store.ts");
 check(
   "the Dexie/zustand version bumped and a v40 migration backfills the two new arrays",
-  /version:\s*40/.test(storeSrc) && /from < 40/.test(storeSrc) && /rootCauseCategories: f\.rootCauseCategories \?\? \[\]/.test(storeSrc)
+  /* >= 40, not === 40 — the version goes up as later slices land (see
+     evidence.test.mjs's own ">= 17" for the same reasoning), and the v40
+     migration block itself is untouched by a later bump. */
+  Number(/version:\s*(\d+),/.exec(storeSrc)?.[1] ?? 0) >= 40 &&
+    /from < 40/.test(storeSrc) &&
+    /rootCauseCategories: f\.rootCauseCategories \?\? \[\]/.test(storeSrc)
 );
 check(
   "the migration never deletes a finding or any of its existing fields",

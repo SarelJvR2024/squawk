@@ -1011,6 +1011,29 @@ export interface Finding {
    *  boolean in this app that defaults to "no" by omission). Independent of
    *  `ratingConfirmed`, which gates severity/likelihood only. */
   rootCauseConfirmed?: boolean;
+  /** REVIEW TABLE V2 — Sarel's "Type" tag (Non-compliance vs. Observation),
+   *  see docs/capture-review/review-table-v2-discovery.md §2.
+   *
+   *  GENUINELY NEW — neither `issueIndex` (which capture MECHANISM raised
+   *  this: an Answer Library issue button vs. typed free text) nor `adHoc`
+   *  (which capture PATH raised this: the register vs. a walk/raise-a-
+   *  finding screen) says anything about whether what was found is a rule
+   *  violation or a milder observation worth noting. A register
+   *  non-compliance (`adHoc: false`, minted by `setCompliance`'s own
+   *  "NC becomes a finding" rule) and a walk item marked NC
+   *  (`raiseFindingFromAdhoc`) are both unambiguously non-compliances by
+   *  construction — but a finding raised through Raise-a-finding or the
+   *  walk's free-text path can honestly be either, and nothing captured
+   *  today asks which. Only the auditor can say, so this is a new field,
+   *  not a derivation of the two above.
+   *
+   *  Optional and absent-means-"non-compliance" — these ARE findings, so
+   *  treating an unset one as the stricter reading is the safer default;
+   *  read it through `findingTypeFor()` (src/lib/reviewRisk.ts), never off
+   *  this field directly, so every caller defaults the same way. Edited on
+   *  /review only, same scoping as the other REVIEW-ONLY fields above —
+   *  Capture, Field, Raise-a-finding and Workspace must never render it. */
+  findingType?: "non-compliance" | "observation";
   /** Plural — see MitigatingAction. */
   actions: MitigationAction[];
   /** Dated, attributed updates on the remediation.
@@ -2681,9 +2704,49 @@ export interface EvidenceItem {
   unavailableAt: number | null;
   unavailableReason: string;
 
+  /** REVIEW TABLE V2 — the "Analysis" stage Sarel named for the new
+   *  grouped-by-discipline evidence view, see
+   *  docs/capture-review/review-table-v2-discovery.md §4.
+   *
+   *  THE ONE GENUINELY NEW CONCEPT HERE. `receivedAt` already says a
+   *  document was handed over; it says nothing about whether anyone has
+   *  since sat down with it. The natural reading of "Analysis" for an
+   *  evidence-CUSTODY record (as opposed to the audit answer itself, which
+   *  stays on the check screen's `evidenceProves`) is that the auditor has
+   *  looked at a RECEIVED document and formed a view on what it shows or
+   *  proves — a step after receipt, not instead of it.
+   *
+   *  SAME SHAPE AS unavailableAt/unavailableReason just above, deliberately
+   *  — an at/note pair, not a new entry in EvidenceStage. Folding this into
+   *  that enum would mean an item can only ever be IN ONE of
+   *  requested/received/returned/unavailable/analysed at a time, when in
+   *  truth a returned original can have been analysed first, and an
+   *  analysed one is still, separately, received. Null until set; cleared
+   *  automatically by nothing — unlike unavailableAt, analysing a document
+   *  does not contradict anything else recorded about it, so there is no
+   *  "producing it" rule to mirror here. */
+  analysisAt: number | null;
+  analysisNote: string;
+
   /** The check-points this document bears on. It bears on them; the auditor
    *  still decides what it proves, on the check screen. */
   checkIds: string[];
+  /** REVIEW TABLE V2 — evidence capturable at ANY level of the hierarchy, not
+   *  only a check. See docs/capture-review/review-table-v2-discovery.md §3.
+   *
+   *  "The asset register for Electrical, overall" bears on a whole
+   *  discipline; "the LV switchgear maintenance logs" bear on a whole asset
+   *  system, neither tied to one check-point. Both are optional and both can
+   *  be set alongside `checkIds` and each other — an item can be scoped to a
+   *  discipline, a system, one or more checks, or any combination, because a
+   *  single document regularly answers for more than one of these at once.
+   *
+   *  Free text matching the register's own discipline/system names
+   *  (`ALL_DISCIPLINES`/`systemsOf` in register.ts), not a closed list here —
+   *  this module stays free of the register, same reasoning as every other
+   *  field on this type that reads a check-point id rather than a Check. */
+  discipline?: string;
+  system?: string;
 
   /** Photographs of the document itself, where that is how it was captured. */
   attachments: Attachment[];

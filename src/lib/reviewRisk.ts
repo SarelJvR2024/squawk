@@ -76,13 +76,31 @@ export function hasRootCauseContent(f: Pick<Finding, "rootCauseCategories" | "ro
   return (f.rootCauseCategories?.length ?? 0) > 0 || !!f.rootCauseNote?.trim();
 }
 
+/** THE "TYPE" TAG — Non-compliance vs. Observation, see
+ *  docs/capture-review/review-table-v2-discovery.md §2. Absent reads as
+ *  "non-compliance", the safer default for a record that is a finding at
+ *  all — every caller reads it through here rather than off
+ *  `f.findingType` directly, same reasoning as `priorityFor`'s own "Not
+ *  rated is the caller's job to render, not this function's" note: one
+ *  place decides the default so nothing renders a blank where a tag belongs. */
+export function findingTypeFor(f: Pick<Finding, "findingType">): "non-compliance" | "observation" {
+  return f.findingType ?? "non-compliance";
+}
+
+export const FINDING_TYPE_LABEL: Record<"non-compliance" | "observation", string> = {
+  "non-compliance": "Non-compliance",
+  observation: "Observation",
+};
+
 export type ReviewRiskFilter =
   | { kind: "all" }
   | { kind: "priority"; priority: "I" | "II" | "III" }
   | { kind: "notRated" }
   | { kind: "impact"; area: string }
   | { kind: "rootCause"; category: string }
-  | { kind: "unconfirmed" };
+  | { kind: "unconfirmed" }
+  | { kind: "discipline"; discipline: string }
+  | { kind: "system"; system: string };
 
 export function matchesReviewRiskFilter(f: Finding, filter: ReviewRiskFilter): boolean {
   switch (filter.kind) {
@@ -98,6 +116,10 @@ export function matchesReviewRiskFilter(f: Finding, filter: ReviewRiskFilter): b
       return (f.rootCauseCategories ?? []).includes(filter.category);
     case "unconfirmed":
       return hasRootCauseContent(f) && !f.rootCauseConfirmed;
+    case "discipline":
+      return f.discipline === filter.discipline;
+    case "system":
+      return f.system === filter.system;
   }
 }
 

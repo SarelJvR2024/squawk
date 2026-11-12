@@ -11,6 +11,15 @@
  *  twice: every rating pill and filter here calls into src/lib/reviewRisk.ts,
  *  the one shared function the addendum itself asks for.
  *
+ *  REVIEW TABLE V2 (see docs/capture-review/review-table-v2-discovery.md)
+ *  widened this to the full column set Sarel approved from a mockup: select ·
+ *  Type · Discipline · Asset system · Audit check · Finding/comment · Severity
+ *  · Likelihood · Rating · Root cause · Impact · Evidence — a FIXED set, no
+ *  column-toggle any more, because that mockup is one specific wide table, not
+ *  a customisable one. Also added: Discipline/Asset system filters, reusing
+ *  `ALL_DISCIPLINES`/`systemsOf`/`systemsAt` (src/lib/register.ts) rather than
+ *  a second vocabulary.
+ *
  *  AI "Suggest rating" (§3's bulk bar) is DELIBERATELY NOT in this pass — see
  *  the PR description's "what's deferred" section. The bulk bar below sets
  *  severity, likelihood, impact areas and root cause categories across every
@@ -18,12 +27,14 @@
 
 import { useMemo, useState } from "react";
 import {
+  FINDING_TYPE_LABEL,
   IMPACT_AREAS,
   ROOT_CAUSES,
   applyBulkMulti,
   countByMultiSelect,
   countNotRated,
   countWithNoneSelected,
+  findingTypeFor,
   hasRootCauseContent,
   matchesReviewRiskFilter,
   priorityFor,
@@ -31,38 +42,31 @@ import {
   type ReviewRiskFilter,
 } from "@/lib/reviewRisk";
 import { LIKELIHOODS, SEVERITIES } from "@/lib/risk";
+import { ALL_DISCIPLINES, systemsAt, systemsOf } from "@/lib/register";
+import { portalIdFor } from "@/lib/sites";
 import { Chip, Pill } from "@/components/ui/primitives";
+import { IconCamera, IconMic } from "@/components/ui/icons";
 import type { Finding, Likelihood, Severity } from "@/lib/types";
-
-type Column = "severity" | "likelihood" | "rating" | "impact" | "rootCause";
-
-const ALL_COLUMNS: { key: Column; label: string }[] = [
-  { key: "severity", label: "Severity" },
-  { key: "likelihood", label: "Likelihood" },
-  { key: "rating", label: "Rating" },
-  { key: "impact", label: "Impact" },
-  { key: "rootCause", label: "Root cause" },
-];
-
-/** §3: "Keep columns toggleable; default show Rating, Impact, Root cause." */
-const DEFAULT_COLUMNS: Column[] = ["rating", "impact", "rootCause"];
 
 type RollupAxis = "discipline" | "system" | "check" | "finding";
 
 export default function ReviewRiskTable({
   findings,
+  entityCode,
   activeId,
   onActivate,
   onChange,
 }: {
   findings: Finding[];
+  /** For the Audit check column's portal-id display and the Asset system
+   *  filter's register lookups — this table reads no other check data. */
+  entityCode: string;
   activeId: string | null;
   onActivate: (id: string) => void;
   /** The caller owns the write (updateFinding), same as everywhere else in
    *  this app a table edits a record in place. */
   onChange: (id: string, patch: Partial<Finding>) => void;
 }) {
-  const [columns, setColumns] = useState<Column[]>(DEFAULT_COLUMNS);
   const [filter, setFilter] = useState<ReviewRiskFilter>({ kind: "all" });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [rollupAxis, setRollupAxis] = useState<RollupAxis>("discipline");
@@ -72,8 +76,14 @@ export default function ReviewRiskTable({
     [findings, filter]
   );
 
-  const toggleColumn = (c: Column) =>
-    setColumns((cs) => (cs.includes(c) ? cs.filter((x) => x !== c) : [...cs, c]));
+  /* Asset system options narrow to the active Discipline filter's own
+     systems — systemsOf — and fall back to every system at this entity —
+     systemsAt — the rest of the time. Neither list is invented here. */
+  const systemOptions = useMemo(
+    () =>
+      filter.kind === "discipline" ? systemsOf(entityCode, filter.discipline) : systemsAt(entityCode),
+    [entityCode, filter]
+  );
 
   const toggleRow = (id: string) =>
     setSelected((s) => {
@@ -88,7 +98,8 @@ export default function ReviewRiskTable({
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
       {/* Filters — §3: "Rating, Not rated, Impact area, Root cause
-          category, Root cause unconfirmed." */}
+          category, Root cause unconfirmed", widened with Discipline and
+          Asset system. */}
       <div className="mb-2.5 flex flex-wrap items-center gap-[6px]">
         <FilterChip active={filter.kind === "all"} onClick={() => setFilter({ kind: "all" })}>
           All ({findings.length})
@@ -108,6 +119,42 @@ export default function ReviewRiskTable({
         <FilterChip active={filter.kind === "unconfirmed"} onClick={() => setFilter({ kind: "unconfirmed" })}>
           Root cause unconfirmed
         </FilterChip>
+        <select
+          aria-label="Filter by discipline"
+          value={filter.kind === "discipline" ? filter.discipline : ""}
+          onChange={(e) =>
+            e.target.value
+              ? setFilter({ kind: "discipline", discipline: e.target.value })
+              : setFilter({ kind: "all" })
+          }
+          className="h-[30px] rounded-[8px] border px-2 text-[11px]"
+          style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+        >
+          <option value="">Discipline…</option>
+          {ALL_DISCIPLINES.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Filter by asset system"
+          value={filter.kind === "system" ? filter.system : ""}
+          onChange={(e) =>
+            e.target.value
+              ? setFilter({ kind: "system", system: e.target.value })
+              : setFilter({ kind: "all" })
+          }
+          className="h-[30px] rounded-[8px] border px-2 text-[11px]"
+          style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+        >
+          <option value="">Asset system…</option>
+          {systemOptions.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
         <select
           aria-label="Filter by impact area"
           value={filter.kind === "impact" ? filter.area : ""}
@@ -144,18 +191,6 @@ export default function ReviewRiskTable({
             </option>
           ))}
         </select>
-
-        {/* Column toggles, right-aligned. */}
-        <div className="ml-auto flex flex-wrap items-center gap-[4px]">
-          <span className="text-[9.5px]" style={{ color: "var(--ink-4)" }}>
-            Columns
-          </span>
-          {ALL_COLUMNS.map((c) => (
-            <FilterChip key={c.key} active={columns.includes(c.key)} onClick={() => toggleColumn(c.key)}>
-              {c.label}
-            </FilterChip>
-          ))}
-        </div>
       </div>
 
       {/* Bulk bar — §3: set severity/likelihood/impact/root cause for every
@@ -170,7 +205,10 @@ export default function ReviewRiskTable({
         />
       )}
 
-      {/* The table itself. */}
+      {/* The table itself — the full column set Sarel approved from the
+          mockup, fixed (no toggle): select · Type · Discipline · Asset
+          system · Audit check · Finding/comment · Severity · Likelihood ·
+          Rating · Root cause · Impact · Evidence. */}
       <div className="overflow-x-auto rounded-[11px] border" style={{ borderColor: "var(--line)" }}>
         <table className="w-full text-[11.5px]">
           <thead>
@@ -185,14 +223,19 @@ export default function ReviewRiskTable({
                   }
                 />
               </th>
+              <Th>Type</Th>
+              <Th>Discipline</Th>
+              <Th>Asset system</Th>
+              <Th>Audit check</Th>
               <th className="p-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
                 Finding
               </th>
-              {columns.includes("severity") && <Th>Severity</Th>}
-              {columns.includes("likelihood") && <Th>Likelihood</Th>}
-              {columns.includes("rating") && <Th>Rating</Th>}
-              {columns.includes("impact") && <Th>Impact</Th>}
-              {columns.includes("rootCause") && <Th>Root cause</Th>}
+              <Th>Severity</Th>
+              <Th>Likelihood</Th>
+              <Th>Rating</Th>
+              <Th>Root cause</Th>
+              <Th>Impact</Th>
+              <Th>Evidence</Th>
             </tr>
           </thead>
           <tbody>
@@ -200,6 +243,9 @@ export default function ReviewRiskTable({
               const priority = priorityFor(f);
               const impact = f.impactAreas ?? [];
               const causes = f.rootCauseCategories ?? [];
+              const type = findingTypeFor(f);
+              const photos = f.attachments.filter((a) => a.kind === "photo").length;
+              const voices = f.attachments.filter((a) => a.kind === "voice").length;
               const on = f.id === activeId;
               return (
                 <tr
@@ -216,105 +262,143 @@ export default function ReviewRiskTable({
                       onChange={() => toggleRow(f.id)}
                     />
                   </td>
-                  <td className="min-w-[160px] max-w-[320px] truncate p-2">
-                    <span className="block truncate font-semibold" style={{ color: "var(--ink)" }}>
-                      {f.title || f.description || f.id}
-                    </span>
-                    <span className="block truncate font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                      {f.discipline} · {f.system || "—"}
-                    </span>
+
+                  {/* Type — read-only here; the panel carries the toggle
+                      (see ReviewRiskPanel). */}
+                  <td className="p-2">
+                    <Pill tone={type === "non-compliance" ? "bad" : "neutral"}>
+                      {FINDING_TYPE_LABEL[type]}
+                    </Pill>
                   </td>
 
-                  {columns.includes("severity") && (
-                    <td className="p-2" onClick={(e) => e.stopPropagation()}>
-                      <select
-                        aria-label={`Severity for ${f.title || f.id}`}
-                        value={f.severity ?? ""}
-                        onChange={(e) =>
-                          onChange(f.id, {
-                            severity: (e.target.value || null) as Severity | null,
-                            ratingConfirmed: !!e.target.value && !!f.likelihood,
-                          })
-                        }
-                        className="rounded-[6px] border px-1.5 py-1 font-mono text-[10.5px]"
-                        style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-                      >
-                        <option value="">—</option>
-                        {SEVERITIES.map((s) => (
-                          <option key={s} value={s}>
-                            {s.charAt(0)}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                  )}
-                  {columns.includes("likelihood") && (
-                    <td className="p-2" onClick={(e) => e.stopPropagation()}>
-                      <select
-                        aria-label={`Likelihood for ${f.title || f.id}`}
-                        value={f.likelihood ?? ""}
-                        onChange={(e) =>
-                          onChange(f.id, {
-                            likelihood: (e.target.value || null) as Likelihood | null,
-                            ratingConfirmed: !!f.severity && !!e.target.value,
-                          })
-                        }
-                        className="rounded-[6px] border px-1.5 py-1 font-mono text-[10.5px]"
-                        style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-                      >
-                        <option value="">—</option>
-                        {LIKELIHOODS.map((l) => (
-                          <option key={l} value={l}>
-                            {l.charAt(0)}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                  )}
-                  {columns.includes("rating") && (
-                    <td className="p-2">
-                      {/* READ-ONLY — no input anywhere in this cell. The
-                          rating is derived from severity+likelihood, never
-                          typed; see priorityFor's own doc comment. */}
-                      {priority ? (
-                        <Pill tone={priority.tone}>{priority.label}</Pill>
-                      ) : (
-                        <Pill tone="neutral">Not rated</Pill>
-                      )}
-                    </td>
-                  )}
-                  {columns.includes("impact") && (
-                    <td className="p-2">
-                      {impact.length === 0 ? (
-                        <span style={{ color: "var(--ink-4)" }}>—</span>
-                      ) : (
-                        <span>
-                          <Pill>{impact[0]}</Pill>
-                          {impact.length > 1 && (
-                            <span className="ml-1 font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>
-                              +{impact.length - 1}
-                            </span>
-                          )}
-                        </span>
-                      )}
-                    </td>
-                  )}
-                  {columns.includes("rootCause") && (
-                    <td className="p-2">
-                      {causes.length === 0 ? (
-                        <span style={{ color: "var(--ink-4)" }}>—</span>
-                      ) : (
-                        <span>
-                          <Pill>{causes[0]}</Pill>
-                          {causes.length > 1 && (
-                            <span className="ml-1 font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>
-                              +{causes.length - 1}
-                            </span>
-                          )}
-                        </span>
-                      )}
-                    </td>
-                  )}
+                  <td className="p-2 whitespace-nowrap">{f.discipline || "—"}</td>
+
+                  <td className="p-2 whitespace-nowrap">
+                    {f.system ? (
+                      f.system
+                    ) : (
+                      <span className="italic" style={{ color: "var(--ink-4)" }}>
+                        General
+                      </span>
+                    )}
+                  </td>
+
+                  <td className="p-2 whitespace-nowrap font-mono text-[10px]">
+                    {f.checkId ? (
+                      portalIdFor(entityCode, f.checkId)
+                    ) : (
+                      <span className="font-sans not-italic" style={{ color: "var(--ink-4)" }}>
+                        General
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Finding/comment — wraps, never truncated to nothing. */}
+                  <td className="min-w-[200px] max-w-[360px] p-2 align-top">
+                    <span className="block whitespace-normal break-words font-semibold" style={{ color: "var(--ink)" }}>
+                      {f.title || f.description || f.id}
+                    </span>
+                    {f.description && f.title && (
+                      <span className="mt-[2px] block whitespace-normal break-words text-[10.5px]" style={{ color: "var(--ink-3)" }}>
+                        {f.description}
+                      </span>
+                    )}
+                  </td>
+
+                  <td className="p-2" onClick={(e) => e.stopPropagation()}>
+                    <select
+                      aria-label={`Severity for ${f.title || f.id}`}
+                      value={f.severity ?? ""}
+                      onChange={(e) =>
+                        onChange(f.id, {
+                          severity: (e.target.value || null) as Severity | null,
+                          ratingConfirmed: !!e.target.value && !!f.likelihood,
+                        })
+                      }
+                      className="rounded-[6px] border px-1.5 py-1 font-mono text-[10.5px]"
+                      style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                    >
+                      <option value="">—</option>
+                      {SEVERITIES.map((s) => (
+                        <option key={s} value={s}>
+                          {s.charAt(0)}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="p-2" onClick={(e) => e.stopPropagation()}>
+                    <select
+                      aria-label={`Likelihood for ${f.title || f.id}`}
+                      value={f.likelihood ?? ""}
+                      onChange={(e) =>
+                        onChange(f.id, {
+                          likelihood: (e.target.value || null) as Likelihood | null,
+                          ratingConfirmed: !!f.severity && !!e.target.value,
+                        })
+                      }
+                      className="rounded-[6px] border px-1.5 py-1 font-mono text-[10.5px]"
+                      style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                    >
+                      <option value="">—</option>
+                      {LIKELIHOODS.map((l) => (
+                        <option key={l} value={l}>
+                          {l.charAt(0)}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="p-2">
+                    {/* READ-ONLY — no input anywhere in this cell. The
+                        rating is derived from severity+likelihood, never
+                        typed; see priorityFor's own doc comment. */}
+                    {priority ? (
+                      <Pill tone={priority.tone}>{priority.label}</Pill>
+                    ) : (
+                      <Pill tone="neutral">Not rated</Pill>
+                    )}
+                  </td>
+                  <td className="p-2">
+                    {causes.length === 0 ? (
+                      <span style={{ color: "var(--ink-4)" }}>—</span>
+                    ) : (
+                      <span>
+                        <Pill>{causes[0]}</Pill>
+                        {causes.length > 1 && (
+                          <span className="ml-1 font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>
+                            +{causes.length - 1}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-2">
+                    {impact.length === 0 ? (
+                      <span style={{ color: "var(--ink-4)" }}>—</span>
+                    ) : (
+                      <span>
+                        <Pill>{impact[0]}</Pill>
+                        {impact.length > 1 && (
+                          <span className="ml-1 font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>
+                            +{impact.length - 1}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Evidence — small counts, reading `attachments`. The
+                      finding's own photo/voice evidence; EvidenceItem
+                      (document custody) requests live in the panel. */}
+                  <td className="p-2">
+                    <span className="inline-flex items-center gap-[8px] font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
+                      <span className="inline-flex items-center gap-[2px]" title={`${photos} photograph${photos === 1 ? "" : "s"}`}>
+                        <IconCamera width={11} height={11} /> {photos}
+                      </span>
+                      <span className="inline-flex items-center gap-[2px]" title={`${voices} voice note${voices === 1 ? "" : "s"}`}>
+                        <IconMic width={11} height={11} /> {voices}
+                      </span>
+                    </span>
+                  </td>
                 </tr>
               );
             })}
