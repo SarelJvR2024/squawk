@@ -964,6 +964,76 @@ export interface Finding {
    *  still shown, as itself — see assetsById(). */
   assetIds?: string[];
   rootCause: string;
+  /** REVIEW-ONLY RISK CATEGORISATION — added for the Review risk-fields
+   *  addendum (see docs/capture-review/review-risk-fields-discovery.md).
+   *  Severity, likelihood and ratingConfirmed above already existed and are
+   *  unchanged; these three are the genuinely new fields, and all three are
+   *  edited on /review only — Capture, Field, Raise-a-finding and Workspace
+   *  must never render them (the addendum: "Capture page shows none of
+   *  these fields").
+   *
+   *  Optional and absent-means-empty, same convention as attachments got
+   *  when it was added: a finding raised before this existed, or raised
+   *  from any capture surface, simply has none yet — no migration needed to
+   *  read it, see v40 in store.ts for the one that backfills it anyway so
+   *  every persisted finding carries the same shape.
+   *
+   *  `rootCauseCategories` DELIBERATELY REUSES ROOT_CAUSES (src/lib/
+   *  riskVocab.ts) rather than the addendum's own root-cause-category list
+   *  (Maintenance, People & training, Procedure, Equipment & design,
+   *  Resources, Oversight, External) — that list is marked PROVISIONAL in
+   *  the addendum itself and does not match the vocabulary this app
+   *  already uses for the exact same question elsewhere (RecordActions'
+   *  root-cause chips, RootCauseNote.cause). Flagged for Sarel rather than
+   *  shipping a second, conflicting root-cause vocabulary; see the
+   *  discovery note. Multi-select, zero or more. */
+  rootCauseCategories?: string[];
+  /** The addendum's "Impact areas" — IMPACT_AREAS in riskVocab.ts,
+   *  verbatim from the addendum and NOT provisional. Multi-select, zero or
+   *  more; one finding with two impact areas counts once in each on the
+   *  roll-up (reviewRisk.ts's countByMultiSelect). */
+  impactAreas?: string[];
+  /** The addendum's "Root cause notes" — "Possible root cause /
+   *  contributing factor", free text. DELIBERATELY NOT the same field as
+   *  `rootCause` above: that field is a SINGLE category chosen from
+   *  ROOT_CAUSES (RecordActions' chip row sets it to exactly one of that
+   *  list, and findingContext() in assist.ts reads it as "Root cause
+   *  selected: …" — a selection, not a note), and `rootCauseCategories`
+   *  just above is now its multi-select successor for the same question.
+   *  Overloading `rootCause` with free text here would have made one field
+   *  mean two different things depending which screen last wrote it —
+   *  exactly the kind of drift this codebase's own comments elsewhere warn
+   *  against. This is a new, separate field, scoped to /review. See the
+   *  discovery note for the full reasoning. */
+  rootCauseNote?: string;
+  /** The addendum's "Confirmed-with-airport toggle" on the root cause note
+   *  above — default off (absent reads as false, same as every other
+   *  boolean in this app that defaults to "no" by omission). Independent of
+   *  `ratingConfirmed`, which gates severity/likelihood only. */
+  rootCauseConfirmed?: boolean;
+  /** REVIEW TABLE V2 — Sarel's "Type" tag (Non-compliance vs. Observation),
+   *  see docs/capture-review/review-table-v2-discovery.md §2.
+   *
+   *  GENUINELY NEW — neither `issueIndex` (which capture MECHANISM raised
+   *  this: an Answer Library issue button vs. typed free text) nor `adHoc`
+   *  (which capture PATH raised this: the register vs. a walk/raise-a-
+   *  finding screen) says anything about whether what was found is a rule
+   *  violation or a milder observation worth noting. A register
+   *  non-compliance (`adHoc: false`, minted by `setCompliance`'s own
+   *  "NC becomes a finding" rule) and a walk item marked NC
+   *  (`raiseFindingFromAdhoc`) are both unambiguously non-compliances by
+   *  construction — but a finding raised through Raise-a-finding or the
+   *  walk's free-text path can honestly be either, and nothing captured
+   *  today asks which. Only the auditor can say, so this is a new field,
+   *  not a derivation of the two above.
+   *
+   *  Optional and absent-means-"non-compliance" — these ARE findings, so
+   *  treating an unset one as the stricter reading is the safer default;
+   *  read it through `findingTypeFor()` (src/lib/reviewRisk.ts), never off
+   *  this field directly, so every caller defaults the same way. Edited on
+   *  /review only, same scoping as the other REVIEW-ONLY fields above —
+   *  Capture, Field, Raise-a-finding and Workspace must never render it. */
+  findingType?: "non-compliance" | "observation";
   /** Plural — see MitigatingAction. */
   actions: MitigationAction[];
   /** Dated, attributed updates on the remediation.
@@ -2634,9 +2704,49 @@ export interface EvidenceItem {
   unavailableAt: number | null;
   unavailableReason: string;
 
+  /** REVIEW TABLE V2 — the "Analysis" stage Sarel named for the new
+   *  grouped-by-discipline evidence view, see
+   *  docs/capture-review/review-table-v2-discovery.md §4.
+   *
+   *  THE ONE GENUINELY NEW CONCEPT HERE. `receivedAt` already says a
+   *  document was handed over; it says nothing about whether anyone has
+   *  since sat down with it. The natural reading of "Analysis" for an
+   *  evidence-CUSTODY record (as opposed to the audit answer itself, which
+   *  stays on the check screen's `evidenceProves`) is that the auditor has
+   *  looked at a RECEIVED document and formed a view on what it shows or
+   *  proves — a step after receipt, not instead of it.
+   *
+   *  SAME SHAPE AS unavailableAt/unavailableReason just above, deliberately
+   *  — an at/note pair, not a new entry in EvidenceStage. Folding this into
+   *  that enum would mean an item can only ever be IN ONE of
+   *  requested/received/returned/unavailable/analysed at a time, when in
+   *  truth a returned original can have been analysed first, and an
+   *  analysed one is still, separately, received. Null until set; cleared
+   *  automatically by nothing — unlike unavailableAt, analysing a document
+   *  does not contradict anything else recorded about it, so there is no
+   *  "producing it" rule to mirror here. */
+  analysisAt: number | null;
+  analysisNote: string;
+
   /** The check-points this document bears on. It bears on them; the auditor
    *  still decides what it proves, on the check screen. */
   checkIds: string[];
+  /** REVIEW TABLE V2 — evidence capturable at ANY level of the hierarchy, not
+   *  only a check. See docs/capture-review/review-table-v2-discovery.md §3.
+   *
+   *  "The asset register for Electrical, overall" bears on a whole
+   *  discipline; "the LV switchgear maintenance logs" bear on a whole asset
+   *  system, neither tied to one check-point. Both are optional and both can
+   *  be set alongside `checkIds` and each other — an item can be scoped to a
+   *  discipline, a system, one or more checks, or any combination, because a
+   *  single document regularly answers for more than one of these at once.
+   *
+   *  Free text matching the register's own discipline/system names
+   *  (`ALL_DISCIPLINES`/`systemsOf` in register.ts), not a closed list here —
+   *  this module stays free of the register, same reasoning as every other
+   *  field on this type that reads a check-point id rather than a Check. */
+  discipline?: string;
+  system?: string;
 
   /** Photographs of the document itself, where that is how it was captured. */
   attachments: Attachment[];

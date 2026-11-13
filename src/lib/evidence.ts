@@ -287,3 +287,102 @@ export function unbackedSignatures(items: EvidenceItem[]): Signature[] {
     .map((e) => e.signature)
     .filter((s): s is Signature => !!s && !s.cloudUrl);
 }
+
+/* ------------------------------------------- review table v2: the tracking view
+ *
+ * See docs/capture-review/review-table-v2-discovery.md §4 for "Analysis"'s
+ * reasoning. This is a SEPARATE, coarser read of the same timestamps
+ * `evidenceStage` above already derives from — built for the new
+ * grouped-by-discipline view, which asks a narrower question ("has anyone
+ * looked at this yet") than the custody register's own stage does ("where has
+ * it got to"). Deliberately not merged into `EvidenceStage`/`evidenceStage()`:
+ * `returned` and `unavailable` are both still real, independent facts an item
+ * can carry (a returned original can have been analysed first), and folding
+ * six facts into one five-way enum is exactly the kind of "second status that
+ * fights the existing shape" the discovery note argues against. */
+
+export type EvidenceTrackingStage =
+  | "notStarted"
+  | "requested"
+  | "received"
+  | "analysis"
+  | "returned"
+  | "unavailable";
+
+export const TRACKING_LABEL: Record<EvidenceTrackingStage, string> = {
+  notStarted: "Not started",
+  requested: "Requested",
+  received: "Received",
+  analysis: "Analysis",
+  returned: "Returned",
+  unavailable: "Not produced",
+};
+
+/** Where an item has got to, for the grouped-by-discipline view. Ranked the
+ *  same direction as `evidenceStage` — the LATEST real thing that happened to
+ *  it wins — with `analysis` slotted in as a refinement of `received`,
+ *  exactly the way `isHeldOriginal` refines `received` for the custody
+ *  question rather than replacing it. */
+export function trackingStage(e: EvidenceItem): EvidenceTrackingStage {
+  if (e.returnedAt) return "returned";
+  if (e.unavailableAt && !e.receivedAt) return "unavailable";
+  if (e.receivedAt) return e.analysisAt ? "analysis" : "received";
+  if (e.requestedAt) return "requested";
+  return "notStarted";
+}
+
+/** The discipline this item is tracked under, for grouping — its own
+ *  `discipline` where an auditor set one directly, else the discipline of the
+ *  first check-point it bears on, else "Unassigned" rather than silently
+ *  dropping an item nothing has been told about yet.
+ *
+ *  Takes a lookup rather than importing the register, same reasoning as
+ *  `LogContext.portalId` above: this module stays free of Dexie/the register,
+ *  and the caller (which already has `checksAt(entityCode)`) supplies it. */
+export function disciplineFor(
+  e: EvidenceItem,
+  checkDiscipline: (checkId: string) => string | undefined
+): string {
+  if (e.discipline?.trim()) return e.discipline.trim();
+  for (const id of e.checkIds) {
+    const d = checkDiscipline(id);
+    if (d) return d;
+  }
+  return "Unassigned";
+}
+
+export interface DisciplineEvidenceGroup {
+  discipline: string;
+  items: EvidenceItem[];
+  counts: Record<EvidenceTrackingStage, number>;
+}
+
+/** Groups an evidence log by discipline for the new tracking view — one
+ *  shared function, same reasoning as `rollupBy` in reviewRisk.ts: the screen
+ *  supplies only how to place an item, never how to count it. */
+export function groupByDiscipline(
+  items: EvidenceItem[],
+  disciplineOf: (e: EvidenceItem) => string
+): DisciplineEvidenceGroup[] {
+  const groups = new Map<string, EvidenceItem[]>();
+  for (const e of items) {
+    const key = disciplineOf(e);
+    const list = groups.get(key);
+    if (list) list.push(e);
+    else groups.set(key, [e]);
+  }
+  return [...groups.entries()]
+    .map(([discipline, list]) => {
+      const counts: Record<EvidenceTrackingStage, number> = {
+        notStarted: 0,
+        requested: 0,
+        received: 0,
+        analysis: 0,
+        returned: 0,
+        unavailable: 0,
+      };
+      for (const e of list) counts[trackingStage(e)]++;
+      return { discipline, items: list, counts };
+    })
+    .sort((a, b) => a.discipline.localeCompare(b.discipline));
+}

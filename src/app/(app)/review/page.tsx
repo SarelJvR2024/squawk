@@ -58,6 +58,8 @@ import {
 } from "@/lib/store";
 import { portalIdFor } from "@/lib/sites";
 import ReviewDetail from "@/components/ReviewDetail";
+import ReviewRiskTable from "@/components/ReviewRiskTable";
+import ReviewRiskPanel from "@/components/ReviewRiskPanel";
 import { Dot, Empty, Pill } from "@/components/ui/primitives";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { DisciplineSelect } from "@/components/ui/DisciplineSelect";
@@ -92,11 +94,24 @@ function reviewed(r: Response | undefined): boolean {
   return !!r && (!!r.compliance || r.observation.trim().length > 0);
 }
 
+/** Checks vs. risk fields — Review risk-fields addendum §1/§3: "Build the
+ *  Review table first." Added as a SECOND tab on the existing screen rather
+ *  than a rewrite — §1's own safety rule keeps "existing Checks/Inspection
+ *  tabs and progress counts untouched", and the check-by-check tree below
+ *  (ReviewDetail) already does its own job well; the addendum's table is a
+ *  different lens on the SAME findings, not a replacement for it. Defaults
+ *  to "checks" so nothing about how this screen opens changes. */
+type ReviewTab = "checks" | "risk";
+
 export default function ReviewPage() {
   const responses = useResponses();
   const findings = useVisitFindings();
   const entityCode = useEntityCode();
   const disciplines = useMemo(() => disciplinesAt(entityCode), [entityCode]);
+  const updateFinding = useStore((s) => s.updateFinding);
+  const [tab, setTab] = useState<ReviewTab>("checks");
+  const [riskActiveId, setRiskActiveId] = useState<string | null>(null);
+  const riskActive = findings.find((f) => f.id === riskActiveId) ?? findings[0] ?? null;
 
   /* Shared with Capture, Field and HIRA — see useDisciplineFilter's own
      note in src/lib/store.ts. */
@@ -185,7 +200,66 @@ export default function ReviewPage() {
   }, [visible, entityCode, discipline]);
 
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Tab switcher — the only new top-level chrome on this screen. "By
+          check" is exactly what rendered here before this addendum and
+          stays the default; "Risk & root cause" is the new table. */}
+      <div
+        className="flex shrink-0 items-center gap-[6px] border-b px-3 py-[7px]"
+        style={{ borderColor: "var(--line)", background: "var(--panel)" }}
+      >
+        {(
+          [
+            ["checks", "By check"],
+            ["risk", "Risk & root cause"],
+          ] as [ReviewTab, string][]
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTab(key)}
+            aria-pressed={tab === key}
+            className="rounded-[8px] px-[11px] py-[6px] text-[11.5px] font-semibold"
+            style={
+              tab === key
+                ? { background: "var(--acc-soft)", color: "var(--acc)" }
+                : { background: "transparent", color: "var(--ink-2)" }
+            }
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "risk" ? (
+        <div className="flex min-h-0 flex-1">
+          <ReviewRiskTable
+            findings={findings}
+            entityCode={entityCode}
+            activeId={riskActive?.id ?? null}
+            onActivate={setRiskActiveId}
+            onChange={(id, patch) => updateFinding(id, patch)}
+          />
+          <div
+            className="hidden w-[320px] shrink-0 overflow-y-auto border-l p-3 md:block"
+            style={{ borderColor: "var(--line)", background: "var(--panel)" }}
+          >
+            {riskActive ? (
+              <ReviewRiskPanel
+                key={riskActive.id}
+                finding={riskActive}
+                onChange={(patch) => updateFinding(riskActive.id, patch)}
+              />
+            ) : (
+              <Empty>
+                <IconInbox width={26} height={26} />
+                <div>No findings raised this visit.</div>
+              </Empty>
+            )}
+          </div>
+        </div>
+      ) : (
+      <div className="flex min-h-0 flex-1">
       {/* navigator — same shape as Capture's: the filter, the discipline,
           the asset systems with their checks nested under them. */}
       <div
@@ -368,6 +442,8 @@ export default function ReviewPage() {
           </Empty>
         </div>
       )}
-    </>
+      </div>
+      )}
+    </div>
   );
 }

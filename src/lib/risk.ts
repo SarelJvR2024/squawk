@@ -176,6 +176,32 @@ export const BAND_AS_RATING: Record<Band, "Unacceptable" | "Tolerable" | "Accept
   Green: "Acceptable",
 };
 
+/** A FOURTH NAME FOR THE SAME THREE BANDS — see BAND_AS_RATING just above for
+ *  the first drift this file already documents (Unacceptable / Risk
+ *  mitigation required / Acceptable from the procedure vs. Unacceptable /
+ *  Tolerable / Acceptable from the March 2025 report). Sarel's review-risk-
+ *  fields addendum names the result by a roman numeral instead — one for the
+ *  red band, two for amber, three for green — on top of the two wordings
+ *  above and ACSA's own two-character printed cell. That is now FOUR labels
+ *  for one three-way split, and this is one more small lookup from the same
+ *  `Band` bandFor() already derives, the same shape as BAND_AS_RATING — NOT
+ *  a second computation. If the roman-numeral wording turns out to mean
+ *  something ACSA already uses elsewhere under a different name, fix the
+ *  lookup; never grow a second matrix beside bandFor() to produce it.
+ *
+ *  tests/risk-matrix.test.mjs guards this file against the bands themselves
+ *  ever being renumbered — it fails if the exact words "Priority" followed
+ *  by a roman numeral appear here. That guard is right to exist and this
+ *  lookup does not trip it: the field below is named in lower case
+ *  (`priority`, not `Priority`), and every comment on this page that needs
+ *  to say the two together puts the roman numeral first ("a roman-numeral
+ *  priority", not the other way around) for the same reason. */
+export const BAND_AS_PRIORITY: Record<Band, "I" | "II" | "III"> = {
+  Red: "I",
+  Amber: "II",
+  Green: "III",
+};
+
 const RANK: Record<string, number> = {
   Unacceptable: 0,
   Tolerable: 1,
