@@ -5135,6 +5135,48 @@ check(
   "a check's own observation is a different field, read by a different column already — this fallback is scoped to findings and walk items only"
 );
 
+/* ---- A FINDING TAGGED OBSERVATION ON /review MUST NOT SYNC AS NC --------
+ *  Review risk-fields addendum: Finding.findingType lets an auditor tag a
+ *  finding "Observation" rather than "Non-compliance" after the fact. The
+ *  evidence row's own Compliance column hardcoded "NC" for every finding's
+ *  photograph regardless — found by the standing SharePoint sync-integrity
+ *  review. findingType is absent-means-"non-compliance" (findingTypeFor's
+ *  own default), so the unset case must still read NC; only an explicit
+ *  "observation" tag changes it, and then to null (unanswered-shaped, not a
+ *  repurposed Compliance value — this app's C/NC/N/A/NV vocabulary has no
+ *  "observation" member). --------------------------------------------- */
+
+check(
+  "a finding's own photo still reads NC when findingType is unset — the existing default is unchanged",
+  (() => {
+    const findings = [{
+      id: "F-OBS1", entity: "FALE", checkId: null, discipline: "Electrical", system: "AGL",
+      title: "t", description: "d",
+      attachments: [{ id: "fo1", kind: "photo", name: "n", blobKey: "fob1", ref: "F-OBS1_P01" }],
+    }];
+    const v = sp.buildPlan({ ...BASE, findings }, NOTHING).evidence.find(
+      (e) => e.filename === "F-OBS1_P01.jpg"
+    ).values;
+    return v.compliance === "NC";
+  })()
+);
+
+check(
+  "a finding explicitly tagged findingType: \"observation\" syncs compliance as null, not NC",
+  (() => {
+    const findings = [{
+      id: "F-OBS2", entity: "FALE", checkId: null, discipline: "Electrical", system: "AGL",
+      title: "t", description: "d", findingType: "observation",
+      attachments: [{ id: "fo2", kind: "photo", name: "n", blobKey: "fob2", ref: "F-OBS2_P01" }],
+    }];
+    const v = sp.buildPlan({ ...BASE, findings }, NOTHING).evidence.find(
+      (e) => e.filename === "F-OBS2_P01.jpg"
+    ).values;
+    return v.compliance === null;
+  })(),
+  "the bug this test guards: this column hardcoded \"NC\" for every finding's photo regardless of findingType"
+);
+
 /* ------------------------------------------------------------------ result */
 
 console.log(failures === 0 ? "\nSHAREPOINT OK" : `\n${failures} FAILURE${failures > 1 ? "S" : ""}`);

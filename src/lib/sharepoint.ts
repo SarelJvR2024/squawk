@@ -57,6 +57,7 @@ import { portalIdFor, siteCodeFor, siteFor } from "./sites";
 import { apologiesOf } from "./attendanceRegister";
 import { MEDIUM_LABEL } from "./evidence";
 import { bandFor, BAND_META } from "./risk";
+import { findingTypeFor } from "./reviewRisk";
 import type {
   AdHocItem,
   AnswerLibrary,
@@ -232,6 +233,13 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
      active one for the current status — see the checkpoints loop. */
   evidenceStatus: ["Evidence status", "Evidence Status", "Evidence availability"],
   evidenceStatusNote: ["Evidence status note", "Evidence note", "What is outstanding"],
+  /* THE EVIDENCE LOG'S OWN "has anyone looked at this yet" — EvidenceItem.
+     analysisAt/analysisNote (Review table v2), same at/note shape as
+     unavailableAt/unavailableReason just below. Distinct again from
+     evidenceVerdict/evidenceStatus above: those are per-CHECK, this is
+     per-DOCUMENT. */
+  analysed: ["Analysed", "Document analysed", "Analysis"],
+  analysisNote: ["Analysis note", "Analysis Note", "What the document shows"],
   /* ONE READ, instead of the observation, evidenceProves and findings columns
      above being three places a reader assembles the same picture by hand.
      Written only by the "AI merge" action in ExportPanel — see
@@ -440,7 +448,8 @@ export const EVIDENCE_LOG_FIELDS = [
   "title", "documentTitle", "documentNo", "revision", "documentDate",
   "requestedAt", "requestedFrom", "receivedAt", "receivedFrom", "receivedBy",
   "medium", "originalOrCopy", "returnedAt", "returnedTo",
-  "unavailable", "unavailableReason", "checkPoints", "signed", "notes",
+  "unavailable", "unavailableReason", "discipline", "assetSystem",
+  "analysed", "analysisNote", "checkPoints", "signed", "notes",
 ] as const;
 
 /** One row per (discipline, asset system) pair — same grouping systemsSheet's
@@ -2020,11 +2029,20 @@ export function buildPlan(
           f.discipline,
           f.system,
           findingPortalKey.get(f.id) ?? "",
-          /* Every Finding IS a non-compliance in this schema — see
-             RaiseFindingSheet.tsx's own doc comment — so a finding's own
-             photograph always carries NC, the one evidence source in this
-             function where the outcome is never read off a response. */
-          "NC",
+          /* "Every Finding IS a non-compliance in this schema" stopped being
+             true the moment Finding.findingType existed (Review risk-fields
+             addendum) — an auditor can now tag a finding Observation on
+             /review, and this always sent NC regardless. Read through
+             findingTypeFor() like every other caller, never off
+             f.findingType directly (see that field's own doc comment).
+             `null` for Observation, not a repurposed Compliance value — this
+             app's Compliance vocabulary (C/NC/N/A/NV) has no "observation"
+             member, and inventing one here risks the same misreading a
+             genuinely unanswered field is protected against elsewhere in
+             this file. Flagged for Sarel: if the portal needs its own
+             explicit "observation" signal rather than a blank Compliance
+             cell, that is a column addition, not a value choice. */
+          findingTypeFor(f) === "observation" ? null : "NC",
           fallbackCaption
         ),
         folder: dayFolder(folder, a.takenAt ?? a.createdAt),
@@ -2337,6 +2355,15 @@ export function buildPlan(
         returnedTo: item.returnedTo,
         unavailable: item.unavailableAt ? "Yes" : "No",
         unavailableReason: item.unavailableReason,
+        /* REVIEW TABLE V2 — discipline/system/analysisAt/analysisNote, added
+           alongside unavailableAt/unavailableReason above (see this type's own
+           doc comment on why analysis is the SAME SHAPE as unavailable). Those
+           synced from day one; these were missed in the same commit that added
+           them — same bug class as MitigationAction.system before it. */
+        discipline: item.discipline ?? "",
+        assetSystem: item.system ?? "",
+        analysed: item.analysisAt ? "Yes" : "No",
+        analysisNote: item.analysisNote,
         /* THE LINK TO THE AUDIT CHECKS — every check-point this document
            bears on, in the portal's own ids, so a reader on the evidence
            log can trace straight back to the check-point it was produced
@@ -2366,9 +2393,9 @@ export function buildPlan(
        `checkId` here is the column a reader filters and reports on, same
        rule the walk-item loop above follows: one check named, use it; more
        than one or none, fall back to this row's own key rather than
-       guessing which check the photograph is really of. EvidenceItem
-       carries no discipline/asset system of its own — see its own shape in
-       types.ts — so those stay blank rather than invented. */
+       guessing which check the photograph is really of. EvidenceItem DOES
+       now carry its own discipline/asset system (Review table v2) — read
+       those rather than inventing them. */
     const singleCheckId = item.checkIds.length === 1 ? item.checkIds[0] : null;
     for (const a of item.attachments ?? []) {
       if (a.kind !== "photo" || a.unavailable) continue;
@@ -2379,10 +2406,16 @@ export function buildPlan(
         attachment: a,
         caption: a.caption?.trim() ?? "",
         /* No finding concept on an EvidenceItem — see its own shape in
-           types.ts, same reason discipline/asset system above stay blank
-           rather than invented. Same reasoning for `null` here: no outcome
+           types.ts. Same reasoning for `null` here: no compliance outcome
            of its own either. */
-        values: evidenceValues(a, singleCheckId ? portalIdFor(x.entity, singleCheckId) : key, "", "", "", null),
+        values: evidenceValues(
+          a,
+          singleCheckId ? portalIdFor(x.entity, singleCheckId) : key,
+          item.discipline ?? "",
+          item.system ?? "",
+          "",
+          null
+        ),
         folder: dayFolder(folder, a.takenAt ?? a.createdAt),
       });
     }

@@ -716,5 +716,48 @@ check(
   "a check's own observation is a different field, read by a different column already — this fallback is scoped to findings and walk items only"
 );
 
+/* ---- A FINDING TAGGED OBSERVATION ON /review MUST NOT EXPORT AS NC -----
+ *  Ported from tests/sharepoint.test.mjs's own block on this (found by the
+ *  standing SharePoint sync-integrity review): this sheet hardcoded
+ *  Non-compliant for every finding's own photo regardless of
+ *  Finding.findingType. ----------------------------------------------- */
+
+check(
+  "a finding's own photo still reads Non-compliant when findingType is unset — the existing default is unchanged",
+  (() => {
+    const x = {
+      ...BASE,
+      checks: [],
+      responses: {},
+      findings: [{
+        id: "F-OBS1", entity: "FALE", checkId: null, discipline: "Electrical", system: "AGL",
+        title: "t", description: "d",
+        attachments: [{ id: "fo1", kind: "photo", name: "n", ref: "F-OBS1_P01" }],
+      }],
+    };
+    const sheet = ex.photographsSheet(x);
+    return cellOf(sheet, 0, "Compliance") === "Non-compliant";
+  })()
+);
+
+check(
+  "a finding explicitly tagged findingType: \"observation\" exports Compliance blank, not Non-compliant",
+  (() => {
+    const x = {
+      ...BASE,
+      checks: [],
+      responses: {},
+      findings: [{
+        id: "F-OBS2", entity: "FALE", checkId: null, discipline: "Electrical", system: "AGL",
+        title: "t", description: "d", findingType: "observation",
+        attachments: [{ id: "fo2", kind: "photo", name: "n", ref: "F-OBS2_P01" }],
+      }],
+    };
+    const sheet = ex.photographsSheet(x);
+    return cellOf(sheet, 0, "Compliance") === "";
+  })(),
+  "the bug this test guards: this column hardcoded Non-compliant for every finding's photo regardless of findingType"
+);
+
 console.log(`\n${failures === 0 ? "ALL PASS" : `${failures} FAILED`}`);
 process.exit(failures ? 1 : 0);
