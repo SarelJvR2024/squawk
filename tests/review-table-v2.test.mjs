@@ -138,7 +138,7 @@ check(
 );
 check(
   "the table reuses ALL_DISCIPLINES/systemsOf/systemsAt from the register, not a second vocabulary",
-  /import \{ ALL_DISCIPLINES, systemsAt, systemsOf \} from "@\/lib\/register"/.test(table)
+  /import \{ ALL_DISCIPLINES, checksAt, systemsAt, systemsOf \} from "@\/lib\/register"/.test(table)
 );
 check(
   "the table renders a Discipline filter and an Asset system filter, aria-labelled",
@@ -158,9 +158,27 @@ check(
   "the column-toggle UI is gone — this is one fixed table, not a customisable one",
   !/DEFAULT_COLUMNS/.test(table) && !/toggleColumn/.test(table)
 );
+/* ---- reference codes removed from the UI (presentation only) ---------
+ * See "Review pages: remove audit-check reference codes from the UI" —
+ * the Audit check cell now shows the check's own readable requirement
+ * text (via checksAt()), never a portalIdFor() reference code. f.checkId
+ * itself is untouched as the lookup key/filter/grouping value. */
 check(
   "a checkless finding's Audit check cell reads General, not a blank or a broken id",
-  /\{f\.checkId \? \([\s\S]{0,80}portalIdFor\(entityCode, f\.checkId\)[\s\S]{0,300}General/.test(table)
+  /\{f\.checkId \? \([\s\S]{0,300}\) : \([\s\S]{0,120}General/.test(table)
+);
+check(
+  "a linked finding's Audit check cell shows its readable requirement text, resolved via checksAt — not a reference code",
+  /checksById\.get\(f\.checkId\)\?\.requirement/.test(table) && /checksAt\(entityCode\)/.test(table)
+);
+check(
+  "portalIdFor is not called anywhere in this file any more — the ref-code column and the rollup label both dropped it",
+  !/portalIdFor/.test(table)
+);
+check(
+  "the rollup table's By-audit-check row label is resolved through the same requirement lookup, with the groupless sentinel rendered as General (not the raw \"No check\" string)",
+  /labelFor[\s\S]{0,400}key === "No check"[\s\S]{0,40}"General"/.test(table) &&
+    /case "check":\s*\n\s*return f\.checkId \?\? "No check";/.test(table)
 );
 check(
   "a finding with no asset system reads General, muted — same convention as Audit check",

@@ -42,6 +42,13 @@ import type { Check, EvidenceComplianceRating, EvidenceItem, Likelihood, Severit
 const inputCls = "w-full rounded-[8px] border px-3 py-2 text-[13px]";
 const inputStyle = { background: "var(--bg)", borderColor: "var(--line)" } as const;
 
+/** Short, readable fragment of a check's requirement text for inline hint
+ *  copy (e.g. "Feeds into: …") — not a table cell, so this stays shorter
+ *  than the requirement truncation used in the table/panel selects. */
+function truncate(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max).trimEnd()}…` : text;
+}
+
 const STAGE_TONE: Partial<Record<EvidenceTrackingStage, Tone>> = {
   requested: "neutral",
   notStarted: "neutral",
@@ -344,7 +351,7 @@ export default function EvidenceReviewPanel({
               <option value="">No specific check</option>
               {checkOptions.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.id} — {c.requirement.slice(0, 60)}
+                  {c.requirement.slice(0, 80)}
                 </option>
               ))}
             </select>
@@ -553,7 +560,7 @@ export default function EvidenceReviewPanel({
           <p className="text-[10.5px]" style={{ color: "var(--ink-4)" }}>
             Feeds into:{" "}
             {linkedCheck
-              ? `${linkedCheck.id} combined compliance`
+              ? `${truncate(linkedCheck.requirement, 48)} combined compliance`
               : "General — not linked to a check"}
           </p>
         </Field>
