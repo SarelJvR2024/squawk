@@ -34,6 +34,7 @@ import { mappingFor } from "./crosswalk";
 import { effectiveWalkOutcome, flattenProgress } from "./sharepoint";
 import { findingTypeFor } from "./reviewRisk";
 import { EVIDENCE_COMPLIANCE_LABEL } from "./evidence";
+import { evidenceAxisFor, reviewCombinedCompliance } from "./review";
 import * as erm from "./erm";
 
 /** Who raised the hazard, spelled out for a reader of the workbook. */
@@ -178,6 +179,19 @@ export function registerSheet(x: ExportInput): Sheet {
       .map((i) => lib?.EO[i]?.label ?? `#${i}`)
       .join("\n");
     const issues = r?.issuesPicked.map((i) => lib?.IO[i]?.finding ?? `#${i}`).join("\n");
+    /* THE REVIEW SCREEN'S OWN FOUR-AXIS READING — same computation as
+       sharepoint.ts's checkpoints loop, same reason: ReviewDetail.tsx's own
+       on-screen strip already combines these for the app, and this sheet
+       showed `fieldCompliance` but never `evidenceVerdict`'s own axis,
+       `siteInspection`, or the combined reading at all — a reader had no
+       way to see what the Review screen itself was reading for this check.
+       `evidenceForCheck`'s own filter (every EvidenceItem naming this
+       check, not scoped to this visit) matches that component exactly. */
+    const itemsForCheck = (x.evidenceItems ?? []).filter((e) => e.checkIds.includes(c.id));
+    const evidenceAxis = r ? evidenceAxisFor(r.evidenceVerdict, itemsForCheck) : null;
+    const combinedCompliance = r
+      ? reviewCombinedCompliance(r.compliance, evidenceAxis, r.siteInspection)
+      : null;
     const walk =
       r?.walkaboutPicked !== null && r?.walkaboutPicked !== undefined
         ? (lib?.WO[r.walkaboutPicked]?.label ?? `#${r.walkaboutPicked}`)
@@ -238,6 +252,21 @@ export function registerSheet(x: ExportInput): Sheet {
          (not yet answered on the walk) renders blank, same convention as the
          Status column just above. */
       r?.fieldCompliance ? STATUS_WORD[r.fieldCompliance] : "",
+      /* THE EVIDENCE AXIS — worst of the auditor's own `evidenceVerdict` and
+         any Evidence review document rated against this check; see this
+         function's own note just above. NOT the same column as "Status"
+         (the desk verdict) or "Field compliance" (the walk's own verdict)
+         — a third, independent reading. */
+      evidenceAxis ? STATUS_WORD[evidenceAxis] : "",
+      /* THE REVIEWER'S OWN LATER JUDGMENT, set on Review after the visit —
+         Response.siteInspection, never `fieldCompliance` above (that is the
+         auditor's own verdict, set during the visit; this is a different
+         person, a different moment). */
+      r?.siteInspection ? STATUS_WORD[r.siteInspection] : "",
+      /* THE WORST OF THE THREE COLUMNS ABOVE PLUS "Status" — exactly
+         reviewCombinedCompliance(), same function the Review screen's own
+         "Combined" cell calls. */
+      combinedCompliance ? STATUS_WORD[combinedCompliance] : "",
       /* WHERE THE ASSET WAS INSPECTED, and it is a different column from
          `Area`. Area is ACSA's category on the register; this is the auditor's
          own words for where they were standing, which is the half that lets
@@ -311,6 +340,12 @@ export function registerSheet(x: ExportInput): Sheet {
          this field already does, so a reader who has met the column on the
          portal recognises it here too. */
       { header: "Field compliance", width: 16 },
+      /* NAMED AFTER sharepoint.ts's OWN FIELD_CANDIDATES for these three, so
+         a reader who has met them on the portal recognises them here too —
+         same reasoning as "Field compliance" just above. */
+      { header: "Evidence compliance", width: 16 },
+      { header: "Site inspection compliance", width: 18 },
+      { header: "Combined compliance", width: 16 },
       { header: "Where it was inspected", width: 28 },
       { header: "Observation", width: 60, wrap: true },
       /* THE INSPECTION SCREEN'S OWN NOTE — Response.fieldObservation, never

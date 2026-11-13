@@ -58,6 +58,7 @@ import { apologiesOf } from "./attendanceRegister";
 import { EVIDENCE_COMPLIANCE_LABEL, MEDIUM_LABEL } from "./evidence";
 import { bandFor, BAND_META } from "./risk";
 import { findingTypeFor } from "./reviewRisk";
+import { evidenceAxisFor, reviewCombinedCompliance } from "./review";
 import type {
   AdHocItem,
   AnswerLibrary,
@@ -224,6 +225,18 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
      note at the checkpoints loop's values object in buildPlan(). */
   evidenceProves: ["Evidence proves", "What evidence proves", "What the evidence proves"],
   evidenceVerdict: ["Evidence verdict", "Evidence compliance", "Evidence outcome"],
+  /* THE REVIEWER'S OWN LATER JUDGMENT — Response.siteInspection, set on
+     Review after the visit (NOT `fieldCompliance` above, the auditor's own
+     walk-time verdict — two different people, two different moments).
+     Deliberately distinct candidate names from `fieldCompliance`'s own
+     "Site verdict" alias above, so the two never resolve to the same
+     portal column by accident. */
+  siteInspection: ["Site inspection", "Site inspection compliance", "Reviewer site inspection"],
+  /* THE WORST OF compliance/evidenceVerdict/siteInspection — see
+     reviewCombinedCompliance() in review.ts, the one function every
+     screen's own "Combined" reading already calls. Never had a portal
+     column before now; see the checkpoints loop's own note on why. */
+  combinedCompliance: ["Combined compliance", "Combined", "Overall compliance"],
   /* HAS THE PROOF BEEN PRODUCED — a different question again from
      evidenceVerdict/evidenceProves above (what the evidence SAYS once it
      exists) and from the older evidencePending flag (folded into
@@ -438,6 +451,7 @@ export const LIST_NAMES = {
 export const CHECK_FIELDS = [
   "title", "discipline", "assetSystem", "compliance", "observation",
   "evidenceProves", "evidenceVerdict", "evidenceStatus", "evidenceStatusNote",
+  "siteInspection", "combinedCompliance",
   "auditor", "assessedOn", "photos", "evidenceLink",
 ] as const;
 
@@ -1684,6 +1698,20 @@ export function buildPlan(
     }
     const key = portalIdFor(x.entity, c.id);
     const itemId = existing.checkpoints.get(key);
+    /* THE REVIEW SCREEN'S OWN FOUR-AXIS READING — Sarel: "we have 4
+       compliance fields already we need to use them," after a review
+       caught `evidenceVerdict` below being sent RAW, ignoring any Evidence
+       review document rated against this check, and `siteInspection`/the
+       combined reading never being sent at all. Computed exactly the way
+       ReviewDetail.tsx computes them for its own on-screen strip —
+       `evidenceForCheck`'s filter (every EvidenceItem naming this check,
+       not scoped to this visit; see that component's own note on why
+       `useEvidenceItems()` spans visits on purpose) — so the portal shows
+       the SAME four values the app's own Review screen does, never a
+       second, independently-derived reading that can drift from it. */
+    const itemsForCheck = entityEvidenceItems.filter((e) => e.checkIds.includes(c.id));
+    const evidenceAxis = evidenceAxisFor(r.evidenceVerdict, itemsForCheck);
+    const combinedCompliance = reviewCombinedCompliance(r.compliance, evidenceAxis, r.siteInspection);
     /* THE THREE LIBRARY PICKS, ALL RESOLVED THE SAME WAY composeObservation()
        DOES. `r.observation` may already contain these sentences — if the
        auditor composed it before picking, or typed it by hand — or may not,
@@ -1763,17 +1791,41 @@ export function buildPlan(
         /* WHAT THE EVIDENCE PROVES, AND THE VERDICT IT SUPPORTS — replacing
            "Evidence to request" (never synced; it only ever existed as chips
            on the check screen, never reached the portal) now that the
-           screen asks a different question. `evidenceVerdict` is written
-           raw ("C"/"NC"/"NV") the same way `compliance` above is — any
-           Choice column it lands on is matched through `portalChoice()`
-           exactly like compliance is, so Prince's column can offer
-           "Compliant"/"Non-compliant"/"Not Verified", "C - Compliant", or
-           the bare codes, and all three resolve the same way. `null` (not
-           yet judged) is sent through rather than coerced to an empty
-           string, so an unset verdict reads as unset on the portal too, not
-           as a blank that could be mistaken for "cleared". */
+           screen asks a different question. Written raw ("C"/"NC"/"NV") the
+           same way `compliance` above is — any Choice column it lands on is
+           matched through `portalChoice()` exactly like compliance is, so
+           Prince's column can offer "Compliant"/"Non-compliant"/"Not
+           Verified", "C - Compliant", or the bare codes, and all three
+           resolve the same way. `null` (not yet judged) is sent through
+           rather than coerced to an empty string, so an unset verdict reads
+           as unset on the portal too, not as a blank that could be mistaken
+           for "cleared".
+
+           THIS IS `evidenceAxis`, NOT the raw `r.evidenceVerdict` — see
+           `evidenceAxisFor()` in review.ts. Sending the raw value here was
+           itself the bug the standing sync review caught: a document rated
+           non-compliant on the Evidence review screen pulled the app's own
+           "Evidence" cell down to NC, while this column kept showing
+           whatever the auditor had set directly, disagreeing with the
+           screen ACSA is told to read it next to. Unrated evidence leaves
+           this identical to `r.evidenceVerdict`, so nothing changes for a
+           check the Evidence screen never touched. */
         evidenceProves: r.evidenceProves?.trim() || null,
-        evidenceVerdict: r.evidenceVerdict,
+        evidenceVerdict: evidenceAxis,
+        /* THE REVIEWER'S OWN LATER JUDGMENT — Response.siteInspection, set on
+           Review after the visit, never on Capture or the walk (that is
+           `fieldCompliance` above, a different question entirely — see its
+           own doc comment). Never synced before now; same reasoning as
+           `evidenceVerdict` just above for sending `null` through as-is. */
+        siteInspection: r.siteInspection,
+        /* THE WORST OF THE THREE ABOVE — `compliance`, the `evidenceVerdict`
+           axis, `siteInspection` — exactly `reviewCombinedCompliance()`,
+           the same DERIVED, NEVER STORED function every screen's own
+           "Combined" reading calls. Never synced before now: ACSA saw three
+           separate columns and had to work out the worst of them by hand,
+           which is the one thing a sync exists to do instead. `null` only
+           when all three are unanswered — see that function's own note. */
+        combinedCompliance,
         /* HAS THE PROOF BEEN PRODUCED — see EVIDENCE_STATUS_TEXT. Spelled out
            rather than sent as the stored camelCase token: unlike compliance
            and evidenceVerdict, this field has no pre-existing ACSA
