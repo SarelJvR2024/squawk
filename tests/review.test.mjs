@@ -359,12 +359,24 @@ check(
   "the same attachments array already renders in the Evidence section above"
 );
 
-/* ----------------------------------------- Part 5: ids are the site's own */
+/* ----------------------------------------- Part 5: reference codes gone */
 
+/* 13 Nov 2026 — "Review pages: remove audit-check reference codes from the
+ * UI": the sidebar row (and ReviewDetail's own sticky header, and the Risk &
+ * root cause table/panel) no longer shows a portal-id reference code, only
+ * the check's own readable requirement text. f.checkId/check.id themselves
+ * are untouched everywhere else they are supposed to drive linking, sync and
+ * exports — see sites.test.mjs/photos.test.mjs/raisefinding.test.mjs, which
+ * still pass and still assert portalIdFor() is used correctly in store.ts,
+ * exports.ts, the raise-finding sheet and CheckDetail.tsx. */
 check(
-  "the display id on a row is the site's own portal id, same as every other screen",
-  /portalIdFor\(entityCode, c\.id\)/.test(review),
-  "KSIA-ELE-001 and ORTIA-ELE-001 are one requirement at two airports"
+  "the sidebar row shows the check's own readable requirement text, not a reference code",
+  /\{c\.requirement\}/.test(review),
+  "the requirement text already carries the 'what is this check' job, same as the detail panel's own heading"
+);
+check(
+  "portalIdFor is no longer called anywhere on this screen — page.tsx and ReviewDetail.tsx both dropped it",
+  !/portalIdFor/.test(review) && !/portalIdFor/.test(reviewDetail)
 );
 
 check(

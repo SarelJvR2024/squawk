@@ -42,11 +42,10 @@ import {
   type ReviewRiskFilter,
 } from "@/lib/reviewRisk";
 import { LIKELIHOODS, SEVERITIES } from "@/lib/risk";
-import { ALL_DISCIPLINES, systemsAt, systemsOf } from "@/lib/register";
-import { portalIdFor } from "@/lib/sites";
+import { ALL_DISCIPLINES, checksAt, systemsAt, systemsOf } from "@/lib/register";
 import { Chip, Pill } from "@/components/ui/primitives";
 import { IconCamera, IconMic } from "@/components/ui/icons";
-import type { Finding, Likelihood, Severity } from "@/lib/types";
+import type { Check, Finding, Likelihood, Severity } from "@/lib/types";
 
 type RollupAxis = "discipline" | "system" | "check" | "finding";
 
@@ -58,8 +57,9 @@ export default function ReviewRiskTable({
   onChange,
 }: {
   findings: Finding[];
-  /** For the Audit check column's portal-id display and the Asset system
-   *  filter's register lookups — this table reads no other check data. */
+  /** For the Audit check column's requirement-text lookup and the Asset
+   *  system filter's register lookups — this table reads no other check
+   *  data. */
   entityCode: string;
   activeId: string | null;
   onActivate: (id: string) => void;
@@ -70,6 +70,17 @@ export default function ReviewRiskTable({
   const [filter, setFilter] = useState<ReviewRiskFilter>({ kind: "all" });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [rollupAxis, setRollupAxis] = useState<RollupAxis>("discipline");
+
+  /* Audit-check reference codes are presentation we no longer show (see
+   *  PR "Review pages: remove audit-check reference codes from the UI") —
+   *  the readable requirement text takes their place everywhere a check is
+   *  linked. Built once per entity rather than re-scanning checksAt() on
+   *  every row's render. */
+  const checksById = useMemo(() => {
+    const m = new Map<string, Check>();
+    for (const c of checksAt(entityCode)) m.set(c.id, c);
+    return m;
+  }, [entityCode]);
 
   const visible = useMemo(
     () => findings.filter((f) => matchesReviewRiskFilter(f, filter)),
@@ -96,7 +107,7 @@ export default function ReviewRiskTable({
   const selectedFindings = visible.filter((f) => selected.has(f.id));
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-3">
       {/* Filters — §3: "Rating, Not rated, Impact area, Root cause
           category, Root cause unconfirmed", widened with Discipline and
           Asset system. */}
@@ -283,18 +294,24 @@ export default function ReviewRiskTable({
                     )}
                   </td>
 
-                  <td className="p-2 whitespace-nowrap font-mono text-[10px]">
+                  {/* Audit check — the readable requirement text, never the
+                      reference code (presentation only; f.checkId itself is
+                      untouched and still drives linking/filtering/grouping
+                      and compliance calculations elsewhere). */}
+                  <td className="min-w-[160px] max-w-[320px] p-2 align-top">
                     {f.checkId ? (
-                      portalIdFor(entityCode, f.checkId)
+                      <span className="block whitespace-normal break-words" style={{ color: "var(--ink-2)" }}>
+                        {checksById.get(f.checkId)?.requirement.slice(0, 90) ?? f.checkId}
+                      </span>
                     ) : (
-                      <span className="font-sans not-italic" style={{ color: "var(--ink-4)" }}>
+                      <span className="not-italic" style={{ color: "var(--ink-4)" }}>
                         General
                       </span>
                     )}
                   </td>
 
                   {/* Finding/comment — wraps, never truncated to nothing. */}
-                  <td className="min-w-[200px] max-w-[360px] p-2 align-top">
+                  <td className="min-w-[220px] max-w-[400px] p-2 align-top">
                     <span className="block whitespace-normal break-words font-semibold" style={{ color: "var(--ink)" }}>
                       {f.title || f.description || f.id}
                     </span>
@@ -428,7 +445,7 @@ export default function ReviewRiskTable({
             <option value="finding">By finding</option>
           </select>
         </div>
-        <RollupTable findings={findings} axis={rollupAxis} />
+        <RollupTable findings={findings} axis={rollupAxis} entityCode={entityCode} />
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <MultiCountCard title="Impact areas" counts={countByMultiSelect(findings, (f) => f.impactAreas)} />
@@ -628,7 +645,18 @@ function BulkBar({
   );
 }
 
-function RollupTable({ findings, axis }: { findings: Finding[]; axis: RollupAxis }) {
+function RollupTable({
+  findings,
+  axis,
+  entityCode,
+}: {
+  findings: Finding[];
+  axis: RollupAxis;
+  entityCode: string;
+}) {
+  /* Grouping key is byte-identical to before this change — only the LABEL
+   *  shown for the "By audit check" axis changes (ref code → requirement
+   *  text / "General"), so which rows bucket together is untouched. */
   const keyOf = (f: Finding): string => {
     switch (axis) {
       case "discipline":
@@ -642,6 +670,19 @@ function RollupTable({ findings, axis }: { findings: Finding[]; axis: RollupAxis
     }
   };
   const rows = rollupBy(findings, keyOf);
+
+  const checksById = useMemo(() => {
+    const m = new Map<string, Check>();
+    for (const c of checksAt(entityCode)) m.set(c.id, c);
+    return m;
+  }, [entityCode]);
+
+  const labelFor = (key: string): string => {
+    if (axis !== "check") return key;
+    if (key === "No check") return "General";
+    return checksById.get(key)?.requirement.slice(0, 90) ?? key;
+  };
+
   return (
     <table className="w-full text-[11px]">
       <thead>
@@ -657,7 +698,7 @@ function RollupTable({ findings, axis }: { findings: Finding[]; axis: RollupAxis
       <tbody>
         {rows.map((r) => (
           <tr key={r.key} className="border-t" style={{ borderColor: "var(--line)" }}>
-            <td className="p-2">{r.key}</td>
+            <td className="p-2">{labelFor(r.key)}</td>
             <td className="p-2 font-mono">{r.counts.I}</td>
             <td className="p-2 font-mono">{r.counts.II}</td>
             <td className="p-2 font-mono">{r.counts.III}</td>

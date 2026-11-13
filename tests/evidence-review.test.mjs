@@ -237,6 +237,32 @@ check(
   "the Add-request dialog's save button is disabled without a discipline — creating one with no discipline is rejected (test 2)",
   /disabled={!title\.trim\(\) \|\| !discipline}/.test(view)
 );
+
+/* ---- reference codes removed from the UI (presentation only) ---------
+ * "Review pages: remove audit-check reference codes from the UI" — the
+ * Evidence review tab now shows the linked check's own readable
+ * requirement text, never its portalIdFor() reference code. The purple
+ * General tag asserted just above is untouched (it is the EvidenceItem's
+ * own discipline-level General state, not a check reference). */
+check(
+  "the table's 'Linked to' subline shows the linked check's requirement text, with no portalIdFor() prefix or separator",
+  /check\.requirement\.slice\(0, \d+\)/.test(view) && !/portalIdFor\(entityCode, check\.id\)/.test(view)
+);
+check(
+  "the Add-request sheet's Audit check <select> options read the requirement text, not `${c.id} — ...`",
+  /\{c\.requirement\.slice\(0, \d+\)\}/.test(view) && !/\{c\.id\} —/.test(view)
+);
+check(
+  "the panel's own Audit check <select> options and its 'Feeds into' hint both read requirement text, with no raw check id and no portalIdFor import",
+  /\{c\.requirement\.slice\(0, \d+\)\}/.test(panel) &&
+    !/\{c\.id\} —/.test(panel) &&
+    !/\$\{linkedCheck\.id\}/.test(panel) &&
+    !/portalIdFor/.test(panel)
+);
+check(
+  "the panel's 'General — not linked to a check' fallback is untouched",
+  /"General — not linked to a check"/.test(panel)
+);
 check(
   "discipline is marked required in the dialog, asset system and check optional, matching 3.5",
   /DISCIPLINE" hint="required"/.test(view) &&

@@ -446,7 +446,7 @@ function Row({
             <b>{e.system}</b>
             {check ? (
               <div className="text-[10.5px]" style={{ color: "var(--ink-4)" }}>
-                {portalIdFor(entityCode, check.id)} — {check.requirement.slice(0, 50)}
+                {check.requirement.slice(0, 80)}
               </div>
             ) : null}
           </div>
@@ -632,7 +632,7 @@ function AddEvidenceRequestSheet({
           <option value="">No specific check</option>
           {checkOptions.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.id} — {c.requirement.slice(0, 60)}
+              {c.requirement.slice(0, 80)}
             </option>
           ))}
         </select>
