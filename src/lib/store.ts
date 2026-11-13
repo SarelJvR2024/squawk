@@ -690,6 +690,15 @@ interface State {
   /** Records receipt, and clears any standing "cannot be produced" declaration
    *  — producing the document contradicts it. */
   receiveEvidence: (id: string, from: string, medium: EvidenceMedium) => void;
+  /** EVIDENCE REVIEW — "Re-request" (3.4 of the brief): clears the
+   *  insufficient declaration and stamps a fresh `requestedAt`, which is what
+   *  reads the item back as `requested` (see trackingStage's own comment on
+   *  why). Clears `receivedAt`/`analysisAt`/`analysisNote` too — a document
+   *  that did not satisfy the request is not still "received" or "analysed"
+   *  once a fresh one has been asked for — but deliberately leaves
+   *  `attachments`, `notes`, `signature` and every other field alone: the
+   *  brief's own rule is "keeps files and history." */
+  reRequestEvidence: (id: string) => void;
   signEvidence: (id: string, s: Omit<Signature, "ref">) => void;
   addEvidenceAttachment: (id: string, a: Omit<Attachment, "id" | "createdAt">) => void;
   updateEvidenceAttachment: (
@@ -2423,6 +2432,8 @@ export const useStore = create<State>()(
                 unavailableReason: "",
                 analysisAt: null,
                 analysisNote: "",
+                insufficientAt: null,
+                insufficientReason: "",
                 checkIds: [],
                 attachments: [],
                 signature: null,
@@ -2487,6 +2498,19 @@ export const useStore = create<State>()(
                nothing left ACSA's premises, so it cannot be an original out on
                loan and must not sit on the return list forever. */
             ...(RETURNABLE.includes(medium) ? {} : { isOriginal: false }),
+          });
+        },
+
+        reRequestEvidence: (id) => {
+          const e = get().evidenceItems.find((x) => x.id === id);
+          if (!e) return;
+          get().updateEvidenceItem(id, {
+            requestedAt: Date.now(),
+            insufficientAt: null,
+            insufficientReason: "",
+            receivedAt: null,
+            analysisAt: null,
+            analysisNote: "",
           });
         },
 
@@ -4152,7 +4176,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 41,
+      version: 42,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -4934,6 +4958,22 @@ export const useStore = create<State>()(
             ...e,
             analysisAt: e.analysisAt ?? null,
             analysisNote: e.analysisNote ?? "",
+          }));
+        }
+        if (from < 42 && Array.isArray(st.evidenceItems)) {
+          /* Evidence review — see docs/capture-review/
+             evidence-review-discovery.md §2. `insufficientAt`/
+             `insufficientReason` are new and required, same backfill shape
+             as the v41 migration just above: an item logged before
+             "insufficient" existed simply has never been through that
+             step, and null/"" is the honest read, not a gap to guess at.
+             `complianceRating` needs no backfill — it is optional and
+             absent already means "not rated," exactly the reading a
+             pre-existing item should have. */
+          st.evidenceItems = st.evidenceItems.map((e) => ({
+            ...e,
+            insufficientAt: e.insufficientAt ?? null,
+            insufficientReason: e.insufficientReason ?? "",
           }));
         }
         return st;

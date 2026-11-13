@@ -2636,6 +2636,16 @@ export type EvidenceMedium =
  *  other stage in this app. */
 export type EvidenceStage = "requested" | "received" | "returned" | "unavailable";
 
+/** EVIDENCE REVIEW — an auditor's quality verdict on one piece of evidence,
+ *  see docs/capture-review/evidence-review-discovery.md §3. Deliberately a
+ *  NEW, narrow type rather than widening the existing `Compliance`
+ *  ("C" | "NC" | "N/A" | "NV") — that type's four values are load-bearing in
+ *  many unrelated places (review.ts, sharepoint.ts, CheckDetail.tsx…) and
+ *  this is a different, narrower question: whether a document is GOOD
+ *  evidence, not whether the check it bears on is compliant. See
+ *  review.ts's `evidenceAxisFor` for how the two meet. */
+export type EvidenceComplianceRating = "compliant" | "partial" | "nonCompliant";
+
 /** One document asked for, handed over, or refused — TK-003 form 7.
  *
  *  "Document & Evidence Collection Log", completed as evidence is collected and
@@ -2727,6 +2737,29 @@ export interface EvidenceItem {
    *  "producing it" rule to mirror here. */
   analysisAt: number | null;
   analysisNote: string;
+
+  /** EVIDENCE REVIEW — "insufficient", see docs/capture-review/
+   *  evidence-review-discovery.md §2. NOT the same fact as `unavailableAt`:
+   *  that means ACSA said the document cannot be produced at all; this means
+   *  something WAS received (and, usually, analysed) but does not satisfy
+   *  the request — wrong revision, illegible, partial, answers a different
+   *  question. SAME SHAPE as unavailableAt/unavailableReason and analysisAt/
+   *  analysisNote above, for the same reason: a fifth fact an item can carry
+   *  independently of the others, not a new EvidenceStage value.
+   *
+   *  "Re-request" (reRequestEvidence in store.ts) clears this pair and sets
+   *  a fresh `requestedAt`, but deliberately does NOT null `attachments` —
+   *  the brief's own rule is that a re-request keeps the files and the
+   *  history, it only re-opens the ask. */
+  insufficientAt: number | null;
+  insufficientReason: string;
+
+  /** EVIDENCE REVIEW — the auditor's own compliance rating of this document,
+   *  see this file's own `EvidenceComplianceRating` doc comment just above.
+   *  Optional and absent-means-not-rated, same convention as
+   *  `Finding.findingType`: no migration needed because nothing is
+   *  persisted that would otherwise read wrong. */
+  complianceRating?: EvidenceComplianceRating;
 
   /** The check-points this document bears on. It bears on them; the auditor
    *  still decides what it proves, on the check screen. */
