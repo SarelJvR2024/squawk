@@ -80,7 +80,9 @@ export type AssistTask =
   | "hazard"
   | "consolidate"
   | "reassess"
-  | "polish";
+  | "polish"
+  | "evidenceAnalysis"
+  | "evidenceSummary";
 
 /* One probe per endpoint per page load, shared by every component that asks.
    Each of these is a separate deployment decision — a site may have a model and
@@ -337,6 +339,37 @@ export function parseRootCauses(raw: string, allowed: string[]): RootCauseCandid
     });
   }
   return out.slice(0, 4);
+}
+
+/** EVIDENCE REVIEW — "Analyse evidence" (4.5 of the brief), see
+ *  docs/capture-review/evidence-review-discovery.md §5. `severity`/
+ *  `likelihood` are the single letter/digit, validated against whatever the
+ *  caller passes as `allowedSeverities`/`allowedLikelihoods` — same
+ *  division of labour as `parseRootCauses`' own `allowed` list, so this
+ *  module stays free of a `risk.ts` import and the caller (which already
+ *  has `SEVERITIES`/`LIKELIHOODS`) decides what counts as valid. */
+export interface EvidenceAnalysisResult {
+  findingText: string;
+  severity: string;
+  likelihood: string;
+  reason: string;
+}
+
+export function parseEvidenceAnalysis(
+  raw: string,
+  allowedSeverities: string[],
+  allowedLikelihoods: string[]
+): EvidenceAnalysisResult | null {
+  const j = jsonFrom(raw) as Partial<EvidenceAnalysisResult> | null;
+  if (!j || typeof j.reason !== "string") return null;
+  const sevLetter = typeof j.severity === "string" ? j.severity.trim().charAt(0).toUpperCase() : "";
+  const likeDigit = typeof j.likelihood === "string" ? j.likelihood.trim().charAt(0) : "";
+  return {
+    findingText: typeof j.findingText === "string" ? j.findingText.trim() : "",
+    severity: allowedSeverities.includes(sevLetter) ? sevLetter : "",
+    likelihood: allowedLikelihoods.includes(likeDigit) ? likeDigit : "",
+    reason: j.reason.trim(),
+  };
 }
 
 /** Send one recorded note to be transcribed. Returns what was actually heard,
@@ -636,6 +669,29 @@ export function polishContext(
     "",
     "TEXT TO REWRITE:",
     text,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/** EVIDENCE REVIEW — what goes with "Analyse evidence"/"Summarise files"
+ *  (4.5 of the brief), shared by both tasks since the input they read is
+ *  identical — only the instruction (TASK_PROMPT) differs on what to do
+ *  with it. Photographs of the document go as images, exactly the same way
+ *  `captionContext`'s own caller sends them; this builder only decides the
+ *  text half of the request. */
+export function evidenceContext(
+  e: { title: string; notes: string },
+  check?: Check
+): string {
+  return [
+    `Evidence requested: ${e.title.trim() || "(untitled)"}`,
+    e.notes.trim() && `Notes captured so far: ${e.notes.trim()}`,
+    check
+      ? `Audit check this bears on: ${check.id} — ${check.requirement}`
+      : "Not tied to a specific audit check.",
+    check?.target && `Threshold / target stated: ${check.target}`,
+    "If no photograph is supplied with this request and the notes above are empty, say so plainly rather than describing a document you cannot see.",
   ]
     .filter(Boolean)
     .join("\n");

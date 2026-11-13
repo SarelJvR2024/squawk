@@ -55,7 +55,9 @@ export type Task =
   | "hazard"           // what event does this finding expose
   | "consolidate"      // group findings that describe one physical thing
   | "reassess"         // re-read a hazard after the walkthrough
-  | "polish";          // rewrite an existing note/caption, technical and grammatical
+  | "polish"           // rewrite an existing note/caption, technical and grammatical
+  | "evidenceAnalysis" // opinion on what a piece of evidence shows, rated
+  | "evidenceSummary"; // plain-language summary of what attached files contain
 
 /** How hard the model is asked to think, per task.
  *
@@ -68,7 +70,14 @@ export type Task =
  *
  *  Nothing here is agreed by the model either way. Every one of these is a
  *  proposal an auditor accepts, edits or ignores. */
-export const JUDGEMENT: Task[] = ["rating", "rootcause", "hazard", "consolidate", "reassess"];
+export const JUDGEMENT: Task[] = [
+  "rating",
+  "rootcause",
+  "hazard",
+  "consolidate",
+  "reassess",
+  "evidenceAnalysis",
+];
 
 /** The B170 001M scales, BUILT FROM src/lib/risk.ts rather than restated here.
  *
@@ -151,4 +160,8 @@ export const TASK_PROMPT: Record<Task, string> = {
     "Draft the narrative for this discipline's section of the audit report from the captured material below. Lead with the overall position, then what was found, then what remains open. Do not list every check. No headings, no bullet points, three paragraphs at most.",
   polish:
     "Rewrite the note below for the formal audit record. It was typed quickly on site and needs to read as a finished, technical entry in a compliance audit — not a redraft of what happened, a cleaner statement of the same thing.\n\nRules for this task specifically:\n- Carry across every fact, measurement, location, quantity and item named below, exactly as given. Changing or dropping one is the worst thing you can do here.\n- Fix grammar, spelling and sentence structure only. Do not add a finding, a cause, a severity or an opinion the original text does not contain.\n- Name the asset system given below explicitly in the rewrite, where it reads naturally — a reader of this one entry, outside of its original context, should be able to tell what it is about.\n- Where the material below names a specific ACSA document, drawing, procedure or clause number, keep it verbatim. Do NOT invent, guess at or supply a clause, standard or document reference that is not already given to you — see house rule 1.\n- If the material plainly describes a defect, non-conformance or deficiency, the rewrite may use the word 'non-compliant' or 'non-conforming' once, factually, if it is not already implied by the register's own compliance marking — never invent the underlying fact to justify using it.\n- If the text given is already a short fragment (a caption rather than a full observation), keep the rewrite to one line of the same kind — do not expand a caption into paragraphs.\n- If the text is too sparse or unclear to rewrite without guessing, return it unchanged rather than inventing detail.\nReturn the rewritten text alone, with no preamble, heading or quotation marks.",
+  evidenceAnalysis:
+    `Below is one piece of evidence requested from the airport during this audit — its title, any notes captured so far, and the audit check it bears on, if it bears on a specific one. Photographs of the document, where supplied, follow the same house rules as every other image this feature is shown. Give your opinion on what it shows and, where it supports one, a finding.\n\n${B170_SCALES}\n\nRules:\n- Work only from the request's own title/notes and whatever photographs are actually supplied. If nothing was supplied to read — no notes, no photograph — say so plainly in \`reason\` rather than inventing what the document shows.\n- \`findingText\` is one sentence stating what was found, in the same style as any other finding on this audit (factual, third person, past tense). Leave it empty if the material does not support a finding — evidence that simply confirms compliance is a good, ordinary outcome and does not need one invented.\n- Only set severity/likelihood where you set a \`findingText\` — an opinion, not a verdict; the audit team rates as a group and may well disagree.\n- \`reason\` is one sentence.\nReturn JSON and nothing else:\n{"findingText":"<one sentence, or empty>","severity":"<letter, or empty>","likelihood":"<number, or empty>","reason":"<one sentence>"}`,
+  evidenceSummary:
+    "Summarise, in plain language, what the material supplied for this evidence request contains — its title, any notes captured so far, and any photographs of the document. Work only from what is actually supplied. If nothing was supplied to read, say so in one sentence instead of guessing at what the document is. Two sentences at most, factual, no judgement on compliance — that is decided on the check it bears on, not here.\nReturn the summary text alone, with no preamble, heading or quotation marks.",
 };
