@@ -1097,6 +1097,7 @@ function PhotoRow({
   const caption = a.caption ?? "";
   const uncaptioned = !dead && !caption.trim();
   const size = compact ? 48 : 64;
+  const [saving, setSaving] = useState(false);
 
   /* THE RECORD COPY, NOT ONLY THE LOCAL BLOB — Sarel: "why do i get this
      error" (The image for this photograph is no longer stored), asking to
@@ -1139,6 +1140,53 @@ function PhotoRow({
       setError(e instanceof Error ? e.message : "The assistant is unavailable.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  /* SAVE TO THE DEVICE ITSELF — Sarel: "where is the photo saved... are
+   *  those photos stored locally on the phone as well?" They weren't: a
+   *  captured photo lives only in this browser's own private storage
+   *  (IndexedDB, see media.ts), never in the phone's own Photos app. A web
+   *  page cannot write a file into the gallery silently — no browser allows
+   *  that — so this hands the photo to the OS's own share sheet, whose
+   *  "Save Image"/"Save to Photos" target is the one explicit, user-driven
+   *  way to put it there. `fullPhotoBlob`, same as describe() above: the
+   *  local blob where this device has it, the record-store copy otherwise,
+   *  so Save works on a photo this device never captured too. */
+  async function saveToDevice() {
+    setSaving(true);
+    setError(null);
+    try {
+      const blob = await fullPhotoBlob(a, entityCode, visitId);
+      const filename = a.name || `photo.${extensionFor(blob.type)}`;
+      const file = new File([blob], filename, { type: blob.type || "image/jpeg" });
+      const nav = navigator as Navigator & {
+        canShare?: (data: { files: File[] }) => boolean;
+        share?: (data: { files: File[] }) => Promise<void>;
+      };
+      if (nav.canShare?.({ files: [file] }) && nav.share) {
+        await nav.share({ files: [file] });
+        return;
+      }
+      /* No Share API (most desktop browsers) — a plain download at least
+         gets the file off the device's private storage and into a place
+         the OS file picker can see, even where it can't reach the gallery
+         directly. */
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch (e) {
+      /* The user closing the share sheet without picking anything is not a
+         failure to report — it is exactly what "cancel" on that sheet does. */
+      if (e instanceof Error && e.name === "AbortError") return;
+      setError(e instanceof Error ? e.message : "Could not save this photograph.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -1266,6 +1314,19 @@ function PhotoRow({
             </button>
           )}
           {onAddVoice && !dead && <VoiceNoteButton inline onCaptured={onAddVoice} />}
+          {!dead && (
+            <button
+              type="button"
+              onClick={saveToDevice}
+              disabled={saving}
+              className={MINI}
+              style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+              title="Save a copy of this photograph to your device"
+            >
+              <IconDownload width={12} height={12} />
+              {saving ? "Saving…" : "Save"}
+            </button>
+          )}
           {onMove && !dead && (
             <button
               type="button"

@@ -169,6 +169,68 @@ check(
   "Sarel asked to add the option, not replace the camera button"
 );
 
+/* ----------------------------- Part 2c: saving a photo onto the device itself */
+
+/* Sarel: "where is the photo saved... are those photos stored locally on the
+   phone as well?" They weren't — only in this browser's own private storage.
+   A web page cannot write a file into the OS Photos app silently, so Save
+   hands the photo to the OS's own share sheet instead, whose "Save
+   Image"/"Save to Photos" target is the one explicit way a photo reaches the
+   gallery. This guards that the real mechanism is there, not a button that
+   does nothing. */
+check(
+  "PhotoRow offers a Save-to-device action",
+  /async function saveToDevice\(\)/.test(capture) && /title="Save a copy of this photograph to your device"/.test(capture),
+  "without this there is no way off the app's own private storage at all"
+);
+
+check(
+  "saving tries the OS share sheet first, which is what can actually reach the gallery",
+  (() => {
+    const i = capture.indexOf("async function saveToDevice()");
+    if (i === -1) return false;
+    const body = capture.slice(i, capture.indexOf("return (", i));
+    return /nav\.canShare\?\.\(\{ files: \[file\] \}\) && nav\.share/.test(body) && /await nav\.share\(/.test(body);
+  })(),
+  "a share-sheet target is what gives 'Save Image'/'Save to Photos' on both iOS and Android"
+);
+
+check(
+  "the real photo is shared, via fullPhotoBlob — not a thumbnail, not a placeholder",
+  (() => {
+    const i = capture.indexOf("async function saveToDevice()");
+    const body = capture.slice(i, capture.indexOf("return (", i));
+    return /const blob = await fullPhotoBlob\(a, entityCode, visitId\);/.test(body);
+  })(),
+  "fullPhotoBlob also resolves a photo this device never itself captured"
+);
+
+check(
+  "a browser with no Share API falls back to a real download, not a dead button",
+  (() => {
+    const i = capture.indexOf("async function saveToDevice()");
+    const body = capture.slice(i, capture.indexOf("return (", i));
+    return /URL\.createObjectURL\(blob\)/.test(body) && /link\.download = filename;/.test(body) && /link\.click\(\);/.test(body);
+  })(),
+  "most desktop browsers have no navigator.share at all"
+);
+
+check(
+  "cancelling the share sheet is not reported as a failure",
+  (() => {
+    const i = capture.indexOf("async function saveToDevice()");
+    const body = capture.slice(i, capture.indexOf("return (", i));
+    return /e\.name === "AbortError"\) return;/.test(body);
+  })(),
+  "AbortError is exactly what navigator.share rejects with when the user closes the sheet"
+);
+
+check(
+  "Save appears on every photo, not gated behind the Describe/Move/Remove callbacks a screen may omit",
+  /\{!dead && \(\s*<button\s*\n\s*type="button"\s*\n\s*onClick=\{saveToDevice\}/.test(capture),
+  "a photo with no onUpdate/onMove/onRemove still needs somewhere off the device"
+);
+
 /* ------------------------------------ Part 3: an empty transcript stays empty */
 
 /* The guard is that nothing stands in for silence. The expression grew a
