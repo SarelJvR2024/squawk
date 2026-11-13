@@ -184,6 +184,97 @@ check(
   })()
 );
 
+/* ---- THE REGISTER SHEET'S OWN FOUR-AXIS READING — same
+   evidenceAxisFor()/reviewCombinedCompliance() wiring as sharepoint.ts's
+   checkpoints loop; this sheet never showed Evidence compliance, Site
+   inspection compliance or Combined compliance at all before this pass. */
+
+const EV_ITEM_FOR_EXPORT = (over = {}) => ({
+  id: "DOC-1", entity: "FALE", originVisit: "2026-09",
+  title: "Maintenance log book", documentNo: "", revision: "",
+  documentDate: null, requestedAt: null, requestedFrom: "",
+  receivedAt: null, receivedFrom: "", receivedBy: "",
+  medium: null, isOriginal: false, returnedAt: null, returnedTo: "",
+  unavailableAt: null, unavailableReason: "",
+  insufficientAt: null, insufficientReason: "",
+  checkIds: ["KSIA-ELE-001"], attachments: [], signature: null, notes: "",
+  createdAt: 1, updatedAt: 1,
+  ...over,
+});
+
+check(
+  "the Evidence compliance column reflects a linked document's own rating, worst-of the auditor's verdict",
+  (() => {
+    const x = {
+      ...BASE,
+      responses: { "KSIA-ELE-001": RESP({ checkId: "KSIA-ELE-001", compliance: "C", evidenceVerdict: "C" }) },
+      evidenceItems: [EV_ITEM_FOR_EXPORT({ complianceRating: "nonCompliant" })],
+    };
+    const sheet = ex.registerSheet(x);
+    return cellOf(sheet, 0, "Evidence compliance") === "Non-compliant";
+  })()
+);
+
+check(
+  "unrated evidence leaves Evidence compliance exactly the auditor's own evidenceVerdict",
+  (() => {
+    const x = {
+      ...BASE,
+      responses: { "KSIA-ELE-001": RESP({ checkId: "KSIA-ELE-001", compliance: "C", evidenceVerdict: "C" }) },
+      evidenceItems: [EV_ITEM_FOR_EXPORT()],
+    };
+    const sheet = ex.registerSheet(x);
+    return cellOf(sheet, 0, "Evidence compliance") === "Compliant";
+  })()
+);
+
+check(
+  "Site inspection compliance reaches the workbook, independent of Status and Field compliance",
+  (() => {
+    const x = {
+      ...BASE,
+      responses: {
+        "KSIA-ELE-001": RESP({ checkId: "KSIA-ELE-001", compliance: "C", fieldCompliance: "C", siteInspection: "NC" }),
+      },
+    };
+    const sheet = ex.registerSheet(x);
+    return (
+      cellOf(sheet, 0, "Site inspection compliance") === "Non-compliant" &&
+      cellOf(sheet, 0, /^Status/) === "Compliant" &&
+      cellOf(sheet, 0, "Field compliance") === "Compliant"
+    );
+  })(),
+  "three different people, three different moments, three independent columns — none may fold into another"
+);
+
+check(
+  "Combined compliance is the worst of the three, same as the Review screen's own strip",
+  (() => {
+    const x = {
+      ...BASE,
+      responses: {
+        "KSIA-ELE-001": RESP({
+          checkId: "KSIA-ELE-001", compliance: "C", evidenceVerdict: "C", siteInspection: "NC",
+        }),
+      },
+    };
+    const sheet = ex.registerSheet(x);
+    return cellOf(sheet, 0, "Combined compliance") === "Non-compliant";
+  })()
+);
+
+check(
+  "a check with no Response at all leaves all three new columns blank, not a crash",
+  (() => {
+    const sheet = ex.registerSheet({ ...BASE, responses: {} });
+    return (
+      cellOf(sheet, 0, "Evidence compliance") === "" &&
+      cellOf(sheet, 0, "Site inspection compliance") === "" &&
+      cellOf(sheet, 0, "Combined compliance") === ""
+    );
+  })()
+);
+
 /* ========================================================== Bug 5 ========
  *  Response.fieldObservation — the Inspection screen's OWN note (its own
  *  textarea, on the walk) — distinct from Response.observation (the Checks
@@ -530,6 +621,69 @@ check(
     };
     const sheet = ex.photographsSheet(x);
     return cellOf(sheet, 0, "Check") === "KSIA-ELE-001";
+  })()
+);
+
+/* ---- EvidenceItem.insufficientAt/insufficientReason/complianceRating
+   reach the Evidence log sheet — found by the standing SharePoint
+   sync-integrity review, ported here the same way PR #240's own fix was:
+   same gap, same evidenceLogSheet(), not just sharepoint.ts. ------------ */
+
+const DOC_FOR_EXPORT = (over = {}) => ({
+  id: "DOC-1", entity: "FALE", originVisit: "2026-09",
+  title: "Maintenance log book", documentNo: "", revision: "", documentDate: null,
+  requestedAt: null, requestedFrom: "", receivedAt: null, receivedFrom: "", receivedBy: "",
+  medium: null, isOriginal: false, returnedAt: null, returnedTo: "",
+  unavailableAt: null, unavailableReason: "",
+  insufficientAt: null, insufficientReason: "", checkIds: [], notes: "",
+  createdAt: 1, updatedAt: 1, signature: null, attachments: [],
+  ...over,
+});
+
+check(
+  "the Evidence log sheet carries insufficientAt/insufficientReason",
+  (() => {
+    const x = {
+      ...BASE,
+      evidenceItems: [
+        DOC_FOR_EXPORT({
+          insufficientAt: 2,
+          insufficientReason: "Log covers only three months, not the full year requested.",
+        }),
+      ],
+    };
+    const sheet = ex.evidenceLogSheet(x);
+    return (
+      cellOf(sheet, 0, "Insufficient") === "Insufficient" &&
+      cellOf(sheet, 0, "Insufficient reason") === "Log covers only three months, not the full year requested."
+    );
+  })()
+);
+
+check(
+  "a document never marked insufficient reads blank, not a stray word",
+  (() => {
+    const x = { ...BASE, evidenceItems: [DOC_FOR_EXPORT()] };
+    const sheet = ex.evidenceLogSheet(x);
+    return cellOf(sheet, 0, "Insufficient") === "" && cellOf(sheet, 0, "Insufficient reason") === "";
+  })()
+);
+
+check(
+  "the Evidence log sheet carries complianceRating in plain words",
+  (() => {
+    const x = { ...BASE, evidenceItems: [DOC_FOR_EXPORT({ complianceRating: "partial" })] };
+    const sheet = ex.evidenceLogSheet(x);
+    return cellOf(sheet, 0, "Compliance rating") === "Partial compliance";
+  })()
+);
+
+check(
+  "an unrated document's Compliance rating column reads blank, not a default",
+  (() => {
+    const x = { ...BASE, evidenceItems: [DOC_FOR_EXPORT()] };
+    const sheet = ex.evidenceLogSheet(x);
+    return cellOf(sheet, 0, "Compliance rating") === "";
   })()
 );
 

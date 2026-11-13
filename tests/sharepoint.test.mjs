@@ -2483,6 +2483,7 @@ const DOC = (id, over = {}) => ({
   medium: null, isOriginal: false,
   returnedAt: null, returnedTo: "",
   unavailableAt: null, unavailableReason: "",
+  insufficientAt: null, insufficientReason: "",
   checkIds: [], attachments: [], signature: null, notes: "",
   createdAt: 1_757_000_000_000, updatedAt: 1_757_000_000_000, ...over,
 });
@@ -2563,6 +2564,62 @@ check(
     );
     return p.evidenceLog[0].values.originalOrCopy === "Original" && p.evidenceLog[1].values.originalOrCopy === "Copy";
   })()
+);
+
+/* ---- EvidenceItem.insufficientAt/insufficientReason/complianceRating
+   reach the portal — found by the standing SharePoint sync-integrity
+   review, same bug class as discipline/system/analysisAt/analysisNote
+   before them: added in the very next commit on this same type and missed
+   in that same commit. ------------------------------------------------ */
+
+check(
+  "insufficientAt/insufficientReason reach the evidence log row",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE_EV,
+        evidenceItems: [
+          DOC("DOC-1", {
+            insufficientAt: 1_757_100_000_000,
+            insufficientReason: "Log covers only three months, not the full year requested.",
+          }),
+        ],
+      },
+      NOTHING_EV
+    );
+    return (
+      p.evidenceLog[0].values.insufficient === "Yes" &&
+      p.evidenceLog[0].values.insufficientReason === "Log covers only three months, not the full year requested."
+    );
+  })()
+);
+
+check(
+  "a document never marked insufficient writes insufficient: No, not blank",
+  (() => {
+    const p = sp.buildPlan({ ...BASE_EV, evidenceItems: [DOC("DOC-1")] }, NOTHING_EV);
+    return p.evidenceLog[0].values.insufficient === "No" && p.evidenceLog[0].values.insufficientReason === "";
+  })()
+);
+
+check(
+  "complianceRating reaches the evidence log row in plain words, not the internal key",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE_EV, evidenceItems: [DOC("DOC-1", { complianceRating: "nonCompliant" })] },
+      NOTHING_EV
+    );
+    return p.evidenceLog[0].values.complianceRating === "Non-compliant";
+  })()
+);
+
+check(
+  "an unrated document's complianceRating writes blank, not a default rating",
+  (() => {
+    const p = sp.buildPlan({ ...BASE_EV, evidenceItems: [DOC("DOC-1")] }, NOTHING_EV);
+    return p.evidenceLog[0].values.complianceRating === "";
+  })(),
+  "absent must not be mistaken for Compliant — same reasoning as a genuinely unanswered Compliance value elsewhere in this file"
 );
 
 /* ---- EvidenceItem.attachments reaches the portal — 28/29 October 2026,
@@ -4370,6 +4427,161 @@ check(
     return v.evidenceProves === null && v.evidenceVerdict === undefined;
   })(),
   "a pre-migration fixture with neither field set — buildPlan must not throw reading them off undefined"
+);
+
+/* ---- THE FOUR-AXIS READING: evidenceVerdict is the AXIS, not the raw
+   verdict, and siteInspection/combinedCompliance now reach the portal too
+   — Sarel: "we have 4 compliance fields already we need to use them,"
+   after the standing sync review's own first pass at this (PR #243) only
+   added a standalone EvidenceItem.complianceRating column rather than
+   wiring it into the existing Evidence axis every other screen already
+   reads. Same evidenceAxisFor()/reviewCombinedCompliance() ReviewDetail.tsx
+   calls for its own on-screen strip — these tests exist so the portal can
+   never again disagree with what the Review screen shows next to it. ---- */
+
+const EV_ITEM = (over = {}) => ({
+  id: "DOC-1", entity: "FALE", originVisit: "2026-09",
+  title: "Maintenance log book", documentNo: "", revision: "",
+  documentDate: null, requestedAt: null, requestedFrom: "",
+  receivedAt: null, receivedFrom: "", receivedBy: "",
+  medium: null, isOriginal: false, returnedAt: null, returnedTo: "",
+  unavailableAt: null, unavailableReason: "",
+  insufficientAt: null, insufficientReason: "",
+  checkIds: ["KSIA-ELE-001"], attachments: [], signature: null, notes: "",
+  createdAt: 1, updatedAt: 1, ...over,
+});
+
+check(
+  "a document rated non-compliant pulls the portal's evidenceVerdict down to NC, even though the auditor set C directly",
+  (() => {
+    const v = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": { compliance: "C", observation: "Fine", attachments: [], evidenceVerdict: "C" },
+        },
+        evidenceItems: [EV_ITEM({ complianceRating: "nonCompliant" })],
+      },
+      NOTHING
+    ).checkpoints[0].values;
+    return v.evidenceVerdict === "NC";
+  })(),
+  "the bug this test guards: this column sent the raw, unadjusted evidenceVerdict regardless of any linked document's own rating"
+);
+
+check(
+  "unrated evidence leaves evidenceVerdict exactly what it was before this pass",
+  (() => {
+    const v = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": { compliance: "C", observation: "Fine", attachments: [], evidenceVerdict: "C" },
+        },
+        evidenceItems: [EV_ITEM()],
+      },
+      NOTHING
+    ).checkpoints[0].values;
+    return v.evidenceVerdict === "C";
+  })(),
+  "a document with no complianceRating set must not drag an otherwise-fine check down"
+);
+
+check(
+  "an evidence item naming a DIFFERENT check never affects this one's axis",
+  (() => {
+    const v = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": { compliance: "C", observation: "Fine", attachments: [], evidenceVerdict: "C" },
+        },
+        evidenceItems: [EV_ITEM({ checkIds: ["KSIA-ELE-002"], complianceRating: "nonCompliant" })],
+      },
+      NOTHING
+    ).checkpoints[0].values;
+    return v.evidenceVerdict === "C";
+  })()
+);
+
+check(
+  "siteInspection reaches the portal, raw, same as compliance/evidenceVerdict",
+  (() => {
+    const v = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": { compliance: "C", observation: "Fine", attachments: [], siteInspection: "NC" },
+        },
+      },
+      NOTHING
+    ).checkpoints[0].values;
+    return v.siteInspection === "NC";
+  })(),
+  "never synced before now — a reviewer's own site-inspection judgment, set on Review after the visit"
+);
+
+check(
+  "siteInspection writes null when the auditor has genuinely not answered it",
+  (() => {
+    const v = sp.buildPlan(
+      {
+        ...BASE,
+        responses: { "KSIA-ELE-001": { compliance: "C", observation: "Fine", attachments: [], siteInspection: null } },
+      },
+      NOTHING
+    ).checkpoints[0].values;
+    return v.siteInspection === null;
+  })()
+);
+
+check(
+  "a response from before siteInspection existed does not crash the sync either",
+  (() => {
+    const v = sp.buildPlan(
+      { ...BASE, responses: { "KSIA-ELE-001": { compliance: "C", observation: "Fine", attachments: [] } } },
+      NOTHING
+    ).checkpoints[0].values;
+    return v.siteInspection === undefined;
+  })(),
+  "a pre-migration fixture with the field entirely absent — same convention as evidenceVerdict's own equivalent test above"
+);
+
+check(
+  "combinedCompliance is the worst of compliance/evidenceVerdict(axis)/siteInspection",
+  (() => {
+    const v = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": {
+            compliance: "C", observation: "Fine", attachments: [],
+            evidenceVerdict: "C", siteInspection: "C",
+          },
+        },
+        evidenceItems: [EV_ITEM({ complianceRating: "nonCompliant" })],
+      },
+      NOTHING
+    ).checkpoints[0].values;
+    return v.combinedCompliance === "NC";
+  })(),
+  "compliance and siteInspection both read C; only a linked document's own rating pulls the combined reading down to NC — proves the axis feeds Combined, not just the Evidence cell"
+);
+
+check(
+  "with evidenceVerdict and siteInspection both unanswered, combinedCompliance falls back to compliance alone",
+  (() => {
+    const v = sp.buildPlan(
+      { ...BASE, responses: { "KSIA-ELE-001": { compliance: "C", observation: "Fine", attachments: [] } } },
+      NOTHING
+    ).checkpoints[0].values;
+    /* A row can never sync with compliance itself unanswered — buildPlan's
+       own gate requires it before a row is even created — so combinedCompliance
+       can never genuinely be null here; this instead proves the two-axes-
+       unanswered path reads the one answered axis cleanly rather than
+       throwing or defaulting to something else. */
+    return v.combinedCompliance === "C";
+  })()
 );
 
 /* ------------- Part 1k: the reviewer's own fields never reach the portal --
