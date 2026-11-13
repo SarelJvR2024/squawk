@@ -56,7 +56,6 @@ import {
   useStore,
   useVisitFindings,
 } from "@/lib/store";
-import { portalIdFor } from "@/lib/sites";
 import ReviewDetail from "@/components/ReviewDetail";
 import ReviewRiskTable from "@/components/ReviewRiskTable";
 import ReviewRiskPanel from "@/components/ReviewRiskPanel";
@@ -200,7 +199,7 @@ export default function ReviewPage() {
   }, [visible, entityCode, discipline]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {/* Tab switcher — the only new top-level chrome on this screen. "By
           check" is exactly what rendered here before this addendum and
           stays the default; "Risk & root cause" is the new table. */}
@@ -232,7 +231,7 @@ export default function ReviewPage() {
       </div>
 
       {tab === "risk" ? (
-        <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 min-w-0 flex-1">
           <ReviewRiskTable
             findings={findings}
             entityCode={entityCode}
@@ -404,10 +403,7 @@ export default function ReviewPage() {
                           label={reviewed(responses[c.id]) ? "Reviewed" : "Not yet reviewed"}
                         />
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                            {portalIdFor(entityCode, c.id)}
-                          </span>
-                          <span className="mt-[1px] block truncate text-[11.5px]">{c.requirement}</span>
+                          <span className="block truncate text-[11.5px]">{c.requirement}</span>
                         </span>
                         {nFindings > 0 && <Pill tone="warn">{nFindings}</Pill>}
                         {signOff === "approved" && <Pill tone="good">✓</Pill>}

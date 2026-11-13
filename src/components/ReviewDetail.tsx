@@ -51,7 +51,6 @@
 
 import { useMemo, useState } from "react";
 import { disciplinesAt, useEvidenceItems, useResponses, useStore } from "@/lib/store";
-import { portalIdFor } from "@/lib/sites";
 import { evidenceAxisFor, reviewCombinedCompliance } from "@/lib/review";
 import { AttachmentStrip, FileButton, PhotoButton, VoiceNoteButton } from "@/components/Capture";
 import RelinkPhotoSheet from "@/components/RelinkPhotoSheet";
@@ -263,9 +262,6 @@ export default function ReviewDetail({
       >
         <div className="mx-auto w-full max-w-[760px]">
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <span className="font-mono text-[10.5px]" style={{ color: "var(--ink-4)" }}>
-              {portalIdFor(entityCode, check.id)}
-            </span>
             <span className="ml-auto flex gap-[6px]">
               <Btn icon onClick={onPrev} aria-label="Previous check">
                 <IconLeft width={13} height={13} />
