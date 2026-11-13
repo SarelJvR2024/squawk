@@ -30,6 +30,7 @@ const checkDetail = src("components", "CheckDetail.tsx");
 const field = src("app", "(app)", "field", "page.tsx");
 const store = src("lib", "store.ts");
 const types = src("lib", "types.ts");
+const raise = src("app", "(app)", "raise", "page.tsx");
 
 /* The UI surfaces where an auditor captures evidence. Library code is excluded
    deliberately: media.ts is allowed to name a duration, because it measures
@@ -125,6 +126,109 @@ check(
   "the photo control opens the camera on a tablet",
   /capture="environment"/.test(capture) && /accept="image\/\*"/.test(capture),
   ""
+);
+
+/* ----------------------------- Part 2b: a photo from the gallery, not just the camera */
+
+/* Sarel, on Raise a finding: "upload a photo, because it might be that
+   there's some photos already on the phone... the easiest way will be then
+   just to select a photo from my gallery." `capture="environment"` sends a
+   phone straight to its camera with no way back to an existing photo — this
+   guards that the gallery path is a real second `<input>` with no `capture`
+   attribute at all, not the camera input relabelled. */
+check(
+  "PhotoButton supports a library/gallery picker as well as the camera",
+  /fromLibrary\??:\s*boolean/.test(capture),
+  "without this prop there is only ever one picker, and it is the camera"
+);
+
+check(
+  "the gallery picker's own <input> has no capture attribute",
+  (() => {
+    const i = capture.indexOf("fromLibrary ? (");
+    if (i === -1) return false;
+    const branch = capture.slice(i, capture.indexOf(") : ("));
+    return /accept="image\/\*"/.test(branch) && !/capture=/.test(branch);
+  })(),
+  "a capture attribute on this branch would send the gallery button to the camera too"
+);
+
+check(
+  "both the camera and gallery inputs share one onChange handler",
+  (() => {
+    const matches = capture.match(/onChange=\{handlePhotoFiles\}/g);
+    return !!matches && matches.length === 2;
+  })(),
+  "two separate handlers is how the camera and gallery paths would drift apart"
+);
+
+check(
+  "Raise a finding renders the gallery picker alongside the camera button, not instead of it",
+  /<PhotoButton[\s\S]{0,40}large\s*\n\s*primary/.test(raise) &&
+    /<PhotoButton[\s\S]{0,40}large\s*\n\s*fromLibrary/.test(raise),
+  "Sarel asked to add the option, not replace the camera button"
+);
+
+/* ----------------------------- Part 2c: saving a photo onto the device itself */
+
+/* Sarel: "where is the photo saved... are those photos stored locally on the
+   phone as well?" They weren't — only in this browser's own private storage.
+   A web page cannot write a file into the OS Photos app silently, so Save
+   hands the photo to the OS's own share sheet instead, whose "Save
+   Image"/"Save to Photos" target is the one explicit way a photo reaches the
+   gallery. This guards that the real mechanism is there, not a button that
+   does nothing. */
+check(
+  "PhotoRow offers a Save-to-device action",
+  /async function saveToDevice\(\)/.test(capture) && /title="Save a copy of this photograph to your device"/.test(capture),
+  "without this there is no way off the app's own private storage at all"
+);
+
+check(
+  "saving tries the OS share sheet first, which is what can actually reach the gallery",
+  (() => {
+    const i = capture.indexOf("async function saveToDevice()");
+    if (i === -1) return false;
+    const body = capture.slice(i, capture.indexOf("return (", i));
+    return /nav\.canShare\?\.\(\{ files: \[file\] \}\) && nav\.share/.test(body) && /await nav\.share\(/.test(body);
+  })(),
+  "a share-sheet target is what gives 'Save Image'/'Save to Photos' on both iOS and Android"
+);
+
+check(
+  "the real photo is shared, via fullPhotoBlob — not a thumbnail, not a placeholder",
+  (() => {
+    const i = capture.indexOf("async function saveToDevice()");
+    const body = capture.slice(i, capture.indexOf("return (", i));
+    return /const blob = await fullPhotoBlob\(a, entityCode, visitId\);/.test(body);
+  })(),
+  "fullPhotoBlob also resolves a photo this device never itself captured"
+);
+
+check(
+  "a browser with no Share API falls back to a real download, not a dead button",
+  (() => {
+    const i = capture.indexOf("async function saveToDevice()");
+    const body = capture.slice(i, capture.indexOf("return (", i));
+    return /URL\.createObjectURL\(blob\)/.test(body) && /link\.download = filename;/.test(body) && /link\.click\(\);/.test(body);
+  })(),
+  "most desktop browsers have no navigator.share at all"
+);
+
+check(
+  "cancelling the share sheet is not reported as a failure",
+  (() => {
+    const i = capture.indexOf("async function saveToDevice()");
+    const body = capture.slice(i, capture.indexOf("return (", i));
+    return /e\.name === "AbortError"\) return;/.test(body);
+  })(),
+  "AbortError is exactly what navigator.share rejects with when the user closes the sheet"
+);
+
+check(
+  "Save appears on every photo, not gated behind the Describe/Move/Remove callbacks a screen may omit",
+  /\{!dead && \(\s*<button\s*\n\s*type="button"\s*\n\s*onClick=\{saveToDevice\}/.test(capture),
+  "a photo with no onUpdate/onMove/onRemove still needs somewhere off the device"
 );
 
 /* ------------------------------------ Part 3: an empty transcript stays empty */
