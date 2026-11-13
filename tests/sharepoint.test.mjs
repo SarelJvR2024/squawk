@@ -2483,6 +2483,7 @@ const DOC = (id, over = {}) => ({
   medium: null, isOriginal: false,
   returnedAt: null, returnedTo: "",
   unavailableAt: null, unavailableReason: "",
+  insufficientAt: null, insufficientReason: "",
   checkIds: [], attachments: [], signature: null, notes: "",
   createdAt: 1_757_000_000_000, updatedAt: 1_757_000_000_000, ...over,
 });
@@ -2563,6 +2564,62 @@ check(
     );
     return p.evidenceLog[0].values.originalOrCopy === "Original" && p.evidenceLog[1].values.originalOrCopy === "Copy";
   })()
+);
+
+/* ---- EvidenceItem.insufficientAt/insufficientReason/complianceRating
+   reach the portal — found by the standing SharePoint sync-integrity
+   review, same bug class as discipline/system/analysisAt/analysisNote
+   before them: added in the very next commit on this same type and missed
+   in that same commit. ------------------------------------------------ */
+
+check(
+  "insufficientAt/insufficientReason reach the evidence log row",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...BASE_EV,
+        evidenceItems: [
+          DOC("DOC-1", {
+            insufficientAt: 1_757_100_000_000,
+            insufficientReason: "Log covers only three months, not the full year requested.",
+          }),
+        ],
+      },
+      NOTHING_EV
+    );
+    return (
+      p.evidenceLog[0].values.insufficient === "Yes" &&
+      p.evidenceLog[0].values.insufficientReason === "Log covers only three months, not the full year requested."
+    );
+  })()
+);
+
+check(
+  "a document never marked insufficient writes insufficient: No, not blank",
+  (() => {
+    const p = sp.buildPlan({ ...BASE_EV, evidenceItems: [DOC("DOC-1")] }, NOTHING_EV);
+    return p.evidenceLog[0].values.insufficient === "No" && p.evidenceLog[0].values.insufficientReason === "";
+  })()
+);
+
+check(
+  "complianceRating reaches the evidence log row in plain words, not the internal key",
+  (() => {
+    const p = sp.buildPlan(
+      { ...BASE_EV, evidenceItems: [DOC("DOC-1", { complianceRating: "nonCompliant" })] },
+      NOTHING_EV
+    );
+    return p.evidenceLog[0].values.complianceRating === "Non-compliant";
+  })()
+);
+
+check(
+  "an unrated document's complianceRating writes blank, not a default rating",
+  (() => {
+    const p = sp.buildPlan({ ...BASE_EV, evidenceItems: [DOC("DOC-1")] }, NOTHING_EV);
+    return p.evidenceLog[0].values.complianceRating === "";
+  })(),
+  "absent must not be mistaken for Compliant — same reasoning as a genuinely unanswered Compliance value elsewhere in this file"
 );
 
 /* ---- EvidenceItem.attachments reaches the portal — 28/29 October 2026,

@@ -533,6 +533,69 @@ check(
   })()
 );
 
+/* ---- EvidenceItem.insufficientAt/insufficientReason/complianceRating
+   reach the Evidence log sheet — found by the standing SharePoint
+   sync-integrity review, ported here the same way PR #240's own fix was:
+   same gap, same evidenceLogSheet(), not just sharepoint.ts. ------------ */
+
+const DOC_FOR_EXPORT = (over = {}) => ({
+  id: "DOC-1", entity: "FALE", originVisit: "2026-09",
+  title: "Maintenance log book", documentNo: "", revision: "", documentDate: null,
+  requestedAt: null, requestedFrom: "", receivedAt: null, receivedFrom: "", receivedBy: "",
+  medium: null, isOriginal: false, returnedAt: null, returnedTo: "",
+  unavailableAt: null, unavailableReason: "",
+  insufficientAt: null, insufficientReason: "", checkIds: [], notes: "",
+  createdAt: 1, updatedAt: 1, signature: null, attachments: [],
+  ...over,
+});
+
+check(
+  "the Evidence log sheet carries insufficientAt/insufficientReason",
+  (() => {
+    const x = {
+      ...BASE,
+      evidenceItems: [
+        DOC_FOR_EXPORT({
+          insufficientAt: 2,
+          insufficientReason: "Log covers only three months, not the full year requested.",
+        }),
+      ],
+    };
+    const sheet = ex.evidenceLogSheet(x);
+    return (
+      cellOf(sheet, 0, "Insufficient") === "Insufficient" &&
+      cellOf(sheet, 0, "Insufficient reason") === "Log covers only three months, not the full year requested."
+    );
+  })()
+);
+
+check(
+  "a document never marked insufficient reads blank, not a stray word",
+  (() => {
+    const x = { ...BASE, evidenceItems: [DOC_FOR_EXPORT()] };
+    const sheet = ex.evidenceLogSheet(x);
+    return cellOf(sheet, 0, "Insufficient") === "" && cellOf(sheet, 0, "Insufficient reason") === "";
+  })()
+);
+
+check(
+  "the Evidence log sheet carries complianceRating in plain words",
+  (() => {
+    const x = { ...BASE, evidenceItems: [DOC_FOR_EXPORT({ complianceRating: "partial" })] };
+    const sheet = ex.evidenceLogSheet(x);
+    return cellOf(sheet, 0, "Compliance rating") === "Partial compliance";
+  })()
+);
+
+check(
+  "an unrated document's Compliance rating column reads blank, not a default",
+  (() => {
+    const x = { ...BASE, evidenceItems: [DOC_FOR_EXPORT()] };
+    const sheet = ex.evidenceLogSheet(x);
+    return cellOf(sheet, 0, "Compliance rating") === "";
+  })()
+);
+
 /* ========================================================== Bug 3 ========
  *  Chandre Smit, reading the Electrical report, 31 October 2026: a
  *  walkabout photograph never showed Non-compliant, even where the caption

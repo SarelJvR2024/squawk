@@ -55,7 +55,7 @@ import { photoFilename } from "./photos";
 import { signatureFilename } from "./signatures";
 import { portalIdFor, siteCodeFor, siteFor } from "./sites";
 import { apologiesOf } from "./attendanceRegister";
-import { MEDIUM_LABEL } from "./evidence";
+import { EVIDENCE_COMPLIANCE_LABEL, MEDIUM_LABEL } from "./evidence";
 import { bandFor, BAND_META } from "./risk";
 import { findingTypeFor } from "./reviewRisk";
 import type {
@@ -240,6 +240,16 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
      per-DOCUMENT. */
   analysed: ["Analysed", "Document analysed", "Analysis"],
   analysisNote: ["Analysis note", "Analysis Note", "What the document shows"],
+  /* THE EVIDENCE REVIEW SCREEN'S OWN "received but doesn't satisfy the
+     request" — EvidenceItem.insufficientAt/insufficientReason, the same
+     at/note shape again, NOT the same thing as unavailableAt (the document
+     does not exist at all) just below. complianceRating is a third, newer
+     idea again: a per-document rating distinct from the per-check
+     evidenceVerdict above — see EvidenceComplianceRating's own doc comment
+     in types.ts. */
+  insufficient: ["Insufficient", "Marked insufficient", "Insufficient evidence"],
+  insufficientReason: ["Insufficient reason", "Why insufficient", "Does not satisfy the request"],
+  complianceRating: ["Compliance rating", "Evidence compliance", "Document compliance"],
   /* ONE READ, instead of the observation, evidenceProves and findings columns
      above being three places a reader assembles the same picture by hand.
      Written only by the "AI merge" action in ExportPanel — see
@@ -449,7 +459,8 @@ export const EVIDENCE_LOG_FIELDS = [
   "requestedAt", "requestedFrom", "receivedAt", "receivedFrom", "receivedBy",
   "medium", "originalOrCopy", "returnedAt", "returnedTo",
   "unavailable", "unavailableReason", "discipline", "assetSystem",
-  "analysed", "analysisNote", "checkPoints", "signed", "notes",
+  "analysed", "analysisNote", "insufficient", "insufficientReason",
+  "complianceRating", "checkPoints", "signed", "notes",
 ] as const;
 
 /** One row per (discipline, asset system) pair — same grouping systemsSheet's
@@ -2364,6 +2375,19 @@ export function buildPlan(
         assetSystem: item.system ?? "",
         analysed: item.analysisAt ? "Yes" : "No",
         analysisNote: item.analysisNote,
+        /* EVIDENCE REVIEW SCREEN — insufficientAt/insufficientReason/
+           complianceRating, added alongside analysisAt/analysisNote above
+           in the very next pass on this same type. Missed in that same
+           commit, same bug class as discipline/system/analysisAt/
+           analysisNote were missed in the commit before THAT one — see
+           this block's own history. complianceRating has no portal
+           vocabulary of its own yet, so it is sent as the plain label a
+           reader can act on without a legend. */
+        insufficient: item.insufficientAt ? "Yes" : "No",
+        insufficientReason: item.insufficientReason,
+        complianceRating: item.complianceRating
+          ? EVIDENCE_COMPLIANCE_LABEL[item.complianceRating]
+          : "",
         /* THE LINK TO THE AUDIT CHECKS — every check-point this document
            bears on, in the portal's own ids, so a reader on the evidence
            log can trace straight back to the check-point it was produced

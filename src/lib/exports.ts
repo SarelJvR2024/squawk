@@ -33,6 +33,7 @@ import { priorFor } from "./register";
 import { mappingFor } from "./crosswalk";
 import { effectiveWalkOutcome, flattenProgress } from "./sharepoint";
 import { findingTypeFor } from "./reviewRisk";
+import { EVIDENCE_COMPLIANCE_LABEL } from "./evidence";
 import * as erm from "./erm";
 
 /** Who raised the hazard, spelled out for a reader of the workbook. */
@@ -1490,6 +1491,9 @@ export function evidenceLogSheet(x: ExportInput): Sheet {
       e.system ?? "",
       e.analysisAt ? "Analysed" : "",
       e.analysisNote,
+      e.insufficientAt ? "Insufficient" : "",
+      e.insufficientReason,
+      e.complianceRating ? EVIDENCE_COMPLIANCE_LABEL[e.complianceRating] : "",
       sigCell(e.signature),
       e.notes,
     ]);
@@ -1516,6 +1520,9 @@ export function evidenceLogSheet(x: ExportInput): Sheet {
       { header: "Asset system", width: 20 },
       { header: "Analysed", width: 12 },
       { header: "Analysis note", width: 30, wrap: true },
+      { header: "Insufficient", width: 14 },
+      { header: "Insufficient reason", width: 30, wrap: true },
+      { header: "Compliance rating", width: 18 },
       { header: "Signed", width: 30 },
       { header: "Notes", width: 30, wrap: true },
     ],
