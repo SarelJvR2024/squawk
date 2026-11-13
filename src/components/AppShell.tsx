@@ -756,9 +756,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     Icon-only read as six unlabelled buttons on the one device
                     the walkabout is actually done on — exactly the ask this
                     pass was given. Deliberately separate from the
-                    "hidden xl:inline" label a few lines down: that one keeps
-                    doing exactly what it always did between sm and xl (icon
-                    and count, full label only at xl) — untouched.
+                    "hidden min-[1440px]:inline" label a few lines down: that
+                    one keeps doing exactly what it always did between sm and
+                    1440px (icon and count, full label only from 1440px) —
+                    untouched by this pass.
 
                     NO LONGER WRAPS, AND NO LONGER 6.5px. Sarel's own
                     screenshot at 390px: a wrapped, 6.5px label reads as
@@ -797,17 +798,34 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     keeps its label so you always know where you are. Full
                     labels return at sm.
 
-                    FULL LABELS FOR EVERY ITEM DO NOT RETURN UNTIL xl (1280px).
-                    Sarel, wide desktop and tablet both: "you shouldn't have to
-                    scroll, you should see all the menu options there." Six
-                    full labels plus the fixed-width brand, search and account
-                    cluster measured at 680px of nav alone — more than fits
-                    in the ~464px a 1024px tablet or a windowed 1152px laptop
-                    actually leaves it, which is exactly the overflow that was
-                    scrolling. Between sm and xl every inactive item is its
-                    icon alone — still names every destination (the label is
-                    always in the accessible name and the hover title), still
-                    fits every one on screen at once, no swipe required.
+                    FULL LABELS FOR EVERY ITEM DID NOT RETURN UNTIL xl
+                    (1280px). Sarel, wide desktop and tablet both: "you
+                    shouldn't have to scroll, you should see all the menu
+                    options there." Six full labels plus the fixed-width
+                    brand, search and account cluster measured at 680px of
+                    nav alone — more than fits in the ~464px a 1024px tablet
+                    or a windowed 1152px laptop actually leaves it, which is
+                    exactly the overflow that was scrolling. Between sm and
+                    xl every inactive item is its icon alone — still names
+                    every destination (the label is always in the accessible
+                    name and the hover title), still fits every one on
+                    screen at once, no swipe required.
+
+                    MOVED FROM xl (1280px) TO min-[1440px], review-risk-fields
+                    addendum §1: Sarel, 12 Nov 2026, observing the bar at
+                    1280px — "nav overflows... 'Follow-u' is clipped." Eight
+                    items' full labels fit the 680px measured at the TOP of
+                    that range (1920px, 1440px) but not at its bottom: at
+                    exactly 1280px the same eight labels run out of room one
+                    letter into the last one, which is worse than staying
+                    icon-only — a clipped word reads as broken, where an icon
+                    with a tooltip reads as deliberate. So the icon-only
+                    state this comment already describes for sm–xl now simply
+                    holds a little longer, to min-[1440px], where the bar has
+                    re-measured as having room again; nothing about sm–1280
+                    changes. Arbitrary-value breakpoint because this is the
+                    one callsite that needed it — adding a project-wide 1440
+                    token for one nav bar would be the tail wagging the dog.
 
                     `sm:inline` ADDED TO THE ACTIVE BRANCH, same fix as above:
                     this span used to carry no "hidden" class at all when
@@ -818,7 +836,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     it was from sm up (active always shows its full label)
                     and hides it below sm, where the short-label span above
                     now carries every destination, active or not. */}
-                <span className={active ? "hidden sm:inline" : "hidden xl:inline"}>{n.label}</span>
+                <span className={active ? "hidden sm:inline" : "hidden min-[1440px]:inline"}>{n.label}</span>
                 {/* THE STANDING BADGE IS GONE, BUT CHECKS AND INSPECTION GET A
                     QUIET COUNT BACK — Desktop/tablet redesign phase 1,
                     checkpoint item: Sarel's second visual-hierarchy pass
@@ -836,7 +854,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     they have no register denominator to be quiet about. */}
                 {(n.href === "/capture" || n.href === "/field") && badge !== "" && (
                   <span
-                    className={`tnum font-mono text-[10px] ${active ? "hidden sm:inline" : "hidden xl:inline"}`}
+                    /* Same min-[1440px] move as the label span above, and for
+                       the same reason — this count sits right next to the
+                       label it describes and must appear on the same
+                       breakpoint as it, not independently. */
+                    className={`tnum font-mono text-[10px] ${active ? "hidden sm:inline" : "hidden min-[1440px]:inline"}`}
                     style={{ color: "var(--ink-4)" }}
                   >
                     {badge}

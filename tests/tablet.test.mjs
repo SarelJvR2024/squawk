@@ -459,8 +459,21 @@ check(
    scrolling on everything narrower than that. */
 check(
   "the active destination keeps its label, the others give up theirs",
-  /className=\{active \? "hidden sm:inline" : "hidden xl:inline"\}>\{n\.label\}/.test(shell),
+  /className=\{active \? "hidden sm:inline" : "hidden min-\[1440px\]:inline"\}>\{n\.label\}/.test(shell),
   "seven full labels needed 485px of a 390px bar; three fitted and the rest were a swipe nobody would make"
+);
+
+/* MOVED FROM xl (1280px) TO min-[1440px], review-risk-fields addendum §1:
+   Sarel, 12 Nov 2026, observing the bar at exactly 1280px — "nav overflows
+   at 1280px ('Follow-u' is clipped)." Eight full labels fit the ~680px this
+   file's own comment measured at 1920px and 1440px, but not at 1280px
+   itself — the bar held icon-only correctly from sm to just under the
+   point it needed to, then handed back labels one pixel too early. The fix
+   is the same icon-only state holding a little longer, not a new one. */
+check(
+  "full labels wait for min-[1440px], not xl (1280px) — the exact width that was clipping",
+  !/"hidden xl:inline"/.test(shell) && /min-\[1440px\]:inline/.test(shell),
+  "xl:inline must not survive anywhere in this bar's own label/count spans"
 );
 
 /* FIX, 21 Oct 2026, folded into the same header pass that made the check
