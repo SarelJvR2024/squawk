@@ -50,9 +50,9 @@
  *  and counted so the two sit side by side rather than one being implicit. */
 
 import { useMemo, useState } from "react";
-import { disciplinesAt, useResponses, useStore } from "@/lib/store";
+import { disciplinesAt, useEvidenceItems, useResponses, useStore } from "@/lib/store";
 import { portalIdFor } from "@/lib/sites";
-import { reviewCombinedCompliance } from "@/lib/review";
+import { evidenceAxisFor, reviewCombinedCompliance } from "@/lib/review";
 import { AttachmentStrip, FileButton, PhotoButton, VoiceNoteButton } from "@/components/Capture";
 import RelinkPhotoSheet from "@/components/RelinkPhotoSheet";
 import {
@@ -235,8 +235,20 @@ export default function ReviewDetail({
     setTimeout(() => setNewSaved(null), 2600);
   };
 
-  const combined = r ? reviewCombinedCompliance(r.compliance, r.evidenceVerdict, r.siteInspection) : null;
-  const combinedPartial = !!r && [r.compliance, r.evidenceVerdict, r.siteInspection].some((v) => v === null);
+  /* EVIDENCE REVIEW — the Evidence cell now reads the WORST of the existing
+   *  evidenceVerdict and any rated EvidenceItem linked to this check, via
+   *  evidenceAxisFor (src/lib/review.ts) — see docs/capture-review/
+   *  evidence-review-discovery.md §4. Unrated evidence leaves this exactly
+   *  r.evidenceVerdict, so a check with no Evidence tab activity reads
+   *  identically to before this pass. */
+  const evidenceItems = useEvidenceItems();
+  const evidenceForCheck = useMemo(
+    () => evidenceItems.filter((e) => e.checkIds.includes(check.id)),
+    [evidenceItems, check.id]
+  );
+  const evidenceAxis = r ? evidenceAxisFor(r.evidenceVerdict, evidenceForCheck) : null;
+  const combined = r ? reviewCombinedCompliance(r.compliance, evidenceAxis, r.siteInspection) : null;
+  const combinedPartial = !!r && [r.compliance, evidenceAxis, r.siteInspection].some((v) => v === null);
 
   const evidenceRequested =
     check.evidenceExpected || (check.acsaEvidence.length > 0 ? check.acsaEvidence.join(" · ") : "");
@@ -267,7 +279,7 @@ export default function ReviewDetail({
           {r && (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
               <StatusCell label="Audit check" value={r.compliance} />
-              <StatusCell label="Evidence" value={r.evidenceVerdict} emptyLabel="Not Verified" />
+              <StatusCell label="Evidence" value={evidenceAxis} emptyLabel="Not Verified" />
               <StatusCell label="Site inspection" value={r.siteInspection} emptyLabel="Not Verified" />
               <StatusCell label="Combined" value={combined} partial={combinedPartial} />
             </div>

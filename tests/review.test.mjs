@@ -256,9 +256,14 @@ check(
 );
 
 check(
+  /* The Evidence review pass (docs/capture-review/evidence-review-discovery.md
+     §4) widened the Evidence argument from the raw evidenceVerdict to
+     evidenceAxisFor(evidenceVerdict, evidenceForCheck) — still fully
+     derived, now through one more pure function rather than a stored
+     field, which is exactly what this assertion guards. */
   "the combined cell is DERIVED from the other three, never a fifth stored field",
-  /reviewCombinedCompliance\(r\.compliance, r\.evidenceVerdict, r\.siteInspection\)/.test(reviewDetail) &&
-    /import \{ reviewCombinedCompliance \} from "@\/lib\/review";/.test(reviewDetail),
+  /reviewCombinedCompliance\(r\.compliance, evidenceAxis, r\.siteInspection\)/.test(reviewDetail) &&
+    /import \{ evidenceAxisFor, reviewCombinedCompliance \} from "@\/lib\/review";/.test(reviewDetail),
   "a stored combined value is the one that goes stale the first time one of the three it copies changes"
 );
 

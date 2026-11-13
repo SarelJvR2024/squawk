@@ -9,7 +9,7 @@
  *  screen that wants the combined reading calls this, same as every screen
  *  wanting a risk band calls bandFor() rather than reading a stored colour. */
 
-import type { Compliance } from "./types";
+import type { Compliance, EvidenceComplianceRating, EvidenceItem } from "./types";
 
 /** Worst-to-best, for "worst of the three": a non-compliance anywhere beats
  *  everything else, not-verified is next, compliant and not-applicable are
@@ -32,6 +32,46 @@ export function reviewCombinedCompliance(
   const answered = [compliance, evidenceVerdict, siteInspection].filter(
     (v): v is Compliance => v !== null
   );
+  if (answered.length === 0) return null;
+  return answered.reduce((worst, v) => (RANK[v] < RANK[worst] ? v : worst));
+}
+
+/** EVIDENCE REVIEW — maps the new, narrow `EvidenceComplianceRating` (an
+ *  EvidenceItem's own quality verdict, see types.ts) onto the existing
+ *  `Compliance` ranking above, so one Evidence item's rating can be worst-
+ *  of'd against everything else this function already knows how to rank.
+ *  `partial` reads as `NV` (not-verified) rather than inventing a fifth
+ *  `Compliance` value — see docs/capture-review/evidence-review-discovery.md
+ *  §4 for why this ranking was chosen over, say, `N/A`. */
+const EVIDENCE_RATING_AS_COMPLIANCE: Record<EvidenceComplianceRating, Compliance> = {
+  compliant: "C",
+  partial: "NV",
+  nonCompliant: "NC",
+};
+
+/** EVIDENCE REVIEW — the "Evidence" axis that feeds `reviewCombinedCompliance`
+ *  above, see docs/capture-review/evidence-review-discovery.md §4. Worst of
+ *  two things: the existing `evidenceVerdict` the auditor sets directly on
+ *  this check (unchanged, via EVIDENCE_VERDICTS), and the worst
+ *  `complianceRating` among any `EvidenceItem`s whose `checkIds` include
+ *  this check (a check can have several). THIS IS THE SAME AXIS, not a
+ *  second one: callers compute this once and pass the result into
+ *  `reviewCombinedCompliance` in place of a raw `evidenceVerdict`, so the
+ *  "Evidence" cell on the Review screen's own strip reads one value, worst-
+ *  of'd, rather than two side by side.
+ *
+ *  Unrated evidence (no `complianceRating` set on any linked item) leaves
+ *  the result exactly `evidenceVerdict` — the brief's own rule, "if no
+ *  evidence is rated, the combined rating is unaffected." */
+export function evidenceAxisFor(
+  evidenceVerdict: Compliance | null,
+  items: EvidenceItem[]
+): Compliance | null {
+  const rated = items
+    .map((e) => e.complianceRating)
+    .filter((r): r is EvidenceComplianceRating => r != null)
+    .map((r) => EVIDENCE_RATING_AS_COMPLIANCE[r]);
+  const answered = [evidenceVerdict, ...rated].filter((v): v is Compliance => v !== null);
   if (answered.length === 0) return null;
   return answered.reduce((worst, v) => (RANK[v] < RANK[worst] ? v : worst));
 }

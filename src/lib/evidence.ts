@@ -6,6 +6,8 @@
  *  auditor is still waiting for four documents. */
 
 import type {
+  Attachment,
+  EvidenceComplianceRating,
   EvidenceItem,
   EvidenceMedium,
   EvidenceStage,
@@ -301,19 +303,31 @@ export function unbackedSignatures(items: EvidenceItem[]): Signature[] {
  * six facts into one five-way enum is exactly the kind of "second status that
  * fights the existing shape" the discovery note argues against. */
 
+/** EVIDENCE REVIEW — two more stages, see docs/capture-review/
+ *  evidence-review-discovery.md §1. `uploaded` sits between `requested` and
+ *  `received`: the auditor has attached something but has not yet confirmed
+ *  it is what was asked for. `insufficient` is a SIDE state, reachable from
+ *  `uploaded`, `received` or `analysis` (never a dead end — "Re-request"
+ *  always leads back to `requested`), ranked above all three of them because
+ *  marking something insufficient is, by construction, the latest real fact
+ *  about it. */
 export type EvidenceTrackingStage =
   | "notStarted"
   | "requested"
+  | "uploaded"
   | "received"
   | "analysis"
+  | "insufficient"
   | "returned"
   | "unavailable";
 
 export const TRACKING_LABEL: Record<EvidenceTrackingStage, string> = {
   notStarted: "Not started",
   requested: "Requested",
+  uploaded: "Uploaded",
   received: "Received",
   analysis: "Analysis",
+  insufficient: "Insufficient",
   returned: "Returned",
   unavailable: "Not produced",
 };
@@ -322,14 +336,54 @@ export const TRACKING_LABEL: Record<EvidenceTrackingStage, string> = {
  *  same direction as `evidenceStage` — the LATEST real thing that happened to
  *  it wins — with `analysis` slotted in as a refinement of `received`,
  *  exactly the way `isHeldOriginal` refines `received` for the custody
- *  question rather than replacing it. */
+ *  question rather than replacing it.
+ *
+ *  THE "UPLOADED SINCE THIS ASK" CHECK is what makes "Re-request" work
+ *  without clearing `attachments`. A re-request stamps a FRESH
+ *  `requestedAt` and clears `receivedAt`/`insufficientAt`/`analysisAt`, but
+ *  deliberately keeps the old files in the array — "keeps files attached"
+ *  is the brief's own rule. Without comparing timestamps, those old files
+ *  would immediately read the item back into `uploaded` the moment it is
+ *  re-requested, which is exactly what "requested" is supposed to mean:
+ *  nothing has arrived FOR THIS ASK yet. A file attached after the fresh
+ *  `requestedAt` — the airport actually responding to the new ask — still
+ *  reads as `uploaded`, correctly. */
 export function trackingStage(e: EvidenceItem): EvidenceTrackingStage {
   if (e.returnedAt) return "returned";
+  if (e.insufficientAt) return "insufficient";
   if (e.unavailableAt && !e.receivedAt) return "unavailable";
   if (e.receivedAt) return e.analysisAt ? "analysis" : "received";
+  const uploadedForThisAsk = e.attachments.some(
+    (a) => !e.requestedAt || a.createdAt >= e.requestedAt
+  );
+  if (e.attachments.length > 0 && uploadedForThisAsk) return "uploaded";
   if (e.requestedAt) return "requested";
   return "notStarted";
 }
+
+/** A short, fixed word for an attachment's format — "Files" column/card type
+ *  badges (3.3/4.4 of the brief). Read off the mime type where there is one,
+ *  else the file extension, else the attachment's own `kind` — a photograph
+ *  taken on the tablet never has a mime type worth showing as a badge. */
+export function fileTypeBadge(a: Attachment): string {
+  const mime = (a.mimeType ?? "").toLowerCase();
+  if (mime.includes("pdf")) return "PDF";
+  if (mime.includes("spreadsheet") || mime.includes("excel") || /\.xlsx?$/i.test(a.name)) return "XLS";
+  if (mime.includes("wordprocessingml") || mime.includes("msword") || /\.docx?$/i.test(a.name)) return "DOC";
+  if (mime.startsWith("image/") || a.kind === "photo") return "IMG";
+  if (mime.startsWith("audio/") || a.kind === "voice") return "AUDIO";
+  const ext = /\.([a-z0-9]{2,4})$/i.exec(a.name)?.[1];
+  return ext ? ext.toUpperCase() : "FILE";
+}
+
+/** EVIDENCE REVIEW — the compliance-rating dropdown's own labels (4.6 of the
+ *  brief), kept beside `EvidenceComplianceRating` rather than in the
+ *  component so a test can pin the wording once. */
+export const EVIDENCE_COMPLIANCE_LABEL: Record<EvidenceComplianceRating, string> = {
+  compliant: "Compliant",
+  partial: "Partial compliance",
+  nonCompliant: "Non-compliant",
+};
 
 /** The discipline this item is tracked under, for grouping — its own
  *  `discipline` where an auditor set one directly, else the discipline of the
@@ -376,8 +430,10 @@ export function groupByDiscipline(
       const counts: Record<EvidenceTrackingStage, number> = {
         notStarted: 0,
         requested: 0,
+        uploaded: 0,
         received: 0,
         analysis: 0,
+        insufficient: 0,
         returned: 0,
         unavailable: 0,
       };
@@ -385,4 +441,76 @@ export function groupByDiscipline(
       return { discipline, items: list, counts };
     })
     .sort((a, b) => a.discipline.localeCompare(b.discipline));
+}
+
+/** EVIDENCE REVIEW — within one discipline's group, sort by asset system
+ *  name, discipline-level ("General", `e.system` unset) requests last. See
+ *  docs/capture-review/evidence-review-discovery.md §3.3. A plain sort
+ *  would put "General" ahead of any system starting with a letter past
+ *  "G" alphabetically, which is backwards: General is the catch-all, not a
+ *  system, and reads better anchoring the end of the list. */
+export function sortWithinDiscipline(items: EvidenceItem[]): EvidenceItem[] {
+  return [...items].sort((a, b) => {
+    const as = a.system?.trim() ?? "";
+    const bs = b.system?.trim() ?? "";
+    if (!as && bs) return 1;
+    if (as && !bs) return -1;
+    return as.localeCompare(bs);
+  });
+}
+
+/** EVIDENCE REVIEW — "Share list with discipline" (3.6 of the brief): a
+ *  clean, printable list of one discipline's requests with a blank
+ *  "provided?" column the airport can tick. NOT the same text as
+ *  `logText()` above, which is TK-003 form 7 verbatim (outstanding/held/
+ *  received sections, receipt detail, signatures) for the WHOLE log — a
+ *  sibling function rather than a mode flag on that one, so form 7's own
+ *  shape stays exactly what it has always been. Reuses `disciplineFor`/the
+ *  caller's own lookup, same convention as `groupByDiscipline`, rather than
+ *  a second way to decide which discipline an item belongs to. */
+export function shareListText(
+  items: EvidenceItem[],
+  discipline: string,
+  disciplineOf: (e: EvidenceItem) => string,
+  ctx: Pick<LogContext, "siteName" | "visitId" | "portalId">
+): string {
+  const mine = sortWithinDiscipline(items.filter((e) => disciplineOf(e) === discipline));
+  const pid = ctx.portalId ?? ((id: string) => id);
+
+  const lines = [
+    `EVIDENCE REQUESTED — ${discipline.toUpperCase()}`,
+    ctx.siteName,
+    `Audit ${ctx.visitId}`,
+    "",
+    `${mine.length} item${mine.length === 1 ? "" : "s"}`,
+    "",
+  ];
+
+  if (!mine.length) {
+    lines.push("Nothing requested for this discipline yet.");
+  } else {
+    for (const e of mine) {
+      const linked = e.checkIds.length
+        ? e.checkIds.map(pid).join(", ")
+        : e.system
+          ? `${e.system} (asset system)`
+          : `${discipline} (discipline — General)`;
+      lines.push(
+        `[ ] ${e.title.trim() || e.id}`,
+        `    Linked to:  ${linked}`,
+        `    Status:     ${TRACKING_LABEL[trackingStage(e)]}`,
+        `    Provided?   __________`,
+        ""
+      );
+    }
+  }
+
+  lines.push(
+    "Please tick \"Provided?\" and return with the documents, or note where",
+    "each one can be found.",
+    "",
+    "Thabile Pridin JV"
+  );
+
+  return lines.join("\n");
 }

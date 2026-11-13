@@ -44,10 +44,7 @@ import {
 import {
   MEDIUM_LABEL,
   RETURNABLE,
-  TRACKING_LABEL,
-  disciplineFor,
   evidenceStage,
-  groupByDiscipline,
   heldMs,
   heldOriginals,
   isHeldOriginal,
@@ -55,18 +52,17 @@ import {
   logText,
   outstanding,
   pendingWithoutEntry,
-  trackingStage,
   unbackedSignatures,
 } from "@/lib/evidence";
 import { portalIdFor, siteCodeFor, siteFor } from "@/lib/sites";
 import { useNow } from "@/lib/clock";
 import { useFormsHubDeepLink } from "@/lib/deepLink";
 import { AttachmentStrip, PhotoButton } from "@/components/Capture";
+import EvidenceReviewView from "@/components/EvidenceReviewView";
 import { SignaturePad } from "@/components/SignaturePad";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconX } from "@/components/ui/icons";
 import type { EvidenceMedium, EvidenceStage } from "@/lib/types";
-import type { DisciplineEvidenceGroup, EvidenceTrackingStage } from "@/lib/evidence";
 
 const MEDIA: EvidenceMedium[] = ["paper", "digital", "photographed", "portal", "verbal"];
 
@@ -152,18 +148,6 @@ export default function EvidencePage() {
 
   const still = outstanding(items);
   const held = heldOriginals(items);
-
-  /* The discipline each item is tracked under — its own, else its first
-     linked check's, else "Unassigned". `checksAt` is already read above for
-     the check-point picker; reused here rather than a second lookup. */
-  const checkDisciplineOf = useMemo(() => {
-    const m = new Map([...docs, ...rest].map((c) => [c.id, c.discipline]));
-    return (id: string) => m.get(id);
-  }, [docs, rest]);
-  const groups = useMemo(
-    () => groupByDiscipline(items, (e) => disciplineFor(e, checkDisciplineOf)),
-    [items, checkDisciplineOf]
-  );
 
   /* Switching from the grouped view back to "By document" unmounts every
      item card, so the one just tapped is not in the DOM on this same tick —
@@ -253,9 +237,7 @@ export default function EvidencePage() {
         ))}
       </div>
 
-      {view === "discipline" ? (
-        <DisciplineTrackingView groups={groups} onOpen={openInDocumentView} />
-      ) : null}
+      {view === "discipline" ? <EvidenceReviewView onOpenRecord={openInDocumentView} /> : null}
 
       {view === "document" && <>
       {/* LOG ONE. Pinned, one field. */}
@@ -760,75 +742,9 @@ export default function EvidencePage() {
   );
 }
 
-/** REVIEW TABLE V2 — grouped-by-discipline tracking view, see
- *  docs/capture-review/review-table-v2-discovery.md §4. One summary row per
- *  discipline with Sarel's four states as counts, expandable to the items
- *  behind them; opening one hands off to the real item card in "By
- *  document" (`onOpen`) rather than growing a second editor here. */
-function DisciplineTrackingView({
-  groups,
-  onOpen,
-}: {
-  groups: DisciplineEvidenceGroup[];
-  onOpen: (id: string) => void;
-}) {
-  const [open, setOpen] = useState<string | null>(null);
-
-  const tone = (s: EvidenceTrackingStage): "good" | "warn" | undefined =>
-    s === "received" || s === "analysis" ? "good" : s === "requested" || s === "unavailable" ? "warn" : undefined;
-
-  if (groups.length === 0) {
-    return (
-      <Empty>
-        <b>Nothing logged.</b>
-        <span>Grouped by discipline once something is requested or received.</span>
-      </Empty>
-    );
-  }
-
-  return (
-    <div className="mb-4 flex flex-col gap-2">
-      {groups.map((g) => {
-        const isOpen = open === g.discipline;
-        return (
-          <Panel key={g.discipline} className="p-0">
-            <button
-              type="button"
-              onClick={() => setOpen(isOpen ? null : g.discipline)}
-              className="flex w-full items-center justify-between gap-3 px-[13px] py-[11px] text-left"
-            >
-              <b className="text-[13px]">{g.discipline}</b>
-              <span className="flex flex-wrap items-center justify-end gap-[6px]">
-                {(["notStarted", "requested", "received", "analysis"] as const).map((s) => (
-                  <Pill key={s} tone={tone(s)}>
-                    {TRACKING_LABEL[s]} {g.counts[s]}
-                  </Pill>
-                ))}
-                {g.counts.returned > 0 && <Pill>{TRACKING_LABEL.returned} {g.counts.returned}</Pill>}
-              </span>
-            </button>
-            {isOpen ? (
-              <div className="flex flex-col gap-[6px] border-t px-[13px] py-[10px]" style={{ borderColor: "var(--line)" }}>
-                {g.items.map((e) => (
-                  <button
-                    key={e.id}
-                    type="button"
-                    onClick={() => onOpen(e.id)}
-                    className="flex items-center justify-between gap-2 rounded-[8px] border px-2 py-[6px] text-left text-[11.5px]"
-                    style={{ background: "var(--bg)", borderColor: "var(--line)" }}
-                  >
-                    <span className="min-w-0 truncate">
-                      {e.title || e.id}
-                      {e.system ? <span className="ml-1 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>· {e.system}</span> : null}
-                    </span>
-                    <Pill tone={tone(trackingStage(e))}>{TRACKING_LABEL[trackingStage(e)]}</Pill>
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </Panel>
-        );
-      })}
-    </div>
-  );
-}
+/* The grouped-by-discipline tracking view used to be defined here (REVIEW
+ * TABLE V2, see docs/capture-review/review-table-v2-discovery.md §4). The
+ * Evidence-review pass rebuilt it into its own component,
+ * src/components/EvidenceReviewView.tsx, with the full table/panel/filters
+ * the brief asks for — see docs/capture-review/evidence-review-discovery.md.
+ * `view === "discipline"` above now renders that component directly. */
