@@ -320,6 +320,18 @@ export default function RaisePage() {
               setPendingAttachments((cur) => [...cur, { ...m, createdBy: auditor, id: uid(), createdAt: Date.now() }])
             }
           />
+          {/* Sarel: "I want to upload a photo, because it might be that
+              there's some photos already on the phone... the easiest way
+              will be then just to select a photo from my gallery." Same
+              handler, same resulting attachment — PhotoButton's own
+              `fromLibrary` prop only changes which OS picker opens. */}
+          <PhotoButton
+            large
+            fromLibrary
+            onCaptured={(m) =>
+              setPendingAttachments((cur) => [...cur, { ...m, createdBy: auditor, id: uid(), createdAt: Date.now() }])
+            }
+          />
           <VoiceNoteButton
             large
             onCaptured={(m) => {
