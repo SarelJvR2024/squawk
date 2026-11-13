@@ -51,7 +51,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | Suite | Needs a server | Assertions run |
 |---|---|---|
 | `risk-matrix.test.mjs` | no | 49 |
-| `capture.test.mjs` | no | 41 |
+| `capture.test.mjs` | no | 45 |
 | `scope.test.mjs` | no | 48 |
 | `dashboard-hierarchy.test.mjs` | no | 8 |
 | `carryforward.test.mjs` | no | 58 |
@@ -62,7 +62,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `review.test.mjs` | no | 41 |
 | `reviewcompliance.test.mjs` | no | 7 |
 | `syncwatermark.test.mjs` | no | 14 |
-| `tablet.test.mjs` | no | 46 |
+| `tablet.test.mjs` | no | 47 |
 | `refresh.test.mjs` | no | 10 |
 | `portals.test.mjs` | no | 32 |
 | `reset.test.mjs` | no | 21 |
@@ -90,7 +90,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `audits.test.mjs` | no | 22 |
 | `voice.test.mjs` | no | 48 |
 | `sites.test.mjs` | no | 42 |
-| `photos.test.mjs` | no | 113 |
+| `photos.test.mjs` | no | 112 |
 | `hazards.test.mjs` | no | 121 |
 | `hazardpromotion.test.mjs` | no | 35 |
 | `auditdates.test.mjs` | no | 20 |
@@ -151,7 +151,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,864 assertions in total**, every count above verified by running the suite,
+**3,868 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —

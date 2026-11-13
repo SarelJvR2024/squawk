@@ -30,6 +30,7 @@ const checkDetail = src("components", "CheckDetail.tsx");
 const field = src("app", "(app)", "field", "page.tsx");
 const store = src("lib", "store.ts");
 const types = src("lib", "types.ts");
+const raise = src("app", "(app)", "raise", "page.tsx");
 
 /* The UI surfaces where an auditor captures evidence. Library code is excluded
    deliberately: media.ts is allowed to name a duration, because it measures
@@ -127,7 +128,48 @@ check(
   ""
 );
 
-/* ----------------------------- Part 2b: saving a photo onto the device itself */
+/* ----------------------------- Part 2b: a photo from the gallery, not just the camera */
+
+/* Sarel, on Raise a finding: "upload a photo, because it might be that
+   there's some photos already on the phone... the easiest way will be then
+   just to select a photo from my gallery." `capture="environment"` sends a
+   phone straight to its camera with no way back to an existing photo — this
+   guards that the gallery path is a real second `<input>` with no `capture`
+   attribute at all, not the camera input relabelled. */
+check(
+  "PhotoButton supports a library/gallery picker as well as the camera",
+  /fromLibrary\??:\s*boolean/.test(capture),
+  "without this prop there is only ever one picker, and it is the camera"
+);
+
+check(
+  "the gallery picker's own <input> has no capture attribute",
+  (() => {
+    const i = capture.indexOf("fromLibrary ? (");
+    if (i === -1) return false;
+    const branch = capture.slice(i, capture.indexOf(") : ("));
+    return /accept="image\/\*"/.test(branch) && !/capture=/.test(branch);
+  })(),
+  "a capture attribute on this branch would send the gallery button to the camera too"
+);
+
+check(
+  "both the camera and gallery inputs share one onChange handler",
+  (() => {
+    const matches = capture.match(/onChange=\{handlePhotoFiles\}/g);
+    return !!matches && matches.length === 2;
+  })(),
+  "two separate handlers is how the camera and gallery paths would drift apart"
+);
+
+check(
+  "Raise a finding renders the gallery picker alongside the camera button, not instead of it",
+  /<PhotoButton[\s\S]{0,40}large\s*\n\s*primary/.test(raise) &&
+    /<PhotoButton[\s\S]{0,40}large\s*\n\s*fromLibrary/.test(raise),
+  "Sarel asked to add the option, not replace the camera button"
+);
+
+/* ----------------------------- Part 2c: saving a photo onto the device itself */
 
 /* Sarel: "where is the photo saved... are those photos stored locally on the
    phone as well?" They weren't — only in this browser's own private storage.
