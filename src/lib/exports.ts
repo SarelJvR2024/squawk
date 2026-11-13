@@ -32,6 +32,7 @@ import { portalIdFor } from "./sites";
 import { priorFor } from "./register";
 import { mappingFor } from "./crosswalk";
 import { effectiveWalkOutcome, flattenProgress } from "./sharepoint";
+import { findingTypeFor } from "./reviewRisk";
 import * as erm from "./erm";
 
 /** Who raised the hazard, spelled out for a reader of the workbook. */
@@ -707,10 +708,14 @@ export function photographsSheet(x: ExportInput): Sheet {
      finding is raised, whether or not a check-point was ever picked. Same
      sheet as the other four sources, same reasoning: a reader should not
      have to know which screen captured a photograph to find it here.
-     Compliance reads Non-compliant unconditionally — "Every Finding IS a
-     non-compliance in this schema" (RaiseFindingSheet.tsx's own doc
-     comment), the one photo source in this sheet where that column is
-     never blank or borrowed from a Response. */
+     Compliance reads Non-compliant UNLESS the auditor has tagged the
+     finding Observation on /review (Finding.findingType, read through
+     findingTypeFor() like every other caller) — "Every Finding IS a
+     non-compliance in this schema" stopped being true the moment that field
+     existed. Blank for Observation, same convention an evidence-log
+     document's own row already uses for "no Compliance verdict of its
+     own" above, rather than inventing a value this column's vocabulary
+     has no room for. */
   for (const f of x.findings) {
     /* SAME FALLBACK AS sharepoint.ts's evidenceValues() — a finding is typed
        up once, as its own description; the photograph is evidence FOR that
@@ -725,7 +730,7 @@ export function photographsSheet(x: ExportInput): Sheet {
         photoFilename(a),
         a.ref ?? "",
         f.checkId ? portalIdFor(x.entity, f.checkId) : f.id,
-        STATUS_WORD.NC,
+        findingTypeFor(f) === "observation" ? "" : STATUS_WORD.NC,
         f.discipline,
         f.system,
         f.area,

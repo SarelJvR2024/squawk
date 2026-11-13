@@ -57,6 +57,7 @@ import { portalIdFor, siteCodeFor, siteFor } from "./sites";
 import { apologiesOf } from "./attendanceRegister";
 import { MEDIUM_LABEL } from "./evidence";
 import { bandFor, BAND_META } from "./risk";
+import { findingTypeFor } from "./reviewRisk";
 import type {
   AdHocItem,
   AnswerLibrary,
@@ -2028,11 +2029,20 @@ export function buildPlan(
           f.discipline,
           f.system,
           findingPortalKey.get(f.id) ?? "",
-          /* Every Finding IS a non-compliance in this schema — see
-             RaiseFindingSheet.tsx's own doc comment — so a finding's own
-             photograph always carries NC, the one evidence source in this
-             function where the outcome is never read off a response. */
-          "NC",
+          /* "Every Finding IS a non-compliance in this schema" stopped being
+             true the moment Finding.findingType existed (Review risk-fields
+             addendum) — an auditor can now tag a finding Observation on
+             /review, and this always sent NC regardless. Read through
+             findingTypeFor() like every other caller, never off
+             f.findingType directly (see that field's own doc comment).
+             `null` for Observation, not a repurposed Compliance value — this
+             app's Compliance vocabulary (C/NC/N/A/NV) has no "observation"
+             member, and inventing one here risks the same misreading a
+             genuinely unanswered field is protected against elsewhere in
+             this file. Flagged for Sarel: if the portal needs its own
+             explicit "observation" signal rather than a blank Compliance
+             cell, that is a column addition, not a value choice. */
+          findingTypeFor(f) === "observation" ? null : "NC",
           fallbackCaption
         ),
         folder: dayFolder(folder, a.takenAt ?? a.createdAt),

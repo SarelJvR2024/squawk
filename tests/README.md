@@ -98,7 +98,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `auditdates.test.mjs` | no | 20 |
 | `relinkphoto.test.mjs` | no | 16 |
 | `erm-matrix.test.mjs` | no | 80 |
-| `sharepoint.test.mjs` | no | 384 |
+| `sharepoint.test.mjs` | no | 386 |
 | `graph.test.mjs` | no | 16 |
 | `activity.test.mjs` | no | 34 |
 | `assets.test.mjs` | no | 21 |
@@ -131,7 +131,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `import-pack.test.mjs` | no | 62 |
 | `ortia-v3-pack.test.mjs` | no | 83 |
 | `sheet.test.mjs` | no | 17 |
-| `exports.test.mjs` | no | 23 |
+| `exports.test.mjs` | no | 25 |
 | `field-wide-detail.test.mjs` | no | 15 |
 | `fieldobservation-display.test.mjs` | no | 6 |
 | `findings-inspection-link.test.mjs` | no | 19 |
@@ -153,7 +153,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,963 assertions in total**, every count above verified by running the suite,
+**3,967 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
