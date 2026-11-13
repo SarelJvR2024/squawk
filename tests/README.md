@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Hundred-and-two suites, no framework. Thirteen need a running server; eighty-nine do not.
+Hundred-and-three suites, no framework. Thirteen need a running server; ninety do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -83,6 +83,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `reviewfields.test.mjs` | no | 20 |
 | `review-risk-fields.test.mjs` | no | 35 |
 | `review-table-v2.test.mjs` | no | 63 |
+| `evidence-review.test.mjs` | no | 63 |
 | `evidencepending.test.mjs` | no | 31 |
 | `evidencestatus.test.mjs` | no | 23 |
 | `evidenceverdict.test.mjs` | no | 10 |
@@ -153,7 +154,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**3,963 assertions in total**, every count above verified by running the suite,
+**4,026 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —

@@ -52,13 +52,18 @@ const check = (name, cond, detail = "") => {
 /* ---- the "polish" task itself, server and client ---------------------- */
 
 check(
+  /* NOT anchored to being the LAST member of the union any more — the
+     Evidence review pass added two more tasks after it
+     (evidenceAnalysis/evidenceSummary), the same way `polish` itself was
+     once added after whatever used to be last. A union member's presence,
+     not its position, is what this guards. */
   "polish is a real Task, defined where every task's prompt lives (src/lib/assistPrompts.ts), not a client-only string nothing answers",
-  /\| "polish";/.test(prompts) && /polish:\s*\n?\s*"Rewrite the note below/.test(prompts)
+  /\| "polish"/.test(prompts) && /polish:\s*\n?\s*"Rewrite the note below/.test(prompts)
 );
 
 check(
   "polish is a real AssistTask on the client, matching the server's own union",
-  /\| "polish";/.test(assistLib)
+  /\| "polish"/.test(assistLib)
 );
 
 check(
