@@ -40,13 +40,15 @@ import {
 } from "@/lib/reviewRisk";
 import { LIKELIHOODS, SEVERITIES } from "@/lib/risk";
 import { ALL_DISCIPLINES, checksAt, systemsAt, systemsOf } from "@/lib/register";
-import { Chip, Pill } from "@/components/ui/primitives";
+import { useFieldSaveStatus } from "@/lib/store";
+import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
 import { IconCamera, IconMic } from "@/components/ui/icons";
 import type { Check, Finding, Likelihood, Severity } from "@/lib/types";
 
 /** The sort key an empty/absent Asset system sorts under — see `visible`'s
- *  own comment below. Built with fromCharCode, not a `"￿"` string
- *  literal, so this stays an ordinary, visible character in this file. */
+ *  own comment below. Built with fromCharCode rather than a string literal
+ *  containing an actual U+FFFF character, so this file has no invisible,
+ *  noncharacter byte sitting in its source. */
 const GENERAL_SYSTEM_SORT_KEY = String.fromCharCode(0xffff);
 
 export default function ReviewRiskTable({
@@ -54,7 +56,7 @@ export default function ReviewRiskTable({
   entityCode,
   activeId,
   onActivate,
-  onChange,
+  onChange: onChangeProp,
 }: {
   findings: Finding[];
   /** For the Audit check column's requirement-text lookup and the Asset
@@ -68,6 +70,26 @@ export default function ReviewRiskTable({
   onChange: (id: string, patch: Partial<Finding>) => void;
 }) {
   const [filter, setFilter] = useState<ReviewRiskFilter>({ kind: "all" });
+  /* PRIORITY 2 (review redesign) — one shared saving/saved/failed
+     indicator for the whole table (not one per row/cell — with many rows
+     editable at once, N independent indicators would be noise, and every
+     write here goes through the SAME lastSavedAt/persistError signals
+     anyway). Tracks WHICH row was last touched, not a fresh Date.now()
+     read — calling Date.now() inside a component body is exactly what the
+     React Compiler's `react-hooks/purity` lint rule refuses, so the
+     timestamp useFieldSaveStatus compares against is that row's own
+     `updatedAt`, already stamped by updateFinding (store.ts) the moment
+     the edit actually lands. Every call site below goes through this
+     wrapper instead of the prop directly, same convention as
+     ReviewRiskPanel's own. */
+  const [lastEditedId, setLastEditedId] = useState<string | null>(null);
+  const onChange = (id: string, patch: Partial<Finding>) => {
+    setLastEditedId(id);
+    onChangeProp(id, patch);
+  };
+  const saveStatus = useFieldSaveStatus(
+    lastEditedId ? (findings.find((f) => f.id === lastEditedId)?.updatedAt ?? null) : null
+  );
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   /* Audit-check reference codes are presentation we no longer show (see
@@ -232,9 +254,12 @@ export default function ReviewRiskTable({
           what is actually on screen (unlike a chip's own count, which
           deliberately shows what clicking it WOULD yield, not what is
           currently shown). */}
-      <div className="mb-1.5 text-[10.5px]" style={{ color: "var(--ink-3)" }}>
-        {visible.length} finding{visible.length === 1 ? "" : "s"}
-        {filter.kind !== "all" ? ` matching this filter (of ${findings.length} total)` : ""}
+      <div className="mb-1.5 flex items-center gap-[8px] text-[10.5px]" style={{ color: "var(--ink-3)" }}>
+        <span>
+          {visible.length} finding{visible.length === 1 ? "" : "s"}
+          {filter.kind !== "all" ? ` matching this filter (of ${findings.length} total)` : ""}
+        </span>
+        <SaveStatusPill status={saveStatus} />
       </div>
 
       {/* The table itself — the full column set Sarel approved from the
