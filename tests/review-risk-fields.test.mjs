@@ -18,6 +18,7 @@ const read = (...p) => fs.readFileSync(path.join(here, "..", ...p), "utf8");
 
 const R = await import("../src/lib/reviewRisk.ts");
 const risk = await import("../src/lib/risk.ts");
+const register = await import("../src/lib/register.ts");
 
 const types = read("src", "lib", "types.ts");
 const panel = read("src", "components", "ReviewRiskPanel.tsx");
@@ -337,6 +338,89 @@ check(
   !/People & training/.test(read("src", "lib", "riskVocab.ts")) &&
     !/Equipment & design/.test(read("src", "lib", "riskVocab.ts")),
   "those six words are the brief's PROVISIONAL list — see the discovery note's open question"
+);
+
+/* ---- 9 · PRIORITY 4 (review redesign) — the panel's hierarchy editor:
+   Discipline/Asset system/Audit check, with incompatible selections
+   cleared rather than left pointing at a level that no longer lines up */
+
+check(
+  "the panel renders a Discipline, an Asset system and an Audit check select, under one 'Linked to' heading",
+  /Linked to<\/div>/.test(panel) &&
+    /value=\{finding\.discipline\}/.test(panel) &&
+    /value=\{finding\.system \|\| ""\}/.test(panel) &&
+    /value=\{finding\.checkId \?\? ""\}/.test(panel)
+);
+check(
+  "Discipline has no empty/General option — the type requires it non-empty",
+  (() => {
+    const block = panel.match(/Discipline<\/span>[\s\S]{0,600}?<\/select>/)?.[0] ?? "";
+    return block.length > 0 && !/General/.test(block);
+  })()
+);
+check(
+  "Asset system and Audit check both offer General, stored as empty string / null, never the word \"General\" itself",
+  /<option value="">General \(no asset system\)<\/option>/.test(panel) &&
+    /<option value="">General \(no audit check\)<\/option>/.test(panel) &&
+    /onChange\(\{ checkId: e\.target\.value \|\| null \}\)/.test(panel)
+);
+check(
+  "the Asset system options are scoped to the finding's OWN discipline via systemsOf, not every system at the entity",
+  /const systemOptions = systemsOf\(entityCode, finding\.discipline\)/.test(panel)
+);
+check(
+  "the Audit check options are scoped to discipline AND system via checksOf, not a flat list of every check",
+  /const checkOptions = checksOf\(entityCode, finding\.discipline, finding\.system \|\| undefined\)/.test(panel)
+);
+
+/* Behavioral: the exact clearing rule, replicated against the REAL
+   register (checksOf/systemsOf/disciplinesAt), not a hand-rolled fixture
+   hierarchy that could drift from what the app actually ships. */
+const ENTITY = "FAOR";
+const [disciplineA, disciplineB] = register.disciplinesAt(ENTITY);
+const systemUnderA = register.systemsOf(ENTITY, disciplineA)[0];
+const checkUnderA = register.checksOf(ENTITY, disciplineA, systemUnderA)[0]?.id ?? null;
+
+function onDisciplineChange(nextDiscipline, current) {
+  const validSystems = register.systemsOf(ENTITY, nextDiscipline);
+  const nextSystem = current.system && validSystems.includes(current.system) ? current.system : "";
+  const validCheckIds = new Set(
+    register.checksOf(ENTITY, nextDiscipline, nextSystem || undefined).map((c) => c.id)
+  );
+  const nextCheckId = current.checkId && validCheckIds.has(current.checkId) ? current.checkId : null;
+  return { discipline: nextDiscipline, system: nextSystem, checkId: nextCheckId };
+}
+
+check(
+  "switching discipline to one that does not carry the current system clears BOTH system and check",
+  (() => {
+    const current = { discipline: disciplineA, system: systemUnderA, checkId: checkUnderA };
+    const patched = onDisciplineChange(disciplineB, current);
+    const bSystems = register.systemsOf(ENTITY, disciplineB);
+    return (
+      !bSystems.includes(systemUnderA) && // the fixture's own premise
+      patched.discipline === disciplineB &&
+      patched.system === "" &&
+      patched.checkId === null
+    );
+  })(),
+  `${disciplineA} -> ${disciplineB}, system was ${systemUnderA}`
+);
+check(
+  "switching discipline back to its own current value changes nothing — system/check survive",
+  (() => {
+    const current = { discipline: disciplineA, system: systemUnderA, checkId: checkUnderA };
+    const patched = onDisciplineChange(disciplineA, current);
+    return patched.system === systemUnderA && patched.checkId === checkUnderA;
+  })()
+);
+check(
+  "a finding with no system/check to begin with (General/General) stays General after a discipline change — nothing to clear, no crash",
+  (() => {
+    const current = { discipline: disciplineA, system: "", checkId: null };
+    const patched = onDisciplineChange(disciplineB, current);
+    return patched.system === "" && patched.checkId === null;
+  })()
 );
 
 console.log(failures === 0 ? "\nREVIEW RISK FIELDS OK" : `\n${failures} FAILURES`);

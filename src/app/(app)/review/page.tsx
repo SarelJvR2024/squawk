@@ -254,6 +254,7 @@ export default function ReviewPage() {
               <ReviewRiskPanel
                 key={riskActive.id}
                 finding={riskActive}
+                entityCode={entityCode}
                 onChange={(patch) => updateFinding(riskActive.id, patch)}
                 onClose={() => setRiskActiveId(null)}
               />
