@@ -49,13 +49,25 @@ check(
   "the notes/attachments block is clearly labelled as THIS finding's own capture, not the linked check's",
   /Notes, photos &amp; recordings — this finding/.test(panel)
 );
+/* PRIORITY 7 — description became an editable <textarea> in this same
+ * section once "Suggest wording" needed an ordinary field to improve, so
+ * the block itself is no longer conditional on having content (same
+ * reasoning the root-cause-note field already applies: an empty editable
+ * field still renders, it just starts empty) — only the attachments
+ * strip below it stays conditional on content actually existing. */
 check(
-  "nothing is rendered when the finding has neither a description nor attachments — no empty card",
-  /\{\(finding\.description \|\| finding\.attachments\.length > 0\) && \(/.test(panel)
+  "the description is an editable textarea, not a read-only paragraph",
+  /<textarea\s*\n\s*value=\{finding\.description\}\s*\n\s*onChange=\{\(e\) => onChange\(\{ description: e\.target\.value \}\)\}/.test(
+    panel
+  )
 );
 check(
-  "the full description renders, not a truncated preview — whitespace-pre-wrap, no .slice() on it",
-  /\{finding\.description\}/.test(panel) && !/finding\.description\.slice/.test(panel)
+  "attachments stay conditional on actually having any — no empty strip",
+  /\{finding\.attachments\.length > 0 && <AttachmentStrip/.test(panel)
+);
+check(
+  "the full description is editable, not truncated — no .slice() on the value bound to the textarea",
+  !/value=\{finding\.description\.slice/.test(panel)
 );
 
 /* ---- 2 · the linked-check compliance summary — derived, never re-derived,

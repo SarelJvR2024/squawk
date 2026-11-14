@@ -35,6 +35,7 @@ import {
   toggleMulti,
 } from "@/lib/reviewRisk";
 import { evidenceAxisFor, reviewCombinedCompliance } from "@/lib/review";
+import { assist, polishContext, useAssistAvailable } from "@/lib/assist";
 import { TRACKING_LABEL, trackingStage } from "@/lib/evidence";
 import { checksAt, checksOf, disciplinesAt, systemsOf } from "@/lib/register";
 import { useStore, useEvidenceItems, useFieldSaveStatus, useResponses } from "@/lib/store";
@@ -77,6 +78,11 @@ export type RiskPatch = Pick<
   | "discipline"
   | "system"
   | "checkId"
+  /* PRIORITY 7 (review redesign) — description becomes editable here so
+     the "Suggest wording" AI action below has an ordinary field to
+     improve, not a read-only paragraph with nowhere for an accepted
+     suggestion (or a human tweak) to land. */
+  | "description"
 >;
 
 export default function ReviewRiskPanel({
@@ -190,6 +196,43 @@ export default function ReviewRiskPanel({
     ? reviewCombinedCompliance(linkedResponse.compliance, linkedEvidenceAxis, linkedResponse.siteInspection)
     : null;
 
+  /* PRIORITY 7 (review redesign) — "Suggest wording" beside the
+     description. Reuses the existing "polish" task/polishContext
+     (src/lib/assistPrompts.ts, src/lib/assist.ts) rather than a new
+     prompt — polishContext's own doc comment names "a finding's title"
+     as exactly the `about` argument this call supplies, and "polish" was
+     already written, reviewed and shares SYSTEM's house rules (never
+     invent a fact; the auditor decides); it had simply never been called
+     from anywhere before this. EPHEMERAL, ON PURPOSE, same convention as
+     EvidenceReviewPanel's own suggestion state: nothing is written until
+     Accept, and Reject clears this local state rather than persisting a
+     rejected draft anywhere — see this file's own onChange wrapper for
+     why `key={finding.id}` is what resets it between findings, not an
+     effect here. */
+  const aiOn = useAssistAvailable();
+  const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [editingSuggestion, setEditingSuggestion] = useState(false);
+  const [suggestionEditText, setSuggestionEditText] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  async function runPolish() {
+    setAiBusy(true);
+    setAiError(null);
+    try {
+      const text = await assist(
+        "polish",
+        polishContext(finding.description, finding.discipline, finding.system, "note", finding.title || undefined)
+      );
+      setSuggestion(text.trim());
+      setEditingSuggestion(false);
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : "The assistant is unavailable.");
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Sticky header + close — independent of the scrollable body below,
@@ -283,25 +326,107 @@ export default function ReviewRiskPanel({
         </select>
       </label>
 
-      {/* PRIORITY 4 — notes, photos and recordings this finding carries
+      {/* PRIORITY 4/7 — notes, photos and recordings this finding carries
           itself, clearly labelled as THIS finding's own capture (not the
           linked check's — Response.attachments is a separate pool, see
-          Finding.attachments' own doc comment in types.ts). Read-only
-          here: editing a finding's own capture happens wherever it was
-          raised, this panel only shows it. */}
-      {(finding.description || finding.attachments.length > 0) && (
-        <div className="mb-3.5">
-          <div className="mb-2 font-display text-[11px] font-semibold">
+          Finding.attachments' own doc comment in types.ts). The
+          description is editable here (PRIORITY 7 needs an ordinary field
+          for "Suggest wording" to improve); attachments stay read-only —
+          editing a finding's own photo/voice capture happens wherever it
+          was raised, this panel only shows it. */}
+      <div className="mb-3.5">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="font-display text-[11px] font-semibold">
             Notes, photos &amp; recordings — this finding
-          </div>
-          {finding.description && (
-            <p className="mb-2 whitespace-pre-wrap text-[12.5px]" style={{ color: "var(--ink-2)" }}>
-              {finding.description}
-            </p>
+          </span>
+          {aiOn && (
+            <AiSuggestButton
+              disabled={!finding.description.trim() || aiBusy}
+              busy={aiBusy}
+              onRun={() => void runPolish()}
+            />
           )}
-          {finding.attachments.length > 0 && <AttachmentStrip attachments={finding.attachments} thumbSize={56} />}
         </div>
-      )}
+        <textarea
+          value={finding.description}
+          onChange={(e) => onChange({ description: e.target.value })}
+          placeholder="What was found, in the auditor's own words…"
+          className="mb-2 min-h-[72px] w-full resize-y rounded-[8px] border px-2.5 py-2 text-[12.5px] outline-none focus:border-[var(--acc)]"
+          style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+        />
+        {aiError && (
+          <p role="alert" className="mb-2 text-[11px] font-semibold" style={{ color: "var(--bad)" }}>
+            {aiError}
+          </p>
+        )}
+        {/* PRIORITY 7 — "Every AI change must be a proposal requiring
+            review and approval. Rejection leaves the original untouched."
+            Exact same ephemeral Accept/Edit/Reject shape
+            EvidenceReviewPanel.tsx already uses for its own suggestions —
+            nothing here is written until Accept; Reject only clears this
+            local state. */}
+        {suggestion && (
+          <div
+            className="mb-2 rounded-[8px] border p-2.5 text-[12px]"
+            style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+          >
+            <div className="label-xs mb-1" style={{ color: "var(--ink-3)" }}>
+              Suggested wording · yours to accept, edit or reject
+            </div>
+            {editingSuggestion ? (
+              <textarea
+                value={suggestionEditText}
+                onChange={(e) => setSuggestionEditText(e.target.value)}
+                rows={3}
+                aria-label="Edit the suggestion before accepting"
+                className="mb-2 w-full resize-y rounded-[6px] border px-2 py-1.5 text-[12px]"
+                style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+              />
+            ) : (
+              <p className="mb-2 whitespace-pre-wrap">{suggestion}</p>
+            )}
+            <div className="flex gap-[6px]">
+              <button
+                type="button"
+                onClick={() => {
+                  onChange({ description: editingSuggestion ? suggestionEditText : suggestion });
+                  setSuggestion(null);
+                  setEditingSuggestion(false);
+                }}
+                className="rounded-[6px] px-[9px] py-[5px] text-[11px] font-semibold"
+                style={{ background: "var(--acc)", color: "#fff" }}
+              >
+                Accept
+              </button>
+              {!editingSuggestion && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingSuggestion(true);
+                    setSuggestionEditText(suggestion);
+                  }}
+                  className="rounded-[6px] border px-[9px] py-[5px] text-[11px] font-semibold"
+                  style={{ borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+                >
+                  Edit
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setSuggestion(null);
+                  setEditingSuggestion(false);
+                }}
+                className="rounded-[6px] px-[9px] py-[5px] text-[11px] font-semibold"
+                style={{ color: "var(--bad)" }}
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        )}
+        {finding.attachments.length > 0 && <AttachmentStrip attachments={finding.attachments} thumbSize={56} />}
+      </div>
 
       {/* PRIORITY 4 — "compliance assessments, clearly identifying their
           source." Omitted entirely with no checkId: there is no check-
@@ -531,6 +656,32 @@ function EvidenceSection({ finding }: { finding: Finding }) {
  *  same COMPLIANCE_TONE/COMPLIANCE_LABEL convention as ReviewDetail.tsx's
  *  own StatusCell (not imported — that component is local to its file),
  *  rendered as a Pill since this is a summary card, not the sticky strip. */
+/** PRIORITY 7 — the button that kicks off a "polish" suggestion. A small,
+ *  ordinary button rather than Btn (ui/primitives.tsx's bigger control) —
+ *  this sits beside a section label, not in a toolbar. */
+function AiSuggestButton({
+  disabled,
+  busy,
+  onRun,
+}: {
+  disabled: boolean;
+  busy: boolean;
+  onRun: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onRun}
+      title={disabled && !busy ? "Type something first — there is nothing to improve yet." : undefined}
+      className="rounded-[6px] px-[8px] py-[3px] text-[10.5px] font-semibold disabled:opacity-40"
+      style={{ color: "var(--acc)" }}
+    >
+      ✦ {busy ? "Thinking…" : "Suggest wording"}
+    </button>
+  );
+}
+
 function ComplianceChip({ label, value }: { label: string; value: Compliance | null }) {
   return (
     <Pill tone={value ? COMPLIANCE_TONE[value] : "neutral"}>
