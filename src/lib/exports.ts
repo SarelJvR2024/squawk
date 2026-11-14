@@ -423,10 +423,14 @@ export function findingsSheet(x: ExportInput): Sheet {
       f.actionStatus,
       /* ACSA's one Progress/Update cell, carrying the whole log — each entry
          dated and attributed, because a cell that has been typed over cannot
-         say when a finding moved or who said so. */
-      (f.progress ?? [])
-        .map((n) => `${new Date(n.at).toISOString().slice(0, 10)} · ${n.by}: ${n.note}`)
-        .join("\n"),
+         say when a finding moved or who said so. EXACT SAME flattenProgress()
+         sharepoint.ts/this file's own Verification.discussionLog already
+         use, not a hand-rolled copy — this cell omitted ProgressNote.outcome
+         for three weeks after flattenProgress() itself gained it (found by
+         the standing sync-integrity review), the same "duplicated template,
+         one copy gets the fix" pattern MitigationAction.system's own fix
+         exists to guard against. */
+      flattenProgress(f.progress),
       f.priorRating ?? "",
       move ?? "",
       f.importKey
@@ -997,13 +1001,11 @@ export function hazardsSheet(x: ExportInput): Sheet {
       [...new Set(h.actions.map((m) => m.owner).filter(Boolean))].join("\n"),
       [...new Set(h.actions.map((m) => iso(m.dueDate)).filter(Boolean))].join("\n"),
       h.actionStatus,
-      /* Their one Progress/Update cell, our whole log. */
-      h.progress
-        .map(
-          (n) =>
-            `${new Date(n.at).toISOString().slice(0, 10)} · ${n.by}: ${n.note}`
-        )
-        .join("\n"),
+      /* Their one Progress/Update cell, our whole log — EXACT SAME
+         flattenProgress() as findingsSheet's own copy just above and
+         sharepoint.ts's portal row, not a third hand-rolled template; see
+         findingsSheet's own note on why. */
+      flattenProgress(h.progress),
       h.note,
       when(h.reassessedAt) ?? "",
       h.reassessNote,
