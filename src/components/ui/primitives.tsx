@@ -55,6 +55,32 @@ export function Pill({
   );
 }
 
+/** PRIORITY 2 (review redesign) — "saving/saved/failed" for an inline edit,
+ *  read from `useFieldSaveStatus` (src/lib/store.ts). A thin `Pill` wrapper,
+ *  not a new status-tag shape: `null` renders nothing, so a field nobody
+ *  has touched yet shows no stray tag. */
+export function SaveStatusPill({ status }: { status: "saving" | "saved" | "failed" | null }) {
+  if (!status) return null;
+  const copy: Record<typeof status & string, { label: string; tone: Tone }> = {
+    saving: { label: "Saving…", tone: "neutral" },
+    saved: { label: "Saved", tone: "good" },
+    failed: { label: "Couldn't save yet", tone: "bad" },
+  };
+  const { label, tone } = copy[status];
+  return (
+    <Pill
+      tone={tone}
+      title={
+        status === "failed"
+          ? "Your change is still here on this device — it just has not reached storage yet. It will save automatically once storage recovers."
+          : undefined
+      }
+    >
+      {label}
+    </Pill>
+  );
+}
+
 export function Dot({
   tone,
   hollow = false,

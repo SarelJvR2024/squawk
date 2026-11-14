@@ -23,6 +23,7 @@
  *  definition or a band label, for the same reason risk.ts's own header
  *  explains at length. */
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LIKELIHOOD_DEF, LIKELIHOODS, SEVERITIES, SEVERITY_DEF, BAND_META, bandFor } from "@/lib/risk";
 import {
@@ -34,9 +35,9 @@ import {
   toggleMulti,
 } from "@/lib/reviewRisk";
 import { TRACKING_LABEL, trackingStage } from "@/lib/evidence";
-import { useStore, useEvidenceItems } from "@/lib/store";
+import { useStore, useEvidenceItems, useFieldSaveStatus } from "@/lib/store";
 import RatingPicker from "@/components/RatingPicker";
-import { Chip, Pill } from "@/components/ui/primitives";
+import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
 import type { Finding, Likelihood, Severity } from "@/lib/types";
 
 export type RiskPatch = Pick<
@@ -53,7 +54,7 @@ export type RiskPatch = Pick<
 
 export default function ReviewRiskPanel({
   finding,
-  onChange,
+  onChange: onChangeProp,
   onClose,
 }: {
   finding: Finding;
@@ -68,6 +69,25 @@ export default function ReviewRiskPanel({
   const priority = priorityFor(finding);
   const type = findingTypeFor(finding);
 
+  /* PRIORITY 2 (review redesign) — "show saving, saved and failed states;
+     never silently lose an edit." `dirty` is a plain boolean, not a fresh
+     Date.now() read here — calling Date.now() inside a component is an
+     impure-during-render risk the React Compiler's own lint rule refuses
+     (`react-hooks/purity`), so the timestamp useFieldSaveStatus compares
+     against is `finding.updatedAt`, already stamped by updateFinding
+     itself (store.ts, same set() call as lastSavedAt) the moment this
+     edit actually lands — not a second, independently-read clock that
+     could disagree with it. Reset to false on every finding change (the
+     `key={finding.id}` the caller already passes remounts this component
+     per finding, so this is really "edited since THIS finding opened,"
+     not carried stale from the last one). */
+  const [dirty, setDirty] = useState(false);
+  function onChange(patch: Partial<RiskPatch>) {
+    setDirty(true);
+    onChangeProp(patch);
+  }
+  const saveStatus = useFieldSaveStatus(dirty ? (finding.updatedAt ?? null) : null);
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Sticky header + close — independent of the scrollable body below,
@@ -78,7 +98,10 @@ export default function ReviewRiskPanel({
         className="sticky top-0 z-[2] flex shrink-0 items-center justify-between border-b px-3 py-2"
         style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
       >
-        <b className="font-display text-[11.5px] font-semibold">Finding</b>
+        <div className="flex items-center gap-[8px]">
+          <b className="font-display text-[11.5px] font-semibold">Finding</b>
+          <SaveStatusPill status={saveStatus} />
+        </div>
         <button
           type="button"
           onClick={onClose}
