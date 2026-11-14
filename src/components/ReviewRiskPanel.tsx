@@ -35,6 +35,7 @@ import {
   toggleMulti,
 } from "@/lib/reviewRisk";
 import { TRACKING_LABEL, trackingStage } from "@/lib/evidence";
+import { checksOf, disciplinesAt, systemsOf } from "@/lib/register";
 import { useStore, useEvidenceItems, useFieldSaveStatus } from "@/lib/store";
 import RatingPicker from "@/components/RatingPicker";
 import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
@@ -50,14 +51,26 @@ export type RiskPatch = Pick<
   | "rootCauseNote"
   | "rootCauseConfirmed"
   | "findingType"
+  /* PRIORITY 4 (review redesign) — Discipline/Asset system/Audit check,
+     added so the hierarchy editor below can patch through the SAME
+     onChange every other field here already uses, rather than a second
+     callback prop just for these three. */
+  | "discipline"
+  | "system"
+  | "checkId"
 >;
 
 export default function ReviewRiskPanel({
   finding,
+  entityCode,
   onChange: onChangeProp,
   onClose,
 }: {
   finding: Finding;
+  /** For the hierarchy editor's own discipline/system/check option lists —
+   *  same entity-scoped register reads ReviewRiskTable's filters already
+   *  use, never a second copy of the register. */
+  entityCode: string;
   /** The caller owns the write (ReviewPage calls updateFinding), same
    *  division of labour as RecordActions' own onChange. */
   onChange: (patch: Partial<RiskPatch>) => void;
@@ -87,6 +100,45 @@ export default function ReviewRiskPanel({
     onChangeProp(patch);
   }
   const saveStatus = useFieldSaveStatus(dirty ? (finding.updatedAt ?? null) : null);
+
+  /* PRIORITY 4 (review redesign) — "allow editing of Discipline, Asset
+     system and Audit check. Prevent incompatible hierarchy links."
+     Discipline is required (the type itself never allows it empty); Asset
+     system and Audit check are both optional ("General"), stored as ""
+     and null respectively — same convention ReviewRiskTable's own display
+     already reads (f.system ? f.system : "General"), never a sentinel
+     string like "General" written into the record itself.
+
+     Changing discipline can orphan the system/check the auditor had
+     picked (a system/check that belongs to the OLD discipline, not the
+     new one) — cleared here rather than left pointing at a hierarchy
+     level that no longer lines up, which is what "prevent incompatible
+     links" means for an edit rather than a filter. Changing system alone
+     can equally orphan just the check. There is nothing to extract from
+     ReviewRiskTable's own discipline→system FILTER logic (a different
+     problem: narrowing options, not clearing a stored value) — this is
+     self-contained, entity-scoped register reads, same functions. */
+  const disciplineOptions = disciplinesAt(entityCode);
+  const systemOptions = systemsOf(entityCode, finding.discipline);
+  const checkOptions = checksOf(entityCode, finding.discipline, finding.system || undefined);
+
+  function onDisciplineChange(nextDiscipline: string) {
+    const validSystems = systemsOf(entityCode, nextDiscipline);
+    const nextSystem = finding.system && validSystems.includes(finding.system) ? finding.system : "";
+    const validCheckIds = new Set(
+      checksOf(entityCode, nextDiscipline, nextSystem || undefined).map((c) => c.id)
+    );
+    const nextCheckId = finding.checkId && validCheckIds.has(finding.checkId) ? finding.checkId : null;
+    onChange({ discipline: nextDiscipline, system: nextSystem, checkId: nextCheckId });
+  }
+
+  function onSystemChange(nextSystem: string) {
+    const validCheckIds = new Set(
+      checksOf(entityCode, finding.discipline, nextSystem || undefined).map((c) => c.id)
+    );
+    const nextCheckId = finding.checkId && validCheckIds.has(finding.checkId) ? finding.checkId : null;
+    onChange({ system: nextSystem, checkId: nextCheckId });
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -127,6 +179,59 @@ export default function ReviewRiskPanel({
           </Chip>
         ))}
       </div>
+
+      {/* PRIORITY 4 — "Linked to", same label EvidenceReviewPanel's own
+          hierarchy editor already uses for the same three levels, so a
+          reviewer who has seen one recognises the other. Discipline is
+          required; Asset system and Audit check both offer "General". */}
+      <div className="mb-2 font-display text-[11px] font-semibold">Linked to</div>
+      <label className="mb-2 block">
+        <span className="label-xs">Discipline</span>
+        <select
+          value={finding.discipline}
+          onChange={(e) => onDisciplineChange(e.target.value)}
+          className="mt-1 w-full rounded-[8px] border px-2.5 py-2 text-[12.5px] outline-none focus:border-[var(--acc)]"
+          style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+        >
+          {disciplineOptions.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="mb-2 block">
+        <span className="label-xs">Asset system</span>
+        <select
+          value={finding.system || ""}
+          onChange={(e) => onSystemChange(e.target.value)}
+          className="mt-1 w-full rounded-[8px] border px-2.5 py-2 text-[12.5px] outline-none focus:border-[var(--acc)]"
+          style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+        >
+          <option value="">General (no asset system)</option>
+          {systemOptions.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="mb-3.5 block">
+        <span className="label-xs">Audit check</span>
+        <select
+          value={finding.checkId ?? ""}
+          onChange={(e) => onChange({ checkId: e.target.value || null })}
+          className="mt-1 w-full rounded-[8px] border px-2.5 py-2 text-[12.5px] outline-none focus:border-[var(--acc)]"
+          style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+        >
+          <option value="">General (no audit check)</option>
+          {checkOptions.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.requirement.slice(0, 80)}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <div className="mb-2 font-display text-[11px] font-semibold">Risk</div>
 

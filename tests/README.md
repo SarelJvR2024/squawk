@@ -81,7 +81,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `attendanceregister.test.mjs` | no | 66 |
 | `suite-table.test.mjs` | no | 5 |
 | `reviewfields.test.mjs` | no | 20 |
-| `review-risk-fields.test.mjs` | no | 35 |
+| `review-risk-fields.test.mjs` | no | 43 |
 | `review-table-v2.test.mjs` | no | 79 |
 | `reviewlayout.test.mjs` | no | 8 |
 | `reviewsavestate.test.mjs` | no | 14 |
@@ -156,7 +156,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**4,109 assertions in total**, every count above verified by running the suite,
+**4,117 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
