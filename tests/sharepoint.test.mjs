@@ -592,6 +592,42 @@ check(
   })()
 );
 
+/* ---- THE ACTUAL GAP, END TO END — not just at the buildPlan() values level
+   above, but through mapFields() and projectFields() the way a real sync
+   run resolves and writes them. evidenceRequested and discussionLog had
+   valid FIELD_CANDIDATES entries and reached buildPlan()'s values object
+   correctly — the checks above prove that — but FINDING_FIELDS, the
+   `wanted` list SyncPanel.tsx actually passes to mapFields() for this list,
+   did not name either key. mapFields() only resolves keys it is asked for,
+   and projectFields() only writes a key mapFields() resolved — so both
+   silently never reached a real Findings list, regardless of what column
+   the portal offered. Caught by the standing SharePoint sync-integrity
+   review, three weeks after PR #185 introduced the fields. ------------- */
+
+check(
+  "evidenceRequested and discussionLog resolve and write through FINDING_FIELDS, not just buildPlan()'s values",
+  (() => {
+    const cols = [
+      { name: "Title", displayName: "Title", readOnly: false },
+      { name: "field_1", displayName: "Evidence requested (follow-up)", readOnly: false },
+      { name: "field_2", displayName: "ACSA discussion log", readOnly: false },
+    ];
+    const map = sp.mapFields(cols, [...sp.FINDING_FIELDS]);
+    const fields = sp.projectFields(map, {
+      title: "KSIA-ELE-P01",
+      evidenceRequested: "Updated maintenance certificate",
+      discussionLog: "2026-09 — ACSA agreed an extension to November (Sarel)",
+    });
+    return (
+      map.resolved.evidenceRequested === "field_1" &&
+      map.resolved.discussionLog === "field_2" &&
+      fields.field_1 === "Updated maintenance certificate" &&
+      /ACSA agreed an extension to November/.test(String(fields.field_2))
+    );
+  })(),
+  "the bug this test guards: both keys reached buildPlan()'s values object but were absent from FINDING_FIELDS, so mapFields() never resolved a column for them and projectFields() dropped the write"
+);
+
 /* ---- Verification.evidence/nextStep/verifiedBy/verifiedAt/possibleEvents
    reach the portal — found by the standing SharePoint sync-integrity
    review: written correctly on the Closure screen, exported correctly to
