@@ -941,6 +941,12 @@ check(
   "the bug this test guards: this cell was hand-rolled without an outcome segment at all"
 );
 
+/* ---- Hazard.areas/otherImpacts reach the Hazards sheet — same standing
+   sync-integrity review finding, ported here: exports.ts's own workbook
+   had no column for either, same as sharepoint.ts's portal row. One
+   shared fixture for both this section and the Progress/Update test just
+   below, rather than two near-identical copies from independent fixes. */
+
 const HAZARD_FOR_EXPORT = (over = {}) => ({
   id: "h1", entity: "FALE", originVisit: "2026-09",
   event: "Busbar failure", description: "d", why: "",
@@ -961,6 +967,28 @@ check(
     const progress = [{ at: 1_757_200_000_000, by: "Sarel", visit: "2026-09", outcome: "Open - repeat", note: "Still waiting on the part" }];
     const sheet = ex.hazardsSheet({ ...BASE, hazards: [HAZARD_FOR_EXPORT({ progress })] });
     return cellOf(sheet, 0, "Progress / Update") === sp.flattenProgress(progress);
+  })()
+);
+
+check(
+  "the Hazards sheet carries Hazard.areas/otherImpacts, joined",
+  (() => {
+    const sheet = ex.hazardsSheet({
+      ...BASE,
+      hazards: [HAZARD_FOR_EXPORT({ areas: ["Apron", "Terminal"], otherImpacts: ["Reputational exposure"] })],
+    });
+    return (
+      cellOf(sheet, 0, "Areas impacted") === "Apron · Terminal" &&
+      cellOf(sheet, 0, "Other impacts") === "Reputational exposure"
+    );
+  })()
+);
+
+check(
+  "a hazard naming neither reads blank, not undefined or a crash",
+  (() => {
+    const sheet = ex.hazardsSheet({ ...BASE, hazards: [HAZARD_FOR_EXPORT()] });
+    return cellOf(sheet, 0, "Areas impacted") === "" && cellOf(sheet, 0, "Other impacts") === "";
   })()
 );
 

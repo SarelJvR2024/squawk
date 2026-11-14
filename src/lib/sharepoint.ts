@@ -188,6 +188,20 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
      flattened the same way via flattenProgress(). See Verification.
      discussionLog's doc comment in types.ts. */
   discussionLog: ["ACSA discussion log", "Discussion log", "Discussion Log"],
+  /* WHAT WAS ACTUALLY PRODUCED TO SUPPORT CLOSURE — Verification.evidence,
+     the other half of evidenceRequested above (what's in hand, against what
+     was asked for). Never had a FIELD_CANDIDATES entry at all — the same
+     bug class this file's own earlier fixes caught, on a different type. */
+  evidence: ["Evidence", "Evidence received", "Closure evidence"],
+  /* WHO CLOSED A CARRIED FINDING, AND WHEN — Verification.verifiedBy/
+     verifiedAt, auto-stamped by the store the moment an outcome is set.
+     Never synced before now. */
+  verifiedBy: ["Verified by", "Verified By", "Closed by"],
+  verifiedAt: ["Verified at", "Verified At", "Date verified", "Closed at"],
+  /* THE HAZARDOUS EVENTS A CARRIED FINDING COULD LEAD TO — Verification.
+     possibleEvents, same concept and the same flattening exports.ts's
+     Closure sheet already uses for it. */
+  possibleEvents: ["Possible events", "Hazardous events", "Potential events"],
   /* Verification.evidencePending — DELIBERATELY SEPARATE from Response.
      evidencePending below: this one is about whether the proof a CARRIED
      finding is waiting on has arrived, not about this visit's own
@@ -275,6 +289,13 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
   assessedOn: ["Assessed on", "Date assessed", "Assessed"],
   reference: ["Reference", "Source"],
   assets: ["Assets", "Asset", "Asset tag", "Asset ID", "Equipment"],
+  /* WHICH PHYSICAL AREAS OF THE AIRPORT A HAZARD WOULD REACH, and
+     separately, IMPACTS THE REGISTER'S ASSET SYSTEMS DO NOT NAME —
+     Hazard.areas/otherImpacts. Two different questions (a place vs. a
+     thing threatened that isn't on the register), same reason they stay
+     two fields on the record itself rather than one. */
+  areas: ["Areas impacted", "Areas", "Areas affected"],
+  otherImpacts: ["Other impacts", "Other impact", "Additional impacts"],
   /* THE PHOTOGRAPH COLUMNS. Prince Mahlangu, 17 September 2026, on the first
      five files to reach the library: "They carry no metadata at all: CheckID,
      AssetSystem, PhotographReference, CaptionSource and AttachedBy are blank,
@@ -451,7 +472,7 @@ export const LIST_NAMES = {
 export const CHECK_FIELDS = [
   "title", "discipline", "assetSystem", "compliance", "observation",
   "evidenceProves", "evidenceVerdict", "evidenceStatus", "evidenceStatusNote",
-  "siteInspection", "combinedCompliance",
+  "siteInspection", "combinedCompliance", "location",
   "auditor", "assessedOn", "photos", "evidenceLink",
 ] as const;
 
@@ -499,9 +520,10 @@ export const EVIDENCE_FIELDS = [
 ] as const;
 
 export const FINDING_FIELDS = [
-  "title", "discipline", "assetSystem", "observation", "severity", "likelihood",
-  "riskPriority", "tolerance", "status", "rootCause", "treatment", "owner",
-  "targetDate", "progress", "dateRaised", "assets", "photos", "evidenceLink",
+  "title", "discipline", "assetSystem", "areas", "otherImpacts", "observation",
+  "severity", "likelihood", "riskPriority", "tolerance", "status", "rootCause",
+  "treatment", "owner", "targetDate", "progress", "dateRaised", "assets",
+  "photos", "evidenceLink", "evidence", "verifiedBy", "verifiedAt", "possibleEvents",
 ] as const;
 
 /** The column contract, for a person to build against: the name to create, and
@@ -1828,6 +1850,16 @@ export function buildPlan(
            which is the one thing a sync exists to do instead. `null` only
            when all three are unanswered — see that function's own note. */
         combinedCompliance,
+        /* WHERE THE ASSET WAS INSPECTED — Response.location, the auditor's
+           own words for where they were standing, distinct from `assetSystem`
+           above (ACSA's category on the register). exports.ts's Register
+           sheet has carried this since it was added, described there as
+           "the half that lets somebody walk back to the thing and close the
+           finding" — the portal sync never did. Reuses the same `location`
+           FIELD_CANDIDATES entry the Evidence library's own photo metadata
+           already resolves against; a different real list, the same natural
+           column name on each. */
+        location: r.location?.trim() || null,
         /* HAS THE PROOF BEEN PRODUCED — see EVIDENCE_STATUS_TEXT. Spelled out
            rather than sent as the stored camelCase token: unlike compliance
            and evidenceVerdict, this field has no pre-existing ACSA
@@ -2164,6 +2196,15 @@ export function buildPlan(
         title: key,
         discipline: h.disciplines.join(", "),
         assetSystem: h.systems.join(", "),
+        /* WHICH PHYSICAL AREAS OF THE AIRPORT THIS EVENT WOULD REACH, and
+           separately, IMPACTS THE REGISTER'S SYSTEMS DO NOT NAME — Hazard.
+           areas/otherImpacts (see each field's own doc comment in
+           types.ts). Never read here before now — found by the standing
+           sync-integrity review, missing from exports.ts's own workbook
+           too, not just the portal. `null`, not "", when a hazard genuinely
+           names none, same convention `assets` above already uses. */
+        areas: (h.areas ?? []).length ? h.areas.join(", ") : null,
+        otherImpacts: (h.otherImpacts ?? []).length ? h.otherImpacts.join(", ") : null,
         observation: [h.event, h.description].filter(Boolean).join(" — "),
         severity: agreed ? portalSeverity(h.ermConsequence) : null,
         likelihood: agreed ? portalLikelihood(h.ermLikelihood) : null,
@@ -2236,11 +2277,21 @@ export function buildPlan(
        it instead. See Verification.evidencePending's doc comment — it is
        about whether a CARRIED finding's requested closure evidence has
        arrived, not Response.evidencePending's own, different question. */
+    /* WHAT FIXES IT, and separately WHAT HAPPENS NEXT (Verification.action/
+       nextStep — "Two fields, two questions," see nextStep's own doc comment
+       in types.ts). exports.ts's workbook can afford two separate columns;
+       this portal row has always had just the one "treatment" cell (see
+       evidencePending's own text folding into it above), so nextStep is
+       appended here, clearly labelled, rather than silently dropped — the
+       gap the standing sync review caught. If the real Findings list turns
+       out to have its own "Next step" column, splitting this into a second
+       field is a small follow-up, not a redesign. */
     const treatmentText = [
       v.evidencePending
         ? "EVIDENCE PENDING — closure evidence has been requested and has not yet been received."
         : "",
       v.action ?? "",
+      v.nextStep?.trim() ? `Next step: ${v.nextStep.trim()}` : "",
     ]
       .filter(Boolean)
       .join(" ");
@@ -2251,6 +2302,12 @@ export function buildPlan(
       values: {
         title: p.portalId,
         status: v.outcome,
+        /* WHAT WAS ACTUALLY PRODUCED TO SUPPORT CLOSURE — Verification.
+           evidence, the other half of evidenceRequested below (received vs.
+           asked-for). Never read before now — captured and shown correctly
+           on the Follow-up/Closure screen, silently never reaching the
+           portal, same bug class as the fields PR #240/#241/#243 fixed. */
+        evidence: v.evidence?.trim() || null,
         progress: flattenProgress(v.progress),
         treatment: treatmentText,
         /* THE FOLLOW-UP SCREEN'S OWN "evidence requested" — Verification.
@@ -2263,6 +2320,20 @@ export function buildPlan(
            with the same flattenProgress() `progress` above already uses;
            it is the exact same ProgressNote[] shape, just a separate log. */
         discussionLog: flattenProgress(v.discussionLog),
+        /* THE HAZARDOUS EVENTS THIS FINDING COULD LEAD TO — Verification.
+           possibleEvents, same flattening exports.ts's own Closure sheet
+           already uses for it, so the two can never read differently. An
+           event nobody has rated says so rather than being left blank. */
+        possibleEvents: (v.possibleEvents ?? [])
+          .map((e) => `${e.event} · ${e.likelihood ?? "likelihood not agreed"}${e.note ? ` — ${e.note}` : ""}`)
+          .join("\n") || null,
+        /* WHO CLOSED IT, AND WHEN — Verification.verifiedBy/verifiedAt,
+           auto-stamped by the store the moment an outcome is set. Never read
+           before now; `null`, not "", when genuinely unset (a prior finding
+           with no outcome yet never reaches this row at all — see the guard
+           above — but a defensive default all the same). */
+        verifiedBy: v.verifiedBy?.trim() || null,
+        verifiedAt: v.verifiedAt ? new Date(v.verifiedAt).toISOString() : null,
       },
       summary: `${p.portalId} · ${v.outcome} (last cycle)`,
     });
