@@ -54,17 +54,42 @@ export type RiskPatch = Pick<
 export default function ReviewRiskPanel({
   finding,
   onChange,
+  onClose,
 }: {
   finding: Finding;
   /** The caller owns the write (ReviewPage calls updateFinding), same
    *  division of labour as RecordActions' own onChange. */
   onChange: (patch: Partial<RiskPatch>) => void;
+  /** PRIORITY 1 — the panel now only renders when a row is selected (see
+   *  /review's own page), so it needs a way back to "nothing selected,
+   *  full-width table" rather than staying pinned to the last row forever. */
+  onClose: () => void;
 }) {
   const priority = priorityFor(finding);
   const type = findingTypeFor(finding);
 
   return (
-    <div>
+    <div className="flex h-full min-h-0 flex-col">
+      {/* Sticky header + close — independent of the scrollable body below,
+          so the close control is never scrolled out of reach on a long
+          finding, same reasoning ReviewDetail.tsx's own sticky header
+          gives for the compliance strip. */}
+      <div
+        className="sticky top-0 z-[2] flex shrink-0 items-center justify-between border-b px-3 py-2"
+        style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+      >
+        <b className="font-display text-[11.5px] font-semibold">Finding</b>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close finding panel"
+          className="rounded-[6px] px-[7px] py-[3px] text-[12px] font-semibold"
+          style={{ color: "var(--ink-3)" }}
+        >
+          ✕
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
       {/* 0 — the Type tag. GENUINELY NEW (see
           docs/capture-review/review-table-v2-discovery.md §2): neither
           issueIndex nor adHoc says whether this is a rule violation or a
@@ -190,6 +215,7 @@ export default function ReviewRiskPanel({
       </label>
 
       <EvidenceSection finding={finding} />
+      </div>
     </div>
   );
 }

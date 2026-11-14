@@ -172,13 +172,21 @@ check(
   /checksById\.get\(f\.checkId\)\?\.requirement/.test(table) && /checksAt\(entityCode\)/.test(table)
 );
 check(
-  "portalIdFor is not called anywhere in this file any more — the ref-code column and the rollup label both dropped it",
+  "portalIdFor is not called anywhere in this file any more — the ref-code column dropped it",
   !/portalIdFor/.test(table)
 );
+/* PRIORITY 1 (review redesign) — the bottom "Risk & root cause summary"
+ * roll-up (RollupTable + the two MultiCountCards) was removed outright,
+ * with no replacement dashboard — see /review page.tsx and this file's own
+ * PR description. rollupBy/countByMultiSelect themselves are untouched in
+ * reviewRisk.ts (still directly tested by review-risk-fields.test.mjs);
+ * only this table's own use of them is gone. */
 check(
-  "the rollup table's By-audit-check row label is resolved through the same requirement lookup, with the groupless sentinel rendered as General (not the raw \"No check\" string)",
-  /labelFor[\s\S]{0,400}key === "No check"[\s\S]{0,40}"General"/.test(table) &&
-    /case "check":\s*\n\s*return f\.checkId \?\? "No check";/.test(table)
+  "the bottom roll-up summary is gone — no RollupTable/MultiCountCard left wired into this file",
+  !/RollupTable/.test(table) &&
+    !/MultiCountCard/.test(table) &&
+    !/Risk & root cause summary/.test(table) &&
+    !/rollupAxis/.test(table)
 );
 check(
   "a finding with no asset system reads General, muted — same convention as Audit check",
