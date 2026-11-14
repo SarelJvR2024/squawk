@@ -423,5 +423,59 @@ check(
   })()
 );
 
+/* ---- 10 · PRIORITY 2 (review redesign) — regression baseline. Not new
+   behaviour: proving what PRs 1-7 already rely on still holds. --------- */
+
+/* Refresh-survival. formshub.test.mjs's own header explains why this repo
+ * never actually drives zustand's persist middleware through a real
+ * IndexedDB under plain node (idb-keyval needs a real `indexedDB` global
+ * this process does not have) — so, same as every other persistence claim
+ * in this codebase, this is proven by reading the real partialize()
+ * config: an edit survives a reload exactly when the field it touches is
+ * included in what gets written to storage, not by a hand-maintained
+ * belief that it is. */
+check(
+  "findings (what updateFinding writes) is included in the zustand persist middleware's own partialize() -- an edit reaches the SAME storage write every other persisted field does",
+  /partialize: \(s: State\) => \(\{[\s\S]{0,400}findings: s\.findings,/.test(storeSrc)
+);
+check(
+  "updateFinding writes into s.findings, the exact slice partialize() reads -- not a parallel copy that partialize never sees",
+  /updateFinding: \(id, p\) =>\s*\n\s*set\(\(s\) => \(\{\s*\n\s*findings: s\.findings\.map/.test(storeSrc)
+);
+
+/* Table/panel consistency. Both read from the SAME findings array by
+ * construction -- there is no second fetch, no local copy either
+ * component maintains that could drift from the other. */
+check(
+  "the table's own findings prop and the panel's own finding prop both trace back to ONE useVisitFindings() call in page.tsx, not two independent reads",
+  (() => {
+    const findingsDecl = (reviewPage.match(/const findings = useVisitFindings\(\);/g) ?? []).length;
+    return (
+      findingsDecl === 1 &&
+      /riskActive = findings\.find\(\(f\) => f\.id === riskActiveId\) \?\? null;/.test(reviewPage) &&
+      /findings=\{findings\}/.test(reviewPage) &&
+      /finding=\{riskActive\}/.test(reviewPage)
+    );
+  })()
+);
+check(
+  "editing a row in the table (updateFinding) and reading it in the panel both go through the SAME Finding object reference on the next render -- riskActive is derived from findings, not a snapshot taken once",
+  /const riskActive = findings\.find/.test(reviewPage) && !/useState[^;]*riskActive[^I]/.test(reviewPage)
+);
+
+/* The passphrase gate. tests/shared.js already proves a wrong passphrase
+ * (line ~287) and an empty one (line ~297) both 401 -- per the user's own
+ * decision (see PR #248's description and this session's own Priority
+ * redesign plan), that existing coverage is the whole of what this
+ * redesign owes the auth/cross-entity gap it is explicitly NOT fixing.
+ * Asserted here by reading the real assertions rather than re-describing
+ * them, so this suite fails loudly if that coverage is ever weakened
+ * without anyone noticing it from the Review side. */
+const sharedSrc = read("tests", "shared.js");
+check(
+  "the existing passphrase gate (tests/shared.js) still asserts 401 on a wrong passphrase and on no passphrase at all -- unchanged by this redesign, and this is ALL the auth coverage the redesign owes (the cross-entity gap itself is a separate, reported, out-of-scope finding)",
+  /wrong\.status\(\) === 401/.test(sharedSrc) && /empty\.status\(\) === 401/.test(sharedSrc)
+);
+
 console.log(failures === 0 ? "\nREVIEW RISK FIELDS OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

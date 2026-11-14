@@ -81,7 +81,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `attendanceregister.test.mjs` | no | 66 |
 | `suite-table.test.mjs` | no | 5 |
 | `reviewfields.test.mjs` | no | 20 |
-| `review-risk-fields.test.mjs` | no | 43 |
+| `review-risk-fields.test.mjs` | no | 48 |
 | `review-table-v2.test.mjs` | no | 79 |
 | `reviewlayout.test.mjs` | no | 8 |
 | `reviewsavestate.test.mjs` | no | 14 |
