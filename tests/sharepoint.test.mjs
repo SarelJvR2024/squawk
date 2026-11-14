@@ -898,6 +898,44 @@ check(
   "a hazard spanning four checks must not claim all four images as one observation"
 );
 
+/* ---- Hazard.areas/otherImpacts reach the portal — found by the standing
+   sync-integrity review: fully editable on the Hazards/HIRA screen, never
+   read here (or by exports.ts's own workbook), same bug class as
+   MitigationAction.system before it. ----------------------------------- */
+
+check(
+  "Hazard.areas/otherImpacts reach the findings row, joined",
+  (() => {
+    const p = sp.buildPlan(
+      { ...HAZ, hazards: [{ ...HAZ.hazards[0], areas: ["Apron", "Terminal"], otherImpacts: ["Reputational exposure"] }] },
+      NOTHING
+    );
+    const v = p.findings.find((r) => r.key === "KSIA-ELE-P01").values;
+    return v.areas === "Apron, Terminal" && v.otherImpacts === "Reputational exposure";
+  })()
+);
+
+check(
+  "a hazard naming neither writes null, not an empty string",
+  (() => {
+    const p = sp.buildPlan({ ...HAZ, hazards: [{ ...HAZ.hazards[0], areas: [], otherImpacts: [] }] }, NOTHING);
+    const v = p.findings.find((r) => r.key === "KSIA-ELE-P01").values;
+    return v.areas === null && v.otherImpacts === null;
+  })()
+);
+
+check(
+  "a hazard fixture from before these fields existed does not crash the sync",
+  (() => {
+    const legacyHazard = { ...HAZ.hazards[0] };
+    delete legacyHazard.areas;
+    delete legacyHazard.otherImpacts;
+    const v = sp.buildPlan({ ...HAZ, hazards: [legacyHazard] }, NOTHING).findings.find((r) => r.key === "KSIA-ELE-P01").values;
+    return v.areas === null && v.otherImpacts === null;
+  })(),
+  "a pre-migration record with neither field set at all — buildPlan must not throw reading .length off undefined"
+);
+
 check(
   "photos is in the FINDINGS contract as well, so the column gets asked for",
   sp.FINDING_FIELDS.includes("photos")

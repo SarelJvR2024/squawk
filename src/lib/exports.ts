@@ -937,6 +937,14 @@ export function hazardsSheet(x: ExportInput): Sheet {
          exists for, and a single value throws that away. */
       h.disciplines.join(" · "),
       h.systems.join(" · "),
+      /* WHICH PHYSICAL AREAS OF THE AIRPORT THIS EVENT WOULD REACH, and
+         separately, IMPACTS THE REGISTER'S SYSTEMS DO NOT NAME — Hazard.
+         areas/otherImpacts, see each field's own doc comment in types.ts.
+         Never had a column on this sheet or a portal column either, found
+         by the standing sync-integrity review — same bug class as
+         MitigationAction.system before it. */
+      h.areas.join(" · "),
+      h.otherImpacts.join(" · "),
       h.disciplines.length,
       h.findingIds.join(" · "),
       h.findingIds.length,
@@ -1025,6 +1033,8 @@ export function hazardsSheet(x: ExportInput): Sheet {
       { header: "What control failed, and what it protected", width: 58, wrap: true },
       { header: "Disciplines", width: 26, wrap: true },
       { header: "Asset systems", width: 30, wrap: true },
+      { header: "Areas impacted", width: 30, wrap: true },
+      { header: "Other impacts", width: 30, wrap: true },
       { header: "Disciplines spanned", width: 18 },
       { header: "Findings behind it", width: 30 },
       { header: "Findings", width: 10 },

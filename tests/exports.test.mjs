@@ -913,5 +913,45 @@ check(
   "the bug this test guards: this column hardcoded Non-compliant for every finding's photo regardless of findingType"
 );
 
+/* ---- Hazard.areas/otherImpacts reach the Hazards sheet — same standing
+   sync-integrity review finding, ported here: exports.ts's own workbook
+   had no column for either, same as sharepoint.ts's portal row. ------- */
+
+const HAZ_FOR_EXPORT = (over = {}) => ({
+  id: "h1", entity: "FALE", originVisit: "2026-09",
+  event: "Busbar failure", description: "d", why: "",
+  findingIds: [], disciplines: ["Electrical"], systems: ["Switchgear"],
+  areas: [], otherImpacts: [],
+  severity: null, likelihood: null, ratingConfirmed: false,
+  ermConsequence: null, ermLikelihood: null, ermConfirmed: false, ermLikelihoodAssumed: false,
+  origin: "field", note: "", occurrence: "", ratingRationale: "",
+  progress: [], immediate: false, reassessedAt: null, reassessNote: "",
+  rootCause: "", actions: [], actionStatus: "Open",
+  createdAt: 1, createdBy: "Sarel",
+  ...over,
+});
+
+check(
+  "the Hazards sheet carries Hazard.areas/otherImpacts, joined",
+  (() => {
+    const sheet = ex.hazardsSheet({
+      ...BASE,
+      hazards: [HAZ_FOR_EXPORT({ areas: ["Apron", "Terminal"], otherImpacts: ["Reputational exposure"] })],
+    });
+    return (
+      cellOf(sheet, 0, "Areas impacted") === "Apron · Terminal" &&
+      cellOf(sheet, 0, "Other impacts") === "Reputational exposure"
+    );
+  })()
+);
+
+check(
+  "a hazard naming neither reads blank, not undefined or a crash",
+  (() => {
+    const sheet = ex.hazardsSheet({ ...BASE, hazards: [HAZ_FOR_EXPORT()] });
+    return cellOf(sheet, 0, "Areas impacted") === "" && cellOf(sheet, 0, "Other impacts") === "";
+  })()
+);
+
 console.log(`\n${failures === 0 ? "ALL PASS" : `${failures} FAILED`}`);
 process.exit(failures ? 1 : 0);
