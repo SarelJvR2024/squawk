@@ -592,6 +592,139 @@ check(
   })()
 );
 
+/* ---- Verification.evidence/nextStep/verifiedBy/verifiedAt/possibleEvents
+   reach the portal — found by the standing SharePoint sync-integrity
+   review: written correctly on the Closure screen, exported correctly to
+   the workbook, never read by the one sync that reaches ACSA. Same bug
+   class as every earlier fix today, on a different type. ---------------- */
+
+check(
+  "Verification.evidence reaches the findings row, trimmed",
+  (() => {
+    const prior = [{ portalId: "KSIA-ELE-P04", entityCode: "FALE" }];
+    const verifications = {
+      "KSIA-ELE-P04": {
+        pf: "KSIA-ELE-P04", outcome: "Closed",
+        evidence: "  Updated maintenance certificate on file.  ", attachments: [],
+        verifiedBy: "Sarel", verifiedAt: 1,
+      },
+    };
+    const v = sp.buildPlan({ ...BASE, prior, verifications }, NOTHING).findings[0].values;
+    return v.evidence === "Updated maintenance certificate on file.";
+  })()
+);
+
+check(
+  "no evidence received yet writes null, not an empty string",
+  (() => {
+    const prior = [{ portalId: "KSIA-ELE-P04", entityCode: "FALE" }];
+    const verifications = {
+      "KSIA-ELE-P04": { pf: "KSIA-ELE-P04", outcome: "Closed", evidence: "", attachments: [], verifiedBy: "Sarel", verifiedAt: 1 },
+    };
+    const v = sp.buildPlan({ ...BASE, prior, verifications }, NOTHING).findings[0].values;
+    return v.evidence === null;
+  })()
+);
+
+check(
+  "nextStep is appended into the same treatment cell, clearly labelled, not silently dropped",
+  (() => {
+    const prior = [{ portalId: "KSIA-ELE-P04", entityCode: "FALE" }];
+    const verifications = {
+      "KSIA-ELE-P04": {
+        pf: "KSIA-ELE-P04", outcome: "Open - repeat", evidence: "", attachments: [],
+        verifiedBy: "Sarel", verifiedAt: 1, action: "Replace the valve",
+        nextStep: "Chasing the site for a replacement date.",
+      },
+    };
+    const v = sp.buildPlan({ ...BASE, prior, verifications }, NOTHING).findings[0].values;
+    return (
+      /Replace the valve/.test(v.treatment) &&
+      /Next step: Chasing the site for a replacement date\./.test(v.treatment)
+    );
+  })(),
+  "the bug this test guards: nextStep was never read at all, so the chase was invisible on the one cell this row has for remediation"
+);
+
+check(
+  "verifiedBy/verifiedAt reach the findings row",
+  (() => {
+    const prior = [{ portalId: "KSIA-ELE-P04", entityCode: "FALE" }];
+    const at = 1_757_200_000_000;
+    const verifications = {
+      "KSIA-ELE-P04": { pf: "KSIA-ELE-P04", outcome: "Closed", evidence: "", attachments: [], verifiedBy: "Thabile Pridin", verifiedAt: at },
+    };
+    const v = sp.buildPlan({ ...BASE, prior, verifications }, NOTHING).findings[0].values;
+    return v.verifiedBy === "Thabile Pridin" && v.verifiedAt === new Date(at).toISOString();
+  })()
+);
+
+check(
+  "possibleEvents are flattened the SAME way exports.ts's own Closure sheet already does, not a second implementation",
+  (() => {
+    const prior = [{ portalId: "KSIA-ELE-P04", entityCode: "FALE" }];
+    const verifications = {
+      "KSIA-ELE-P04": {
+        pf: "KSIA-ELE-P04", outcome: "Closed", evidence: "", attachments: [],
+        verifiedBy: "Sarel", verifiedAt: 1,
+        possibleEvents: [
+          { id: "pe1", event: "Uncontained oil fire at AS1", likelihood: "2 - Improbable", note: "near a fuel line" },
+          { id: "pe2", event: "Unplanned power loss", likelihood: null, note: "" },
+        ],
+      },
+    };
+    const v = sp.buildPlan({ ...BASE, prior, verifications }, NOTHING).findings[0].values;
+    return (
+      v.possibleEvents ===
+      "Uncontained oil fire at AS1 · 2 - Improbable — near a fuel line\nUnplanned power loss · likelihood not agreed"
+    );
+  })()
+);
+
+check(
+  "no possible events recorded writes null, not an empty string",
+  (() => {
+    const prior = [{ portalId: "KSIA-ELE-P04", entityCode: "FALE" }];
+    const verifications = {
+      "KSIA-ELE-P04": { pf: "KSIA-ELE-P04", outcome: "Closed", evidence: "", attachments: [], verifiedBy: "Sarel", verifiedAt: 1 },
+    };
+    const v = sp.buildPlan({ ...BASE, prior, verifications }, NOTHING).findings[0].values;
+    return v.possibleEvents === null;
+  })()
+);
+
+/* ---- Response.location reaches the check-point row — same review,
+   same bug class: shown on /field, exported to the Register sheet
+   ("the half that lets somebody walk back to the thing and close the
+   finding"), never read by the portal sync. ------------------------- */
+
+check(
+  "Response.location reaches the check-point row, trimmed",
+  (() => {
+    const v = sp.buildPlan(
+      {
+        ...BASE,
+        responses: {
+          "KSIA-ELE-001": { compliance: "C", observation: "Fine", attachments: [], location: "  Substation 3, bay 2  " },
+        },
+      },
+      NOTHING
+    ).checkpoints[0].values;
+    return v.location === "Substation 3, bay 2";
+  })()
+);
+
+check(
+  "no location recorded writes null, not an empty string",
+  (() => {
+    const v = sp.buildPlan(
+      { ...BASE, responses: { "KSIA-ELE-001": { compliance: "C", observation: "Fine", attachments: [] } } },
+      NOTHING
+    ).checkpoints[0].values;
+    return v.location === null;
+  })()
+);
+
 check(
   "BOTH log entries survive the flattening — it joins, it does not take the last",
   sp
