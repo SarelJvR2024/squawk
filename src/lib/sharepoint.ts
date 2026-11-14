@@ -1053,11 +1053,13 @@ export interface SyncPlan {
  *  'Open - repeat' to 'Closed' shows WHEN it moved" (see its own doc comment
  *  in types.ts) — kept per entry rather than only on the record. It was
  *  written correctly and shown correctly in the app's own Follow-up/Closure
- *  timeline (carryforward.ts's `streamFor`), and exports.ts's own Progress/
- *  Update cell already includes it — but this flatten, the one that reaches
+ *  timeline (carryforward.ts's `streamFor`) — but this flatten, the one that reaches
  *  ACSA's portal (used for Verification.progress, Hazard.progress, and
- *  Verification.discussionLog, and reused by exports.ts for the last of
- *  those), never read it. Same bug class as MitigationAction.system in
+ *  Verification.discussionLog, now reused by exports.ts for all three —
+ *  findingsSheet/hazardsSheet used to hand-roll their own copy of this
+ *  template without `outcome`, caught by a later pass of the same standing
+ *  sync-integrity review and fixed to call this function directly instead).
+ *  This flatten itself never read it at first. Same bug class as MitigationAction.system in
  *  flattenActions just below: a field captured and shown on-device, silently
  *  dropped on the way to the one place ACSA and management actually read. */
 export function flattenProgress(notes: ProgressNote[] | undefined): string {

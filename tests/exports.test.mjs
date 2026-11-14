@@ -913,11 +913,41 @@ check(
   "the bug this test guards: this column hardcoded Non-compliant for every finding's photo regardless of findingType"
 );
 
+/* ---- findingsSheet's and hazardsSheet's Progress/Update columns now call
+   the SHARED flattenProgress(), not their own hand-rolled copy — found by
+   the standing sync-integrity review: both omitted ProgressNote.outcome for
+   three weeks after flattenProgress() itself gained it, so the portal's
+   Progress/Update cell and these workbook cells could read different text
+   for the exact same log. Same "duplicated template, one copy missed the
+   fix" bug class as MitigationAction.system before it. ------------------ */
+
+const FINDING_FOR_EXPORT = (over = {}) => ({
+  id: "f1", checkId: null, entity: "FALE", discipline: "Electrical", system: "AGL",
+  area: "", title: "t", description: "d", issueIndex: null,
+  severity: null, likelihood: null, ratingConfirmed: false,
+  rootCause: "", actions: [], progress: [], actionStatus: "Open",
+  originVisit: "2026-09", priorRating: null, adHoc: false, attachments: [],
+  suggestedEvent: "", createdAt: 1, createdBy: "Sarel",
+  ...over,
+});
+
+check(
+  "the Findings sheet's Progress/Update cell includes ProgressNote.outcome, same as the portal's own flatten",
+  (() => {
+    const progress = [{ at: 1_757_200_000_000, by: "Sarel", visit: "2026-09", outcome: "Closed", note: "Replaced the valve" }];
+    const sheet = ex.findingsSheet({ ...BASE, checks: [], responses: {}, findings: [FINDING_FOR_EXPORT({ progress })] });
+    return cellOf(sheet, 0, "Progress / Update") === sp.flattenProgress(progress);
+  })(),
+  "the bug this test guards: this cell was hand-rolled without an outcome segment at all"
+);
+
 /* ---- Hazard.areas/otherImpacts reach the Hazards sheet — same standing
    sync-integrity review finding, ported here: exports.ts's own workbook
-   had no column for either, same as sharepoint.ts's portal row. ------- */
+   had no column for either, same as sharepoint.ts's portal row. One
+   shared fixture for both this section and the Progress/Update test just
+   below, rather than two near-identical copies from independent fixes. */
 
-const HAZ_FOR_EXPORT = (over = {}) => ({
+const HAZARD_FOR_EXPORT = (over = {}) => ({
   id: "h1", entity: "FALE", originVisit: "2026-09",
   event: "Busbar failure", description: "d", why: "",
   findingIds: [], disciplines: ["Electrical"], systems: ["Switchgear"],
@@ -932,11 +962,20 @@ const HAZ_FOR_EXPORT = (over = {}) => ({
 });
 
 check(
+  "the Hazards sheet's Progress/Update cell includes ProgressNote.outcome too",
+  (() => {
+    const progress = [{ at: 1_757_200_000_000, by: "Sarel", visit: "2026-09", outcome: "Open - repeat", note: "Still waiting on the part" }];
+    const sheet = ex.hazardsSheet({ ...BASE, hazards: [HAZARD_FOR_EXPORT({ progress })] });
+    return cellOf(sheet, 0, "Progress / Update") === sp.flattenProgress(progress);
+  })()
+);
+
+check(
   "the Hazards sheet carries Hazard.areas/otherImpacts, joined",
   (() => {
     const sheet = ex.hazardsSheet({
       ...BASE,
-      hazards: [HAZ_FOR_EXPORT({ areas: ["Apron", "Terminal"], otherImpacts: ["Reputational exposure"] })],
+      hazards: [HAZARD_FOR_EXPORT({ areas: ["Apron", "Terminal"], otherImpacts: ["Reputational exposure"] })],
     });
     return (
       cellOf(sheet, 0, "Areas impacted") === "Apron · Terminal" &&
@@ -948,7 +987,7 @@ check(
 check(
   "a hazard naming neither reads blank, not undefined or a crash",
   (() => {
-    const sheet = ex.hazardsSheet({ ...BASE, hazards: [HAZ_FOR_EXPORT()] });
+    const sheet = ex.hazardsSheet({ ...BASE, hazards: [HAZARD_FOR_EXPORT()] });
     return cellOf(sheet, 0, "Areas impacted") === "" && cellOf(sheet, 0, "Other impacts") === "";
   })()
 );
