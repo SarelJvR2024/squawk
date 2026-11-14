@@ -289,6 +289,13 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
   assessedOn: ["Assessed on", "Date assessed", "Assessed"],
   reference: ["Reference", "Source"],
   assets: ["Assets", "Asset", "Asset tag", "Asset ID", "Equipment"],
+  /* WHICH PHYSICAL AREAS OF THE AIRPORT A HAZARD WOULD REACH, and
+     separately, IMPACTS THE REGISTER'S ASSET SYSTEMS DO NOT NAME —
+     Hazard.areas/otherImpacts. Two different questions (a place vs. a
+     thing threatened that isn't on the register), same reason they stay
+     two fields on the record itself rather than one. */
+  areas: ["Areas impacted", "Areas", "Areas affected"],
+  otherImpacts: ["Other impacts", "Other impact", "Additional impacts"],
   /* THE PHOTOGRAPH COLUMNS. Prince Mahlangu, 17 September 2026, on the first
      five files to reach the library: "They carry no metadata at all: CheckID,
      AssetSystem, PhotographReference, CaptionSource and AttachedBy are blank,
@@ -513,10 +520,10 @@ export const EVIDENCE_FIELDS = [
 ] as const;
 
 export const FINDING_FIELDS = [
-  "title", "discipline", "assetSystem", "observation", "severity", "likelihood",
-  "riskPriority", "tolerance", "status", "rootCause", "treatment", "owner",
-  "targetDate", "progress", "dateRaised", "assets", "photos", "evidenceLink",
-  "evidence", "verifiedBy", "verifiedAt", "possibleEvents",
+  "title", "discipline", "assetSystem", "areas", "otherImpacts", "observation",
+  "severity", "likelihood", "riskPriority", "tolerance", "status", "rootCause",
+  "treatment", "owner", "targetDate", "progress", "dateRaised", "assets",
+  "photos", "evidenceLink", "evidence", "verifiedBy", "verifiedAt", "possibleEvents",
 ] as const;
 
 /** The column contract, for a person to build against: the name to create, and
@@ -2187,6 +2194,15 @@ export function buildPlan(
         title: key,
         discipline: h.disciplines.join(", "),
         assetSystem: h.systems.join(", "),
+        /* WHICH PHYSICAL AREAS OF THE AIRPORT THIS EVENT WOULD REACH, and
+           separately, IMPACTS THE REGISTER'S SYSTEMS DO NOT NAME — Hazard.
+           areas/otherImpacts (see each field's own doc comment in
+           types.ts). Never read here before now — found by the standing
+           sync-integrity review, missing from exports.ts's own workbook
+           too, not just the portal. `null`, not "", when a hazard genuinely
+           names none, same convention `assets` above already uses. */
+        areas: (h.areas ?? []).length ? h.areas.join(", ") : null,
+        otherImpacts: (h.otherImpacts ?? []).length ? h.otherImpacts.join(", ") : null,
         observation: [h.event, h.description].filter(Boolean).join(" — "),
         severity: agreed ? portalSeverity(h.ermConsequence) : null,
         likelihood: agreed ? portalLikelihood(h.ermLikelihood) : null,
