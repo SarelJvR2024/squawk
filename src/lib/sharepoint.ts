@@ -524,6 +524,7 @@ export const FINDING_FIELDS = [
   "severity", "likelihood", "riskPriority", "tolerance", "status", "rootCause",
   "treatment", "owner", "targetDate", "progress", "dateRaised", "assets",
   "photos", "evidenceLink", "evidence", "verifiedBy", "verifiedAt", "possibleEvents",
+  "evidenceRequested", "discussionLog",
 ] as const;
 
 /** The column contract, for a person to build against: the name to create, and
