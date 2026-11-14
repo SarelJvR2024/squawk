@@ -23,7 +23,7 @@
  *  definition or a band label, for the same reason risk.ts's own header
  *  explains at length. */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LIKELIHOOD_DEF, LIKELIHOODS, SEVERITIES, SEVERITY_DEF, BAND_META, bandFor } from "@/lib/risk";
 import {
@@ -34,12 +34,31 @@ import {
   priorityFor,
   toggleMulti,
 } from "@/lib/reviewRisk";
+import { evidenceAxisFor, reviewCombinedCompliance } from "@/lib/review";
 import { TRACKING_LABEL, trackingStage } from "@/lib/evidence";
-import { checksOf, disciplinesAt, systemsOf } from "@/lib/register";
-import { useStore, useEvidenceItems, useFieldSaveStatus } from "@/lib/store";
+import { checksAt, checksOf, disciplinesAt, systemsOf } from "@/lib/register";
+import { useStore, useEvidenceItems, useFieldSaveStatus, useResponses } from "@/lib/store";
 import RatingPicker from "@/components/RatingPicker";
+import { AttachmentStrip } from "@/components/Capture";
 import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
-import type { Finding, Likelihood, Severity } from "@/lib/types";
+import type { Compliance, Finding, Likelihood, Severity } from "@/lib/types";
+
+/** Read-only — same tone convention as ReviewDetail.tsx's own StatusCell,
+ *  recomputed here rather than imported since that component is local
+ *  (not exported) and this is a presentation detail, not shared logic
+ *  worth a new export. */
+const COMPLIANCE_TONE: Record<Compliance, "good" | "bad" | "warn" | "neutral"> = {
+  C: "good",
+  NC: "bad",
+  NV: "warn",
+  "N/A": "neutral",
+};
+const COMPLIANCE_LABEL: Record<Compliance, string> = {
+  C: "Compliant",
+  NC: "Non-compliant",
+  NV: "Not verified",
+  "N/A": "Not applicable",
+};
 
 export type RiskPatch = Pick<
   Finding,
@@ -65,6 +84,7 @@ export default function ReviewRiskPanel({
   entityCode,
   onChange: onChangeProp,
   onClose,
+  onOpenCheck,
 }: {
   finding: Finding;
   /** For the hierarchy editor's own discipline/system/check option lists —
@@ -78,6 +98,11 @@ export default function ReviewRiskPanel({
    *  /review's own page), so it needs a way back to "nothing selected,
    *  full-width table" rather than staying pinned to the last row forever. */
   onClose: () => void;
+  /** PRIORITY 4 — "From linked audit check" (below) hands off to the
+   *  real "By check" tab/ReviewDetail for that exact check, rather than
+   *  duplicating its own editing UI here. The caller owns switching tabs
+   *  and the tree's own discipline/active-check state. */
+  onOpenCheck: (checkId: string) => void;
 }) {
   const priority = priorityFor(finding);
   const type = findingTypeFor(finding);
@@ -139,6 +164,31 @@ export default function ReviewRiskPanel({
     const nextCheckId = finding.checkId && validCheckIds.has(finding.checkId) ? finding.checkId : null;
     onChange({ system: nextSystem, checkId: nextCheckId });
   }
+
+  /* PRIORITY 4 — "Show all relevant... compliance assessments, clearly
+     identifying their source." For a finding with no checkId there is no
+     check-level compliance to show at all — the summary below is omitted
+     entirely, not rendered empty. For one that has it, this reads the
+     EXACT same three axes and the exact same derivation ReviewDetail.tsx's
+     own sticky compliance strip uses (reviewCombinedCompliance/
+     evidenceAxisFor, src/lib/review.ts) — never re-derived, and never
+     editable here: editing happens on the real "By check" tab, which
+     "Open" below hands off to. */
+  const responses = useResponses();
+  const evidenceItems = useEvidenceItems();
+  const linkedCheck = useMemo(
+    () => (finding.checkId ? checksAt(entityCode).find((c) => c.id === finding.checkId) : undefined),
+    [entityCode, finding.checkId]
+  );
+  const linkedResponse = finding.checkId ? responses[finding.checkId] : undefined;
+  const linkedEvidenceAxis = useMemo(() => {
+    if (!linkedResponse || !finding.checkId) return null;
+    const forThisCheck = evidenceItems.filter((e) => e.checkIds.includes(finding.checkId!));
+    return evidenceAxisFor(linkedResponse.evidenceVerdict, forThisCheck);
+  }, [linkedResponse, evidenceItems, finding.checkId]);
+  const linkedCombined = linkedResponse
+    ? reviewCombinedCompliance(linkedResponse.compliance, linkedEvidenceAxis, linkedResponse.siteInspection)
+    : null;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -232,6 +282,57 @@ export default function ReviewRiskPanel({
           ))}
         </select>
       </label>
+
+      {/* PRIORITY 4 — notes, photos and recordings this finding carries
+          itself, clearly labelled as THIS finding's own capture (not the
+          linked check's — Response.attachments is a separate pool, see
+          Finding.attachments' own doc comment in types.ts). Read-only
+          here: editing a finding's own capture happens wherever it was
+          raised, this panel only shows it. */}
+      {(finding.description || finding.attachments.length > 0) && (
+        <div className="mb-3.5">
+          <div className="mb-2 font-display text-[11px] font-semibold">
+            Notes, photos &amp; recordings — this finding
+          </div>
+          {finding.description && (
+            <p className="mb-2 whitespace-pre-wrap text-[12.5px]" style={{ color: "var(--ink-2)" }}>
+              {finding.description}
+            </p>
+          )}
+          {finding.attachments.length > 0 && <AttachmentStrip attachments={finding.attachments} thumbSize={56} />}
+        </div>
+      )}
+
+      {/* PRIORITY 4 — "compliance assessments, clearly identifying their
+          source." Omitted entirely with no checkId: there is no check-
+          level compliance to show. Read-only summary, never a second
+          place to edit it — "Open" hands off to the real screen. */}
+      {finding.checkId && linkedResponse && (
+        <div className="mb-3.5 rounded-[11px] border p-2.5" style={{ borderColor: "var(--line-2)" }}>
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="font-display text-[11px] font-semibold">From linked audit check</span>
+            <button
+              type="button"
+              onClick={() => onOpenCheck(finding.checkId!)}
+              className="text-[10.5px] font-semibold underline"
+              style={{ color: "var(--acc)" }}
+            >
+              Open in By check
+            </button>
+          </div>
+          {linkedCheck && (
+            <div className="mb-1.5 text-[11px]" style={{ color: "var(--ink-3)" }}>
+              {linkedCheck.requirement.slice(0, 110)}
+            </div>
+          )}
+          <div className="flex flex-wrap gap-[6px]">
+            <ComplianceChip label="Audit check" value={linkedResponse.compliance} />
+            <ComplianceChip label="Evidence" value={linkedEvidenceAxis} />
+            <ComplianceChip label="Site inspection" value={linkedResponse.siteInspection} />
+            <ComplianceChip label="Combined" value={linkedCombined} />
+          </div>
+        </div>
+      )}
 
       <div className="mb-2 font-display text-[11px] font-semibold">Risk</div>
 
@@ -423,6 +524,18 @@ function EvidenceSection({ finding }: { finding: Finding }) {
         )}
       </div>
     </div>
+  );
+}
+
+/** PRIORITY 4 — one cell of the linked-check compliance summary. Read-only,
+ *  same COMPLIANCE_TONE/COMPLIANCE_LABEL convention as ReviewDetail.tsx's
+ *  own StatusCell (not imported — that component is local to its file),
+ *  rendered as a Pill since this is a summary card, not the sticky strip. */
+function ComplianceChip({ label, value }: { label: string; value: Compliance | null }) {
+  return (
+    <Pill tone={value ? COMPLIANCE_TONE[value] : "neutral"}>
+      {label}: {value ? COMPLIANCE_LABEL[value] : "Not verified"}
+    </Pill>
   );
 }
 
