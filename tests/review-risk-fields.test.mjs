@@ -339,5 +339,37 @@ check(
   "those six words are the brief's PROVISIONAL list — see the discovery note's open question"
 );
 
+/* ---- the "Risk & root cause summary" roll-up — removed, Sarel: "remove
+ *  this summary table at the bottom" (screenshot of the Review page's
+ *  Risk & root cause tab). The roll-up library functions stay in
+ *  reviewRisk.ts (still tested above, directly) — only the table's own UI
+ *  for them is gone, not the logic, in case a future screen wants it. --- */
+
+check(
+  "the Risk & root cause summary heading is gone from the table",
+  !/Risk &amp; root cause summary/.test(table)
+);
+
+check(
+  "its roll-up-by-discipline/system/check/finding control is gone with it",
+  !/Roll up by/.test(table) && !/RollupAxis/.test(table)
+);
+
+check(
+  "the Impact areas / Root cause categories count cards are gone too — they were part of the same summary block",
+  !/MultiCountCard/.test(table)
+);
+
+check(
+  "the table no longer imports the two roll-up helpers it no longer calls",
+  !/rollupBy/.test(table) && !/countByMultiSelect/.test(table)
+);
+
+check(
+  "rollupBy and countByMultiSelect are untouched in the library itself — this removed a screen's use of them, not the functions",
+  /export function rollupBy/.test(read("src", "lib", "reviewRisk.ts")) &&
+    /export function countByMultiSelect/.test(read("src", "lib", "reviewRisk.ts"))
+);
+
 console.log(failures === 0 ? "\nREVIEW RISK FIELDS OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

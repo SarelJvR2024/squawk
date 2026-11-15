@@ -31,14 +31,12 @@ import {
   IMPACT_AREAS,
   ROOT_CAUSES,
   applyBulkMulti,
-  countByMultiSelect,
   countNotRated,
   countWithNoneSelected,
   findingTypeFor,
   hasRootCauseContent,
   matchesReviewRiskFilter,
   priorityFor,
-  rollupBy,
   type ReviewRiskFilter,
 } from "@/lib/reviewRisk";
 import { LIKELIHOODS, SEVERITIES } from "@/lib/risk";
@@ -47,8 +45,6 @@ import { portalIdFor } from "@/lib/sites";
 import { Chip, Pill } from "@/components/ui/primitives";
 import { IconCamera, IconMic } from "@/components/ui/icons";
 import type { Finding, Likelihood, Severity } from "@/lib/types";
-
-type RollupAxis = "discipline" | "system" | "check" | "finding";
 
 export default function ReviewRiskTable({
   findings,
@@ -69,7 +65,6 @@ export default function ReviewRiskTable({
 }) {
   const [filter, setFilter] = useState<ReviewRiskFilter>({ kind: "all" });
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [rollupAxis, setRollupAxis] = useState<RollupAxis>("discipline");
 
   const visible = useMemo(
     () => findings.filter((f) => matchesReviewRiskFilter(f, filter)),
@@ -411,30 +406,6 @@ export default function ReviewRiskTable({
         )}
       </div>
 
-      {/* §4 — Risk & root cause summary / roll-up. */}
-      <div className="mt-4">
-        <div className="mb-2 flex items-center justify-between">
-          <b className="font-display text-[11px] font-semibold">Risk &amp; root cause summary</b>
-          <select
-            aria-label="Roll up by"
-            value={rollupAxis}
-            onChange={(e) => setRollupAxis(e.target.value as RollupAxis)}
-            className="h-[28px] rounded-[8px] border px-2 text-[10.5px]"
-            style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-          >
-            <option value="discipline">By discipline</option>
-            <option value="system">By asset system</option>
-            <option value="check">By audit check</option>
-            <option value="finding">By finding</option>
-          </select>
-        </div>
-        <RollupTable findings={findings} axis={rollupAxis} />
-
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <MultiCountCard title="Impact areas" counts={countByMultiSelect(findings, (f) => f.impactAreas)} />
-          <MultiCountCard title="Root cause categories" counts={countByMultiSelect(findings, (f) => f.rootCauseCategories)} />
-        </div>
-      </div>
     </div>
   );
 }
@@ -628,78 +599,6 @@ function BulkBar({
   );
 }
 
-function RollupTable({ findings, axis }: { findings: Finding[]; axis: RollupAxis }) {
-  const keyOf = (f: Finding): string => {
-    switch (axis) {
-      case "discipline":
-        return f.discipline || "—";
-      case "system":
-        return f.system || "—";
-      case "check":
-        return f.checkId ?? "No check";
-      case "finding":
-        return f.title || f.id;
-    }
-  };
-  const rows = rollupBy(findings, keyOf);
-  return (
-    <table className="w-full text-[11px]">
-      <thead>
-        <tr style={{ background: "var(--sunken)" }}>
-          <Th>{{ discipline: "Discipline", system: "Asset system", check: "Audit check", finding: "Finding" }[axis]}</Th>
-          <Th>I</Th>
-          <Th>II</Th>
-          <Th>III</Th>
-          <Th>Not rated</Th>
-          <Th>Total</Th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr key={r.key} className="border-t" style={{ borderColor: "var(--line)" }}>
-            <td className="p-2">{r.key}</td>
-            <td className="p-2 font-mono">{r.counts.I}</td>
-            <td className="p-2 font-mono">{r.counts.II}</td>
-            <td className="p-2 font-mono">{r.counts.III}</td>
-            <td className="p-2 font-mono">{r.notRated}</td>
-            <td className="p-2 font-mono font-semibold">{r.total}</td>
-          </tr>
-        ))}
-        {rows.length === 0 && (
-          <tr>
-            <td colSpan={6} className="p-3 text-center" style={{ color: "var(--ink-3)" }}>
-              No findings this visit.
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
-  );
-}
-
-function MultiCountCard({ title, counts }: { title: string; counts: Record<string, number> }) {
-  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  return (
-    <div className="rounded-[11px] border p-2.5" style={{ borderColor: "var(--line-2)" }}>
-      <div className="mb-1.5 font-display text-[10.5px] font-semibold">{title}</div>
-      {entries.length === 0 ? (
-        <div className="text-[11px]" style={{ color: "var(--ink-4)" }}>
-          None selected on any finding yet.
-        </div>
-      ) : (
-        entries.map(([k, n]) => (
-          <div key={k} className="flex items-center justify-between py-[2px] text-[11px]">
-            <span>{k}</span>
-            <span className="font-mono font-semibold">{n}</span>
-          </div>
-        ))
-      )}
-    </div>
-  );
-}
-
-/** Exported for the "none selected" count the summary can show alongside
- *  the per-value breakdown above — not wired into the cards by default (the
- *  addendum's own example only shows "Not rated" as its own bucket), kept
- *  here so a caller that wants it does not have to recompute it. */
+/** Re-exported so a caller of this table does not have to import
+ *  src/lib/reviewRisk.ts separately just for these two. */
 export { countWithNoneSelected, hasRootCauseContent };
