@@ -43,6 +43,11 @@ import { Chip, Pill } from "@/components/ui/primitives";
 import { IconCamera, IconMic } from "@/components/ui/icons";
 import type { Check, Finding, Likelihood, Severity } from "@/lib/types";
 
+/** The sort key an empty/absent Asset system sorts under — see `visible`'s
+ *  own comment below. Built with fromCharCode, not a `"￿"` string
+ *  literal, so this stays an ordinary, visible character in this file. */
+const GENERAL_SYSTEM_SORT_KEY = String.fromCharCode(0xffff);
+
 export default function ReviewRiskTable({
   findings,
   entityCode,
@@ -75,10 +80,22 @@ export default function ReviewRiskTable({
     return m;
   }, [entityCode]);
 
-  const visible = useMemo(
-    () => findings.filter((f) => matchesReviewRiskFilter(f, filter)),
-    [findings, filter]
-  );
+  /* PRIORITY 2 — sorted Discipline, then Asset system, so a reviewer going
+     down the table moves through one discipline's systems together rather
+     than in raise-order. "General" (no system) sorts after every named
+     system within its discipline, never before — GENERAL_SYSTEM_SORT_KEY
+     (module scope, below) is the highest BMP code point, which sorts after
+     any real system name under localeCompare, so an empty/absent system is
+     pushed to the end of its discipline's own group without needing a
+     second pass. */
+  const visible = useMemo(() => {
+    const filtered = findings.filter((f) => matchesReviewRiskFilter(f, filter));
+    return [...filtered].sort((a, b) => {
+      const byDiscipline = (a.discipline || "").localeCompare(b.discipline || "");
+      if (byDiscipline !== 0) return byDiscipline;
+      return (a.system || GENERAL_SYSTEM_SORT_KEY).localeCompare(b.system || GENERAL_SYSTEM_SORT_KEY);
+    });
+  }, [findings, filter]);
 
   /* Asset system options narrow to the active Discipline filter's own
      systems — systemsOf — and fall back to every system at this entity —
@@ -114,14 +131,14 @@ export default function ReviewRiskTable({
             active={filter.kind === "priority" && filter.priority === p}
             onClick={() => setFilter({ kind: "priority", priority: p })}
           >
-            Priority {p}
+            Priority {p} ({findings.filter((f) => matchesReviewRiskFilter(f, { kind: "priority", priority: p })).length})
           </FilterChip>
         ))}
         <FilterChip active={filter.kind === "notRated"} onClick={() => setFilter({ kind: "notRated" })}>
           Not rated ({countNotRated(findings)})
         </FilterChip>
         <FilterChip active={filter.kind === "unconfirmed"} onClick={() => setFilter({ kind: "unconfirmed" })}>
-          Root cause unconfirmed
+          Root cause unconfirmed ({findings.filter((f) => matchesReviewRiskFilter(f, { kind: "unconfirmed" })).length})
         </FilterChip>
         <select
           aria-label="Filter by discipline"
@@ -208,6 +225,16 @@ export default function ReviewRiskTable({
           onClear={() => setSelected(new Set())}
         />
       )}
+
+      {/* PRIORITY 2 — one line, computed from the SAME `visible` array the
+          rows below are rendered from, so this count can never drift from
+          what is actually on screen (unlike a chip's own count, which
+          deliberately shows what clicking it WOULD yield, not what is
+          currently shown). */}
+      <div className="mb-1.5 text-[10.5px]" style={{ color: "var(--ink-3)" }}>
+        {visible.length} finding{visible.length === 1 ? "" : "s"}
+        {filter.kind !== "all" ? ` matching this filter (of ${findings.length} total)` : ""}
+      </div>
 
       {/* The table itself — the full column set Sarel approved from the
           mockup, fixed (no toggle): select · Type · Discipline · Asset

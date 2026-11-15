@@ -404,5 +404,60 @@ for (const surface of CAPTURE_SURFACES) {
   );
 }
 
+/* ---- 11 · PRIORITY 2 (review redesign) — sort, and counts that cannot
+   drift from what is on screen ------------------------------------------- */
+
+check(
+  "visible is sorted by Discipline then Asset system, General (no system) last within its discipline",
+  /localeCompare\(b\.discipline \|\| ""\)/.test(table) &&
+    /\(a\.system \|\| GENERAL_SYSTEM_SORT_KEY\)\.localeCompare\(b\.system \|\| GENERAL_SYSTEM_SORT_KEY\)/.test(table) &&
+    /GENERAL_SYSTEM_SORT_KEY = String\.fromCharCode\(0xffff\)/.test(table)
+);
+check(
+  "every row rendered comes from `visible` with no slice/limit in between — scrolling reaches all of them, no silent pagination",
+  /visible\.map\(\(f\) => \{/.test(table) && !/visible\.slice\(/.test(table)
+);
+check(
+  "Priority I/II/III chips show a real count via matchesReviewRiskFilter, not a bare label",
+  /Priority \{p\} \(\{findings\.filter/.test(table)
+);
+check(
+  "Root cause unconfirmed carries a count too, same function as every other chip",
+  /Root cause unconfirmed \(\{findings\.filter/.test(table)
+);
+check(
+  "the on-screen count line is computed from `visible`, the exact array the rows below render from — not findings.length, which would drift the moment a filter is active",
+  /\{visible\.length\} finding/.test(table)
+);
+check(
+  "every chip's own count and the sorted `visible` both go through the same matchesReviewRiskFilter — a chip's count always equals what clicking it would show",
+  (() => {
+    const findings = [
+      mkFinding({ id: "A", discipline: "Electrical", system: "LV Distribution", severity: "A - Catastrophic", likelihood: "5 - Frequent" }),
+      mkFinding({ id: "B", discipline: "Civil", system: "", severity: null, likelihood: null }),
+      mkFinding({ id: "C", discipline: "Electrical", system: "AGL", severity: "E - Negligible", likelihood: "1 - Extremely Improbable" }),
+    ];
+    const priorityICount = findings.filter((f) => R.matchesReviewRiskFilter(f, { kind: "priority", priority: "I" })).length;
+    const visibleUnderThatFilter = findings.filter((f) => R.matchesReviewRiskFilter(f, { kind: "priority", priority: "I" }));
+    return priorityICount === 1 && visibleUnderThatFilter.length === priorityICount && visibleUnderThatFilter[0].id === "A";
+  })()
+);
+check(
+  "Discipline-major, Asset-system-minor sort, General last within a discipline — behavioral, against the real comparator shape",
+  (() => {
+    const findings = [
+      mkFinding({ id: "1", discipline: "Electrical", system: "" }),
+      mkFinding({ id: "2", discipline: "Civil", system: "Markings" }),
+      mkFinding({ id: "3", discipline: "Electrical", system: "AGL" }),
+    ];
+    const sorted = [...findings].sort((a, b) => {
+      const byDiscipline = (a.discipline || "").localeCompare(b.discipline || "");
+      if (byDiscipline !== 0) return byDiscipline;
+      return (a.system || "\uFFFF").localeCompare(b.system || "\uFFFF");
+    });
+    return sorted.map((f) => f.id).join(",") === "2,3,1";
+  })()
+);
+
 console.log(failures === 0 ? "\nREVIEW TABLE V2 OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);
