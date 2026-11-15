@@ -404,5 +404,99 @@ for (const surface of CAPTURE_SURFACES) {
   );
 }
 
+/* ---- 11 · PRIORITY 2 (review redesign) — sort, and counts that cannot
+   drift from what is on screen ------------------------------------------- */
+
+check(
+  "visible is sorted by Discipline then Asset system, General (no system) last within its discipline",
+  /localeCompare\(b\.discipline \|\| ""\)/.test(table) &&
+    /\(a\.system \|\| GENERAL_SYSTEM_SORT_KEY\)\.localeCompare\(b\.system \|\| GENERAL_SYSTEM_SORT_KEY\)/.test(table) &&
+    /GENERAL_SYSTEM_SORT_KEY = String\.fromCharCode\(0xffff\)/.test(table)
+);
+check(
+  "every row rendered comes from `visible` with no slice/limit in between — scrolling reaches all of them, no silent pagination",
+  /visible\.map\(\(f\) => \{/.test(table) && !/visible\.slice\(/.test(table)
+);
+check(
+  "Priority I/II/III chips show a real count via matchesReviewRiskFilter, not a bare label",
+  /Priority \{p\} \(\{findings\.filter/.test(table)
+);
+check(
+  "Root cause unconfirmed carries a count too, same function as every other chip",
+  /Root cause unconfirmed \(\{findings\.filter/.test(table)
+);
+check(
+  "the on-screen count line is computed from `visible`, the exact array the rows below render from — not findings.length, which would drift the moment a filter is active",
+  /\{visible\.length\} finding/.test(table)
+);
+check(
+  "every chip's own count and the sorted `visible` both go through the same matchesReviewRiskFilter — a chip's count always equals what clicking it would show",
+  (() => {
+    const findings = [
+      mkFinding({ id: "A", discipline: "Electrical", system: "LV Distribution", severity: "A - Catastrophic", likelihood: "5 - Frequent" }),
+      mkFinding({ id: "B", discipline: "Civil", system: "", severity: null, likelihood: null }),
+      mkFinding({ id: "C", discipline: "Electrical", system: "AGL", severity: "E - Negligible", likelihood: "1 - Extremely Improbable" }),
+    ];
+    const priorityICount = findings.filter((f) => R.matchesReviewRiskFilter(f, { kind: "priority", priority: "I" })).length;
+    const visibleUnderThatFilter = findings.filter((f) => R.matchesReviewRiskFilter(f, { kind: "priority", priority: "I" }));
+    return priorityICount === 1 && visibleUnderThatFilter.length === priorityICount && visibleUnderThatFilter[0].id === "A";
+  })()
+);
+check(
+  "Discipline-major, Asset-system-minor sort, General last within a discipline — behavioral, against the real comparator shape",
+  (() => {
+    const findings = [
+      mkFinding({ id: "1", discipline: "Electrical", system: "" }),
+      mkFinding({ id: "2", discipline: "Civil", system: "Markings" }),
+      mkFinding({ id: "3", discipline: "Electrical", system: "AGL" }),
+    ];
+    const sorted = [...findings].sort((a, b) => {
+      const byDiscipline = (a.discipline || "").localeCompare(b.discipline || "");
+      if (byDiscipline !== 0) return byDiscipline;
+      return (a.system || "\uFFFF").localeCompare(b.system || "\uFFFF");
+    });
+    return sorted.map((f) => f.id).join(",") === "2,3,1";
+  })()
+);
+
+/* ---- 12 · PRIORITY 2 (review redesign) — Root cause/Impact are now
+   inline-editable in the table, not panel-only ---------------------------- */
+
+check(
+  "the Root cause cell is wrapped in the same stopPropagation guard severity/likelihood already use — opening its editor never selects the row",
+  /Root cause categories for \$\{f\.title \|\| f\.id\}[\s\S]{0,20}onClick=\{\(e\) => e\.stopPropagation\(\)\}|onClick=\{\(e\) => e\.stopPropagation\(\)\}[\s\S]{0,200}Root cause categories for/.test(
+    table
+  )
+);
+check(
+  "the Impact cell carries the same guard",
+  /Impact areas for \$\{f\.title \|\| f\.id\}[\s\S]{0,20}onClick=\{\(e\) => e\.stopPropagation\(\)\}|onClick=\{\(e\) => e\.stopPropagation\(\)\}[\s\S]{0,200}Impact areas for/.test(
+    table
+  )
+);
+check(
+  "both inline editors toggle through the SAME toggleMulti the panel already uses — one function, two surfaces",
+  /rootCauseCategories: toggleMulti\(f\.rootCauseCategories, v\)/.test(table) &&
+    /impactAreas: toggleMulti\(f\.impactAreas, v\)/.test(table) &&
+    /toggleMulti,?$/m.test(table.match(/import \{[\s\S]{0,400}\} from "@\/lib\/reviewRisk"/)?.[0] ?? "")
+);
+check(
+  "the inline editors read the same vocabulary as the panel and the bulk bar — ROOT_CAUSES/IMPACT_AREAS, not a third list",
+  /options=\{ROOT_CAUSES\}/.test(table) && /options=\{IMPACT_AREAS\}/.test(table)
+);
+check(
+  "the inline editor is a native <details> disclosure, not a hand-rolled popover needing its own outside-click/escape handling",
+  /function MultiSelectCell/.test(table) && /<details/.test(table) && /<summary/.test(table)
+);
+check(
+  "toggling a value inside the editor never closes it — the toggle handler is on a Chip inside the body, not on <summary>",
+  (() => {
+    const start = table.indexOf("function MultiSelectCell");
+    const fn = start === -1 ? "" : table.slice(start, table.indexOf("\n}\n", start) + 2);
+    const summary = fn.match(/<summary[\s\S]*?<\/summary>/)?.[0] ?? "";
+    return fn.includes("onToggle(o)") && !summary.includes("onToggle");
+  })()
+);
+
 console.log(failures === 0 ? "\nREVIEW TABLE V2 OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);
