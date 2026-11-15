@@ -57,7 +57,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `carryforward.test.mjs` | no | 58 |
 | `crosswalk.test.mjs` | no | 13 |
 | `faor-import.test.mjs` | no | 28 |
-| `faor-import-other-disciplines.test.mjs` | no | 25 |
+| `faor-import-other-disciplines.test.mjs` | no | 26 |
 | `sync-coverage.test.mjs` | no | 27 |
 | `review.test.mjs` | no | 42 |
 | `reviewcompliance.test.mjs` | no | 7 |
@@ -95,7 +95,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `audits.test.mjs` | no | 22 |
 | `voice.test.mjs` | no | 48 |
 | `sites.test.mjs` | no | 42 |
-| `photos.test.mjs` | no | 112 |
+| `photos.test.mjs` | no | 113 |
 | `hazards.test.mjs` | no | 121 |
 | `hazardpromotion.test.mjs` | no | 35 |
 | `auditdates.test.mjs` | no | 20 |
@@ -131,8 +131,8 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `evidence.test.mjs` | no | 80 |
 | `toolbox.test.mjs` | no | 35 |
 | `incident.test.mjs` | no | 41 |
-| `import-pack.test.mjs` | no | 62 |
-| `ortia-v3-pack.test.mjs` | no | 83 |
+| `import-pack.test.mjs` | no | 63 |
+| `ortia-v3-pack.test.mjs` | no | 84 |
 | `sheet.test.mjs` | no | 17 |
 | `exports.test.mjs` | no | 38 |
 | `field-wide-detail.test.mjs` | no | 15 |
@@ -156,7 +156,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**4,109 assertions in total**, every count above verified by running the suite,
+**4,113 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
