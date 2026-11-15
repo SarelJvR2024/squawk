@@ -755,11 +755,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 {/* A REAL LABEL BELOW sm TOO, not only on the active item.
                     Icon-only read as six unlabelled buttons on the one device
                     the walkabout is actually done on — exactly the ask this
-                    pass was given. Deliberately separate from the
-                    "hidden min-[1440px]:inline" label a few lines down: that
-                    one keeps doing exactly what it always did between sm and
-                    1440px (icon and count, full label only from 1440px) —
-                    untouched by this pass.
+                    pass was given. Deliberately separate from the label span
+                    a few lines down, which later lost its own icon-only
+                    range entirely (see that span's own comment) — this one
+                    is the dedicated below-sm, two-row stacked label and was
+                    untouched by that later change.
 
                     NO LONGER WRAPS, AND NO LONGER 6.5px. Sarel's own
                     screenshot at 390px: a wrapped, 6.5px label reads as
@@ -836,7 +836,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     it was from sm up (active always shows its full label)
                     and hides it below sm, where the short-label span above
                     now carries every destination, active or not. */}
-                <span className={active ? "hidden sm:inline" : "hidden min-[1440px]:inline"}>{n.label}</span>
+                {/* LABELLED FROM sm NOW, ACTIVE OR NOT — Sarel, reviewing the
+                    top bar: "add the label for each menu items" (every icon
+                    between Checks and Dashboard read as unlabelled except
+                    the active one). The icon-only range this comment block
+                    used to describe (sm–1440px, chosen to dodge the 1280px
+                    clipping this file's history documents at length) is
+                    gone: every item now carries its SHORT label
+                    (`n.short ?? n.label` — "Finding"/"Assets" are already
+                    the short forms the mobile bar below sm uses, so this
+                    reuses them rather than inventing a third label set) from
+                    sm up, same as the active item already did. `nav`'s own
+                    `overflow-x-auto` (see its className above) is the
+                    fallback if the shorter labels still don't all fit at the
+                    narrowest desktop widths — a swipe on a rare width beats
+                    an unlabelled bar on every width, which is what Sarel's
+                    direct instruction asks for. */}
+                <span className="hidden sm:inline">{n.short ?? n.label}</span>
                 {/* THE STANDING BADGE IS GONE, BUT CHECKS AND INSPECTION GET A
                     QUIET COUNT BACK — Desktop/tablet redesign phase 1,
                     checkpoint item: Sarel's second visual-hierarchy pass
@@ -854,11 +870,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     they have no register denominator to be quiet about. */}
                 {(n.href === "/capture" || n.href === "/field") && badge !== "" && (
                   <span
-                    /* Same min-[1440px] move as the label span above, and for
+                    /* Same sm breakpoint as the label span above now, and for
                        the same reason — this count sits right next to the
                        label it describes and must appear on the same
                        breakpoint as it, not independently. */
-                    className={`tnum font-mono text-[10px] ${active ? "hidden sm:inline" : "hidden min-[1440px]:inline"}`}
+                    className="tnum font-mono text-[10px] hidden sm:inline"
                     style={{ color: "var(--ink-4)" }}
                   >
                     {badge}

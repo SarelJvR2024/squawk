@@ -241,6 +241,7 @@ export default function ReviewPage() {
           <ReviewRiskTable
             findings={findings}
             entityCode={entityCode}
+            responses={responses}
             activeId={riskActive?.id ?? null}
             onActivate={setRiskActiveId}
             onChange={(id, patch) => updateFinding(id, patch)}

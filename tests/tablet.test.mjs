@@ -448,32 +448,23 @@ check(
   `checked ${screenDirs.length} screens, missing on: ${missingScroller.join(", ")}`
 );
 
-/* THE BREAKPOINT MOVED FROM sm TO xl (Sarel, wide desktop and tablet both:
-   "you shouldn't have to scroll, you should see all the menu options
-   there") — six full labels plus the fixed-width brand, search and account
-   cluster measured at 680px of nav alone, more than an 1024px tablet or a
-   windowed 1152px laptop actually leaves it once sm admits every label
-   back in. The phone's own reason for icon-only inactive items is
-   unchanged; it now simply holds all the way to xl (1280px) instead of
-   handing back to full labels at 640px, which is exactly what was
-   scrolling on everything narrower than that. */
+/* THE ICON-ONLY RANGE IS GONE, Sarel: "add the label for each menu items" —
+   every inactive icon between Checks and Dashboard read as unlabelled at
+   desktop widths (everything from sm to 1440px), which is exactly what this
+   direct instruction asked fixed. Every item now shows its SHORT label
+   (`n.short ?? n.label` — the same short forms the phone's bottom bar
+   already used) from sm up, active or not; `nav`'s own overflow-x-auto is
+   the fallback at the very narrowest desktop widths rather than hiding text
+   again. */
 check(
-  "the active destination keeps its label, the others give up theirs",
-  /className=\{active \? "hidden sm:inline" : "hidden min-\[1440px\]:inline"\}>\{n\.label\}/.test(shell),
-  "seven full labels needed 485px of a 390px bar; three fitted and the rest were a swipe nobody would make"
+  "every destination keeps a label from sm up, not just the active one",
+  /className="hidden sm:inline">\{n\.short \?\? n\.label\}/.test(shell),
+  "icons must carry a visible label at every desktop width, per Sarel's direct instruction"
 );
-
-/* MOVED FROM xl (1280px) TO min-[1440px], review-risk-fields addendum §1:
-   Sarel, 12 Nov 2026, observing the bar at exactly 1280px — "nav overflows
-   at 1280px ('Follow-u' is clipped)." Eight full labels fit the ~680px this
-   file's own comment measured at 1920px and 1440px, but not at 1280px
-   itself — the bar held icon-only correctly from sm to just under the
-   point it needed to, then handed back labels one pixel too early. The fix
-   is the same icon-only state holding a little longer, not a new one. */
 check(
-  "full labels wait for min-[1440px], not xl (1280px) — the exact width that was clipping",
-  !/"hidden xl:inline"/.test(shell) && /min-\[1440px\]:inline/.test(shell),
-  "xl:inline must not survive anywhere in this bar's own label/count spans"
+  "the old icon-only-until-1440px state is gone from the label/count spans themselves",
+  !/className=\{[^}]*min-\[1440px\]/.test(shell) && !/className="[^"]*min-\[1440px\]/.test(shell),
+  "min-[1440px]:inline must not survive in any className this bar's label/count spans actually render"
 );
 
 /* FIX, 21 Oct 2026, folded into the same header pass that made the check

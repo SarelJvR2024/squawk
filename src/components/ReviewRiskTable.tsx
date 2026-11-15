@@ -31,7 +31,6 @@ import {
   IMPACT_AREAS,
   ROOT_CAUSES,
   applyBulkMulti,
-  countNotRated,
   findingTypeFor,
   matchesReviewRiskFilter,
   priorityFor,
@@ -41,9 +40,10 @@ import {
 import { LIKELIHOODS, SEVERITIES } from "@/lib/risk";
 import { ALL_DISCIPLINES, checksAt, systemsAt, systemsOf } from "@/lib/register";
 import { useFieldSaveStatus } from "@/lib/store";
+import { useBlobUrl } from "@/lib/media";
 import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
 import { IconCamera, IconMic } from "@/components/ui/icons";
-import type { Check, Finding, Likelihood, Severity } from "@/lib/types";
+import type { Attachment, Check, Finding, Likelihood, Response, Severity } from "@/lib/types";
 
 /** The sort key an empty/absent Asset system sorts under — see `visible`'s
  *  own comment below. Built with fromCharCode rather than a string literal
@@ -54,6 +54,7 @@ const GENERAL_SYSTEM_SORT_KEY = String.fromCharCode(0xffff);
 export default function ReviewRiskTable({
   findings,
   entityCode,
+  responses,
   activeId,
   onActivate,
   onChange: onChangeProp,
@@ -63,6 +64,12 @@ export default function ReviewRiskTable({
    *  system filter's register lookups — this table reads no other check
    *  data. */
   entityCode: string;
+  /** Keyed by checkId — read-only here, so the Finding column can show the
+   *  linked check's own desk note (`observation`) and evidence verdict
+   *  (`evidenceProves`) next to the finding itself, without a second,
+   *  duplicate source of the same text (see the Finding column's own
+   *  comment below). Never written from this table. */
+  responses: Record<string, Response>;
   activeId: string | null;
   onActivate: (id: string) => void;
   /** The caller owns the write (updateFinding), same as everywhere else in
@@ -91,6 +98,9 @@ export default function ReviewRiskTable({
     lastEditedId ? (findings.find((f) => f.id === lastEditedId)?.updatedAt ?? null) : null
   );
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  /* Inline photo thumbnails (below) open here full-size rather than
+     navigating away — a lightbox over the table, not a second screen. */
+  const [lightbox, setLightbox] = useState<Attachment | null>(null);
 
   /* Audit-check reference codes are presentation we no longer show (see
    *  PR "Review pages: remove audit-check reference codes from the UI") —
@@ -141,28 +151,15 @@ export default function ReviewRiskTable({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-3">
-      {/* Filters — §3: "Rating, Not rated, Impact area, Root cause
-          category, Root cause unconfirmed", widened with Discipline and
-          Asset system. */}
+      {/* Filters — the Rating/Not-rated/Root-cause-unconfirmed CHIP ROW Sarel
+          asked removed ("remove these filters", screenshot of the All/
+          Priority I/II/III/Not rated row) is gone. The four dropdowns below
+          stay — his screenshot didn't mark those, and they're how a reviewer
+          narrows a 36+-row table down rather than scanning it. A finding can
+          still be reached by any of the filter KINDS `ReviewRiskFilter`
+          supports (nothing was removed from reviewRisk.ts) — there is simply
+          no chip bound to "priority"/"notRated"/"unconfirmed" any more. */}
       <div className="mb-2.5 flex flex-wrap items-center gap-[6px]">
-        <FilterChip active={filter.kind === "all"} onClick={() => setFilter({ kind: "all" })}>
-          All ({findings.length})
-        </FilterChip>
-        {(["I", "II", "III"] as const).map((p) => (
-          <FilterChip
-            key={p}
-            active={filter.kind === "priority" && filter.priority === p}
-            onClick={() => setFilter({ kind: "priority", priority: p })}
-          >
-            Priority {p} ({findings.filter((f) => matchesReviewRiskFilter(f, { kind: "priority", priority: p })).length})
-          </FilterChip>
-        ))}
-        <FilterChip active={filter.kind === "notRated"} onClick={() => setFilter({ kind: "notRated" })}>
-          Not rated ({countNotRated(findings)})
-        </FilterChip>
-        <FilterChip active={filter.kind === "unconfirmed"} onClick={() => setFilter({ kind: "unconfirmed" })}>
-          Root cause unconfirmed ({findings.filter((f) => matchesReviewRiskFilter(f, { kind: "unconfirmed" })).length})
-        </FilterChip>
         <select
           aria-label="Filter by discipline"
           value={filter.kind === "discipline" ? filter.discipline : ""}
@@ -262,10 +259,13 @@ export default function ReviewRiskTable({
         <SaveStatusPill status={saveStatus} />
       </div>
 
-      {/* The table itself — the full column set Sarel approved from the
-          mockup, fixed (no toggle): select · Type · Discipline · Asset
-          system · Audit check · Finding/comment · Severity · Likelihood ·
-          Rating · Root cause · Impact · Evidence. */}
+      {/* The table itself — Sarel's mockup column set, narrowed per his own
+          follow-up requests: Discipline and Asset system now share one
+          column (asset system stacked under discipline, since a system only
+          ever means something within its discipline), and Evidence now
+          shows actual photo thumbnails, not only a count — select · Type ·
+          Discipline/Asset system · Audit check · Finding/comment ·
+          Severity · Likelihood · Rating · Root cause · Impact · Evidence. */}
       <div className="overflow-x-auto rounded-[11px] border" style={{ borderColor: "var(--line)" }}>
         <table className="w-full text-[11.5px]">
           <thead>
@@ -282,7 +282,6 @@ export default function ReviewRiskTable({
               </th>
               <Th>Type</Th>
               <Th>Discipline</Th>
-              <Th>Asset system</Th>
               <Th>Audit check</Th>
               <th className="p-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
                 Finding
@@ -301,7 +300,7 @@ export default function ReviewRiskTable({
               const impact = f.impactAreas ?? [];
               const causes = f.rootCauseCategories ?? [];
               const type = findingTypeFor(f);
-              const photos = f.attachments.filter((a) => a.kind === "photo").length;
+              const photoAttachments = f.attachments.filter((a) => a.kind === "photo");
               const voices = f.attachments.filter((a) => a.kind === "voice").length;
               const on = f.id === activeId;
               return (
@@ -328,16 +327,16 @@ export default function ReviewRiskTable({
                     </Pill>
                   </td>
 
-                  <td className="p-2 whitespace-nowrap">{f.discipline || "—"}</td>
-
+                  {/* Discipline / Asset system — one column, asset system
+                      stacked below its discipline (Sarel: "put asset system
+                      below the discipline in the same column"), since a
+                      system is only ever meaningful within the discipline
+                      it belongs to. */}
                   <td className="p-2 whitespace-nowrap">
-                    {f.system ? (
-                      f.system
-                    ) : (
-                      <span className="italic" style={{ color: "var(--ink-4)" }}>
-                        General
-                      </span>
-                    )}
+                    <div>{f.discipline || "—"}</div>
+                    <div className="mt-[1px] text-[10px]" style={{ color: "var(--ink-3)" }}>
+                      {f.system || <span className="italic" style={{ color: "var(--ink-4)" }}>General</span>}
+                    </div>
                   </td>
 
                   {/* Audit check — the readable requirement text, never the
@@ -356,16 +355,60 @@ export default function ReviewRiskTable({
                     )}
                   </td>
 
-                  {/* Finding/comment — wraps, never truncated to nothing. */}
+                  {/* Finding — Sarel: "remove duplication of the same
+                      infomation in the findings column, this should be the
+                      notes from the audit check, the finding and the
+                      evidence review." Three distinct sources, each only
+                      rendered when it actually has something to say, never
+                      the same text repeated under two labels:
+                        - the linked check's own desk note (Response.observation)
+                        - the finding itself (title, then description if it
+                          says something the title didn't already)
+                        - what the evidence review found (Response.evidenceProves)
+                      A finding with no checkId has no audit-check note or
+                      evidence-review verdict to show — those two lines are
+                      simply absent, not "General". */}
                   <td className="min-w-[220px] max-w-[400px] p-2 align-top">
-                    <span className="block whitespace-normal break-words font-semibold" style={{ color: "var(--ink)" }}>
-                      {f.title || f.description || f.id}
-                    </span>
-                    {f.description && f.title && (
-                      <span className="mt-[2px] block whitespace-normal break-words text-[10.5px]" style={{ color: "var(--ink-3)" }}>
-                        {f.description}
-                      </span>
-                    )}
+                    {(() => {
+                      const r = f.checkId ? responses[f.checkId] : undefined;
+                      return (
+                        <div className="flex flex-col gap-[6px]">
+                          {r?.observation && (
+                            <div>
+                              <div className="text-[9.5px] font-semibold uppercase" style={{ color: "var(--ink-4)" }}>
+                                Audit check note
+                              </div>
+                              <div className="whitespace-normal break-words text-[10.5px]" style={{ color: "var(--ink-2)" }}>
+                                {r.observation}
+                              </div>
+                            </div>
+                          )}
+                          <div>
+                            <div className="text-[9.5px] font-semibold uppercase" style={{ color: "var(--ink-4)" }}>
+                              Finding
+                            </div>
+                            <div className="whitespace-normal break-words font-semibold" style={{ color: "var(--ink)" }}>
+                              {f.title || f.description || f.id}
+                            </div>
+                            {f.description && f.title && f.description !== f.title && (
+                              <div className="mt-[2px] whitespace-normal break-words text-[10.5px]" style={{ color: "var(--ink-3)" }}>
+                                {f.description}
+                              </div>
+                            )}
+                          </div>
+                          {r?.evidenceProves && (
+                            <div>
+                              <div className="text-[9.5px] font-semibold uppercase" style={{ color: "var(--ink-4)" }}>
+                                Evidence review
+                              </div>
+                              <div className="whitespace-normal break-words text-[10.5px]" style={{ color: "var(--ink-2)" }}>
+                                {r.evidenceProves}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </td>
 
                   <td className="p-2" onClick={(e) => e.stopPropagation()}>
@@ -445,18 +488,32 @@ export default function ReviewRiskTable({
                     />
                   </td>
 
-                  {/* Evidence — small counts, reading `attachments`. The
-                      finding's own photo/voice evidence; EvidenceItem
-                      (document custody) requests live in the panel. */}
-                  <td className="p-2">
-                    <span className="inline-flex items-center gap-[8px] font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
-                      <span className="inline-flex items-center gap-[2px]" title={`${photos} photograph${photos === 1 ? "" : "s"}`}>
-                        <IconCamera width={11} height={11} /> {photos}
-                      </span>
-                      <span className="inline-flex items-center gap-[2px]" title={`${voices} voice note${voices === 1 ? "" : "s"}`}>
+                  {/* Evidence — Sarel: "add the photos in the row so that
+                      the photos can be viewed inline." Up to 4 small
+                      thumbnails (the finding's own photo evidence; EvidenceItem
+                      document-custody requests still live in the panel),
+                      tapping one opens it full-size in the lightbox below
+                      without leaving the table; "+N" for anything beyond
+                      that rather than growing the row unboundedly. */}
+                  <td className="p-2 align-top" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-wrap items-center gap-[4px]">
+                      {photoAttachments.slice(0, 4).map((a) => (
+                        <EvidenceThumb key={a.id} attachment={a} onOpen={() => setLightbox(a)} />
+                      ))}
+                      {photoAttachments.length > 4 && (
+                        <span className="font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>
+                          +{photoAttachments.length - 4}
+                        </span>
+                      )}
+                      {photoAttachments.length === 0 && (
+                        <span className="inline-flex items-center gap-[2px] font-mono text-[10px]" style={{ color: "var(--ink-4)" }}>
+                          <IconCamera width={11} height={11} /> 0
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-[2px] font-mono text-[10px]" style={{ color: "var(--ink-3)" }} title={`${voices} voice note${voices === 1 ? "" : "s"}`}>
                         <IconMic width={11} height={11} /> {voices}
                       </span>
-                    </span>
+                    </div>
                   </td>
                 </tr>
               );
@@ -470,6 +527,80 @@ export default function ReviewRiskTable({
         )}
       </div>
 
+      {lightbox && <EvidenceLightbox attachment={lightbox} onClose={() => setLightbox(null)} />}
+    </div>
+  );
+}
+
+/** One inline evidence thumbnail — Sarel: "add the photos in the row so that
+ *  the photos can be viewed inline." `useBlobUrl` is the same resolver
+ *  Capture's own PhotoRow uses; the thumbnail/data-URL fallback chain is the
+ *  same one too (full resolution isn't needed for a 28px thumbnail, and the
+ *  thumbnail is what survives when the full blob doesn't — see
+ *  Capture.tsx's own note on why). */
+function EvidenceThumb({ attachment, onOpen }: { attachment: Attachment; onOpen: () => void }) {
+  const { url } = useBlobUrl(attachment.blobKey);
+  const src = url ?? attachment.thumbDataUrl ?? attachment.dataUrl ?? null;
+  if (!src) return <IconCamera width={11} height={11} />;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={attachment.caption ? `View photo: ${attachment.caption}` : "View photo"}
+      className="block overflow-hidden rounded-[4px] border p-0"
+      style={{ borderColor: "var(--line-2)", width: 28, height: 28 }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element -- a local blob/data URL, not a remote asset next/image can optimise */}
+      <img src={src} alt="" className="h-full w-full object-cover" />
+    </button>
+  );
+}
+
+/** Full-size view for a thumbnail tapped in the table — Esc/backdrop/✕ all
+ *  close it; nothing here is editable (full editing stays in the panel's own
+ *  AttachmentStrip, which also takes onRemove/onUpdate). */
+function EvidenceLightbox({ attachment, onClose }: { attachment: Attachment; onClose: () => void }) {
+  const { url } = useBlobUrl(attachment.blobKey);
+  const src = url ?? attachment.thumbDataUrl ?? attachment.dataUrl ?? null;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-6"
+      style={{ background: "rgba(0,0,0,0.75)" }}
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Photo"
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close photo"
+        className="absolute top-4 right-4 rounded-[6px] px-3 py-1.5 text-[13px] font-semibold"
+        style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}
+      >
+        ✕
+      </button>
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element -- local blob/data URL
+        <img
+          src={src}
+          alt={attachment.caption ?? ""}
+          className="max-h-full max-w-full rounded-[8px] object-contain"
+          onClick={(e) => e.stopPropagation()}
+        />
+      ) : (
+        <div className="text-[13px]" style={{ color: "#fff" }}>
+          This photo isn&apos;t available on this device.
+        </div>
+      )}
+      {attachment.caption && (
+        <div
+          className="absolute bottom-6 left-1/2 max-w-[80%] -translate-x-1/2 rounded-[8px] px-3 py-2 text-center text-[12px]"
+          style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}
+        >
+          {attachment.caption}
+        </div>
+      )}
     </div>
   );
 }
@@ -532,31 +663,6 @@ function Th({ children }: { children: React.ReactNode }) {
     <th className="p-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
       {children}
     </th>
-  );
-}
-
-function FilterChip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded-full border px-[9px] py-[4px] text-[10.5px] font-semibold whitespace-nowrap"
-      style={
-        active
-          ? { background: "var(--acc)", borderColor: "var(--acc)", color: "#fff" }
-          : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
-      }
-    >
-      {children}
-    </button>
   );
 }
 
