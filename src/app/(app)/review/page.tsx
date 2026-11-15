@@ -110,7 +110,10 @@ export default function ReviewPage() {
   const updateFinding = useStore((s) => s.updateFinding);
   const [tab, setTab] = useState<ReviewTab>("checks");
   const [riskActiveId, setRiskActiveId] = useState<string | null>(null);
-  const riskActive = findings.find((f) => f.id === riskActiveId) ?? findings[0] ?? null;
+  /* PRIORITY 1 — no findings[0] fallback: the panel stays closed until a
+     row is explicitly selected, not pinned open on whichever finding
+     happens to be first. */
+  const riskActive = findings.find((f) => f.id === riskActiveId) ?? null;
 
   /* Shared with Capture, Field and HIRA — see useDisciplineFilter's own
      note in src/lib/store.ts. */
@@ -232,6 +235,9 @@ export default function ReviewPage() {
 
       {tab === "risk" ? (
         <div className="flex min-h-0 min-w-0 flex-1">
+          {/* PRIORITY 1 — full width when nothing is selected; the panel
+              column only renders at all once a row is active, rather than
+              reserving 320px (or showing an empty-state filler) permanently. */}
           <ReviewRiskTable
             findings={findings}
             entityCode={entityCode}
@@ -239,23 +245,19 @@ export default function ReviewPage() {
             onActivate={setRiskActiveId}
             onChange={(id, patch) => updateFinding(id, patch)}
           />
-          <div
-            className="hidden w-[320px] shrink-0 overflow-y-auto border-l p-3 md:block"
-            style={{ borderColor: "var(--line)", background: "var(--panel)" }}
-          >
-            {riskActive ? (
+          {riskActive && (
+            <div
+              className="hidden min-h-0 w-[320px] shrink-0 flex-col border-l md:flex"
+              style={{ borderColor: "var(--line)", background: "var(--panel)" }}
+            >
               <ReviewRiskPanel
                 key={riskActive.id}
                 finding={riskActive}
                 onChange={(patch) => updateFinding(riskActive.id, patch)}
+                onClose={() => setRiskActiveId(null)}
               />
-            ) : (
-              <Empty>
-                <IconInbox width={26} height={26} />
-                <div>No findings raised this visit.</div>
-              </Empty>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       ) : (
       <div className="flex min-h-0 flex-1">
