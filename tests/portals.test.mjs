@@ -277,8 +277,15 @@ check(
 );
 check(
   "and stay bare where there is no honest denominator",
-  /findings\.length \|\| ""/.test(shell) && /ungrouped \|\| ""/.test(shell),
+  /findings\.length \|\| ""/.test(shell),
   "nobody knows how many findings an audit ought to find; inventing a total is worse"
+);
+/* ungrouped's own badge moved with HIRA to the More menu (Sarel, 15 Nov:
+   "remove HIRA tab only, not the sync") — it is still read, now as that
+   MoreItem's own hint text rather than a main-bar badge. */
+check(
+  "ungrouped findings still surface somewhere, now as HIRA's own More-menu hint",
+  /ungrouped \? `\$\{ungrouped\}/.test(shell)
 );
 
 /* The labels name the audit activity; the ROUTES do not move, because they are
