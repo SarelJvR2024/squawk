@@ -516,10 +516,16 @@ check('the persist key "acsa-assurance-v1" is unchanged', /name: "acsa-assurance
 /* UX-audit P1 added disciplineFilterByEntity (src/lib/store.ts), an
    unrelated persisted field, and bumped the version 37 -> 38 for it.
    Finding.attachments (types.ts) did the same, unrelated again, 38 -> 39.
-   This assertion's own point — that the import pack work adds no new
-   stored field of its own — still holds; re-pinned to the version that
-   change actually landed on. */
-check("the migration version is unchanged", /version: 39,/.test(storeSrc));
+   Then the Review risk-fields addendum's rootCauseCategories/impactAreas,
+   39 -> 40, Review table v2's EvidenceItem.analysisAt/analysisNote,
+   40 -> 41, and Evidence review's EvidenceItem.insufficientAt/
+   insufficientReason, 41 -> 42. This assertion's own point — that the
+   import pack work adds no new stored field of its own — still holds;
+   re-pinned to the version that change actually landed on, same as every
+   time before this. Re-pin the NUMBER here, not the reasoning, if this
+   goes stale again — `grep -n "version: " src/lib/store.ts | tail -1` is
+   the live value. */
+check("the migration version is unchanged", /version: 42,/.test(storeSrc));
 check(
   "removeFinding is a real store action, filtering by id the same way removeHazard already does — not a direct mutation from outside the store",
   /removeFinding: \(id\) =>\s*\n\s*set\(\(s\) => \(\{ findings: s\.findings\.filter\(\(f\) => f\.id !== id\) \}\)\)/.test(
