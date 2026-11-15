@@ -459,5 +459,44 @@ check(
   })()
 );
 
+/* ---- 12 · PRIORITY 2 (review redesign) — Root cause/Impact are now
+   inline-editable in the table, not panel-only ---------------------------- */
+
+check(
+  "the Root cause cell is wrapped in the same stopPropagation guard severity/likelihood already use — opening its editor never selects the row",
+  /Root cause categories for \$\{f\.title \|\| f\.id\}[\s\S]{0,20}onClick=\{\(e\) => e\.stopPropagation\(\)\}|onClick=\{\(e\) => e\.stopPropagation\(\)\}[\s\S]{0,200}Root cause categories for/.test(
+    table
+  )
+);
+check(
+  "the Impact cell carries the same guard",
+  /Impact areas for \$\{f\.title \|\| f\.id\}[\s\S]{0,20}onClick=\{\(e\) => e\.stopPropagation\(\)\}|onClick=\{\(e\) => e\.stopPropagation\(\)\}[\s\S]{0,200}Impact areas for/.test(
+    table
+  )
+);
+check(
+  "both inline editors toggle through the SAME toggleMulti the panel already uses — one function, two surfaces",
+  /rootCauseCategories: toggleMulti\(f\.rootCauseCategories, v\)/.test(table) &&
+    /impactAreas: toggleMulti\(f\.impactAreas, v\)/.test(table) &&
+    /toggleMulti,?$/m.test(table.match(/import \{[\s\S]{0,400}\} from "@\/lib\/reviewRisk"/)?.[0] ?? "")
+);
+check(
+  "the inline editors read the same vocabulary as the panel and the bulk bar — ROOT_CAUSES/IMPACT_AREAS, not a third list",
+  /options=\{ROOT_CAUSES\}/.test(table) && /options=\{IMPACT_AREAS\}/.test(table)
+);
+check(
+  "the inline editor is a native <details> disclosure, not a hand-rolled popover needing its own outside-click/escape handling",
+  /function MultiSelectCell/.test(table) && /<details/.test(table) && /<summary/.test(table)
+);
+check(
+  "toggling a value inside the editor never closes it — the toggle handler is on a Chip inside the body, not on <summary>",
+  (() => {
+    const start = table.indexOf("function MultiSelectCell");
+    const fn = start === -1 ? "" : table.slice(start, table.indexOf("\n}\n", start) + 2);
+    const summary = fn.match(/<summary[\s\S]*?<\/summary>/)?.[0] ?? "";
+    return fn.includes("onToggle(o)") && !summary.includes("onToggle");
+  })()
+);
+
 console.log(failures === 0 ? "\nREVIEW TABLE V2 OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

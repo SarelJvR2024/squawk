@@ -35,6 +35,7 @@ import {
   findingTypeFor,
   matchesReviewRiskFilter,
   priorityFor,
+  toggleMulti,
   type ReviewRiskFilter,
 } from "@/lib/reviewRisk";
 import { LIKELIHOODS, SEVERITIES } from "@/lib/risk";
@@ -394,33 +395,29 @@ export default function ReviewRiskTable({
                       <Pill tone="neutral">Not rated</Pill>
                     )}
                   </td>
-                  <td className="p-2">
-                    {causes.length === 0 ? (
-                      <span style={{ color: "var(--ink-4)" }}>—</span>
-                    ) : (
-                      <span>
-                        <Pill>{causes[0]}</Pill>
-                        {causes.length > 1 && (
-                          <span className="ml-1 font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>
-                            +{causes.length - 1}
-                          </span>
-                        )}
-                      </span>
-                    )}
+                  {/* PRIORITY 2 (review redesign) — Root cause and Impact
+                      are now editable right here, not panel-only, same as
+                      Severity/Likelihood above: a <details> popover inside
+                      a stopPropagation'd <td>, so opening it never selects
+                      the row. toggleMulti/IMPACT_AREAS/ROOT_CAUSES are the
+                      exact same values and toggle function the panel's own
+                      chip rows already use — one vocabulary, one toggle,
+                      two surfaces. */}
+                  <td className="p-2 align-top" onClick={(e) => e.stopPropagation()}>
+                    <MultiSelectCell
+                      label={`Root cause categories for ${f.title || f.id}`}
+                      options={ROOT_CAUSES}
+                      selected={causes}
+                      onToggle={(v) => onChange(f.id, { rootCauseCategories: toggleMulti(f.rootCauseCategories, v) })}
+                    />
                   </td>
-                  <td className="p-2">
-                    {impact.length === 0 ? (
-                      <span style={{ color: "var(--ink-4)" }}>—</span>
-                    ) : (
-                      <span>
-                        <Pill>{impact[0]}</Pill>
-                        {impact.length > 1 && (
-                          <span className="ml-1 font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>
-                            +{impact.length - 1}
-                          </span>
-                        )}
-                      </span>
-                    )}
+                  <td className="p-2 align-top" onClick={(e) => e.stopPropagation()}>
+                    <MultiSelectCell
+                      label={`Impact areas for ${f.title || f.id}`}
+                      options={IMPACT_AREAS}
+                      selected={impact}
+                      onToggle={(v) => onChange(f.id, { impactAreas: toggleMulti(f.impactAreas, v) })}
+                    />
                   </td>
 
                   {/* Evidence — small counts, reading `attachments`. The
@@ -449,6 +446,59 @@ export default function ReviewRiskTable({
       </div>
 
     </div>
+  );
+}
+
+/** PRIORITY 2 (review redesign) — the table's own inline editor for a
+ *  multi-select axis (Root cause categories, Impact areas), so neither has
+ *  to leave the row for the panel just to toggle one value. A native
+ *  `<details>` disclosure, not a hand-rolled popover: toggling an option
+ *  inside it never closes it (only the summary toggles), it is natively
+ *  keyboard-operable (Enter/Space on the summary, Tab through the chips),
+ *  and it needs no outside-click listener to manage. The caller's own
+ *  `<td onClick={stopPropagation}>` is what keeps opening this from
+ *  selecting the row — this component does not duplicate that guard. */
+function MultiSelectCell({
+  label,
+  options,
+  selected,
+  onToggle,
+}: {
+  label: string;
+  options: readonly string[];
+  selected: string[];
+  onToggle: (value: string) => void;
+}) {
+  return (
+    <details className="group relative inline-block">
+      <summary
+        aria-label={label}
+        className="block cursor-pointer list-none [&::-webkit-details-marker]:hidden"
+      >
+        {selected.length === 0 ? (
+          <span style={{ color: "var(--ink-4)" }}>—</span>
+        ) : (
+          <span>
+            <Pill>{selected[0]}</Pill>
+            {selected.length > 1 && (
+              <span className="ml-1 font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>
+                +{selected.length - 1}
+              </span>
+            )}
+          </span>
+        )}
+      </summary>
+      <div
+        className="absolute z-10 mt-1 flex w-[220px] flex-wrap gap-[4px] rounded-[8px] border p-2 shadow-lg"
+        style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+      >
+        {options.map((o) => (
+          <Chip key={o} selected={selected.includes(o)} onClick={() => onToggle(o)}>
+            {o}
+          </Chip>
+        ))}
+      </div>
+    </details>
   );
 }
 
