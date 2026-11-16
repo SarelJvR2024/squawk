@@ -1089,7 +1089,7 @@ check(
 );
 
 check(
-  "a hazard with no findings carrying these fields reads blank on all four, not undefined or a crash",
+  "a hazard with no findings carrying these fields reads blank on all five, not undefined or a crash",
   (() => {
     const sheet = ex.hazardsSheet({
       ...BASE,
@@ -1100,8 +1100,68 @@ check(
       cellOf(sheet, 0, "Root cause categories (findings)") === "" &&
       cellOf(sheet, 0, "Impact areas (findings)") === "" &&
       cellOf(sheet, 0, "Root cause note (findings)") === "" &&
-      cellOf(sheet, 0, "Root cause note confirmed (findings)") === ""
+      cellOf(sheet, 0, "Root cause note confirmed (findings)") === "" &&
+      cellOf(sheet, 0, "Timeline (findings)") === ""
     );
+  })()
+);
+
+/* ---- Finding.timeline (PR #264's own remediation-urgency field) — found
+   missing from both sheets within hours of the field landing, by the
+   same standing sync-integrity review. The Findings sheet is one row
+   per finding, no aggregation question; the Hazards sheet takes the
+   MOST URGENT of its consolidated findings' timelines, same function
+   sharepoint.ts's own portal sync now uses. ---------------------------- */
+
+check(
+  "the Findings sheet carries a finding's own timeline directly",
+  (() => {
+    const sheet = ex.findingsSheet({
+      ...BASE,
+      checks: [],
+      responses: {},
+      findings: [FINDING_FOR_EXPORT({ timeline: "Immediate" })],
+    });
+    return cellOf(sheet, 0, "Timeline") === "Immediate";
+  })()
+);
+
+check(
+  "a finding with no timeline set reads blank on the Findings sheet, not undefined",
+  (() => {
+    const sheet = ex.findingsSheet({ ...BASE, checks: [], responses: {}, findings: [FINDING_FOR_EXPORT()] });
+    return cellOf(sheet, 0, "Timeline") === "";
+  })()
+);
+
+check(
+  "the Hazards sheet takes the MOST URGENT of its findings' timelines, not the first or the last",
+  (() => {
+    const sheet = ex.hazardsSheet({
+      ...BASE,
+      findings: [
+        FINDING_FOR_EXPORT({ id: "f1", timeline: "Long term" }),
+        FINDING_FOR_EXPORT({ id: "f2", timeline: "Immediate" }),
+        FINDING_FOR_EXPORT({ id: "f3", timeline: "Before next audit" }),
+      ],
+      hazards: [HAZARD_FOR_EXPORT({ findingIds: ["f1", "f2", "f3"] })],
+    });
+    return cellOf(sheet, 0, "Timeline (findings)") === "Immediate";
+  })(),
+  "f2 is Immediate, the most urgent of the three — the hazard's row must say that, not Long term (f1, listed first)"
+);
+
+check(
+  "the Hazards sheet and the portal sync agree on timeline too, from the exact same function",
+  (() => {
+    const findings = [
+      FINDING_FOR_EXPORT({ id: "f1", timeline: "Before next audit" }),
+      FINDING_FOR_EXPORT({ id: "f2", timeline: "Immediate" }),
+    ];
+    const hazard = HAZARD_FOR_EXPORT({ findingIds: ["f1", "f2"] });
+    const sheet = ex.hazardsSheet({ ...BASE, findings, hazards: [hazard] });
+    const viaSync = sp.findingRiskFieldsFor(hazard, findings);
+    return cellOf(sheet, 0, "Timeline (findings)") === viaSync.timeline;
   })()
 );
 

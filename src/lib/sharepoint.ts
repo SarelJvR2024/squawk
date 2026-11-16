@@ -58,6 +58,7 @@ import { apologiesOf } from "./attendanceRegister";
 import { EVIDENCE_COMPLIANCE_LABEL, MEDIUM_LABEL } from "./evidence";
 import { bandFor, BAND_META } from "./risk";
 import { findingTypeFor } from "./reviewRisk";
+import { TIMELINES } from "./riskVocab";
 import { evidenceAxisFor, reviewCombinedCompliance } from "./review";
 import type {
   AdHocItem,
@@ -307,6 +308,14 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
   findingImpactAreas: ["Impact areas", "Finding impact areas"],
   findingRootCauseNote: ["Root cause note", "Finding root cause note", "Possible root cause"],
   findingRootCauseConfirmed: ["Root cause confirmed", "Finding root cause confirmed", "Confirmed with airport"],
+  /* THE REVIEW REDESIGN'S OWN REMEDIATION-URGENCY FIELD (PR #264) —
+     Finding.timeline, aggregated onto the Hazard row the same way as the
+     four fields just above (see findingRiskFieldsFor's own doc comment:
+     the MOST URGENT of the hazard's consolidated findings' timelines,
+     never an average). Found missing by the standing sync-integrity
+     review within hours of the field landing — same bug class, same fix
+     shape. */
+  findingTimeline: ["Timeline", "Remediation timeline", "Finding timeline"],
   /* THE PHOTOGRAPH COLUMNS. Prince Mahlangu, 17 September 2026, on the first
      five files to reach the library: "They carry no metadata at all: CheckID,
      AssetSystem, PhotographReference, CaptionSource and AttachedBy are blank,
@@ -537,7 +546,7 @@ export const FINDING_FIELDS = [
   "photos", "evidenceLink", "evidence", "verifiedBy", "verifiedAt", "possibleEvents",
   "evidenceRequested", "discussionLog",
   "findingRootCauseCategories", "findingImpactAreas", "findingRootCauseNote",
-  "findingRootCauseConfirmed",
+  "findingRootCauseConfirmed", "findingTimeline",
 ] as const;
 
 /** The column contract, for a person to build against: the name to create, and
@@ -1623,9 +1632,16 @@ export function findingRiskFieldsFor(
   impactAreas: string | null;
   rootCauseNote: string | null;
   rootCauseConfirmed: string | null;
+  timeline: string | null;
 } {
   if (!h.findingIds?.length) {
-    return { rootCauseCategories: null, impactAreas: null, rootCauseNote: null, rootCauseConfirmed: null };
+    return {
+      rootCauseCategories: null,
+      impactAreas: null,
+      rootCauseNote: null,
+      rootCauseConfirmed: null,
+      timeline: null,
+    };
   }
   const mine = new Set(h.findingIds);
   const categories = new Set<string>();
@@ -1633,6 +1649,17 @@ export function findingRiskFieldsFor(
   const notes = new Set<string>();
   let withNote = 0;
   let confirmed = 0;
+  /* TIMELINE — the Review redesign's own remediation-urgency field (PR
+     #264, "Immediate"/"Before next audit"/"Long term", TIMELINES in
+     riskVocab.ts, most urgent first), found missing from the portal/
+     workbook by the same standing sync-integrity review that caught the
+     other four. A hazard consolidating several findings takes the MOST
+     URGENT of their timelines, never an average or a join — the same
+     "worst of three" reasoning reviewCombinedCompliance() already uses
+     for compliance: a reader acting on the hazard's own Timeline cell
+     needs to know the earliest deadline any of its findings actually
+     carries, not a muddle of several. */
+  let timelineRank = Infinity;
   for (const f of findings ?? []) {
     if (!mine.has(f.id)) continue;
     for (const c of f.rootCauseCategories ?? []) categories.add(c);
@@ -1643,12 +1670,17 @@ export function findingRiskFieldsFor(
       withNote++;
       if (f.rootCauseConfirmed) confirmed++;
     }
+    if (f.timeline) {
+      const rank = TIMELINES.indexOf(f.timeline);
+      if (rank !== -1 && rank < timelineRank) timelineRank = rank;
+    }
   }
   return {
     rootCauseCategories: categories.size ? [...categories].join(", ") : null,
     impactAreas: areas.size ? [...areas].join(", ") : null,
     rootCauseNote: notes.size ? [...notes].join(" | ") : null,
     rootCauseConfirmed: withNote ? `${confirmed} of ${withNote} confirmed` : null,
+    timeline: timelineRank === Infinity ? null : TIMELINES[timelineRank],
   };
 }
 
@@ -2287,6 +2319,7 @@ export function buildPlan(
         findingImpactAreas: riskFields.impactAreas,
         findingRootCauseNote: riskFields.rootCauseNote,
         findingRootCauseConfirmed: riskFields.rootCauseConfirmed,
+        findingTimeline: riskFields.timeline,
         observation: [h.event, h.description].filter(Boolean).join(" — "),
         severity: agreed ? portalSeverity(h.ermConsequence) : null,
         likelihood: agreed ? portalLikelihood(h.ermLikelihood) : null,

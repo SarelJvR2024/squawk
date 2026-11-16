@@ -417,6 +417,12 @@ export function findingsSheet(x: ExportInput): Sheet {
       (f.impactAreas ?? []).join(", "),
       f.rootCauseNote ?? "",
       f.rootCauseNote ? (f.rootCauseConfirmed ? "Confirmed with airport" : "Not yet confirmed") : "",
+      /* THE REVIEW REDESIGN'S OWN REMEDIATION-URGENCY FIELD (PR #264) —
+         found missing from this sheet by the standing sync-integrity
+         review within hours of the field landing. One row per finding
+         here, so this is exactly this finding's own value — no
+         aggregation question, same reasoning as the four fields above. */
+      f.timeline ?? "",
       /* Several actions now, each with its own discipline, owner, date and
          status — flattened the same way the asset-system assessment sheet
          already flattens MitigationAction[], one line each, so a reader
@@ -495,6 +501,7 @@ export function findingsSheet(x: ExportInput): Sheet {
       { header: "Impact areas", width: 30, wrap: true },
       { header: "Root cause note", width: 40, wrap: true },
       { header: "Root cause note confirmed", width: 18 },
+      { header: "Timeline", width: 18 },
       { header: "Remediation action", width: 58, wrap: true },
       { header: "Owner", width: 30 },
       { header: "Due date", width: 12 },
@@ -975,6 +982,12 @@ export function hazardsSheet(x: ExportInput): Sheet {
       riskFields.impactAreas ?? "",
       riskFields.rootCauseNote ?? "",
       riskFields.rootCauseConfirmed ?? "",
+      /* THE REVIEW REDESIGN'S OWN REMEDIATION-URGENCY FIELD (PR #264) —
+         found missing from this sheet and the portal within hours of the
+         field landing, by the same standing sync-integrity review. The
+         MOST URGENT of the hazard's consolidated findings' timelines —
+         see findingRiskFieldsFor's own doc comment. */
+      riskFields.timeline ?? "",
       h.disciplines.length,
       h.findingIds.join(" · "),
       h.findingIds.length,
@@ -1067,6 +1080,7 @@ export function hazardsSheet(x: ExportInput): Sheet {
       { header: "Impact areas (findings)", width: 30, wrap: true },
       { header: "Root cause note (findings)", width: 40, wrap: true },
       { header: "Root cause note confirmed (findings)", width: 20 },
+      { header: "Timeline (findings)", width: 18 },
       { header: "Disciplines spanned", width: 18 },
       { header: "Findings behind it", width: 30 },
       { header: "Findings", width: 10 },
