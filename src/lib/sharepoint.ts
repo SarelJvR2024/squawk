@@ -535,6 +535,7 @@ export const FINDING_FIELDS = [
   "severity", "likelihood", "riskPriority", "tolerance", "status", "rootCause",
   "treatment", "owner", "targetDate", "progress", "dateRaised", "assets",
   "photos", "evidenceLink", "evidence", "verifiedBy", "verifiedAt", "possibleEvents",
+  "evidenceRequested", "discussionLog",
   "findingRootCauseCategories", "findingImpactAreas", "findingRootCauseNote",
   "findingRootCauseConfirmed",
 ] as const;
