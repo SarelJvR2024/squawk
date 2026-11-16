@@ -192,12 +192,18 @@ check(
   /* UX-audit P1 added disciplineFilterByEntity (src/lib/store.ts), an
      unrelated persisted field, and bumped the version 37 -> 38 for it.
      Finding.attachments (types.ts) did the same, unrelated again, 38 -> 39
-     — see store.ts's own `from < 39` migration block. This assertion's own
-     point — that importing this file's hazard mapping adds no new stored
-     field of ITS OWN — still holds; it is re-pinned to the version that
-     change actually landed on, same as the first time this happened. */
+     — see store.ts's own `from < 39` migration block. Then the Review
+     risk-fields addendum's rootCauseCategories/impactAreas, 39 -> 40,
+     Review table v2's EvidenceItem.analysisAt/analysisNote, 40 -> 41, and
+     Evidence review's EvidenceItem.insufficientAt/insufficientReason,
+     41 -> 42 (`from < 42`). This assertion's own point — that
+     importing this file's hazard mapping adds no new stored field of ITS
+     OWN — still holds; it is re-pinned to the version that change
+     actually landed on, same as every time before this. Re-pin the
+     NUMBER here, not the reasoning, if this goes stale again — `grep -n
+     "version: " src/lib/store.ts | tail -1` is the live value. */
   "the migration version is unchanged — this import adds no new field, unlike the first hazard-mapping wave",
-  /version:\s*39,/.test(store)
+  /version:\s*42,/.test(store)
 );
 
 /* The two hazard-mapping waves must never collide — same entity/visit,

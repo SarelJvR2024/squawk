@@ -802,9 +802,13 @@ check(
 );
 /* Scoped to the photo button's own render. role="alert" appears elsewhere in
    this file, so an unscoped match would pass whether or not the notice exists —
-   an assertion that cannot fail is not one. */
+   an assertion that cannot fail is not one. Anchored on the function itself,
+   not its aria-label text — "upload a photo from the gallery, not just the
+   camera" (#236) made that label conditional on fromLibrary, which silently
+   broke the old literal-string anchor and made this check vacuous (slice on
+   a -1 start index) rather than failing loudly for the wrong reason. */
 const photoRender = capture.slice(
-  capture.indexOf('aria-label={label ?? "Take a photograph"}'),
+  capture.indexOf("export function PhotoButton({"),
   capture.indexOf("/* ---------- rendering what was captured ---------- */")
 );
 check(
