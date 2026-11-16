@@ -18,6 +18,7 @@ const read = (...p) => fs.readFileSync(path.join(here, "..", ...p), "utf8");
 
 const R = await import("../src/lib/reviewRisk.ts");
 const risk = await import("../src/lib/risk.ts");
+const register = await import("../src/lib/register.ts");
 
 const types = read("src", "lib", "types.ts");
 const panel = read("src", "components", "ReviewRiskPanel.tsx");
@@ -337,6 +338,143 @@ check(
   !/People & training/.test(read("src", "lib", "riskVocab.ts")) &&
     !/Equipment & design/.test(read("src", "lib", "riskVocab.ts")),
   "those six words are the brief's PROVISIONAL list — see the discovery note's open question"
+);
+
+/* ---- 9 · PRIORITY 4 (review redesign) — the panel's hierarchy editor:
+   Discipline/Asset system/Audit check, with incompatible selections
+   cleared rather than left pointing at a level that no longer lines up */
+
+check(
+  "the panel renders a Discipline, an Asset system and an Audit check select, under one 'Linked to' heading",
+  /Linked to<\/div>/.test(panel) &&
+    /value=\{finding\.discipline\}/.test(panel) &&
+    /value=\{finding\.system \|\| ""\}/.test(panel) &&
+    /value=\{finding\.checkId \?\? ""\}/.test(panel)
+);
+check(
+  "Discipline has no empty/General option — the type requires it non-empty",
+  (() => {
+    const block = panel.match(/Discipline<\/span>[\s\S]{0,600}?<\/select>/)?.[0] ?? "";
+    return block.length > 0 && !/General/.test(block);
+  })()
+);
+check(
+  "Asset system and Audit check both offer General, stored as empty string / null, never the word \"General\" itself",
+  /<option value="">General \(no asset system\)<\/option>/.test(panel) &&
+    /<option value="">General \(no audit check\)<\/option>/.test(panel) &&
+    /onChange\(\{ checkId: e\.target\.value \|\| null \}\)/.test(panel)
+);
+check(
+  "the Asset system options are scoped to the finding's OWN discipline via systemsOf, not every system at the entity",
+  /const systemOptions = systemsOf\(entityCode, finding\.discipline\)/.test(panel)
+);
+check(
+  "the Audit check options are scoped to discipline AND system via checksOf, not a flat list of every check",
+  /const checkOptions = checksOf\(entityCode, finding\.discipline, finding\.system \|\| undefined\)/.test(panel)
+);
+
+/* Behavioral: the exact clearing rule, replicated against the REAL
+   register (checksOf/systemsOf/disciplinesAt), not a hand-rolled fixture
+   hierarchy that could drift from what the app actually ships. */
+const ENTITY = "FAOR";
+const [disciplineA, disciplineB] = register.disciplinesAt(ENTITY);
+const systemUnderA = register.systemsOf(ENTITY, disciplineA)[0];
+const checkUnderA = register.checksOf(ENTITY, disciplineA, systemUnderA)[0]?.id ?? null;
+
+function onDisciplineChange(nextDiscipline, current) {
+  const validSystems = register.systemsOf(ENTITY, nextDiscipline);
+  const nextSystem = current.system && validSystems.includes(current.system) ? current.system : "";
+  const validCheckIds = new Set(
+    register.checksOf(ENTITY, nextDiscipline, nextSystem || undefined).map((c) => c.id)
+  );
+  const nextCheckId = current.checkId && validCheckIds.has(current.checkId) ? current.checkId : null;
+  return { discipline: nextDiscipline, system: nextSystem, checkId: nextCheckId };
+}
+
+check(
+  "switching discipline to one that does not carry the current system clears BOTH system and check",
+  (() => {
+    const current = { discipline: disciplineA, system: systemUnderA, checkId: checkUnderA };
+    const patched = onDisciplineChange(disciplineB, current);
+    const bSystems = register.systemsOf(ENTITY, disciplineB);
+    return (
+      !bSystems.includes(systemUnderA) && // the fixture's own premise
+      patched.discipline === disciplineB &&
+      patched.system === "" &&
+      patched.checkId === null
+    );
+  })(),
+  `${disciplineA} -> ${disciplineB}, system was ${systemUnderA}`
+);
+check(
+  "switching discipline back to its own current value changes nothing — system/check survive",
+  (() => {
+    const current = { discipline: disciplineA, system: systemUnderA, checkId: checkUnderA };
+    const patched = onDisciplineChange(disciplineA, current);
+    return patched.system === systemUnderA && patched.checkId === checkUnderA;
+  })()
+);
+check(
+  "a finding with no system/check to begin with (General/General) stays General after a discipline change — nothing to clear, no crash",
+  (() => {
+    const current = { discipline: disciplineA, system: "", checkId: null };
+    const patched = onDisciplineChange(disciplineB, current);
+    return patched.system === "" && patched.checkId === null;
+  })()
+);
+
+/* ---- 10 · PRIORITY 2 (review redesign) — regression baseline. Not new
+   behaviour: proving what PRs 1-7 already rely on still holds. --------- */
+
+/* Refresh-survival. formshub.test.mjs's own header explains why this repo
+ * never actually drives zustand's persist middleware through a real
+ * IndexedDB under plain node (idb-keyval needs a real `indexedDB` global
+ * this process does not have) — so, same as every other persistence claim
+ * in this codebase, this is proven by reading the real partialize()
+ * config: an edit survives a reload exactly when the field it touches is
+ * included in what gets written to storage, not by a hand-maintained
+ * belief that it is. */
+check(
+  "findings (what updateFinding writes) is included in the zustand persist middleware's own partialize() -- an edit reaches the SAME storage write every other persisted field does",
+  /partialize: \(s: State\) => \(\{[\s\S]{0,400}findings: s\.findings,/.test(storeSrc)
+);
+check(
+  "updateFinding writes into s.findings, the exact slice partialize() reads -- not a parallel copy that partialize never sees",
+  /updateFinding: \(id, p\) =>\s*\n\s*set\(\(s\) => \(\{\s*\n\s*findings: s\.findings\.map/.test(storeSrc)
+);
+
+/* Table/panel consistency. Both read from the SAME findings array by
+ * construction -- there is no second fetch, no local copy either
+ * component maintains that could drift from the other. */
+check(
+  "the table's own findings prop and the panel's own finding prop both trace back to ONE useVisitFindings() call in page.tsx, not two independent reads",
+  (() => {
+    const findingsDecl = (reviewPage.match(/const findings = useVisitFindings\(\);/g) ?? []).length;
+    return (
+      findingsDecl === 1 &&
+      /riskActive = findings\.find\(\(f\) => f\.id === riskActiveId\) \?\? null;/.test(reviewPage) &&
+      /findings=\{findings\}/.test(reviewPage) &&
+      /finding=\{riskActive\}/.test(reviewPage)
+    );
+  })()
+);
+check(
+  "editing a row in the table (updateFinding) and reading it in the panel both go through the SAME Finding object reference on the next render -- riskActive is derived from findings, not a snapshot taken once",
+  /const riskActive = findings\.find/.test(reviewPage) && !/useState[^;]*riskActive[^I]/.test(reviewPage)
+);
+
+/* The passphrase gate. tests/shared.js already proves a wrong passphrase
+ * (line ~287) and an empty one (line ~297) both 401 -- per the user's own
+ * decision (see PR #248's description and this session's own Priority
+ * redesign plan), that existing coverage is the whole of what this
+ * redesign owes the auth/cross-entity gap it is explicitly NOT fixing.
+ * Asserted here by reading the real assertions rather than re-describing
+ * them, so this suite fails loudly if that coverage is ever weakened
+ * without anyone noticing it from the Review side. */
+const sharedSrc = read("tests", "shared.js");
+check(
+  "the existing passphrase gate (tests/shared.js) still asserts 401 on a wrong passphrase and on no passphrase at all -- unchanged by this redesign, and this is ALL the auth coverage the redesign owes (the cross-entity gap itself is a separate, reported, out-of-scope finding)",
+  /wrong\.status\(\) === 401/.test(sharedSrc) && /empty\.status\(\) === 401/.test(sharedSrc)
 );
 
 console.log(failures === 0 ? "\nREVIEW RISK FIELDS OK" : `\n${failures} FAILURES`);

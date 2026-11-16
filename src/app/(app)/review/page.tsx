@@ -46,6 +46,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  checksAt,
   checksOf,
   disciplinesAt,
   priorFor,
@@ -133,6 +134,18 @@ export default function ReviewPage() {
     () => checksOf(entityCode, discipline),
     [entityCode, discipline]
   );
+
+  /* PRIORITY 4 (review redesign) — the Risk panel's "From linked audit
+     check" summary links back here. Switches BOTH the tab and the "By
+     check" tree's own discipline/active-check state, so landing on the
+     check actually shows it rather than leaving the reviewer on whatever
+     discipline the tree happened to be scrolled to before. */
+  const openCheckInByCheckTab = (checkId: string) => {
+    const c = checksAt(entityCode).find((check) => check.id === checkId);
+    if (c) setDiscipline(c.discipline);
+    setActiveId(checkId);
+    setTab("checks");
+  };
 
   const findingsOn = (checkId: string) => findings.filter((f) => f.checkId === checkId);
 
@@ -241,6 +254,7 @@ export default function ReviewPage() {
           <ReviewRiskTable
             findings={findings}
             entityCode={entityCode}
+            responses={responses}
             activeId={riskActive?.id ?? null}
             onActivate={setRiskActiveId}
             onChange={(id, patch) => updateFinding(id, patch)}
@@ -253,8 +267,10 @@ export default function ReviewPage() {
               <ReviewRiskPanel
                 key={riskActive.id}
                 finding={riskActive}
+                entityCode={entityCode}
                 onChange={(patch) => updateFinding(riskActive.id, patch)}
                 onClose={() => setRiskActiveId(null)}
+                onOpenCheck={openCheckInByCheckTab}
               />
             </div>
           )}

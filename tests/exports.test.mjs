@@ -992,5 +992,118 @@ check(
   })()
 );
 
+/* ---- the Review risk-fields addendum's own four, on both sheets — found
+   by the standing sync-integrity review: captured and editable on
+   /review, never written to either workbook sheet before now. The
+   Findings sheet is one row per finding (no aggregation question); the
+   Hazards sheet reads the SAME findingRiskFieldsFor() sharepoint.ts's own
+   portal sync uses, aggregated across the hazard's consolidated
+   findings — one shared function, not a third hand-rolled copy. -------- */
+
+check(
+  "the Findings sheet carries a finding's own root-cause categories, impact areas and note",
+  (() => {
+    const sheet = ex.findingsSheet({
+      ...BASE,
+      checks: [],
+      responses: {},
+      findings: [
+        FINDING_FOR_EXPORT({
+          rootCauseCategories: ["Maintenance", "Procedure"],
+          impactAreas: ["Operations"],
+          rootCauseNote: "Drainage fault",
+          rootCauseConfirmed: true,
+        }),
+      ],
+    });
+    return (
+      cellOf(sheet, 0, "Root cause categories") === "Maintenance, Procedure" &&
+      cellOf(sheet, 0, "Impact areas") === "Operations" &&
+      cellOf(sheet, 0, "Root cause note") === "Drainage fault" &&
+      cellOf(sheet, 0, "Root cause note confirmed") === "Confirmed with airport"
+    );
+  })()
+);
+
+check(
+  "a finding with a note nobody has confirmed yet reads Not yet confirmed, not blank",
+  (() => {
+    const sheet = ex.findingsSheet({
+      ...BASE,
+      checks: [],
+      responses: {},
+      findings: [FINDING_FOR_EXPORT({ rootCauseNote: "Still being checked", rootCauseConfirmed: false })],
+    });
+    return cellOf(sheet, 0, "Root cause note confirmed") === "Not yet confirmed";
+  })()
+);
+
+check(
+  "a finding with none of the four set reads blank on every one of them, not undefined or a crash",
+  (() => {
+    const sheet = ex.findingsSheet({ ...BASE, checks: [], responses: {}, findings: [FINDING_FOR_EXPORT()] });
+    return (
+      cellOf(sheet, 0, "Root cause categories") === "" &&
+      cellOf(sheet, 0, "Impact areas") === "" &&
+      cellOf(sheet, 0, "Root cause note") === "" &&
+      cellOf(sheet, 0, "Root cause note confirmed") === ""
+    );
+  })()
+);
+
+check(
+  "the Hazards sheet aggregates its findings' root-cause categories and impact areas, deduplicated",
+  (() => {
+    const sheet = ex.hazardsSheet({
+      ...BASE,
+      findings: [
+        FINDING_FOR_EXPORT({ id: "f1", rootCauseCategories: ["Maintenance"], impactAreas: ["Operations"] }),
+        FINDING_FOR_EXPORT({ id: "f2", rootCauseCategories: ["Maintenance", "Procedure"], impactAreas: ["Process safety"] }),
+      ],
+      hazards: [HAZARD_FOR_EXPORT({ findingIds: ["f1", "f2"] })],
+    });
+    return (
+      cellOf(sheet, 0, "Root cause categories (findings)") === "Maintenance, Procedure" &&
+      cellOf(sheet, 0, "Impact areas (findings)") === "Operations, Process safety"
+    );
+  })(),
+  "f1 and f2 both tag Maintenance — one entry on the hazard's row, not two"
+);
+
+check(
+  "the Hazards sheet and the portal sync agree, from the exact same function",
+  (() => {
+    const findings = [
+      FINDING_FOR_EXPORT({ id: "f1", rootCauseNote: "Corrosion", rootCauseConfirmed: true }),
+      FINDING_FOR_EXPORT({ id: "f2", rootCauseNote: "No log found", rootCauseConfirmed: false }),
+    ];
+    const hazard = HAZARD_FOR_EXPORT({ findingIds: ["f1", "f2"] });
+    const sheet = ex.hazardsSheet({ ...BASE, findings, hazards: [hazard] });
+    const viaSync = sp.findingRiskFieldsFor(hazard, findings);
+    return (
+      cellOf(sheet, 0, "Root cause note (findings)") === viaSync.rootCauseNote &&
+      cellOf(sheet, 0, "Root cause note confirmed (findings)") === viaSync.rootCauseConfirmed
+    );
+  })(),
+  "two independent flattening copies of the same aggregation is exactly how one gets the fix and the other doesn't"
+);
+
+check(
+  "a hazard with no findings carrying these fields reads blank on all four, not undefined or a crash",
+  (() => {
+    const sheet = ex.hazardsSheet({
+      ...BASE,
+      findings: [FINDING_FOR_EXPORT({ id: "f1" })],
+      hazards: [HAZARD_FOR_EXPORT({ findingIds: ["f1"] })],
+    });
+    return (
+      cellOf(sheet, 0, "Root cause categories (findings)") === "" &&
+      cellOf(sheet, 0, "Impact areas (findings)") === "" &&
+      cellOf(sheet, 0, "Root cause note (findings)") === "" &&
+      cellOf(sheet, 0, "Root cause note confirmed (findings)") === ""
+    );
+  })()
+);
+
 console.log(`\n${failures === 0 ? "ALL PASS" : `${failures} FAILED`}`);
 process.exit(failures ? 1 : 0);

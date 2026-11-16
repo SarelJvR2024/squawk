@@ -23,6 +23,7 @@
  *  definition or a band label, for the same reason risk.ts's own header
  *  explains at length. */
 
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LIKELIHOOD_DEF, LIKELIHOODS, SEVERITIES, SEVERITY_DEF, BAND_META, bandFor } from "@/lib/risk";
 import {
@@ -33,11 +34,32 @@ import {
   priorityFor,
   toggleMulti,
 } from "@/lib/reviewRisk";
+import { evidenceAxisFor, reviewCombinedCompliance } from "@/lib/review";
+import { assist, polishContext, useAssistAvailable } from "@/lib/assist";
 import { TRACKING_LABEL, trackingStage } from "@/lib/evidence";
-import { useStore, useEvidenceItems } from "@/lib/store";
+import { checksAt, checksOf, disciplinesAt, systemsOf } from "@/lib/register";
+import { useStore, useEvidenceItems, useFieldSaveStatus, useResponses } from "@/lib/store";
 import RatingPicker from "@/components/RatingPicker";
-import { Chip, Pill } from "@/components/ui/primitives";
-import type { Finding, Likelihood, Severity } from "@/lib/types";
+import { AttachmentStrip } from "@/components/Capture";
+import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
+import type { Compliance, Finding, Likelihood, Severity } from "@/lib/types";
+
+/** Read-only — same tone convention as ReviewDetail.tsx's own StatusCell,
+ *  recomputed here rather than imported since that component is local
+ *  (not exported) and this is a presentation detail, not shared logic
+ *  worth a new export. */
+const COMPLIANCE_TONE: Record<Compliance, "good" | "bad" | "warn" | "neutral"> = {
+  C: "good",
+  NC: "bad",
+  NV: "warn",
+  "N/A": "neutral",
+};
+const COMPLIANCE_LABEL: Record<Compliance, string> = {
+  C: "Compliant",
+  NC: "Non-compliant",
+  NV: "Not verified",
+  "N/A": "Not applicable",
+};
 
 export type RiskPatch = Pick<
   Finding,
@@ -49,14 +71,32 @@ export type RiskPatch = Pick<
   | "rootCauseNote"
   | "rootCauseConfirmed"
   | "findingType"
+  /* PRIORITY 4 (review redesign) — Discipline/Asset system/Audit check,
+     added so the hierarchy editor below can patch through the SAME
+     onChange every other field here already uses, rather than a second
+     callback prop just for these three. */
+  | "discipline"
+  | "system"
+  | "checkId"
+  /* PRIORITY 7 (review redesign) — description becomes editable here so
+     the "Suggest wording" AI action below has an ordinary field to
+     improve, not a read-only paragraph with nowhere for an accepted
+     suggestion (or a human tweak) to land. */
+  | "description"
 >;
 
 export default function ReviewRiskPanel({
   finding,
-  onChange,
+  entityCode,
+  onChange: onChangeProp,
   onClose,
+  onOpenCheck,
 }: {
   finding: Finding;
+  /** For the hierarchy editor's own discipline/system/check option lists —
+   *  same entity-scoped register reads ReviewRiskTable's filters already
+   *  use, never a second copy of the register. */
+  entityCode: string;
   /** The caller owns the write (ReviewPage calls updateFinding), same
    *  division of labour as RecordActions' own onChange. */
   onChange: (patch: Partial<RiskPatch>) => void;
@@ -64,9 +104,134 @@ export default function ReviewRiskPanel({
    *  /review's own page), so it needs a way back to "nothing selected,
    *  full-width table" rather than staying pinned to the last row forever. */
   onClose: () => void;
+  /** PRIORITY 4 — "From linked audit check" (below) hands off to the
+   *  real "By check" tab/ReviewDetail for that exact check, rather than
+   *  duplicating its own editing UI here. The caller owns switching tabs
+   *  and the tree's own discipline/active-check state. */
+  onOpenCheck: (checkId: string) => void;
 }) {
   const priority = priorityFor(finding);
   const type = findingTypeFor(finding);
+
+  /* PRIORITY 2 (review redesign) — "show saving, saved and failed states;
+     never silently lose an edit." `dirty` is a plain boolean, not a fresh
+     Date.now() read here — calling Date.now() inside a component is an
+     impure-during-render risk the React Compiler's own lint rule refuses
+     (`react-hooks/purity`), so the timestamp useFieldSaveStatus compares
+     against is `finding.updatedAt`, already stamped by updateFinding
+     itself (store.ts, same set() call as lastSavedAt) the moment this
+     edit actually lands — not a second, independently-read clock that
+     could disagree with it. Reset to false on every finding change (the
+     `key={finding.id}` the caller already passes remounts this component
+     per finding, so this is really "edited since THIS finding opened,"
+     not carried stale from the last one). */
+  const [dirty, setDirty] = useState(false);
+  function onChange(patch: Partial<RiskPatch>) {
+    setDirty(true);
+    onChangeProp(patch);
+  }
+  const saveStatus = useFieldSaveStatus(dirty ? (finding.updatedAt ?? null) : null);
+
+  /* PRIORITY 4 (review redesign) — "allow editing of Discipline, Asset
+     system and Audit check. Prevent incompatible hierarchy links."
+     Discipline is required (the type itself never allows it empty); Asset
+     system and Audit check are both optional ("General"), stored as ""
+     and null respectively — same convention ReviewRiskTable's own display
+     already reads (f.system ? f.system : "General"), never a sentinel
+     string like "General" written into the record itself.
+
+     Changing discipline can orphan the system/check the auditor had
+     picked (a system/check that belongs to the OLD discipline, not the
+     new one) — cleared here rather than left pointing at a hierarchy
+     level that no longer lines up, which is what "prevent incompatible
+     links" means for an edit rather than a filter. Changing system alone
+     can equally orphan just the check. There is nothing to extract from
+     ReviewRiskTable's own discipline→system FILTER logic (a different
+     problem: narrowing options, not clearing a stored value) — this is
+     self-contained, entity-scoped register reads, same functions. */
+  const disciplineOptions = disciplinesAt(entityCode);
+  const systemOptions = systemsOf(entityCode, finding.discipline);
+  const checkOptions = checksOf(entityCode, finding.discipline, finding.system || undefined);
+
+  function onDisciplineChange(nextDiscipline: string) {
+    const validSystems = systemsOf(entityCode, nextDiscipline);
+    const nextSystem = finding.system && validSystems.includes(finding.system) ? finding.system : "";
+    const validCheckIds = new Set(
+      checksOf(entityCode, nextDiscipline, nextSystem || undefined).map((c) => c.id)
+    );
+    const nextCheckId = finding.checkId && validCheckIds.has(finding.checkId) ? finding.checkId : null;
+    onChange({ discipline: nextDiscipline, system: nextSystem, checkId: nextCheckId });
+  }
+
+  function onSystemChange(nextSystem: string) {
+    const validCheckIds = new Set(
+      checksOf(entityCode, finding.discipline, nextSystem || undefined).map((c) => c.id)
+    );
+    const nextCheckId = finding.checkId && validCheckIds.has(finding.checkId) ? finding.checkId : null;
+    onChange({ system: nextSystem, checkId: nextCheckId });
+  }
+
+  /* PRIORITY 4 — "Show all relevant... compliance assessments, clearly
+     identifying their source." For a finding with no checkId there is no
+     check-level compliance to show at all — the summary below is omitted
+     entirely, not rendered empty. For one that has it, this reads the
+     EXACT same three axes and the exact same derivation ReviewDetail.tsx's
+     own sticky compliance strip uses (reviewCombinedCompliance/
+     evidenceAxisFor, src/lib/review.ts) — never re-derived, and never
+     editable here: editing happens on the real "By check" tab, which
+     "Open" below hands off to. */
+  const responses = useResponses();
+  const evidenceItems = useEvidenceItems();
+  const linkedCheck = useMemo(
+    () => (finding.checkId ? checksAt(entityCode).find((c) => c.id === finding.checkId) : undefined),
+    [entityCode, finding.checkId]
+  );
+  const linkedResponse = finding.checkId ? responses[finding.checkId] : undefined;
+  const linkedEvidenceAxis = useMemo(() => {
+    if (!linkedResponse || !finding.checkId) return null;
+    const forThisCheck = evidenceItems.filter((e) => e.checkIds.includes(finding.checkId!));
+    return evidenceAxisFor(linkedResponse.evidenceVerdict, forThisCheck);
+  }, [linkedResponse, evidenceItems, finding.checkId]);
+  const linkedCombined = linkedResponse
+    ? reviewCombinedCompliance(linkedResponse.compliance, linkedEvidenceAxis, linkedResponse.siteInspection)
+    : null;
+
+  /* PRIORITY 7 (review redesign) — "Suggest wording" beside the
+     description. Reuses the existing "polish" task/polishContext
+     (src/lib/assistPrompts.ts, src/lib/assist.ts) rather than a new
+     prompt — polishContext's own doc comment names "a finding's title"
+     as exactly the `about` argument this call supplies, and "polish" was
+     already written, reviewed and shares SYSTEM's house rules (never
+     invent a fact; the auditor decides); it had simply never been called
+     from anywhere before this. EPHEMERAL, ON PURPOSE, same convention as
+     EvidenceReviewPanel's own suggestion state: nothing is written until
+     Accept, and Reject clears this local state rather than persisting a
+     rejected draft anywhere — see this file's own onChange wrapper for
+     why `key={finding.id}` is what resets it between findings, not an
+     effect here. */
+  const aiOn = useAssistAvailable();
+  const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [editingSuggestion, setEditingSuggestion] = useState(false);
+  const [suggestionEditText, setSuggestionEditText] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  async function runPolish() {
+    setAiBusy(true);
+    setAiError(null);
+    try {
+      const text = await assist(
+        "polish",
+        polishContext(finding.description, finding.discipline, finding.system, "note", finding.title || undefined)
+      );
+      setSuggestion(text.trim());
+      setEditingSuggestion(false);
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : "The assistant is unavailable.");
+    } finally {
+      setAiBusy(false);
+    }
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -78,7 +243,10 @@ export default function ReviewRiskPanel({
         className="sticky top-0 z-[2] flex shrink-0 items-center justify-between border-b px-3 py-2"
         style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
       >
-        <b className="font-display text-[11.5px] font-semibold">Finding</b>
+        <div className="flex items-center gap-[8px]">
+          <b className="font-display text-[11.5px] font-semibold">Finding</b>
+          <SaveStatusPill status={saveStatus} />
+        </div>
         <button
           type="button"
           onClick={onClose}
@@ -104,6 +272,192 @@ export default function ReviewRiskPanel({
           </Chip>
         ))}
       </div>
+
+      {/* PRIORITY 4 — "Linked to", same label EvidenceReviewPanel's own
+          hierarchy editor already uses for the same three levels, so a
+          reviewer who has seen one recognises the other. Discipline is
+          required; Asset system and Audit check both offer "General". */}
+      <div className="mb-2 font-display text-[11px] font-semibold">Linked to</div>
+      <label className="mb-2 block">
+        <span className="label-xs">Discipline</span>
+        <select
+          value={finding.discipline}
+          onChange={(e) => onDisciplineChange(e.target.value)}
+          className="mt-1 w-full rounded-[8px] border px-2.5 py-2 text-[12.5px] outline-none focus:border-[var(--acc)]"
+          style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+        >
+          {disciplineOptions.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="mb-2 block">
+        <span className="label-xs">Asset system</span>
+        <select
+          value={finding.system || ""}
+          onChange={(e) => onSystemChange(e.target.value)}
+          className="mt-1 w-full rounded-[8px] border px-2.5 py-2 text-[12.5px] outline-none focus:border-[var(--acc)]"
+          style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+        >
+          <option value="">General (no asset system)</option>
+          {systemOptions.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="mb-3.5 block">
+        <span className="label-xs">Audit check</span>
+        <select
+          value={finding.checkId ?? ""}
+          onChange={(e) => onChange({ checkId: e.target.value || null })}
+          className="mt-1 w-full rounded-[8px] border px-2.5 py-2 text-[12.5px] outline-none focus:border-[var(--acc)]"
+          style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+        >
+          <option value="">General (no audit check)</option>
+          {checkOptions.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.requirement.slice(0, 80)}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {/* PRIORITY 4/7 — notes, photos and recordings this finding carries
+          itself, clearly labelled as THIS finding's own capture (not the
+          linked check's — Response.attachments is a separate pool, see
+          Finding.attachments' own doc comment in types.ts). The
+          description is editable here (PRIORITY 7 needs an ordinary field
+          for "Suggest wording" to improve); attachments stay read-only —
+          editing a finding's own photo/voice capture happens wherever it
+          was raised, this panel only shows it. */}
+      <div className="mb-3.5">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="font-display text-[11px] font-semibold">
+            Notes, photos &amp; recordings — this finding
+          </span>
+          {aiOn && (
+            <AiSuggestButton
+              disabled={!finding.description.trim() || aiBusy}
+              busy={aiBusy}
+              onRun={() => void runPolish()}
+            />
+          )}
+        </div>
+        <textarea
+          value={finding.description}
+          onChange={(e) => onChange({ description: e.target.value })}
+          placeholder="What was found, in the auditor's own words…"
+          className="mb-2 min-h-[72px] w-full resize-y rounded-[8px] border px-2.5 py-2 text-[12.5px] outline-none focus:border-[var(--acc)]"
+          style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+        />
+        {aiError && (
+          <p role="alert" className="mb-2 text-[11px] font-semibold" style={{ color: "var(--bad)" }}>
+            {aiError}
+          </p>
+        )}
+        {/* PRIORITY 7 — "Every AI change must be a proposal requiring
+            review and approval. Rejection leaves the original untouched."
+            Exact same ephemeral Accept/Edit/Reject shape
+            EvidenceReviewPanel.tsx already uses for its own suggestions —
+            nothing here is written until Accept; Reject only clears this
+            local state. */}
+        {suggestion && (
+          <div
+            className="mb-2 rounded-[8px] border p-2.5 text-[12px]"
+            style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+          >
+            <div className="label-xs mb-1" style={{ color: "var(--ink-3)" }}>
+              Suggested wording · yours to accept, edit or reject
+            </div>
+            {editingSuggestion ? (
+              <textarea
+                value={suggestionEditText}
+                onChange={(e) => setSuggestionEditText(e.target.value)}
+                rows={3}
+                aria-label="Edit the suggestion before accepting"
+                className="mb-2 w-full resize-y rounded-[6px] border px-2 py-1.5 text-[12px]"
+                style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+              />
+            ) : (
+              <p className="mb-2 whitespace-pre-wrap">{suggestion}</p>
+            )}
+            <div className="flex gap-[6px]">
+              <button
+                type="button"
+                onClick={() => {
+                  onChange({ description: editingSuggestion ? suggestionEditText : suggestion });
+                  setSuggestion(null);
+                  setEditingSuggestion(false);
+                }}
+                className="rounded-[6px] px-[9px] py-[5px] text-[11px] font-semibold"
+                style={{ background: "var(--acc)", color: "#fff" }}
+              >
+                Accept
+              </button>
+              {!editingSuggestion && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingSuggestion(true);
+                    setSuggestionEditText(suggestion);
+                  }}
+                  className="rounded-[6px] border px-[9px] py-[5px] text-[11px] font-semibold"
+                  style={{ borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+                >
+                  Edit
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setSuggestion(null);
+                  setEditingSuggestion(false);
+                }}
+                className="rounded-[6px] px-[9px] py-[5px] text-[11px] font-semibold"
+                style={{ color: "var(--bad)" }}
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        )}
+        {finding.attachments.length > 0 && <AttachmentStrip attachments={finding.attachments} thumbSize={56} />}
+      </div>
+
+      {/* PRIORITY 4 — "compliance assessments, clearly identifying their
+          source." Omitted entirely with no checkId: there is no check-
+          level compliance to show. Read-only summary, never a second
+          place to edit it — "Open" hands off to the real screen. */}
+      {finding.checkId && linkedResponse && (
+        <div className="mb-3.5 rounded-[11px] border p-2.5" style={{ borderColor: "var(--line-2)" }}>
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="font-display text-[11px] font-semibold">From linked audit check</span>
+            <button
+              type="button"
+              onClick={() => onOpenCheck(finding.checkId!)}
+              className="text-[10.5px] font-semibold underline"
+              style={{ color: "var(--acc)" }}
+            >
+              Open in By check
+            </button>
+          </div>
+          {linkedCheck && (
+            <div className="mb-1.5 text-[11px]" style={{ color: "var(--ink-3)" }}>
+              {linkedCheck.requirement.slice(0, 110)}
+            </div>
+          )}
+          <div className="flex flex-wrap gap-[6px]">
+            <ComplianceChip label="Audit check" value={linkedResponse.compliance} />
+            <ComplianceChip label="Evidence" value={linkedEvidenceAxis} />
+            <ComplianceChip label="Site inspection" value={linkedResponse.siteInspection} />
+            <ComplianceChip label="Combined" value={linkedCombined} />
+          </div>
+        </div>
+      )}
 
       <div className="mb-2 font-display text-[11px] font-semibold">Risk</div>
 
@@ -295,6 +649,44 @@ function EvidenceSection({ finding }: { finding: Finding }) {
         )}
       </div>
     </div>
+  );
+}
+
+/** PRIORITY 4 — one cell of the linked-check compliance summary. Read-only,
+ *  same COMPLIANCE_TONE/COMPLIANCE_LABEL convention as ReviewDetail.tsx's
+ *  own StatusCell (not imported — that component is local to its file),
+ *  rendered as a Pill since this is a summary card, not the sticky strip. */
+/** PRIORITY 7 — the button that kicks off a "polish" suggestion. A small,
+ *  ordinary button rather than Btn (ui/primitives.tsx's bigger control) —
+ *  this sits beside a section label, not in a toolbar. */
+function AiSuggestButton({
+  disabled,
+  busy,
+  onRun,
+}: {
+  disabled: boolean;
+  busy: boolean;
+  onRun: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onRun}
+      title={disabled && !busy ? "Type something first — there is nothing to improve yet." : undefined}
+      className="rounded-[6px] px-[8px] py-[3px] text-[10.5px] font-semibold disabled:opacity-40"
+      style={{ color: "var(--acc)" }}
+    >
+      ✦ {busy ? "Thinking…" : "Suggest wording"}
+    </button>
+  );
+}
+
+function ComplianceChip({ label, value }: { label: string; value: Compliance | null }) {
+  return (
+    <Pill tone={value ? COMPLIANCE_TONE[value] : "neutral"}>
+      {label}: {value ? COMPLIANCE_LABEL[value] : "Not verified"}
+    </Pill>
   );
 }
 

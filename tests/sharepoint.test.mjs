@@ -592,6 +592,42 @@ check(
   })()
 );
 
+/* ---- THE ACTUAL GAP, END TO END — not just at the buildPlan() values level
+   above, but through mapFields() and projectFields() the way a real sync
+   run resolves and writes them. evidenceRequested and discussionLog had
+   valid FIELD_CANDIDATES entries and reached buildPlan()'s values object
+   correctly — the checks above prove that — but FINDING_FIELDS, the
+   `wanted` list SyncPanel.tsx actually passes to mapFields() for this list,
+   did not name either key. mapFields() only resolves keys it is asked for,
+   and projectFields() only writes a key mapFields() resolved — so both
+   silently never reached a real Findings list, regardless of what column
+   the portal offered. Caught by the standing SharePoint sync-integrity
+   review, three weeks after PR #185 introduced the fields. ------------- */
+
+check(
+  "evidenceRequested and discussionLog resolve and write through FINDING_FIELDS, not just buildPlan()'s values",
+  (() => {
+    const cols = [
+      { name: "Title", displayName: "Title", readOnly: false },
+      { name: "field_1", displayName: "Evidence requested (follow-up)", readOnly: false },
+      { name: "field_2", displayName: "ACSA discussion log", readOnly: false },
+    ];
+    const map = sp.mapFields(cols, [...sp.FINDING_FIELDS]);
+    const fields = sp.projectFields(map, {
+      title: "KSIA-ELE-P01",
+      evidenceRequested: "Updated maintenance certificate",
+      discussionLog: "2026-09 — ACSA agreed an extension to November (Sarel)",
+    });
+    return (
+      map.resolved.evidenceRequested === "field_1" &&
+      map.resolved.discussionLog === "field_2" &&
+      fields.field_1 === "Updated maintenance certificate" &&
+      /ACSA agreed an extension to November/.test(String(fields.field_2))
+    );
+  })(),
+  "the bug this test guards: both keys reached buildPlan()'s values object but were absent from FINDING_FIELDS, so mapFields() never resolved a column for them and projectFields() dropped the write"
+);
+
 /* ---- Verification.evidence/nextStep/verifiedBy/verifiedAt/possibleEvents
    reach the portal — found by the standing SharePoint sync-integrity
    review: written correctly on the Closure screen, exported correctly to
@@ -1072,6 +1108,80 @@ check(
 check(
   "photos is in the FINDINGS contract as well, so the column gets asked for",
   sp.FINDING_FIELDS.includes("photos")
+);
+
+/* ---- the Review risk-fields addendum's own four — findingRootCause-
+   Categories/findingImpactAreas/findingRootCauseNote/findingRootCause-
+   Confirmed, aggregated from a hazard's consolidated findings. Found by
+   the standing sync-integrity review: editable on /review, never read by
+   this file at all before now — same bug class as Hazard.areas/
+   otherImpacts just above, on a different pair of fields. ------------- */
+
+check(
+  "a hazard's root-cause categories and impact areas are the union of its findings', deduplicated",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...HAZ,
+        findings: [
+          { id: "f1", entity: "FALE", checkId: "KSIA-ELE-001", rootCauseCategories: ["Maintenance", "Procedure"], impactAreas: ["Operations"] },
+          { id: "f2", entity: "FALE", checkId: "KSIA-ELE-002", rootCauseCategories: ["Maintenance"], impactAreas: ["Process safety"] },
+          { id: "f3", entity: "FALE", checkId: "KSIA-ELE-001" },
+        ],
+      },
+      NOTHING
+    );
+    const v = p.findings.find((r) => r.key === "KSIA-ELE-P01").values;
+    return (
+      v.findingRootCauseCategories === "Maintenance, Procedure" &&
+      v.findingImpactAreas === "Operations, Process safety"
+    );
+  })(),
+  "f1 and f2 both tag Maintenance — the hazard's row must say it once, not twice"
+);
+
+check(
+  "a hazard's root-cause note joins every DISTINCT finding note, and the confirmed count only counts findings that have one",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...HAZ,
+        findings: [
+          { id: "f1", entity: "FALE", checkId: "KSIA-ELE-001", rootCauseNote: "Corrosion from drainage fault", rootCauseConfirmed: true },
+          { id: "f2", entity: "FALE", checkId: "KSIA-ELE-002", rootCauseNote: "Corrosion from drainage fault", rootCauseConfirmed: true },
+          { id: "f3", entity: "FALE", checkId: "KSIA-ELE-001", rootCauseNote: "No maintenance log found", rootCauseConfirmed: false },
+        ],
+      },
+      NOTHING
+    );
+    const v = p.findings.find((r) => r.key === "KSIA-ELE-P01").values;
+    return (
+      v.findingRootCauseNote === "Corrosion from drainage fault | No maintenance log found" &&
+      v.findingRootCauseConfirmed === "2 of 3 confirmed"
+    );
+  })(),
+  "f1 and f2 share the identical note word for word — joined once, not twice; 2 of the 3 findings with a note are confirmed"
+);
+
+check(
+  "none of the four risk fields are ever an empty string — null when there is nothing to report",
+  (() => {
+    const v = sp.buildPlan(HAZ, NOTHING).findings.find((r) => r.key === "KSIA-ELE-P01").values;
+    return (
+      v.findingRootCauseCategories === null &&
+      v.findingImpactAreas === null &&
+      v.findingRootCauseNote === null &&
+      v.findingRootCauseConfirmed === null
+    );
+  })(),
+  "HAZ's own f1/f2/f3 fixture sets none of these four — an update sending \"\" would wipe whatever ACSA has in the cell"
+);
+
+check(
+  "all four are in the FINDINGS contract, so the columns get asked for",
+  ["findingRootCauseCategories", "findingImpactAreas", "findingRootCauseNote", "findingRootCauseConfirmed"].every(
+    (k) => sp.FINDING_FIELDS.includes(k)
+  )
 );
 
 /* A SITE NOBODY HAS AUDITED YET — the check that would have caught both Bram

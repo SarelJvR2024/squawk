@@ -122,14 +122,21 @@ const NAV = [
      needs its own mobile-only shorthand; the full name stays everywhere
      else (sm+, the active-item label, and the accessible name below). */
   { href: "/findings", label: "Asset Assurance", short: "Assets", icon: IconLoop },
-  /* HIRA, not "Hazards" and never "Risks".
-     It names the instrument: B170 001M IS a Hazard Identification and Risk
-     Assessment, and that is the language SACAA expects to see. "Risks" was the
-     alternative and is the one word that cannot be used here — the asset system
-     carries ACSA's ERM business-risk rating, and two things called risk, rated
-     on two different matrices and going to two different committees, is exactly
-     how the last round of confusion started. The route stays /hazards. */
-  { href: "/hazards", label: "HIRA", icon: IconFlag },
+  /* HIRA REMOVED FROM THE BAR (Sarel, 15 Nov 2026): "remove HIRA tab only,
+     not the sync, we will still use the sync." This is the TAB leaving, not
+     the feature — /hazards, every Hazard record, and every write path into
+     it (Asset Assurance's own promotion flow, Inspection's "raise a hazard"
+     button, Follow-up's own hazardous-event linking) are all untouched, and
+     so is sharepoint.ts's hazards sync, which the portal's Findings list
+     still depends on entirely (see that file's own note — hazards, not raw
+     findings, are what actually reaches the portal). Moved to the More menu
+     instead of deleted, same move already made for Safety and Review just
+     above — same instinct, same reversible "declutter the bar, keep the
+     feature" shape. See the MoreItem below and OFF_NAV for where its own
+     page heading and nav slot now live. The name itself (HIRA, not
+     "Hazards"/"Risks") is unchanged — SACAA's own language for the B170
+     001M instrument, see the git history on this line for the fuller
+     reasoning if this ever needs re-litigating. */
   /* IconActivity, not IconLoop — Asset Assurance already owns IconLoop
      in this same bar, and the two read as one destination tapped twice
      on a row of icons nobody has time to read the words on first. */
@@ -177,12 +184,13 @@ const OFF_NAV: Record<string, string> = {
   "/closeout": "Daily site closeout",
   "/evidence": "Document and evidence collection log",
   "/people": "People directory",
-  /* Safety, Review and Pre-flight moved out of NAV into the More menu
-     (Sarel, 30 Sep) — without an entry here their own heading would fall
-     back to "Squawk". */
+  /* Safety, Review, Pre-flight and HIRA moved out of NAV into the More menu
+     (Safety/Review/Pre-flight: Sarel, 30 Sep; HIRA: Sarel, 15 Nov) —
+     without an entry here their own heading would fall back to "Squawk". */
   "/isf": "Safety",
   "/review": "Review",
   "/preflight": "Pre-flight",
+  "/hazards": "HIRA",
   /* WORKSPACE — the consolidated capture tree, see its own page header for
      why it exists and why it is additional rather than a replacement. In
      the More menu for now, same "prove it before it earns a bar slot"
@@ -666,12 +674,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     ? `${verified}/${priorTotal}`
                     : n.href === "/findings"
                       ? findings.length || ""
-                      /* Ungrouped findings, not a count of hazards: a count of
-                         hazards would read like progress, and this is the work
-                         still outstanding, which is what a badge is for. */
-                      : n.href === "/hazards"
-                        ? ungrouped || ""
-                        : "";
+                      : "";
             return (
               <Link
                 key={n.href}
@@ -755,11 +758,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 {/* A REAL LABEL BELOW sm TOO, not only on the active item.
                     Icon-only read as six unlabelled buttons on the one device
                     the walkabout is actually done on — exactly the ask this
-                    pass was given. Deliberately separate from the
-                    "hidden min-[1440px]:inline" label a few lines down: that
-                    one keeps doing exactly what it always did between sm and
-                    1440px (icon and count, full label only from 1440px) —
-                    untouched by this pass.
+                    pass was given. Deliberately separate from the label span
+                    a few lines down, which later lost its own icon-only
+                    range entirely (see that span's own comment) — this one
+                    is the dedicated below-sm, two-row stacked label and was
+                    untouched by that later change.
 
                     NO LONGER WRAPS, AND NO LONGER 6.5px. Sarel's own
                     screenshot at 390px: a wrapped, 6.5px label reads as
@@ -836,7 +839,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     it was from sm up (active always shows its full label)
                     and hides it below sm, where the short-label span above
                     now carries every destination, active or not. */}
-                <span className={active ? "hidden sm:inline" : "hidden min-[1440px]:inline"}>{n.label}</span>
+                {/* LABELLED FROM sm NOW, ACTIVE OR NOT — Sarel, reviewing the
+                    top bar: "add the label for each menu items" (every icon
+                    between Checks and Dashboard read as unlabelled except
+                    the active one). The icon-only range this comment block
+                    used to describe (sm–1440px, chosen to dodge the 1280px
+                    clipping this file's history documents at length) is
+                    gone: every item now carries its SHORT label
+                    (`n.short ?? n.label` — "Finding"/"Assets" are already
+                    the short forms the mobile bar below sm uses, so this
+                    reuses them rather than inventing a third label set) from
+                    sm up, same as the active item already did. `nav`'s own
+                    `overflow-x-auto` (see its className above) is the
+                    fallback if the shorter labels still don't all fit at the
+                    narrowest desktop widths — a swipe on a rare width beats
+                    an unlabelled bar on every width, which is what Sarel's
+                    direct instruction asks for. */}
+                <span className="hidden sm:inline">{n.short ?? n.label}</span>
                 {/* THE STANDING BADGE IS GONE, BUT CHECKS AND INSPECTION GET A
                     QUIET COUNT BACK — Desktop/tablet redesign phase 1,
                     checkpoint item: Sarel's second visual-hierarchy pass
@@ -854,11 +873,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     they have no register denominator to be quiet about. */}
                 {(n.href === "/capture" || n.href === "/field") && badge !== "" && (
                   <span
-                    /* Same min-[1440px] move as the label span above, and for
+                    /* Same sm breakpoint as the label span above now, and for
                        the same reason — this count sits right next to the
                        label it describes and must appear on the same
                        breakpoint as it, not independently. */
-                    className={`tnum font-mono text-[10px] ${active ? "hidden sm:inline" : "hidden min-[1440px]:inline"}`}
+                    className="tnum font-mono text-[10px] hidden sm:inline"
                     style={{ color: "var(--ink-4)" }}
                   >
                     {badge}
@@ -1065,6 +1084,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       hint="Where an engineer reads back what came in"
                       selected={pathname === "/review"}
                       onClick={() => { setMore(false); router.push("/review"); }}
+                    />
+                    {/* HIRA, MOVED HERE from the nav bar (Sarel, 15 Nov):
+                        "remove HIRA tab only, not the sync, we will still
+                        use the sync" — the route, every Hazard record and
+                        the sync it feeds are all untouched; only the bar
+                        slot is gone, same move already made for Safety and
+                        Review above. `ungrouped` (already computed above
+                        for the old nav badge) becomes this item's own hint
+                        instead of disappearing with the badge. */}
+                    <MoreItem
+                      icon={<IconFlag width={14} height={14} />}
+                      label="HIRA"
+                      hint={ungrouped ? `${ungrouped} finding${ungrouped === 1 ? "" : "s"} not yet in a hazard` : "Hazard identification & risk assessment"}
+                      selected={pathname === "/hazards"}
+                      onClick={() => { setMore(false); router.push("/hazards"); }}
                     />
                     {/* CAPTURE (ALL) — the new consolidated tree, see
                         src/app/(app)/workspace/page.tsx's own header. */}
