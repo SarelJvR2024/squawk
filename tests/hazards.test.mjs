@@ -305,14 +305,25 @@ check("hazards are scoped to entity and visit like everything else", /export fun
 check("RecordActions exists", actions.length > 0);
 /* 2026-09-10: the asset-system screen picks severity and likelihood with
    RatingPicker instead — Sarel: "remove the large rating matrix, make it more
-   simple to select severity and likelihood". The block itself did not fork: the
-   FINDING still renders RecordActions in full, in FindingDetail, which is what
-   this assertion has always been about. RatingPicker takes its scales and its
-   banding from the same src/lib/risk.ts, so there is still exactly one
-   vocabulary for the instrument. */
+   simple to select severity and likelihood". The block itself did not fork:
+   RatingPicker takes its scales and its banding from the same
+   src/lib/risk.ts, so there is still exactly one vocabulary for the
+   instrument.
+
+   16 Nov 2026: and the finding pane no longer renders the matrix AT ALL —
+   Sarel, "we're not going to do severity and likelihood ratings on a finding
+   level... only on an asset system level." FindingDetail still renders
+   RecordActions, for the treatment fields (root cause, action, owner, date),
+   but now with showRating={false} — see the dedicated check just below. */
 check(
   "the finding pane renders it",
   /<RecordActions/.test(src("components", "FindingDetail.tsx"))
+);
+check(
+  "but with showRating={false} — a finding is no longer rated for severity/likelihood here",
+  /<RecordActions[\s\S]{0,400}showRating=\{false\}/.test(src("components", "FindingDetail.tsx")) &&
+    !/secondOpinion=/.test(src("components", "FindingDetail.tsx")),
+  "no rating matrix and no \"ask for a second opinion on the rating\" button either — there is no rating to ask about"
 );
 check(
   "and the asset-system screen picks the same scales from the same place",

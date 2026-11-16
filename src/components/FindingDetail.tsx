@@ -7,9 +7,12 @@
  *  and compares asset systems year on year, so that is what the screen is now
  *  organised by, and a finding is one piece of the evidence the group reads
  *  before agreeing the system's band. That did not make the per-finding work go
- *  away — a finding still carries its own rating, its own root cause and its
- *  own owner — so the pane moved here and opens in a sheet from the asset
- *  system's evidence list rather than being deleted.
+ *  away — a finding still carries its own root cause and its own owner — so
+ *  the pane moved here and opens in a sheet from the asset system's evidence
+ *  list rather than being deleted. (A finding no longer carries its own
+ *  rating: Sarel, "we're not going to do severity and likelihood ratings on
+ *  a finding level... only on an asset system level" — see RecordActions'
+ *  showRating={false} below.)
  *
  *  Everything in it is what it was: the same RecordActions block the hazard
  *  register renders, the same RootCauseAdvice the check screen used to render,
@@ -30,7 +33,6 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { checksAt, useAdhoc, useEntityCode, useResponses, useStore } from "@/lib/store";
 import { portalIdFor } from "@/lib/sites";
-import { assist, findingContext } from "@/lib/assist";
 import { Btn, Pill } from "@/components/ui/primitives";
 import RecordActions from "@/components/RecordActions";
 import RootCauseAdvice from "@/components/RootCauseAdvice";
@@ -311,21 +313,24 @@ export default function FindingDetail({
         );
       })()}
 
-      {/* One rating and treatment block, shared with the hazard
-          register. See src/components/RecordActions.tsx — a second copy
-          of a risk matrix is how two screens end up carrying two
-          vocabularies for one instrument. */}
+      {/* The treatment block only — root cause, action, owner, date — shared
+          with the hazard register. Sarel: "we're not going to do severity
+          and likelihood ratings on a finding level [any more]... only on an
+          asset system level." showRating={false}, same prop the check
+          screen's own RecordActions call already uses for the opposite
+          reason (treatment without a matrix there; here, no matrix at all) —
+          see RecordActions.tsx's own doc comment on showRating/showTreatment.
+          No secondOpinion either: that button asked the assistant to rate
+          THIS finding, and there is no rating here to get a second opinion
+          on any more. */}
       <RecordActions
         record={f}
         entityCode={entityCode}
         onChange={(patch) => updateFinding(f.id, patch)}
         onToast={say}
+        showRating={false}
         progress={f.progress}
         onProgress={(n) => addFindingProgress(f.id, n)}
-        secondOpinion={async () => {
-          const check = checksAt(entityCode).find((c) => c.id === f.checkId);
-          return assist("rating", findingContext(f, check));
-        }}
         advice={
           /* Same component as the check screen. Some findings are
              worked here rather than at the check, and the advice must

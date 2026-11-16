@@ -155,12 +155,24 @@ check(
    system below the discipline in the same column" — it is no longer its
    own header, just a second line inside the Discipline cell (checked
    separately below). */
-for (const col of ["Type", "Discipline", "Audit check", "Severity", "Likelihood", "Rating", "Root cause", "Impact", "Timeline", "Evidence"]) {
+for (const col of ["Type", "Discipline", "Audit check", "Root cause", "Impact", "Timeline", "Evidence"]) {
   check(`the table always renders a "${col}" column header`, new RegExp(`<Th>${col}</Th>|>${col}<`).test(table));
 }
 check(
   "Discipline and Asset system share one column — no separate Asset system header",
   !/<Th>Asset system<\/Th>/.test(table)
+);
+/* 16 Nov 2026 — Sarel: "we're not going to do severity and likelihood
+   ratings on a finding level, for now... only on an asset system level."
+   Severity, Likelihood and the derived Rating column are gone from this
+   table — see ReviewRiskTable.tsx's own header. */
+check(
+  "Severity, Likelihood and Rating are gone — no column header, no cell left for any of them",
+  !/<Th>Severity<\/Th>/.test(table) &&
+    !/<Th>Likelihood<\/Th>/.test(table) &&
+    !/<Th>Rating<\/Th>/.test(table) &&
+    !/Severity for \$\{f\.title/.test(table) &&
+    !/Likelihood for \$\{f\.title/.test(table)
 );
 check(
   "the column-toggle UI is gone — this is one fixed table, not a customisable one",
@@ -205,15 +217,6 @@ check(
   /photoAttachments\.slice\(0, 4\)\.map/.test(table) &&
     /EvidenceThumb/.test(table) &&
     /f\.attachments\.filter\(\(a\) => a\.kind === "voice"\)\.length/.test(table)
-);
-check(
-  "the Rating cell is still read-only — no input bound to it, same guard as before",
-  (() => {
-    const cellMatch = table.match(/READ-ONLY[\s\S]{0,500}?<\/td>/);
-    if (!cellMatch) return false;
-    const cell = cellMatch[0];
-    return /Pill/.test(cell) && !/<select/.test(cell) && !/<input/.test(cell);
-  })()
 );
 
 /* ---- 4 · the Type tag's own panel toggle and table rendering ----------- */
