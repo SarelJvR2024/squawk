@@ -110,11 +110,12 @@ export default function EvidencePage() {
   const updatePhoto = useStore((s) => s.updateEvidenceAttachment);
 
   const [draft, setDraft] = useState("");
-  /* REVIEW TABLE V2 — "By discipline" is the new grouped tracking view (see
-     docs/capture-review/review-table-v2-discovery.md §4); "By document" is
-     this screen exactly as it was, and stays the default so nothing about
-     how the screen opens today changes. */
-  const [view, setView] = useState<"document" | "discipline">("document");
+  /* PRIORITY 5 (review redesign) — "By discipline" is now the default.
+     Confirmed with the user: it already provides one visible list per
+     discipline retaining asset/check context, the thing Priority 5
+     actually asked for, rather than leading with the old flat custody
+     form. "By document" is untouched and still reachable as a tab. */
+  const [view, setView] = useState<"document" | "discipline">("discipline");
   const [openId, setOpenId] = useState<string | null>(null);
   const [signing, setSigning] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
