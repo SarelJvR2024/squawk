@@ -14,9 +14,16 @@
  *  causes, multiple mitigation actions."
  *
  *  This screen was the findings register: a flat list of findings, each rated on
- *  its own. That work still exists — a finding still carries its own band, its
- *  own root cause and its own owner — and it opens from the evidence list here,
- *  in a sheet (see FindingDetail). What changed is what the screen is ABOUT.
+ *  its own. That work still exists in part — a finding still carries its own
+ *  root cause and its own owner — and it opens from the evidence list here, in
+ *  a sheet (see FindingDetail). What changed is what the screen is ABOUT. (A
+ *  finding no longer carries its own band: Sarel, "we're not going to do
+ *  severity and likelihood ratings on a finding level... only on an asset
+ *  system level" — FindingDetail's RecordActions now renders with
+ *  showRating={false}. The Dot/Pill a finding row still shows in the list
+ *  below reads whatever an OLDER finding was rated before that change; it is
+ *  not a live control any more and a finding raised from here on simply has
+ *  nothing to show.)
  *
  *  WHY THE ASSET SYSTEM AND NOT THE FINDING. ACSA rates, reports and compares
  *  asset systems year on year: that is the row in their register, the unit a

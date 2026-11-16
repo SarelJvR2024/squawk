@@ -89,10 +89,15 @@ check(
   /\{finding\.checkId && linkedResponse && \(/.test(panel)
 );
 check(
+  /* End anchor moved 16 Nov 2026: the "Risk" heading this used to stop at
+     (RatingPicker/mini-matrix section) is gone — Sarel, "we're not going to
+     do severity and likelihood ratings on a finding level... only on an
+     asset system level." Impact areas is now the next section after the
+     summary card. */
   "it is read-only — no <select>/<input> inside the summary card, only ComplianceChip/Pill",
   (() => {
     const start = panel.indexOf(">From linked audit check<");
-    const end = panel.indexOf(">Risk</div>", start);
+    const end = panel.indexOf(">Impact areas</div>", start);
     const card = start !== -1 && end !== -1 ? panel.slice(start, end) : "";
     return card.length > 0 && !/<select/.test(card) && !/<input/.test(card);
   })()

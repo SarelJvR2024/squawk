@@ -7,9 +7,9 @@
  *  (rendered by the caller — see /review's own page for how the two sit side
  *  by side).
  *
- *  Severity, likelihood, impact and root cause categories are never computed
- *  twice: every rating pill and filter here calls into src/lib/reviewRisk.ts,
- *  the one shared function the addendum itself asks for.
+ *  Impact and root cause categories are never computed twice: every filter
+ *  here calls into src/lib/reviewRisk.ts, the one shared function the
+ *  addendum itself asks for.
  *
  *  REVIEW TABLE V2 (see docs/capture-review/review-table-v2-discovery.md)
  *  widened this to the full column set Sarel approved from a mockup: select ·
@@ -22,13 +22,22 @@
  *
  *  Timeline (Finding.timeline, TIMELINES in riskVocab.ts) — Sarel: "make sure
  *  that column is... in the table, and that we can do inline editing of that
- *  field." Single-select, so a plain `<select>` same as Severity/Likelihood,
- *  not the multi-select `<details>` popover Root cause/Impact use.
+ *  field." Single-select, so a plain `<select>`, not the multi-select
+ *  `<details>` popover Root cause/Impact use.
  *
- *  AI "Suggest rating" (§3's bulk bar) is DELIBERATELY NOT in this pass — see
- *  the PR description's "what's deferred" section. The bulk bar below sets
- *  severity, likelihood, impact areas and root cause categories across every
- *  selected row directly; nothing here calls /api/assist yet. */
+ *  16 Nov 2026 — SEVERITY, LIKELIHOOD AND RATING ARE GONE FROM THIS TABLE.
+ *  Sarel: "we're not going to do severity and likelihood ratings on a
+ *  finding level, for now... only on an asset system level." The Severity/
+ *  Likelihood `<select>` columns, the derived Rating column, and the bulk
+ *  bar's own "Set severity"/"Set likelihood" controls are all removed — see
+ *  FindingDetail.tsx and findings/page.tsx for the same removal on the
+ *  other two screens that used to let an auditor rate a Finding directly.
+ *  `priorityFor`/`bandFor` themselves are untouched in reviewRisk.ts/risk.ts
+ *  — still the one place the asset-system level rating is derived from —
+ *  this table simply no longer calls them. The bulk bar below now only sets
+ *  impact areas and root cause categories across every selected row; AI
+ *  "Suggest rating" was never built for severity/likelihood here and is
+ *  moot now that there is nothing on a finding to rate. */
 
 import { useMemo, useState } from "react";
 import {
@@ -39,17 +48,15 @@ import {
   applyBulkMulti,
   findingTypeFor,
   matchesReviewRiskFilter,
-  priorityFor,
   toggleMulti,
   type ReviewRiskFilter,
 } from "@/lib/reviewRisk";
-import { LIKELIHOODS, SEVERITIES } from "@/lib/risk";
 import { ALL_DISCIPLINES, checksAt, systemsAt, systemsOf } from "@/lib/register";
 import { useFieldSaveStatus } from "@/lib/store";
 import { useBlobUrl } from "@/lib/media";
 import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
 import { IconCamera, IconMic } from "@/components/ui/icons";
-import type { Attachment, Check, Finding, Likelihood, Response, Severity } from "@/lib/types";
+import type { Attachment, Check, Finding, Response } from "@/lib/types";
 
 /** The sort key an empty/absent Asset system sorts under — see `visible`'s
  *  own comment below. Built with fromCharCode rather than a string literal
@@ -292,9 +299,6 @@ export default function ReviewRiskTable({
               <th className="p-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
                 Finding
               </th>
-              <Th>Severity</Th>
-              <Th>Likelihood</Th>
-              <Th>Rating</Th>
               <Th>Root cause</Th>
               <Th>Impact</Th>
               <Th>Timeline</Th>
@@ -303,7 +307,6 @@ export default function ReviewRiskTable({
           </thead>
           <tbody>
             {visible.map((f) => {
-              const priority = priorityFor(f);
               const impact = f.impactAreas ?? [];
               const causes = f.rootCauseCategories ?? [];
               const type = findingTypeFor(f);
@@ -418,58 +421,6 @@ export default function ReviewRiskTable({
                     })()}
                   </td>
 
-                  <td className="p-2" onClick={(e) => e.stopPropagation()}>
-                    <select
-                      aria-label={`Severity for ${f.title || f.id}`}
-                      value={f.severity ?? ""}
-                      onChange={(e) =>
-                        onChange(f.id, {
-                          severity: (e.target.value || null) as Severity | null,
-                          ratingConfirmed: !!e.target.value && !!f.likelihood,
-                        })
-                      }
-                      className="rounded-[6px] border px-1.5 py-1 font-mono text-[10.5px]"
-                      style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-                    >
-                      <option value="">—</option>
-                      {SEVERITIES.map((s) => (
-                        <option key={s} value={s}>
-                          {s.charAt(0)}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="p-2" onClick={(e) => e.stopPropagation()}>
-                    <select
-                      aria-label={`Likelihood for ${f.title || f.id}`}
-                      value={f.likelihood ?? ""}
-                      onChange={(e) =>
-                        onChange(f.id, {
-                          likelihood: (e.target.value || null) as Likelihood | null,
-                          ratingConfirmed: !!f.severity && !!e.target.value,
-                        })
-                      }
-                      className="rounded-[6px] border px-1.5 py-1 font-mono text-[10.5px]"
-                      style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-                    >
-                      <option value="">—</option>
-                      {LIKELIHOODS.map((l) => (
-                        <option key={l} value={l}>
-                          {l.charAt(0)}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="p-2">
-                    {/* READ-ONLY — no input anywhere in this cell. The
-                        rating is derived from severity+likelihood, never
-                        typed; see priorityFor's own doc comment. */}
-                    {priority ? (
-                      <Pill tone={priority.tone}>{priority.label}</Pill>
-                    ) : (
-                      <Pill tone="neutral">Not rated</Pill>
-                    )}
-                  </td>
                   {/* PRIORITY 2 (review redesign) — Root cause and Impact
                       are now editable right here, not panel-only, same as
                       Severity/Likelihood above: a <details> popover inside
@@ -694,11 +645,15 @@ function Th({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** The bulk bar — §3: "set severity, likelihood, impact areas (add/remove),
- *  root cause categories (add/remove) for selected rows." Every apply goes
- *  through `applyBulkMulti`/a direct patch, same functions a single row's
- *  own edit uses, so a bulk edit can never disagree with what a per-row edit
- *  of the same field would have done. */
+/** The bulk bar — §3: "set impact areas (add/remove), root cause categories
+ *  (add/remove) for selected rows." Every apply goes through
+ *  `applyBulkMulti`/a direct patch, same functions a single row's own edit
+ *  uses, so a bulk edit can never disagree with what a per-row edit of the
+ *  same field would have done.
+ *
+ *  16 Nov 2026 — the "Set severity"/"Set likelihood" selects this bar used
+ *  to carry are gone, same removal as the table's own Severity/Likelihood
+ *  columns — see this file's own header. */
 function BulkBar({
   count,
   onApply,
@@ -726,44 +681,6 @@ function BulkBar({
         <button type="button" onClick={onClear} className="text-[10.5px] underline" style={{ color: "var(--ink-3)" }}>
           Clear
         </button>
-      </div>
-      <div className="flex flex-wrap items-center gap-[8px]">
-        <select
-          aria-label="Set severity for selected"
-          defaultValue=""
-          onChange={(e) => {
-            const v = (e.target.value || null) as Severity | null;
-            onApply((f) => ({ severity: v, ratingConfirmed: !!v && !!f.likelihood }));
-            e.target.value = "";
-          }}
-          className="h-[30px] rounded-[8px] border px-2 text-[11px]"
-          style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-        >
-          <option value="">Set severity…</option>
-          {SEVERITIES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label="Set likelihood for selected"
-          defaultValue=""
-          onChange={(e) => {
-            const v = (e.target.value || null) as Likelihood | null;
-            onApply((f) => ({ likelihood: v, ratingConfirmed: !!f.severity && !!v }));
-            e.target.value = "";
-          }}
-          className="h-[30px] rounded-[8px] border px-2 text-[11px]"
-          style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-        >
-          <option value="">Set likelihood…</option>
-          {LIKELIHOODS.map((l) => (
-            <option key={l} value={l}>
-              {l}
-            </option>
-          ))}
-        </select>
       </div>
 
       <div className="mt-2 grid gap-2 sm:grid-cols-2">

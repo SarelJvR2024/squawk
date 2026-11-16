@@ -126,13 +126,20 @@ check(
     return before?.priority === "II" && after?.priority === "I" && before.priority !== after.priority;
   })()
 );
+/* 16 Nov 2026 — Sarel: "we're not going to do severity and likelihood
+   ratings on a finding level, for now... only on an asset system level."
+   The table's Rating cell and the panel's result line — both of which used
+   to call priorityFor — are gone; see ReviewRiskTable.tsx's and
+   ReviewRiskPanel.tsx's own headers. priorityFor itself is untouched and
+   still directly tested above against the real function; only these two
+   screens' own use of it was removed. */
 check(
-  "the table's Rating cell calls priorityFor(f), not a value cached on the row",
-  /priorityFor\(f\)/.test(table)
+  "the table no longer calls priorityFor — the Rating cell it used to feed is gone",
+  !/priorityFor\(/.test(table)
 );
 check(
-  "the panel's result line calls priorityFor(finding) too — table and panel share one call",
-  /priorityFor\(finding\)/.test(panel)
+  "the panel no longer calls priorityFor either — same removal",
+  !/priorityFor\(/.test(panel)
 );
 
 /* ---- 4 · multi-select save/load round-trip, empty array allowed -------- */
@@ -235,19 +242,13 @@ check(
   mech?.counts.III === 1 && mech?.notRated === 0 && mech?.total === 1
 );
 
-/* ---- 7 · the rating cannot be edited directly — no input renders it ---- */
+/* ---- 7 · there is no rating left to edit directly, on either screen ---- */
 
 check(
-  "the table's Rating cell renders a read-only Pill, no <select>/<input> bound to it",
-  (() => {
-    /* Anchored on the cell's own "READ-ONLY" comment rather than the first
-       `columns.includes("rating")` match, which is the column HEADER a few
-       lines above the body cell and would otherwise match first. */
-    const cellMatch = table.match(/READ-ONLY[\s\S]{0,500}?<\/td>/);
-    if (!cellMatch) return false;
-    const cell = cellMatch[0];
-    return /Pill/.test(cell) && !/<select/.test(cell) && !/<input/.test(cell);
-  })()
+  "the table carries no Rating column, no Severity/Likelihood selects — there is nothing left to accidentally edit",
+  !/<Th>Rating<\/Th>/.test(table) &&
+    !/<Th>Severity<\/Th>/.test(table) &&
+    !/<Th>Likelihood<\/Th>/.test(table)
 );
 check(
   "the panel never renders an input whose value/checked is bound to a priority/rating field",
