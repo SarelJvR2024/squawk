@@ -47,15 +47,11 @@ const OUTCOMES: { key: VerificationOutcome; label: string; Icon: typeof IconChec
 const ratingTone = (r: string) =>
   r === "Unacceptable" ? "bad" : r === "Tolerable" ? "warn" : r === "Acceptable" ? "good" : "neutral";
 
-type Filter = "all" | "priority" | "unverified" | "repeat" | "carried" | "nocover" | "context";
+type Filter = "all" | "unacceptable" | "context";
 
 const FILTER_LABEL: Record<Filter, string> = {
   all: "Carries work",
-  priority: "Was Unacceptable / Tolerable",
-  unverified: "Not yet verified",
-  repeat: "Repeats",
-  carried: "Carried forward",
-  nocover: "Not covered this visit",
+  unacceptable: "Unacceptable rating of previous finding",
   context: "Context only",
 };
 
@@ -208,14 +204,9 @@ export default function ClosurePage() {
        are and shows them. */
     l = filter === "context" ? l.filter((p) => !carriesWork(p)) : l.filter(carriesWork);
     if (discipline !== "all") l = l.filter((p) => p.discipline === discipline);
-    if (filter === "priority") l = l.filter((p) => p.rating === "Unacceptable" || p.rating === "Tolerable");
-    if (filter === "unverified") l = l.filter((p) => !verifications[p.key]?.outcome);
-    if (filter === "repeat") l = l.filter((p) => verifications[p.key]?.outcome === "Open - repeat");
-    if (filter === "carried") l = l.filter((p) => p.source === "carried");
-    if (filter === "nocover")
-      l = l.filter((p) => checksOf(entityCode, p.discipline, p.system).length === 0);
+    if (filter === "unacceptable") l = l.filter((p) => p.rating === "Unacceptable");
     return l;
-  }, [entityCode, filter, discipline, verifications, outstanding]);
+  }, [filter, discipline, outstanding]);
 
   /* Every visit this entity has, oldest first — including the ones marked
      `skipped`, which is exactly the point: a visit that did not happen has to
@@ -362,6 +353,14 @@ export default function ClosurePage() {
 
   const carries = useMemo(() => outstanding.filter(carriesWork), [outstanding]);
   const context = useMemo(() => outstanding.filter((p) => !carriesWork(p)), [outstanding]);
+  /* How many of what carries work were rated Unacceptable at the audit that
+     raised them — the one filter Sarel asked to keep, in place of the
+     six-chip row. Scoped to `carries`, not `outstanding`, so the count in
+     the chip always matches what "all" already shows. */
+  const unacceptablePrevCount = useMemo(
+    () => carries.filter((p) => p.rating === "Unacceptable").length,
+    [carries]
+  );
   /* The disciplines actually present in what carries, so the picker never
      offers a discipline with nothing behind it. */
   const disciplines = useMemo(
@@ -375,7 +374,6 @@ export default function ClosurePage() {
     repeat: outstanding.filter((p) => verifications[p.key]?.outcome === "Open - repeat").length,
     unverified: outstanding.filter((p) => !verifications[p.key]?.outcome).length,
     carried: outstanding.filter((p) => p.source === "carried").length,
-    nocover: outstanding.filter((p) => checksOfItem(p).length === 0).length,
   };
 
   const isDefault = discipline === "all" && filter === "all";
@@ -470,15 +468,16 @@ export default function ClosurePage() {
           </div>
         </details>
 
-        {/* FILTERS, FOLDED. Sarel: these filters are not user friendly, there
-            are too many visible at the same time and scattered all over.
-            Same fix as the 3-year-cycle explainer two sections up: nothing is
-            deleted, every chip and every count is still here, but the default
-            state of the screen is the worklist, not the controls above it.
-            Shut by default, uncontrolled (no useState) — opens on tap and
-            stays open for the rest of this page visit. The summary line
-            always says what's showing, so a filtered list is never silently
-            unexplained. */}
+        {/* FILTERS, FOLDED AND CUT DOWN. Sarel first folded this row behind a
+            summary because it was too many chips at once; then, looking at
+            the deployed screen again: "remove the bottom row of filters. add
+            filter for Unacceptable rating of previous audit finding." So the
+            six-chip row (priority / unverified / repeat / carried / nocover /
+            context) is gone — those counts are still readable in the summary
+            band above — and the one filter he actually asked for replaces it:
+            whether the finding's own rating, the time it was raised, was
+            Unacceptable. Shut by default, uncontrolled (no useState) — opens
+            on tap and stays open for the rest of this page visit. */}
         <FilterBar
           className="mb-3"
           summary={<>Showing: <b>{filterSummary}</b></>}
@@ -506,11 +505,16 @@ export default function ClosurePage() {
               options: (
                 [
                   ["all", `Carries work (${carries.length})`],
-                  ["priority", "Was Unacceptable / Tolerable"],
-                  ["unverified", "Not yet verified"],
-                  ["repeat", "Repeats"],
-                  ["carried", `Carried forward (${counts.carried})`],
-                  ["nocover", "Not covered this visit"],
+                  [
+                    "unacceptable",
+                    `Unacceptable rating of previous finding (${unacceptablePrevCount})`,
+                  ],
+                  /* Kept even after the six-chip cull — NOT hidden clutter,
+                     it's the one honesty guard the old row carried: a
+                     closure list that quietly drops the items it decided
+                     need no work is a list nobody can trust blind. Only
+                     offered when there's something behind it, same as
+                     always. */
                   ...(context.length
                     ? ([["context", `Context only (${context.length})`]] as [Filter, string][])
                     : []),

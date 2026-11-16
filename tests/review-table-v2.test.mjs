@@ -26,6 +26,8 @@ const storeSrc = read("src", "lib", "store.ts");
 const table = read("src", "components", "ReviewRiskTable.tsx");
 const panel = read("src", "components", "ReviewRiskPanel.tsx");
 const evidencePage = read("src", "app", "(app)", "evidence", "page.tsx");
+const evidenceQuick = read("src", "components", "EvidenceQuickCapture.tsx");
+const reviewPage = read("src", "app", "(app)", "review", "page.tsx");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -578,49 +580,66 @@ check(
   Number(/version:\s*(\d+),/.exec(storeSrc)?.[1] ?? 0) >= 43 && /from < 43/.test(storeSrc)
 );
 
-/* ---- 14 · quick evidence request — Sarel: "the capture evidence is too
-   complicated... just an option to capture evidence... linked to a
-   discipline. add a simple capture to the review page." ----------------- */
+/* ---- 14 · quick evidence request, then moved to its own Evidence tab —
+   Sarel first: "the capture evidence is too complicated... just an option
+   to capture evidence... linked to a discipline. add a simple capture to
+   the review page." Then, 16 Nov 2026: "move the evidence request to a
+   separate tab inside the review page. all updating of evidence
+   compliance and evidence review feedback and also the status ie logged,
+   requested, received, not available." EvidenceQuickCapture is now its own
+   file, mounted on review/page.tsx's "Evidence" tab above EvidenceReviewView
+   — the same status/compliance/review-feedback tracking view /evidence's
+   own "By discipline" tab already renders. ------------------------------- */
 
 check(
-  "EvidenceQuickCapture renders at the top of the Risk & root cause tab, above the filters",
-  (() => {
-    const quick = table.indexOf("<EvidenceQuickCapture");
-    const filters = table.indexOf('aria-label="Filter by discipline"');
-    return quick !== -1 && filters !== -1 && quick < filters;
-  })()
+  "EvidenceQuickCapture no longer lives inside ReviewRiskTable.tsx — it moved out to its own file",
+  !/function EvidenceQuickCapture\(\)/.test(table) && !/<EvidenceQuickCapture/.test(table)
 );
 check(
   "it is two fields and a button — a discipline select and a free-text \"what's needed\" line, nothing else",
-  /function EvidenceQuickCapture\(\)/.test(table) &&
-    /aria-label="Which discipline this evidence request is about"/.test(table) &&
-    /placeholder="What's needed/.test(table)
+  /function EvidenceQuickCapture\(\)/.test(evidenceQuick) &&
+    /aria-label="Which discipline this evidence request is about"/.test(evidenceQuick) &&
+    /placeholder="What's needed/.test(evidenceQuick)
 );
 check(
   "Request is disabled with either field empty — no half-filled record can be created",
-  /disabled=\{!text\.trim\(\) \|\| !discipline\}/.test(table)
+  /disabled=\{!text\.trim\(\) \|\| !discipline\}/.test(evidenceQuick)
 );
 check(
   "it writes through the SAME addEvidenceItem store action every other evidence-request entry point already calls — not a second record kind",
-  /const addEvidenceItem = useStore\(\(s\) => s\.addEvidenceItem\);/.test(table) &&
-    /addEvidenceItem\(t, \{ discipline \}\);/.test(table)
+  /const addEvidenceItem = useStore\(\(s\) => s\.addEvidenceItem\);/.test(evidenceQuick) &&
+    /addEvidenceItem\(t, \{ discipline \}\);/.test(evidenceQuick)
 );
 check(
-  "it does NOT redirect to /evidence afterward — the full form stays for whoever chases the document down, not for the moment of noticing it's needed",
+  "it does NOT redirect anywhere afterward — the full custody record stays for whoever chases the document down, not for the moment of noticing it's needed",
   (() => {
-    const start = table.indexOf("function EvidenceQuickCapture(");
-    const end = table.indexOf("\n}\n", start);
-    const fn = start === -1 ? "" : table.slice(start, end === -1 ? undefined : end);
+    const start = evidenceQuick.indexOf("function EvidenceQuickCapture(");
+    const end = evidenceQuick.indexOf("\n}\n", start);
+    const fn = start === -1 ? "" : evidenceQuick.slice(start, end === -1 ? undefined : end);
     return fn.length > 0 && !/router\.push/.test(fn) && !/\/evidence/.test(fn);
   })()
 );
 check(
   "Enter submits, same as tapping Request — a one-line capture should not need a mouse",
-  /onKeyDown=\{\(e\) => \{\s*\n\s*if \(e\.key === "Enter"\) submit\(\);/.test(table)
+  /onKeyDown=\{\(e\) => \{\s*\n\s*if \(e\.key === "Enter"\) submit\(\);/.test(evidenceQuick)
 );
 check(
   "a successful request confirms inline, naming what was asked for and where it now lives",
-  /requested — it&rsquo;s in the Evidence log now\./.test(table)
+  /requested — it&rsquo;s in the Evidence log now\./.test(evidenceQuick)
+);
+check(
+  "review/page.tsx has a third \"Evidence\" tab, alongside \"By check\" and \"Risk & root cause\"",
+  /type ReviewTab = "checks" \| "risk" \| "evidence";/.test(reviewPage) &&
+    /\["evidence", "Evidence"\]/.test(reviewPage)
+);
+check(
+  "the Evidence tab renders EvidenceQuickCapture above the full EvidenceReviewView tracking view — status, compliance rating and review feedback all come from the one component /evidence's \"By discipline\" tab already uses",
+  (() => {
+    const branch = reviewPage.indexOf('tab === "evidence"');
+    const quick = reviewPage.indexOf("<EvidenceQuickCapture", branch);
+    const view = reviewPage.indexOf("<EvidenceReviewView", branch);
+    return branch !== -1 && quick !== -1 && view !== -1 && quick < view;
+  })()
 );
 
 /* ---- 15 · live-table feedback, 16 Nov 2026 — photo size, Finding column
