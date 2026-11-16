@@ -98,7 +98,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `voice.test.mjs` | no | 48 |
 | `sites.test.mjs` | no | 42 |
 | `photos.test.mjs` | no | 113 |
-| `hazards.test.mjs` | no | 121 |
+| `hazards.test.mjs` | no | 122 |
 | `hazardpromotion.test.mjs` | no | 35 |
 | `auditdates.test.mjs` | no | 20 |
 | `relinkphoto.test.mjs` | no | 16 |
@@ -158,7 +158,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**4,170 assertions in total**, every count above verified by running the suite,
+**4,171 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
