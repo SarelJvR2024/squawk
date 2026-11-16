@@ -514,17 +514,29 @@ check(
   "the inline editors read the same vocabulary as the panel and the bulk bar — ROOT_CAUSES/IMPACT_AREAS, not a third list",
   /options=\{ROOT_CAUSES\}/.test(table) && /options=\{IMPACT_AREAS\}/.test(table)
 );
+/* 16 Nov 2026 — Sarel, on the live table: "root cause and impact inline
+   editing is not user friendly." The `<details>` disclosure (nothing to
+   toggle visible until you first opened it) is gone — every option now
+   shows directly, always, with the selected ones highlighted. */
 check(
-  "the inline editor is a native <details> disclosure, not a hand-rolled popover needing its own outside-click/escape handling",
-  /function MultiSelectCell/.test(table) && /<details/.test(table) && /<summary/.test(table)
-);
-check(
-  "toggling a value inside the editor never closes it — the toggle handler is on a Chip inside the body, not on <summary>",
+  "every option is shown directly, always — no <details>/<summary> disclosure left to open first",
   (() => {
     const start = table.indexOf("function MultiSelectCell");
     const fn = start === -1 ? "" : table.slice(start, table.indexOf("\n}\n", start) + 2);
-    const summary = fn.match(/<summary[\s\S]*?<\/summary>/)?.[0] ?? "";
-    return fn.includes("onToggle(o)") && !summary.includes("onToggle");
+    return fn.length > 0 && !/<details/.test(fn) && !/<summary/.test(fn);
+  })()
+);
+check(
+  "each option is its own Chip, already reflecting whether it's selected — tap any one to toggle, nothing hidden",
+  (() => {
+    const start = table.indexOf("function MultiSelectCell");
+    const fn = start === -1 ? "" : table.slice(start, table.indexOf("\n}\n", start) + 2);
+    return (
+      fn.length > 0 &&
+      /options\.map\(\(o\) => \(/.test(fn) &&
+      /selected=\{selected\.includes\(o\)\}/.test(fn) &&
+      /onClick=\{\(\) => onToggle\(o\)\}/.test(fn)
+    );
   })()
 );
 
@@ -564,6 +576,85 @@ check(
 check(
   "the version bumped again, to at least 43, for Finding.timeline",
   Number(/version:\s*(\d+),/.exec(storeSrc)?.[1] ?? 0) >= 43 && /from < 43/.test(storeSrc)
+);
+
+/* ---- 14 · quick evidence request — Sarel: "the capture evidence is too
+   complicated... just an option to capture evidence... linked to a
+   discipline. add a simple capture to the review page." ----------------- */
+
+check(
+  "EvidenceQuickCapture renders at the top of the Risk & root cause tab, above the filters",
+  (() => {
+    const quick = table.indexOf("<EvidenceQuickCapture");
+    const filters = table.indexOf('aria-label="Filter by discipline"');
+    return quick !== -1 && filters !== -1 && quick < filters;
+  })()
+);
+check(
+  "it is two fields and a button — a discipline select and a free-text \"what's needed\" line, nothing else",
+  /function EvidenceQuickCapture\(\)/.test(table) &&
+    /aria-label="Which discipline this evidence request is about"/.test(table) &&
+    /placeholder="What's needed/.test(table)
+);
+check(
+  "Request is disabled with either field empty — no half-filled record can be created",
+  /disabled=\{!text\.trim\(\) \|\| !discipline\}/.test(table)
+);
+check(
+  "it writes through the SAME addEvidenceItem store action every other evidence-request entry point already calls — not a second record kind",
+  /const addEvidenceItem = useStore\(\(s\) => s\.addEvidenceItem\);/.test(table) &&
+    /addEvidenceItem\(t, \{ discipline \}\);/.test(table)
+);
+check(
+  "it does NOT redirect to /evidence afterward — the full form stays for whoever chases the document down, not for the moment of noticing it's needed",
+  (() => {
+    const start = table.indexOf("function EvidenceQuickCapture(");
+    const end = table.indexOf("\n}\n", start);
+    const fn = start === -1 ? "" : table.slice(start, end === -1 ? undefined : end);
+    return fn.length > 0 && !/router\.push/.test(fn) && !/\/evidence/.test(fn);
+  })()
+);
+check(
+  "Enter submits, same as tapping Request — a one-line capture should not need a mouse",
+  /onKeyDown=\{\(e\) => \{\s*\n\s*if \(e\.key === "Enter"\) submit\(\);/.test(table)
+);
+check(
+  "a successful request confirms inline, naming what was asked for and where it now lives",
+  /requested — it&rsquo;s in the Evidence log now\./.test(table)
+);
+
+/* ---- 15 · live-table feedback, 16 Nov 2026 — photo size, Finding column
+   headings, Root cause/Impact editing, Audit check column width --------- */
+
+check(
+  "the inline photo thumbnail grew from 28px to 56px — Sarel: \"increase the size of the photo so that you can see it properly inline\"",
+  /width: 56, height: 56/.test(table) && !/width: 28, height: 28/.test(table)
+);
+check(
+  "the Finding column no longer prints \"AUDIT CHECK NOTE\"/\"FINDING\"/\"EVIDENCE REVIEW\" eyebrow labels — Sarel: \"no need for headings in the column\"",
+  !/Audit check note\s*<\/div>/.test(table) &&
+    !/>\s*Finding\s*<\/div>/.test(table) &&
+    !/Evidence review\s*<\/div>/.test(table)
+);
+check(
+  "the three sources (audit check note, the finding itself, evidence review) still render in order, just without their own heading line each",
+  (() => {
+    const cellStart = table.indexOf("const r = f.checkId ? responses[f.checkId] : undefined;");
+    const cellEnd = table.indexOf("})()}", cellStart);
+    const cell = cellStart === -1 ? "" : table.slice(cellStart, cellEnd);
+    return (
+      cell.length > 0 &&
+      /r\?\.observation &&/.test(cell) &&
+      /f\.title \|\| f\.description \|\| f\.id/.test(cell) &&
+      /r\?\.evidenceProves &&/.test(cell) &&
+      cell.indexOf("r?.observation") < cell.indexOf("f.title || f.description || f.id") &&
+      cell.indexOf("f.title || f.description || f.id") < cell.indexOf("r?.evidenceProves")
+    );
+  })()
+);
+check(
+  "the Audit check column is narrower than before — min-w-[90px] max-w-[180px], down from 160/320",
+  /min-w-\[90px\] max-w-\[180px\] p-2 align-top/.test(table) && !/min-w-\[160px\] max-w-\[320px\]/.test(table)
 );
 
 console.log(failures === 0 ? "\nREVIEW TABLE V2 OK" : `\n${failures} FAILURES`);

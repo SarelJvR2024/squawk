@@ -22,8 +22,9 @@
  *
  *  Timeline (Finding.timeline, TIMELINES in riskVocab.ts) — Sarel: "make sure
  *  that column is... in the table, and that we can do inline editing of that
- *  field." Single-select, so a plain `<select>`, not the multi-select
- *  `<details>` popover Root cause/Impact use.
+ *  field." Single-select, so a plain `<select>`, not the always-visible
+ *  chip row Root cause/Impact use (see MultiSelectCell's own header for why
+ *  those two are chips, not a select).
  *
  *  16 Nov 2026 — SEVERITY, LIKELIHOOD AND RATING ARE GONE FROM THIS TABLE.
  *  Sarel: "we're not going to do severity and likelihood ratings on a
@@ -177,6 +178,19 @@ export default function ReviewRiskTable({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-3">
+      {/* Quick evidence request — Sarel: "the capture evidence is too
+          complicated. it is just an option to capture evidence ie Planned
+          maintenance schedule for runway markings for one week, inspection
+          records of stormwater for 2 days. this is linked to a
+          discipline." One line, one discipline, no redirect into the full
+          /evidence form's other dozen fields — this still creates a real
+          EvidenceItem (addEvidenceItem, the same store action /evidence's
+          own "Log it" button and ReviewRiskPanel's own "Request for…"
+          buttons already call), so it still shows up in the real Evidence
+          log for whoever actually chases it down; it is just not routed
+          through the full form to say so. */}
+      <EvidenceQuickCapture />
+
       {/* Filters — the Rating/Not-rated/Root-cause-unconfirmed CHIP ROW Sarel
           asked removed ("remove these filters", screenshot of the All/
           Priority I/II/III/Not rated row) is gone. The four dropdowns below
@@ -369,8 +383,12 @@ export default function ReviewRiskTable({
                   {/* Audit check — the readable requirement text, never the
                       reference code (presentation only; f.checkId itself is
                       untouched and still drives linking/filtering/grouping
-                      and compliance calculations elsewhere). */}
-                  <td className="min-w-[160px] max-w-[320px] p-2 align-top">
+                      and compliance calculations elsewhere). Narrowed 16
+                      Nov 2026 — Sarel, on the live table: "reduce width of
+                      audit check column" (it was min-w-[160px]
+                      max-w-[320px], wide for a cell that mostly just reads
+                      "General"). */}
+                  <td className="min-w-[90px] max-w-[180px] p-2 align-top">
                     {f.checkId ? (
                       <span className="block whitespace-normal break-words" style={{ color: "var(--ink-2)" }}>
                         {checksById.get(f.checkId)?.requirement.slice(0, 90) ?? f.checkId}
@@ -394,26 +412,28 @@ export default function ReviewRiskTable({
                         - what the evidence review found (Response.evidenceProves)
                       A finding with no checkId has no audit-check note or
                       evidence-review verdict to show — those two lines are
-                      simply absent, not "General". */}
+                      simply absent, not "General".
+                      16 Nov 2026 — Sarel, on the live table: "remove the
+                      heading findings, audit check notes from the findings
+                      column, no need for headings in the column." The
+                      "AUDIT CHECK NOTE"/"FINDING"/"EVIDENCE REVIEW" eyebrow
+                      labels are gone; the three sources still read in the
+                      same order and stay visually distinct by weight alone
+                      (the finding itself bold, the other two not) — the
+                      same distinction `about`/`checkRequirement` in the AI
+                      prompts below reads programmatically, this is just no
+                      longer spelled out on screen too. */}
                   <td className="min-w-[220px] max-w-[400px] p-2 align-top">
                     {(() => {
                       const r = f.checkId ? responses[f.checkId] : undefined;
                       return (
                         <div className="flex flex-col gap-[6px]">
                           {r?.observation && (
-                            <div>
-                              <div className="text-[9.5px] font-semibold uppercase" style={{ color: "var(--ink-4)" }}>
-                                Audit check note
-                              </div>
-                              <div className="whitespace-normal break-words text-[10.5px]" style={{ color: "var(--ink-2)" }}>
-                                {r.observation}
-                              </div>
+                            <div className="whitespace-normal break-words text-[10.5px]" style={{ color: "var(--ink-2)" }}>
+                              {r.observation}
                             </div>
                           )}
                           <div>
-                            <div className="text-[9.5px] font-semibold uppercase" style={{ color: "var(--ink-4)" }}>
-                              Finding
-                            </div>
                             <div className="whitespace-normal break-words font-semibold" style={{ color: "var(--ink)" }}>
                               {f.title || f.description || f.id}
                             </div>
@@ -424,13 +444,8 @@ export default function ReviewRiskTable({
                             )}
                           </div>
                           {r?.evidenceProves && (
-                            <div>
-                              <div className="text-[9.5px] font-semibold uppercase" style={{ color: "var(--ink-4)" }}>
-                                Evidence review
-                              </div>
-                              <div className="whitespace-normal break-words text-[10.5px]" style={{ color: "var(--ink-2)" }}>
-                                {r.evidenceProves}
-                              </div>
+                            <div className="whitespace-normal break-words text-[10.5px]" style={{ color: "var(--ink-2)" }}>
+                              {r.evidenceProves}
                             </div>
                           )}
                         </div>
@@ -439,13 +454,15 @@ export default function ReviewRiskTable({
                   </td>
 
                   {/* PRIORITY 2 (review redesign) — Root cause and Impact
-                      are now editable right here, not panel-only, same as
-                      Severity/Likelihood above: a <details> popover inside
-                      a stopPropagation'd <td>, so opening it never selects
-                      the row. toggleMulti/IMPACT_AREAS/ROOT_CAUSES are the
-                      exact same values and toggle function the panel's own
-                      chip rows already use — one vocabulary, one toggle,
-                      two surfaces. */}
+                      are now editable right here, not panel-only. Every
+                      option renders directly inside a stopPropagation'd
+                      <td> (see MultiSelectCell's own header, 16 Nov 2026,
+                      for why nothing is hidden behind a disclosure any
+                      more), so tapping a chip never selects the row.
+                      toggleMulti/IMPACT_AREAS/ROOT_CAUSES are the exact
+                      same values and toggle function the panel's own chip
+                      rows already use — one vocabulary, one toggle, two
+                      surfaces. */}
                   <td className="p-2 align-top" onClick={(e) => e.stopPropagation()}>
                     <MultiSelectCell
                       label={`Root cause categories for ${f.title || f.id}`}
@@ -529,11 +546,13 @@ export default function ReviewRiskTable({
 }
 
 /** One inline evidence thumbnail — Sarel: "add the photos in the row so that
- *  the photos can be viewed inline." `useBlobUrl` is the same resolver
- *  Capture's own PhotoRow uses; the thumbnail/data-URL fallback chain is the
- *  same one too (full resolution isn't needed for a 28px thumbnail, and the
- *  thumbnail is what survives when the full blob doesn't — see
- *  Capture.tsx's own note on why). */
+ *  the photos can be viewed inline," then, after seeing it live: "increase
+ *  the size of the photo so that you can see it properly inline." 56px, up
+ *  from the original 28 — big enough to actually tell what it's a photo
+ *  of without opening the lightbox. `useBlobUrl` is the same resolver
+ *  Capture's own PhotoRow uses; the thumbnail/data-URL fallback chain is
+ *  the same one too (the thumbnail is what survives when the full blob
+ *  doesn't — see Capture.tsx's own note on why). */
 function EvidenceThumb({ attachment, onOpen }: { attachment: Attachment; onOpen: () => void }) {
   const { url } = useBlobUrl(attachment.blobKey);
   const src = url ?? attachment.thumbDataUrl ?? attachment.dataUrl ?? null;
@@ -543,8 +562,8 @@ function EvidenceThumb({ attachment, onOpen }: { attachment: Attachment; onOpen:
       type="button"
       onClick={onOpen}
       aria-label={attachment.caption ? `View photo: ${attachment.caption}` : "View photo"}
-      className="block overflow-hidden rounded-[4px] border p-0"
-      style={{ borderColor: "var(--line-2)", width: 28, height: 28 }}
+      className="block overflow-hidden rounded-[6px] border p-0"
+      style={{ borderColor: "var(--line-2)", width: 56, height: 56 }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- a local blob/data URL, not a remote asset next/image can optimise */}
       <img src={src} alt="" className="h-full w-full object-cover" />
@@ -601,14 +620,18 @@ function EvidenceLightbox({ attachment, onClose }: { attachment: Attachment; onC
   );
 }
 
-/** PRIORITY 2 (review redesign) — the table's own inline editor for a
- *  multi-select axis (Root cause categories, Impact areas), so neither has
- *  to leave the row for the panel just to toggle one value. A native
- *  `<details>` disclosure, not a hand-rolled popover: toggling an option
- *  inside it never closes it (only the summary toggles), it is natively
- *  keyboard-operable (Enter/Space on the summary, Tab through the chips),
- *  and it needs no outside-click listener to manage. The caller's own
- *  `<td onClick={stopPropagation}>` is what keeps opening this from
+/** THE TABLE'S OWN INLINE EDITOR for a multi-select axis (Root cause
+ *  categories, Impact areas), so neither has to leave the row for the
+ *  panel just to toggle one value.
+ *
+ *  16 Nov 2026 — Sarel, on the live table: "root cause and impact inline
+ *  editing is not user friendly." The previous version hid every option
+ *  behind a `<details>` disclosure — nothing to toggle was visible until
+ *  you tapped a small "—" or a Pill first, which is exactly the kind of
+ *  hidden control that reads as broken on a tablet. Every option is now
+ *  shown directly, always, with the selected ones highlighted — tap any
+ *  one to toggle it, nothing to open first. The caller's own `<td
+ *  onClick={stopPropagation}>` is what keeps a tap here from also
  *  selecting the row — this component does not duplicate that guard. */
 function MultiSelectCell({
   label,
@@ -622,35 +645,13 @@ function MultiSelectCell({
   onToggle: (value: string) => void;
 }) {
   return (
-    <details className="group relative inline-block">
-      <summary
-        aria-label={label}
-        className="block cursor-pointer list-none [&::-webkit-details-marker]:hidden"
-      >
-        {selected.length === 0 ? (
-          <span style={{ color: "var(--ink-4)" }}>—</span>
-        ) : (
-          <span>
-            <Pill>{selected[0]}</Pill>
-            {selected.length > 1 && (
-              <span className="ml-1 font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>
-                +{selected.length - 1}
-              </span>
-            )}
-          </span>
-        )}
-      </summary>
-      <div
-        className="absolute z-10 mt-1 flex w-[220px] flex-wrap gap-[4px] rounded-[8px] border p-2 shadow-lg"
-        style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-      >
-        {options.map((o) => (
-          <Chip key={o} selected={selected.includes(o)} onClick={() => onToggle(o)}>
-            {o}
-          </Chip>
-        ))}
-      </div>
-    </details>
+    <div role="group" aria-label={label} className="flex max-w-[170px] flex-wrap gap-[3px]">
+      {options.map((o) => (
+        <Chip key={o} selected={selected.includes(o)} onClick={() => onToggle(o)}>
+          {o}
+        </Chip>
+      ))}
+    </div>
   );
 }
 
@@ -659,6 +660,98 @@ function Th({ children }: { children: React.ReactNode }) {
     <th className="p-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
       {children}
     </th>
+  );
+}
+
+/** QUICK EVIDENCE REQUEST — Sarel: "the capture evidence is too
+ *  complicated. it is just an option to capture evidence ie Planned
+ *  maintenance schedule for runway markings for one week, inspection
+ *  records of stormwater for 2 days. this is linked to a discipline. add a
+ *  simple capture to the review page."
+ *
+ *  Two fields and a button — a discipline and one line saying what's
+ *  needed (the auditor's own words carry the "for one week"/"for 2 days"
+ *  part; nothing here tries to parse a period out of free text). Writes
+ *  through the SAME addEvidenceItem store action every other evidence-
+ *  request entry point in this app already calls — ReviewRiskPanel's own
+ *  "Request for this check/system/discipline" buttons, and /evidence's own
+ *  "Log it" — so the result is a real EvidenceItem, in the real Evidence
+ *  log, not a second record kind invented here. It deliberately does NOT
+ *  redirect to /evidence afterward: that full form (document number,
+ *  medium, received-by, returned-to, …) is for whoever actually chases the
+ *  document down, not for the moment of noticing it's needed. */
+function EvidenceQuickCapture() {
+  const addEvidenceItem = useStore((s) => s.addEvidenceItem);
+  const [discipline, setDiscipline] = useState("");
+  const [text, setText] = useState("");
+  const [justAdded, setJustAdded] = useState<string | null>(null);
+
+  function submit() {
+    const t = text.trim();
+    if (!t || !discipline) return;
+    addEvidenceItem(t, { discipline });
+    setText("");
+    setJustAdded(t);
+  }
+
+  return (
+    <div
+      className="mb-2.5 rounded-[11px] border p-2.5"
+      style={{ borderColor: "var(--line-2)", background: "var(--sunken)" }}
+    >
+      <div
+        className="mb-1.5 text-[10px] font-semibold tracking-[.03em] uppercase"
+        style={{ color: "var(--ink-3)" }}
+      >
+        Request evidence
+      </div>
+      <div className="flex flex-wrap items-center gap-[6px]">
+        <select
+          aria-label="Which discipline this evidence request is about"
+          value={discipline}
+          onChange={(e) => {
+            setDiscipline(e.target.value);
+            setJustAdded(null);
+          }}
+          className="h-[30px] rounded-[8px] border px-2 text-[11px]"
+          style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+        >
+          <option value="">Discipline…</option>
+          {ALL_DISCIPLINES.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+        <input
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            setJustAdded(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+          }}
+          placeholder="What's needed — e.g. Planned maintenance schedule for runway markings, for the last week"
+          className="h-[30px] min-w-[260px] flex-1 rounded-[8px] border px-2 text-[11px]"
+          style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+        />
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!text.trim() || !discipline}
+          className="h-[30px] rounded-[8px] px-3 text-[11px] font-semibold disabled:opacity-55"
+          style={{ background: "var(--acc)", color: "#fff" }}
+        >
+          Request
+        </button>
+      </div>
+      {justAdded && (
+        <div className="mt-1.5 text-[10.5px]" style={{ color: "var(--good)" }}>
+          &ldquo;{justAdded}&rdquo; requested — it&rsquo;s in the Evidence log now.
+        </div>
+      )}
+    </div>
   );
 }
 
