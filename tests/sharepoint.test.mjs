@@ -1171,17 +1171,54 @@ check(
       v.findingRootCauseCategories === null &&
       v.findingImpactAreas === null &&
       v.findingRootCauseNote === null &&
-      v.findingRootCauseConfirmed === null
+      v.findingRootCauseConfirmed === null &&
+      v.findingTimeline === null
     );
   })(),
-  "HAZ's own f1/f2/f3 fixture sets none of these four — an update sending \"\" would wipe whatever ACSA has in the cell"
+  "HAZ's own f1/f2/f3 fixture sets none of these five — an update sending \"\" would wipe whatever ACSA has in the cell"
 );
 
 check(
-  "all four are in the FINDINGS contract, so the columns get asked for",
-  ["findingRootCauseCategories", "findingImpactAreas", "findingRootCauseNote", "findingRootCauseConfirmed"].every(
-    (k) => sp.FINDING_FIELDS.includes(k)
-  )
+  "all five are in the FINDINGS contract, so the columns get asked for",
+  [
+    "findingRootCauseCategories",
+    "findingImpactAreas",
+    "findingRootCauseNote",
+    "findingRootCauseConfirmed",
+    "findingTimeline",
+  ].every((k) => sp.FINDING_FIELDS.includes(k))
+);
+
+/* ---- Finding.timeline (PR #264's own remediation-urgency field) —
+   found missing from this file within hours of the field landing, by
+   the same standing sync-integrity review. A hazard takes the MOST
+   URGENT of its findings' timelines, never an average or a join. ----- */
+
+check(
+  "a hazard's timeline is the MOST URGENT of its findings', not the first or the last",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...HAZ,
+        findings: [
+          { id: "f1", entity: "FALE", checkId: "KSIA-ELE-001", timeline: "Long term" },
+          { id: "f2", entity: "FALE", checkId: "KSIA-ELE-002", timeline: "Immediate" },
+          { id: "f3", entity: "FALE", checkId: "KSIA-ELE-001", timeline: "Before next audit" },
+        ],
+      },
+      NOTHING
+    );
+    return p.findings.find((r) => r.key === "KSIA-ELE-P01").values.findingTimeline === "Immediate";
+  })(),
+  "f2 is Immediate, the most urgent of the three — the hazard's own row must say that, not Long term (f1, listed first) or a join of all three"
+);
+
+check(
+  "a hazard with no finding carrying a timeline reads null, not an empty string",
+  (() => {
+    const v = sp.buildPlan(HAZ, NOTHING).findings.find((r) => r.key === "KSIA-ELE-P01").values;
+    return v.findingTimeline === null;
+  })()
 );
 
 /* A SITE NOBODY HAS AUDITED YET — the check that would have caught both Bram
