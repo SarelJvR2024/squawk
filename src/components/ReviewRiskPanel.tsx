@@ -2,9 +2,10 @@
 
 /** THE RIGHT-HAND PANEL for the Review risk-fields addendum's table — §3.
  *  One finding (an observation or non-compliance) at a time: Type, the
- *  hierarchy it's linked to, its own notes/photos/recordings, the linked
- *  audit check's compliance (read-only), Impact areas, Root cause
- *  categories + notes + Confirmed toggle.
+ *  hierarchy it's linked to (and able to reassign it), a Timeline
+ *  selector, its own notes/photos/recordings, the linked audit check's
+ *  compliance (read-only), Impact areas, Root cause categories + notes +
+ *  Confirmed toggle.
  *
  *  16 Nov 2026 — SEVERITY, LIKELIHOOD AND THE MINI MATRIX ARE GONE FROM THIS
  *  PANEL. Sarel: "we're not going to do severity and likelihood ratings on
@@ -28,6 +29,7 @@ import {
   FINDING_TYPE_LABEL,
   IMPACT_AREAS,
   ROOT_CAUSES,
+  TIMELINES,
   findingTypeFor,
   toggleMulti,
 } from "@/lib/reviewRisk";
@@ -65,6 +67,10 @@ export type RiskPatch = Pick<
   | "rootCauseNote"
   | "rootCauseConfirmed"
   | "findingType"
+  /* The drawer had no way to set Timeline at all — only the table's own
+     inline <select> did. Sarel's redesign spec: "Full Risk Matrix &
+     Timeline selectors" in the drawer. */
+  | "timeline"
   /* PRIORITY 4 (review redesign) — Discipline/Asset system/Audit check,
      added so the hierarchy editor below can patch through the SAME
      onChange every other field here already uses, rather than a second
@@ -212,7 +218,22 @@ export default function ReviewRiskPanel({
      tidy-up) and the entity's full airport name (feeds SYSTEM's new
      house rule 8 — never name or cite a different airport). Both come
      from state this panel already computes: `linkedCheck` above, and
-     `entityCode` the caller already passes in. */
+     `entityCode` the caller already passes in.
+
+     16 Nov 2026 — root-cause-screen redesign spec asked for three
+     separate AI tools: "Grammar check, Technical phrasing, and ACSA
+     guidance alignment (all outputs presented as Accept/Reject
+     proposals)." Deliberately NOT built as three buttons calling the
+     model three times over the same text: the "polish" task above
+     already does all three in one pass (its own instruction: fix
+     grammar and sentence structure; write in terms that answer the
+     linked check's requirement, never claiming it was or wasn't met;
+     never invent a fact). Three separate calls on the same note would
+     risk three subtly different rewrites with no way to tell an auditor
+     which is "the" proposal — one unified pass is the same safety
+     property PRIORITY 7 already asked for, just not fragmented. The
+     button's own `title` below spells out all three, since the UI
+     previously gave no sign it covered more than wording. */
   const aiOn = useAssistAvailable();
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [editingSuggestion, setEditingSuggestion] = useState(false);
@@ -343,6 +364,27 @@ export default function ReviewRiskPanel({
           {checkOptions.map((c) => (
             <option key={c.id} value={c.id}>
               {c.requirement.slice(0, 80)}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {/* TIMELINE — the one selector the table's own inline <select> had
+          that this drawer didn't. Single-select, same reasoning
+          ReviewRiskTable's own Timeline cell gives: a finding is remedied
+          on ONE of these, not several. */}
+      <label className="mb-3.5 block">
+        <span className="label-xs">Timeline</span>
+        <select
+          value={finding.timeline ?? ""}
+          onChange={(e) => onChange({ timeline: e.target.value || undefined })}
+          className="mt-1 w-full rounded-[8px] border px-2.5 py-2 text-[12.5px] outline-none focus:border-[var(--acc)]"
+          style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+        >
+          <option value="">—</option>
+          {TIMELINES.map((t) => (
+            <option key={t} value={t}>
+              {t}
             </option>
           ))}
         </select>
@@ -729,7 +771,11 @@ function AiSuggestButton({
       type="button"
       disabled={disabled}
       onClick={onRun}
-      title={disabled && !busy ? "Type something first — there is nothing to improve yet." : undefined}
+      title={
+        disabled && !busy
+          ? "Type something first — there is nothing to improve yet."
+          : "Checks grammar and technical phrasing, and rewrites in terms that answer the linked audit check's own ACSA requirement — one proposal, yours to accept, edit or reject."
+      }
       className="rounded-[6px] px-[8px] py-[3px] text-[10.5px] font-semibold disabled:opacity-40"
       style={{ color: "var(--acc)" }}
     >

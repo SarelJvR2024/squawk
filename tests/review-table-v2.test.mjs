@@ -28,6 +28,7 @@ const panel = read("src", "components", "ReviewRiskPanel.tsx");
 const evidencePage = read("src", "app", "(app)", "evidence", "page.tsx");
 const evidenceQuick = read("src", "components", "EvidenceQuickCapture.tsx");
 const reviewPage = read("src", "app", "(app)", "review", "page.tsx");
+const assistPromptsSrc = read("src", "lib", "assistPrompts.ts");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -156,13 +157,21 @@ check(
 /* "Asset system" dropped from the column-header set — Sarel: "put asset
    system below the discipline in the same column" — it is no longer its
    own header, just a second line inside the Discipline cell (checked
-   separately below). */
-for (const col of ["Type", "Discipline", "Audit check", "Root cause", "Impact", "Timeline", "Evidence"]) {
+   separately below).
+   16 Nov 2026 — "Discipline" and "Audit check" themselves then merged
+   into one "Location / Hierarchy" header — Sarel: "combine Discipline
+   and Audit Check into a single clean 'Location / Hierarchy' column...
+   remove redundant repetition of 'General' across two columns." */
+for (const col of ["Type", "Location / Hierarchy", "Root cause", "Impact", "Timeline", "Evidence"]) {
   check(`the table always renders a "${col}" column header`, new RegExp(`<Th>${col}</Th>|>${col}<`).test(table));
 }
 check(
   "Discipline and Asset system share one column — no separate Asset system header",
   !/<Th>Asset system<\/Th>/.test(table)
+);
+check(
+  "there is no longer a separate Discipline header or a separate Audit check header — both merged into Location / Hierarchy",
+  !/<Th>Discipline<\/Th>/.test(table) && !/<Th>Audit check<\/Th>/.test(table)
 );
 /* 16 Nov 2026 — Sarel: "we're not going to do severity and likelihood
    ratings on a finding level, for now... only on an asset system level."
@@ -180,18 +189,23 @@ check(
   "the column-toggle UI is gone — this is one fixed table, not a customisable one",
   !/DEFAULT_COLUMNS/.test(table) && !/toggleColumn/.test(table)
 );
-/* ---- reference codes removed from the UI (presentation only) ---------
- * See "Review pages: remove audit-check reference codes from the UI" —
- * the Audit check cell now shows the check's own readable requirement
- * text (via checksAt()), never a portalIdFor() reference code. f.checkId
- * itself is untouched as the lookup key/filter/grouping value. */
+/* ---- the Audit check requirement TEXT came out of the table entirely --
+ * 16 Nov 2026 — merged into Location / Hierarchy (above), which shows
+ * only Discipline + Asset system, not the check's requirement text — that
+ * was the single widest thing in the row and fought the density goal
+ * directly. Still reachable: the detail panel's own "Linked to" section
+ * (ReviewRiskPanel.tsx) still resolves it via checksAt()/checksOf(), and
+ * is where reassigning the link happens too — nothing here duplicates
+ * that editing UI, same as before. portalIdFor (reference codes) was
+ * already gone and stays gone. */
 check(
-  "a checkless finding's Audit check cell reads General, not a blank or a broken id",
-  /\{f\.checkId \? \([\s\S]{0,300}\) : \([\s\S]{0,120}General/.test(table)
-);
-check(
-  "a linked finding's Audit check cell shows its readable requirement text, resolved via checksAt — not a reference code",
-  /checksById\.get\(f\.checkId\)\?\.requirement/.test(table) && /checksAt\(entityCode\)/.test(table)
+  "the Audit check requirement text is gone from this table — checksById's own .requirement lookup is no longer called from inside the row map",
+  (() => {
+    const rowStart = table.indexOf("{visible.map((f) => {");
+    const rowEnd = table.indexOf("\n          </tbody>", rowStart);
+    const row = rowStart === -1 ? "" : table.slice(rowStart, rowEnd === -1 ? undefined : rowEnd);
+    return row.length > 0 && !/checksById\.get\(f\.checkId\)\?\.requirement/.test(row);
+  })()
 );
 check(
   "portalIdFor is not called anywhere in this file any more — the ref-code column dropped it",
@@ -211,8 +225,12 @@ check(
     !/rollupAxis/.test(table)
 );
 check(
-  "a finding with no asset system reads General, muted — same convention as Audit check",
-  /\{f\.system \|\| <span className="italic"[\s\S]{0,40}>General<\/span>\}/.test(table)
+  "a finding with no asset system AND no linked check reads one subtle General badge — not the plain italic text the old two-column version used",
+  /\{f\.system \|\| f\.checkId \? \([\s\S]{0,300}\) : \(\s*<Pill tone="neutral">General<\/Pill>/.test(table)
+);
+check(
+  "a finding linked to a check but with no asset system name still reads General, muted — it's not fully unlinked",
+  /\{f\.system \|\| "General"\}/.test(table)
 );
 check(
   "the Evidence column shows inline photo thumbnails, not only a count — Sarel: 'add the photos in the row so that the photos can be viewed inline'",
@@ -516,28 +534,66 @@ check(
   "the inline editors read the same vocabulary as the panel and the bulk bar — ROOT_CAUSES/IMPACT_AREAS, not a third list",
   /options=\{ROOT_CAUSES\}/.test(table) && /options=\{IMPACT_AREAS\}/.test(table)
 );
-/* 16 Nov 2026 — Sarel, on the live table: "root cause and impact inline
-   editing is not user friendly." The `<details>` disclosure (nothing to
-   toggle visible until you first opened it) is gone — every option now
-   shows directly, always, with the selected ones highlighted. */
+/* 16 Nov 2026, morning — Sarel: "root cause and impact inline editing is
+   not user friendly." The `<details>` disclosure (nothing visible until
+   you first opened it) was replaced with every option shown as a Chip,
+   always.
+   16 Nov 2026, later the same day — Sarel again, now on row height: with
+   6-8 options per axis shown on all 29 rows, "every row [was] 250px
+   tall... only 1.5 findings per screen." Second iteration: show only the
+   SELECTED tag(s) as the trigger (still no disclosure needed to know
+   what's selected — the complaint the morning's fix was actually about),
+   and move the full option list into a popover opened on click. */
 check(
-  "every option is shown directly, always — no <details>/<summary> disclosure left to open first",
+  "no <details>/<summary> disclosure, and not a Chip row of every option either — MultiSelectCell is a compact trigger now",
   (() => {
     const start = table.indexOf("function MultiSelectCell");
     const fn = start === -1 ? "" : table.slice(start, table.indexOf("\n}\n", start) + 2);
-    return fn.length > 0 && !/<details/.test(fn) && !/<summary/.test(fn);
+    return fn.length > 0 && !/<details/.test(fn) && !/<summary/.test(fn) && !/<Chip/.test(fn);
   })()
 );
 check(
-  "each option is its own Chip, already reflecting whether it's selected — tap any one to toggle, nothing hidden",
+  "with nothing selected, a faint ghost \"+ Add\" button shows — no options rendered until opened",
+  (() => {
+    const start = table.indexOf("function MultiSelectCell");
+    const fn = start === -1 ? "" : table.slice(start, table.indexOf("\n}\n", start) + 2);
+    return fn.length > 0 && /selected\.length === 0[\s\S]{0,300}\+ Add/.test(fn);
+  })()
+);
+check(
+  "with something selected, the first tag shows as a compact Pill, with a +N badge for the rest — Sarel's own example, [Maintenance backlog] [+1]",
   (() => {
     const start = table.indexOf("function MultiSelectCell");
     const fn = start === -1 ? "" : table.slice(start, table.indexOf("\n}\n", start) + 2);
     return (
       fn.length > 0 &&
-      /options\.map\(\(o\) => \(/.test(fn) &&
-      /selected=\{selected\.includes\(o\)\}/.test(fn) &&
-      /onClick=\{\(\) => onToggle\(o\)\}/.test(fn)
+      /<Pill tone="neutral">\{selected\[0\]\}<\/Pill>/.test(fn) &&
+      /selected\.length > 1[\s\S]{0,200}\+\{selected\.length - 1\}/.test(fn)
+    );
+  })()
+);
+check(
+  "clicking the trigger — the cell itself — opens a popover with every option as a checkbox, multiple selectable",
+  (() => {
+    const start = table.indexOf("function MultiSelectCell");
+    const fn = start === -1 ? "" : table.slice(start, table.indexOf("\n}\n", start) + 2);
+    return (
+      fn.length > 0 &&
+      /role="dialog"/.test(fn) &&
+      /options\.map\(\(o\) => \{/.test(fn) &&
+      /<input type="checkbox" checked=\{checked\} onChange=\{\(\) => onToggle\(o\)\} \/>/.test(fn)
+    );
+  })()
+);
+check(
+  "the popover closes on Escape and on an outside click, same convention as FilterPopover",
+  (() => {
+    const start = table.indexOf("function MultiSelectCell");
+    const fn = start === -1 ? "" : table.slice(start, table.indexOf("\n}\n", start) + 2);
+    return (
+      fn.length > 0 &&
+      /e\.key === "Escape"\) setOpen\(false\)/.test(fn) &&
+      /onClick=\{\(\) => setOpen\(false\)\}/.test(fn)
     );
   })()
 );
@@ -671,9 +727,47 @@ check(
     );
   })()
 );
+/* 16 Nov 2026 — the Audit check column itself is gone (merged into
+   Location / Hierarchy, see that section above); this just confirms the
+   old wide 160/320 sizing it once had never crept back in on the merged
+   column. */
 check(
-  "the Audit check column is narrower than before — min-w-[90px] max-w-[180px], down from 160/320",
-  /min-w-\[90px\] max-w-\[180px\] p-2 align-top/.test(table) && !/min-w-\[160px\] max-w-\[320px\]/.test(table)
+  "the old wide Audit check column sizing (min-w-[160px] max-w-[320px]) is gone, not merely renamed",
+  !/min-w-\[160px\] max-w-\[320px\]/.test(table)
+);
+
+/* ---- 16 · root-cause-screen redesign, 16 Nov 2026 — Timeline added to
+   the drawer, and the AI tool's own capability spelled out ------------- */
+
+check(
+  "the drawer's RiskPatch now carries timeline, same as the table's own inline edit",
+  /\| "timeline"/.test(panel)
+);
+check(
+  "the drawer has its own Timeline selector, positioned after the hierarchy selectors and before the notes section",
+  (() => {
+    const hierarchy = panel.indexOf("Audit check");
+    const timeline = panel.indexOf('<span className="label-xs">Timeline</span>');
+    const notes = panel.indexOf("Notes, photos");
+    return hierarchy !== -1 && timeline !== -1 && notes !== -1 && hierarchy < timeline && timeline < notes;
+  })()
+);
+check(
+  "the Timeline selector reads TIMELINES (reviewRisk.ts) — same vocabulary as the table, not a second list",
+  /import \{[\s\S]{0,120}TIMELINES[\s\S]{0,120}\} from "@\/lib\/reviewRisk"/.test(panel) &&
+    /\{TIMELINES\.map\(\(t\) => \(/.test(panel)
+);
+check(
+  "picking a Timeline in the drawer writes through the SAME onChange wrapper every other field here uses — dirty/save-status included",
+  /onChange=\{\(e\) => onChange\(\{ timeline: e\.target\.value \|\| undefined \}\)\}/.test(panel)
+);
+check(
+  "the AI button's title now spells out all three things Sarel's spec asked for as separate tools — grammar, technical phrasing, and ACSA guidance alignment — rather than giving no sign it does more than reword",
+  /grammar and technical phrasing[\s\S]{0,200}ACSA requirement/.test(panel)
+);
+check(
+  "that stays ONE task/one model call, not three — polish's own instruction (assistPrompts.ts) already covers all three in one pass",
+  /polish:\s*\n?\s*"Rewrite the note below[\s\S]{0,2000}answer it/.test(assistPromptsSrc)
 );
 
 console.log(failures === 0 ? "\nREVIEW TABLE V2 OK" : `\n${failures} FAILURES`);
