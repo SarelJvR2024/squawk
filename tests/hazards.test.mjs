@@ -535,9 +535,17 @@ check("the cover sheet counts what is not yet consolidated", /Findings not yet c
 
 /* -------------------------------------------------- Part 11: getting to it */
 
-check("Hazards is in the navigation", /href: "\/hazards"/.test(shell));
+/* MOVED TO THE MORE MENU (Sarel, 15 Nov 2026): "remove HIRA tab only, not
+   the sync, we will still use the sync" — same declutter-the-bar-keep-the-
+   feature move already made for Safety and Review. The route, the page and
+   every write path into it are unchanged; only the main nav bar's own slot
+   is gone. */
 check(
-  "its badge counts what is outstanding, not what is done",
+  "Hazards is reachable — via the More menu now, not the main nav bar",
+  !/\{ href: "\/hazards"/.test(shell) && /router\.push\("\/hazards"\)/.test(shell)
+);
+check(
+  "its hint counts what is outstanding, not what is done",
   /ungrouped/.test(shell)
 );
 

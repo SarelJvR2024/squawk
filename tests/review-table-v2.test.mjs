@@ -151,9 +151,17 @@ check(
 
 /* ---- 3 · the wide table's fixed column set — no toggle any more */
 
-for (const col of ["Type", "Discipline", "Asset system", "Audit check", "Severity", "Likelihood", "Rating", "Root cause", "Impact", "Evidence"]) {
+/* "Asset system" dropped from the column-header set — Sarel: "put asset
+   system below the discipline in the same column" — it is no longer its
+   own header, just a second line inside the Discipline cell (checked
+   separately below). */
+for (const col of ["Type", "Discipline", "Audit check", "Severity", "Likelihood", "Rating", "Root cause", "Impact", "Evidence"]) {
   check(`the table always renders a "${col}" column header`, new RegExp(`<Th>${col}</Th>|>${col}<`).test(table));
 }
+check(
+  "Discipline and Asset system share one column — no separate Asset system header",
+  !/<Th>Asset system<\/Th>/.test(table)
+);
 check(
   "the column-toggle UI is gone — this is one fixed table, not a customisable one",
   !/DEFAULT_COLUMNS/.test(table) && !/toggleColumn/.test(table)
@@ -190,13 +198,12 @@ check(
 );
 check(
   "a finding with no asset system reads General, muted — same convention as Audit check",
-  /\{f\.system \? \([\s\S]{0,40}f\.system[\s\S]{0,40}\) : \([\s\S]{0,60}className="italic"[\s\S]{0,60}General/.test(
-    table
-  )
+  /\{f\.system \|\| <span className="italic"[\s\S]{0,40}>General<\/span>\}/.test(table)
 );
 check(
-  "the Evidence column reads attachments directly — photo and voice counts, nothing else",
-  /f\.attachments\.filter\(\(a\) => a\.kind === "photo"\)\.length/.test(table) &&
+  "the Evidence column shows inline photo thumbnails, not only a count — Sarel: 'add the photos in the row so that the photos can be viewed inline'",
+  /photoAttachments\.slice\(0, 4\)\.map/.test(table) &&
+    /EvidenceThumb/.test(table) &&
     /f\.attachments\.filter\(\(a\) => a\.kind === "voice"\)\.length/.test(table)
 );
 check(
@@ -425,13 +432,25 @@ check(
   "every row rendered comes from `visible` with no slice/limit in between — scrolling reaches all of them, no silent pagination",
   /visible\.map\(\(f\) => \{/.test(table) && !/visible\.slice\(/.test(table)
 );
+/* The All/Priority I/II/III/Not rated/Root cause unconfirmed CHIP ROW is
+   gone — Sarel: "remove these filters" (screenshot of exactly that row).
+   The four dropdown filters (Discipline/Asset system/Impact area/Root
+   cause category) stay; matchesReviewRiskFilter itself still supports
+   every filter kind (checked directly below), there's simply no chip
+   bound to priority/notRated/unconfirmed any more. */
 check(
-  "Priority I/II/III chips show a real count via matchesReviewRiskFilter, not a bare label",
-  /Priority \{p\} \(\{findings\.filter/.test(table)
+  "the status filter chip row (All/Priority/Not rated/Root cause unconfirmed) is gone",
+  !/Priority \{p\} \(/.test(table) &&
+    !/Not rated \(\{countNotRated/.test(table) &&
+    !/Root cause unconfirmed \(\{findings\.filter/.test(table) &&
+    !/function FilterChip/.test(table)
 );
 check(
-  "Root cause unconfirmed carries a count too, same function as every other chip",
-  /Root cause unconfirmed \(\{findings\.filter/.test(table)
+  "the four dropdown filters (Discipline/Asset system/Impact area/Root cause category) still work",
+  /Filter by discipline/.test(table) &&
+    /Filter by asset system/.test(table) &&
+    /Filter by impact area/.test(table) &&
+    /Filter by root cause category/.test(table)
 );
 check(
   "the on-screen count line is computed from `visible`, the exact array the rows below render from — not findings.length, which would drift the moment a filter is active",

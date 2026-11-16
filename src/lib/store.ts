@@ -1598,6 +1598,14 @@ export const useStore = create<State>()(
             findings: s.findings.map((f) =>
               f.id === id ? { ...f, ...p, updatedAt: Date.now() } : f
             ),
+            /* PRIORITY 2 (review redesign) — every other action that
+               touches persisted state already stamps lastSavedAt; this one
+               had not, which is why the Review screen's own saving/saved/
+               failed indicator (useFieldSaveStatus below) had nothing to
+               read. Still set in the SAME set() call as the write itself —
+               optimistic, matching every other call site, not a second
+               render pass once IndexedDB confirms. */
+            lastSavedAt: Date.now(),
           })),
 
         removeFinding: (id) =>
@@ -5038,6 +5046,27 @@ export const useDisciplineFilter = (): string => {
 /** Null while this device's own storage is working; a sentence for the
  *  banner the moment a write to it fails. See idbStorage.setItem. */
 export const usePersistError = () => useStore((s) => s.persistError);
+
+export type FieldSaveStatus = "saving" | "saved" | "failed";
+
+/** PRIORITY 2 (review redesign) — Review's own saving/saved/failed
+ *  indicator for an inline edit, built on the two signals every write
+ *  already produces (lastSavedAt/persistError) rather than a second,
+ *  parallel per-field "saved" flag nothing else maintains.
+ *
+ *  `editedAt` is the CALLER's own record of when it last wrote the field
+ *  this status describes — null means "nothing edited yet, say nothing."
+ *  `persistError` is global (one combined write per change, same as the
+ *  banner this mirrors), so a failure after `editedAt` means THIS edit's
+ *  own write is the one that did not reach storage — not a per-field
+ *  signal invented on top of a single combined blob. */
+export function useFieldSaveStatus(editedAt: number | null): FieldSaveStatus | null {
+  const lastSavedAt = useStore((s) => s.lastSavedAt);
+  const persistError = useStore((s) => s.persistError);
+  if (editedAt === null) return null;
+  if (lastSavedAt !== null && lastSavedAt >= editedAt) return persistError ? "failed" : "saved";
+  return persistError ? "failed" : "saving";
+}
 /** Whether the browser's live dictation engine may run while a note records.
  *  Off by default — see the `dictation` field on State for why. */
 export const useDictationEnabled = () => useStore((s) => s.dictation);
