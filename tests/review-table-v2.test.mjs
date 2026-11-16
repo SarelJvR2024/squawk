@@ -361,9 +361,17 @@ check(
   "the page still has no path to a response, a status or a finding — custody, never compliance",
   !/setResponse|patchResponse|setCompliance|addFinding/.test(evidencePage)
 );
+/* PRIORITY 5 (review redesign) — "By discipline" is now the default,
+ * confirmed with the user. "By document" (the old custody form) is
+ * untouched and still reachable as a tab — only the initial state
+ * changed, not the screen itself. */
 check(
-  "the new By-discipline view defaults off — the screen still opens on By document",
-  /useState<"document" \| "discipline">\("document"\)/.test(evidencePage)
+  "the By-discipline view is now the default — confirmed with the user, not an accidental flip",
+  /useState<"document" \| "discipline">\("discipline"\)/.test(evidencePage)
+);
+check(
+  "By document itself is untouched -- still one of the two view options, still a real tab",
+  /\["document", "By document"\]/.test(evidencePage) && /\["discipline", "By discipline"\]/.test(evidencePage)
 );
 
 /* ---- 9 · the panel reuses the real request-creation logic, not a copy -- */

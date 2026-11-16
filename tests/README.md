@@ -82,7 +82,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `suite-table.test.mjs` | no | 5 |
 | `reviewfields.test.mjs` | no | 20 |
 | `review-risk-fields.test.mjs` | no | 48 |
-| `review-table-v2.test.mjs` | no | 79 |
+| `review-table-v2.test.mjs` | no | 80 |
 | `reviewlayout.test.mjs` | no | 8 |
 | `reviewsavestate.test.mjs` | no | 14 |
 | `reviewpanelcontent.test.mjs` | no | 14 |
@@ -103,7 +103,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `auditdates.test.mjs` | no | 20 |
 | `relinkphoto.test.mjs` | no | 16 |
 | `erm-matrix.test.mjs` | no | 80 |
-| `sharepoint.test.mjs` | no | 409 |
+| `sharepoint.test.mjs` | no | 414 |
 | `graph.test.mjs` | no | 16 |
 | `activity.test.mjs` | no | 34 |
 | `assets.test.mjs` | no | 21 |
@@ -136,7 +136,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `import-pack.test.mjs` | no | 63 |
 | `ortia-v3-pack.test.mjs` | no | 84 |
 | `sheet.test.mjs` | no | 17 |
-| `exports.test.mjs` | no | 38 |
+| `exports.test.mjs` | no | 44 |
 | `field-wide-detail.test.mjs` | no | 15 |
 | `fieldobservation-display.test.mjs` | no | 6 |
 | `findings-inspection-link.test.mjs` | no | 19 |
@@ -158,7 +158,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**4,148 assertions in total**, every count above verified by running the suite,
+**4,149 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
