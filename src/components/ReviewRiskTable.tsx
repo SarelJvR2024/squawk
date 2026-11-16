@@ -50,7 +50,7 @@
  *  "make sure all AI cleanup is available and accessible from root cause
  *  page"). */
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   FINDING_TYPE_LABEL,
   IMPACT_AREAS,
@@ -851,6 +851,12 @@ function BulkSuggestWording({
   const aiOn = useAssistAvailable();
   const [proposals, setProposals] = useState<Record<string, AiProposal>>({});
   const [running, setRunning] = useState(false);
+  /* Same synchronous double-fire guard as BulkTranscribeVoiceNotes, same
+     reasoning — `running` state lags one render behind a raw click. Every
+     result here still sits behind its own Accept/Reject either way, so a
+     double-fire could only waste a duplicate "polish" call, never write
+     twice — but there is no reason to risk even that. */
+  const runningRef = useRef(false);
 
   const eligible = findings.filter((f) => f.description.trim());
   const pending = eligible.filter((f) => !proposals[f.id] || proposals[f.id].state === "error");
@@ -858,6 +864,8 @@ function BulkSuggestWording({
   const appliedCount = Object.values(proposals).filter((p) => p.state === "applied").length;
 
   async function run() {
+    if (runningRef.current) return;
+    runningRef.current = true;
     setRunning(true);
     for (const f of eligible) {
       if (proposals[f.id]?.state === "proposed" || proposals[f.id]?.state === "applied") continue;
@@ -884,6 +892,7 @@ function BulkSuggestWording({
       }
     }
     setRunning(false);
+    runningRef.current = false;
   }
 
   function applyOne(f: Finding) {
@@ -1013,6 +1022,13 @@ function BulkTranscribeVoiceNotes({
   const [state, setState] = useState<Record<string, "loading" | "done" | "error">>({});
   const [running, setRunning] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  /* A SYNCHRONOUS double-fire guard — `running` state lags one render
+     behind a raw click, which a plain `disabled={running}` on its own
+     does not stop (same gap raise/page.tsx's own pushedNoteIds ref
+     exists to close for its single-note auto-apply). This path has no
+     human review gate at all, so a double-click here is worth guarding
+     properly rather than only reactively. */
+  const runningRef = useRef(false);
 
   /* One row per UNTRANSCRIBED voice note, not per finding — a finding can
      carry more than one voice note, and each needs its own transcribe()
@@ -1023,8 +1039,19 @@ function BulkTranscribeVoiceNotes({
   const pending = untranscribed.filter((u) => state[u.attachment.id] !== "done");
 
   async function run() {
+    if (runningRef.current) return;
+    runningRef.current = true;
     setRunning(true);
     setErrors([]);
+    /* TWO OR MORE untranscribed voice notes can belong to the SAME
+       finding. Each append has to follow the one before it, but
+       `onChangeOne` writes to the store, not back onto this closed-over
+       `f` — re-reading `f.description` on the second note would read
+       the STALE pre-run value and overwrite the first note's append
+       instead of following it. This tracks each finding's own running
+       description locally for the length of this one run, seeded from
+       its real value the first time that finding is touched. */
+    const liveDescription = new Map<string, string>();
     for (const { finding: f, attachment: a } of untranscribed) {
       if (state[a.id] === "done") continue;
       setState((s) => ({ ...s, [a.id]: "loading" }));
@@ -1033,7 +1060,10 @@ function BulkTranscribeVoiceNotes({
         if (!blob) throw new Error(`${f.title || f.id}: that recording is no longer stored on this device.`);
         const { text } = await transcribe(blob, a.name || "note.webm");
         updateFindingAttachment(f.id, a.id, { transcript: text, transcriptSource: "service", transcribedAt: Date.now() });
-        onChangeOne(f.id, { description: f.description.trim() ? `${f.description}\n${text}` : text });
+        const current = liveDescription.get(f.id) ?? f.description;
+        const next = current.trim() ? `${current}\n${text}` : text;
+        liveDescription.set(f.id, next);
+        onChangeOne(f.id, { description: next });
         setState((s) => ({ ...s, [a.id]: "done" }));
       } catch (e) {
         setState((s) => ({ ...s, [a.id]: "error" }));
@@ -1041,6 +1071,7 @@ function BulkTranscribeVoiceNotes({
       }
     }
     setRunning(false);
+    runningRef.current = false;
   }
 
   if (!canTranscribe) return null;

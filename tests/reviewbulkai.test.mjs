@@ -140,7 +140,31 @@ check(
 );
 check(
   "the verbatim text is appended straight into the finding's own notes field — automatically, no second tap, same rule raise/page.tsx's own applyVoiceNote already follows for a brand-new finding",
-  /onChangeOne\(f\.id, \{ description: f\.description\.trim\(\) \? `\$\{f\.description\}\\n\$\{text\}` : text \}\);/.test(table)
+  /const current = liveDescription\.get\(f\.id\) \?\? f\.description;/.test(table) &&
+    /const next = current\.trim\(\) \? `\$\{current\}\\n\$\{text\}` : text;/.test(table) &&
+    /onChangeOne\(f\.id, \{ description: next \}\);/.test(table)
+);
+/* 16 Nov 2026 — independent review caught a real bug here: a finding with
+   TWO OR MORE untranscribed voice notes lost the first note's text,
+   because the old code read `f.description` fresh on every iteration —
+   the finding's own closed-over snapshot, never updated by onChangeOne
+   (which writes to the store, not back onto `f`). The second note's
+   append was computed from the SAME stale base as the first, so it
+   overwrote rather than followed it. Fixed by tracking each finding's
+   own running description locally, in `liveDescription`, for the length
+   of one run. */
+check(
+  "two or more untranscribed voice notes on the SAME finding append in sequence, not overwrite — liveDescription tracks each finding's own running description across the loop, not the stale f.description snapshot",
+  /const liveDescription = new Map<string, string>\(\);/.test(table) &&
+    /liveDescription\.set\(f\.id, next\);/.test(table)
+);
+check(
+  "both bulk AI tools guard against a double-fire synchronously, not just reactively — `running` state lags one render behind a raw click, same gap raise/page.tsx's own pushedNoteIds ref closes for its single-note auto-apply",
+  (() => {
+    const guards = table.match(/if \(runningRef\.current\) return;\s*\n\s*runningRef\.current = true;/g);
+    const resets = table.match(/setRunning\(false\);\s*\n\s*runningRef\.current = false;/g);
+    return Array.isArray(guards) && guards.length === 2 && Array.isArray(resets) && resets.length === 2;
+  })()
 );
 check(
   "this does NOT also run the AI \"write it up\" rewrite on the transcript — no assist(\"transcript\", call inside BulkTranscribeVoiceNotes, keeping the AI rewrite a reviewed, separate step (BulkSuggestWording)",
