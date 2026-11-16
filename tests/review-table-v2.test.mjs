@@ -151,7 +151,7 @@ check(
 
 /* ---- 3 · the wide table's fixed column set — no toggle any more */
 
-for (const col of ["Type", "Discipline", "Asset system", "Audit check", "Severity", "Likelihood", "Rating", "Root cause", "Impact", "Evidence"]) {
+for (const col of ["Type", "Discipline", "Asset system", "Audit check", "Severity", "Likelihood", "Rating", "Root cause", "Impact", "Timeline", "Evidence"]) {
   check(`the table always renders a "${col}" column header`, new RegExp(`<Th>${col}</Th>|>${col}<`).test(table));
 }
 check(
@@ -496,6 +496,44 @@ check(
     const summary = fn.match(/<summary[\s\S]*?<\/summary>/)?.[0] ?? "";
     return fn.includes("onToggle(o)") && !summary.includes("onToggle");
   })()
+);
+
+/* ---- 13 · Timeline column — Sarel: "make sure that column is in the
+   table, and that we can do inline editing of that field." Single-select
+   (a plain <select>, not the multi-select popover Root cause/Impact use),
+   since a finding is remedied on ONE of these, not several. ------------- */
+
+const riskVocab = read("src", "lib", "riskVocab.ts");
+check(
+  "TIMELINES is exactly the three categories confirmed with Sarel, in order",
+  /export const TIMELINES = \["Immediate", "Before next audit", "Long term"\];/.test(riskVocab)
+);
+check(
+  "Finding.timeline is a single optional string — not a multi-select array like rootCauseCategories/impactAreas",
+  /timeline\?:\s*string;/.test(types)
+);
+check(
+  "the table imports TIMELINES from reviewRisk.ts, the one re-export point, not a second copy of the list",
+  /TIMELINES,?$/m.test(table.match(/import \{[\s\S]{0,400}\} from "@\/lib\/reviewRisk"/)?.[0] ?? "")
+);
+check(
+  "the Timeline cell is a plain <select>, aria-labelled, offering every TIMELINES option plus a blank",
+  /aria-label=\{`Timeline for \$\{f\.title \|\| f\.id\}`\}/.test(table) &&
+    /\{TIMELINES\.map\(\(t\) => \(/.test(table)
+);
+check(
+  "the Timeline cell is wrapped in the same stopPropagation guard Severity/Likelihood/Root cause/Impact already use",
+  /Timeline for \$\{f\.title \|\| f\.id\}[\s\S]{0,400}onClick=\{\(e\) => e\.stopPropagation\(\)\}|onClick=\{\(e\) => e\.stopPropagation\(\)\}[\s\S]{0,80}aria-label=\{`Timeline for/.test(
+    table
+  )
+);
+check(
+  "picking a Timeline writes through onChange, the same per-row patch every other inline edit here uses",
+  /onChange\(f\.id, \{ timeline: e\.target\.value \|\| undefined \}\)/.test(table)
+);
+check(
+  "the version bumped again, to at least 43, for Finding.timeline",
+  Number(/version:\s*(\d+),/.exec(storeSrc)?.[1] ?? 0) >= 43 && /from < 43/.test(storeSrc)
 );
 
 console.log(failures === 0 ? "\nREVIEW TABLE V2 OK" : `\n${failures} FAILURES`);

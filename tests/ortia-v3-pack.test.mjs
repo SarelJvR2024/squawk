@@ -497,14 +497,14 @@ check('the persist key "acsa-assurance-v1" is unchanged', /name: "acsa-assurance
    Finding.attachments (types.ts) did the same, unrelated again, 38 -> 39.
    Then the Review risk-fields addendum's rootCauseCategories/impactAreas,
    39 -> 40, Review table v2's EvidenceItem.analysisAt/analysisNote,
-   40 -> 41, and Evidence review's EvidenceItem.insufficientAt/
-   insufficientReason, 41 -> 42. This assertion's own point — that this
-   import pack adds no new stored field of its own — still holds;
-   re-pinned to the version that change actually landed on, same as every
-   time before this. Re-pin the NUMBER here, not the reasoning, if this
-   goes stale again — `grep -n "version: " src/lib/store.ts | tail -1` is
-   the live value. */
-check("the migration version is unchanged — this import adds no new stored field", /version: 42,/.test(storeSrc));
+   40 -> 41, Evidence review's EvidenceItem.insufficientAt/
+   insufficientReason, 41 -> 42, and the Timeline column's Finding.timeline,
+   42 -> 43. This assertion's own point — that this import pack adds no new
+   stored field of its own — still holds; re-pinned to the version that
+   change actually landed on, same as every time before this. Re-pin the
+   NUMBER here, not the reasoning, if this goes stale again — `grep -n
+   "version: " src/lib/store.ts | tail -1` is the live value. */
+check("the migration version is unchanged — this import adds no new stored field", /version: 43,/.test(storeSrc));
 
 console.log(failures === 0 ? "\nORTIA V3 PACK OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

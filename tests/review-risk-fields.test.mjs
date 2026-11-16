@@ -330,7 +330,7 @@ check(
 
 check(
   "root cause CATEGORIES reuse ROOT_CAUSES, not the addendum's own provisional list",
-  /import \{ IMPACT_AREAS, ROOT_CAUSES \} from "\.\/riskVocab"/.test(read("src", "lib", "reviewRisk.ts"))
+  /import \{ IMPACT_AREAS, ROOT_CAUSES, TIMELINES \} from "\.\/riskVocab"/.test(read("src", "lib", "reviewRisk.ts"))
 );
 check(
   "the addendum's own provisional category list is not spelled out anywhere as a real vocabulary",

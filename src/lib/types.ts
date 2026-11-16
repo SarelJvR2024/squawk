@@ -1011,6 +1011,14 @@ export interface Finding {
    *  boolean in this app that defaults to "no" by omission). Independent of
    *  `ratingConfirmed`, which gates severity/likelihood only. */
   rootCauseConfirmed?: boolean;
+  /** Remediation timeline — Sarel: "make sure that column is in the table,
+   *  or that field is, in the table, and that we can do inline editing of
+   *  that field." A SINGLE value from TIMELINES (src/lib/riskVocab.ts) —
+   *  "Immediate" / "Before next audit" / "Long term" — not a multi-select
+   *  like rootCauseCategories/impactAreas above: a finding is remedied on
+   *  one of these, not several. Absent means not yet assigned, same
+   *  convention as every other optional field here. */
+  timeline?: string;
   /** REVIEW TABLE V2 — Sarel's "Type" tag (Non-compliance vs. Observation),
    *  see docs/capture-review/review-table-v2-discovery.md §2.
    *
