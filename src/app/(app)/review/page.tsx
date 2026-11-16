@@ -44,7 +44,8 @@
  *      going back over a finished visit wants non-compliances, raised
  *      findings, flagged checks and evidence still outstanding. */
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   checksAt,
   checksOf,
@@ -103,13 +104,21 @@ function reviewed(r: Response | undefined): boolean {
  *  to "checks" so nothing about how this screen opens changes. */
 type ReviewTab = "checks" | "risk";
 
-export default function ReviewPage() {
+/** 16 Nov 2026 — `?tab=risk` opens straight on the Risk & root cause tab,
+ *  so /cleanup's own finding-description link (now retired in favour of
+ *  this tab's bulk AI tools — Sarel: "make sure all AI cleanup is
+ *  available and accessible from root cause page") lands somewhere
+ *  useful instead of the default "By check" view. Read once, on mount —
+ *  the tab is ordinary local state after that, same as every tab control
+ *  elsewhere in this app. */
+function ReviewPageInner() {
+  const searchParams = useSearchParams();
   const responses = useResponses();
   const findings = useVisitFindings();
   const entityCode = useEntityCode();
   const disciplines = useMemo(() => disciplinesAt(entityCode), [entityCode]);
   const updateFinding = useStore((s) => s.updateFinding);
-  const [tab, setTab] = useState<ReviewTab>("checks");
+  const [tab, setTab] = useState<ReviewTab>(searchParams.get("tab") === "risk" ? "risk" : "checks");
   const [riskActiveId, setRiskActiveId] = useState<string | null>(null);
   /* PRIORITY 1 — no findings[0] fallback: the panel stays closed until a
      row is explicitly selected, not pinned open on whichever finding
@@ -459,5 +468,13 @@ export default function ReviewPage() {
       </div>
       )}
     </div>
+  );
+}
+
+export default function ReviewPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-[12px]">Loading…</div>}>
+      <ReviewPageInner />
+    </Suspense>
   );
 }

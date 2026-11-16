@@ -34,12 +34,23 @@
  *  other two screens that used to let an auditor rate a Finding directly.
  *  `priorityFor`/`bandFor` themselves are untouched in reviewRisk.ts/risk.ts
  *  — still the one place the asset-system level rating is derived from —
- *  this table simply no longer calls them. The bulk bar below now only sets
- *  impact areas and root cause categories across every selected row; AI
- *  "Suggest rating" was never built for severity/likelihood here and is
- *  moot now that there is nothing on a finding to rate. */
+ *  this table simply no longer calls them. AI "Suggest rating" was never
+ *  built for severity/likelihood here and is moot now that there is
+ *  nothing on a finding to rate.
+ *
+ *  16 Nov 2026 — BULK "SUGGEST WORDING", on the SAME selection checkboxes
+ *  every other bulk action here already uses. Sarel: "I want us to be
+ *  able to do bulk transcribing of the voice notes... [and] AI to correct,
+ *  to review the context of the finding... have the option to toggle
+ *  between original notes and AI cleaned notes." Reuses the exact "polish"
+ *  task and polishContext ReviewRiskPanel's own single-finding "Suggest
+ *  wording" button already calls — see BulkBar's own doc comment below for
+ *  the propose/review/apply shape, which mirrors /cleanup's PolishSection
+ *  (the bulk tool this consolidates into the Review page, per Sarel's own
+ *  "make sure all AI cleanup is available and accessible from root cause
+ *  page"). */
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   FINDING_TYPE_LABEL,
   IMPACT_AREAS,
@@ -52,10 +63,12 @@ import {
   type ReviewRiskFilter,
 } from "@/lib/reviewRisk";
 import { ALL_DISCIPLINES, checksAt, systemsAt, systemsOf } from "@/lib/register";
-import { useFieldSaveStatus } from "@/lib/store";
-import { useBlobUrl } from "@/lib/media";
+import { entity as entityOf } from "@/lib/programme";
+import { useFieldSaveStatus, useStore } from "@/lib/store";
+import { getBlob, useBlobUrl } from "@/lib/media";
+import { assist, polishContext, transcribe, useAssistAvailable, useTranscribeAvailable } from "@/lib/assist";
 import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
-import { IconCamera, IconMic } from "@/components/ui/icons";
+import { IconCamera, IconMic, IconSpark } from "@/components/ui/icons";
 import type { Attachment, Check, Finding, Response } from "@/lib/types";
 
 /** The sort key an empty/absent Asset system sorts under — see `visible`'s
@@ -252,9 +265,13 @@ export default function ReviewRiskTable({
       {selected.size > 0 && (
         <BulkBar
           count={selected.size}
+          findings={selectedFindings}
+          entityCode={entityCode}
+          checksById={checksById}
           onApply={(patchFor) => {
             for (const f of selectedFindings) onChange(f.id, patchFor(f));
           }}
+          onChangeOne={onChange}
           onClear={() => setSelected(new Set())}
         />
       )}
@@ -653,14 +670,39 @@ function Th({ children }: { children: React.ReactNode }) {
  *
  *  16 Nov 2026 — the "Set severity"/"Set likelihood" selects this bar used
  *  to carry are gone, same removal as the table's own Severity/Likelihood
- *  columns — see this file's own header. */
+ *  columns — see this file's own header.
+ *
+ *  Also 16 Nov 2026 — TWO AI BULK TOOLS ADDED, same selection checkboxes,
+ *  same "propose for every selected row, review, apply" shape this bar's
+ *  own impact/root-cause tools already use: BulkSuggestWording (reuses
+ *  ReviewRiskPanel's own "polish" call, per finding) and
+ *  BulkTranscribeVoiceNotes (reuses the app's one transcription service).
+ *  Pulled into their own functions below rather than grown inline here —
+ *  this function was already doing one job (the non-AI bulk edits); two
+ *  more would have made it three. */
 function BulkBar({
   count,
+  findings,
+  entityCode,
+  checksById,
   onApply,
+  onChangeOne,
   onClear,
 }: {
   count: number;
+  /** The actual selected records, not just how many — the AI tools below
+   *  need each one's own text/attachments to propose against. */
+  findings: Finding[];
+  entityCode: string;
+  /** For the linked audit check's own requirement text — same map the
+   *  table's own Audit check column already built once per entity. */
+  checksById: Map<string, Check>;
   onApply: (patchFor: (f: Finding) => Partial<Finding>) => void;
+  /** A single row's own apply, same function the table's per-row edits
+   *  already use — for an individual AI proposal's own Accept (one
+   *  finding, not every selected one), rather than looping `onApply`
+   *  across every selected row with an empty patch on all but one. */
+  onChangeOne: (id: string, patch: Partial<Finding>) => void;
   onClear: () => void;
 }) {
   const [impactAdd, setImpactAdd] = useState<string[]>([]);
@@ -761,6 +803,311 @@ function BulkBar({
           >
             Apply to {count} selected
           </button>
+        </div>
+      )}
+
+      <div className="mt-2.5 grid gap-2 border-t pt-2.5 sm:grid-cols-2" style={{ borderColor: "var(--acc-line)" }}>
+        <BulkSuggestWording findings={findings} entityCode={entityCode} checksById={checksById} onChangeOne={onChangeOne} />
+        <BulkTranscribeVoiceNotes findings={findings} onChangeOne={onChangeOne} />
+      </div>
+    </div>
+  );
+}
+
+type AiProposalState = "loading" | "proposed" | "applied" | "error";
+interface AiProposal {
+  state: AiProposalState;
+  text?: string;
+  error?: string;
+}
+
+/** BULK "SUGGEST WORDING" — Sarel: "AI to correct, to review the context
+ *  of the finding... have a look at the discipline, asset system, and the
+ *  audit check that is linked to the finding... to reword and describe
+ *  the audit finding in that context... a review from a technical and
+ *  grammar perspective... make sure all facts are double checked for the
+ *  correct airport."
+ *
+ *  Reuses the SAME "polish" task and polishContext ReviewRiskPanel's own
+ *  single-finding button already calls (see that file's own runPolish) —
+ *  not a second prompt. Sequential, not parallel, same reasoning
+ *  /cleanup's own PolishSection documents: there is no bulk endpoint, and
+ *  N requests in flight at once is N ways to hit a provider rate limit
+ *  for one tap. No revert-after-apply here, unlike the single-finding
+ *  panel: reviewing each proposal individually before Accept (below) IS
+ *  the review step for this bulk path, same as /cleanup's own bulk apply
+ *  has never offered an undo either. */
+function BulkSuggestWording({
+  findings,
+  entityCode,
+  checksById,
+  onChangeOne,
+}: {
+  findings: Finding[];
+  entityCode: string;
+  checksById: Map<string, Check>;
+  onChangeOne: (id: string, patch: Partial<Finding>) => void;
+}) {
+  const aiOn = useAssistAvailable();
+  const [proposals, setProposals] = useState<Record<string, AiProposal>>({});
+  const [running, setRunning] = useState(false);
+  /* Same synchronous double-fire guard as BulkTranscribeVoiceNotes, same
+     reasoning — `running` state lags one render behind a raw click. Every
+     result here still sits behind its own Accept/Reject either way, so a
+     double-fire could only waste a duplicate "polish" call, never write
+     twice — but there is no reason to risk even that. */
+  const runningRef = useRef(false);
+
+  const eligible = findings.filter((f) => f.description.trim());
+  const pending = eligible.filter((f) => !proposals[f.id] || proposals[f.id].state === "error");
+  const proposedCount = Object.values(proposals).filter((p) => p.state === "proposed").length;
+  const appliedCount = Object.values(proposals).filter((p) => p.state === "applied").length;
+
+  async function run() {
+    if (runningRef.current) return;
+    runningRef.current = true;
+    setRunning(true);
+    for (const f of eligible) {
+      if (proposals[f.id]?.state === "proposed" || proposals[f.id]?.state === "applied") continue;
+      setProposals((p) => ({ ...p, [f.id]: { state: "loading" } }));
+      try {
+        const text = await assist(
+          "polish",
+          polishContext(
+            f.description,
+            f.discipline,
+            f.system,
+            "note",
+            f.title || undefined,
+            f.checkId ? checksById.get(f.checkId)?.requirement : undefined,
+            entityOf(entityCode).name
+          )
+        );
+        setProposals((p) => ({ ...p, [f.id]: { state: "proposed", text: text.trim() } }));
+      } catch (e) {
+        setProposals((p) => ({
+          ...p,
+          [f.id]: { state: "error", error: e instanceof Error ? e.message : "The assistant is unavailable." },
+        }));
+      }
+    }
+    setRunning(false);
+    runningRef.current = false;
+  }
+
+  function applyOne(f: Finding) {
+    const prop = proposals[f.id];
+    if (!prop?.text) return;
+    onChangeOne(f.id, { description: prop.text });
+    setProposals((p) => ({ ...p, [f.id]: { ...prop, state: "applied" } }));
+  }
+
+  function applyAllProposed() {
+    for (const f of eligible) if (proposals[f.id]?.state === "proposed") applyOne(f);
+  }
+
+  if (!aiOn) return null;
+
+  return (
+    <div>
+      <div className="mb-1 text-[10px]" style={{ color: "var(--ink-3)" }}>
+        AI — rewrite each selected finding&rsquo;s notes, reviewed before anything is applied
+      </div>
+      <div className="flex flex-wrap items-center gap-[6px]">
+        <button
+          type="button"
+          onClick={() => void run()}
+          disabled={running || eligible.length === 0 || pending.length === 0}
+          className="flex items-center gap-[5px] rounded-[8px] px-[9px] py-[6px] text-[11px] font-semibold disabled:opacity-55"
+          style={{ background: "var(--acc)", color: "#fff" }}
+        >
+          <IconSpark width={12} height={12} />
+          {running ? "Suggesting…" : pending.length === 0 ? "All proposed" : `Suggest wording for ${pending.length}`}
+        </button>
+        {proposedCount > 0 && (
+          <button
+            type="button"
+            onClick={applyAllProposed}
+            className="rounded-[8px] border px-[9px] py-[6px] text-[11px] font-semibold"
+            style={{ borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+          >
+            Apply {proposedCount} accepted
+          </button>
+        )}
+        {appliedCount > 0 && <Pill tone="good">{appliedCount} applied</Pill>}
+      </div>
+      {Object.keys(proposals).length > 0 && (
+        <div className="mt-1.5 flex max-h-[220px] flex-col gap-[6px] overflow-y-auto">
+          {eligible
+            .filter((f) => proposals[f.id])
+            .map((f) => {
+              const prop = proposals[f.id];
+              return (
+                <div
+                  key={f.id}
+                  className="rounded-[8px] border px-2 py-1.5 text-[10.5px]"
+                  style={{ borderColor: "var(--line-2)", background: "var(--panel)" }}
+                >
+                  <div className="mb-1 truncate font-semibold" style={{ color: "var(--ink-2)" }}>
+                    {f.title || f.id}
+                  </div>
+                  {prop.state === "loading" && <div style={{ color: "var(--ink-4)" }}>Thinking…</div>}
+                  {prop.state === "error" && <div style={{ color: "var(--bad)" }}>{prop.error}</div>}
+                  {prop.state === "proposed" && (
+                    <>
+                      <div
+                        className="mb-1 rounded-[6px] border px-1.5 py-1"
+                        style={{ borderColor: "var(--acc)", background: "var(--acc-soft)" }}
+                      >
+                        {prop.text}
+                      </div>
+                      <div className="flex gap-[6px]">
+                        <button
+                          type="button"
+                          onClick={() => applyOne(f)}
+                          className="rounded-[5px] px-[7px] py-[3px] text-[10px] font-semibold"
+                          style={{ background: "var(--acc)", color: "#fff" }}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setProposals((p) => { const next = { ...p }; delete next[f.id]; return next; })}
+                          className="rounded-[5px] px-[7px] py-[3px] text-[10px] font-semibold"
+                          style={{ color: "var(--bad)" }}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </>
+                  )}
+                  {prop.state === "applied" && <div style={{ color: "var(--good)" }}>Applied.</div>}
+                </div>
+              );
+            })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** BULK VOICE-NOTE TRANSCRIPTION — Sarel: "I want us to be able to do bulk
+ *  transcribing of the voice notes when the user is capturing findings.
+ *  They might capture the root cause, but they might not do the
+ *  transcribing of it... those transcribed notes must automatically go
+ *  into the notes field to be automatically captured in the notes field."
+ *
+ *  VERBATIM ONLY, deliberately — this calls the SAME transcribe() every
+ *  per-note "Transcribe" button already calls (Capture.tsx), stores the
+ *  result on the attachment exactly as that button does, then appends it
+ *  to the finding's own description — the SAME auto-apply raise/page.tsx's
+ *  own applyVoiceNote already does for a brand-new finding, just run here
+ *  in bulk, at review time, for findings that already exist. It does NOT
+ *  also run the AI "write it up" rewrite step: a verbatim transcript is
+ *  what was actually said, carried across exactly, which is why raise's
+ *  own auto-apply treats it as safe to apply without a review gate — an
+ *  AI REWRITE of it is a different kind of change, and "every AI change
+ *  must be a proposal requiring review" (PR #252) is exactly why that
+ *  part stays manual: BulkSuggestWording, right beside this, is the
+ *  reviewed next step once the verbatim words are in the notes field. */
+function BulkTranscribeVoiceNotes({
+  findings,
+  onChangeOne,
+}: {
+  findings: Finding[];
+  onChangeOne: (id: string, patch: Partial<Finding>) => void;
+}) {
+  const canTranscribe = useTranscribeAvailable();
+  const updateFindingAttachment = useStore((s) => s.updateFindingAttachment);
+  const [state, setState] = useState<Record<string, "loading" | "done" | "error">>({});
+  const [running, setRunning] = useState(false);
+  const [errors, setErrors] = useState<string[]>([]);
+  /* A SYNCHRONOUS double-fire guard — `running` state lags one render
+     behind a raw click, which a plain `disabled={running}` on its own
+     does not stop (same gap raise/page.tsx's own pushedNoteIds ref
+     exists to close for its single-note auto-apply). This path has no
+     human review gate at all, so a double-click here is worth guarding
+     properly rather than only reactively. */
+  const runningRef = useRef(false);
+
+  /* One row per UNTRANSCRIBED voice note, not per finding — a finding can
+     carry more than one voice note, and each needs its own transcribe()
+     call and its own append to the same description. */
+  const untranscribed = findings.flatMap((f) =>
+    f.attachments.filter((a) => a.kind === "voice" && a.blobKey && !a.transcript).map((a) => ({ finding: f, attachment: a }))
+  );
+  const pending = untranscribed.filter((u) => state[u.attachment.id] !== "done");
+
+  async function run() {
+    if (runningRef.current) return;
+    runningRef.current = true;
+    setRunning(true);
+    setErrors([]);
+    /* TWO OR MORE untranscribed voice notes can belong to the SAME
+       finding. Each append has to follow the one before it, but
+       `onChangeOne` writes to the store, not back onto this closed-over
+       `f` — re-reading `f.description` on the second note would read
+       the STALE pre-run value and overwrite the first note's append
+       instead of following it. This tracks each finding's own running
+       description locally for the length of this one run, seeded from
+       its real value the first time that finding is touched. */
+    const liveDescription = new Map<string, string>();
+    for (const { finding: f, attachment: a } of untranscribed) {
+      if (state[a.id] === "done") continue;
+      setState((s) => ({ ...s, [a.id]: "loading" }));
+      try {
+        const blob = await getBlob(a.blobKey!);
+        if (!blob) throw new Error(`${f.title || f.id}: that recording is no longer stored on this device.`);
+        const { text } = await transcribe(blob, a.name || "note.webm");
+        updateFindingAttachment(f.id, a.id, { transcript: text, transcriptSource: "service", transcribedAt: Date.now() });
+        const current = liveDescription.get(f.id) ?? f.description;
+        const next = current.trim() ? `${current}\n${text}` : text;
+        liveDescription.set(f.id, next);
+        onChangeOne(f.id, { description: next });
+        setState((s) => ({ ...s, [a.id]: "done" }));
+      } catch (e) {
+        setState((s) => ({ ...s, [a.id]: "error" }));
+        setErrors((cur) => [...cur, e instanceof Error ? e.message : "The transcription service is unavailable."]);
+      }
+    }
+    setRunning(false);
+    runningRef.current = false;
+  }
+
+  if (!canTranscribe) return null;
+  const doneCount = Object.values(state).filter((s) => s === "done").length;
+
+  return (
+    <div>
+      <div className="mb-1 text-[10px]" style={{ color: "var(--ink-3)" }}>
+        AI — transcribe voice notes that were captured but never written up, straight into each finding&rsquo;s own notes
+      </div>
+      <div className="flex flex-wrap items-center gap-[6px]">
+        <button
+          type="button"
+          onClick={() => void run()}
+          disabled={running || pending.length === 0}
+          className="flex items-center gap-[5px] rounded-[8px] px-[9px] py-[6px] text-[11px] font-semibold disabled:opacity-55"
+          style={{ background: "var(--acc)", color: "#fff" }}
+        >
+          <IconMic width={12} height={12} />
+          {running
+            ? "Transcribing…"
+            : pending.length === 0
+              ? untranscribed.length === 0
+                ? "Nothing to transcribe"
+                : "All transcribed"
+              : `Transcribe ${pending.length} voice note${pending.length === 1 ? "" : "s"}`}
+        </button>
+        {doneCount > 0 && <Pill tone="good">{doneCount} added to notes</Pill>}
+      </div>
+      {errors.length > 0 && (
+        <div className="mt-1 flex flex-col gap-[2px]">
+          {errors.map((e, i) => (
+            <div key={i} role="alert" className="text-[10px]" style={{ color: "var(--bad)" }}>
+              {e}
+            </div>
+          ))}
         </div>
       )}
     </div>
