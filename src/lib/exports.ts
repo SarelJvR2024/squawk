@@ -31,7 +31,7 @@ import { entity as entityOf, PROGRAMME_VISITS } from "./programme";
 import { portalIdFor } from "./sites";
 import { priorFor } from "./register";
 import { mappingFor } from "./crosswalk";
-import { effectiveWalkOutcome, flattenProgress } from "./sharepoint";
+import { effectiveWalkOutcome, findingRiskFieldsFor, flattenProgress } from "./sharepoint";
 import { findingTypeFor } from "./reviewRisk";
 import { EVIDENCE_COMPLIANCE_LABEL } from "./evidence";
 import { evidenceAxisFor, reviewCombinedCompliance } from "./review";
@@ -406,6 +406,17 @@ export function findingsSheet(x: ExportInput): Sheet {
       agreed ? "Agreed by the audit team" : "Suggested — not yet agreed",
       assetCell(f.assetIds),
       f.rootCause,
+      /* THE REVIEW RISK-FIELDS ADDENDUM'S OWN FOUR — found missing from
+         both this sheet and the SharePoint sync by the standing
+         sync-integrity review (see sharepoint.ts's own
+         findingRiskFieldsFor for that side's fix). This sheet is one row
+         PER FINDING, so unlike the portal's hazard-aggregated version
+         there is no aggregation question here — these are exactly this
+         finding's own values. */
+      (f.rootCauseCategories ?? []).join(", "),
+      (f.impactAreas ?? []).join(", "),
+      f.rootCauseNote ?? "",
+      f.rootCauseNote ? (f.rootCauseConfirmed ? "Confirmed with airport" : "Not yet confirmed") : "",
       /* Several actions now, each with its own discipline, owner, date and
          status — flattened the same way the asset-system assessment sheet
          already flattens MitigationAction[], one line each, so a reader
@@ -480,6 +491,10 @@ export function findingsSheet(x: ExportInput): Sheet {
       { header: "Rating state", width: 26 },
       { header: "Assets", width: 34, wrap: true },
       { header: "Root cause", width: 26 },
+      { header: "Root cause categories", width: 30, wrap: true },
+      { header: "Impact areas", width: 30, wrap: true },
+      { header: "Root cause note", width: 40, wrap: true },
+      { header: "Root cause note confirmed", width: 18 },
       { header: "Remediation action", width: 58, wrap: true },
       { header: "Owner", width: 30 },
       { header: "Due date", width: 12 },
@@ -931,6 +946,7 @@ export function hazardsSheet(x: ExportInput): Sheet {
     const band = agreed ? bandFor(h.severity, h.likelihood) : null;
     const suggested = !agreed ? cellCode(h.severity, h.likelihood) : null;
     const photos = hazardPhotos(x, h);
+    const riskFields = findingRiskFieldsFor(h, x.findings);
     return [
       h.id,
       h.event,
@@ -949,6 +965,16 @@ export function hazardsSheet(x: ExportInput): Sheet {
          MitigationAction.system before it. */
       h.areas.join(" · "),
       h.otherImpacts.join(" · "),
+      /* THE REVIEW RISK-FIELDS ADDENDUM'S OWN FOUR, aggregated from this
+         hazard's consolidated findings — same findingRiskFieldsFor()
+         sharepoint.ts's own portal sync now uses, not a second
+         hand-duplicated aggregation. See that function's own doc comment
+         for the aggregation rules (union for the two multi-selects, a
+         count for "confirmed" rather than one collapsed boolean). */
+      riskFields.rootCauseCategories ?? "",
+      riskFields.impactAreas ?? "",
+      riskFields.rootCauseNote ?? "",
+      riskFields.rootCauseConfirmed ?? "",
       h.disciplines.length,
       h.findingIds.join(" · "),
       h.findingIds.length,
@@ -1037,6 +1063,10 @@ export function hazardsSheet(x: ExportInput): Sheet {
       { header: "Asset systems", width: 30, wrap: true },
       { header: "Areas impacted", width: 30, wrap: true },
       { header: "Other impacts", width: 30, wrap: true },
+      { header: "Root cause categories (findings)", width: 30, wrap: true },
+      { header: "Impact areas (findings)", width: 30, wrap: true },
+      { header: "Root cause note (findings)", width: 40, wrap: true },
+      { header: "Root cause note confirmed (findings)", width: 20 },
       { header: "Disciplines spanned", width: 18 },
       { header: "Findings behind it", width: 30 },
       { header: "Findings", width: 10 },
