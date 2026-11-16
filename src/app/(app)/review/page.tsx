@@ -29,6 +29,19 @@
  *  nothing to keep in sync: opening a check here and editing IS editing the
  *  record, because it is the same screen.
  *
+ *  16 Nov 2026 — "EVIDENCE" TAB, moved in from two places at once. Sarel:
+ *  "move the evidence request to a separate tab inside the review page.
+ *  all updating of evidence compliance and evidence review feedback and
+ *  also the status ie logged, requested, received, not available." The
+ *  simple discipline+text capture (EvidenceQuickCapture) used to sit atop
+ *  the "Risk & root cause" table; it moves here, above the SAME tracking
+ *  view /evidence's own "By discipline" tab already renders
+ *  (EvidenceReviewView) — status, compliance rating and review feedback
+ *  are all that component's job already, so this tab reuses it rather than
+ *  building a second one. The chain-of-custody record itself (EvidenceItem)
+ *  stays owned by one screen either way; this tab is just a second place to
+ *  reach it from, the way "Risk & root cause" is a second lens on Finding.
+ *
  *  Three things only a REVIEWER'S pass needs, that Capture's workspace does
  *  not:
  *    - every check, not only the ones a desk can progress. `needsDesk`
@@ -61,6 +74,8 @@ import {
 import ReviewDetail from "@/components/ReviewDetail";
 import ReviewRiskTable from "@/components/ReviewRiskTable";
 import ReviewRiskPanel from "@/components/ReviewRiskPanel";
+import EvidenceQuickCapture from "@/components/EvidenceQuickCapture";
+import EvidenceReviewView from "@/components/EvidenceReviewView";
 import { Dot, Empty, Pill } from "@/components/ui/primitives";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { DisciplineSelect } from "@/components/ui/DisciplineSelect";
@@ -101,8 +116,11 @@ function reviewed(r: Response | undefined): boolean {
  *  tabs and progress counts untouched", and the check-by-check tree below
  *  (ReviewDetail) already does its own job well; the addendum's table is a
  *  different lens on the SAME findings, not a replacement for it. Defaults
- *  to "checks" so nothing about how this screen opens changes. */
-type ReviewTab = "checks" | "risk";
+ *  to "checks" so nothing about how this screen opens changes.
+ *
+ *  "evidence" added 16 Nov 2026 — see this file's own header note on the
+ *  Evidence tab. */
+type ReviewTab = "checks" | "risk" | "evidence";
 
 /** 16 Nov 2026 — `?tab=risk` opens straight on the Risk & root cause tab,
  *  so /cleanup's own finding-description link (now retired in favour of
@@ -227,7 +245,8 @@ function ReviewPageInner() {
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {/* Tab switcher — the only new top-level chrome on this screen. "By
           check" is exactly what rendered here before this addendum and
-          stays the default; "Risk & root cause" is the new table. */}
+          stays the default; "Risk & root cause" and "Evidence" are both
+          added lenses on the same underlying records. */}
       <div
         className="flex shrink-0 items-center gap-[6px] border-b px-3 py-[7px]"
         style={{ borderColor: "var(--line)", background: "var(--panel)" }}
@@ -236,6 +255,7 @@ function ReviewPageInner() {
           [
             ["checks", "By check"],
             ["risk", "Risk & root cause"],
+            ["evidence", "Evidence"],
           ] as [ReviewTab, string][]
         ).map(([key, label]) => (
           <button
@@ -283,6 +303,11 @@ function ReviewPageInner() {
               />
             </div>
           )}
+        </div>
+      ) : tab === "evidence" ? (
+        <div className="app-scroll flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-3">
+          <EvidenceQuickCapture />
+          <EvidenceReviewView />
         </div>
       ) : (
       <div className="flex min-h-0 flex-1">
