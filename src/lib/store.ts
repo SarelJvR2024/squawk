@@ -4184,7 +4184,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 42,
+      version: 43,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -4983,6 +4983,14 @@ export const useStore = create<State>()(
             insufficientAt: e.insufficientAt ?? null,
             insufficientReason: e.insufficientReason ?? "",
           }));
+        }
+        if (from < 43) {
+          /* Finding.timeline (Review table v2's new "Timeline" column) is
+             new and purely additive, same reasoning as disciplineFilterByEntity's
+             own `from < 38` note above: a finding that predates this simply
+             has not been assigned one yet, and the field's own absent-means-
+             "not yet assigned" reading already says that honestly — nothing
+             here to migrate, only a version number to carry forward. */
         }
         return st;
       },

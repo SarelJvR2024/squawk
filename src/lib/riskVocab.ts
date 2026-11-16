@@ -35,3 +35,9 @@ export const IMPACT_AREAS = [
   "Reputation",
   "Regulatory standing",
 ];
+
+/** Remediation timeline — Sarel: "make sure that column is in the table",
+ *  recalling it as roughly "short term and before the next audit." A closed
+ *  vocabulary, single-select per finding (one finding is remedied on one of
+ *  these, not several), confirmed with Sarel as exactly these three. */
+export const TIMELINES = ["Immediate", "Before next audit", "Long term"];

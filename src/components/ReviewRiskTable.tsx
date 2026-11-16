@@ -14,11 +14,16 @@
  *  REVIEW TABLE V2 (see docs/capture-review/review-table-v2-discovery.md)
  *  widened this to the full column set Sarel approved from a mockup: select ·
  *  Type · Discipline · Asset system · Audit check · Finding/comment · Severity
- *  · Likelihood · Rating · Root cause · Impact · Evidence — a FIXED set, no
- *  column-toggle any more, because that mockup is one specific wide table, not
- *  a customisable one. Also added: Discipline/Asset system filters, reusing
- *  `ALL_DISCIPLINES`/`systemsOf`/`systemsAt` (src/lib/register.ts) rather than
- *  a second vocabulary.
+ *  · Likelihood · Rating · Root cause · Impact · Timeline · Evidence — a FIXED
+ *  set, no column-toggle any more, because that mockup is one specific wide
+ *  table, not a customisable one. Also added: Discipline/Asset system filters,
+ *  reusing `ALL_DISCIPLINES`/`systemsOf`/`systemsAt` (src/lib/register.ts)
+ *  rather than a second vocabulary.
+ *
+ *  Timeline (Finding.timeline, TIMELINES in riskVocab.ts) — Sarel: "make sure
+ *  that column is... in the table, and that we can do inline editing of that
+ *  field." Single-select, so a plain `<select>` same as Severity/Likelihood,
+ *  not the multi-select `<details>` popover Root cause/Impact use.
  *
  *  AI "Suggest rating" (§3's bulk bar) is DELIBERATELY NOT in this pass — see
  *  the PR description's "what's deferred" section. The bulk bar below sets
@@ -30,6 +35,7 @@ import {
   FINDING_TYPE_LABEL,
   IMPACT_AREAS,
   ROOT_CAUSES,
+  TIMELINES,
   applyBulkMulti,
   findingTypeFor,
   matchesReviewRiskFilter,
@@ -291,6 +297,7 @@ export default function ReviewRiskTable({
               <Th>Rating</Th>
               <Th>Root cause</Th>
               <Th>Impact</Th>
+              <Th>Timeline</Th>
               <Th>Evidence</Th>
             </tr>
           </thead>
@@ -486,6 +493,27 @@ export default function ReviewRiskTable({
                       selected={impact}
                       onToggle={(v) => onChange(f.id, { impactAreas: toggleMulti(f.impactAreas, v) })}
                     />
+                  </td>
+
+                  {/* Timeline — single-select, same pattern as Severity/
+                      Likelihood above (a plain <select>, not the multi-
+                      select popover), since a finding is remedied on ONE
+                      of these, not several. */}
+                  <td className="p-2" onClick={(e) => e.stopPropagation()}>
+                    <select
+                      aria-label={`Timeline for ${f.title || f.id}`}
+                      value={f.timeline ?? ""}
+                      onChange={(e) => onChange(f.id, { timeline: e.target.value || undefined })}
+                      className="rounded-[6px] border px-1.5 py-1 text-[10.5px]"
+                      style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                    >
+                      <option value="">—</option>
+                      {TIMELINES.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
                   </td>
 
                   {/* Evidence — Sarel: "add the photos in the row so that
