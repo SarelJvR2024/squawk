@@ -296,6 +296,17 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
      two fields on the record itself rather than one. */
   areas: ["Areas impacted", "Areas", "Areas affected"],
   otherImpacts: ["Other impacts", "Other impact", "Additional impacts"],
+  /* THE REVIEW RISK-FIELDS ADDENDUM'S OWN FOUR, aggregated from the
+     consolidated findings onto the Hazard row — see
+     findingRiskFieldsFor's own doc comment at its call site. Distinct
+     candidate names from `rootCause` above on purpose: that is the
+     hazard's own single category, these are the findings' multi-select
+     tagging and free note, and conflating the two column names would
+     silently overwrite whichever wrote second. */
+  findingRootCauseCategories: ["Root cause categories", "Finding root cause categories"],
+  findingImpactAreas: ["Impact areas", "Finding impact areas"],
+  findingRootCauseNote: ["Root cause note", "Finding root cause note", "Possible root cause"],
+  findingRootCauseConfirmed: ["Root cause confirmed", "Finding root cause confirmed", "Confirmed with airport"],
   /* THE PHOTOGRAPH COLUMNS. Prince Mahlangu, 17 September 2026, on the first
      five files to reach the library: "They carry no metadata at all: CheckID,
      AssetSystem, PhotographReference, CaptionSource and AttachedBy are blank,
@@ -525,6 +536,8 @@ export const FINDING_FIELDS = [
   "treatment", "owner", "targetDate", "progress", "dateRaised", "assets",
   "photos", "evidenceLink", "evidence", "verifiedBy", "verifiedAt", "possibleEvents",
   "evidenceRequested", "discussionLog",
+  "findingRootCauseCategories", "findingImpactAreas", "findingRootCauseNote",
+  "findingRootCauseConfirmed",
 ] as const;
 
 /** The column contract, for a person to build against: the name to create, and
@@ -1581,6 +1594,64 @@ function hazardPhotoRefs(
   return [...refs].sort();
 }
 
+/** THE REVIEW RISK-FIELDS ADDENDUM'S FOUR FINDING-ONLY FIELDS
+ *  (`rootCauseCategories`/`impactAreas`/`rootCauseNote`/`rootCauseConfirmed`
+ *  — see each one's own doc comment in types.ts), aggregated onto the
+ *  HAZARD row that consolidates the finding — found by the standing
+ *  sync-integrity review: captured and editable on /review, never read by
+ *  this file at all, because a Finding never syncs to the portal on its
+ *  own (see this function's own caller for why — only hazards do).
+ *
+ *  SAME SHAPE AS hazardPhotoRefs JUST ABOVE: walk the hazard's own
+ *  `findingIds`, read across every finding that resolves. A hazard can
+ *  consolidate several findings, so this is a union/aggregate, not one
+ *  finding's own value — categories and impact areas are deduplicated
+ *  sets (the same category tagged on two findings is one entry on the
+ *  hazard's row, not two); the free-text note is every distinct non-empty
+ *  note joined, since two findings can genuinely say different things;
+ *  "confirmed" is a count ("2 of 3 confirmed") rather than a single
+ *  true/false, because collapsing several findings' own confirmed-with-
+ *  airport flags into one boolean would silently claim agreement that was
+ *  never actually reached on every one of them. `null` throughout when
+ *  there is nothing to report, never an empty string — same convention as
+ *  `areas`/`otherImpacts` just above this function's own caller. */
+export function findingRiskFieldsFor(
+  h: Hazard,
+  findings: Finding[] | undefined
+): {
+  rootCauseCategories: string | null;
+  impactAreas: string | null;
+  rootCauseNote: string | null;
+  rootCauseConfirmed: string | null;
+} {
+  if (!h.findingIds?.length) {
+    return { rootCauseCategories: null, impactAreas: null, rootCauseNote: null, rootCauseConfirmed: null };
+  }
+  const mine = new Set(h.findingIds);
+  const categories = new Set<string>();
+  const areas = new Set<string>();
+  const notes = new Set<string>();
+  let withNote = 0;
+  let confirmed = 0;
+  for (const f of findings ?? []) {
+    if (!mine.has(f.id)) continue;
+    for (const c of f.rootCauseCategories ?? []) categories.add(c);
+    for (const a of f.impactAreas ?? []) areas.add(a);
+    const note = f.rootCauseNote?.trim();
+    if (note) {
+      notes.add(note);
+      withNote++;
+      if (f.rootCauseConfirmed) confirmed++;
+    }
+  }
+  return {
+    rootCauseCategories: categories.size ? [...categories].join(", ") : null,
+    impactAreas: areas.size ? [...areas].join(", ") : null,
+    rootCauseNote: notes.size ? [...notes].join(" | ") : null,
+    rootCauseConfirmed: withNote ? `${confirmed} of ${withNote} confirmed` : null,
+  };
+}
+
 /** The URL of this visit's evidence folder, for the link column.
  *
  *  Built from the library's own webUrl plus the folder the plan is already
@@ -2188,6 +2259,7 @@ export function buildPlan(
     const itemId = existing.findings.get(key);
     const priority = agreed ? erm.ermPriority(h.ermConsequence!, h.ermLikelihood!) : null;
     const hazardRefs = hazardPhotoRefs(h, entityFindings, x.responses, x.adhoc);
+    const riskFields = findingRiskFieldsFor(h, entityFindings);
     findings.push({
       key,
       action: itemId ? "update" : "create",
@@ -2206,6 +2278,15 @@ export function buildPlan(
            names none, same convention `assets` above already uses. */
         areas: (h.areas ?? []).length ? h.areas.join(", ") : null,
         otherImpacts: (h.otherImpacts ?? []).length ? h.otherImpacts.join(", ") : null,
+        /* The Review risk-fields addendum's own root-cause/impact tagging,
+           read from the consolidated findings themselves — see
+           findingRiskFieldsFor's own doc comment for the aggregation
+           rules. Distinct from `rootCause` below, which is the HAZARD's
+           own single category, not these per-finding multi-selects. */
+        findingRootCauseCategories: riskFields.rootCauseCategories,
+        findingImpactAreas: riskFields.impactAreas,
+        findingRootCauseNote: riskFields.rootCauseNote,
+        findingRootCauseConfirmed: riskFields.rootCauseConfirmed,
         observation: [h.event, h.description].filter(Boolean).join(" — "),
         severity: agreed ? portalSeverity(h.ermConsequence) : null,
         likelihood: agreed ? portalLikelihood(h.ermLikelihood) : null,

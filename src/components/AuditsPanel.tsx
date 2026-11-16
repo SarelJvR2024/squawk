@@ -12,7 +12,7 @@
  *  how do I start the next one" — across all ten entities and the whole cycle,
  *  past and future. */
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
   scopeKey,
   useAllAudits,
@@ -287,8 +287,8 @@ export default function AuditsPanel({ onClose }: { onClose: () => void }) {
                     );
                     const has = !!st && (st.captured > 0 || st.media > 0 || st.findings > 0);
                     return (
+                      <Fragment key={key}>
                       <div
-                        key={key}
                         /* THE WHOLE ROW OPENS THE AUDIT, NOT JUST THE "OPEN" BUTTON —
                          * Sarel, on mobile: "i cant change the audit to the East
                          * London audit, clicking on it doesn't do anything." The row
@@ -398,19 +398,18 @@ export default function AuditsPanel({ onClose }: { onClose: () => void }) {
                           )}
                         </span>
                       </div>
-                    );
-                  })}
-                  {/* THE EDITOR, inline below the whole list rather than
-                      per-row — a row is already a tight single line, and a
-                      form embedded in it would either wrap unpredictably or
-                      force the row to grow every time. Rendered once, keyed
-                      to whichever visit editingKey names, same pattern the
-                      "New audit" panel above already uses for a form that
-                      needs real width. */}
-                  {list.some(({ visit: v }) => scopeKey(e.code, v.id) === editingKey) && (
+                      {/* THE EDITOR, directly under the row it corrects —
+                          Sarel: "this edit tool button doesn't work." It
+                          wasn't dead, it was distant: this used to render
+                          once, after every row in the entity's whole list,
+                          so clicking the pencil on anything but the LAST
+                          row opened a form below the fold with nothing
+                          visibly changing where the tap landed. Moved
+                          inline, keyed to the same row, so the form a tap
+                          opens is the form that tap's row shows. */}
+                  {editingKey === key && (
                     <Panel>
                       {(() => {
-                        const v = list.find(({ visit }) => scopeKey(e.code, visit.id) === editingKey)!.visit;
                         return (
                           <>
                             <div className="mb-2 font-display text-[11.5px] font-semibold">
@@ -506,6 +505,9 @@ export default function AuditsPanel({ onClose }: { onClose: () => void }) {
                       })()}
                     </Panel>
                   )}
+                      </Fragment>
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -1110,6 +1110,80 @@ check(
   sp.FINDING_FIELDS.includes("photos")
 );
 
+/* ---- the Review risk-fields addendum's own four — findingRootCause-
+   Categories/findingImpactAreas/findingRootCauseNote/findingRootCause-
+   Confirmed, aggregated from a hazard's consolidated findings. Found by
+   the standing sync-integrity review: editable on /review, never read by
+   this file at all before now — same bug class as Hazard.areas/
+   otherImpacts just above, on a different pair of fields. ------------- */
+
+check(
+  "a hazard's root-cause categories and impact areas are the union of its findings', deduplicated",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...HAZ,
+        findings: [
+          { id: "f1", entity: "FALE", checkId: "KSIA-ELE-001", rootCauseCategories: ["Maintenance", "Procedure"], impactAreas: ["Operations"] },
+          { id: "f2", entity: "FALE", checkId: "KSIA-ELE-002", rootCauseCategories: ["Maintenance"], impactAreas: ["Process safety"] },
+          { id: "f3", entity: "FALE", checkId: "KSIA-ELE-001" },
+        ],
+      },
+      NOTHING
+    );
+    const v = p.findings.find((r) => r.key === "KSIA-ELE-P01").values;
+    return (
+      v.findingRootCauseCategories === "Maintenance, Procedure" &&
+      v.findingImpactAreas === "Operations, Process safety"
+    );
+  })(),
+  "f1 and f2 both tag Maintenance — the hazard's row must say it once, not twice"
+);
+
+check(
+  "a hazard's root-cause note joins every DISTINCT finding note, and the confirmed count only counts findings that have one",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...HAZ,
+        findings: [
+          { id: "f1", entity: "FALE", checkId: "KSIA-ELE-001", rootCauseNote: "Corrosion from drainage fault", rootCauseConfirmed: true },
+          { id: "f2", entity: "FALE", checkId: "KSIA-ELE-002", rootCauseNote: "Corrosion from drainage fault", rootCauseConfirmed: true },
+          { id: "f3", entity: "FALE", checkId: "KSIA-ELE-001", rootCauseNote: "No maintenance log found", rootCauseConfirmed: false },
+        ],
+      },
+      NOTHING
+    );
+    const v = p.findings.find((r) => r.key === "KSIA-ELE-P01").values;
+    return (
+      v.findingRootCauseNote === "Corrosion from drainage fault | No maintenance log found" &&
+      v.findingRootCauseConfirmed === "2 of 3 confirmed"
+    );
+  })(),
+  "f1 and f2 share the identical note word for word — joined once, not twice; 2 of the 3 findings with a note are confirmed"
+);
+
+check(
+  "none of the four risk fields are ever an empty string — null when there is nothing to report",
+  (() => {
+    const v = sp.buildPlan(HAZ, NOTHING).findings.find((r) => r.key === "KSIA-ELE-P01").values;
+    return (
+      v.findingRootCauseCategories === null &&
+      v.findingImpactAreas === null &&
+      v.findingRootCauseNote === null &&
+      v.findingRootCauseConfirmed === null
+    );
+  })(),
+  "HAZ's own f1/f2/f3 fixture sets none of these four — an update sending \"\" would wipe whatever ACSA has in the cell"
+);
+
+check(
+  "all four are in the FINDINGS contract, so the columns get asked for",
+  ["findingRootCauseCategories", "findingImpactAreas", "findingRootCauseNote", "findingRootCauseConfirmed"].every(
+    (k) => sp.FINDING_FIELDS.includes(k)
+  )
+);
+
 /* A SITE NOBODY HAS AUDITED YET — the check that would have caught both Bram
  * Fischer incidents, added 16 September 2026 at Sarel's request. Every other
  * guard passed on those syncs, correctly: the rows carried the right BFIA

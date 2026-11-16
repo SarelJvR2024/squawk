@@ -31,14 +31,11 @@ import {
   IMPACT_AREAS,
   ROOT_CAUSES,
   applyBulkMulti,
-  countByMultiSelect,
   countNotRated,
-  countWithNoneSelected,
   findingTypeFor,
-  hasRootCauseContent,
   matchesReviewRiskFilter,
   priorityFor,
-  rollupBy,
+  toggleMulti,
   type ReviewRiskFilter,
 } from "@/lib/reviewRisk";
 import { LIKELIHOODS, SEVERITIES } from "@/lib/risk";
@@ -47,7 +44,10 @@ import { Chip, Pill } from "@/components/ui/primitives";
 import { IconCamera, IconMic } from "@/components/ui/icons";
 import type { Check, Finding, Likelihood, Severity } from "@/lib/types";
 
-type RollupAxis = "discipline" | "system" | "check" | "finding";
+/** The sort key an empty/absent Asset system sorts under — see `visible`'s
+ *  own comment below. Built with fromCharCode, not a `"￿"` string
+ *  literal, so this stays an ordinary, visible character in this file. */
+const GENERAL_SYSTEM_SORT_KEY = String.fromCharCode(0xffff);
 
 export default function ReviewRiskTable({
   findings,
@@ -69,7 +69,6 @@ export default function ReviewRiskTable({
 }) {
   const [filter, setFilter] = useState<ReviewRiskFilter>({ kind: "all" });
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [rollupAxis, setRollupAxis] = useState<RollupAxis>("discipline");
 
   /* Audit-check reference codes are presentation we no longer show (see
    *  PR "Review pages: remove audit-check reference codes from the UI") —
@@ -82,10 +81,22 @@ export default function ReviewRiskTable({
     return m;
   }, [entityCode]);
 
-  const visible = useMemo(
-    () => findings.filter((f) => matchesReviewRiskFilter(f, filter)),
-    [findings, filter]
-  );
+  /* PRIORITY 2 — sorted Discipline, then Asset system, so a reviewer going
+     down the table moves through one discipline's systems together rather
+     than in raise-order. "General" (no system) sorts after every named
+     system within its discipline, never before — GENERAL_SYSTEM_SORT_KEY
+     (module scope, below) is the highest BMP code point, which sorts after
+     any real system name under localeCompare, so an empty/absent system is
+     pushed to the end of its discipline's own group without needing a
+     second pass. */
+  const visible = useMemo(() => {
+    const filtered = findings.filter((f) => matchesReviewRiskFilter(f, filter));
+    return [...filtered].sort((a, b) => {
+      const byDiscipline = (a.discipline || "").localeCompare(b.discipline || "");
+      if (byDiscipline !== 0) return byDiscipline;
+      return (a.system || GENERAL_SYSTEM_SORT_KEY).localeCompare(b.system || GENERAL_SYSTEM_SORT_KEY);
+    });
+  }, [findings, filter]);
 
   /* Asset system options narrow to the active Discipline filter's own
      systems — systemsOf — and fall back to every system at this entity —
@@ -121,14 +132,14 @@ export default function ReviewRiskTable({
             active={filter.kind === "priority" && filter.priority === p}
             onClick={() => setFilter({ kind: "priority", priority: p })}
           >
-            Priority {p}
+            Priority {p} ({findings.filter((f) => matchesReviewRiskFilter(f, { kind: "priority", priority: p })).length})
           </FilterChip>
         ))}
         <FilterChip active={filter.kind === "notRated"} onClick={() => setFilter({ kind: "notRated" })}>
           Not rated ({countNotRated(findings)})
         </FilterChip>
         <FilterChip active={filter.kind === "unconfirmed"} onClick={() => setFilter({ kind: "unconfirmed" })}>
-          Root cause unconfirmed
+          Root cause unconfirmed ({findings.filter((f) => matchesReviewRiskFilter(f, { kind: "unconfirmed" })).length})
         </FilterChip>
         <select
           aria-label="Filter by discipline"
@@ -215,6 +226,16 @@ export default function ReviewRiskTable({
           onClear={() => setSelected(new Set())}
         />
       )}
+
+      {/* PRIORITY 2 — one line, computed from the SAME `visible` array the
+          rows below are rendered from, so this count can never drift from
+          what is actually on screen (unlike a chip's own count, which
+          deliberately shows what clicking it WOULD yield, not what is
+          currently shown). */}
+      <div className="mb-1.5 text-[10.5px]" style={{ color: "var(--ink-3)" }}>
+        {visible.length} finding{visible.length === 1 ? "" : "s"}
+        {filter.kind !== "all" ? ` matching this filter (of ${findings.length} total)` : ""}
+      </div>
 
       {/* The table itself — the full column set Sarel approved from the
           mockup, fixed (no toggle): select · Type · Discipline · Asset
@@ -374,33 +395,29 @@ export default function ReviewRiskTable({
                       <Pill tone="neutral">Not rated</Pill>
                     )}
                   </td>
-                  <td className="p-2">
-                    {causes.length === 0 ? (
-                      <span style={{ color: "var(--ink-4)" }}>—</span>
-                    ) : (
-                      <span>
-                        <Pill>{causes[0]}</Pill>
-                        {causes.length > 1 && (
-                          <span className="ml-1 font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>
-                            +{causes.length - 1}
-                          </span>
-                        )}
-                      </span>
-                    )}
+                  {/* PRIORITY 2 (review redesign) — Root cause and Impact
+                      are now editable right here, not panel-only, same as
+                      Severity/Likelihood above: a <details> popover inside
+                      a stopPropagation'd <td>, so opening it never selects
+                      the row. toggleMulti/IMPACT_AREAS/ROOT_CAUSES are the
+                      exact same values and toggle function the panel's own
+                      chip rows already use — one vocabulary, one toggle,
+                      two surfaces. */}
+                  <td className="p-2 align-top" onClick={(e) => e.stopPropagation()}>
+                    <MultiSelectCell
+                      label={`Root cause categories for ${f.title || f.id}`}
+                      options={ROOT_CAUSES}
+                      selected={causes}
+                      onToggle={(v) => onChange(f.id, { rootCauseCategories: toggleMulti(f.rootCauseCategories, v) })}
+                    />
                   </td>
-                  <td className="p-2">
-                    {impact.length === 0 ? (
-                      <span style={{ color: "var(--ink-4)" }}>—</span>
-                    ) : (
-                      <span>
-                        <Pill>{impact[0]}</Pill>
-                        {impact.length > 1 && (
-                          <span className="ml-1 font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>
-                            +{impact.length - 1}
-                          </span>
-                        )}
-                      </span>
-                    )}
+                  <td className="p-2 align-top" onClick={(e) => e.stopPropagation()}>
+                    <MultiSelectCell
+                      label={`Impact areas for ${f.title || f.id}`}
+                      options={IMPACT_AREAS}
+                      selected={impact}
+                      onToggle={(v) => onChange(f.id, { impactAreas: toggleMulti(f.impactAreas, v) })}
+                    />
                   </td>
 
                   {/* Evidence — small counts, reading `attachments`. The
@@ -428,31 +445,60 @@ export default function ReviewRiskTable({
         )}
       </div>
 
-      {/* §4 — Risk & root cause summary / roll-up. */}
-      <div className="mt-4">
-        <div className="mb-2 flex items-center justify-between">
-          <b className="font-display text-[11px] font-semibold">Risk &amp; root cause summary</b>
-          <select
-            aria-label="Roll up by"
-            value={rollupAxis}
-            onChange={(e) => setRollupAxis(e.target.value as RollupAxis)}
-            className="h-[28px] rounded-[8px] border px-2 text-[10.5px]"
-            style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-          >
-            <option value="discipline">By discipline</option>
-            <option value="system">By asset system</option>
-            <option value="check">By audit check</option>
-            <option value="finding">By finding</option>
-          </select>
-        </div>
-        <RollupTable findings={findings} axis={rollupAxis} entityCode={entityCode} />
-
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <MultiCountCard title="Impact areas" counts={countByMultiSelect(findings, (f) => f.impactAreas)} />
-          <MultiCountCard title="Root cause categories" counts={countByMultiSelect(findings, (f) => f.rootCauseCategories)} />
-        </div>
-      </div>
     </div>
+  );
+}
+
+/** PRIORITY 2 (review redesign) — the table's own inline editor for a
+ *  multi-select axis (Root cause categories, Impact areas), so neither has
+ *  to leave the row for the panel just to toggle one value. A native
+ *  `<details>` disclosure, not a hand-rolled popover: toggling an option
+ *  inside it never closes it (only the summary toggles), it is natively
+ *  keyboard-operable (Enter/Space on the summary, Tab through the chips),
+ *  and it needs no outside-click listener to manage. The caller's own
+ *  `<td onClick={stopPropagation}>` is what keeps opening this from
+ *  selecting the row — this component does not duplicate that guard. */
+function MultiSelectCell({
+  label,
+  options,
+  selected,
+  onToggle,
+}: {
+  label: string;
+  options: readonly string[];
+  selected: string[];
+  onToggle: (value: string) => void;
+}) {
+  return (
+    <details className="group relative inline-block">
+      <summary
+        aria-label={label}
+        className="block cursor-pointer list-none [&::-webkit-details-marker]:hidden"
+      >
+        {selected.length === 0 ? (
+          <span style={{ color: "var(--ink-4)" }}>—</span>
+        ) : (
+          <span>
+            <Pill>{selected[0]}</Pill>
+            {selected.length > 1 && (
+              <span className="ml-1 font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>
+                +{selected.length - 1}
+              </span>
+            )}
+          </span>
+        )}
+      </summary>
+      <div
+        className="absolute z-10 mt-1 flex w-[220px] flex-wrap gap-[4px] rounded-[8px] border p-2 shadow-lg"
+        style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+      >
+        {options.map((o) => (
+          <Chip key={o} selected={selected.includes(o)} onClick={() => onToggle(o)}>
+            {o}
+          </Chip>
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -645,102 +691,3 @@ function BulkBar({
   );
 }
 
-function RollupTable({
-  findings,
-  axis,
-  entityCode,
-}: {
-  findings: Finding[];
-  axis: RollupAxis;
-  entityCode: string;
-}) {
-  /* Grouping key is byte-identical to before this change — only the LABEL
-   *  shown for the "By audit check" axis changes (ref code → requirement
-   *  text / "General"), so which rows bucket together is untouched. */
-  const keyOf = (f: Finding): string => {
-    switch (axis) {
-      case "discipline":
-        return f.discipline || "—";
-      case "system":
-        return f.system || "—";
-      case "check":
-        return f.checkId ?? "No check";
-      case "finding":
-        return f.title || f.id;
-    }
-  };
-  const rows = rollupBy(findings, keyOf);
-
-  const checksById = useMemo(() => {
-    const m = new Map<string, Check>();
-    for (const c of checksAt(entityCode)) m.set(c.id, c);
-    return m;
-  }, [entityCode]);
-
-  const labelFor = (key: string): string => {
-    if (axis !== "check") return key;
-    if (key === "No check") return "General";
-    return checksById.get(key)?.requirement.slice(0, 90) ?? key;
-  };
-
-  return (
-    <table className="w-full text-[11px]">
-      <thead>
-        <tr style={{ background: "var(--sunken)" }}>
-          <Th>{{ discipline: "Discipline", system: "Asset system", check: "Audit check", finding: "Finding" }[axis]}</Th>
-          <Th>I</Th>
-          <Th>II</Th>
-          <Th>III</Th>
-          <Th>Not rated</Th>
-          <Th>Total</Th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr key={r.key} className="border-t" style={{ borderColor: "var(--line)" }}>
-            <td className="p-2">{labelFor(r.key)}</td>
-            <td className="p-2 font-mono">{r.counts.I}</td>
-            <td className="p-2 font-mono">{r.counts.II}</td>
-            <td className="p-2 font-mono">{r.counts.III}</td>
-            <td className="p-2 font-mono">{r.notRated}</td>
-            <td className="p-2 font-mono font-semibold">{r.total}</td>
-          </tr>
-        ))}
-        {rows.length === 0 && (
-          <tr>
-            <td colSpan={6} className="p-3 text-center" style={{ color: "var(--ink-3)" }}>
-              No findings this visit.
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
-  );
-}
-
-function MultiCountCard({ title, counts }: { title: string; counts: Record<string, number> }) {
-  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  return (
-    <div className="rounded-[11px] border p-2.5" style={{ borderColor: "var(--line-2)" }}>
-      <div className="mb-1.5 font-display text-[10.5px] font-semibold">{title}</div>
-      {entries.length === 0 ? (
-        <div className="text-[11px]" style={{ color: "var(--ink-4)" }}>
-          None selected on any finding yet.
-        </div>
-      ) : (
-        entries.map(([k, n]) => (
-          <div key={k} className="flex items-center justify-between py-[2px] text-[11px]">
-            <span>{k}</span>
-            <span className="font-mono font-semibold">{n}</span>
-          </div>
-        ))
-      )}
-    </div>
-  );
-}
-
-/** Exported for the "none selected" count the summary can show alongside
- *  the per-value breakdown above — not wired into the cards by default (the
- *  addendum's own example only shows "Not rated" as its own bucket), kept
- *  here so a caller that wants it does not have to recompute it. */
-export { countWithNoneSelected, hasRootCauseContent };
