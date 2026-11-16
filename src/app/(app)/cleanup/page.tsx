@@ -11,20 +11,30 @@
  *  and photo captions in bulk and also option to link photos to audit
  *  checks... give all those different options."
  *
- *  THREE TOOLS, ONE SCREEN, ALL READ-THEN-REVIEW-THEN-APPLY. Nothing here
- *  ever writes to the audit record on its own — every rewrite is proposed,
- *  shown beside the original, and only reaches the record when a person
- *  taps Apply, the same contract every other assist feature in this app
- *  already keeps (describe a photo, propose a hazard, consolidate findings:
- *  advisory until accepted). A compliance record ACSA reads is not a place
- *  for a silent bulk edit.
+ *  ALL READ-THEN-REVIEW-THEN-APPLY. Nothing here ever writes to the audit
+ *  record on its own — every rewrite is proposed, shown beside the
+ *  original, and only reaches the record when a person taps Apply, the
+ *  same contract every other assist feature in this app already keeps
+ *  (describe a photo, propose a hazard, consolidate findings: advisory
+ *  until accepted). A compliance record ACSA reads is not a place for a
+ *  silent bulk edit.
  *
  *  1. AUDIT CHECK NOTES — Response.observation (desk) and
  *     Response.fieldObservation (field), each check's own text, rewritten
  *     for grammar and technical tone without inventing a fact.
- *  2. FINDING DESCRIPTIONS — Finding.description, the same treatment.
- *  3. PHOTO CAPTIONS — every Attachment.caption across check-point
+ *  2. PHOTO CAPTIONS — every Attachment.caption across check-point
  *     responses, walk items and findings' own photos.
+ *
+ *  FINDING DESCRIPTIONS MOVED, 16 Nov 2026 — Sarel: "make sure all AI
+ *  cleanup is available and accessible from root cause page." Review's
+ *  own Risk & root cause tab grew the SAME bulk propose/review/apply tool
+ *  this screen pioneered (BulkSuggestWording, ReviewRiskTable.tsx) plus
+ *  bulk voice-note transcription beside it, with richer context (the
+ *  linked audit check's own requirement, the airport, not just discipline
+ *  + asset system) this screen's own call never had. Rather than two
+ *  tools doing an overlapping job on two screens, this one now just links
+ *  to that tab — see the "Finding descriptions" card below, right where
+ *  the full tool used to render.
  *
  *  LINKING PHOTOS TO CHECKS deliberately reuses the Inspection screen's own
  *  BulkLinkWalkItemsSheet rather than a second implementation of the same
@@ -43,6 +53,7 @@ import {
   useStore,
 } from "@/lib/store";
 import { disciplinesAt } from "@/lib/register";
+import { entity as entityOf } from "@/lib/programme";
 import { assist, polishContext, useAssistAvailable } from "@/lib/assist";
 import { Btn, Empty, Pill } from "@/components/ui/primitives";
 import PageHeading from "@/components/ui/PageHeading";
@@ -81,11 +92,15 @@ function PolishSection({
   hint,
   kind,
   items,
+  entityCode,
 }: {
   title: string;
   hint: string;
   kind: "note" | "caption";
   items: PolishItem[];
+  /** For polishContext's own airport line — SYSTEM house rule 8 never
+   *  names or cites a different airport than the one given here. */
+  entityCode: string;
 }) {
   const [open, setOpen] = useState(false);
   const [proposals, setProposals] = useState<Record<string, Proposal>>({});
@@ -105,7 +120,7 @@ function PolishSection({
       try {
         const text = await assist(
           "polish",
-          polishContext(item.text, "", item.system, kind, item.label)
+          polishContext(item.text, "", item.system, kind, item.label, undefined, entityOf(entityCode).name)
         );
         setProposals((p) => ({
           ...p,
@@ -260,7 +275,6 @@ export default function CleanupPage() {
   const adhoc = useAdhoc();
   const findings = useVisitFindings();
   const patch = useStore((s) => s.patch);
-  const updateFinding = useStore((s) => s.updateFinding);
   const updateAttachment = useStore((s) => s.updateAttachment);
   const updateAdhocAttachment = useStore((s) => s.updateAdhocAttachment);
   const updateFindingAttachment = useStore((s) => s.updateFindingAttachment);
@@ -303,17 +317,12 @@ export default function CleanupPage() {
     return out;
   }, [checks, responses, patch, inDiscipline]);
 
-  const findingItems: PolishItem[] = useMemo(() => {
-    return findings
-      .filter((f) => inDiscipline(f.discipline) && f.description?.trim())
-      .map((f) => ({
-        key: `finding|${f.id}`,
-        label: `${f.id} — ${f.title || "finding"}`,
-        system: f.system,
-        text: f.description.trim(),
-        apply: (text) => updateFinding(f.id, { description: text }),
-      }));
-  }, [findings, updateFinding, inDiscipline]);
+  /* Just a count now — the Review page's own Risk & root cause tab does
+     the actual polishing (see this file's own header). */
+  const findingCount = useMemo(
+    () => findings.filter((f) => inDiscipline(f.discipline) && f.description?.trim()).length,
+    [findings, inDiscipline]
+  );
 
   const captionItems: PolishItem[] = useMemo(() => {
     const out: PolishItem[] = [];
@@ -409,18 +418,45 @@ export default function CleanupPage() {
                   hint="desk and field observations"
                   kind="note"
                   items={noteItems}
+                  entityCode={entityCode}
                 />
-                <PolishSection
-                  title="Finding descriptions"
-                  hint="findings raised in this discipline"
-                  kind="note"
-                  items={findingItems}
-                />
+                {/* 16 Nov 2026 — Sarel: "make sure all AI cleanup is
+                    available and accessible from root cause page." Finding
+                    descriptions moved to the Review page's own Risk & root
+                    cause tab, which now also does this in BULK (every
+                    selected finding at once, with the discipline/asset
+                    system/audit check/airport context this screen's own
+                    call never had) and adds bulk voice-note transcription
+                    beside it — one place for a finding's own AI cleanup,
+                    not two tools doing an overlapping job on two screens.
+                    findingCount is still computed from the real data, not
+                    guessed. */}
+                {findingCount > 0 && (
+                  <div
+                    className="rounded-[14px] border px-4 py-3"
+                    style={{ borderColor: "var(--line)", background: "var(--panel)" }}
+                  >
+                    <span className="block font-display text-[13px] font-semibold">Finding descriptions</span>
+                    <span className="mb-2 block text-[11px]" style={{ color: "var(--ink-3)" }}>
+                      {findingCount} {findingCount === 1 ? "finding" : "findings"} in this
+                      discipline · now cleaned up from the Review page itself, in bulk, with fuller context
+                    </span>
+                    <Link
+                      href="/review?tab=risk"
+                      className="inline-flex items-center gap-[5px] rounded-[8px] px-[9px] py-[6px] text-[11px] font-semibold"
+                      style={{ background: "var(--acc)", color: "#fff" }}
+                    >
+                      <IconSpark width={12} height={12} />
+                      Open Review · Risk &amp; root cause
+                    </Link>
+                  </div>
+                )}
                 <PolishSection
                   title="Photo captions"
                   hint="check-point, walk and finding photos"
                   kind="caption"
                   items={captionItems}
+                  entityCode={entityCode}
                 />
               </>
             )}

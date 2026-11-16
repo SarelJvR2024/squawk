@@ -658,11 +658,26 @@ export function polishContext(
   /** The check's own requirement, or a finding's title — whatever names
    *  what this text is actually about, so a one-line caption rewrite does
    *  not have to guess what it is evidence of. Omit when there is none. */
-  about?: string
+  about?: string,
+  /** The AUDIT CHECK this text is evidence against, verbatim — distinct
+   *  from `about` above (which is the finding's own title/the check's
+   *  requirement used as a label): this is ACSA's own requirement text,
+   *  so a rewrite can speak to what was actually demanded in technical
+   *  terms rather than guessing at it from discipline+system alone. Omit
+   *  when the text is not linked to one specific check. */
+  checkRequirement?: string,
+  /** The airport this was captured at, by its full name — not the
+   *  three/four-letter entity code. Feeds house rule 8 (SYSTEM, above):
+   *  a rewrite must never name a different airport, or cite that
+   *  airport's own policies, than the one actually given here. Omit only
+   *  where genuinely unknown; every real caller has one. */
+  airport?: string
 ): string {
   return [
+    airport && `Airport: ${airport}`,
     `Discipline: ${discipline} · Asset system: ${system}`,
     about && `About: ${about}`,
+    checkRequirement && `Audit check requirement: ${checkRequirement}`,
     kind === "caption"
       ? "This is a PHOTO CAPTION, not a full observation — the rewrite stays one short line."
       : "This is a written note captured during the audit.",

@@ -34,6 +34,7 @@ import {
 import { evidenceAxisFor, reviewCombinedCompliance } from "@/lib/review";
 import { assist, polishContext, useAssistAvailable } from "@/lib/assist";
 import { TRACKING_LABEL, trackingStage } from "@/lib/evidence";
+import { entity as entityOf } from "@/lib/programme";
 import { checksAt, checksOf, disciplinesAt, systemsOf } from "@/lib/register";
 import { useStore, useEvidenceItems, useFieldSaveStatus, useResponses } from "@/lib/store";
 import { AttachmentStrip } from "@/components/Capture";
@@ -200,13 +201,34 @@ export default function ReviewRiskPanel({
      Accept, and Reject clears this local state rather than persisting a
      rejected draft anywhere — see this file's own onChange wrapper for
      why `key={finding.id}` is what resets it between findings, not an
-     effect here. */
+     effect here.
+
+     16 Nov 2026 — WIDENED CONTEXT. Sarel: "have a look at the discipline,
+     asset system, and the audit check that is linked to the finding... to
+     reword and describe the audit finding in that context... make sure
+     all facts are double checked for the correct airport." polishContext
+     now also takes the linked check's own requirement text (so the
+     rewrite speaks to what ACSA actually asked for, not a generic
+     tidy-up) and the entity's full airport name (feeds SYSTEM's new
+     house rule 8 — never name or cite a different airport). Both come
+     from state this panel already computes: `linkedCheck` above, and
+     `entityCode` the caller already passes in. */
   const aiOn = useAssistAvailable();
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [editingSuggestion, setEditingSuggestion] = useState(false);
   const [suggestionEditText, setSuggestionEditText] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  /* REVERT, AFTER ACCEPTING — Sarel: "find some user-friendly way that we
+     can... revert back to the old notes." Accept used to simply overwrite
+     `description` with no way back; this remembers what it overwrote (one
+     level, the same "last edit" depth every other undo in this app keeps)
+     so a second tap can put it back. Cleared whenever a FRESH suggestion
+     is generated or the finding changes (key={finding.id} on the caller
+     unmounts this anyway), so "revert" never reaches back past the
+     suggestion that is actually on screen. */
+  const [preAcceptDescription, setPreAcceptDescription] = useState<string | null>(null);
+  const [showOriginal, setShowOriginal] = useState(false);
 
   async function runPolish() {
     setAiBusy(true);
@@ -214,7 +236,15 @@ export default function ReviewRiskPanel({
     try {
       const text = await assist(
         "polish",
-        polishContext(finding.description, finding.discipline, finding.system, "note", finding.title || undefined)
+        polishContext(
+          finding.description,
+          finding.discipline,
+          finding.system,
+          "note",
+          finding.title || undefined,
+          linkedCheck?.requirement,
+          entityOf(entityCode).name
+        )
       );
       setSuggestion(text.trim());
       setEditingSuggestion(false);
@@ -339,6 +369,15 @@ export default function ReviewRiskPanel({
             />
           )}
         </div>
+        {/* 16 Nov 2026 — only labelled "Original" while there is something
+            to compare it against (a pending suggestion, or wording just
+            accepted and still revertible) — the rest of the time this is
+            simply the description field, same as always. */}
+        {(suggestion || preAcceptDescription !== null) && (
+          <div className="label-xs mb-1" style={{ color: "var(--ink-4)" }}>
+            {preAcceptDescription !== null ? "Current (AI wording applied)" : "Original"}
+          </div>
+        )}
         <textarea
           value={finding.description}
           onChange={(e) => onChange({ description: e.target.value })}
@@ -346,6 +385,69 @@ export default function ReviewRiskPanel({
           className="mb-2 min-h-[72px] w-full resize-y rounded-[8px] border px-2.5 py-2 text-[12.5px] outline-none focus:border-[var(--acc)]"
           style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
         />
+        {/* REVERT, AND THE "COMBINED" VIEW — Sarel: "have the option to
+            toggle between original notes and AI cleaned notes... maybe
+            also an option to see the combination of the two... if needed,
+            revert back to the old notes." Shown only while
+            preAcceptDescription holds something (set by Accept below,
+            cleared by Revert or Dismiss) — a quiet strip, not a second
+            suggestion card, since by this point the auditor already
+            decided once. "Show original" expands the exact text Accept
+            overwrote, right here, so "current" and "original" are both on
+            screen together — the combined view — without a diff
+            renderer. Revert calls the SAME onChange every other edit here
+            uses, with that remembered text. */}
+        {preAcceptDescription !== null && (
+          <div
+            className="mb-2 rounded-[8px] border p-2.5 text-[11.5px]"
+            style={{ borderColor: "var(--line-2)", background: "var(--sunken)" }}
+          >
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <span style={{ color: "var(--ink-3)" }}>
+                AI wording applied to this finding&rsquo;s notes.
+              </span>
+              <div className="flex shrink-0 gap-[6px]">
+                <button
+                  type="button"
+                  onClick={() => setShowOriginal((v) => !v)}
+                  className="text-[10.5px] font-semibold underline"
+                  style={{ color: "var(--ink-2)" }}
+                >
+                  {showOriginal ? "Hide original" : "Show original"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange({ description: preAcceptDescription });
+                    setPreAcceptDescription(null);
+                    setShowOriginal(false);
+                  }}
+                  className="text-[10.5px] font-semibold underline"
+                  style={{ color: "var(--bad)" }}
+                >
+                  Revert
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreAcceptDescription(null);
+                    setShowOriginal(false);
+                  }}
+                  aria-label="Dismiss — keep the AI wording, stop offering to revert"
+                  className="text-[10.5px]"
+                  style={{ color: "var(--ink-4)" }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            {showOriginal && (
+              <p className="whitespace-pre-wrap" style={{ color: "var(--ink-3)" }}>
+                {preAcceptDescription || <em>(was blank)</em>}
+              </p>
+            )}
+          </div>
+        )}
         {aiError && (
           <p role="alert" className="mb-2 text-[11px] font-semibold" style={{ color: "var(--bad)" }}>
             {aiError}
@@ -381,6 +483,10 @@ export default function ReviewRiskPanel({
               <button
                 type="button"
                 onClick={() => {
+                  /* The revert strip's own compare point — what Accept is
+                     about to overwrite, remembered before it's gone. */
+                  setPreAcceptDescription(finding.description);
+                  setShowOriginal(false);
                   onChange({ description: editingSuggestion ? suggestionEditText : suggestion });
                   setSuggestion(null);
                   setEditingSuggestion(false);

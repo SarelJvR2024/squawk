@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Hundred-and-seven suites, no framework. Thirteen need a running server; ninety-four do not.
+Hundred-and-eight suites, no framework. Thirteen need a running server; ninety-five do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -86,7 +86,8 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `reviewlayout.test.mjs` | no | 8 |
 | `reviewsavestate.test.mjs` | no | 14 |
 | `reviewpanelcontent.test.mjs` | no | 14 |
-| `reviewaiassist.test.mjs` | no | 12 |
+| `reviewaiassist.test.mjs` | no | 21 |
+| `reviewbulkai.test.mjs` | no | 23 |
 | `evidence-review.test.mjs` | no | 67 |
 | `evidencepending.test.mjs` | no | 31 |
 | `evidencestatus.test.mjs` | no | 23 |
@@ -110,7 +111,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `checkscreen.test.mjs` | no | 54 |
 | `checktabs-a11y.test.mjs` | no | 9 |
 | `checksfilter.test.mjs` | no | 3 |
-| `cleanup.test.mjs` | no | 21 |
+| `cleanup.test.mjs` | no | 22 |
 | `filterbar.test.mjs` | no | 21 |
 | `filterbar-aria.test.mjs` | no | 5 |
 | `filterpopover-a11y.test.mjs` | no | 10 |
@@ -158,7 +159,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**4,171 assertions in total**, every count above verified by running the suite,
+**4,204 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —

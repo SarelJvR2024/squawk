@@ -114,9 +114,23 @@ check(
   /r\.observation\?\.trim\(\)/.test(cleanup) && /r\.fieldObservation\?\.trim\(\)/.test(cleanup)
 );
 
+/* 16 Nov 2026 — Sarel: "make sure all AI cleanup is available and
+   accessible from root cause page." Finding descriptions moved to the
+   Review page's own Risk & root cause tab (same bulk propose/review/
+   apply tool, richer context, plus bulk voice-note transcription beside
+   it) — this screen now just counts and links there, same honest count
+   as every other section here, not a guess. */
 check(
-  "finding descriptions are their own section, reading Finding.description",
-  /findingItems/.test(cleanup) && /f\.description\.trim\(\)/.test(cleanup)
+  "finding descriptions moved to the Review page — this screen counts them and links to /review?tab=risk, rather than polishing them a second time here",
+  /const findingCount = useMemo\(/.test(cleanup) &&
+    /f\.description\?\.trim\(\)/.test(cleanup) &&
+    /href="\/review\?tab=risk"/.test(cleanup)
+);
+check(
+  "the link actually reaches the Risk & root cause tab — /review reads ?tab=risk on mount",
+  /searchParams\.get\("tab"\) === "risk" \? "risk" : "checks"/.test(
+    fs.readFileSync(path.join(here, "..", "src", "app", "(app)", "review", "page.tsx"), "utf8")
+  )
 );
 
 check(
@@ -125,13 +139,17 @@ check(
 );
 
 check(
-  "each item's apply() goes through the real store action for where its text actually lives, not a generic patch",
+  /* updateFinding's own apply() line left this file 16 Nov 2026 along with
+     the "Finding descriptions" PolishSection it belonged to — the
+     remaining five still go through the real store action for where
+     their text actually lives, not a generic patch. */
+  "each remaining item's apply() goes through the real store action for where its text actually lives, not a generic patch",
   /apply: \(text\) => patch\(c\.id, \{ observation: text \}\)/.test(cleanup) &&
     /apply: \(text\) => patch\(c\.id, \{ fieldObservation: text \}\)/.test(cleanup) &&
-    /apply: \(text\) => updateFinding\(f\.id, \{ description: text \}\)/.test(cleanup) &&
     /apply: \(text\) => updateAttachment\(c\.id, a\.id, \{ caption: text \}\)/.test(cleanup) &&
     /apply: \(text\) => updateAdhocAttachment\(item\.id, a\.id, \{ caption: text \}\)/.test(cleanup) &&
-    /apply: \(text\) => updateFindingAttachment\(f\.id, a\.id, \{ caption: text \}\)/.test(cleanup)
+    /apply: \(text\) => updateFindingAttachment\(f\.id, a\.id, \{ caption: text \}\)/.test(cleanup) &&
+    !/\bupdateFinding\(f\.id, \{ description: text \}\)/.test(cleanup)
 );
 
 check(
