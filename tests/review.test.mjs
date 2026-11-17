@@ -408,7 +408,7 @@ check(
 
 check(
   "ACSA can reach Review despite being read-only elsewhere",
-  /n\.href !== "\/dashboard" && n\.href !== "\/review"/.test(shell),
+  /role === "acsa" && n\.href !== "\/review"/.test(shell),
   "reviewing and editing a check is the point of the screen, for both sides of the audit"
 );
 

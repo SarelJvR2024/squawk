@@ -75,14 +75,14 @@ import { Pill } from "@/components/ui/primitives";
  *  to match a label is churn with a real cost and no reader benefit. */
 const NAV = [
   { href: "/capture", label: "Checks", icon: IconClipboard },
-  /* AUDIT — one reusable capture for the ~180 "is there a current, valid
-     document" checks (Check.confirmedBy === "Document"), instead of the
-     full Checks screen rebuilt once per certificate/appointment/permit.
-     Sarel: "Build this for me under a new tab. Called audit. Streamline
-     the capturing." See src/app/(app)/audit/page.tsx for the screen
-     itself and why confirmedBy, not a new field, decides what is in
-     scope. */
-  { href: "/audit", label: "Audit", icon: IconInbox },
+  /* AUDIT MOVED TO THE MORE MENU, FOR NOW — Sarel, 17 Nov 2026: "move tab
+     'Audit' to the more menu for now." The screen itself, its route and
+     the ~180 "is there a current, valid document" checks it covers
+     (Check.confirmedBy === "Document") are unchanged — only the bar slot
+     is gone, same reversible "declutter the bar, keep the feature" move
+     already made for Safety/Review/HIRA/Pre-flight above and below. See
+     the MoreItem below and OFF_NAV for where its heading and nav slot
+     now live; see src/app/(app)/audit/page.tsx for the screen itself. */
   { href: "/field", label: "Inspection", icon: IconPin },
   /* RAISE — a fresh, dedicated screen, alongside Inspection rather than
      replacing it. Sarel, after testing the Inspection tab's own
@@ -150,7 +150,17 @@ const NAV = [
      NOW: it leaves the bar entirely, same instruction that moved Safety.
      See the MoreItem below and OFF_NAV for where its heading now comes
      from. */
-  { href: "/dashboard", label: "Dashboard", icon: IconGrid },
+  /* DASHBOARD HIDDEN FROM THE BAR, FOR NOW — Sarel, 17 Nov 2026: "hide the
+     dashboard page for now." Not moved to the More menu either — unlike
+     Safety/Review/HIRA/Pre-flight, this screen is not getting a one-tap
+     fallback home, it is coming off the bar outright until there is a
+     reason to put it back. The route, the page and the ACSA role's own
+     forced redirect to it (the effect a few lines below that sends
+     role==="acsa" to /dashboard on every path) are all untouched; Home's
+     tile list and FlowStepper's step-7 entry still point at it too — this
+     is the bar slot leaving, not the screen. See OFF_NAV for where its
+     heading now comes from, so a visit that still lands here (the ACSA
+     redirect, Home, the stepper) doesn't read "Squawk". */
   /* PRE-FLIGHT MOVED TO THE MORE MENU TOO (Sarel, 30 Sep, on the same
      screenshot that asked for Safety and Review): "move review, safety,
      preflight into the more menu."
@@ -184,13 +194,20 @@ const OFF_NAV: Record<string, string> = {
   "/closeout": "Daily site closeout",
   "/evidence": "Document and evidence collection log",
   "/people": "People directory",
-  /* Safety, Review, Pre-flight and HIRA moved out of NAV into the More menu
-     (Safety/Review/Pre-flight: Sarel, 30 Sep; HIRA: Sarel, 15 Nov) —
-     without an entry here their own heading would fall back to "Squawk". */
+  /* Safety, Review, Pre-flight, HIRA and Audit moved out of NAV into the
+     More menu (Safety/Review/Pre-flight: Sarel, 30 Sep; HIRA: 15 Nov;
+     Audit: 17 Nov) — without an entry here their own heading would fall
+     back to "Squawk". */
   "/isf": "Safety",
   "/review": "Review",
   "/preflight": "Pre-flight",
   "/hazards": "HIRA",
+  "/audit": "Audit",
+  /* Dashboard came off the bar outright (Sarel, 17 Nov) rather than into
+     the More menu — still reached directly by the ACSA role's own forced
+     redirect, Home's tile list and the FlowStepper, so it still needs its
+     own heading here. */
+  "/dashboard": "Dashboard",
   /* WORKSPACE — the consolidated capture tree, see its own page header for
      why it exists and why it is additional rather than a replacement. In
      the More menu for now, same "prove it before it earns a bar slot"
@@ -654,9 +671,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             /* ACSA is read-only across the audit, but Visual review is where
                their engineers answer a photograph — the one screen where their
                input is the point rather than a risk. Comments are labelled by
-               role and never touch the observation or the finding. */
-            const disabled =
-              role === "acsa" && n.href !== "/dashboard" && n.href !== "/review";
+               role and never touch the observation or the finding.
+
+               The `n.href !== "/dashboard"` exception this line used to carry
+               alongside `/review` is gone, not because ACSA lost anything —
+               Dashboard just isn't a NAV entry any more (it left the bar
+               outright, see NAV's own comment above), so there is no longer
+               a matching `n` for that href to ever disable in the first
+               place. The role's forced redirect to /dashboard (a few lines
+               up) is untouched; this bar just can't show it as "active"
+               since it no longer has a tab for it. */
+            const disabled = role === "acsa" && n.href !== "/review";
             const Icon = n.icon;
             /* Counts read DONE OF TOTAL where there is a finite amount of
                work, because a bare number does not say which it is. "299"
@@ -1084,6 +1109,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       hint="Where an engineer reads back what came in"
                       selected={pathname === "/review"}
                       onClick={() => { setMore(false); router.push("/review"); }}
+                    />
+                    {/* AUDIT, MOVED HERE from the nav bar (Sarel, 17 Nov):
+                        "move tab 'Audit' to the more menu for now." The
+                        screen, its route and the ~180 document-validity
+                        checks it covers are unchanged — only the bar slot
+                        is gone, same move as Safety/Review just above. */}
+                    <MoreItem
+                      icon={<IconInbox width={14} height={14} />}
+                      label="Audit"
+                      hint="Streamlined capture for document/certificate checks"
+                      selected={pathname === "/audit"}
+                      onClick={() => { setMore(false); router.push("/audit"); }}
                     />
                     {/* HIRA, MOVED HERE from the nav bar (Sarel, 15 Nov):
                         "remove HIRA tab only, not the sync, we will still
