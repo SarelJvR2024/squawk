@@ -259,6 +259,41 @@ export default function ReviewRiskTable({
             </option>
           ))}
         </select>
+
+        {/* GENERATE REPORT — Sarel: "make the report available to generate
+            a PDF from the review root cause page to generate a report
+            based on the discipline that's selected in the filters." Needs
+            one discipline picked (the Discipline select above, not
+            system/impact/root-cause, which narrow within a discipline
+            rather than naming one) — disabled with a tooltip otherwise,
+            same convention EvidenceReviewView's own "Share list with
+            discipline" button already uses. Opens /report in a new tab: a
+            plain, unrouted <a>, not router.push, because the report is
+            meant to be printed/saved and come back to, not navigated away
+            to. It reads no data from here — the new tab shares this same
+            browser's IndexedDB, so it sees the same findings without a
+            second copy passed through the URL. */}
+        {filter.kind === "discipline" ? (
+          <a
+            href={`/report?discipline=${encodeURIComponent(filter.discipline)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto flex h-[30px] items-center rounded-[8px] px-3 text-[11px] font-semibold"
+            style={{ background: "var(--acc)", color: "#fff" }}
+          >
+            Generate report
+          </a>
+        ) : (
+          <button
+            type="button"
+            disabled
+            title="Pick one discipline above first — a report is generated for one discipline at a time."
+            className="ml-auto flex h-[30px] items-center rounded-[8px] px-3 text-[11px] font-semibold opacity-50"
+            style={{ background: "var(--acc)", color: "#fff" }}
+          >
+            Generate report
+          </button>
+        )}
       </div>
 
       {/* Bulk bar — §3: set severity/likelihood/impact/root cause for every
