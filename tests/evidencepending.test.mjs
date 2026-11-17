@@ -225,8 +225,8 @@ ok(
     /<VoiceNoteButton\s+inline/.test(detail)
 );
 ok(
-  "the textarea reserves room for them rather than running text underneath",
-  /pr-\[164px\]/.test(detail)
+  "the textarea reserves room for them rather than running text underneath — 248px, not 164px, widened once Sarel reported the recording mic's own expanded state (clock + Discard) sitting on top of already-typed text",
+  /pr-\[248px\]/.test(detail) && !/pr-\[164px\]/.test(detail)
 );
 /* A DECISION OF SAREL'S THAT HE LATER REVERSED, TWICE: "remove the paperclip
    and photo icon, introduce them in the evidence section — all photos and
