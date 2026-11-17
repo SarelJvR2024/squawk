@@ -522,7 +522,7 @@ function CaptureInner() {
                           <span className="block truncate font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
                             {portalIdFor(entityCode, c.id)}
                           </span>
-                          <span className="mt-[1px] block truncate text-[11.5px]">{c.requirement}</span>
+                          <span className="line-clamp-2 mt-[1px] block text-[11.5px] leading-snug">{c.requirement}</span>
                         </span>
                       </button>
                     );

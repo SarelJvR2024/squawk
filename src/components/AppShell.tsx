@@ -1588,12 +1588,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     setQ("");
                     router.push(`/capture?check=${c.id}`);
                   }}
-                  className="flex w-full items-center gap-[9px] rounded-[8px] px-[11px] py-2 text-left transition-[var(--t)] hover:bg-[var(--acc-soft)]"
+                  className="flex w-full items-start gap-[9px] rounded-[8px] px-[11px] py-2 text-left transition-[var(--t)] hover:bg-[var(--acc-soft)]"
                 >
-                  <span className="w-[92px] shrink-0 font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
+                  <span className="w-[92px] shrink-0 pt-[1px] font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
                     {portalIdFor(entityCode, c.id)}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-[12px]">{c.requirement}</span>
+                  <span className="line-clamp-2 min-w-0 flex-1 text-[12px] leading-snug">{c.requirement}</span>
                   <Pill>{c.discipline}</Pill>
                 </button>
               ))}
