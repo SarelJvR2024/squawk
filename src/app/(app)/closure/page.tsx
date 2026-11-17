@@ -178,6 +178,17 @@ function FollowUpSection({
   );
 }
 
+/** The small caption above a field inside a FollowUpSection — one
+ *  definition, not seven copies of the same className drifting apart the
+ *  first time one of them needs to change. */
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mb-1.5 font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
+      {children}
+    </div>
+  );
+}
+
 export default function ClosurePage() {
   const router = useRouter();
   const responses = useResponses();
@@ -206,6 +217,8 @@ export default function ClosurePage() {
      are not. */
   const lifecycleRef = useRef<HTMLDivElement>(null);
   const lifecycleEdge = useEdgeScroll(lifecycleRef);
+  const whyRef = useRef<HTMLDivElement>(null);
+  const whyEdge = useEdgeScroll(whyRef);
   const updateFinding = useStore((s) => s.updateFinding);
   const entity = useEntity();
   const entityCode = useEntityCode();
@@ -878,17 +891,27 @@ export default function ClosurePage() {
                    that didn't fit onto a second row instead of keeping the
                    explanation on the one line it is — this scrolls
                    sideways instead, same convention the lifecycle strip
-                   right below it already uses for the same reason. */
-                <div
-                  className="no-scrollbar mb-3 flex items-center gap-x-3 overflow-x-auto rounded-[8px] border px-[10px] py-[7px] text-[11.5px] whitespace-nowrap"
-                  style={{ borderColor: "var(--line)" }}
-                >
-                  <span className="label-xs shrink-0" style={{ color: "var(--ink-3)" }}>
-                    Why {active.rating.toLowerCase()}
-                  </span>
-                  {active.severity && <span className="shrink-0">Severity {active.severity}</span>}
-                  {active.likelihood && <span className="shrink-0">Likelihood {active.likelihood}</span>}
-                  {active.riskPriority && <span className="shrink-0">Risk priority {active.riskPriority}</span>}
+                   right below it already uses for the same reason — same
+                   `relative` wrapper + useEdgeScroll + ScrollEdges too,
+                   not just the bare overflow-x-auto: this file's own Day-2
+                   note on that lifecycle strip found scrolling with no
+                   affordance at all reads as a hard edge, not something
+                   swipeable, and a row that newly scrolls has exactly
+                   that problem until it gets the same fade+chevron cue. */
+                <div className="relative mb-3">
+                  <div
+                    ref={whyRef}
+                    className="no-scrollbar flex items-center gap-x-3 overflow-x-auto rounded-[8px] border px-[10px] py-[7px] text-[11.5px] whitespace-nowrap"
+                    style={{ borderColor: "var(--line)" }}
+                  >
+                    <span className="label-xs shrink-0" style={{ color: "var(--ink-3)" }}>
+                      Why {active.rating.toLowerCase()}
+                    </span>
+                    {active.severity && <span className="shrink-0">Severity {active.severity}</span>}
+                    {active.likelihood && <span className="shrink-0">Likelihood {active.likelihood}</span>}
+                    {active.riskPriority && <span className="shrink-0">Risk priority {active.riskPriority}</span>}
+                  </div>
+                  <ScrollEdges edge={whyEdge} />
                 </div>
               )}
 
@@ -1010,9 +1033,7 @@ export default function ClosurePage() {
                   one box asked to do both jobs. */}
               <FollowUpSection step={2} title="Evidence" hint="what's outstanding, and what proves it" done={!!v?.evidence?.trim()}>
                 <div>
-                  <div className="mb-1.5 font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
-                    Requested for closure
-                  </div>
+                  <FieldLabel>Requested for closure</FieldLabel>
                   <textarea
                     value={v?.evidenceRequested ?? ""}
                     onChange={(e) => patchVerification(active.key, { evidenceRequested: e.target.value })}
@@ -1024,9 +1045,7 @@ export default function ClosurePage() {
                 </div>
 
                 <div>
-                  <div className="mb-1.5 font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
-                    Of closure
-                  </div>
+                  <FieldLabel>Of closure</FieldLabel>
                   <textarea
                     value={v?.evidence ?? ""}
                     onChange={(e) => patchVerification(active.key, { evidence: e.target.value })}
@@ -1088,9 +1107,7 @@ export default function ClosurePage() {
                   audit that found it, and the same problem then reads as two. */}
               <FollowUpSection step={3} title="Remediation & next step" hint="what fixes it, and what happens next" done={!!v?.action?.trim()}>
                 <div>
-                  <div className="mb-1.5 font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
-                    Remediation action — what fixes it
-                  </div>
+                  <FieldLabel>Remediation action — what fixes it</FieldLabel>
                   <textarea
                     value={v?.action ?? ""}
                     onChange={(e) => patchVerification(active.key, { action: e.target.value })}
@@ -1118,9 +1135,7 @@ export default function ClosurePage() {
                       typed (resize-y lets it grow from there); the extra height
                       only shows while the placeholder itself is doing the
                       wrapping. */}
-                  <div className="mb-1.5 font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
-                    Next step — what happens next
-                  </div>
+                  <FieldLabel>Next step — what happens next</FieldLabel>
                   <textarea
                     value={v?.nextStep ?? ""}
                     onChange={(e) => patchVerification(active.key, { nextStep: e.target.value })}
@@ -1140,9 +1155,7 @@ export default function ClosurePage() {
                   {/* The dated log. ACSA's Progress/Update is one cell that gets
                       typed over; this appends, keeping the author, the time and
                       the visit, and the export flattens it back into their cell. */}
-                  <div className="mb-1.5 font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
-                    Progress
-                  </div>
+                  <FieldLabel>Progress</FieldLabel>
                   {/* `min-w-[200px]`, not `min-w-0` — plenty of room for "Add to
                       the log" was being taken from the input first, down to
                       179px at 375px wide, where the placeholder "What moved, in
@@ -1190,9 +1203,7 @@ export default function ClosurePage() {
                     this; it is simply a separate list for a separate
                     question (what was discussed, not what moved). */}
                 <div>
-                  <div className="mb-1.5 font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
-                    ACSA discussion log
-                  </div>
+                  <FieldLabel>ACSA discussion log</FieldLabel>
                   {(v?.discussionLog?.length ?? 0) > 0 && (
                     <div className="mb-2 flex flex-col gap-1.5">
                       {v!.discussionLog!.map((n, i) => (
