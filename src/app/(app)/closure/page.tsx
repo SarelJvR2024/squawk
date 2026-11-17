@@ -1446,7 +1446,7 @@ export default function ClosurePage() {
                                 showed King Shaka check numbers on an O.R. Tambo screen. */}
                             {portalIdFor(entityCode, c.id)}
                           </span>
-                          <span className="block truncate text-[11.5px]">{c.requirement}</span>
+                          <span className="line-clamp-2 block text-[11.5px] leading-snug">{c.requirement}</span>
                         </span>
                         <span className="mt-[2px]">
                           <Pill

@@ -245,7 +245,7 @@ export default function BulkLinkWalkItemsSheet({
               <span className="block font-mono text-[9.5px]" style={{ color: "var(--ink-4)" }}>
                 {portalIdFor(entityCode, pickedCheck.id)}
               </span>
-              <span className="block truncate text-[12.5px] font-semibold">{pickedCheck.requirement}</span>
+              <span className="line-clamp-2 block text-[12.5px] leading-snug font-semibold">{pickedCheck.requirement}</span>
               <span className="block truncate text-[10.5px]" style={{ color: "var(--ink-4)" }}>
                 {pickedCheck.discipline} · {pickedCheck.system}
               </span>
@@ -285,12 +285,12 @@ export default function BulkLinkWalkItemsSheet({
                       setCheckId(c.id);
                       setCheckQuery("");
                     }}
-                    className="flex w-full items-center gap-[9px] px-3 py-2 text-left hover:bg-[var(--acc-soft)]"
+                    className="flex w-full items-start gap-[9px] px-3 py-2 text-left hover:bg-[var(--acc-soft)]"
                   >
-                    <span className="w-[86px] shrink-0 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                    <span className="w-[86px] shrink-0 pt-[1px] font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
                       {portalIdFor(entityCode, c.id)}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-[12px]">{c.requirement}</span>
+                    <span className="line-clamp-2 min-w-0 flex-1 text-[12px] leading-snug">{c.requirement}</span>
                     <Pill>{c.system}</Pill>
                   </button>
                 ))

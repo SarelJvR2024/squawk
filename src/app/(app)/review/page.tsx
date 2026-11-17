@@ -455,7 +455,7 @@ function ReviewPageInner() {
                           label={reviewed(responses[c.id]) ? "Reviewed" : "Not yet reviewed"}
                         />
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[11.5px]">{c.requirement}</span>
+                          <span className="line-clamp-2 block text-[11.5px] leading-snug">{c.requirement}</span>
                         </span>
                         {nFindings > 0 && <Pill tone="warn">{nFindings}</Pill>}
                         {signOff === "approved" && <Pill tone="good">✓</Pill>}

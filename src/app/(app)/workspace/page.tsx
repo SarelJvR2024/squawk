@@ -294,7 +294,7 @@ export default function WorkspacePage() {
                                   <div
                                     key={cKey}
                                     data-check={c.id}
-                                    className="flex items-center gap-[7px] border-b py-[7px] pr-[10px] pl-[42px]"
+                                    className="flex items-start gap-[7px] border-b py-[7px] pr-[10px] pl-[42px]"
                                     style={{
                                       borderColor: "var(--line)",
                                       background:
@@ -311,7 +311,7 @@ export default function WorkspacePage() {
                                       >
                                         {portalIdFor(entityCode, c.id)}
                                       </span>
-                                      <span className="block truncate text-[11px]">{c.requirement}</span>
+                                      <span className="line-clamp-2 block text-[11px] leading-snug">{c.requirement}</span>
                                     </button>
                                     {r?.compliance === "NC" && <Pill tone="bad">NC</Pill>}
                                     {n > 0 && <Pill tone="warn">{n}</Pill>}
