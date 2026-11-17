@@ -204,7 +204,7 @@ check(
      NUMBER here, not the reasoning, if this goes stale again — `grep -n
      "version: " src/lib/store.ts | tail -1` is the live value. */
   "the migration version is unchanged — this import adds no new field, unlike the first hazard-mapping wave",
-  /version:\s*43,/.test(store)
+  /version:\s*44,/.test(store)
 );
 
 /* The two hazard-mapping waves must never collide — same entity/visit,

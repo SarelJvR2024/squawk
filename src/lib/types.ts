@@ -1019,6 +1019,17 @@ export interface Finding {
    *  one of these, not several. Absent means not yet assigned, same
    *  convention as every other optional field here. */
   timeline?: string;
+  /** ACTION & IMPROVEMENT PLAN — Sarel: "Add an option to add action and
+   *  improvement plan for any row in the root cause table. This will be
+   *  the action plan for the airports to improve the asset assurance."
+   *  Free text, same shape as `rootCauseNote` above and the same reason:
+   *  this is what to DO about the finding, a different question from what
+   *  caused it (`rootCauseNote`) or when it needs doing by (`timeline`).
+   *  Editable inline on /review and in ReviewRiskPanel; absent means
+   *  nothing written yet, never a decision that no action is needed.
+   *  Syncs to the SharePoint findings list as `findingActionPlan` — see
+   *  findingRiskFieldsFor in sharepoint.ts. */
+  actionPlan?: string;
   /** REVIEW TABLE V2 — Sarel's "Type" tag (Non-compliance vs. Observation),
    *  see docs/capture-review/review-table-v2-discovery.md §2.
    *
