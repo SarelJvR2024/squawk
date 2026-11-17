@@ -423,6 +423,11 @@ export function findingsSheet(x: ExportInput): Sheet {
          here, so this is exactly this finding's own value — no
          aggregation question, same reasoning as the four fields above. */
       f.timeline ?? "",
+      /* Action & improvement plan — Sarel: "this will be the action plan
+         for the airports to improve the asset assurance." One row per
+         finding here too, so this is exactly this finding's own value,
+         same as timeline just above — no aggregation question. */
+      f.actionPlan ?? "",
       /* Several actions now, each with its own discipline, owner, date and
          status — flattened the same way the asset-system assessment sheet
          already flattens MitigationAction[], one line each, so a reader
@@ -502,6 +507,7 @@ export function findingsSheet(x: ExportInput): Sheet {
       { header: "Root cause note", width: 40, wrap: true },
       { header: "Root cause note confirmed", width: 18 },
       { header: "Timeline", width: 18 },
+      { header: "Action plan", width: 40, wrap: true },
       { header: "Remediation action", width: 58, wrap: true },
       { header: "Owner", width: 30 },
       { header: "Due date", width: 12 },
@@ -988,6 +994,7 @@ export function hazardsSheet(x: ExportInput): Sheet {
          MOST URGENT of the hazard's consolidated findings' timelines —
          see findingRiskFieldsFor's own doc comment. */
       riskFields.timeline ?? "",
+      riskFields.actionPlan ?? "",
       h.disciplines.length,
       h.findingIds.join(" · "),
       h.findingIds.length,
@@ -1081,6 +1088,12 @@ export function hazardsSheet(x: ExportInput): Sheet {
       { header: "Root cause note (findings)", width: 40, wrap: true },
       { header: "Root cause note confirmed (findings)", width: 20 },
       { header: "Timeline (findings)", width: 18 },
+      /* Action & improvement plan — Sarel: "this will be the action plan
+         for the airports to improve the asset assurance." Same
+         findingRiskFieldsFor() aggregation as the row cell just below,
+         kept paired with the sync-integrity review's other four so this
+         sheet and the portal can never drift apart on it. */
+      { header: "Action plan (findings)", width: 40, wrap: true },
       { header: "Disciplines spanned", width: 18 },
       { header: "Findings behind it", width: 30 },
       { header: "Findings", width: 10 },

@@ -1164,7 +1164,7 @@ check(
 );
 
 check(
-  "none of the four risk fields are ever an empty string — null when there is nothing to report",
+  "none of these risk fields are ever an empty string — null when there is nothing to report",
   (() => {
     const v = sp.buildPlan(HAZ, NOTHING).findings.find((r) => r.key === "KSIA-ELE-P01").values;
     return (
@@ -1172,21 +1172,73 @@ check(
       v.findingImpactAreas === null &&
       v.findingRootCauseNote === null &&
       v.findingRootCauseConfirmed === null &&
-      v.findingTimeline === null
+      v.findingTimeline === null &&
+      v.findingActionPlan === null
     );
   })(),
-  "HAZ's own f1/f2/f3 fixture sets none of these five — an update sending \"\" would wipe whatever ACSA has in the cell"
+  "HAZ's own f1/f2/f3 fixture sets none of these six — an update sending \"\" would wipe whatever ACSA has in the cell"
 );
 
 check(
-  "all five are in the FINDINGS contract, so the columns get asked for",
+  "all six are in the FINDINGS contract, so the columns get asked for",
   [
     "findingRootCauseCategories",
     "findingImpactAreas",
     "findingRootCauseNote",
     "findingRootCauseConfirmed",
     "findingTimeline",
+    "findingActionPlan",
   ].every((k) => sp.FINDING_FIELDS.includes(k))
+);
+
+/* ---- Finding.actionPlan — Sarel: "Add an option to add action and
+   improvement plan for any row in the root cause table. This will be the
+   action plan for the airports to improve the asset assurance... add to
+   the sync to SharePoint." Same join-distinct-non-empty shape as
+   findingRootCauseNote above, kept as its own set rather than folded into
+   it — see findingRiskFieldsFor's own doc comment in sharepoint.ts. ----- */
+
+check(
+  "a hazard's action plan joins every DISTINCT finding plan, same shape as the root-cause note above",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...HAZ,
+        findings: [
+          { id: "f1", entity: "FALE", checkId: "KSIA-ELE-001", actionPlan: "Replace the fire water pump diesel engine" },
+          { id: "f2", entity: "FALE", checkId: "KSIA-ELE-002", actionPlan: "Replace the fire water pump diesel engine" },
+          { id: "f3", entity: "FALE", checkId: "KSIA-ELE-001", actionPlan: "Install calibration certificates for the scales" },
+        ],
+      },
+      NOTHING
+    );
+    return (
+      p.findings.find((r) => r.key === "KSIA-ELE-P01").values.findingActionPlan ===
+      "Replace the fire water pump diesel engine | Install calibration certificates for the scales"
+    );
+  })(),
+  "f1 and f2 share the identical plan word for word — joined once, not twice"
+);
+
+check(
+  "an action plan is kept distinct from the root-cause note — a finding can carry both and say different things",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...HAZ,
+        findings: [
+          { id: "f1", entity: "FALE", checkId: "KSIA-ELE-001", rootCauseNote: "No maintenance log found", actionPlan: "Start a maintenance log and keep it current" },
+        ],
+      },
+      NOTHING
+    );
+    const v = p.findings.find((r) => r.key === "KSIA-ELE-P01").values;
+    return (
+      v.findingRootCauseNote === "No maintenance log found" &&
+      v.findingActionPlan === "Start a maintenance log and keep it current" &&
+      v.findingRootCauseNote !== v.findingActionPlan
+    );
+  })()
 );
 
 /* ---- Finding.timeline (PR #264's own remediation-urgency field) —

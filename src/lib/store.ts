@@ -4184,7 +4184,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 43,
+      version: 44,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;
@@ -4991,6 +4991,16 @@ export const useStore = create<State>()(
              has not been assigned one yet, and the field's own absent-means-
              "not yet assigned" reading already says that honestly — nothing
              here to migrate, only a version number to carry forward. */
+        }
+        if (from < 44) {
+          /* Finding.actionPlan (the airport's own action & improvement
+             plan, Sarel: "add an option to add action and improvement
+             plan for any row in the root cause table") is new and purely
+             additive, same reasoning as Finding.timeline just above — a
+             finding raised before this existed simply has no plan written
+             yet, and absent already reads honestly as "nothing written",
+             never as "no action needed". Nothing to migrate, only a
+             version number to carry forward. */
         }
         return st;
       },
