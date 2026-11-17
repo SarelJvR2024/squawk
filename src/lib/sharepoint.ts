@@ -316,6 +316,18 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
      review within hours of the field landing — same bug class, same fix
      shape. */
   findingTimeline: ["Timeline", "Remediation timeline", "Finding timeline"],
+  /* ACTION & IMPROVEMENT PLAN — Sarel: "this will be the action plan for
+     the airports to improve the asset assurance... add to the sync to
+     SharePoint." Same aggregation shape as findingRootCauseNote just
+     above (a free-text field, joined across the hazard's consolidated
+     findings), and the same reason it needs its own column rather than
+     reusing `treatment` below: `treatment` is the HAZARD's own mitigation
+     (what TPJV/the audit team proposes for the consolidated risk), while
+     this is per-FINDING and written for the airport to act on directly —
+     conflating the two would silently overwrite whichever wrote second,
+     same caution this file's own comment on findingRootCauseCategories
+     gives for `rootCause` vs the finding-level categories. */
+  findingActionPlan: ["Action plan", "Improvement plan", "Action and improvement plan", "Finding action plan"],
   /* THE PHOTOGRAPH COLUMNS. Prince Mahlangu, 17 September 2026, on the first
      five files to reach the library: "They carry no metadata at all: CheckID,
      AssetSystem, PhotographReference, CaptionSource and AttachedBy are blank,
@@ -546,7 +558,7 @@ export const FINDING_FIELDS = [
   "photos", "evidenceLink", "evidence", "verifiedBy", "verifiedAt", "possibleEvents",
   "evidenceRequested", "discussionLog",
   "findingRootCauseCategories", "findingImpactAreas", "findingRootCauseNote",
-  "findingRootCauseConfirmed", "findingTimeline",
+  "findingRootCauseConfirmed", "findingTimeline", "findingActionPlan",
 ] as const;
 
 /** The column contract, for a person to build against: the name to create, and
@@ -1633,6 +1645,7 @@ export function findingRiskFieldsFor(
   rootCauseNote: string | null;
   rootCauseConfirmed: string | null;
   timeline: string | null;
+  actionPlan: string | null;
 } {
   if (!h.findingIds?.length) {
     return {
@@ -1641,12 +1654,20 @@ export function findingRiskFieldsFor(
       rootCauseNote: null,
       rootCauseConfirmed: null,
       timeline: null,
+      actionPlan: null,
     };
   }
   const mine = new Set(h.findingIds);
   const categories = new Set<string>();
   const areas = new Set<string>();
   const notes = new Set<string>();
+  /* ACTION & IMPROVEMENT PLAN — same join-distinct-non-empty shape as
+     `notes` above, kept as its own set rather than folded into it: a
+     finding can carry a root-cause note AND an action plan that say
+     genuinely different things (what caused it vs what to do about it),
+     and joining them into one set would blur that distinction on the
+     hazard's own aggregated row. */
+  const actionPlans = new Set<string>();
   let withNote = 0;
   let confirmed = 0;
   /* TIMELINE — the Review redesign's own remediation-urgency field (PR
@@ -1674,6 +1695,8 @@ export function findingRiskFieldsFor(
       const rank = TIMELINES.indexOf(f.timeline);
       if (rank !== -1 && rank < timelineRank) timelineRank = rank;
     }
+    const plan = f.actionPlan?.trim();
+    if (plan) actionPlans.add(plan);
   }
   return {
     rootCauseCategories: categories.size ? [...categories].join(", ") : null,
@@ -1681,6 +1704,7 @@ export function findingRiskFieldsFor(
     rootCauseNote: notes.size ? [...notes].join(" | ") : null,
     rootCauseConfirmed: withNote ? `${confirmed} of ${withNote} confirmed` : null,
     timeline: timelineRank === Infinity ? null : TIMELINES[timelineRank],
+    actionPlan: actionPlans.size ? [...actionPlans].join(" | ") : null,
   };
 }
 
@@ -2320,6 +2344,7 @@ export function buildPlan(
         findingRootCauseNote: riskFields.rootCauseNote,
         findingRootCauseConfirmed: riskFields.rootCauseConfirmed,
         findingTimeline: riskFields.timeline,
+        findingActionPlan: riskFields.actionPlan,
         observation: [h.event, h.description].filter(Boolean).join(" — "),
         severity: agreed ? portalSeverity(h.ermConsequence) : null,
         likelihood: agreed ? portalLikelihood(h.ermLikelihood) : null,

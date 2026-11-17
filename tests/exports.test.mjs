@@ -1165,5 +1165,79 @@ check(
   })()
 );
 
+/* ---- Finding.actionPlan — Sarel: "Add an option to add action and
+   improvement plan for any row in the root cause table... add to the
+   sync to SharePoint." Same shape as Finding.timeline just above, on
+   both sheets: the Findings sheet is one row per finding (its own
+   value, no aggregation question); the Hazards sheet reads the same
+   findingRiskFieldsFor() sharepoint.ts's own portal sync uses. --------- */
+
+check(
+  "the Findings sheet carries a finding's own action plan directly",
+  (() => {
+    const sheet = ex.findingsSheet({
+      ...BASE,
+      checks: [],
+      responses: {},
+      findings: [FINDING_FOR_EXPORT({ actionPlan: "Replace the fire water pump diesel engine" })],
+    });
+    return cellOf(sheet, 0, "Action plan") === "Replace the fire water pump diesel engine";
+  })()
+);
+
+check(
+  "a finding with no action plan set reads blank on the Findings sheet, not undefined",
+  (() => {
+    const sheet = ex.findingsSheet({ ...BASE, checks: [], responses: {}, findings: [FINDING_FOR_EXPORT()] });
+    return cellOf(sheet, 0, "Action plan") === "";
+  })()
+);
+
+check(
+  "the Hazards sheet joins its findings' DISTINCT action plans, same shape as the root-cause note",
+  (() => {
+    const sheet = ex.hazardsSheet({
+      ...BASE,
+      findings: [
+        FINDING_FOR_EXPORT({ id: "f1", actionPlan: "Replace the fire water pump diesel engine" }),
+        FINDING_FOR_EXPORT({ id: "f2", actionPlan: "Replace the fire water pump diesel engine" }),
+        FINDING_FOR_EXPORT({ id: "f3", actionPlan: "Install calibration certificates for the scales" }),
+      ],
+      hazards: [HAZARD_FOR_EXPORT({ findingIds: ["f1", "f2", "f3"] })],
+    });
+    return (
+      cellOf(sheet, 0, "Action plan (findings)") ===
+      "Replace the fire water pump diesel engine | Install calibration certificates for the scales"
+    );
+  })(),
+  "f1 and f2 share the identical plan word for word — joined once, not twice"
+);
+
+check(
+  "the Hazards sheet and the portal sync agree on action plan too, from the exact same function",
+  (() => {
+    const findings = [
+      FINDING_FOR_EXPORT({ id: "f1", actionPlan: "Start a maintenance log and keep it current" }),
+      FINDING_FOR_EXPORT({ id: "f2", actionPlan: "Install the missing fire suppression" }),
+    ];
+    const hazard = HAZARD_FOR_EXPORT({ findingIds: ["f1", "f2"] });
+    const sheet = ex.hazardsSheet({ ...BASE, findings, hazards: [hazard] });
+    const viaSync = sp.findingRiskFieldsFor(hazard, findings);
+    return cellOf(sheet, 0, "Action plan (findings)") === viaSync.actionPlan;
+  })()
+);
+
+check(
+  "a hazard with no finding carrying an action plan reads blank, not undefined or a crash",
+  (() => {
+    const sheet = ex.hazardsSheet({
+      ...BASE,
+      findings: [FINDING_FOR_EXPORT({ id: "f1" })],
+      hazards: [HAZARD_FOR_EXPORT({ findingIds: ["f1"] })],
+    });
+    return cellOf(sheet, 0, "Action plan (findings)") === "";
+  })()
+);
+
 console.log(`\n${failures === 0 ? "ALL PASS" : `${failures} FAILED`}`);
 process.exit(failures ? 1 : 0);

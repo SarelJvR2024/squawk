@@ -259,6 +259,41 @@ export default function ReviewRiskTable({
             </option>
           ))}
         </select>
+
+        {/* GENERATE REPORT — Sarel: "make the report available to generate
+            a PDF from the review root cause page to generate a report
+            based on the discipline that's selected in the filters." Needs
+            one discipline picked (the Discipline select above, not
+            system/impact/root-cause, which narrow within a discipline
+            rather than naming one) — disabled with a tooltip otherwise,
+            same convention EvidenceReviewView's own "Share list with
+            discipline" button already uses. Opens /report in a new tab: a
+            plain, unrouted <a>, not router.push, because the report is
+            meant to be printed/saved and come back to, not navigated away
+            to. It reads no data from here — the new tab shares this same
+            browser's IndexedDB, so it sees the same findings without a
+            second copy passed through the URL. */}
+        {filter.kind === "discipline" ? (
+          <a
+            href={`/report?discipline=${encodeURIComponent(filter.discipline)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto flex h-[30px] items-center rounded-[8px] px-3 text-[11px] font-semibold"
+            style={{ background: "var(--acc)", color: "#fff" }}
+          >
+            Generate report
+          </a>
+        ) : (
+          <button
+            type="button"
+            disabled
+            title="Pick one discipline above first — a report is generated for one discipline at a time."
+            className="ml-auto flex h-[30px] items-center rounded-[8px] px-3 text-[11px] font-semibold opacity-50"
+            style={{ background: "var(--acc)", color: "#fff" }}
+          >
+            Generate report
+          </button>
+        )}
       </div>
 
       {/* Bulk bar — §3: set severity/likelihood/impact/root cause for every
@@ -320,6 +355,7 @@ export default function ReviewRiskTable({
               <Th>Root cause</Th>
               <Th>Impact</Th>
               <Th>Timeline</Th>
+              <Th>Action plan</Th>
               <Th>Evidence</Th>
             </tr>
           </thead>
@@ -483,6 +519,26 @@ export default function ReviewRiskTable({
                         </option>
                       ))}
                     </select>
+                  </td>
+
+                  {/* ACTION & IMPROVEMENT PLAN — Sarel: "Add an option to
+                      add action and improvement plan for any row in the
+                      root cause table. This will be the action plan for
+                      the airports to improve the asset assurance." Same
+                      compact trigger-plus-popover shape as MultiSelectCell
+                      just above, swapped for a textarea instead of
+                      checkboxes — a preview (or a ghost "+ Add") until
+                      opened, nothing hidden about WHETHER a plan exists,
+                      only the full text until the row is asked to show it.
+                      Bound directly, same as every other free-text field
+                      in this app (no separate Save button) — the shared
+                      SaveStatusPill above the table is the feedback. */}
+                  <td className="p-2 align-top" onClick={(e) => e.stopPropagation()}>
+                    <ActionPlanCell
+                      label={`Action and improvement plan for ${f.title || f.id}`}
+                      value={f.actionPlan ?? ""}
+                      onChange={(v) => onChange(f.id, { actionPlan: v || undefined })}
+                    />
                   </td>
 
                   {/* Evidence — Sarel: "add the photos in the row so that
@@ -706,6 +762,88 @@ function MultiSelectCell({
                 );
               })}
             </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** THE ACTION & IMPROVEMENT PLAN CELL — Sarel: "Add an option to add
+ *  action and improvement plan for any row in the root cause table. This
+ *  will be the action plan for the airports to improve the asset
+ *  assurance." Free text, so it cannot be a chip row like Root cause/
+ *  Impact above — a compact trigger (a truncated preview, or a ghost
+ *  "+ Add" with nothing written yet) opens a small popover holding the
+ *  actual textarea, so a long plan does not grow the row the way showing
+ *  it inline would. Bound directly on every keystroke, same as every
+ *  other free-text field in this app (Root cause note in the panel,
+ *  Finding.description) — no separate Save button, the shared
+ *  SaveStatusPill above the table is the feedback, and Escape/an outside
+ *  click just closes the popover rather than discarding anything. */
+function ActionPlanCell({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={label}
+        className="block max-w-[160px] rounded-[6px] px-[5px] py-[3px] text-left text-[10.5px] transition-[var(--t)]"
+        style={{ background: open ? "var(--acc-soft)" : "transparent" }}
+      >
+        {value.trim() ? (
+          <span className="line-clamp-2 break-words" style={{ color: "var(--ink-2)" }}>
+            {value}
+          </span>
+        ) : (
+          <span
+            className="rounded-full border border-dashed px-[7px] py-[2px] text-[10px]"
+            style={{ borderColor: "var(--line-2)", color: "var(--ink-4)" }}
+          >
+            + Add
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[70]" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div
+            role="dialog"
+            aria-label={label}
+            className="absolute left-0 top-[calc(100%+4px)] z-[75] w-[280px] rounded-[10px] border p-[8px]"
+            style={{ background: "var(--menu-bg)", borderColor: "var(--menu-line)", boxShadow: "var(--e3)" }}
+          >
+            <textarea
+              autoFocus
+              aria-label={label}
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder="What the airport will do to close this out…"
+              className="min-h-[90px] w-full resize-y rounded-[6px] border px-2 py-1.5 text-[11.5px]"
+              style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+            />
           </div>
         </>
       )}

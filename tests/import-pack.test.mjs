@@ -525,7 +525,7 @@ check('the persist key "acsa-assurance-v1" is unchanged', /name: "acsa-assurance
    change actually landed on, same as every time before this. Re-pin the
    NUMBER here, not the reasoning, if this goes stale again — `grep -n
    "version: " src/lib/store.ts | tail -1` is the live value. */
-check("the migration version is unchanged", /version: 43,/.test(storeSrc));
+check("the migration version is unchanged", /version: 44,/.test(storeSrc));
 check(
   "removeFinding is a real store action, filtering by id the same way removeHazard already does — not a direct mutation from outside the store",
   /removeFinding: \(id\) =>\s*\n\s*set\(\(s\) => \(\{ findings: s\.findings\.filter\(\(f\) => f\.id !== id\) \}\)\)/.test(
