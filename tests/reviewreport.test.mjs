@@ -24,8 +24,13 @@ const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8"
 const report = src("components", "ReviewRiskReport.tsx");
 const reportPage = src("app", "report", "page.tsx");
 const table = src("components", "ReviewRiskTable.tsx");
+const panel = src("components", "ReviewRiskPanel.tsx");
 const riskVocab = src("lib", "riskVocab.ts");
 const globals = src("app", "globals.css");
+const typesSrc = src("lib", "types.ts");
+const storeSrc = src("lib", "store.ts");
+const sharepointSrc = src("lib", "sharepoint.ts");
+const exportsSrc = src("lib", "exports.ts");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -163,6 +168,130 @@ check(
 check(
   "with no discipline picked, the button is disabled with a tooltip explaining why — same convention EvidenceReviewView's own discipline-gated button uses",
   /disabled\s*\n\s*title="Pick one discipline above first/.test(table)
+);
+
+/* ---- 7 · Finding.actionPlan — Sarel: "Add an option to add action and
+   improvement plan for any row in the root cause table. This will be the
+   action plan for the airports to improve the asset assurance." -------- */
+
+check(
+  "Finding.actionPlan exists, optional and free text, same shape as rootCauseNote",
+  /actionPlan\?: string;/.test(typesSrc)
+);
+check(
+  "the persist version bumped for it, with a no-op migration (purely additive, same reasoning as Finding.timeline's own v43 entry)",
+  /version: 44,/.test(storeSrc) && /if \(from < 44\)/.test(storeSrc)
+);
+check(
+  "the table has an Action plan column, with its own compact trigger-plus-popover cell (ActionPlanCell) — a textarea cannot be a chip row",
+  /<Th>Action plan<\/Th>/.test(table) && /function ActionPlanCell/.test(table)
+);
+check(
+  "the cell shows a ghost \"+ Add\" with nothing written, and the SAME value.trim() gate the table's own MultiSelectCell convention uses elsewhere",
+  (() => {
+    const start = table.indexOf("function ActionPlanCell");
+    const fn = start === -1 ? "" : table.slice(start, table.indexOf("\n}\n", start) + 2);
+    return fn.length > 0 && /value\.trim\(\)/.test(fn) && /\+ Add/.test(fn);
+  })()
+);
+check(
+  "the row wires it straight through onChange — bound on every keystroke, no separate Save button, same as every other free-text field here",
+  /value={f\.actionPlan \?\? ""}/.test(table) &&
+    /onChange={\(v\) => onChange\(f\.id, { actionPlan: v \|\| undefined }\)}/.test(table)
+);
+check(
+  "the drawer (ReviewRiskPanel) ALSO carries the field — RiskPatch includes actionPlan, and its own textarea binds directly",
+  /\| "actionPlan"/.test(panel) &&
+    /value={finding\.actionPlan \?\? ""}/.test(panel) &&
+    /onChange={\(e\) => onChange\({ actionPlan: e\.target\.value }\)}/.test(panel)
+);
+check(
+  "the action plan is kept distinct from the root-cause note everywhere — different labels, different fields, never aliased",
+  /Action \&amp;? ?improvement plan|Action & improvement plan/.test(panel) &&
+    !/rootCauseNote.*actionPlan|actionPlan.*rootCauseNote/.test(panel)
+);
+
+/* ---- 8 · the sync — Sarel: "add to the sync to SharePoint." Same
+   findingRiskFieldsFor() aggregation shape as the other four Review
+   risk-fields, on both the portal and the workbook, never just one. ---- */
+
+check(
+  "findingRiskFieldsFor returns actionPlan, aggregated the same join-distinct-non-empty way as rootCauseNote",
+  (() => {
+    const start = sharepointSrc.indexOf("export function findingRiskFieldsFor");
+    const fn = start === -1 ? "" : sharepointSrc.slice(start, sharepointSrc.indexOf("\n}\n", start) + 2);
+    return (
+      fn.length > 0 &&
+      /actionPlan: string \| null;/.test(fn) &&
+      /actionPlans\.add\(plan\)/.test(fn) &&
+      /actionPlan: actionPlans\.size \? \[\.\.\.actionPlans\]\.join\(" \| "\) : null/.test(fn)
+    );
+  })()
+);
+check(
+  "findingActionPlan has real SharePoint column candidates and is in the FINDINGS contract, so the column actually gets asked for",
+  /findingActionPlan: \[/.test(sharepointSrc) && /"findingActionPlan"/.test(sharepointSrc)
+);
+check(
+  "the portal sync call site actually sends it, not just the aggregation function returning it unused",
+  /findingActionPlan: riskFields\.actionPlan,/.test(sharepointSrc)
+);
+check(
+  "the Excel workbook carries it on BOTH sheets (Findings sheet directly, Hazards sheet aggregated) — the sync-integrity review's own standing rule: never just the portal",
+  /f\.actionPlan \?\? ""/.test(exportsSrc) &&
+    /riskFields\.actionPlan \?\? ""/.test(exportsSrc) &&
+    /header: "Action plan"/.test(exportsSrc) &&
+    /header: "Action plan \(findings\)"/.test(exportsSrc)
+);
+
+/* ---- 9 · the report's second pass — Sarel, after seeing the first
+   version: "have a section that lists the evidence that's requested,
+   then list of specifically the quick wins or immediate action items,
+   and then full list of all findings, information, photos... Add this
+   to the report in a new category." ------------------------------------ */
+
+check(
+  "an Evidence requested section exists, scoped to this discipline via the SAME disciplineFor() the real Evidence tab uses — not a second scoping rule",
+  /Evidence requested/.test(report) &&
+    /import { TRACKING_LABEL, disciplineFor, trackingStage } from "@\/lib\/evidence"/.test(report) &&
+    /disciplineFor\(e, checkDisciplineOf\) === discipline/.test(report)
+);
+check(
+  "its status column reads the SAME trackingStage\\(\\)\\/TRACKING_LABEL the real Evidence tab reads, never a second status vocabulary",
+  /TRACKING_LABEL\[trackingStage\(e\)\]/.test(report)
+);
+check(
+  "a Quick wins / immediate action items section exists, pulling out Timeline === Immediate on its own rather than leaving it as one row of the distribution table",
+  /Quick wins/.test(report) && /f\.timeline === "Immediate"/.test(report)
+);
+check(
+  "it is visually distinguished (its own amber table variant), not styled identically to every other table on the page",
+  /rr-amber/.test(report) && /\.rr-table\.rr-amber th/.test(report)
+);
+check(
+  "the full findings list now shows actual photographs, not only a count — thumbDataUrl, never a live blob/object-URL hook, so the report never waits on async IndexedDB reads to have something to print",
+  (() => {
+    const start = report.indexOf("function ReportPhoto");
+    const fn = start === -1 ? "" : report.slice(start, report.indexOf("\n}\n", start) + 2);
+    return fn.length > 0 && /attachment\.thumbDataUrl \|\| attachment\.dataUrl/.test(fn) && !/useBlobUrl/.test(fn);
+  })()
+);
+check(
+  "a new Action & improvement plan category exists as its own section, separate from the findings list above it",
+  /Action &amp;? ?improvement plan/.test(report) && /withActionPlan/.test(report)
+);
+check(
+  "that category only lists findings that actually carry a plan, and says so plainly when none do yet — never an empty table with no explanation",
+  /sorted\.filter\(\(f\) => f\.actionPlan\?\.trim\(\)\)/.test(report) &&
+    /No action or improvement plans captured/.test(report)
+);
+check(
+  "the report takes evidenceItems as its own prop, scoped by the caller — not a second useEvidenceItems() call hidden inside the printable component",
+  /evidenceItems: EvidenceItem\[\];/.test(report) && !/useEvidenceItems/.test(report)
+);
+check(
+  "the report route passes it through from the real hook, same as every other store-backed prop it already forwards",
+  /useEvidenceItems\(\)/.test(reportPage) && /evidenceItems={evidenceItems}/.test(reportPage)
 );
 
 console.log(failures === 0 ? "\nREVIEW REPORT OK" : `\n${failures} FAILURES`);

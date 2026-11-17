@@ -51,7 +51,7 @@
  *  "make sure all AI cleanup is available and accessible from root cause
  *  page"). */
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FINDING_TYPE_LABEL,
   IMPACT_AREAS,
@@ -355,6 +355,7 @@ export default function ReviewRiskTable({
               <Th>Root cause</Th>
               <Th>Impact</Th>
               <Th>Timeline</Th>
+              <Th>Action plan</Th>
               <Th>Evidence</Th>
             </tr>
           </thead>
@@ -523,6 +524,26 @@ export default function ReviewRiskTable({
                     </select>
                   </td>
 
+                  {/* ACTION & IMPROVEMENT PLAN — Sarel: "Add an option to
+                      add action and improvement plan for any row in the
+                      root cause table. This will be the action plan for
+                      the airports to improve the asset assurance." Same
+                      compact trigger-plus-popover shape as MultiSelectCell
+                      just above, swapped for a textarea instead of
+                      checkboxes — a preview (or a ghost "+ Add") until
+                      opened, nothing hidden about WHETHER a plan exists,
+                      only the full text until the row is asked to show it.
+                      Bound directly, same as every other free-text field
+                      in this app (no separate Save button) — the shared
+                      SaveStatusPill above the table is the feedback. */}
+                  <td className="p-2 align-top" onClick={(e) => e.stopPropagation()}>
+                    <ActionPlanCell
+                      label={`Action and improvement plan for ${f.title || f.id}`}
+                      value={f.actionPlan ?? ""}
+                      onChange={(v) => onChange(f.id, { actionPlan: v || undefined })}
+                    />
+                  </td>
+
                   {/* Evidence — Sarel: "add the photos in the row so that
                       the photos can be viewed inline." Up to 4 small
                       thumbnails (the finding's own photo evidence; EvidenceItem
@@ -673,6 +694,88 @@ function MultiSelectCell({
           {o}
         </Chip>
       ))}
+    </div>
+  );
+}
+
+/** THE ACTION & IMPROVEMENT PLAN CELL — Sarel: "Add an option to add
+ *  action and improvement plan for any row in the root cause table. This
+ *  will be the action plan for the airports to improve the asset
+ *  assurance." Free text, so it cannot be a chip row like Root cause/
+ *  Impact above — a compact trigger (a truncated preview, or a ghost
+ *  "+ Add" with nothing written yet) opens a small popover holding the
+ *  actual textarea, so a long plan does not grow the row the way showing
+ *  it inline would. Bound directly on every keystroke, same as every
+ *  other free-text field in this app (Root cause note in the panel,
+ *  Finding.description) — no separate Save button, the shared
+ *  SaveStatusPill above the table is the feedback, and Escape/an outside
+ *  click just closes the popover rather than discarding anything. */
+function ActionPlanCell({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={label}
+        className="block max-w-[160px] rounded-[6px] px-[5px] py-[3px] text-left text-[10.5px] transition-[var(--t)]"
+        style={{ background: open ? "var(--acc-soft)" : "transparent" }}
+      >
+        {value.trim() ? (
+          <span className="line-clamp-2 break-words" style={{ color: "var(--ink-2)" }}>
+            {value}
+          </span>
+        ) : (
+          <span
+            className="rounded-full border border-dashed px-[7px] py-[2px] text-[10px]"
+            style={{ borderColor: "var(--line-2)", color: "var(--ink-4)" }}
+          >
+            + Add
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[70]" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div
+            role="dialog"
+            aria-label={label}
+            className="absolute left-0 top-[calc(100%+4px)] z-[75] w-[280px] rounded-[10px] border p-[8px]"
+            style={{ background: "var(--menu-bg)", borderColor: "var(--menu-line)", boxShadow: "var(--e3)" }}
+          >
+            <textarea
+              autoFocus
+              aria-label={label}
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder="What the airport will do to close this out…"
+              className="min-h-[90px] w-full resize-y rounded-[6px] border px-2 py-1.5 text-[11.5px]"
+              style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }

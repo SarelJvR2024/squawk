@@ -77,6 +77,9 @@ export type RiskPatch = Pick<
      improve, not a read-only paragraph with nowhere for an accepted
      suggestion (or a human tweak) to land. */
   | "description"
+  /* The airport's own action & improvement plan — see this field's own
+     doc comment in types.ts and the textarea below. */
+  | "actionPlan"
 >;
 
 export default function ReviewRiskPanel({
@@ -622,6 +625,27 @@ export default function ReviewRiskPanel({
         ) : (
           <Pill tone="neutral">Not confirmed</Pill>
         )}
+      </label>
+
+      {/* ACTION & IMPROVEMENT PLAN — Sarel: "Add an option to add action
+          and improvement plan for any row in the root cause table. This
+          will be the action plan for the airports to improve the asset
+          assurance." Deliberately a separate field from the root cause
+          note just above: that is what caused the finding, this is what
+          the airport will DO about it — the same distinction
+          findingRiskFieldsFor's own doc comment (sharepoint.ts) draws
+          before aggregating the two onto the hazard's portal row
+          separately. Mirrors the table's own ActionPlanCell, same direct
+          binding, no separate Save button. */}
+      <label className="mb-3.5 block">
+        <span className="label-xs">Action &amp; improvement plan</span>
+        <textarea
+          value={finding.actionPlan ?? ""}
+          onChange={(e) => onChange({ actionPlan: e.target.value })}
+          placeholder="What the airport will do to close this out…"
+          className="mt-1 min-h-[64px] w-full resize-y rounded-[8px] border px-2.5 py-2 text-[12.5px] outline-none focus:border-[var(--acc)]"
+          style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+        />
       </label>
 
       <EvidenceSection finding={finding} />

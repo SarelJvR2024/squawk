@@ -14,7 +14,7 @@
 
 import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { useEntityCode, useResponses, useStore, useVisitFindings, useVisits } from "@/lib/store";
+import { useEntityCode, useEvidenceItems, useResponses, useStore, useVisitFindings, useVisits } from "@/lib/store";
 import ReviewRiskReport from "@/components/ReviewRiskReport";
 
 function ReportInner() {
@@ -30,6 +30,7 @@ function ReportInner() {
   const auditor = useStore((s) => s.auditor);
   const findings = useVisitFindings();
   const responses = useResponses();
+  const evidenceItems = useEvidenceItems();
   const visits = useVisits(entityCode);
   const visitLabel = visits.find((v) => v.id === visitId)?.label ?? visitId;
 
@@ -83,6 +84,7 @@ function ReportInner() {
         discipline={discipline}
         entityCode={entityCode}
         responses={responses}
+        evidenceItems={evidenceItems}
         visitLabel={visitLabel}
         auditor={auditor}
       />
