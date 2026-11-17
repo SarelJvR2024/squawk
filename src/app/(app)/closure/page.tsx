@@ -119,6 +119,65 @@ function ScrollEdges({ edge }: { edge: { left: boolean; right: boolean } }) {
   );
 }
 
+/** A NUMBERED CARD, NOT A HEADING OVER A TEXTBOX — Sarel, on a live
+ *  screenshot of this card's Follow-up fields: "create some sections...
+ *  easier to see which areas should be completed and how it should flow,
+ *  not just a bunch of text boxes." The fields underneath (Evidence,
+ *  Remediation, Progress, …) didn't change; what they lacked was a
+ *  boundary of their own and a sense of where each one sits in the order
+ *  you'd actually work through them, closing a finding out. The step
+ *  number reuses the exact circle the lifecycle strip above already
+ *  draws (done = filled var(--good), otherwise the plain step digit) —
+ *  one place this card counts "where are we", not two different ones. */
+function FollowUpSection({
+  step,
+  title,
+  hint,
+  done,
+  children,
+}: {
+  step: number;
+  title: string;
+  hint?: string;
+  /** Left out entirely when a section has no single field that "finishes"
+   *  it (Progress and the ACSA log are both running notes, not a thing to
+   *  tick off) — a badge with nothing meaningful to report is worse than
+   *  no badge. */
+  done?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="mt-4 overflow-hidden rounded-[13px] border"
+      style={{ borderColor: "var(--line)" }}
+    >
+      <div
+        className="flex items-center justify-between gap-2 px-3 py-2"
+        style={{ background: "var(--sunken)", borderBottom: "1px solid var(--line)" }}
+      >
+        <div className="flex items-center gap-2">
+          <span
+            className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full font-mono text-[8.5px] font-semibold"
+            style={{
+              background: done ? "var(--good)" : "var(--line)",
+              color: done ? "#fff" : "var(--ink-3)",
+            }}
+          >
+            {done ? "✓" : step}
+          </span>
+          <b className="font-display text-[11px] font-semibold">{title}</b>
+        </div>
+        {hint && (
+          <span className="shrink-0 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+            {hint}
+          </span>
+        )}
+      </div>
+      <div className="flex flex-col gap-3 p-3">{children}</div>
+    </div>
+  );
+}
+
 export default function ClosurePage() {
   const router = useRouter();
   const responses = useResponses();
@@ -809,17 +868,27 @@ export default function ClosurePage() {
                    things (why the rating is what it is, then where the
                    finding stands) — --sunken means nothing semantic here, so
                    repeating it on adjacent unrelated content was noise, not
-                   signal. */
+                   signal.
+
+                   no-scrollbar + overflow-x-auto, not flex-wrap — Sarel,
+                   on a live screenshot: "some lines go to a second row but
+                   should rather have been in one row." Four badges
+                   (Why X / Severity / Likelihood / Risk priority) is
+                   already tight on a phone; `flex-wrap` dropped the ones
+                   that didn't fit onto a second row instead of keeping the
+                   explanation on the one line it is — this scrolls
+                   sideways instead, same convention the lifecycle strip
+                   right below it already uses for the same reason. */
                 <div
-                  className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[8px] border px-[10px] py-[7px] text-[11.5px]"
+                  className="no-scrollbar mb-3 flex items-center gap-x-3 overflow-x-auto rounded-[8px] border px-[10px] py-[7px] text-[11.5px] whitespace-nowrap"
                   style={{ borderColor: "var(--line)" }}
                 >
-                  <span className="label-xs" style={{ color: "var(--ink-3)" }}>
+                  <span className="label-xs shrink-0" style={{ color: "var(--ink-3)" }}>
                     Why {active.rating.toLowerCase()}
                   </span>
-                  {active.severity && <span>Severity {active.severity}</span>}
-                  {active.likelihood && <span>Likelihood {active.likelihood}</span>}
-                  {active.riskPriority && <span>Risk priority {active.riskPriority}</span>}
+                  {active.severity && <span className="shrink-0">Severity {active.severity}</span>}
+                  {active.likelihood && <span className="shrink-0">Likelihood {active.likelihood}</span>}
+                  {active.riskPriority && <span className="shrink-0">Risk priority {active.riskPriority}</span>}
                 </div>
               )}
 
@@ -879,54 +948,57 @@ export default function ClosurePage() {
               <ScrollEdges edge={lifecycleEdge} />
               </div>
 
-              <div className="mb-2 flex items-center justify-between">
-                <b className="font-display text-[11px] font-semibold">Verification</b>
-                <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                  what did you find this time?
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-[6px] sm:grid-cols-4">
-                {OUTCOMES.map(({ key, label, Icon, tone }) => {
-                  const on = v?.outcome === key;
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => {
-                        const outcome = on ? null : key;
-                        patchVerification(active.key, {
-                          outcome,
-                          verifiedAt: Date.now(),
-                        });
-                        /* A carried finding is a real record, not a row in a
-                           list. Closing it here has to close it there, or it
-                           reappears on the next visit having been verified
-                           closed on this one. Un-picking reopens it for the
-                           same reason. */
-                        if (active.findingId) {
-                          updateFinding(active.findingId, {
-                            actionStatus:
-                              outcome === "Closed"
-                                ? "Closed"
-                                : outcome === "Partially closed"
-                                  ? "In progress"
-                                  : "Open",
+              {/* FIVE SECTIONS, IN THE ORDER YOU'D ACTUALLY WORK THROUGH THEM
+                  — Sarel, on a live screenshot of this card: "create some
+                  sections... easier to see which areas should be
+                  completed and how it should flow, not just a bunch of
+                  text boxes." Every field below is the same field it was;
+                  only the boundary around each group and the step number
+                  on it are new — see FollowUpSection's own doc comment. */}
+              <FollowUpSection step={1} title="Verification" hint="what did you find this time?" done={!!v?.outcome}>
+                <div className="grid grid-cols-2 gap-[6px] sm:grid-cols-4">
+                  {OUTCOMES.map(({ key, label, Icon, tone }) => {
+                    const on = v?.outcome === key;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => {
+                          const outcome = on ? null : key;
+                          patchVerification(active.key, {
+                            outcome,
+                            verifiedAt: Date.now(),
                           });
+                          /* A carried finding is a real record, not a row in a
+                             list. Closing it here has to close it there, or it
+                             reappears on the next visit having been verified
+                             closed on this one. Un-picking reopens it for the
+                             same reason. */
+                          if (active.findingId) {
+                            updateFinding(active.findingId, {
+                              actionStatus:
+                                outcome === "Closed"
+                                  ? "Closed"
+                                  : outcome === "Partially closed"
+                                    ? "In progress"
+                                    : "Open",
+                            });
+                          }
+                          if (!on) say(`${active.key} — ${label}`);
+                        }}
+                        className="flex min-h-[56px] flex-col items-center justify-center gap-[5px] rounded-[11px] border-[1.5px] px-1 py-2.5 font-display text-[10.5px] font-semibold transition-[var(--t)] hover:-translate-y-[1px]"
+                        style={
+                          on
+                            ? { background: `var(--${tone}-bg)`, borderColor: `var(--${tone})`, color: `var(--${tone})` }
+                            : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
                         }
-                        if (!on) say(`${active.key} — ${label}`);
-                      }}
-                      className="flex min-h-[56px] flex-col items-center justify-center gap-[5px] rounded-[11px] border-[1.5px] px-1 py-2.5 font-display text-[10.5px] font-semibold transition-[var(--t)] hover:-translate-y-[1px]"
-                      style={
-                        on
-                          ? { background: `var(--${tone}-bg)`, borderColor: `var(--${tone})`, color: `var(--${tone})` }
-                          : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
-                      }
-                    >
-                      <Icon width={15} height={15} />
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
+                      >
+                        <Icon width={15} height={15} />
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </FollowUpSection>
 
               {/* TWO SECTIONS, ONE PAIR — what was asked for against what has
                   actually come in. Sarel: "'is evidence of closure' assume
@@ -936,54 +1008,62 @@ export default function ClosurePage() {
                   required." `evidence` below already was the received half;
                   this is the other one, read together as a pair rather than
                   one box asked to do both jobs. */}
-              <div className="mt-4 mb-2 font-display text-[11px] font-semibold">
-                Evidence requested for closure
-              </div>
-              <textarea
-                value={v?.evidenceRequested ?? ""}
-                onChange={(e) => patchVerification(active.key, { evidenceRequested: e.target.value })}
-                placeholder="What's still needed to close this out…"
-                aria-label="Evidence requested for closure"
-                className="min-h-[54px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
-                style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-              />
+              <FollowUpSection step={2} title="Evidence" hint="what's outstanding, and what proves it" done={!!v?.evidence?.trim()}>
+                <div>
+                  <div className="mb-1.5 font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
+                    Requested for closure
+                  </div>
+                  <textarea
+                    value={v?.evidenceRequested ?? ""}
+                    onChange={(e) => patchVerification(active.key, { evidenceRequested: e.target.value })}
+                    placeholder="What's still needed to close this out…"
+                    aria-label="Evidence requested for closure"
+                    className="min-h-[54px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                    style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                  />
+                </div>
 
-              <div className="mt-3 mb-2 font-display text-[11px] font-semibold">Evidence of closure</div>
-              <textarea
-                value={v?.evidence ?? ""}
-                onChange={(e) => patchVerification(active.key, { evidence: e.target.value })}
-                placeholder="What proves it was fixed…"
-                aria-label="Evidence that it was fixed"
-                className="min-h-[70px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
-                style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-              />
+                <div>
+                  <div className="mb-1.5 font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
+                    Of closure
+                  </div>
+                  <textarea
+                    value={v?.evidence ?? ""}
+                    onChange={(e) => patchVerification(active.key, { evidence: e.target.value })}
+                    placeholder="What proves it was fixed…"
+                    aria-label="Evidence that it was fixed"
+                    className="min-h-[70px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                    style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                  />
+                </div>
 
-              {/* EVIDENCE FOR REVIEW/CLOSURE — PENDING, on this Follow-up
-                  item. Sarel: "can we have a block 'Evidence For
-                  Review/Closure_Pending'. Cannot use the 'Evidence pending'
-                  tab under the 'Checks' workflow as it will relate to
-                  present 'Checks' and not 'Follow Up'." DELIBERATELY its own
-                  flag — Verification.evidencePending, not
-                  Response.evidencePending — toggled through
-                  patchVerification like every other field on this card, so
-                  the two can never collide. Same small-pill shape as the
-                  "photograph expected" warning on the Inspection screen,
-                  the nearest existing use of this tone. */}
-              <button
-                onClick={() =>
-                  patchVerification(active.key, { evidencePending: !v?.evidencePending })
-                }
-                aria-pressed={!!v?.evidencePending}
-                className="mt-3 flex w-full items-center gap-2 rounded-[8px] border px-[10px] py-[7px] text-left text-[11px] transition-[var(--t)]"
-                style={
-                  v?.evidencePending
-                    ? { background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }
-                    : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-3)" }
-                }
-              >
-                <IconClock width={13} height={13} />
-                Evidence for review/closure — pending
-              </button>
+                {/* EVIDENCE FOR REVIEW/CLOSURE — PENDING, on this Follow-up
+                    item. Sarel: "can we have a block 'Evidence For
+                    Review/Closure_Pending'. Cannot use the 'Evidence pending'
+                    tab under the 'Checks' workflow as it will relate to
+                    present 'Checks' and not 'Follow Up'." DELIBERATELY its own
+                    flag — Verification.evidencePending, not
+                    Response.evidencePending — toggled through
+                    patchVerification like every other field on this card, so
+                    the two can never collide. Same small-pill shape as the
+                    "photograph expected" warning on the Inspection screen,
+                    the nearest existing use of this tone. */}
+                <button
+                  onClick={() =>
+                    patchVerification(active.key, { evidencePending: !v?.evidencePending })
+                  }
+                  aria-pressed={!!v?.evidencePending}
+                  className="flex w-full items-center gap-2 rounded-[8px] border px-[10px] py-[7px] text-left text-[11px] transition-[var(--t)]"
+                  style={
+                    v?.evidencePending
+                      ? { background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }
+                      : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-3)" }
+                  }
+                >
+                  <IconClock width={13} height={13} />
+                  Evidence for review/closure — pending
+                </button>
+              </FollowUpSection>
 
               {/* TWO FIELDS, TWO QUESTIONS, and they used to be one that only
                   appeared when the outcome was not Closed.
@@ -1006,141 +1086,158 @@ export default function ClosurePage() {
                   Both are recorded against the CARRIED item rather than raised
                   as a new finding — a new finding breaks the chain back to the
                   audit that found it, and the same problem then reads as two. */}
-              <div className="mt-4 mb-2 font-display text-[11px] font-semibold">
-                Remediation action — what fixes it
-              </div>
-              <textarea
-                value={v?.action ?? ""}
-                onChange={(e) => patchVerification(active.key, { action: e.target.value })}
-                placeholder="What was done, or what has to be done, and who has it…"
-                aria-label="Remediation action"
-                className="min-h-[60px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
-                style={{
-                  background: "var(--panel)",
-                  /* The warn border only where a blank is actually a gap: an
-                     item this visit says is still open with no action recorded.
-                     A closed item with no action is untidy, not wrong. */
-                  borderColor:
-                    !v?.action && v?.outcome && v.outcome !== "Closed"
-                      ? "var(--warn-line)"
-                      : "var(--line-2)",
-                }}
-              />
-
-              <div className="mt-4 mb-2 font-display text-[11px] font-semibold">
-                Next step — what happens next
-              </div>
-              {/* min-h-[72px], not [54px] — on a 375px phone the full
-                  placeholder wraps to 3 lines, and 54px only gave room for
-                  2, so the last word was sliced off at the box's own bottom
-                  border. 72px is still a one-line box once something is
-                  typed (resize-y lets it grow from there); the extra height
-                  only shows while the placeholder itself is doing the
-                  wrapping. */}
-              <textarea
-                value={v?.nextStep ?? ""}
-                onChange={(e) => patchVerification(active.key, { nextStep: e.target.value })}
-                placeholder="Who is being chased, what the site committed to, what is being waited for…"
-                aria-label="Next step"
-                className="min-h-[72px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
-                style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-              />
-
-              {/* The dated log. ACSA's Progress/Update is one cell that gets
-                  typed over; this appends, keeping the author, the time and
-                  the visit, and the export flattens it back into their cell. */}
-              <div className="mt-4 mb-2 font-display text-[11px] font-semibold">Progress</div>
-              {/* `min-w-[200px]`, not `min-w-0` — plenty of room for "Add to
-                  the log" was being taken from the input first, down to
-                  179px at 375px wide, where the placeholder "What moved, in
-                  one line…" hard-clipped mid-word with no ellipsis. A real
-                  floor makes the button wrap to its own row below instead,
-                  which `flex-wrap` already does once there is somewhere to
-                  wrap to. */}
-              <div className="flex flex-wrap gap-2">
-                <input
-                  value={progressText}
-                  onChange={(e) => setProgressText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && progressText.trim()) {
-                      addProgress(active.key, progressText);
-                      setProgressText("");
-                      say("Progress recorded");
-                    }
-                  }}
-                  placeholder="What moved, in one line…"
-                  aria-label="Progress note"
-                  className="min-w-[200px] flex-1 rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
-                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-                />
-                <Btn
-                  disabled={!progressText.trim()}
-                  onClick={() => {
-                    addProgress(active.key, progressText);
-                    setProgressText("");
-                    say("Progress recorded");
-                  }}
-                >
-                  Add to the log
-                </Btn>
-              </div>
-
-              {/* THE ACSA DISCUSSION LOG — its OWN section, distinct from
-                  Progress above. Sarel: "can a section be included to
-                  capture 'ACSA discussion log_with date'… to park
-                  discussion notes so it is not lost? I put a note in the
-                  'next step' section and it doesn't make sense there."
-                  Same append-only mechanism and shape as Progress — same
-                  ProgressNote, same one-line-input-plus-button pattern —
-                  because that log is already proven correct for exactly
-                  this; it is simply a separate list for a separate
-                  question (what was discussed, not what moved). */}
-              <div className="mt-4 mb-2 font-display text-[11px] font-semibold">
-                ACSA discussion log
-              </div>
-              {(v?.discussionLog?.length ?? 0) > 0 && (
-                <div className="mb-2 flex flex-col gap-1.5">
-                  {v!.discussionLog!.map((n, i) => (
-                    <div
-                      key={i}
-                      className="rounded-[8px] border px-3 py-2 text-[11.5px] leading-[1.45]"
-                      style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
-                    >
-                      <div className="mb-[2px] font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-                        {new Date(n.at).toLocaleDateString()} · {n.by}
-                      </div>
-                      {n.note}
-                    </div>
-                  ))}
+              <FollowUpSection step={3} title="Remediation & next step" hint="what fixes it, and what happens next" done={!!v?.action?.trim()}>
+                <div>
+                  <div className="mb-1.5 font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
+                    Remediation action — what fixes it
+                  </div>
+                  <textarea
+                    value={v?.action ?? ""}
+                    onChange={(e) => patchVerification(active.key, { action: e.target.value })}
+                    placeholder="What was done, or what has to be done, and who has it…"
+                    aria-label="Remediation action"
+                    className="min-h-[60px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                    style={{
+                      background: "var(--panel)",
+                      /* The warn border only where a blank is actually a gap: an
+                         item this visit says is still open with no action recorded.
+                         A closed item with no action is untidy, not wrong. */
+                      borderColor:
+                        !v?.action && v?.outcome && v.outcome !== "Closed"
+                          ? "var(--warn-line)"
+                          : "var(--line-2)",
+                    }}
+                  />
                 </div>
-              )}
-              <div className="flex flex-wrap gap-2">
-                <input
-                  value={discussionText}
-                  onChange={(e) => setDiscussionText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && discussionText.trim()) {
-                      addDiscussionNote(active.key, discussionText);
-                      setDiscussionText("");
-                      say("Discussion note recorded");
-                    }
-                  }}
-                  placeholder="What ACSA said, in one line…"
-                  aria-label="ACSA discussion note"
-                  className="min-w-0 flex-1 rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
-                  style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-                />
-                <Btn
-                  disabled={!discussionText.trim()}
-                  onClick={() => {
-                    addDiscussionNote(active.key, discussionText);
-                    setDiscussionText("");
-                    say("Discussion note recorded");
-                  }}
-                >
-                  Add to the log
-                </Btn>
-              </div>
+
+                <div>
+                  {/* min-h-[72px], not [54px] — on a 375px phone the full
+                      placeholder wraps to 3 lines, and 54px only gave room for
+                      2, so the last word was sliced off at the box's own bottom
+                      border. 72px is still a one-line box once something is
+                      typed (resize-y lets it grow from there); the extra height
+                      only shows while the placeholder itself is doing the
+                      wrapping. */}
+                  <div className="mb-1.5 font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
+                    Next step — what happens next
+                  </div>
+                  <textarea
+                    value={v?.nextStep ?? ""}
+                    onChange={(e) => patchVerification(active.key, { nextStep: e.target.value })}
+                    placeholder="Who is being chased, what the site committed to, what is being waited for…"
+                    aria-label="Next step"
+                    className="min-h-[72px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                    style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                  />
+                </div>
+              </FollowUpSection>
+
+              {/* Progress and the ACSA discussion log are both running notes,
+                  never "finished" — no done badge on this one, see
+                  FollowUpSection's own comment on why. */}
+              <FollowUpSection step={4} title="Updates & discussion" hint="progress notes, and ACSA's own log">
+                <div>
+                  {/* The dated log. ACSA's Progress/Update is one cell that gets
+                      typed over; this appends, keeping the author, the time and
+                      the visit, and the export flattens it back into their cell. */}
+                  <div className="mb-1.5 font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
+                    Progress
+                  </div>
+                  {/* `min-w-[200px]`, not `min-w-0` — plenty of room for "Add to
+                      the log" was being taken from the input first, down to
+                      179px at 375px wide, where the placeholder "What moved, in
+                      one line…" hard-clipped mid-word with no ellipsis. A real
+                      floor makes the button wrap to its own row below instead,
+                      which `flex-wrap` already does once there is somewhere to
+                      wrap to. */}
+                  <div className="flex flex-wrap gap-2">
+                    <input
+                      value={progressText}
+                      onChange={(e) => setProgressText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && progressText.trim()) {
+                          addProgress(active.key, progressText);
+                          setProgressText("");
+                          say("Progress recorded");
+                        }
+                      }}
+                      placeholder="What moved, in one line…"
+                      aria-label="Progress note"
+                      className="min-w-[200px] flex-1 rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                      style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                    />
+                    <Btn
+                      disabled={!progressText.trim()}
+                      onClick={() => {
+                        addProgress(active.key, progressText);
+                        setProgressText("");
+                        say("Progress recorded");
+                      }}
+                    >
+                      Add to the log
+                    </Btn>
+                  </div>
+                </div>
+
+                {/* THE ACSA DISCUSSION LOG — its OWN section, distinct from
+                    Progress above. Sarel: "can a section be included to
+                    capture 'ACSA discussion log_with date'… to park
+                    discussion notes so it is not lost? I put a note in the
+                    'next step' section and it doesn't make sense there."
+                    Same append-only mechanism and shape as Progress — same
+                    ProgressNote, same one-line-input-plus-button pattern —
+                    because that log is already proven correct for exactly
+                    this; it is simply a separate list for a separate
+                    question (what was discussed, not what moved). */}
+                <div>
+                  <div className="mb-1.5 font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
+                    ACSA discussion log
+                  </div>
+                  {(v?.discussionLog?.length ?? 0) > 0 && (
+                    <div className="mb-2 flex flex-col gap-1.5">
+                      {v!.discussionLog!.map((n, i) => (
+                        <div
+                          key={i}
+                          className="rounded-[8px] border px-3 py-2 text-[11.5px] leading-[1.45]"
+                          style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
+                        >
+                          <div className="mb-[2px] font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                            {new Date(n.at).toLocaleDateString()} · {n.by}
+                          </div>
+                          {n.note}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <input
+                      value={discussionText}
+                      onChange={(e) => setDiscussionText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && discussionText.trim()) {
+                          addDiscussionNote(active.key, discussionText);
+                          setDiscussionText("");
+                          say("Discussion note recorded");
+                        }
+                      }}
+                      placeholder="What ACSA said, in one line…"
+                      aria-label="ACSA discussion note"
+                      className="min-w-0 flex-1 rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                      style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                    />
+                    <Btn
+                      disabled={!discussionText.trim()}
+                      onClick={() => {
+                        addDiscussionNote(active.key, discussionText);
+                        setDiscussionText("");
+                        say("Discussion note recorded");
+                      }}
+                    >
+                      Add to the log
+                    </Btn>
+                  </div>
+                </div>
+              </FollowUpSection>
 
               {/* VERIFICATION'S OWN PHOTOGRAPHS, VOICE NOTES AND DOCUMENTS.
                   Sarel: "can a section be included to upload 'verification'
@@ -1164,39 +1261,41 @@ export default function ClosurePage() {
                   re-encoded, same single attachments array and strip every
                   other evidence control on this card already writes to and
                   renders from. */}
-              <div className="mt-4 mb-2 font-display text-[11px] font-semibold">
-                Verification photographs, voice notes &amp; documents
-              </div>
-              <div className="flex justify-end gap-2">
-                <PhotoButton
-                  compact
-                  onCaptured={(m) =>
-                    addVerificationAttachment(active.key, { ...m, createdBy: auditor })
-                  }
-                />
-                <VoiceNoteButton
-                  compact
-                  onCaptured={(m) =>
-                    addVerificationAttachment(active.key, { ...m, createdBy: auditor })
-                  }
-                />
-                <FileButton
-                  compact
-                  onCaptured={(m) =>
-                    addVerificationAttachment(active.key, { ...m, createdBy: auditor })
-                  }
-                />
-              </div>
-              {(v?.attachments?.length ?? 0) > 0 && (
-                <div className="mt-2">
+              <FollowUpSection
+                step={5}
+                title="Supporting evidence"
+                hint="photos, voice notes, documents"
+                done={(v?.attachments?.length ?? 0) > 0}
+              >
+                <div className="flex justify-end gap-2">
+                  <PhotoButton
+                    compact
+                    onCaptured={(m) =>
+                      addVerificationAttachment(active.key, { ...m, createdBy: auditor })
+                    }
+                  />
+                  <VoiceNoteButton
+                    compact
+                    onCaptured={(m) =>
+                      addVerificationAttachment(active.key, { ...m, createdBy: auditor })
+                    }
+                  />
+                  <FileButton
+                    compact
+                    onCaptured={(m) =>
+                      addVerificationAttachment(active.key, { ...m, createdBy: auditor })
+                    }
+                  />
+                </div>
+                {(v?.attachments?.length ?? 0) > 0 && (
                   <AttachmentStrip
                     attachments={v!.attachments}
                     thumbSize={40}
                     onRemove={(id) => removeVerificationAttachment(active.key, id)}
                     onUpdate={(id, pa) => updateVerificationAttachment(active.key, id, pa)}
                   />
-                </div>
-              )}
+                )}
+              </FollowUpSection>
 
               {/* The hazardous events this finding could lead to, each with its
                   own likelihood. See the component — plural is the point. */}
