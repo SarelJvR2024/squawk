@@ -208,9 +208,13 @@ check(
 /* ---- wired into the shell and the offline shell, same as every other
    nav destination ---------------------------------------------------------- */
 
+/* MOVED TO THE MORE MENU (Sarel, 17 Nov 2026): "move tab 'Audit' to the
+   more menu for now" — same declutter-the-bar-keep-the-feature move
+   already made for Safety, Review and HIRA. The route and the screen are
+   unchanged; only the main nav bar's own slot is gone. */
 check(
-  "the nav bar carries an Audit destination at /audit",
-  /\{ href: "\/audit", label: "Audit", icon: IconInbox \}/.test(shell)
+  "Audit is reachable — via the More menu now, not the main nav bar",
+  !/\{ href: "\/audit"/.test(shell) && /router\.push\("\/audit"\)/.test(shell)
 );
 
 check(
