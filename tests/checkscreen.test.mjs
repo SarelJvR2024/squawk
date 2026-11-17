@@ -286,8 +286,8 @@ check(
   "three labelled buttons in the bar put the ways in somewhere other than the field"
 );
 check(
-  "the box reserves room for them rather than running text underneath — 248px, not 164px, since Sarel: 'these buttons are in the way' once the mic button's own recording-plus-discard state (wider than the four icons at rest) was the thing actually overlapping",
-  /pr-\[248px\]/.test(codeOnly) && !/pr-\[164px\]/.test(codeOnly)
+  "the box reserves room for them rather than running text underneath — 260px, not 164px or 248px, since Sarel: 'these buttons are in the way' once the mic button's own recording-plus-discard state (wider than the four icons at rest, and wider still once a long recording's timer gains a second minute digit) was the thing actually overlapping",
+  /pr-\[260px\]/.test(codeOnly) && !/pr-\[164px\]/.test(codeOnly) && !/pr-\[248px\]/.test(codeOnly)
 );
 check(
   "and they are anchored to the top, so they do not walk down a box that grows on focus",

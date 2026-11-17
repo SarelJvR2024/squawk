@@ -1713,7 +1713,7 @@ export default function CheckDetail({
                  of stopping at a fraction of the viewport with the rest of
                  the panel sitting empty beneath it.
 
-                 pr-[248px], not 164px — Sarel, screenshot of the live app:
+                 pr-[260px], not 164px — Sarel, screenshot of the live app:
                  "These buttons are in the way." 164px cleared the cluster
                  at REST (Compose from taps, Draft with AI when aiOn,
                  Photo, Voice — four 34px squares and three 4px gaps), but
@@ -1724,18 +1724,24 @@ export default function CheckDetail({
                  it is running is how an auditor loses a note"), and grows
                  a Discard button beside it too — the exact two elements
                  the screenshot shows sitting on top of already-typed text.
-                 248px is sized for that worst case with dictation OFF
+                 260px is sized for that worst case with dictation OFF
                  (wand 34 + sparkle 34 + camera 34 + 3×4px gaps + the
                  voice cluster's own recording-pill-plus-discard, itself
                  measured from VoiceNoteButton's `inline`/`recording`
-                 classes), not merely the four-icons-at-rest width. The
-                 live-dictation transcript readout (opt-in, off by
+                 classes), not merely the four-icons-at-rest width — and
+                 with a few px of slack past that for the clock's own
+                 "0:03"→"10:07" jump: useRecorder has no duration cap, so
+                 a long dictated observation can push the timer to a
+                 second minute digit, which is exactly the kind of
+                 width-the-pill-didn't-have overlap this PR exists to
+                 close, just at a longer recording instead of at rest.
+                 The live-dictation transcript readout (opt-in, off by
                  default) can still run wider than this on its own — a
                  separate, pre-existing, much rarer case this does not
                  chase. The padding is on the RIGHT rather than the bottom
                  because the box is 44px at rest — a bottom gutter would
                  leave a single line of writing nowhere to sit. */
-              className="max-h-[26vh] min-h-[44px] w-full resize-y rounded-[11px] border py-2 pr-[248px] pl-3 text-[12.5px] leading-[1.55] outline-none transition-[var(--t)] focus:min-h-[112px] focus:border-[var(--acc)] sm:min-h-[68px] sm:py-2.5 lg:max-h-none lg:min-h-0 lg:flex-1"
+              className="max-h-[26vh] min-h-[44px] w-full resize-y rounded-[11px] border py-2 pr-[260px] pl-3 text-[12.5px] leading-[1.55] outline-none transition-[var(--t)] focus:min-h-[112px] focus:border-[var(--acc)] sm:min-h-[68px] sm:py-2.5 lg:max-h-none lg:min-h-0 lg:flex-1"
               style={{ background: "var(--focus-surface)", borderColor: "var(--line-2)" }}
             />
             {/* top-right, not centred: the box grows to 112px on focus and a
