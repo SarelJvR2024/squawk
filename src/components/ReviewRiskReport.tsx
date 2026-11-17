@@ -98,7 +98,15 @@ function findingText(f: Finding, responses: Record<string, Response>): string {
  *  wait on 30 async IndexedDB reads before Print to PDF has anything to
  *  print. Falls back to the legacy inline `dataUrl` for an attachment that
  *  predates thumbDataUrl; shows nothing rather than a broken-image icon
- *  when neither is there. */
+ *  when neither is there.
+ *
+ *  144px, not the first pass's 64px — Sarel, looking at the first report:
+ *  "include photos of decent size to see the image." thumbDataUrl is
+ *  encoded at 240px on its longest side (src/lib/media.ts's own
+ *  `drawTo(img, 240)`), so 144px is still a downscale, not an upscale past
+ *  what the source actually holds — bigger than this would start looking
+ *  soft. The report went landscape in the same pass, specifically to give
+ *  this the room it needs without starving the columns beside it. */
 function ReportPhoto({ attachment }: { attachment: Attachment }) {
   const src = attachment.thumbDataUrl || attachment.dataUrl;
   if (!src) return null;
@@ -107,7 +115,7 @@ function ReportPhoto({ attachment }: { attachment: Attachment }) {
     <img
       src={src}
       alt={attachment.caption?.trim() || "Finding photograph"}
-      style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 6, border: `1px solid ${LINE}` }}
+      style={{ width: 144, height: 144, objectFit: "cover", borderRadius: 8, border: `1px solid ${LINE}` }}
     />
   );
 }
@@ -214,14 +222,19 @@ export default function ReviewRiskReport({
            (it's outside the (app) route group), so it opts back into
            ordinary document scrolling, on screen and in print alike. */
         html, body { height: auto !important; overflow: visible !important; background: #FFFFFF !important; }
+        /* LANDSCAPE — Sarel: "maybe so landscape report," in the same
+           breath as asking for bigger photos. The two asks are really
+           one: a photo big enough to actually see needs width, and a
+           portrait A4 page doesn't have it to spare once six columns
+           share it. */
         @page {
-          size: A4;
-          margin: 16mm 14mm 20mm 14mm;
+          size: A4 landscape;
+          margin: 14mm 16mm 18mm 16mm;
           @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: Arial, Helvetica, sans-serif; font-size: 9px; color: ${INK_SOFT}; }
           @bottom-left { content: "Squawk \\2014 TPJV for Airports Company South Africa"; font-family: Arial, Helvetica, sans-serif; font-size: 9px; color: ${INK_SOFT}; }
         }
         @media screen {
-          .rr-report-page { max-width: 900px; margin: 24px auto 64px; box-shadow: 0 1px 10px rgba(0,0,0,0.12); }
+          .rr-report-page { max-width: 1200px; margin: 24px auto 64px; box-shadow: 0 1px 10px rgba(0,0,0,0.12); }
         }
         @media print {
           .rr-report-toolbar { display: none !important; }
@@ -431,12 +444,12 @@ export default function ReviewRiskReport({
             <table className="rr-table">
               <thead>
                 <tr>
-                  <th style={{ width: "9%" }}>Type</th>
-                  <th style={{ width: "12%" }}>Asset system</th>
-                  <th style={{ width: "28%" }}>Finding</th>
-                  <th style={{ width: "16%" }}>Root cause / Impact</th>
-                  <th style={{ width: "10%" }}>Timeline</th>
-                  <th style={{ width: "25%" }}>Evidence</th>
+                  <th style={{ width: "7%" }}>Type</th>
+                  <th style={{ width: "10%" }}>Asset system</th>
+                  <th style={{ width: "24%" }}>Finding</th>
+                  <th style={{ width: "13%" }}>Root cause / Impact</th>
+                  <th style={{ width: "8%" }}>Timeline</th>
+                  <th style={{ width: "38%" }}>Evidence</th>
                 </tr>
               </thead>
               <tbody>
@@ -462,13 +475,13 @@ export default function ReviewRiskReport({
                       </td>
                       <td>
                         {photos.length > 0 && (
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 4 }}>
-                            {photos.slice(0, 4).map((a) => (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
+                            {photos.slice(0, 2).map((a) => (
                               <ReportPhoto key={a.id} attachment={a} />
                             ))}
-                            {photos.length > 4 && (
+                            {photos.length > 2 && (
                               <span style={{ alignSelf: "center", fontSize: 10, color: INK_SOFT }}>
-                                +{photos.length - 4}
+                                +{photos.length - 2} more
                               </span>
                             )}
                           </div>

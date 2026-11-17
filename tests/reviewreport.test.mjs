@@ -294,5 +294,26 @@ check(
   /useEvidenceItems\(\)/.test(reportPage) && /evidenceItems={evidenceItems}/.test(reportPage)
 );
 
+/* ---- 10 · landscape + bigger photos — Sarel, looking at the first
+   printed report: "include photos of decent size to see the image,
+   maybe so landscape report." ------------------------------------------ */
+
+check(
+  "the page is A4 landscape, not portrait",
+  /size: A4 landscape;/.test(report)
+);
+check(
+  "photos render at 144px — bigger than the first pass's 64px, and still a downscale (not an upscale) of the 240px thumbDataUrl source",
+  (() => {
+    const start = report.indexOf("function ReportPhoto");
+    const fn = start === -1 ? "" : report.slice(start, report.indexOf("\n}\n", start) + 2);
+    return fn.length > 0 && /width: 144, height: 144/.test(fn);
+  })()
+);
+check(
+  "the screen preview's own max-width grew to match the wider landscape page, not left at the old portrait-sized 900px",
+  /max-width: 1200px/.test(report) && !/max-width: 900px/.test(report)
+);
+
 console.log(failures === 0 ? "\nREVIEW REPORT OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);
