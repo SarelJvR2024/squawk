@@ -671,9 +671,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             /* ACSA is read-only across the audit, but Visual review is where
                their engineers answer a photograph — the one screen where their
                input is the point rather than a risk. Comments are labelled by
-               role and never touch the observation or the finding. */
-            const disabled =
-              role === "acsa" && n.href !== "/dashboard" && n.href !== "/review";
+               role and never touch the observation or the finding.
+
+               The `n.href !== "/dashboard"` exception this line used to carry
+               alongside `/review` is gone, not because ACSA lost anything —
+               Dashboard just isn't a NAV entry any more (it left the bar
+               outright, see NAV's own comment above), so there is no longer
+               a matching `n` for that href to ever disable in the first
+               place. The role's forced redirect to /dashboard (a few lines
+               up) is untouched; this bar just can't show it as "active"
+               since it no longer has a tab for it. */
+            const disabled = role === "acsa" && n.href !== "/review";
             const Icon = n.icon;
             /* Counts read DONE OF TOTAL where there is a finite amount of
                work, because a bare number does not say which it is. "299"
