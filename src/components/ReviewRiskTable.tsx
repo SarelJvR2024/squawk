@@ -326,12 +326,13 @@ export default function ReviewRiskTable({
       </div>
 
       {/* The table itself — Sarel's mockup column set, narrowed per his own
-          follow-up requests: Discipline and Asset system now share one
-          column (asset system stacked under discipline, since a system only
-          ever means something within its discipline), and Evidence now
-          shows actual photo thumbnails, not only a count — select · Type ·
-          Discipline/Asset system · Audit check · Finding/comment ·
-          Severity · Likelihood · Rating · Root cause · Impact · Evidence. */}
+          follow-up requests since: Severity/Likelihood/Rating removed (not
+          rated at finding level — see this file's own header); Discipline
+          and Audit check merged into one "Location / Hierarchy" column
+          (see that column's own comment below for why); Evidence shows
+          actual photo thumbnails, not only a count. Current set — select ·
+          Type · Location/Hierarchy · Finding/comment · Root cause · Impact
+          · Timeline · Evidence. */}
       <div className="overflow-x-auto rounded-[11px] border" style={{ borderColor: "var(--line)" }}>
         <table className="w-full text-[11.5px]">
           <thead>
@@ -347,8 +348,7 @@ export default function ReviewRiskTable({
                 />
               </th>
               <Th>Type</Th>
-              <Th>Discipline</Th>
-              <Th>Audit check</Th>
+              <Th>Location / Hierarchy</Th>
               <th className="p-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
                 Finding
               </th>
@@ -391,35 +391,32 @@ export default function ReviewRiskTable({
                     </Pill>
                   </td>
 
-                  {/* Discipline / Asset system — one column, asset system
-                      stacked below its discipline (Sarel: "put asset system
-                      below the discipline in the same column"), since a
-                      system is only ever meaningful within the discipline
-                      it belongs to. */}
-                  <td className="p-2 whitespace-nowrap">
-                    <div>{f.discipline || "—"}</div>
-                    <div className="mt-[1px] text-[10px]" style={{ color: "var(--ink-3)" }}>
-                      {f.system || <span className="italic" style={{ color: "var(--ink-4)" }}>General</span>}
+                  {/* LOCATION / HIERARCHY — Discipline and Audit check used
+                      to be two separate columns, each capable of printing
+                      its own "General" when nothing more specific was
+                      linked — Sarel: "remove redundant repetition of
+                      'General' across two columns... combine Discipline and
+                      Audit Check into a single clean 'Location / Hierarchy'
+                      column." The audit check's own requirement TEXT isn't
+                      shown here any more either (it was the widest thing in
+                      the row and directly fought the density goal above);
+                      it's still one click away in the detail panel's own
+                      "linked audit check" section, which is where editing
+                      the link happens too. Discipline is always shown (it's
+                      a required field, never empty); the asset system below
+                      it in muted text, or one subtle badge when nothing
+                      more specific — system or check — is linked, instead
+                      of the plain italic "General" used before. */}
+                  <td className="min-w-[90px] max-w-[150px] p-2 align-top whitespace-nowrap">
+                    <div className="truncate font-semibold" style={{ color: "var(--ink)" }}>
+                      {f.discipline || "—"}
                     </div>
-                  </td>
-
-                  {/* Audit check — the readable requirement text, never the
-                      reference code (presentation only; f.checkId itself is
-                      untouched and still drives linking/filtering/grouping
-                      and compliance calculations elsewhere). Narrowed 16
-                      Nov 2026 — Sarel, on the live table: "reduce width of
-                      audit check column" (it was min-w-[160px]
-                      max-w-[320px], wide for a cell that mostly just reads
-                      "General"). */}
-                  <td className="min-w-[90px] max-w-[180px] p-2 align-top">
-                    {f.checkId ? (
-                      <span className="block whitespace-normal break-words" style={{ color: "var(--ink-2)" }}>
-                        {checksById.get(f.checkId)?.requirement.slice(0, 90) ?? f.checkId}
-                      </span>
+                    {f.system || f.checkId ? (
+                      <div className="mt-[1px] truncate text-[10px]" style={{ color: "var(--ink-3)" }}>
+                        {f.system || "General"}
+                      </div>
                     ) : (
-                      <span className="not-italic" style={{ color: "var(--ink-4)" }}>
-                        General
-                      </span>
+                      <Pill tone="neutral">General</Pill>
                     )}
                   </td>
 
@@ -667,15 +664,26 @@ function EvidenceLightbox({ attachment, onClose }: { attachment: Attachment; onC
  *  categories, Impact areas), so neither has to leave the row for the
  *  panel just to toggle one value.
  *
- *  16 Nov 2026 — Sarel, on the live table: "root cause and impact inline
- *  editing is not user friendly." The previous version hid every option
- *  behind a `<details>` disclosure — nothing to toggle was visible until
- *  you tapped a small "—" or a Pill first, which is exactly the kind of
- *  hidden control that reads as broken on a tablet. Every option is now
- *  shown directly, always, with the selected ones highlighted — tap any
- *  one to toggle it, nothing to open first. The caller's own `<td
- *  onClick={stopPropagation}>` is what keeps a tap here from also
- *  selecting the row — this component does not duplicate that guard. */
+ *  16 Nov 2026, Sarel, on the live table: "root cause and impact inline
+ *  editing is not user friendly." THAT version hid every option behind a
+ *  `<details>` disclosure — nothing to toggle was visible until you tapped
+ *  a small "—" or a Pill first. The fix at the time was to show every
+ *  option directly, always, as a row of Chips.
+ *
+ *  16 Nov 2026, LATER THE SAME DAY — Sarel again, this time on row height:
+ *  "every single Root Cause and Impact pill is rendered vertically inside
+ *  every row, making rows 250px tall and showing only 1.5 findings per
+ *  screen... display ONLY selected tags... if 1-2 tags are selected, show
+ *  small compact pills... clicking the cell or button opens a compact
+ *  popover with checkboxes." So the "always visible" fix from the morning
+ *  was itself the problem once ROOT_CAUSES/IMPACT_AREAS (6-8 options each)
+ *  rendered in full on every one of 29 rows — this is the second iteration,
+ *  not a reversal of the complaint that prompted the first: what stays
+ *  constant is "don't make me open something to find out a value is
+ *  selected", and that is still true here (the selected tag IS the
+ *  trigger, visible with the row closed); what's gone is showing every
+ *  UNselected option too. The caller's own `<td onClick={stopPropagation}>`
+ *  is what keeps a tap here from also selecting the row. */
 function MultiSelectCell({
   label,
   options,
@@ -687,13 +695,76 @@ function MultiSelectCell({
   selected: string[];
   onToggle: (value: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   return (
-    <div role="group" aria-label={label} className="flex max-w-[170px] flex-wrap gap-[3px]">
-      {options.map((o) => (
-        <Chip key={o} selected={selected.includes(o)} onClick={() => onToggle(o)}>
-          {o}
-        </Chip>
-      ))}
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={label}
+        className="flex min-h-[26px] max-w-[150px] flex-wrap items-center gap-[4px] rounded-[6px] px-[5px] py-[3px] text-left transition-[var(--t)]"
+        style={{ background: open ? "var(--acc-soft)" : "transparent" }}
+      >
+        {selected.length === 0 ? (
+          <span
+            className="rounded-full border border-dashed px-[7px] py-[2px] text-[10px]"
+            style={{ borderColor: "var(--line-2)", color: "var(--ink-4)" }}
+          >
+            + Add
+          </span>
+        ) : (
+          <>
+            <Pill tone="neutral">{selected[0]}</Pill>
+            {selected.length > 1 && (
+              <span className="font-mono text-[9.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
+                +{selected.length - 1}
+              </span>
+            )}
+          </>
+        )}
+      </button>
+
+      {open && (
+        <>
+          {/* Invisible, full-screen — tapping anywhere outside the panel
+              closes it, same convention FilterPopover's own backdrop uses. */}
+          <div className="fixed inset-0 z-[70]" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div
+            role="dialog"
+            aria-label={label}
+            className="absolute left-0 top-[calc(100%+4px)] z-[75] w-[230px] rounded-[10px] border p-[6px]"
+            style={{ background: "var(--menu-bg)", borderColor: "var(--menu-line)", boxShadow: "var(--e3)" }}
+          >
+            <div className="flex max-h-[260px] flex-col gap-[2px] overflow-y-auto">
+              {options.map((o) => {
+                const checked = selected.includes(o);
+                return (
+                  <label
+                    key={o}
+                    className="flex cursor-pointer items-center gap-[7px] rounded-[6px] px-[7px] py-[5px] text-[11px]"
+                    style={{ background: checked ? "var(--acc-soft)" : "transparent" }}
+                  >
+                    <input type="checkbox" checked={checked} onChange={() => onToggle(o)} />
+                    {o}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
