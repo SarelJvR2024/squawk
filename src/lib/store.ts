@@ -4049,6 +4049,12 @@ export const useStore = create<State>()(
             blobKey: cap.blobKey,
             mimeType: cap.mimeType,
             dataUrl: cap.dataUrl,
+            /* Without this, an attachment assigned from the tray has no
+               thumbDataUrl, so EvidenceThumb (ReviewRiskTable.tsx) falls
+               through to fetching the full blob for its inline tile —
+               exactly the per-row cost the thumb-first fix there exists
+               to avoid, and tray-assigned photos are the common case. */
+            thumbDataUrl: cap.thumbDataUrl,
             durationSec: cap.durationSec,
             transcript: cap.transcript,
             transcriptSource: cap.transcriptSource,
