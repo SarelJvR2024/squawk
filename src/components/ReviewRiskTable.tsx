@@ -331,8 +331,9 @@ export default function ReviewRiskTable({
           and Audit check merged into one "Location / Hierarchy" column
           (see that column's own comment below for why); Evidence shows
           actual photo thumbnails, not only a count. Current set — select ·
-          Type · Location/Hierarchy · Finding/comment · Root cause · Impact
-          · Timeline · Evidence. */}
+          Type · Location/Hierarchy · Audit check (back, 18 Nov — see its
+          own cell) · Finding/comment · Root cause · Impact · Timeline ·
+          Action plan · Evidence. */}
       <div className="overflow-x-auto rounded-[11px] border" style={{ borderColor: "var(--line)" }}>
         <table className="w-full text-[11.5px]">
           <thead>
@@ -349,6 +350,7 @@ export default function ReviewRiskTable({
               </th>
               <Th>Type</Th>
               <Th>Location / Hierarchy</Th>
+              <Th>Audit check</Th>
               <th className="p-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
                 Finding
               </th>
@@ -418,6 +420,37 @@ export default function ReviewRiskTable({
                     ) : (
                       <Pill tone="neutral">General</Pill>
                     )}
+                  </td>
+
+                  {/* AUDIT CHECK — back in the table, as its own column.
+                      18 Nov 2026 — Sarel: "the audit check questions must
+                      be in the table in root cause, make sure it is
+                      there." It came out on 16 Nov, folded away to save
+                      width (see the Location / Hierarchy note above); his
+                      later word overrides that. It is the check's own
+                      register wording (Check.requirement — the "question"
+                      the auditor answered), read through checksById, with
+                      no reference code, which stays out of the UI. A
+                      finding raised on the walk with no linked check shows
+                      a muted dash, not a second "General". Clamped to four
+                      lines so one long check cannot stretch the row; the
+                      full text is in the detail panel's "Linked to"
+                      section, and in the cell's title. */}
+                  <td className="min-w-[180px] max-w-[260px] p-2 align-top">
+                    {(() => {
+                      const text = f.checkId ? checksById.get(f.checkId)?.requirement : undefined;
+                      return text ? (
+                        <div
+                          title={text}
+                          className="line-clamp-4 text-[11px] leading-[1.35]"
+                          style={{ color: "var(--ink-2)" }}
+                        >
+                          {text}
+                        </div>
+                      ) : (
+                        <span style={{ color: "var(--ink-3)" }}>—</span>
+                      );
+                    })()}
                   </td>
 
                   {/* Finding — Sarel: "remove duplication of the same

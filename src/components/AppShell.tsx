@@ -141,6 +141,16 @@ const NAV = [
      in this same bar, and the two read as one destination tapped twice
      on a row of icons nobody has time to read the words on first. */
   { href: "/closure", label: "Follow-up", icon: IconActivity },
+  /* REVIEW BACK ON THE BAR (Sarel, 18 Nov 2026): "move the whole review page
+     to main menu bar." It left on 30 Sep (see the note just below) and is
+     back by his direct word, the same override in the other direction. The
+     screen, its route and all three of its tabs (By check, Risk & root
+     cause, Evidence) are unchanged — only where it is reached from: its
+     More-menu row is gone, since a screen is in one place or the other. It
+     sits last, after Follow-up, as the after-the-fact view it always was.
+     ACSA's engineers keep access: the bar disables every other entry for
+     that role, and /review is the exception it already carried. */
+  { href: "/review", label: "Review", icon: IconGrid },
   /* REVIEW MOVED TO THE MORE MENU (Sarel, 30 Sep): "move safety and review
      menu items out of the main menu bar."
      THEN (Sarel, 2026-09-11): it was moved to sit after Follow-up, not
@@ -199,7 +209,6 @@ const OFF_NAV: Record<string, string> = {
      Audit: 17 Nov) — without an entry here their own heading would fall
      back to "Squawk". */
   "/isf": "Safety",
-  "/review": "Review",
   "/preflight": "Pre-flight",
   "/hazards": "HIRA",
   "/audit": "Audit",
@@ -1102,13 +1111,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       hint="Immediate Safety Findings — SWP-07"
                       selected={pathname === "/isf"}
                       onClick={() => { setMore(false); router.push("/isf"); }}
-                    />
-                    <MoreItem
-                      icon={<IconCamera width={14} height={14} />}
-                      label="Review"
-                      hint="Where an engineer reads back what came in"
-                      selected={pathname === "/review"}
-                      onClick={() => { setMore(false); router.push("/review"); }}
                     />
                     {/* AUDIT, MOVED HERE from the nav bar (Sarel, 17 Nov):
                         "move tab 'Audit' to the more menu for now." The

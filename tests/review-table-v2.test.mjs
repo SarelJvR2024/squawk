@@ -170,8 +170,8 @@ check(
   !/<Th>Asset system<\/Th>/.test(table)
 );
 check(
-  "there is no longer a separate Discipline header or a separate Audit check header — both merged into Location / Hierarchy",
-  !/<Th>Discipline<\/Th>/.test(table) && !/<Th>Audit check<\/Th>/.test(table)
+  "there is no separate Discipline header (it stays merged into Location / Hierarchy); Audit check is its own column again, 18 Nov",
+  !/<Th>Discipline<\/Th>/.test(table) && /<Th>Audit check<\/Th>/.test(table)
 );
 /* 16 Nov 2026 — Sarel: "we're not going to do severity and likelihood
    ratings on a finding level, for now... only on an asset system level."
@@ -198,13 +198,16 @@ check(
  * is where reassigning the link happens too — nothing here duplicates
  * that editing UI, same as before. portalIdFor (reference codes) was
  * already gone and stays gone. */
+/* 18 Nov 2026 — Sarel: "the audit check questions must be in the table in
+   root cause, make sure it is there." The requirement text is back, in its
+   own Audit check column, read from checksById inside the row map. */
 check(
-  "the Audit check requirement text is gone from this table — checksById's own .requirement lookup is no longer called from inside the row map",
+  "the Audit check requirement text is in this table — read from checksById inside the row map, with no reference code",
   (() => {
     const rowStart = table.indexOf("{visible.map((f) => {");
     const rowEnd = table.indexOf("\n          </tbody>", rowStart);
     const row = rowStart === -1 ? "" : table.slice(rowStart, rowEnd === -1 ? undefined : rowEnd);
-    return row.length > 0 && !/checksById\.get\(f\.checkId\)\?\.requirement/.test(row);
+    return row.length > 0 && /checksById\.get\(f\.checkId\)\?\.requirement/.test(row) && !/portalIdFor/.test(row);
   })()
 );
 check(
@@ -732,8 +735,8 @@ check(
    old wide 160/320 sizing it once had never crept back in on the merged
    column. */
 check(
-  "the old wide Audit check column sizing (min-w-[160px] max-w-[320px]) is gone, not merely renamed",
-  !/min-w-\[160px\] max-w-\[320px\]/.test(table)
+  "the Audit check column is capped (max-w-[260px], four-line clamp), not the old uncapped 160/320 sizing",
+  /min-w-\[180px\] max-w-\[260px\]/.test(table) && /line-clamp-4/.test(table) && !/min-w-\[160px\] max-w-\[320px\]/.test(table)
 );
 
 /* ---- 16 · root-cause-screen redesign, 16 Nov 2026 — Timeline added to

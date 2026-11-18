@@ -395,15 +395,18 @@ check(
 /* --------------------------------------------- Part 6: engineers can reach it */
 
 /* THEN: Review was its own entry in the nav bar.
-   NOW (30 Sep): Sarel — "move safety and review menu items out of the main
-   menu bar." It moved to the More menu; OFF_NAV keeps the page's own
-   heading saying "Review" now that NAV no longer does. Unaffected by this
-   rewrite — the route and its place in the menu did not change, only what
-   is behind it. */
+   THEN (30 Sep): Sarel — "move safety and review menu items out of the main
+   menu bar." It moved to the More menu.
+   NOW (18 Nov): Sarel — "move the whole review page to main menu bar." Back
+   in NAV, out of the More menu. The route and all three tabs are unchanged;
+   NAV's own label now supplies the page heading, so OFF_NAV no longer
+   carries "/review". */
 check(
-  "Review is reachable from the More menu",
-  /label="Review"/.test(shell) && /"\/review": "Review"/.test(shell),
-  "moved out of the nav bar on Sarel's direct word, but still one press away"
+  "Review is a main-menu-bar entry, no longer in the More menu",
+  /\{ href: "\/review", label: "Review"/.test(shell) &&
+    !/label="Review"/.test(shell) &&
+    !/"\/review": "Review"/.test(shell),
+  "one place or the other: the bar has it, the More menu does not repeat it"
 );
 
 check(
