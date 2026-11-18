@@ -141,15 +141,23 @@ const NAV = [
      in this same bar, and the two read as one destination tapped twice
      on a row of icons nobody has time to read the words on first. */
   { href: "/closure", label: "Follow-up", icon: IconActivity },
-  /* REVIEW MOVED TO THE MORE MENU (Sarel, 30 Sep): "move safety and review
-     menu items out of the main menu bar."
-     THEN (Sarel, 2026-09-11): it was moved to sit after Follow-up, not
-     third — it is not a capture screen and nobody opens it on an apron, so
-     it belonged with the other after-the-fact views rather than in the
-     middle of the capture run.
-     NOW: it leaves the bar entirely, same instruction that moved Safety.
-     See the MoreItem below and OFF_NAV for where its heading now comes
-     from. */
+  /* TRIAGE BACK IN THE BAR — Sarel, 18 Nov 2026: "move triage to the main
+     toolbar."
+     THEN (30 Sep): "move safety and review menu items out of the main
+     menu bar" — it left for the More menu.
+     THEN (2026-09-11), while still in the More menu: "it was moved to sit
+     after Follow-up, not third — it is not a capture screen and nobody
+     opens it on an apron, so it belonged with the other after-the-fact
+     views rather than in the middle of the capture run." That reasoning
+     is exactly why it slots back in HERE, right after Follow-up, rather
+     than earlier in the bar.
+     NOW: his direct word puts it back. IconSearch, not IconCamera — this
+     bar already uses IconCamera for Raise a finding, and two tabs
+     carrying the same icon read as one destination tapped twice (see
+     Follow-up's own IconActivity-not-IconLoop note below for the same
+     reasoning the other way round). The route and the screen's own
+     Checks/Risk/Evidence tabs are unchanged; only the bar slot is back. */
+  { href: "/review", label: "Triage", icon: IconSearch },
   /* DASHBOARD HIDDEN FROM THE BAR, FOR NOW — Sarel, 17 Nov 2026: "hide the
      dashboard page for now." Not moved to the More menu either — unlike
      Safety/Review/HIRA/Pre-flight, this screen is not getting a one-tap
@@ -194,12 +202,13 @@ const OFF_NAV: Record<string, string> = {
   "/closeout": "Daily site closeout",
   "/evidence": "Document and evidence collection log",
   "/people": "People directory",
-  /* Safety, Review, Pre-flight, HIRA and Audit moved out of NAV into the
-     More menu (Safety/Review/Pre-flight: Sarel, 30 Sep; HIRA: 15 Nov;
-     Audit: 17 Nov) — without an entry here their own heading would fall
-     back to "Squawk". */
+  /* Safety, Pre-flight, HIRA and Audit moved out of NAV into the More menu
+     (Safety/Pre-flight: Sarel, 30 Sep; HIRA: 15 Nov; Audit: 17 Nov) —
+     without an entry here their own heading would fall back to "Squawk".
+     Triage (formerly Review) HAD an entry here too from the same 30 Sep
+     move; it came off this list 18 Nov when Sarel put it back in NAV —
+     NAV supplies its heading directly now, same as every other bar tab. */
   "/isf": "Safety",
-  "/review": "Triage",
   "/preflight": "Pre-flight",
   "/hazards": "HIRA",
   "/audit": "Audit",
@@ -1089,30 +1098,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       hint={`${entityOf(entityCode).short} ${visitLabel} now`}
                       onClick={() => { setMore(false); setAudits(true); }}
                     />
-                    {/* SAFETY AND REVIEW, MOVED HERE from the nav bar (Sarel,
-                        30 Sep): "move safety and review menu items out of the
-                        main menu bar." Safety kept the nav slot it has
-                        through two presses of urgency before this — SWP-07's
+                    {/* SAFETY, MOVED HERE from the nav bar (Sarel, 30 Sep):
+                        "move safety and review menu items out of the main
+                        menu bar." Safety kept the nav slot it has through
+                        two presses of urgency before this — SWP-07's
                         VERBALLY AT ONCE timer starts on reaching the screen,
                         not on reaching the menu that opens it — but that is
-                        now his call to make, not this file's to re-argue. */}
+                        now his call to make, not this file's to re-argue.
+                        Review (renamed Triage, 18 Nov) moved here on the
+                        same 30 Sep instruction and left again 18 Nov, when
+                        Sarel put it back in the nav bar — see NAV's own
+                        entry above, right after Follow-up. */}
                     <MoreItem
                       icon={<IconClock width={14} height={14} />}
                       label="Safety"
                       hint="Immediate Safety Findings — SWP-07"
                       selected={pathname === "/isf"}
                       onClick={() => { setMore(false); router.push("/isf"); }}
-                    />
-                    {/* RENAMED FROM "Review" (Sarel, 18 Nov 2026): "rename
-                        'Review' to 'Triage'." Route and screen unchanged —
-                        this is the label only; the page itself still has
-                        its own Checks/Risk/Evidence tabs. */}
-                    <MoreItem
-                      icon={<IconCamera width={14} height={14} />}
-                      label="Triage"
-                      hint="Where an engineer reads back what came in"
-                      selected={pathname === "/review"}
-                      onClick={() => { setMore(false); router.push("/review"); }}
                     />
                     {/* AUDIT, MOVED HERE from the nav bar (Sarel, 17 Nov):
                         "move tab 'Audit' to the more menu for now." The

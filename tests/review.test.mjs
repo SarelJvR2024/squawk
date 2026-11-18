@@ -396,16 +396,18 @@ check(
 
 /* THEN: Review was its own entry in the nav bar.
    NOW (30 Sep): Sarel — "move safety and review menu items out of the main
-   menu bar." It moved to the More menu; OFF_NAV keeps the page's own
-   heading in sync with the More menu's own label, whatever that label is
-   at the time, now that NAV no longer carries it.
-   RENAMED (18 Nov): Sarel — "rename 'Review' to 'Triage'." Label only —
-   the route and its place in the menu are unaffected by this rewrite,
-   same as the move above left them. */
+   menu bar." It moved to the More menu; OFF_NAV kept the page's own
+   heading in sync with the More menu's own label while NAV didn't carry it.
+   RENAMED (18 Nov): Sarel — "rename 'Review' to 'Triage'." Label only.
+   BACK IN THE BAR (18 Nov, later the same day): Sarel — "move triage to
+   the main toolbar." Full circle — NAV carries it again, so it needs no
+   More-menu entry and no OFF_NAV fallback any more; its heading comes
+   from NAV directly, same as every other bar tab. */
 check(
-  "Triage (formerly Review) is reachable from the More menu",
-  /label="Triage"/.test(shell) && /"\/review": "Triage"/.test(shell),
-  "moved out of the nav bar on Sarel's direct word, but still one press away"
+  "Triage is back in the main nav bar, not the More menu",
+  /\{ href: "\/review", label: "Triage", icon: IconSearch \}/.test(shell) &&
+    !/label="Triage"/.test(shell) &&
+    !/"\/review": "Triage"/.test(shell)
 );
 
 check(
