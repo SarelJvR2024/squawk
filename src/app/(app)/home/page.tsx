@@ -93,7 +93,7 @@ const FLOW = [
   },
   {
     href: "/review",
-    label: "Review",
+    label: "Triage",
     icon: IconCamera,
     line: "Every photograph and voice note, by discipline, with a thread for the engineers who were not there.",
   },
