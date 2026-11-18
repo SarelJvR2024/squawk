@@ -595,6 +595,12 @@ export function useDictation(lang = "en-ZA") {
    that URL must be revoked or the tablet leaks a megabyte per photograph
    viewed across a day of capture. */
 
+/** Pass `null`/`undefined` to skip the fetch entirely — e.g. a cheap
+ *  thumbnail already covers this render and the full blob isn't needed.
+ *  `url` then stays `null` and nothing is read from IndexedDB; see
+ *  ReviewRiskTable.tsx's EvidenceThumb for why that matters at scale
+ *  (one row's blob is nothing, hundreds of rows' full-resolution blobs
+ *  decoded at once is enough to crash the tab). */
 export function useBlobUrl(blobKey: string | null | undefined): {
   url: string | null;
   missing: boolean;

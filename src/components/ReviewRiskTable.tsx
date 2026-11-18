@@ -610,13 +610,23 @@ export default function ReviewRiskTable({
  *  the photos can be viewed inline," then, after seeing it live: "increase
  *  the size of the photo so that you can see it properly inline." 56px, up
  *  from the original 28 — big enough to actually tell what it's a photo
- *  of without opening the lightbox. `useBlobUrl` is the same resolver
- *  Capture's own PhotoRow uses; the thumbnail/data-URL fallback chain is
- *  the same one too (the thumbnail is what survives when the full blob
- *  doesn't — see Capture.tsx's own note on why). */
+ *  of without opening the lightbox.
+ *
+ *  ONLY the 240px thumbDataUrl, never the full blob, unless no thumbnail
+ *  was ever generated. This table renders every finding's row with no
+ *  virtualization — on a complete audit (hundreds of findings, several
+ *  photos each) that is dozens to hundreds of EvidenceThumbs mounted at
+ *  once. The full blob `useBlobUrl` resolves is a decoded ~1600px bitmap,
+ *  multiple MB each once the browser decodes it; load that many of them
+ *  into a 56px box at the same time and the tab's renderer runs out of
+ *  memory and crashes outright — "This page couldn't load", not a React
+ *  error, because there was never an exception to catch. The lightbox
+ *  below still wants the full blob (`EvidenceLightbox`, one open at a
+ *  time) — only this inline tile must stay on the cheap thumbnail. */
 function EvidenceThumb({ attachment, onOpen }: { attachment: Attachment; onOpen: () => void }) {
-  const { url } = useBlobUrl(attachment.blobKey);
-  const src = url ?? attachment.thumbDataUrl ?? attachment.dataUrl ?? null;
+  const thumb = attachment.thumbDataUrl || attachment.dataUrl || null;
+  const { url } = useBlobUrl(thumb ? null : attachment.blobKey);
+  const src = thumb ?? url ?? null;
   if (!src) return <IconCamera width={11} height={11} />;
   return (
     <button
