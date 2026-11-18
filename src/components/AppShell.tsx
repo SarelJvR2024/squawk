@@ -199,7 +199,7 @@ const OFF_NAV: Record<string, string> = {
      Audit: 17 Nov) — without an entry here their own heading would fall
      back to "Squawk". */
   "/isf": "Safety",
-  "/review": "Review",
+  "/review": "Triage",
   "/preflight": "Pre-flight",
   "/hazards": "HIRA",
   "/audit": "Audit",
@@ -1103,9 +1103,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       selected={pathname === "/isf"}
                       onClick={() => { setMore(false); router.push("/isf"); }}
                     />
+                    {/* RENAMED FROM "Review" (Sarel, 18 Nov 2026): "rename
+                        'Review' to 'Triage'." Route and screen unchanged —
+                        this is the label only; the page itself still has
+                        its own Checks/Risk/Evidence tabs. */}
                     <MoreItem
                       icon={<IconCamera width={14} height={14} />}
-                      label="Review"
+                      label="Triage"
                       hint="Where an engineer reads back what came in"
                       selected={pathname === "/review"}
                       onClick={() => { setMore(false); router.push("/review"); }}

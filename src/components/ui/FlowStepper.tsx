@@ -3,9 +3,12 @@
 /** THE COMPACT FLOW STEPPER — "Step N of 7 · Label", with a link to the
  *  adjacent step on either side. Same seven-step sequence Home's "How the
  *  work flows" section documents in full (src/app/(app)/home/page.tsx) —
- *  Checks → Inspection → Review → Asset Assurance → HIRA → Follow-up →
+ *  Checks → Inspection → Triage → Asset Assurance → HIRA → Follow-up →
  *  Dashboard — repeated here as a small, separate list rather than imported
  *  from Home, so this component carries no risk to Home's own stepper.
+ *
+ *  "Triage", not "Review" — Sarel, 18 Nov 2026: "rename 'Review' to
+ *  'Triage'." The route (/review) is unchanged; only the label is new.
  *
  *  Deliberately one line: an orientation aid for "where am I in the
  *  sequence", not a second navigation. Returns null off the sequence (e.g. a
@@ -18,7 +21,7 @@ type FlowStep = { href: string; label: string };
 export const FLOW_STEPS: FlowStep[] = [
   { href: "/capture", label: "Checks" },
   { href: "/field", label: "Inspection" },
-  { href: "/review", label: "Review" },
+  { href: "/review", label: "Triage" },
   { href: "/findings", label: "Asset Assurance" },
   { href: "/hazards", label: "HIRA" },
   { href: "/closure", label: "Follow-up" },
