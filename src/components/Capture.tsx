@@ -36,7 +36,8 @@ import {
   useTranscribeAvailable,
   useVisionOn,
 } from "@/lib/assist";
-import { useDictationEnabled, useEntityCode, useStore } from "@/lib/store";
+import { useDictationEnabled, useEntityCode, useStore, useVisitId } from "@/lib/store";
+import { savePhotoToFolder } from "@/lib/localFolder";
 import { useRecordStore } from "@/lib/sync";
 import { fullPhotoBlob } from "@/lib/recordimage";
 import type { Attachment } from "@/lib/types";
@@ -439,6 +440,7 @@ export function PhotoButton({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const entityCode = useEntityCode();
+  const visitId = useVisitId();
   const [failed, setFailed] = useState<string | null>(null);
 
   /* Shared by both inputs below — the camera one and the gallery one store an
@@ -460,9 +462,23 @@ export function PhotoButton({
         const prepared = await preparePhoto(file);
         const blobKey = `photo-${uid()}`;
         await putBlob(blobKey, prepared.blob);
+        const name = file.name || `${entityCode}-photo.${extensionFor(prepared.mimeType)}`;
+        /* SAVE TO THE DEVICE, AUTOMATICALLY — Sarel: "photos are saved on
+           the local device in a folder per audit automatically." Fired,
+           not awaited: the real record is the putBlob above, already
+           done, and this is a best-effort extra copy on top of it (see
+           localFolder.ts's own header for exactly what it can and can't
+           do, and why a no-op here must never cost a captured photograph).
+           Errors are swallowed inside savePhotoToFolder itself.
+           Named from blobKey, not `name` above — a camera input commonly
+           hands back the same (or an empty) file.name for every shot, and
+           that would silently overwrite the previous photo in the folder;
+           blobKey is already unique per capture (uid()-based). */
+        const folderFilename = `${blobKey}.${extensionFor(prepared.mimeType)}`;
+        void savePhotoToFolder(entityCode, visitId, folderFilename, prepared.blob);
         onCaptured({
           kind: "photo",
-          name: file.name || `${entityCode}-photo.${extensionFor(prepared.mimeType)}`,
+          name,
           blobKey,
           mimeType: prepared.mimeType,
           thumbDataUrl: prepared.thumbDataUrl || undefined,
