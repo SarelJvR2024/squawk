@@ -442,12 +442,33 @@ export default function ReviewRiskTable({
                       (the finding itself bold, the other two not) — the
                       same distinction `about`/`checkRequirement` in the AI
                       prompts below reads programmatically, this is just no
-                      longer spelled out on screen too. */}
+                      longer spelled out on screen too.
+
+                      18 Nov 2026 — Sarel: "the audit check questions must
+                      be in the table in root cause, make sure it is
+                      there." The check's own requirement wording came out
+                      of this table entirely in the Location/Hierarchy pass
+                      above (it was the widest thing in the row); asked
+                      back, it goes here — in the findings/observation
+                      column, not a column of its own, per Sarel's own
+                      answer on where. ACSA's words, muted and above the
+                      desk note, the same attribution the Checks screen
+                      itself gives this exact text (CheckDetail.tsx's own
+                      "the register's wording" note) — this table is not
+                      inventing a fourth source, it is showing one that was
+                      always available via checksById, just not rendered
+                      here before. */}
                   <td className="min-w-[220px] max-w-[400px] p-2 align-top">
                     {(() => {
                       const r = f.checkId ? responses[f.checkId] : undefined;
+                      const question = f.checkId ? checksById.get(f.checkId)?.requirement : undefined;
                       return (
                         <div className="flex flex-col gap-[6px]">
+                          {question && (
+                            <div className="whitespace-normal break-words text-[10.5px] italic" style={{ color: "var(--ink-3)" }}>
+                              {question}
+                            </div>
+                          )}
                           {r?.observation && (
                             <div className="whitespace-normal break-words text-[10.5px]" style={{ color: "var(--ink-2)" }}>
                               {r.observation}
