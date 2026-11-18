@@ -86,6 +86,19 @@ export type RiskPatch = Pick<
   /* The airport's own action & improvement plan — see this field's own
      doc comment in types.ts and the textarea below. */
   | "actionPlan"
+  /* HEADLINE, EDITABLE HERE TOO — Sarel, after correcting a finding's
+     notes: "it now left the old note and the new note, it should only
+     have my corrected note, not the original voice transcription." The
+     table's Finding cell shows `title` (bold) and `description` (muted)
+     as two DIFFERENT things on purpose — a short headline plus genuine
+     extra detail — but a finding raised from a walk capture or an import
+     (importPack.ts's own `title: f.row.title`) can get the raw, unedited
+     transcript AS its title, with no human headline ever written. Until
+     now this drawer had no way to touch that text at all — only
+     `description` was editable — so a correction typed into Notes just
+     sat next to the uncorrected title forever instead of replacing it.
+     This field is that missing control. */
+  | "title"
 >;
 
 export default function ReviewRiskPanel({
@@ -318,6 +331,29 @@ export default function ReviewRiskPanel({
           </Chip>
         ))}
       </div>
+
+      {/* HEADLINE — Sarel: "it now left the old note and the new note, it
+          should only have my corrected note, not the original voice
+          transcription." The table's Finding cell shows this (bold) and
+          Notes/description (muted) below it as two deliberately different
+          things everywhere ELSE — but a finding raised from a walk
+          capture or an import can carry the raw, unedited transcript as
+          its title, with no human headline ever written over it, and
+          until now nothing here let that be fixed: only Notes was
+          editable. Clear this box out and the table's own
+          `description !== title` check stops printing an old line that
+          the new Notes text was meant to replace. */}
+      <label className="mb-3.5 block">
+        <span className="label-xs">Headline</span>
+        <input
+          type="text"
+          value={finding.title}
+          onChange={(e) => onChange({ title: e.target.value })}
+          placeholder="A short headline for this finding"
+          className="mt-1 w-full rounded-[8px] border px-2.5 py-2 text-[12.5px] outline-none focus:border-[var(--acc)]"
+          style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+        />
+      </label>
 
       {/* PRIORITY 4 — "Linked to", same label EvidenceReviewPanel's own
           hierarchy editor already uses for the same three levels, so a
