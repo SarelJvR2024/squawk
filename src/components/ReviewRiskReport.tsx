@@ -444,12 +444,29 @@ export default function ReviewRiskReport({
             <table className="rr-table">
               <thead>
                 <tr>
-                  <th style={{ width: "7%" }}>Type</th>
-                  <th style={{ width: "10%" }}>Asset system</th>
-                  <th style={{ width: "24%" }}>Finding</th>
-                  <th style={{ width: "13%" }}>Root cause / Impact</th>
-                  <th style={{ width: "8%" }}>Timeline</th>
-                  <th style={{ width: "38%" }}>Evidence</th>
+                  <th style={{ width: "6%" }}>Type</th>
+                  <th style={{ width: "9%" }}>Asset system</th>
+                  <th style={{ width: "21%" }}>Finding</th>
+                  <th style={{ width: "11%" }}>Root cause / Impact</th>
+                  <th style={{ width: "7%" }}>Timeline</th>
+                  {/* NARROWED FROM 38% — Sarel, on a live report screenshot:
+                      "a lot of wasted open space, use it more effectively."
+                      A 144px photo plus its caption never used anywhere
+                      near 38% of a landscape page; the space it gave up
+                      goes to the new Action plan column right beside it,
+                      not back into Finding/Root cause, which already had
+                      enough room for their own text. */}
+                  <th style={{ width: "21%" }}>Evidence</th>
+                  {/* ACTION PLAN, NEXT TO THE PHOTO — Sarel: "add the
+                      action plan column to the right of the photo."
+                      Alongside the dedicated Action & improvement plan
+                      section below, not instead of it: that section is
+                      the scannable, findings-with-a-plan-only list; this
+                      is the full findings list showing the same text
+                      inline, so a reader going straight down this table
+                      never has to cross-reference the other one to see
+                      what's already planned for a given row. */}
+                  <th style={{ width: "25%" }}>Action plan</th>
                 </tr>
               </thead>
               <tbody>
@@ -491,6 +508,7 @@ export default function ReviewRiskReport({
                           {voices > 0 ? `, ${voices} voice note${voices === 1 ? "" : "s"}` : ""}
                         </span>
                       </td>
+                      <td style={{ color: f.actionPlan ? undefined : INK_SOFT }}>{f.actionPlan || "—"}</td>
                     </tr>
                   );
                 })}
