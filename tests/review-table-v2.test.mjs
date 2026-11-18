@@ -189,7 +189,7 @@ check(
   "the column-toggle UI is gone — this is one fixed table, not a customisable one",
   !/DEFAULT_COLUMNS/.test(table) && !/toggleColumn/.test(table)
 );
-/* ---- the Audit check requirement TEXT came out of the table entirely --
+/* ---- the Audit check requirement TEXT, out of the table, then back in --
  * 16 Nov 2026 — merged into Location / Hierarchy (above), which shows
  * only Discipline + Asset system, not the check's requirement text — that
  * was the single widest thing in the row and fought the density goal
@@ -197,14 +197,27 @@ check(
  * (ReviewRiskPanel.tsx) still resolves it via checksAt()/checksOf(), and
  * is where reassigning the link happens too — nothing here duplicates
  * that editing UI, same as before. portalIdFor (reference codes) was
- * already gone and stays gone. */
+ * already gone and stays gone.
+ *
+ * 18 Nov 2026 — Sarel: "the audit check questions must be in the table
+ * in root cause, make sure it is there," then, on where: "in the
+ * findings/observation column." Back it goes — not into Location /
+ * Hierarchy (that stays Discipline + Asset system only, still dense),
+ * but as the first line of the Finding cell, above the desk note. */
 check(
-  "the Audit check requirement text is gone from this table — checksById's own .requirement lookup is no longer called from inside the row map",
+  "the Audit check's own question is back in the table — in the Finding cell, not Location/Hierarchy",
   (() => {
     const rowStart = table.indexOf("{visible.map((f) => {");
     const rowEnd = table.indexOf("\n          </tbody>", rowStart);
     const row = rowStart === -1 ? "" : table.slice(rowStart, rowEnd === -1 ? undefined : rowEnd);
-    return row.length > 0 && !/checksById\.get\(f\.checkId\)\?\.requirement/.test(row);
+    if (row.length === 0) return false;
+    const findingCellStart = row.indexOf('min-w-[220px] max-w-[400px]');
+    const locationCell = row.slice(0, findingCellStart);
+    const findingCell = row.slice(findingCellStart);
+    return (
+      !/checksById\.get\(f\.checkId\)\?\.requirement/.test(locationCell) &&
+      /checksById\.get\(f\.checkId\)\?\.requirement/.test(findingCell)
+    );
   })()
 );
 check(
@@ -712,16 +725,18 @@ check(
     !/Evidence review\s*<\/div>/.test(table)
 );
 check(
-  "the three sources (audit check note, the finding itself, evidence review) still render in order, just without their own heading line each",
+  "the four sources (the audit check's own question, the audit check note, the finding itself, evidence review) still render in order, just without their own heading line each",
   (() => {
     const cellStart = table.indexOf("const r = f.checkId ? responses[f.checkId] : undefined;");
     const cellEnd = table.indexOf("})()}", cellStart);
     const cell = cellStart === -1 ? "" : table.slice(cellStart, cellEnd);
     return (
       cell.length > 0 &&
+      /question &&/.test(cell) &&
       /r\?\.observation &&/.test(cell) &&
       /f\.title \|\| f\.description \|\| f\.id/.test(cell) &&
       /r\?\.evidenceProves &&/.test(cell) &&
+      cell.indexOf("question") < cell.indexOf("r?.observation") &&
       cell.indexOf("r?.observation") < cell.indexOf("f.title || f.description || f.id") &&
       cell.indexOf("f.title || f.description || f.id") < cell.indexOf("r?.evidenceProves")
     );
