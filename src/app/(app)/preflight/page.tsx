@@ -225,7 +225,7 @@ export default function PreflightPage() {
       return {
         id: "folder",
         label: "Photo folder on this device",
-        state: "warn",
+        state: "ask",
         value: "Not supported in this browser",
         hint: "Optional — photographs are fully captured either way. This extra, automatic copy outside the app needs Chrome or Edge; Safari has no way to grant it.",
       };

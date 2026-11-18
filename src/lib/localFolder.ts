@@ -26,7 +26,7 @@
  *  blobs live in (see media.ts) — a FileSystemDirectoryHandle is structured-
  *  cloneable, so it survives a reload the same way everything else here does. */
 
-import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
+import { get as idbGet, set as idbSet } from "idb-keyval";
 
 const HANDLE_KEY = "squawk-local-folder-handle";
 
@@ -114,10 +114,6 @@ export async function reconnectFolder(): Promise<{ ok: boolean; error?: string }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not reconnect the folder." };
   }
-}
-
-export async function forgetFolder(): Promise<void> {
-  await idbDel(HANDLE_KEY);
 }
 
 /** Characters no common filesystem (Windows included, the strictest of the

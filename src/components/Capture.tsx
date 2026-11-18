@@ -469,8 +469,13 @@ export function PhotoButton({
            done, and this is a best-effort extra copy on top of it (see
            localFolder.ts's own header for exactly what it can and can't
            do, and why a no-op here must never cost a captured photograph).
-           Errors are swallowed inside savePhotoToFolder itself. */
-        void savePhotoToFolder(entityCode, visitId, name, prepared.blob);
+           Errors are swallowed inside savePhotoToFolder itself.
+           Named from blobKey, not `name` above — a camera input commonly
+           hands back the same (or an empty) file.name for every shot, and
+           that would silently overwrite the previous photo in the folder;
+           blobKey is already unique per capture (uid()-based). */
+        const folderFilename = `${blobKey}.${extensionFor(prepared.mimeType)}`;
+        void savePhotoToFolder(entityCode, visitId, folderFilename, prepared.blob);
         onCaptured({
           kind: "photo",
           name,
