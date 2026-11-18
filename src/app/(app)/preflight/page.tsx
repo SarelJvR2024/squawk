@@ -32,6 +32,7 @@ import {
   supportsRecording,
 } from "@/lib/media";
 import { entity as entityOf } from "@/lib/programme";
+import { getFolderStatus, requestFolder, reconnectFolder } from "@/lib/localFolder";
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
 import { Btn, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconClock, IconX } from "@/components/ui/icons";
@@ -76,6 +77,7 @@ export default function PreflightPage() {
   const [sw, setSw] = useState<Row>({ id: "sw", label: "Opens with no signal", state: "checking", value: "" });
   const [store, setStore] = useState<Row>({ id: "idb", label: "This device can store the audit", state: "checking", value: "" });
   const [space, setSpace] = useState<Row>({ id: "space", label: "Room for the evidence", state: "checking", value: "" });
+  const [folder, setFolder] = useState<Row>({ id: "folder", label: "Photo folder on this device", state: "checking", value: "" });
   const [mic, setMic] = useState<Row | null>(null);
   const [cam, setCam] = useState<Row | null>(null);
   const [api, setApi] = useState<Row[]>([]);
@@ -208,6 +210,55 @@ export default function PreflightPage() {
     };
   }, [recheck]);
 
+  /* ------------------------------------------------------ the photo folder
+     Sarel: "photos are saved on the local device in a folder per audit
+     automatically." See localFolder.ts's own header for the full story —
+     this row is where a person sets that up (one tap, once) and sees
+     whether it is actually working. `queryPermission` inside
+     `getFolderStatus` never prompts, so this is safe to run on load like
+     every other row here; `requestFolder`/`reconnectFolder` below DO need
+     the click that triggers them, which is why they are only ever wired to
+     this row's own action button, never called from this effect. */
+  const folderRow = useCallback(async (): Promise<Row> => {
+    const status = await getFolderStatus();
+    if (status.state === "unsupported") {
+      return {
+        id: "folder",
+        label: "Photo folder on this device",
+        state: "warn",
+        value: "Not supported in this browser",
+        hint: "Optional — photographs are fully captured either way. This extra, automatic copy outside the app needs Chrome or Edge; Safari has no way to grant it.",
+      };
+    }
+    if (status.state === "connected") {
+      return {
+        id: "folder",
+        label: "Photo folder on this device",
+        state: "ok",
+        value: `Saving automatically to "${status.name}" — one subfolder per audit`,
+        action: { label: "Change folder", run: () => void requestFolder().then(recheck) },
+      };
+    }
+    if (status.state === "needs-permission") {
+      return {
+        id: "folder",
+        label: "Photo folder on this device",
+        state: "warn",
+        value: `"${status.name}" needs to be reconnected`,
+        hint: "The browser wants this folder confirmed again before it will write to it — nothing was lost, photographs just stopped getting the extra copy until this is pressed.",
+        action: { label: "Reconnect", run: () => void reconnectFolder().then(recheck) },
+      };
+    }
+    return {
+      id: "folder",
+      label: "Photo folder on this device",
+      state: "ask",
+      value: "Not set up — photographs stay in the app only",
+      hint: "Optional. Choose a folder once and every photograph from here on is also saved there automatically, in its own subfolder per audit.",
+      action: { label: "Choose folder", run: () => void requestFolder().then(recheck) },
+    };
+  }, [recheck]);
+
   /* ------------------------------------------------------------ the clock */
   /* WHOEVER'S CLOCK IS AHEAD WINS.
 
@@ -300,10 +351,11 @@ export default function PreflightPage() {
   useEffect(() => {
     let live = true;
     void (async () => {
-      const [a, b, c, d, e] = await Promise.all([
+      const [a, b, c, f, d, e] = await Promise.all([
         swRow(),
         storeRow(),
         spaceRow(),
+        folderRow(),
         apiRows(),
         clockRow(),
       ]);
@@ -311,13 +363,14 @@ export default function PreflightPage() {
       setSw(a);
       setStore(b);
       setSpace(c);
+      setFolder(f);
       setApi(d);
       setClock(e);
     })();
     return () => {
       live = false;
     };
-  }, [swRow, storeRow, spaceRow, apiRows, clockRow, nonce]);
+  }, [swRow, storeRow, spaceRow, folderRow, apiRows, clockRow, nonce]);
 
   /* ------------------------------------------- the two that ask for consent */
   const testMic = async () => {
@@ -433,6 +486,7 @@ export default function PreflightPage() {
     sw,
     store,
     space,
+    folder,
     /* Next to the shared record on purpose: they are the two rows about
        working alongside other people, and the clock only matters because
        somebody else is answering the same checks. */
