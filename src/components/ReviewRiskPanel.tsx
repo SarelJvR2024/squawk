@@ -107,6 +107,7 @@ export default function ReviewRiskPanel({
   onChange: onChangeProp,
   onClose,
   onOpenCheck,
+  onDelete,
 }: {
   finding: Finding;
   /** For the hierarchy editor's own discipline/system/check option lists —
@@ -125,8 +126,22 @@ export default function ReviewRiskPanel({
    *  duplicating its own editing UI here. The caller owns switching tabs
    *  and the tree's own discipline/active-check state. */
   onOpenCheck: (checkId: string) => void;
+  /** Sarel: "add an option to delete a finding from the root cause tab."
+   *  Wired to the store's own `removeFinding` — present since the Import
+   *  pack's undo needed it, but with no button anywhere before this one
+   *  (see removeFinding's own doc comment in store.ts). The caller owns
+   *  the actual removal and closing the panel afterward, same division
+   *  of labour as onChange/onClose. */
+  onDelete: () => void;
 }) {
   const type = findingTypeFor(finding);
+  /* Arms on the first click, fires on the second — a finding can carry a
+     root cause, an action plan, photos and voice notes, so one stray tap
+     must not lose all of it. Resets if the panel switches to a different
+     finding (the `key={finding.id}` the caller already mounts this under
+     remounts the component on every selection change, so this needs no
+     extra reset of its own). */
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   /* PRIORITY 2 (review redesign) — "show saving, saved and failed states;
      never silently lose an edit." `dirty` is a plain boolean, not a fresh
@@ -306,15 +321,50 @@ export default function ReviewRiskPanel({
           <b className="font-display text-[11.5px] font-semibold">Finding</b>
           <SaveStatusPill status={saveStatus} />
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close finding panel"
-          className="rounded-[6px] px-[7px] py-[3px] text-[12px] font-semibold"
-          style={{ color: "var(--ink-3)" }}
-        >
-          ✕
-        </button>
+        <div className="flex items-center gap-[6px]">
+          {confirmingDelete ? (
+            <>
+              <span className="text-[11px] font-semibold" style={{ color: "var(--bad)" }}>
+                Delete for good?
+              </span>
+              <button
+                type="button"
+                onClick={onDelete}
+                className="rounded-[6px] px-[7px] py-[3px] text-[11px] font-semibold"
+                style={{ background: "var(--bad)", color: "#fff" }}
+              >
+                Delete
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(false)}
+                className="rounded-[6px] px-[7px] py-[3px] text-[11px] font-semibold"
+                style={{ color: "var(--ink-3)" }}
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              aria-label={`Delete finding: ${finding.title || finding.id}`}
+              className="rounded-[6px] px-[7px] py-[3px] text-[11px] font-semibold"
+              style={{ color: "var(--ink-3)" }}
+            >
+              Delete
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close finding panel"
+            className="rounded-[6px] px-[7px] py-[3px] text-[12px] font-semibold"
+            style={{ color: "var(--ink-3)" }}
+          >
+            ✕
+          </button>
+        </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
       {/* 0 — the Type tag. GENUINELY NEW (see

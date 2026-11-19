@@ -136,6 +136,7 @@ function ReviewPageInner() {
   const entityCode = useEntityCode();
   const disciplines = useMemo(() => disciplinesAt(entityCode), [entityCode]);
   const updateFinding = useStore((s) => s.updateFinding);
+  const removeFinding = useStore((s) => s.removeFinding);
   const [tab, setTab] = useState<ReviewTab>(searchParams.get("tab") === "risk" ? "risk" : "checks");
   const [riskActiveId, setRiskActiveId] = useState<string | null>(null);
   /* PRIORITY 1 — no findings[0] fallback: the panel stays closed until a
@@ -300,6 +301,10 @@ function ReviewPageInner() {
                 onChange={(patch) => updateFinding(riskActive.id, patch)}
                 onClose={() => setRiskActiveId(null)}
                 onOpenCheck={openCheckInByCheckTab}
+                onDelete={() => {
+                  removeFinding(riskActive.id);
+                  setRiskActiveId(null);
+                }}
               />
             </div>
           )}
