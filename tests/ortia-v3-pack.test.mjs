@@ -504,7 +504,7 @@ check('the persist key "acsa-assurance-v1" is unchanged', /name: "acsa-assurance
    change actually landed on, same as every time before this. Re-pin the
    NUMBER here, not the reasoning, if this goes stale again — `grep -n
    "version: " src/lib/store.ts | tail -1` is the live value. */
-check("the migration version is unchanged — this import adds no new stored field", /version: 44,/.test(storeSrc));
+check("the migration version is unchanged — this import adds no new stored field", /version: 45,/.test(storeSrc));
 
 console.log(failures === 0 ? "\nORTIA V3 PACK OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

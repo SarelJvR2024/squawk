@@ -525,10 +525,29 @@ check('the persist key "acsa-assurance-v1" is unchanged', /name: "acsa-assurance
    change actually landed on, same as every time before this. Re-pin the
    NUMBER here, not the reasoning, if this goes stale again — `grep -n
    "version: " src/lib/store.ts | tail -1` is the live value. */
-check("the migration version is unchanged", /version: 44,/.test(storeSrc));
+check("the migration version is unchanged", /version: 45,/.test(storeSrc));
+/* 19 Nov 2026 — removeFinding grew two cascading cleanups once the Root
+ * cause tab's own Delete button became its first user-facing caller (see
+ * removeFinding's own doc comment): it frees each deleted finding's
+ * attachment blobs, same as removeFindingAttachment already does for one
+ * attachment, and strips the deleted id out of any Hazard.findingIds that
+ * named it, so a hazard's own "second opinion" lookup can't dangle. This
+ * assertion's own point — a real store action reached only through
+ * set()/get(), never a direct mutation from outside the store — still
+ * holds; it no longer pins the one-line body that point used to live in. */
 check(
-  "removeFinding is a real store action, filtering by id the same way removeHazard already does — not a direct mutation from outside the store",
-  /removeFinding: \(id\) =>\s*\n\s*set\(\(s\) => \(\{ findings: s\.findings\.filter\(\(f\) => f\.id !== id\) \}\)\)/.test(
+  "removeFinding is a real store action, filtering `findings` by id — not a direct mutation from outside the store",
+  /removeFinding: \(id\) => \{[\s\S]{0,600}?set\(\(s\) => \(\{[\s\S]{0,300}?findings: s\.findings\.filter\(\(x\) => x\.id !== id\)/.test(
+    storeSrc
+  )
+);
+check(
+  "removeFinding also frees the deleted finding's own attachment blobs, same as removeFindingAttachment already does for one",
+  /removeFinding: \(id\) => \{[\s\S]{0,400}?if \(a\.blobKey\) void delBlob\(a\.blobKey\)/.test(storeSrc)
+);
+check(
+  "removeFinding also strips the deleted id out of every Hazard.findingIds that named it",
+  /removeFinding: \(id\) => \{[\s\S]{0,900}?hazards: s\.hazards\.map\(\(h\) =>[\s\S]{0,200}?h\.findingIds\.includes\(id\)/.test(
     storeSrc
   )
 );

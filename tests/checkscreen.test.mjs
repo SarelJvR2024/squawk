@@ -182,13 +182,19 @@ check(
    with two verdicts and one qualifier (N/A); `quiet` (from
    `st.group === "qualifier"`) still drops the border weight and lets
    toneStyle mute it, same as every earlier shape did. */
+/* 19 Nov 2026 — FOUR IN ONE ROW, not three: Sarel asked the removed NV
+ * verdict back ("on this screen on the compliance add 'require evidence
+ * to verify' as an additional option"), reversing the 2 October removal
+ * this file's own surrounding comment describes. The grid widened from
+ * 3 to 4 columns; `quiet` styling, read off `st.group === "qualifier"`,
+ * still applies to both qualifiers now (N/A and the new NV entry) the
+ * same way it applied to N/A alone before. */
 check(
-  "THREE IN ONE ROW AT EVERY WIDTH, AND N/A STAYS VISUALLY QUIETER",
-  /grid min-w-\[280px\] flex-1 grid-cols-3 gap-\[4px\]">/.test(codeOnly) &&
-    !/grid-cols-3 gap-\[4px\] lg:grid-cols-5/.test(codeOnly) &&
+  "FOUR IN ONE ROW AT EVERY WIDTH, AND BOTH QUALIFIERS STAY VISUALLY QUIETER",
+  /grid min-w-\[280px\] flex-1 grid-cols-4 gap-\[4px\]">/.test(codeOnly) &&
     /const quiet = st\.group === "qualifier"/.test(codeOnly) &&
     /quiet \? "border" : "border-\[1\.5px\]"/.test(codeOnly),
-  "two verdicts and one qualifier fit one row at every width now that the two tracking options moved to their own panel — but N/A still shouldn't look like the same kind of answer as a verdict"
+  "two verdicts and two qualifiers (N/A, and NV again) fit one row at every width — N/A and NV still shouldn't look like the same kind of answer as Compliant/Non-compliant"
 );
 
 check(

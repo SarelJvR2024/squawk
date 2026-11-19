@@ -180,7 +180,7 @@ check(
 );
 check(
   "the persist version bumped for it, with a no-op migration (purely additive, same reasoning as Finding.timeline's own v43 entry)",
-  /version: 44,/.test(storeSrc) && /if \(from < 44\)/.test(storeSrc)
+  /version: 45,/.test(storeSrc) && /if \(from < 44\)/.test(storeSrc)
 );
 check(
   "the table has an Action plan column, with its own compact trigger-plus-popover cell (ActionPlanCell) — a textarea cannot be a chip row",

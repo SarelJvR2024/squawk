@@ -5759,6 +5759,29 @@ check(
   "the bug this test guards: this column hardcoded \"NC\" for every finding's photo regardless of findingType"
 );
 
+/* 19 Nov 2026 — findingType grew a third value, "needs-evidence". Code
+ * review on PR #284 found the compliance line above was a binary "not
+ * observation, so NC" check, written before that third value existed —
+ * a needs-evidence finding fell into the NC branch and synced as a
+ * false Non-compliant verdict for something the auditor explicitly
+ * marked as unverified, not a violation. Fixed to read "NV" — the
+ * vocabulary already has it, unlike Observation's genuine gap. */
+check(
+  "a finding tagged findingType: \"needs-evidence\" syncs compliance as NV, not NC",
+  (() => {
+    const findings = [{
+      id: "F-NV1", entity: "FALE", checkId: null, discipline: "Electrical", system: "AGL",
+      title: "t", description: "d", findingType: "needs-evidence",
+      attachments: [{ id: "fnv1", kind: "photo", name: "n", blobKey: "fnvb1", ref: "F-NV1_P01" }],
+    }];
+    const v = sp.buildPlan({ ...BASE, findings }, NOTHING).evidence.find(
+      (e) => e.filename === "F-NV1_P01.jpg"
+    ).values;
+    return v.compliance === "NV";
+  })(),
+  "the bug this test guards: a needs-evidence finding's photo synced with a false NC compliance verdict"
+);
+
 /* ------------------------------------------------------------------ result */
 
 console.log(failures === 0 ? "\nSHAREPOINT OK" : `\n${failures} FAILURE${failures > 1 ? "S" : ""}`);

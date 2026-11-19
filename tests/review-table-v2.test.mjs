@@ -110,11 +110,16 @@ check(
   "an explicit non-compliance reads as non-compliance",
   R.findingTypeFor(mkFinding({ findingType: "non-compliance" })) === "non-compliance"
 );
+/* 19 Nov 2026 — a third tag, "needs-evidence", added alongside the two
+ * below — Sarel: "the type need to allow for inline editing to select
+ * between observation and non-compliance and require evidence to
+ * verify." */
 check(
-  "FINDING_TYPE_LABEL carries exactly the two tags, labelled for a reader",
+  "FINDING_TYPE_LABEL carries exactly the three tags, labelled for a reader",
   R.FINDING_TYPE_LABEL["non-compliance"] === "Non-compliance" &&
     R.FINDING_TYPE_LABEL.observation === "Observation" &&
-    Object.keys(R.FINDING_TYPE_LABEL).length === 2
+    R.FINDING_TYPE_LABEL["needs-evidence"] === "Requires evidence to verify" &&
+    Object.keys(R.FINDING_TYPE_LABEL).length === 3
 );
 check(
   "neither issueIndex nor adHoc is read as the Type tag — findingTypeFor only reads findingType",
@@ -254,9 +259,15 @@ check(
 
 /* ---- 4 · the Type tag's own panel toggle and table rendering ----------- */
 
+/* 19 Nov 2026 — inline-editable now, not read-only — Sarel: "the type
+ * need to allow for inline editing." The panel's own chips are unchanged
+ * and still work; both write through the same onChange. */
 check(
-  "the table shows the Type tag read-only, via findingTypeFor — editing stays in the panel",
-  /const type = findingTypeFor\(f\)/.test(table) && /FINDING_TYPE_LABEL\[type\]/.test(table)
+  "the table's Type cell is inline-editable, a <select> over findingTypeFor's own three values",
+  /const type = findingTypeFor\(f\)/.test(table) &&
+    /value={type}/.test(table) &&
+    /onChange={\(e\) =>\s*\n\s*onChange\(f\.id, {\s*\n\s*findingType: e\.target\.value as/.test(table) &&
+    /FINDING_TYPE_LABEL\[t\]/.test(table)
 );
 check(
   "the panel's Type toggle patches findingType, through onChange like every other field here",
@@ -357,8 +368,8 @@ check(
     /analysisNote: string;/.test(types)
 );
 check(
-  "Finding carries findingType, optional, the two-value tag",
-  /findingType\?:\s*"non-compliance" \| "observation";/.test(types)
+  "Finding carries findingType, optional, now a three-value tag",
+  /findingType\?:\s*"non-compliance" \| "observation" \| "needs-evidence";/.test(types)
 );
 check(
   "the version bumped again, to at least 41",
