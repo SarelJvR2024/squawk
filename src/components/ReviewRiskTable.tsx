@@ -298,6 +298,31 @@ export default function ReviewRiskTable({
             </option>
           ))}
         </select>
+        {/* Type filter — Sarel, same request as the inline edit above:
+            "add this as an additional filter on the table." Reads the
+            SAME FINDING_TYPE_LABEL/findingTypeFor the cell and the
+            panel's own chips already use, not a second vocabulary. */}
+        <select
+          aria-label="Filter by type"
+          value={filter.kind === "type" ? filter.type : ""}
+          onChange={(e) =>
+            e.target.value
+              ? setFilter({
+                  kind: "type",
+                  type: e.target.value as "non-compliance" | "observation" | "needs-evidence",
+                })
+              : setFilter({ kind: "all" })
+          }
+          className="h-[30px] rounded-[8px] border px-2 text-[11px]"
+          style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+        >
+          <option value="">Type…</option>
+          {(["non-compliance", "observation", "needs-evidence"] as const).map((t) => (
+            <option key={t} value={t}>
+              {FINDING_TYPE_LABEL[t]}
+            </option>
+          ))}
+        </select>
 
         {/* GENERATE REPORT — Sarel: "make the report available to generate
             a PDF from the review root cause page to generate a report
@@ -422,12 +447,53 @@ export default function ReviewRiskTable({
                     />
                   </td>
 
-                  {/* Type — read-only here; the panel carries the toggle
-                      (see ReviewRiskPanel). */}
-                  <td className="p-2">
-                    <Pill tone={type === "non-compliance" ? "bad" : "neutral"}>
-                      {FINDING_TYPE_LABEL[type]}
-                    </Pill>
+                  {/* Type — inline-editable now, same plain-<select>
+                      pattern as Timeline below, rather than the panel
+                      being the only place to set it — Sarel: "the type
+                      need to allow for inline editing to select between
+                      observation and non-compliance and require evidence
+                      to verify." The panel keeps its own Type chips too;
+                      both write through the same onChange. Internal is
+                      editable right here too, same column, since both
+                      are classification — Sarel, separately: "add an
+                      option in root cause to tag rows 'internal' to keep
+                      as our internal info and not make it into any
+                      reports." See ReviewRiskReport.tsx for the one
+                      place that flag is actually read. */}
+                  <td className="p-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-col items-start gap-[4px]">
+                      <select
+                        aria-label={`Type for ${f.title || f.id}`}
+                        value={type}
+                        onChange={(e) =>
+                          onChange(f.id, {
+                            findingType: e.target.value as
+                              | "non-compliance"
+                              | "observation"
+                              | "needs-evidence",
+                          })
+                        }
+                        className="rounded-[6px] border px-1.5 py-1 text-[10.5px] font-semibold"
+                        style={{
+                          background: type === "non-compliance" ? "var(--bad-bg)" : "var(--panel)",
+                          borderColor: type === "non-compliance" ? "var(--bad-line)" : "var(--line-2)",
+                          color: type === "non-compliance" ? "var(--bad)" : "var(--ink-2)",
+                        }}
+                      >
+                        {(["non-compliance", "observation", "needs-evidence"] as const).map((t) => (
+                          <option key={t} value={t}>
+                            {FINDING_TYPE_LABEL[t]}
+                          </option>
+                        ))}
+                      </select>
+                      <Chip
+                        selected={!!f.internalOnly}
+                        onClick={() => onChange(f.id, { internalOnly: !f.internalOnly })}
+                        title={`Keep "${f.title || f.id}" internal — leave it out of reports`}
+                      >
+                        Internal
+                      </Chip>
+                    </div>
                   </td>
 
                   {/* LOCATION / HIERARCHY — Discipline and Audit check used

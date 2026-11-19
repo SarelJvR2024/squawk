@@ -1030,6 +1030,16 @@ export interface Finding {
    *  Syncs to the SharePoint findings list as `findingActionPlan` — see
    *  findingRiskFieldsFor in sharepoint.ts. */
   actionPlan?: string;
+  /** INTERNAL-ONLY — Sarel: "add an option in root cause to tag rows
+   *  'internal' to keep as our internal info and not make it into any
+   *  reports." A finding stays fully in the app and the team's own
+   *  record either way (the Root cause table itself, the SharePoint
+   *  sync, Evidence review, "By check") — this flag narrows only what a
+   *  GENERATED REPORT (ReviewRiskReport.tsx's printable output) includes,
+   *  never the data itself. Optional and absent-means-false, same
+   *  convention as every other boolean here — a finding is in every
+   *  report by default, the same as before this field existed. */
+  internalOnly?: boolean;
   /** REVIEW TABLE V2 — Sarel's "Type" tag (Non-compliance vs. Observation),
    *  see docs/capture-review/review-table-v2-discovery.md §2.
    *
@@ -1051,8 +1061,18 @@ export interface Finding {
    *  read it through `findingTypeFor()` (src/lib/reviewRisk.ts), never off
    *  this field directly, so every caller defaults the same way. Edited on
    *  /review only, same scoping as the other REVIEW-ONLY fields above —
-   *  Capture, Field, Raise-a-finding and Workspace must never render it. */
-  findingType?: "non-compliance" | "observation";
+   *  Capture, Field, Raise-a-finding and Workspace must never render it.
+   *
+   *  19 Nov 2026 — "needs-evidence" added as a third value, inline-
+   *  editable right in the Root cause table now (previously the panel's
+   *  own chips were the only place to set this at all) — Sarel: "the
+   *  type need to allow for inline editing to select between observation
+   *  and non-compliance and require evidence to verify." Distinct from a
+   *  linked audit check's own NV compliance rating (Compliance,
+   *  elsewhere in this file) — that is the CHECK's verification state;
+   *  this is the FINDING's own, and a finding can carry one with no
+   *  linked check at all (Raise-a-finding, the walk's free-text path). */
+  findingType?: "non-compliance" | "observation" | "needs-evidence";
   /** Plural — see MitigatingAction. */
   actions: MitigationAction[];
   /** Dated, attributed updates on the remediation.

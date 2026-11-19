@@ -4215,7 +4215,7 @@ export const useStore = create<State>()(
       storage: createJSONStorage(() => idbStorage),
       /* Bump this whenever a persisted shape changes, and migrate rather than
          discard — a tablet may be carrying a half-captured audit. */
-      version: 44,
+      version: 45,
       migrate: (persisted: unknown, from: number) => {
         const st = persisted as {
           dictation?: boolean;

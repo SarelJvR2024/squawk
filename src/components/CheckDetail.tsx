@@ -117,6 +117,29 @@ export const STATUSES: {
     tone: "neu",
     group: "qualifier",
   },
+  /* 19 Nov 2026 — BACK, reversing the 2 October removal this array's own
+   *  header describes, on Sarel's own direct instruction this time:
+   *  "on this screen on the compliance add 'require evidence to verify'
+   *  as an additional option." The Evidence status panel below still
+   *  answers "has the proof been produced" on its own four-state scale —
+   *  this is the check's own VERDICT again carrying a fourth answer,
+   *  same shape as EVIDENCE_VERDICTS/OutcomeControl's own NV entry
+   *  already do elsewhere, just worded to match today's instruction
+   *  rather than "Not verified". hotkey "6" rather than reclaiming "4" —
+   *  the OLD "4" meant "Compliant, evidence pending", a genuinely
+   *  different answer from this one, and the whole reason 4/5 were
+   *  retired outright instead of reassigned (see this array's own
+   *  header) was so a stale muscle-memory press could never land on a
+   *  changed meaning. Reusing "4" here would do exactly that. */
+  {
+    key: "NV",
+    hotkey: "6",
+    label: "Requires evidence to verify",
+    short: "NV",
+    Icon: IconClock,
+    tone: "warn",
+    group: "qualifier",
+  },
 ];
 
 /** Which row is showing as chosen. A response carrying the old "C, evidence
@@ -478,7 +501,8 @@ export default function CheckDetail({
       );
       if (typing) return;
       /* Found by its declared hotkey, not by position — 1-3 are what they
-         have always been. */
+         have always been; 6 is the NV verdict's own, deliberately not
+         the retired 4/5 (see STATUSES' own note). */
       const hit = STATUSES.find((x) => x.hotkey === e.key);
       if (hit) {
         const on = isOn(hit, r.compliance);
@@ -1903,17 +1927,14 @@ export default function CheckDetail({
             )}
           </div>
 
-          {/* THREE, ONE ROW AT EVERY WIDTH. Down from five (2 October 2026 —
-              see the note on STATUSES) to the two verdicts and the one
-              qualifier that actually settle a check; "evidence pending" and
-              "not available" moved to the Evidence status panel, which asks
-              a different question from this one. Three columns fit a
-              single row from a phone up, so there is no longer a narrower
-              layout to fall back to. N/A keeps the quieter styling
-              (transparent, lighter border) toneStyle's `quiet` flag gives
-              it — the one qualifier among two verdicts still reads as a
-              different kind of answer. */}
-          <div className="grid min-w-[280px] flex-1 grid-cols-3 gap-[4px]">
+          {/* FOUR, ONE ROW AT EVERY WIDTH — back up from three, 19 November
+              2026 (see STATUSES' own note), now that "requires evidence to
+              verify" is a verdict button again, not only the Evidence
+              status panel's job. N/A and the new NV entry both keep the
+              quieter styling (transparent, lighter border) toneStyle's
+              `quiet` flag gives them — the two qualifiers among the two
+              verdicts still read as a different kind of answer. */}
+          <div className="grid min-w-[280px] flex-1 grid-cols-4 gap-[4px]">
             {STATUSES.map((st) => {
               const on = isOn(st, r.compliance);
               const quiet = st.group === "qualifier";

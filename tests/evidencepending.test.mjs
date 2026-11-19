@@ -137,16 +137,24 @@ ok(
    keyboard and annotates press("2") as Non-compliant, which is how it was
    caught. A shortcut that quietly changes meaning is the fastest way to file
    a wrong answer against a check. Removing hotkeys 4 and 5 outright (rather
-   than reassigning them) is what keeps that promise now: 1, 2 and 3 mean
-   exactly what they always meant, and there is nothing left on 4 or 5 for a
-   stale muscle-memory press to hit by accident. */
+   than reassigning them) was what kept that promise then: 1, 2 and 3 mean
+   exactly what they always meant.
+
+   19 Nov 2026 — a fourth button is back (Sarel: "add 'require evidence to
+   verify' as an additional option"), and it claims "6", not the retired
+   "4" or "5" — 4 used to mean "Compliant, evidence pending", a genuinely
+   different answer, so reclaiming it for this would be exactly the stale-
+   muscle-memory accident the October removal existed to prevent. The
+   promise now reads: 1-3 never move, and nothing reuses a number that
+   used to mean something else. */
 ok(
-  "NON-COMPLIANT IS STILL KEY 2, and 4/5 are retired rather than reassigned",
+  "NON-COMPLIANT IS STILL KEY 2, and the new NV verdict claims 6, never the retired 4/5",
   /hotkey: "1",[\s\S]{0,200}label: "Compliant",/.test(detail) &&
     /hotkey: "2",[\s\S]{0,80}label: "Non-compliant"/.test(detail) &&
     /hotkey: "3",[\s\S]{0,80}label: "N\/A"/.test(detail) &&
     !/hotkey: "4"/.test(detail) &&
     !/hotkey: "5"/.test(detail) &&
+    /key: "NV",\s*hotkey: "6"/.test(detail) &&
     !/label: "Not available"/.test(detail)
 );
 ok(

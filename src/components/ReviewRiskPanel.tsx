@@ -372,10 +372,12 @@ export default function ReviewRiskPanel({
           issueIndex nor adHoc says whether this is a rule violation or a
           milder observation, so this is a real choice for the auditor,
           defaulting to Non-compliance — see findingTypeFor's own doc
-          comment for why. */}
+          comment for why. Third chip added 19 Nov 2026 — same inline-
+          editable set the table's own Type column now offers, so picking
+          it here or there writes through the identical onChange. */}
       <div className="mb-2 font-display text-[11px] font-semibold">Type</div>
-      <div className="mb-3.5 flex gap-[6px]">
-        {(["non-compliance", "observation"] as const).map((t) => (
+      <div className="mb-3.5 flex flex-wrap gap-[6px]">
+        {(["non-compliance", "observation", "needs-evidence"] as const).map((t) => (
           <Chip key={t} selected={type === t} onClick={() => onChange({ findingType: t })}>
             {FINDING_TYPE_LABEL[t]}
           </Chip>

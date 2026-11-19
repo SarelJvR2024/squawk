@@ -83,13 +83,16 @@ export function hasRootCauseContent(f: Pick<Finding, "rootCauseCategories" | "ro
  *  `f.findingType` directly, same reasoning as `priorityFor`'s own "Not
  *  rated is the caller's job to render, not this function's" note: one
  *  place decides the default so nothing renders a blank where a tag belongs. */
-export function findingTypeFor(f: Pick<Finding, "findingType">): "non-compliance" | "observation" {
+export function findingTypeFor(
+  f: Pick<Finding, "findingType">
+): "non-compliance" | "observation" | "needs-evidence" {
   return f.findingType ?? "non-compliance";
 }
 
-export const FINDING_TYPE_LABEL: Record<"non-compliance" | "observation", string> = {
+export const FINDING_TYPE_LABEL: Record<"non-compliance" | "observation" | "needs-evidence", string> = {
   "non-compliance": "Non-compliance",
   observation: "Observation",
+  "needs-evidence": "Requires evidence to verify",
 };
 
 export type ReviewRiskFilter =
@@ -100,7 +103,8 @@ export type ReviewRiskFilter =
   | { kind: "rootCause"; category: string }
   | { kind: "unconfirmed" }
   | { kind: "discipline"; discipline: string }
-  | { kind: "system"; system: string };
+  | { kind: "system"; system: string }
+  | { kind: "type"; type: "non-compliance" | "observation" | "needs-evidence" };
 
 export function matchesReviewRiskFilter(f: Finding, filter: ReviewRiskFilter): boolean {
   switch (filter.kind) {
@@ -120,6 +124,8 @@ export function matchesReviewRiskFilter(f: Finding, filter: ReviewRiskFilter): b
       return f.discipline === filter.discipline;
     case "system":
       return f.system === filter.system;
+    case "type":
+      return findingTypeFor(f) === filter.type;
   }
 }
 

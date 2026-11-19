@@ -127,7 +127,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 }
 
 export default function ReviewRiskReport({
-  findings,
+  findings: allFindings,
   discipline,
   entityCode,
   responses,
@@ -149,6 +149,14 @@ export default function ReviewRiskReport({
   auditor: string;
 }) {
   const airport = entityOf(entityCode);
+
+  /* INTERNAL FINDINGS NEVER REACH THIS REPORT — Sarel: "add an option in
+   *  root cause to tag rows 'internal' to keep as our internal info and
+   *  not make it into any reports." Filtered once, here, before every
+   *  count/section below reads `findings` — the one place this report
+   *  is built, so there is no second spot that could forget this and
+   *  let one slip into the "All findings" table, a count, or a percent. */
+  const findings = useMemo(() => allFindings.filter((f) => !f.internalOnly), [allFindings]);
 
   const sorted = useMemo(
     () =>
