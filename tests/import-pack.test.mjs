@@ -525,7 +525,7 @@ check('the persist key "acsa-assurance-v1" is unchanged', /name: "acsa-assurance
    change actually landed on, same as every time before this. Re-pin the
    NUMBER here, not the reasoning, if this goes stale again — `grep -n
    "version: " src/lib/store.ts | tail -1` is the live value. */
-check("the migration version is unchanged", /version: 44,/.test(storeSrc));
+check("the migration version is unchanged", /version: 45,/.test(storeSrc));
 /* 19 Nov 2026 — removeFinding grew two cascading cleanups once the Root
  * cause tab's own Delete button became its first user-facing caller (see
  * removeFinding's own doc comment): it frees each deleted finding's

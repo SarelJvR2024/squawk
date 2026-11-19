@@ -798,7 +798,16 @@ export function photographsSheet(x: ExportInput): Sheet {
         photoFilename(a),
         a.ref ?? "",
         f.checkId ? portalIdFor(x.entity, f.checkId) : f.id,
-        findingTypeFor(f) === "observation" ? "" : STATUS_WORD.NC,
+        /* 19 Nov 2026 — findingType grew a third value, "needs-evidence"
+           ("Requires evidence to verify"), alongside the observation/
+           non-compliance pair this was written for. This was a binary
+           "not observation, so it must be NC" check; a needs-evidence
+           finding fell into the NC branch and exported as a false
+           Non-compliant verdict for something the auditor explicitly
+           marked as unverified, not a violation. Now exhaustive, each
+           findingType reading the STATUS_WORD its own Compliance
+           equivalent already uses elsewhere in this file. */
+        findingTypeFor(f) === "non-compliance" ? STATUS_WORD.NC : findingTypeFor(f) === "needs-evidence" ? STATUS_WORD.NV : "",
         f.discipline,
         f.system,
         f.area,

@@ -2266,8 +2266,22 @@ export function buildPlan(
              genuinely unanswered field is protected against elsewhere in
              this file. Flagged for Sarel: if the portal needs its own
              explicit "observation" signal rather than a blank Compliance
-             cell, that is a column addition, not a value choice. */
-          findingTypeFor(f) === "observation" ? null : "NC",
+             cell, that is a column addition, not a value choice.
+
+             19 Nov 2026 — findingType grew a third value, "needs-evidence"
+             ("Requires evidence to verify"), and this was a binary "not
+             Observation, so NC" check — a needs-evidence finding fell into
+             the NC branch and synced as a false Non-compliant verdict for
+             something the auditor explicitly marked as unverified, not a
+             violation. Unlike Observation, this one DOES have a real
+             Compliance equivalent already in the vocabulary — "NV" is
+             exactly "requires evidence to verify" read as a Compliance
+             token, so it needs no new column, just the right existing one. */
+          findingTypeFor(f) === "non-compliance"
+            ? "NC"
+            : findingTypeFor(f) === "needs-evidence"
+              ? "NV"
+              : null,
           fallbackCaption
         ),
         folder: dayFolder(folder, a.takenAt ?? a.createdAt),
