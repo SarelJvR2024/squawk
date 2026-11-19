@@ -207,7 +207,7 @@ check(
 check(
   "the Audit check's own question is back in the table — in the Finding cell, not Location/Hierarchy",
   (() => {
-    const rowStart = table.indexOf("{visible.map((f) => {");
+    const rowStart = table.indexOf("{visible.slice(0, shown).map((f) => {");
     const rowEnd = table.indexOf("\n          </tbody>", rowStart);
     const row = rowStart === -1 ? "" : table.slice(rowStart, rowEnd === -1 ? undefined : rowEnd);
     if (row.length === 0) return false;
@@ -464,9 +464,23 @@ check(
     /\(a\.system \|\| GENERAL_SYSTEM_SORT_KEY\)\.localeCompare\(b\.system \|\| GENERAL_SYSTEM_SORT_KEY\)/.test(table) &&
     /GENERAL_SYSTEM_SORT_KEY = String\.fromCharCode\(0xffff\)/.test(table)
 );
+/* 19 Nov 2026 — REVERSED, under "oria root cause not loading on my
+ * device": a completed audit's full, unfiltered finding count, every row
+ * its own <tr> with several editable cells, was enough on its own to
+ * crash a desktop browser tab — independent of, and in addition to, the
+ * photo-thumbnail OOM fixed separately (#282). "No silent pagination"
+ * is still true in spirit: the count line below stays the real
+ * `visible.length`, Select all/bulk actions/Generate report still
+ * operate on the full `visible` array (checked separately), and the
+ * "Show more" control names exactly how many more there are — nothing
+ * is hidden without saying so. What changed is "reachable by scroll
+ * alone": past PAGE_SIZE_INITIAL, reaching the rest takes a click, not
+ * just scrolling. That is the trade a tab that doesn't crash needs. */
 check(
-  "every row rendered comes from `visible` with no slice/limit in between — scrolling reaches all of them, no silent pagination",
-  /visible\.map\(\(f\) => \{/.test(table) && !/visible\.slice\(/.test(table)
+  "rows are capped per page (shown), but the true count and Select all still come from the full `visible` array",
+  /visible\.slice\(0, shown\)\.map\(\(f\) => \{/.test(table) &&
+    /\{visible\.length\} finding/.test(table) &&
+    /visible\.every\(\(f\) => selected\.has\(f\.id\)\)/.test(table)
 );
 /* The All/Priority I/II/III/Not rated/Root cause unconfirmed CHIP ROW is
    gone — Sarel: "remove these filters" (screenshot of exactly that row).
