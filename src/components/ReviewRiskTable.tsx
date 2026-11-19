@@ -96,6 +96,11 @@ const GENERAL_SYSTEM_SORT_KEY = String.fromCharCode(0xffff);
  *  <tr>s is capped, via `shown`. */
 const PAGE_SIZE_INITIAL = 50;
 const PAGE_SIZE_STEP = 100;
+/** "Show more" stops growing the page past this — otherwise enough clicks
+ *  mount the whole unfiltered list again and recreate the exact crash
+ *  this file exists to prevent, just more slowly. An audit this large
+ *  needs the Discipline/Asset system filters above, not more paging. */
+const MAX_MOUNTED_ROWS = 500;
 
 export default function ReviewRiskTable({
   findings,
@@ -638,17 +643,36 @@ export default function ReviewRiskTable({
             only the rows mounted into the table are capped. Narrowing the
             filter further is the fast way to find a specific finding in a
             very large audit; this button is for "no, I actually want to
-            scroll the rest." */}
+            scroll the rest."
+            "{shown} of {visible.length} shown" names the state directly,
+            rather than folding it into the button's own label — an
+            earlier draft said "(N left)" counting what was hidden BEFORE
+            the click, which read as a promise about what would be left
+            AFTER it; two different numbers sharing one word.
+            MAX_MOUNTED_ROWS stops this from quietly becoming the same
+            crash one click at a time: past it, the button hands the
+            reins to the filters above instead of growing further — a
+            genuinely enormous audit needs narrowing, not more paging. */}
         {shown < visible.length && (
-          <div className="flex justify-center border-t p-3" style={{ borderColor: "var(--line)" }}>
-            <button
-              type="button"
-              onClick={() => setShown((s) => s + PAGE_SIZE_STEP)}
-              className="rounded-[8px] border px-3 py-1.5 text-[11.5px] font-semibold"
-              style={{ borderColor: "var(--line-2)", color: "var(--ink-2)" }}
-            >
-              Show {Math.min(PAGE_SIZE_STEP, visible.length - shown)} more ({visible.length - shown} left)
-            </button>
+          <div
+            className="flex flex-col items-center gap-1 border-t p-3 text-[11px]"
+            style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}
+          >
+            <span>
+              {Math.min(shown, visible.length)} of {visible.length} shown
+            </span>
+            {shown < MAX_MOUNTED_ROWS ? (
+              <button
+                type="button"
+                onClick={() => setShown((s) => Math.min(s + PAGE_SIZE_STEP, MAX_MOUNTED_ROWS))}
+                className="rounded-[8px] border px-3 py-1.5 text-[11.5px] font-semibold"
+                style={{ borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+              >
+                Show {Math.min(PAGE_SIZE_STEP, visible.length - shown, MAX_MOUNTED_ROWS - shown)} more
+              </button>
+            ) : (
+              <span>Use the filters above to narrow a list this large.</span>
+            )}
           </div>
         )}
       </div>
