@@ -1608,8 +1608,33 @@ export const useStore = create<State>()(
             lastSavedAt: Date.now(),
           })),
 
-        removeFinding: (id) =>
-          set((s) => ({ findings: s.findings.filter((f) => f.id !== id) })),
+        /* Code review on the first UI to ever call this on a real, user-
+         *  chosen finding (the Root cause tab's own Delete button) found
+         *  two gaps this function had while its only caller was Import
+         *  pack's undo of a just-created, unlinked finding:
+         *    - its attachments' blobs were never freed, unlike the
+         *      identical cleanup removeFindingAttachment already does for
+         *      a single attachment — an IndexedDB leak that grows with
+         *      every delete.
+         *    - a Hazard can hold this finding's id in its own findingIds
+         *      (hazards/page.tsx's "promote to hazard" flow, entirely
+         *      separate from Import pack), with no removal-side cleanup —
+         *      that hazard's own "second opinion" AI-assist throws once
+         *      the id it looks up no longer resolves to anything. */
+        removeFinding: (id) => {
+          const f = get().findings.find((x) => x.id === id);
+          for (const a of f?.attachments ?? []) {
+            if (a.blobKey) void delBlob(a.blobKey);
+          }
+          set((s) => ({
+            findings: s.findings.filter((x) => x.id !== id),
+            hazards: s.hazards.map((h) =>
+              h.findingIds.includes(id)
+                ? { ...h, findingIds: h.findingIds.filter((fid) => fid !== id) }
+                : h
+            ),
+          }));
+        },
 
         addHazard: (h) => {
           const id = `HZ-${uid().toUpperCase().slice(0, 5)}`;
