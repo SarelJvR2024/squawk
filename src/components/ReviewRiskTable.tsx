@@ -78,6 +78,30 @@ import type { Attachment, Check, Finding, Response } from "@/lib/types";
  *  noncharacter byte sitting in its source. */
 const GENERAL_SYSTEM_SORT_KEY = String.fromCharCode(0xffff);
 
+/** How many rows this table mounts at once, and how many more a "Show
+ *  more" click reveals — Sarel: "oria root cause not loading on my
+ *  device," reported again AFTER the photo-thumbnail fix (#282) didn't
+ *  resolve it, on a desktop laptop, with the crash isolated to this tab
+ *  alone (By check and Evidence, over the same findings, were fine).
+ *  That ruled photos back out as the sole cause: the table itself has no
+ *  virtualization, and a completed audit's full, unfiltered finding count
+ *  — every row its own <tr> with several editable cells — is enough on
+ *  its own. The fix in EvidenceThumb was real and stays (a photo-heavy
+ *  row is still far more expensive than a text-only one), but it was
+ *  never sufficient by itself: this bounds the table's first paint to a
+ *  fixed number of rows regardless of how many findings exist, which is
+ *  the actual guarantee the crash needed. `visible` below — the full
+ *  filtered, sorted array — is untouched and still what the row count,
+ *  Select all and bulk actions operate on; only the .map() that mounts
+ *  <tr>s is capped, via `shown`. */
+const PAGE_SIZE_INITIAL = 50;
+const PAGE_SIZE_STEP = 100;
+/** "Show more" stops growing the page past this — otherwise enough clicks
+ *  mount the whole unfiltered list again and recreate the exact crash
+ *  this file exists to prevent, just more slowly. An audit this large
+ *  needs the Discipline/Asset system filters above, not more paging. */
+const MAX_MOUNTED_ROWS = 500;
+
 export default function ReviewRiskTable({
   findings,
   entityCode,
@@ -156,6 +180,21 @@ export default function ReviewRiskTable({
       return (a.system || GENERAL_SYSTEM_SORT_KEY).localeCompare(b.system || GENERAL_SYSTEM_SORT_KEY);
     });
   }, [findings, filter]);
+
+  /* How many of `visible` are actually mounted as <tr>s — see
+     PAGE_SIZE_INITIAL's own comment. Reset to the initial page whenever
+     the filter narrows or widens the set, so switching filters always
+     starts cheap rather than carrying over a large page size from a
+     previous, bigger view. Adjusted during render against the previous
+     filter, React's own documented pattern for this ("Adjusting state
+     when a prop changes") — not an effect, which would cost an extra,
+     visible render of the stale page before snapping back. */
+  const [shown, setShown] = useState(PAGE_SIZE_INITIAL);
+  const [prevFilter, setPrevFilter] = useState(filter);
+  if (filter !== prevFilter) {
+    setPrevFilter(filter);
+    setShown(PAGE_SIZE_INITIAL);
+  }
 
   /* Asset system options narrow to the active Discipline filter's own
      systems — systemsOf — and fall back to every system at this entity —
@@ -360,7 +399,7 @@ export default function ReviewRiskTable({
             </tr>
           </thead>
           <tbody>
-            {visible.map((f) => {
+            {visible.slice(0, shown).map((f) => {
               const impact = f.impactAreas ?? [];
               const causes = f.rootCauseCategories ?? [];
               const type = findingTypeFor(f);
@@ -597,6 +636,43 @@ export default function ReviewRiskTable({
         {visible.length === 0 && (
           <div className="p-6 text-center text-[11.5px]" style={{ color: "var(--ink-3)" }}>
             Nothing matches this filter.
+          </div>
+        )}
+        {/* Everything above this — the count, Select all, bulk actions,
+            Generate report — already operates on the full `visible` array;
+            only the rows mounted into the table are capped. Narrowing the
+            filter further is the fast way to find a specific finding in a
+            very large audit; this button is for "no, I actually want to
+            scroll the rest."
+            "{shown} of {visible.length} shown" names the state directly,
+            rather than folding it into the button's own label — an
+            earlier draft said "(N left)" counting what was hidden BEFORE
+            the click, which read as a promise about what would be left
+            AFTER it; two different numbers sharing one word.
+            MAX_MOUNTED_ROWS stops this from quietly becoming the same
+            crash one click at a time: past it, the button hands the
+            reins to the filters above instead of growing further — a
+            genuinely enormous audit needs narrowing, not more paging. */}
+        {shown < visible.length && (
+          <div
+            className="flex flex-col items-center gap-1 border-t p-3 text-[11px]"
+            style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}
+          >
+            <span>
+              {Math.min(shown, visible.length)} of {visible.length} shown
+            </span>
+            {shown < MAX_MOUNTED_ROWS ? (
+              <button
+                type="button"
+                onClick={() => setShown((s) => Math.min(s + PAGE_SIZE_STEP, MAX_MOUNTED_ROWS))}
+                className="rounded-[8px] border px-3 py-1.5 text-[11.5px] font-semibold"
+                style={{ borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+              >
+                Show {Math.min(PAGE_SIZE_STEP, visible.length - shown, MAX_MOUNTED_ROWS - shown)} more
+              </button>
+            ) : (
+              <span>Use the filters above to narrow a list this large.</span>
+            )}
           </div>
         )}
       </div>
