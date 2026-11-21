@@ -44,13 +44,20 @@ export function withChannels(
 
 /** Merge two devices' channel config into one.
  *
- *  NOT TIMESTAMPED, so not really "last write wins" — an entry here is just
- *  `{checkId: {channel: false}}`, nothing carries when it was set. The build
- *  prompt that asked for this named last-write-wins "per check id", but
- *  without a per-entry clock the honest merge is the one this codebase
+ *  NOT WIRED INTO ANY SYNC PATH YET. The build prompt that asked for this
+ *  said to sync checkChannels "the same way auditDateOverrides or contacts
+ *  sync" — but neither of those actually has cross-device sync in this
+ *  codebase: grep shared.ts/sync.ts/merge.ts, neither name appears, and
+ *  Bundle (merge.ts) deliberately excludes all three as visit-scoped export
+ *  content, which checkChannels is not. So there is nothing for this
+ *  function to plug into today; it exists, tested, for when that sync gets
+ *  built, not because something calls it now.
+ *
+ *  NOT TIMESTAMPED either, so not really "last write wins" — an entry here
+ *  is just `{checkId: {channel: false}}`, nothing carries when it was set.
+ *  Without a per-entry clock the honest merge is the one this codebase
  *  already uses elsewhere for an untimestamped conflict (`unionById` in
- *  merge.ts: "mine wins a shared id"), so that is what this does too —
- *  flagging this rather than inventing a clock Setup has never needed. A
+ *  merge.ts: "mine wins a shared id"), so that is what this does too. A
  *  check id only one side has an opinion about always carries through. */
 export function mergeChannelConfig(
   mine: CheckChannelConfig,

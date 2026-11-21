@@ -33,6 +33,7 @@ import {
   checksAt,
   deskDone,
   fieldDone,
+  isComplete,
   priorFindingsAt,
   useAuditProgress,
   useCaptures,
@@ -228,9 +229,15 @@ export default function HomePage() {
     const scope = checks.filter((c) => needsField(c, checkChannels));
     return { done: scope.filter((c) => fieldDone(responses[c.id])).length, total: scope.length };
   }, [checks, responses, checkChannels]);
+  /* NOT `responses[c.id]?.captured` — see AppShell.tsx's own note on its
+     equivalent `done`: a check with every channel off in Setup never gets a
+     saved Response, so a count keyed off the cached flag can never see it,
+     and this strip could never read 100% for an audit with nothing left
+     outstanding. isComplete() reads the channel config whether or not a
+     Response exists. */
   const complete = useMemo(
-    () => checks.filter((c) => responses[c.id]?.captured).length,
-    [checks, responses]
+    () => checks.filter((c) => isComplete(c.id, responses[c.id], checkChannels)).length,
+    [checks, responses, checkChannels]
   );
 
   /* A rating nobody confirmed is not a rating, so the unrated count is the work

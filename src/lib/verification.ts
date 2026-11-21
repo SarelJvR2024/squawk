@@ -159,9 +159,17 @@ export function needsQuestion(check: Check): boolean {
   return modesOf(check).question;
 }
 
-/** Every check reaches at least one view. Nothing in the register may be
- *  unreachable — that is the one invariant this split must not break, and
- *  tests/portals.test.mjs asserts it across all 324. */
+/** Every check reaches at least one view BY DEFAULT — no config, or a config
+ *  with no exception for this check, and this is still the invariant
+ *  tests/portals.test.mjs asserts across all 324.
+ *
+ *  Setup can now switch a check unreachable ON PURPOSE: all three channels
+ *  off takes it out of both needsDesk and needsField, so `isRouted` reads
+ *  false for it — see tests/channel-counts.test.mjs's "every channel off
+ *  takes the check off both screens". Not a bug this function should mask;
+ *  callers that still need the old guarantee pass no config. Currently
+ *  unused — kept because the invariant it names is still real and still
+ *  worth a name, not because something calls it today. */
 export function isRouted(check: Check, config?: CheckChannelConfig): boolean {
   return needsDesk(check, config) || needsField(check, config);
 }

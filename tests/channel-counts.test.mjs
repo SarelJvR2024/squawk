@@ -88,6 +88,24 @@ check("a check with no channels left needing it is complete with neither half sa
   );
 });
 
+/* THE CASE THE ABOVE MISSES: a check with every channel off never gets a
+   Response at all, because nothing left routes to it (see needsDesk/
+   needsField's own scoping of Capture/Field) — so `r` here is `undefined`,
+   not an object with null fields. AppShell's masthead ring and Home's
+   dashboard strip both read isComplete with exactly this `r`, so this is
+   the case that actually matters on screen, not the one above with an
+   empty object standing in for "never touched". */
+check("a check with no channels left needing it is complete with NO response at all", () => {
+  const config = { [REAL_ID]: { interview: false, evidence: false, walk: false } };
+  assert.equal(storeModule.isComplete(REAL_ID, undefined, config), true);
+});
+
+check("a check that still needs a channel is NOT complete with no response at all", () => {
+  const config = { [REAL_ID]: { walk: false } };
+  assert.equal(storeModule.isComplete(REAL_ID, undefined, config), false);
+  assert.equal(storeModule.isComplete(REAL_ID, undefined), false);
+});
+
 check(
   "isComplete with no config argument is unchanged — still needs both halves",
   () => {

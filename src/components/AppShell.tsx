@@ -17,6 +17,7 @@ import {
   useVisits,
   deskDone,
   fieldDone,
+  isComplete,
 } from "@/lib/store";
 import { entity as entityOf } from "@/lib/programme";
 import { needsDesk, needsField } from "@/lib/verification";
@@ -361,14 +362,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [sharedOpen, setSharedOpen] = useState(false);
   const [q, setQ] = useState("");
 
-  const done = useMemo(
-    () => Object.values(responses).filter((r) => r.captured).length,
-    [responses]
-  );
   /* This site's checklist, not the register. 324 at an international, 319 at a
      regional, 200 at Corporate Office — a ring drawn against 324 everywhere
      would never reach 100% at seven of the ten sites. */
   const checks = useMemo(() => checksAt(entityCode), [entityCode]);
+  /* NOT `Object.values(responses).filter(r => r.captured)`. A check with
+     every channel switched off in Setup never gets a Response at all —
+     there is no screen left that would ever call commit() on it (see
+     needsDesk/needsField's own scoping of Capture/Field below) — so a count
+     keyed off `responses` could never see it and this ring could never
+     reach 100% for an audit that, by design, has nothing left outstanding
+     on it. isComplete() reads the channel config directly, with or without
+     a saved Response, so it sees that check the same as every other. */
+  const done = useMemo(
+    () => checks.filter((c) => isComplete(c.id, responses[c.id], checkChannels)).length,
+    [checks, responses, checkChannels]
+  );
   const priorTotal = priorFindingsAt(entityCode).length;
   const verified = Object.values(verifications).filter((v) => v.outcome).length;
   const pct = checks.length ? Math.round((done / checks.length) * 100) : 0;
