@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { Check, Compliance, EvidenceStatus } from "@/lib/types";
+import { channelsOf } from "@/lib/channels";
 import { priorFor, useEntityCode, useResponses, useStore, useVisitFindings } from "@/lib/store";
 import { portalIdFor } from "@/lib/sites";
 import { useAnswers } from "@/lib/answers";
@@ -394,6 +395,12 @@ export default function CheckDetail({
   const auditor = useStore((s) => s.auditor);
   const setCompliance = useStore((s) => s.setCompliance);
   const setWalkabout = useStore((s) => s.setWalkabout);
+  /* Which of interview / evidence / walk this check needs — set in Setup.
+     A check can need fewer than three; the ones it does not need are not
+     shown, so the auditor is never asked for something the config has ruled
+     out. All three until the config says otherwise. */
+  const channelConfig = useStore((s) => s.checkChannels);
+  const channels = channelsOf(channelConfig, check.id);
   const appendObservation = useStore((s) => s.appendObservation);
   const patch = useStore((s) => s.patch);
   const addAttachment = useStore((s) => s.addAttachment);
@@ -1084,6 +1091,18 @@ export default function CheckDetail({
       ),
     });
 
+  /* Setup can switch walk and evidence off for a check. Dropped here, after
+     every push, so none of the panel bodies above need to know. Safe to
+     splice unconditionally: "standard" (line ~1007) and "evidenceStatus"
+     (line ~631) are both pushed unconditionally, so panels never empties
+     out from under openKey's own fallback (line ~1106) just below. */
+  for (let i = panels.length - 1; i >= 0; i--) {
+    const k = panels[i].key;
+    if ((k === "walkabout" && !channels.walk) || (k === "evidenceStatus" && !channels.evidence)) {
+      panels.splice(i, 1);
+    }
+  }
+
   /* Falls back to the first panel rather than showing nothing: which panels
      exist depends on this check's own fields and on what the library holds for
      it, and the auditor arrives with one already chosen. */
@@ -1092,9 +1111,14 @@ export default function CheckDetail({
 
   /* The evidence line that stays above the tabs. The register's own sentence
      where it has one, ACSA's named records where it does not — one line, with
-     the whole of it a tap away under ACSA wording. */
-  const evidenceLine =
-    check.evidenceExpected || (check.acsaEvidence.length > 0 ? check.acsaEvidence.join(" · ") : "");
+     the whole of it a tap away under ACSA wording. Empty when Setup has
+     switched evidence off for this check — same as the evidenceStatus tab
+     itself (line ~1098) and the Evidence row the Setup screen's own channel
+     switches describe; this line is evidence guidance too, not a separate
+     thing that forgot to check. */
+  const evidenceLine = channels.evidence
+    ? check.evidenceExpected || (check.acsaEvidence.length > 0 ? check.acsaEvidence.join(" · ") : "")
+    : "";
 
   const photos = r.attachments.filter((x) => x.kind === "photo").length;
   const voice = r.attachments.find((x) => x.kind === "voice");
@@ -1306,12 +1330,12 @@ export default function CheckDetail({
           visible, not cut off. Both still clamp to one line once the header
           is "stuck" (scrolled), the same bargain the pinned title already
           makes — full text is one scroll-to-top away, not gone. */}
-      {(check.question || evidenceLine) && (
+      {((check.question && channels.interview) || evidenceLine) && (
         <div
           className="border-b px-5 py-[8px]"
           style={{ background: "var(--focus-surface)", borderColor: "var(--line)" }}
         >
-          {check.question && (
+          {check.question && channels.interview && (
             <div className="flex items-baseline gap-2">
               {/* OURS, AND IT SAYS SO. This is TPJV's reading of the
                   check-point above — how we propose to test whether it is met

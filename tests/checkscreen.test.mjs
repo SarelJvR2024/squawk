@@ -128,7 +128,7 @@ check(
 
 const header = codeOnly.slice(
   at('className="relative z-[6] sm:sticky'),
-  at('{(check.question || evidenceLine) && (')
+  at('{((check.question && channels.interview) || evidenceLine) && (')
 );
 /* The className grew lg: variants once the bar became the right-hand
    column from lg (see the note on it in CheckDetail.tsx) — anchor on the

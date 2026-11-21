@@ -202,12 +202,15 @@ const OFF_NAV: Record<string, string> = {
   "/closeout": "Daily site closeout",
   "/evidence": "Document and evidence collection log",
   "/people": "People directory",
+  "/setup": "Setup",
   /* Safety, Pre-flight, HIRA and Audit moved out of NAV into the More menu
      (Safety/Pre-flight: Sarel, 30 Sep; HIRA: 15 Nov; Audit: 17 Nov) —
      without an entry here their own heading would fall back to "Squawk".
      Triage (formerly Review) HAD an entry here too from the same 30 Sep
      move; it came off this list 18 Nov when Sarel put it back in NAV —
-     NAV supplies its heading directly now, same as every other bar tab. */
+     NAV supplies its heading directly now, same as every other bar tab.
+     Setup (21 Nov) is the Nov redesign's config screen — off NAV, reached
+     from the More menu's own MoreItem entry below. */
   "/isf": "Safety",
   "/preflight": "Pre-flight",
   "/hazards": "HIRA",
@@ -1145,6 +1148,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     />
                     {/* CAPTURE (ALL) — the new consolidated tree, see
                         src/app/(app)/workspace/page.tsx's own header. */}
+                    <MoreItem
+                      icon={<IconGrid width={14} height={14} />}
+                      label="Setup"
+                      hint="What each check needs: interview, evidence, walk"
+                      selected={pathname === "/setup"}
+                      onClick={() => { setMore(false); router.push("/setup"); }}
+                    />
                     <MoreItem
                       icon={<IconPlus width={14} height={14} />}
                       label="Capture (all)"
