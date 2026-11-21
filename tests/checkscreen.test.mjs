@@ -249,9 +249,9 @@ check(
 );
 
 check(
-  "and Save sits in the same pinned block, not somewhere else",
-  /save\(false\)/.test(pinned) && /save\(true\)/.test(pinned),
-  "what writes the answer and what commits it belong together"
+  "and Next check sits in the same pinned block, not somewhere else",
+  /STATUSES\.map\(\(st\) => \{/.test(pinned) && /onClick=\{onNext\}/.test(pinned),
+  "what writes the answer and what commits it belong together — build prompt 2 (21 Nov 2026) replaced the separate Save/Save & next pair with the one commit-and-advance action onNext already is"
 );
 
 check(

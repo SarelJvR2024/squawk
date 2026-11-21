@@ -148,10 +148,10 @@ ok(
    promise now reads: 1-3 never move, and nothing reuses a number that
    used to mean something else. */
 ok(
-  "NON-COMPLIANT IS STILL KEY 2, and the new NV verdict claims 6, never the retired 4/5",
-  /hotkey: "1",[\s\S]{0,200}label: "Compliant",/.test(detail) &&
-    /hotkey: "2",[\s\S]{0,80}label: "Non-compliant"/.test(detail) &&
-    /hotkey: "3",[\s\S]{0,80}label: "N\/A"/.test(detail) &&
+  "NON-COMPLIANCE IS STILL KEY 2, and the new NV verdict claims 6, never the retired 4/5",
+  /hotkey: "1",[\s\S]{0,200}label: "Discussed",/.test(detail) &&
+    /hotkey: "2",[\s\S]{0,80}label: "Non-compliance"/.test(detail) &&
+    /hotkey: "3",[\s\S]{0,80}label: "Not applicable"/.test(detail) &&
     !/hotkey: "4"/.test(detail) &&
     !/hotkey: "5"/.test(detail) &&
     /key: "NV",\s*hotkey: "6"/.test(detail) &&

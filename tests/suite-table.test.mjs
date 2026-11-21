@@ -67,6 +67,7 @@ const NEEDS_ALIAS = new Set([
   "evidence-review.test.mjs",
   "reviewsavestate.test.mjs",
   "channel-counts.test.mjs",
+  "checkresult.test.mjs",
 ]);
 /* graph.test.mjs ALSO needs --experimental-transform-types: GraphError's
    constructor uses TS parameter properties, which Node's type-stripping
