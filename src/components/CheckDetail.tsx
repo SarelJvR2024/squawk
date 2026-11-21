@@ -1092,11 +1092,14 @@ export default function CheckDetail({
     });
 
   /* Setup can switch walk and evidence off for a check. Dropped here, after
-     every push, so none of the panel bodies above need to know. */
+     every push, so none of the panel bodies above need to know. Safe to
+     splice unconditionally: "standard" (line ~1007) and "evidenceStatus"
+     (line ~631) are both pushed unconditionally, so panels never empties
+     out from under openKey's own fallback (line ~1106) just below. */
   for (let i = panels.length - 1; i >= 0; i--) {
     const k = panels[i].key;
     if ((k === "walkabout" && !channels.walk) || (k === "evidenceStatus" && !channels.evidence)) {
-      if (panels.length > 1) panels.splice(i, 1);
+      panels.splice(i, 1);
     }
   }
 
@@ -1108,9 +1111,14 @@ export default function CheckDetail({
 
   /* The evidence line that stays above the tabs. The register's own sentence
      where it has one, ACSA's named records where it does not — one line, with
-     the whole of it a tap away under ACSA wording. */
-  const evidenceLine =
-    check.evidenceExpected || (check.acsaEvidence.length > 0 ? check.acsaEvidence.join(" · ") : "");
+     the whole of it a tap away under ACSA wording. Empty when Setup has
+     switched evidence off for this check — same as the evidenceStatus tab
+     itself (line ~1098) and the Evidence row the Setup screen's own channel
+     switches describe; this line is evidence guidance too, not a separate
+     thing that forgot to check. */
+  const evidenceLine = channels.evidence
+    ? check.evidenceExpected || (check.acsaEvidence.length > 0 ? check.acsaEvidence.join(" · ") : "")
+    : "";
 
   const photos = r.attachments.filter((x) => x.kind === "photo").length;
   const voice = r.attachments.find((x) => x.kind === "voice");
@@ -1322,7 +1330,7 @@ export default function CheckDetail({
           visible, not cut off. Both still clamp to one line once the header
           is "stuck" (scrolled), the same bargain the pinned title already
           makes — full text is one scroll-to-top away, not gone. */}
-      {(check.question || evidenceLine) && (
+      {((check.question && channels.interview) || evidenceLine) && (
         <div
           className="border-b px-5 py-[8px]"
           style={{ background: "var(--focus-surface)", borderColor: "var(--line)" }}
