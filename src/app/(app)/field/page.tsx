@@ -323,6 +323,7 @@ export default function FieldPage() {
   const entity = useEntity();
   const entityCode = useEntityCode();
   const auditor = useStore((s) => s.auditor);
+  const checkChannels = useStore((s) => s.checkChannels);
   const setFieldCompliance = useStore((s) => s.setFieldCompliance);
   const patch = useStore((s) => s.patch);
   const commit = useStore((s) => s.commit);
@@ -661,9 +662,9 @@ export default function FieldPage() {
      as you use it cannot be undone. */
   const tops = useMemo(() => {
     const set = new Set<string>();
-    for (const c of checksAt(entityCode).filter(needsField)) set.add(topOf(c));
+    for (const c of checksAt(entityCode).filter((c) => needsField(c, checkChannels))) set.add(topOf(c));
     return [...set].sort((a, b) => a.localeCompare(b));
-  }, [entityCode, topOf]);
+  }, [entityCode, topOf, checkChannels]);
 
   /* A FILTER THAT DOES NOT EXIST ON THIS AXIS FILTERS NOTHING.
      Flipping the axis clears it, but a filter can also stop existing under it —
@@ -685,7 +686,7 @@ export default function FieldPage() {
     /* Routed on the register's declared vtype, not on whether someone wrote
        walkabout text. Both give 299 today; only one of them keeps giving 299
        if a walkabout line is ever left blank. See src/lib/verification.ts. */
-    const list = checksAt(entityCode).filter(needsField);
+    const list = checksAt(entityCode).filter((c) => needsField(c, checkChannels));
     if (s) {
       return list.filter((c) =>
         `${portalIdFor(entityCode, c.id)} ${c.requirement} ${c.area} ${c.discipline} ${c.walkabout ?? ""}`
@@ -695,7 +696,7 @@ export default function FieldPage() {
     }
     if (activeFilter) return list.filter((c) => topOf(c) === activeFilter);
     return list;
-  }, [entityCode, q, activeFilter, topOf]);
+  }, [entityCode, q, activeFilter, topOf, checkChannels]);
 
   /* NOT ONE OF THE 324, AND NOT ONE OF THESE EITHER while it is still parked.
      An Internal Working Area item (AdHocItem.internal) is captured from

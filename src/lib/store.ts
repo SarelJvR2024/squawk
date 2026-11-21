@@ -343,13 +343,27 @@ export const fieldDone = (r: Response | undefined) => !!r?.fieldDoneAt;
  *  Save once". Every one of the 324 checks now appears on both Capture and
  *  Field (see the note on needsDesk/needsField in src/lib/verification.ts),
  *  so every one of them needs both a document review and the asset seen;
- *  one half is half. */
-export function isComplete(checkId: string, r: Response | undefined): boolean {
-  if (!r) return false;
+ *  one half is half.
+ *
+ *  A CHECK WITH NO CHANNEL LEFT NEEDING IT IS COMPLETE WITH NO RESPONSE AT
+ *  ALL. Checked first, before `!r`: Setup switching interview, evidence and
+ *  walk all off for a check takes it out of both deskChecks (Capture) and
+ *  the field list (Field) — see needsDesk/needsField — so there is no route
+ *  left for anyone to ever open it and have `commit()` create a Response.
+ *  Returning false for `r === undefined` unconditionally, as this used to,
+ *  meant such a check could never read complete; nothing was wrong with the
+ *  auditor, there was just nothing left for them to do. */
+export function isComplete(
+  checkId: string,
+  r: Response | undefined,
+  channels?: CheckChannelConfig
+): boolean {
   const c = checkById.get(checkId);
+  if (c && !needsDesk(c, channels) && !needsField(c, channels)) return true;
+  if (!r) return false;
   if (!c) return !!r.deskDoneAt || !!r.fieldDoneAt;
-  const deskOk = !needsDesk(c) || !!r.deskDoneAt;
-  const fieldOk = !needsField(c) || !!r.fieldDoneAt;
+  const deskOk = !needsDesk(c, channels) || !!r.deskDoneAt;
+  const fieldOk = !needsField(c, channels) || !!r.fieldDoneAt;
   return deskOk && fieldOk;
 }
 
@@ -1490,7 +1504,7 @@ export const useStore = create<State>()(
              mode the register declares for this check has been answered, so a
              desk save on a check that also needs the asset seen leaves it
              outstanding — which is the whole point of tracking the halves. */
-          const complete = isComplete(checkId, next);
+          const complete = isComplete(checkId, next, get().checkChannels);
           /* compliance is NOT touched here. It used to default to "C" on every
              save — Sarel: "when i saved this one automatically was set to
              compliant... i also cant remove it from compliant" — because

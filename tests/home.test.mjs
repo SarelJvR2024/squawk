@@ -110,7 +110,8 @@ check(
 
 check(
   "the desk and field totals come from what the register declares",
-  /checks\.filter\(needsDesk\)/.test(home) && /checks\.filter\(needsField\)/.test(home),
+  /checks\.filter\(\(c\) => needsDesk\(c, checkChannels\)\)/.test(home) &&
+    /checks\.filter\(\(c\) => needsField\(c, checkChannels\)\)/.test(home),
   "counting rows that have walkabout text is a proxy that silently drops a check when the text is blank"
 );
 

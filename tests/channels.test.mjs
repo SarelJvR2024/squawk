@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { channelsOf, withChannels, channelCounts } from "../src/lib/channels.ts";
+import { channelsOf, withChannels, channelCounts, mergeChannelConfig } from "../src/lib/channels.ts";
 
 let failed = 0;
 function check(name, fn) {
@@ -29,5 +29,18 @@ check("a patch can switch one on and another off", () => {
   assert.equal(c.B.interview, false);
   assert.equal(c.B.walk, undefined);
 });
+check("merging two devices' configs keeps a check only one side touched", () =>
+  assert.deepEqual(
+    mergeChannelConfig({ A: { walk: false } }, { B: { interview: false } }),
+    { A: { walk: false }, B: { interview: false } },
+  ));
+check("on a check both sides touched, mine wins — same convention as merge.ts' unionById", () =>
+  assert.deepEqual(
+    mergeChannelConfig({ A: { walk: false } }, { A: { interview: false } }),
+    { A: { walk: false } },
+  ));
+check("merging is not destructive to the side that already agrees", () =>
+  assert.deepEqual(mergeChannelConfig({ A: { walk: false } }, {}), { A: { walk: false } }));
+
 if (failed) process.exit(1);
 console.log(failed ? "FAILED" : "all passed");
