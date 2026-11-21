@@ -56,6 +56,7 @@ function CaptureInner() {
      those screens too, scoped to this entity. */
   const picked = useDisciplineFilter();
   const setDiscipline = useStore((s) => s.setDisciplineFilter);
+  const checkChannels = useStore((s) => s.checkChannels);
   /* Derived, not corrected in an effect: switching to a site that does not have
      the discipline in view falls back on the same render rather than painting a
      rail tab with nothing behind it and fixing it a render later. Also what
@@ -101,8 +102,8 @@ function CaptureInner() {
      an auditor rows they could not answer without leaving the room. See
      src/lib/verification.ts. */
   const deskChecks = useMemo(
-    () => checksOf(entityCode, discipline).filter(needsDesk),
-    [entityCode, discipline]
+    () => checksOf(entityCode, discipline).filter((c) => needsDesk(c, checkChannels)),
+    [entityCode, discipline, checkChannels]
   );
 
   /* THE SITE-WIDE CAPTURED FIGURE FOR THE PAGE HEADING — desktop/tablet
@@ -117,9 +118,9 @@ function CaptureInner() {
      the discipline or status filter in view, so the number on this
      heading always matches the nav's own "Checks" count beside it. */
   const siteDesk = useMemo(() => {
-    const scope = checksAt(entityCode).filter(needsDesk);
+    const scope = checksAt(entityCode).filter((c) => needsDesk(c, checkChannels));
     return { done: scope.filter((c) => deskDone(responses[c.id])).length, total: scope.length };
-  }, [entityCode, responses]);
+  }, [entityCode, responses, checkChannels]);
   const siteDeskPct = siteDesk.total ? Math.round((siteDesk.done / siteDesk.total) * 100) : 0;
 
   const visible = useMemo(() => {
@@ -372,7 +373,7 @@ function CaptureInner() {
               setActiveId(null);
             }}
             options={disciplines.map((d) => {
-              const cs = checksOf(entityCode, d).filter(needsDesk);
+              const cs = checksOf(entityCode, d).filter((c) => needsDesk(c, checkChannels));
               const done = cs.filter((c) => deskDone(responses[c.id])).length;
               return { value: d, label: `${d} — ${done}/${cs.length}` };
             })}
@@ -417,7 +418,7 @@ function CaptureInner() {
             /* The system's progress counts every desk check it has, not the
                ones this filter left standing — "3/8" that changes meaning when
                you press NC is not progress, it is arithmetic about a filter. */
-            const all = checksOf(entityCode, discipline, sys).filter(needsDesk);
+            const all = checksOf(entityCode, discipline, sys).filter((c) => needsDesk(c, checkChannels));
             const done = all.filter((c) => deskDone(responses[c.id])).length;
             const nc = all.filter((c) => responses[c.id]?.compliance === "NC").length;
             const pf = priorFor(entityCode, discipline, sys);

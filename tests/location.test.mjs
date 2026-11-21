@@ -284,7 +284,9 @@ check(
 
 check(
   "the options come off the whole register, not off what is showing",
-  /for \(const c of checksAt\(entityCode\)\.filter\(needsField\)\) set\.add\(topOf\(c\)\);/.test(fieldCode),
+  /for \(const c of checksAt\(entityCode\)\.filter\(\(c\) => needsField\(c, checkChannels\)\)\) set\.add\(topOf\(c\)\);/.test(
+    fieldCode
+  ),
   "a filter whose options change as you use it cannot be undone"
 );
 

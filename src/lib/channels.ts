@@ -42,6 +42,23 @@ export function withChannels(
   return next;
 }
 
+/** Merge two devices' channel config into one.
+ *
+ *  NOT TIMESTAMPED, so not really "last write wins" — an entry here is just
+ *  `{checkId: {channel: false}}`, nothing carries when it was set. The build
+ *  prompt that asked for this named last-write-wins "per check id", but
+ *  without a per-entry clock the honest merge is the one this codebase
+ *  already uses elsewhere for an untimestamped conflict (`unionById` in
+ *  merge.ts: "mine wins a shared id"), so that is what this does too —
+ *  flagging this rather than inventing a clock Setup has never needed. A
+ *  check id only one side has an opinion about always carries through. */
+export function mergeChannelConfig(
+  mine: CheckChannelConfig,
+  theirs: CheckChannelConfig,
+): CheckChannelConfig {
+  return { ...theirs, ...mine };
+}
+
 /** How many of these checks need each channel. */
 export function channelCounts(config: CheckChannelConfig | undefined, checkIds: string[]) {
   const out: Record<CheckChannelKey, number> = { interview: 0, evidence: 0, walk: 0 };

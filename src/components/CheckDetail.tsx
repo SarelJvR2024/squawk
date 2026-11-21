@@ -525,7 +525,7 @@ export default function CheckDetail({
   const save = (advance: boolean) => {
     commit(check.id, "desk");
     onSaved(
-      needsField(check) && !r.fieldDoneAt
+      needsField(check, channelConfig) && !r.fieldDoneAt
         ? `${portalId} — desk done. Still needs the asset seen in Field.`
         : `${portalId} saved`
     );
@@ -2055,7 +2055,7 @@ export default function CheckDetail({
               : r.deskDoneAt
                 ? `desk done by ${r.deskDoneBy.split(" ")[0]} · awaiting site`
                 : "not captured yet"}
-            {needsField(check) && r.fieldDoneAt && ` · site seen by ${r.fieldDoneBy.split(" ")[0]}`}
+            {needsField(check, channelConfig) && r.fieldDoneAt && ` · site seen by ${r.fieldDoneBy.split(" ")[0]}`}
             {r.issuesPicked.length > 0 &&
               ` · ${r.issuesPicked.length} finding${r.issuesPicked.length > 1 ? "s" : ""}`}
           </div>

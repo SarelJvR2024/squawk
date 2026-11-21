@@ -72,6 +72,25 @@ export default function SetupPage() {
 
   const totals = channelCounts(config, CHECKS.map((c) => c.id));
 
+  /* Every check CURRENTLY IN SCOPE — the discipline picked above, or the
+     whole register when none is. Not `groups`' own flattened checks: those
+     are also narrowed by the search box, and a bulk tool that quietly
+     shrinks to match a half-typed search is a bulk tool nobody can trust. */
+  const scopeChecks = discipline ? CHECKS.filter((c) => c.discipline === discipline) : CHECKS;
+  const scopeIds = scopeChecks.map((c) => c.id);
+  const scopeLabel = discipline || "every discipline";
+  const scopeCounts = channelCounts(config, scopeIds);
+
+  const resetScope = () => {
+    if (
+      window.confirm(
+        `Reset ${scopeIds.length} check${scopeIds.length === 1 ? "" : "s"} in ${scopeLabel} to needing interview, evidence and walk? This clears every exception set for them.`,
+      )
+    ) {
+      setCheckChannels(scopeIds, { interview: true, evidence: true, walk: true });
+    }
+  };
+
   return (
     <div className="app-scroll mx-auto min-h-0 w-full max-w-[900px] flex-1 overflow-y-auto px-4 py-4">
       <h1 className="mb-1 text-[18px] font-bold">Setup</h1>
@@ -85,6 +104,34 @@ export default function SetupPage() {
             {CHANNEL_LABEL[k]} needed on {totals[k]} of {CHECKS.length}
           </span>
         ))}
+      </div>
+      <div
+        className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2"
+        style={{ borderColor: "var(--line)" }}
+      >
+        <span className="min-w-[160px] flex-1 text-[12px]" style={{ color: "var(--ink-3)" }}>
+          Apply to all {scopeIds.length} checks in {scopeLabel}:
+        </span>
+        {CHANNEL_KEYS.map((k: CheckChannelKey) => (
+          <Toggle
+            key={k}
+            text={CHANNEL_LABEL[k]}
+            label={`${CHANNEL_LABEL[k]} for every check in ${scopeLabel}`}
+            on={scopeCounts[k] === scopeIds.length}
+            mixed={scopeCounts[k] > 0 && scopeCounts[k] < scopeIds.length}
+            onClick={() =>
+              setCheckChannels(scopeIds, { [k]: scopeCounts[k] !== scopeIds.length })
+            }
+          />
+        ))}
+        <button
+          type="button"
+          onClick={resetScope}
+          className="rounded-full border px-3 py-[6px] text-[12px] font-semibold"
+          style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}
+        >
+          Reset to all three
+        </button>
       </div>
       <div className="mb-3 flex flex-wrap gap-2">
         <input

@@ -185,21 +185,23 @@ check(
 
 check(
   "the audit workspace filters to desk-verifiable checks",
-  /checksOf\(entityCode, discipline\)\.filter\(needsDesk\)/.test(capture),
+  /checksOf\(entityCode, discipline\)\.filter\(\(c\) => needsDesk\(c, checkChannels\)\)/.test(capture),
   "the systems are a tree in the list now, not a filter on it — the discipline is what the walk covers"
 );
 
 check(
   "field inspection filters on the declared mode, not the walkabout proxy",
-  /checksAt\(entityCode\)\.filter\(needsField\)/.test(field) &&
+  /checksAt\(entityCode\)\.filter\(\(c\) => needsField\(c, checkChannels\)\)/.test(field) &&
     !/\.filter\(\(c\) => c\.walkabout \|\| c\.woCount > 0\)/.test(field),
   "walkabout text existing is not the register saying the asset must be seen"
 );
 
 check(
   "the discipline and system counts are filtered too",
-  /checksOf\(entityCode, d\)\.filter\(needsDesk\)/.test(capture) &&
-    /checksOf\(entityCode, discipline, sys\)\.filter\(needsDesk\)/.test(capture),
+  /checksOf\(entityCode, d\)\.filter\(\(c\) => needsDesk\(c, checkChannels\)\)/.test(capture) &&
+    /checksOf\(entityCode, discipline, sys\)\.filter\(\(c\) => needsDesk\(c, checkChannels\)\)/.test(
+      capture
+    ),
   "an unfiltered count beside a filtered list is a number that lies"
 );
 
@@ -232,7 +234,7 @@ check(
 
 check(
   "saving at the desk still says when the field half is still outstanding",
-  /needsField\(check\) && !r\.fieldDoneAt/.test(detail) &&
+  /needsField\(check, channelConfig\) && !r\.fieldDoneAt/.test(detail) &&
     /Still needs the asset seen in Field/.test(detail),
   "every check needs both halves now — saving one must not read as done"
 );
@@ -262,7 +264,8 @@ check(
 check(
   "each badge counts its own half, not the derived complete flag",
   /needsDesk\(c\) && deskDone/.test(shell.replace(/\s+/g, " ")) ||
-    (/checks\.filter\(needsDesk\)/.test(shell) && /deskDone\(responses\[c\.id\]\)/.test(shell)),
+    (/checks\.filter\(\(c\) => needsDesk\(c, checkChannels\)\)/.test(shell) &&
+      /deskDone\(responses\[c\.id\]\)/.test(shell)),
   "a desk-done check that still needs the asset seen must stay on the Inspection badge"
 );
 

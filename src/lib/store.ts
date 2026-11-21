@@ -344,12 +344,16 @@ export const fieldDone = (r: Response | undefined) => !!r?.fieldDoneAt;
  *  Field (see the note on needsDesk/needsField in src/lib/verification.ts),
  *  so every one of them needs both a document review and the asset seen;
  *  one half is half. */
-export function isComplete(checkId: string, r: Response | undefined): boolean {
+export function isComplete(
+  checkId: string,
+  r: Response | undefined,
+  channels?: CheckChannelConfig
+): boolean {
   if (!r) return false;
   const c = checkById.get(checkId);
   if (!c) return !!r.deskDoneAt || !!r.fieldDoneAt;
-  const deskOk = !needsDesk(c) || !!r.deskDoneAt;
-  const fieldOk = !needsField(c) || !!r.fieldDoneAt;
+  const deskOk = !needsDesk(c, channels) || !!r.deskDoneAt;
+  const fieldOk = !needsField(c, channels) || !!r.fieldDoneAt;
   return deskOk && fieldOk;
 }
 
@@ -1490,7 +1494,7 @@ export const useStore = create<State>()(
              mode the register declares for this check has been answered, so a
              desk save on a check that also needs the asset seen leaves it
              outstanding — which is the whole point of tracking the halves. */
-          const complete = isComplete(checkId, next);
+          const complete = isComplete(checkId, next, get().checkChannels);
           /* compliance is NOT touched here. It used to default to "C" on every
              save — Sarel: "when i saved this one automatically was set to
              compliant... i also cant remove it from compliant" — because

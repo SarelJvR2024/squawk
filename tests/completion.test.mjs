@@ -80,14 +80,14 @@ check(
 
 check(
   "isComplete asks the register which modes this check declares",
-  /const deskOk = !needsDesk\(c\) \|\| !!r\.deskDoneAt;/.test(store) &&
-    /const fieldOk = !needsField\(c\) \|\| !!r\.fieldDoneAt;/.test(store),
+  /const deskOk = !needsDesk\(c, channels\) \|\| !!r\.deskDoneAt;/.test(store) &&
+    /const fieldOk = !needsField\(c, channels\) \|\| !!r\.fieldDoneAt;/.test(store),
   ""
 );
 
 check(
   "commit derives captured rather than setting it true",
-  /const complete = isComplete\(checkId, next\);/.test(store) &&
+  /const complete = isComplete\(checkId, next, get\(\)\.checkChannels\);/.test(store) &&
     /captured: complete,/.test(store) &&
     !/captured: true,/.test(store),
   "asserting completion was the bug"
@@ -169,8 +169,8 @@ check(
    still needs the asset seen belongs on the Inspection badge, not off both. */
 check(
   "the nav badges count their own half, each scoped to its own list",
-  /checks\.filter\(needsDesk\)/.test(shell) &&
-    /checks\.filter\(needsField\)/.test(shell) &&
+  /checks\.filter\(\(c\) => needsDesk\(c, checkChannels\)\)/.test(shell) &&
+    /checks\.filter\(\(c\) => needsField\(c, checkChannels\)\)/.test(shell) &&
     /deskDone\(responses\[c\.id\]\)/.test(shell) &&
     /fieldDone\(responses\[c\.id\]\)/.test(shell),
   "a desk-done check that still needs the asset seen must stay on the Inspection badge"

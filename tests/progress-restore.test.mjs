@@ -206,8 +206,12 @@ const fieldCode = strip(field);
 
 check(
   "the nav badge for Checks/Inspection is computed from checksAt + needsDesk/needsField + deskDone/fieldDone, not a literal",
-  /const desk = useMemo\(\(\) => \{\s*\n\s*const scope = checks\.filter\(needsDesk\);/.test(shellCode) &&
-    /const field = useMemo\(\(\) => \{\s*\n\s*const scope = checks\.filter\(needsField\);/.test(shellCode) &&
+  /const desk = useMemo\(\(\) => \{\s*\n\s*const scope = checks\.filter\(\(c\) => needsDesk\(c, checkChannels\)\);/.test(
+    shellCode
+  ) &&
+    /const field = useMemo\(\(\) => \{\s*\n\s*const scope = checks\.filter\(\(c\) => needsField\(c, checkChannels\)\);/.test(
+      shellCode
+    ) &&
     /deskDone\(responses\[c\.id\]\)/.test(shellCode) &&
     /fieldDone\(responses\[c\.id\]\)/.test(shellCode),
   "AppShell.tsx's own desk/field useMemo pair must still be what `badge` reads"
@@ -230,7 +234,7 @@ check(
 
 check(
   "the Checks heading figure is checksAt(entityCode).filter(needsDesk) + deskDone, the exact AppShell/Home pair — not a new formula",
-  /const siteDesk = useMemo\(\(\) => \{\s*\n\s*const scope = checksAt\(entityCode\)\.filter\(needsDesk\);\s*\n\s*return \{ done: scope\.filter\(\(c\) => deskDone\(responses\[c\.id\]\)\)\.length, total: scope\.length \};/.test(
+  /const siteDesk = useMemo\(\(\) => \{\s*\n\s*const scope = checksAt\(entityCode\)\.filter\(\(c\) => needsDesk\(c, checkChannels\)\);\s*\n\s*return \{ done: scope\.filter\(\(c\) => deskDone\(responses\[c\.id\]\)\)\.length, total: scope\.length \};/.test(
     captureCode
   ),
   "a screen that recomputed its own version of this pair is exactly the drift this restoration must not introduce"

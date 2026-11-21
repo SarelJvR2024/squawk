@@ -181,6 +181,7 @@ export default function HomePage() {
   const progress = useAuditProgress();
   const openAudit = useStore((s) => s.openAudit);
   const auditDateOverrides = useStore((s) => s.auditDateOverrides);
+  const checkChannels = useStore((s) => s.checkChannels);
 
   /** 0 until the device's clock is known — see subscribeClock above. */
   const now = useNow();
@@ -220,13 +221,13 @@ export default function HomePage() {
      and a ring drawn against it would never reach 100% at any of them. */
   const checks = useMemo(() => checksAt(entityCode), [entityCode]);
   const desk = useMemo(() => {
-    const scope = checks.filter(needsDesk);
+    const scope = checks.filter((c) => needsDesk(c, checkChannels));
     return { done: scope.filter((c) => deskDone(responses[c.id])).length, total: scope.length };
-  }, [checks, responses]);
+  }, [checks, responses, checkChannels]);
   const field = useMemo(() => {
-    const scope = checks.filter(needsField);
+    const scope = checks.filter((c) => needsField(c, checkChannels));
     return { done: scope.filter((c) => fieldDone(responses[c.id])).length, total: scope.length };
-  }, [checks, responses]);
+  }, [checks, responses, checkChannels]);
   const complete = useMemo(
     () => checks.filter((c) => responses[c.id]?.captured).length,
     [checks, responses]

@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Hundred-and-ten suites, no framework. Thirteen need a running server; ninety-seven do not.
+Hundred-and-eleven suites, no framework. Thirteen need a running server; ninety-eight do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -63,7 +63,8 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `reviewcompliance.test.mjs` | no | 7 |
 | `syncwatermark.test.mjs` | no | 14 |
 | `tablet.test.mjs` | no | 47 |
-| `channels.test.mjs` | no | 6 |
+| `channels.test.mjs` | no | 9 |
+| `channel-counts.test.mjs` | no | 9 |
 | `refresh.test.mjs` | no | 10 |
 | `portals.test.mjs` | no | 33 |
 | `reset.test.mjs` | no | 21 |
@@ -161,7 +162,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**4,295 assertions in total**, every count above verified by running the suite,
+**4,307 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
