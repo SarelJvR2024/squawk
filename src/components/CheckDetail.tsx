@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { Check, Compliance, EvidenceStatus } from "@/lib/types";
 import { channelsOf } from "@/lib/channels";
 import {
-  deskAnswered,
+  needsDeskCommit,
   priorFor,
   useEntityCode,
   useResponses,
@@ -543,13 +543,19 @@ export default function CheckDetail({
    *  CONDITIONAL, unlike onNext/onPrev's unconditional commit — this path
    *  is passive, not a deliberate "done with this one": committing a check
    *  nobody actually touched would falsely stamp deskDoneAt on something
-   *  the auditor only glanced at. deskAnswered() is the same test
-   *  capture/page.tsx's old "N to save" count used — true only when
-   *  there is a real, uncommitted answer. */
+   *  the auditor only glanced at. needsDeskCommit() (store.ts), not plain
+   *  deskAnswered() — deskAnswered reads false forever once a check has
+   *  EVER been committed, so an auditor re-opening an already-done check,
+   *  changing the answer, then leaving passively would never get
+   *  deskDoneAt/deskDoneBy re-stamped under deskAnswered alone (code review
+   *  on this branch caught it: the new answer is safely in `responses`
+   *  either way, but "who/when last reviewed this" would go stale and
+   *  silently wrong). needsDeskCommit adds the other half: already
+   *  committed, but edited again since — see its own doc comment. */
   useEffect(() => {
     const id = check.id;
     return () => {
-      if (deskAnswered(useStore.getState().response(id))) commit(id, "desk");
+      if (needsDeskCommit(useStore.getState().response(id))) commit(id, "desk");
     };
   }, [check.id, commit]);
 

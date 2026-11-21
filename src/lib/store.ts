@@ -336,6 +336,24 @@ export const deskAnswered = (r: Response | undefined) =>
     r?.issuesPicked?.length ||
     r?.attachments?.length
   );
+
+/** NEEDS A DESK COMMIT, EVEN IF ONE ALREADY HAPPENED (build prompt 2, 21 Nov
+ *  2026 — "save is automatic"). `deskAnswered` alone is the wrong test for
+ *  CheckDetail's passive auto-save (leaving a check by clicking a different
+ *  one in the list, or navigating away, rather than pressing Next check):
+ *  it is defined to read false forever once `deskDoneAt` is ever set, so a
+ *  check committed on an earlier visit, then edited again and left
+ *  passively, would never get its `deskDoneAt`/`deskDoneBy` re-stamped —
+ *  the new answer is still safely in `responses` (patch() writes it
+ *  regardless), but the "who/when last reviewed this" record would go
+ *  stale and silently wrong. `patch()` stamps `updatedAt` on every write,
+ *  `commit()` on none but itself — so a response touched since its own
+ *  last commit reads `updatedAt` newer than `deskDoneAt`, which is exactly
+ *  "edited and not yet re-saved", the already-committed case `deskAnswered`
+ *  cannot see. */
+export const needsDeskCommit = (r: Response | undefined) =>
+  deskAnswered(r) || (!!r?.deskDoneAt && !!r?.updatedAt && r.updatedAt > r.deskDoneAt);
+
 /** Has the field half been answered? */
 export const fieldDone = (r: Response | undefined) => !!r?.fieldDoneAt;
 

@@ -118,17 +118,22 @@ check(
 
 check(
   "a passive departure (switching checks off the list, navigating away) also autosaves",
-  /useEffect\(\(\) => \{\s*\n\s*const id = check\.id;\s*\n\s*return \(\) => \{\s*\n\s*if \(deskAnswered\(useStore\.getState\(\)\.response\(id\)\)\) commit\(id, "desk"\);/.test(
+  /useEffect\(\(\) => \{\s*\n\s*const id = check\.id;\s*\n\s*return \(\) => \{\s*\n\s*if \(needsDeskCommit\(useStore\.getState\(\)\.response\(id\)\)\) commit\(id, "desk"\);/.test(
     detail
   ),
   "onPrev/onNext only cover leaving through this screen's own controls"
 );
 check(
   "that passive save is conditional, not unconditional like onNext's — a glance is not an answer",
-  /if \(deskAnswered\(useStore\.getState\(\)\.response\(id\)\)\) commit\(id, "desk"\);/.test(
+  /if \(needsDeskCommit\(useStore\.getState\(\)\.response\(id\)\)\) commit\(id, "desk"\);/.test(
     detail
   ),
   "committing an untouched check would falsely stamp deskDoneAt"
+);
+check(
+  "the passive-leave test is needsDeskCommit, not plain deskAnswered",
+  !/if \(deskAnswered\(useStore\.getState\(\)/.test(detail),
+  "code review on this branch: deskAnswered reads false forever once a check is ever committed, so editing an already-done check and leaving passively would never re-stamp deskDoneAt/deskDoneBy — needsDeskCommit (store.ts) also catches that case"
 );
 
 /* ------------------ Part 4: the capture page's own manual-save UI is gone */
@@ -141,6 +146,33 @@ check(
 check(
   "deskAnswered is still read, for the hollow-dot state of the check currently open",
   /deskAnswered/.test(capturePage)
+);
+
+/* ---------- Part 5: needsDeskCommit itself — behaviour, not just wiring --- */
+
+const storeModule = await import("../src/lib/store.ts");
+const { needsDeskCommit } = storeModule;
+
+check(
+  "an untouched check (no response at all) needs no commit",
+  needsDeskCommit(undefined) === false
+);
+check(
+  "an answered, never-committed check needs a commit — same as deskAnswered",
+  needsDeskCommit({ compliance: "NC", deskDoneAt: null }) === true
+);
+check(
+  "a committed check with no edit since needs no re-commit",
+  needsDeskCommit({ compliance: "C", deskDoneAt: 1000, updatedAt: 1000 }) === false
+);
+check(
+  "THE BUG CODE REVIEW CAUGHT: a committed check edited again DOES need a re-commit",
+  needsDeskCommit({ compliance: "NC", deskDoneAt: 1000, updatedAt: 2000 }) === true,
+  "deskAnswered alone reads false here (deskDoneAt is set) — that was the bug"
+);
+check(
+  "a committed check with an updatedAt older than deskDoneAt (nothing changed since) needs none",
+  needsDeskCommit({ compliance: "C", deskDoneAt: 2000, updatedAt: 1000 }) === false
 );
 
 console.log(failures === 0 ? "\nCHECK RESULT OK" : `\n${failures} FAILURES`);
