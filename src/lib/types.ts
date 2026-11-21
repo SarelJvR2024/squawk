@@ -2856,3 +2856,18 @@ export interface Contact {
   createdAt: number;
   updatedAt: number;
 }
+
+/** WHICH OF THE THREE WORKING CHANNELS A CHECK NEEDS.
+ *
+ *  Sarel, 21 Nov 2026: "some audit checks won't need a question or evidence or
+ *  an inspection — all 3 isn't always needed and should be set in the config."
+ *
+ *    interview  the question we ask (check.question, "TPJV asks")
+ *    evidence   the proof we request and assess (Evidence status panel)
+ *    walk       the walkabout / inspection of the asset
+ *
+ *  Every check needs all three until the config says otherwise, so the stored
+ *  shape records only the exceptions — see lib/channels.ts. */
+export type CheckChannelKey = "interview" | "evidence" | "walk";
+export type CheckChannels = Record<CheckChannelKey, boolean>;
+export type CheckChannelConfig = Record<string, Partial<Record<CheckChannelKey, false>>>;

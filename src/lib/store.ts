@@ -60,7 +60,10 @@ import type {
   SyncRun,
   PendingLabelFix,
   Verification,
+  CheckChannelConfig,
+  CheckChannels,
 } from "./types";
+import { withChannels } from "./channels";
 import {
   type AuditDateOverride,
   auditWindow,
@@ -402,6 +405,9 @@ interface State {
   /** Corrections to a visit's own dates/label/note — see AuditDateOverride's
    *  own doc comment in programme.ts. Keyed by scopeKey(entity, visitId). */
   auditDateOverrides: Record<string, AuditDateOverride>;
+  /** Which of interview / evidence / walk each check needs, by check id.
+   *  Exceptions only — see lib/channels.ts. Set in the Setup screen. */
+  checkChannels: CheckChannelConfig;
   /** Flat across the whole programme — a finding carries its own entity and
    *  originVisit, which is what lets a later visit see what an earlier one
    *  left open. */
@@ -500,6 +506,8 @@ interface State {
   ) => void;
   /** Revert a visit to exactly what the programme file says. */
   clearAuditDateOverride: (entityCode: string, visitId: string) => void;
+  /** Turn interview / evidence / walk on or off for a set of checks. */
+  setCheckChannels: (checkIds: string[], patch: Partial<CheckChannels>) => void;
   openAudit: (entityCode: string, visitId: string) => void;
 
   visitData: () => VisitData;
@@ -1117,6 +1125,7 @@ export const useStore = create<State>()(
         byVisit: {},
         customVisits: [],
         auditDateOverrides: {},
+        checkChannels: {},
         findings: [],
         hazards: [],
         syncRuns: [],
@@ -1219,6 +1228,10 @@ export const useStore = create<State>()(
               },
             },
           }));
+        },
+
+        setCheckChannels: (checkIds, patch) => {
+          set((s) => ({ checkChannels: withChannels(s.checkChannels, checkIds, patch) }));
         },
 
         clearAuditDateOverride: (entityCode, visitId) => {
@@ -5029,6 +5042,7 @@ export const useStore = create<State>()(
         contacts: s.contacts,
         lastSavedAt: s.lastSavedAt,
         pendingLabelFixes: s.pendingLabelFixes,
+        checkChannels: s.checkChannels,
       }),
     }
   )

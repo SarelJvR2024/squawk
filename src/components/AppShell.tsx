@@ -204,6 +204,7 @@ const OFF_NAV: Record<string, string> = {
   "/closeout": "Daily site closeout",
   "/evidence": "Document and evidence collection log",
   "/people": "People directory",
+  "/setup": "Setup",
   /* Safety, Review, Pre-flight, HIRA and Audit moved out of NAV into the
      More menu (Safety/Review/Pre-flight: Sarel, 30 Sep; HIRA: 15 Nov;
      Audit: 17 Nov) — without an entry here their own heading would fall
@@ -1141,6 +1142,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     />
                     {/* CAPTURE (ALL) — the new consolidated tree, see
                         src/app/(app)/workspace/page.tsx's own header. */}
+                    <MoreItem
+                      icon={<IconGrid width={14} height={14} />}
+                      label="Setup"
+                      hint="What each check needs: interview, evidence, walk"
+                      selected={pathname === "/setup"}
+                      onClick={() => { setMore(false); router.push("/setup"); }}
+                    />
                     <MoreItem
                       icon={<IconPlus width={14} height={14} />}
                       label="Capture (all)"
