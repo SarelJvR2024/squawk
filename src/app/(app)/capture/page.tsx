@@ -18,7 +18,7 @@ import {
 import { portalIdFor } from "@/lib/sites";
 import { needsDesk, needsQuestion } from "@/lib/verification";
 import CheckDetail from "@/components/CheckDetail";
-import { Btn, Dot, Empty, Pill } from "@/components/ui/primitives";
+import { Dot, Empty, Pill } from "@/components/ui/primitives";
 import PageHeading from "@/components/ui/PageHeading";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { DisciplineSelect } from "@/components/ui/DisciplineSelect";
@@ -197,7 +197,15 @@ function CaptureInner() {
   /* The colour is the ANSWER; whether the dot is filled is whether it is
      SAVED. An answered-but-unsaved check used to look exactly like one nobody
      had opened, and an answer that is never saved is an answer that never
-     happened. */
+     happened. Rarer now than it was (build prompt 2, 21 Nov 2026 — "save is
+     automatic"): CheckDetail commits on every way of leaving a check,
+     deliberate (Next check, Prev, the arrow keys) or passive (picking a
+     different check, navigating away). `deskAnswered` can still read true
+     for one instant — the check currently open, mid-answer, before any of
+     those fire — so the hollow dot still means something; it just never
+     accumulates into a backlog the way it used to, which is why "N to
+     save"/Save all (below this function, until build prompt 2) are gone:
+     nothing is ever left for them to catch any more. */
   const answerTone = (c: Check) => {
     const r = responses[c.id];
     return r?.compliance === "NC"
@@ -214,28 +222,6 @@ function CaptureInner() {
     return answerTone(c);
   };
   const dotHollow = (c: Check) => deskAnswered(responses[c.id]);
-  const unsaved = visible.filter((c) => deskAnswered(responses[c.id])).length;
-  /* SAVE ALL — every check this same count already found: answered (a
-     compliance, an observation, evidence, an issue, a photograph) and not
-     yet committed. One commit per check, the exact call the Save button on
-     the detail pane itself makes — this is that button, pressed for
-     everyone still owed it, not a bulk write that skips the record-keeping a
-     single save gets (deskDoneBy, deskDoneAt, and capturedAt once the check
-     is whole). Scoped to what is ON SCREEN: the tab and filter the auditor
-     is looking at, same as the count beside it — "save all" saving a
-     discipline nobody is looking at would commit answers the auditor has
-     not actually finished reviewing. */
-  const commit = useStore((s) => s.commit);
-  const saveAll = () => {
-    let n = 0;
-    for (const c of visible) {
-      if (deskAnswered(responses[c.id])) {
-        commit(c.id, "desk");
-        n++;
-      }
-    }
-    setToast(`${n} check${n === 1 ? "" : "s"} saved`);
-  };
 
   /* The tree: the site's systems, in register order, carrying whichever of
      their checks the filter left standing. A system the filter empties is not
@@ -383,29 +369,11 @@ function CaptureInner() {
             <div className="text-[10px]" style={{ color: "var(--ink-3)" }}>
               {visible.filter((c) => deskDone(responses[c.id])).length} desk done ·{" "}
               {visible.filter((c) => !deskDone(responses[c.id])).length} open
-              {/* Called out in the warn colour rather than folded into "open":
-                  these are answered and one press from done, which is a
-                  different piece of work from a check nobody has looked at. */}
-              {unsaved > 0 && (
-                <>
-                  {" · "}
-                  <b style={{ color: "var(--warn)" }}>{unsaved} to save</b>
-                </>
-              )}
             </div>
             <span className="shrink-0 font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
               {visible.length}
             </span>
           </div>
-          {unsaved > 0 && (
-            <Btn
-              variant="primary"
-              onClick={saveAll}
-              className="mt-[7px] w-full justify-center"
-            >
-              Save all {unsaved}
-            </Btn>
-          )}
         </div>
 
         {groups.length === 0 ? (

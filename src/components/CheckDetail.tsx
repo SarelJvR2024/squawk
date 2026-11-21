@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { Check, Compliance, EvidenceStatus } from "@/lib/types";
 import { channelsOf } from "@/lib/channels";
-import { priorFor, useEntityCode, useResponses, useStore, useVisitFindings } from "@/lib/store";
+import {
+  deskAnswered,
+  priorFor,
+  useEntityCode,
+  useResponses,
+  useStore,
+  useVisitFindings,
+} from "@/lib/store";
 import { portalIdFor } from "@/lib/sites";
 import { useAnswers } from "@/lib/answers";
 import {
@@ -91,10 +98,19 @@ export const STATUSES: {
   tone: string;
   group: "verdict" | "qualifier";
 }[] = [
+  /* RELABELLED, NOT RETYPED (build prompt 2, 21 Nov 2026). The methodology
+   *  calls these Discussed / Non-compliance / Not applicable; `key` and
+   *  `short` stay exactly "C"/"NC"/"N/A" — that is still the stored
+   *  Compliance value and ACSA's own export code, read as-is by the
+   *  dashboard, review, exports and the SharePoint sync (sarel, 21 Nov:
+   *  no change to what SharePoint gets, only this screen's own words). Only
+   *  `label`, what this button says, changed. No data migration: a
+   *  response already stored as "C" already meant this, under an older
+   *  word for it. */
   {
     key: "C",
     hotkey: "1",
-    label: "Compliant",
+    label: "Discussed",
     short: "C",
     Icon: IconCheck,
     tone: "good",
@@ -103,7 +119,7 @@ export const STATUSES: {
   {
     key: "NC",
     hotkey: "2",
-    label: "Non-compliant",
+    label: "Non-compliance",
     short: "NC",
     Icon: IconX,
     tone: "bad",
@@ -112,7 +128,7 @@ export const STATUSES: {
   {
     key: "N/A",
     hotkey: "3",
-    label: "N/A",
+    label: "Not applicable",
     short: "N/A",
     Icon: IconDash,
     tone: "neu",
@@ -131,7 +147,15 @@ export const STATUSES: {
    *  different answer from this one, and the whole reason 4/5 were
    *  retired outright instead of reassigned (see this array's own
    *  header) was so a stale muscle-memory press could never land on a
-   *  changed meaning. Reusing "4" here would do exactly that. */
+   *  changed meaning. Reusing "4" here would do exactly that.
+   *
+   *  CONFIRMED STILL IN, 21 Nov 2026. The build-prompts doc for this same
+   *  day's redesign reads "the check result becomes exactly three options
+   *  ... 'Not verified' no longer exists as a result" — written without
+   *  knowing about the instruction two days above this one. Asked Sarel
+   *  directly: this stays a fourth option, the 21 Nov doc's "exactly
+   *  three" is Discussed/Non-compliance/Not applicable (STATUSES' first
+   *  three keys), not a removal of this one. */
   {
     key: "NV",
     hotkey: "6",
@@ -357,8 +381,8 @@ export const toneStyle = (tone: string, on: boolean, quiet = false): React.CSSPr
 
 export default function CheckDetail({
   check,
-  onPrev,
-  onNext,
+  onPrev: rawPrev,
+  onNext: rawNext,
   onSaved,
 }: {
   check: Check;
@@ -501,6 +525,62 @@ export default function CheckDetail({
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
 
+  /* THE OTHER HALF OF "SAVE IS AUTOMATIC" — onPrev/onNext below (the
+   *  bottom bar, the top icon pair, the arrow keys) cover leaving through
+   *  THIS screen's own controls. They do not cover leaving by clicking a
+   *  different check straight off the list, or navigating to another
+   *  screen entirely — both just change `check.id` or unmount this
+   *  component without ever calling onPrev/onNext.
+   *
+   *  READS THE STORE DIRECTLY AT CLEANUP TIME (`useStore.getState()`, not
+   *  the `r` this render closed over) — React runs a changed effect's
+   *  cleanup AFTER the next render has already happened, and by then `r`
+   *  here is the NEW check's response, `check.id` having already moved on;
+   *  closing over `r` would commit the wrong check's data under the old
+   *  check's id. `response(id)` (store.ts) reads whichever check `id`
+   *  names, live, independent of what this component is showing now.
+   *
+   *  CONDITIONAL, unlike onNext/onPrev's unconditional commit — this path
+   *  is passive, not a deliberate "done with this one": committing a check
+   *  nobody actually touched would falsely stamp deskDoneAt on something
+   *  the auditor only glanced at. deskAnswered() is the same test
+   *  capture/page.tsx's old "N to save" count used — true only when
+   *  there is a real, uncommitted answer. */
+  useEffect(() => {
+    const id = check.id;
+    return () => {
+      if (deskAnswered(useStore.getState().response(id))) commit(id, "desk");
+    };
+  }, [check.id, commit]);
+
+  /* SAVE IS AUTOMATIC (build prompt 2, 21 Nov 2026) — Sarel: "remove the
+   *  separate Save / Save & next pair. One 'Next check' action." There is
+   *  no longer a tap that only saves without moving: every way OFF this
+   *  check — the bottom bar's Next check, the Prev/Next icon pair at the
+   *  top of the screen, and the ArrowLeft/ArrowRight keys below — commits
+   *  first. Shadows the raw onPrev/onNext props so every existing call site
+   *  (keyboard handler, the top icon pair, the bottom bar) keeps working
+   *  unchanged; only what "onPrev"/"onNext" DO changed, not who calls them.
+   *  Going backward commits too — an auditor who answers, then taps Prev to
+   *  re-check something, must not lose that answer because the only
+   *  direction that used to save was forward. Declared ABOVE the keyboard
+   *  effect below, which closes over both by name — a `const` declared
+   *  after the effect that reads it is a temporal-dead-zone crash, not a
+   *  hoisting question. */
+  const onPrev = useCallback(() => {
+    commit(check.id, "desk");
+    rawPrev();
+  }, [check.id, commit, rawPrev]);
+  const onNext = useCallback(() => {
+    commit(check.id, "desk");
+    onSaved(
+      needsField(check, channelConfig) && !r.fieldDoneAt
+        ? `${portalId} — desk done. Still needs the asset seen in Field.`
+        : `${portalId} saved`
+    );
+    rawNext();
+  }, [check, channelConfig, r.fieldDoneAt, onSaved, portalId, commit, rawNext]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const typing = /INPUT|TEXTAREA|SELECT/.test(
@@ -521,16 +601,6 @@ export default function CheckDetail({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [check.id, r.compliance, setCompliance, onNext, onPrev]);
-
-  const save = (advance: boolean) => {
-    commit(check.id, "desk");
-    onSaved(
-      needsField(check, channelConfig) && !r.fieldDoneAt
-        ? `${portalId} — desk done. Still needs the asset seen in Field.`
-        : `${portalId} saved`
-    );
-    if (advance) onNext();
-  };
 
   /* ONE TABBED SPACE, not two columns of stacked panels.
    *
@@ -1612,9 +1682,9 @@ export default function CheckDetail({
            keys the expansion to the ONE field that matters (the Observation
            textarea, wrapped `.obs-pane` just below) rather than to
            `:focus-within` on this whole bar, which would also fire from
-           tapping Compliant/Non-compliant/N/A or Save and re-expand the bar
-           for no reason right when the auditor is about to move on. Save
-           and the compliance buttons are never inside the part that
+           tapping a result button or Next check and re-expand the bar
+           for no reason right when the auditor is about to move on. Next
+           check and the result buttons are never inside the part that
            shrinks — see the flex-col split two lines down, where the
            Observation block is `flex-1 overflow-y-auto` (it gives) and the
            answer bar below it is `shrink-0` (it never does) — so "smaller
@@ -2004,20 +2074,25 @@ export default function CheckDetail({
           {/* CENTERED, ON ITS OWN ROW. Sarel: "centre the save, save next
               buttons." `w-full` is the same trick the note below already
               uses to force a line of its own in this flex-wrap bar — once
-              it has the full width, `justify-center` centers the four
-              controls within it rather than leaving them pinned to
-              wherever the pills/verdict grid happened to end. */}
+              it has the full width, `justify-center` centers the controls
+              within it rather than leaving them pinned to wherever the
+              pills/verdict grid happened to end.
+              ONE BUTTON, NOT FOUR (build prompt 2, 21 Nov 2026) — Sarel:
+              "remove the separate Save / Save & next pair. One 'Next check'
+              action." Save and Save & next are gone outright, not merged
+              into Next check as a second control beside it: `onNext` above
+              already commits before it advances, so a bare Next arrow next
+              to a "Next check" button would be two ways to do the same
+              thing. Prev stays — the only one of the four with a job this
+              button doesn't do (go backward), and it commits too (onPrev,
+              above). */}
           <div className="flex w-full items-center justify-center gap-[7px]">
             <Btn icon onClick={onPrev} aria-label="Previous">
               <IconLeft width={14} height={14} />
             </Btn>
-            <Btn onClick={() => save(false)}>Save</Btn>
-            <Btn variant="primary" onClick={() => save(true)}>
+            <Btn variant="primary" onClick={onNext}>
               <IconCheck width={14} height={14} />
-              Save &amp; next
-            </Btn>
-            <Btn icon onClick={onNext} aria-label="Next">
-              <IconRight width={14} height={14} />
+              Next check
             </Btn>
           </div>
 
