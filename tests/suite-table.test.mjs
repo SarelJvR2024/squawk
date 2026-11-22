@@ -68,6 +68,7 @@ const NEEDS_ALIAS = new Set([
   "reviewsavestate.test.mjs",
   "channel-counts.test.mjs",
   "checkresult.test.mjs",
+  "evidenceimport.test.mjs",
 ]);
 /* graph.test.mjs ALSO needs --experimental-transform-types: GraphError's
    constructor uses TS parameter properties, which Node's type-stripping
@@ -192,6 +193,8 @@ const WORDS = {
   "hundred-and-eleven": 111,
   "hundred-and-twelve": 112,
   "hundred-and-thirteen": 113,
+  "hundred-and-fourteen": 114,
+  "hundred-and-fifteen": 115,
   "thirty-seven": 37,
   "twenty-four": 24, "twenty-five": 25, "twenty-six": 26,
   "twenty-seven": 27, "twenty-eight": 28, "twenty-nine": 29,
