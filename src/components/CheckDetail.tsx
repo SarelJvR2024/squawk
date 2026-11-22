@@ -29,6 +29,8 @@ import { AttachmentStrip, FileButton, PhotoButton, VoiceNoteButton } from "./Cap
 import AcsaRequirementPanel from "./AcsaRequirementPanel";
 import FindingDetail from "./FindingDetail";
 import Sheet from "./ui/Sheet";
+import AddSheet from "./AddSheet";
+import RaiseFindingSheet from "./RaiseFindingSheet";
 import {
   IconCheck,
   IconClipboard,
@@ -402,6 +404,10 @@ export default function CheckDetail({
    *  view of the screen, so the next check opens with every Sheet closed
    *  rather than reopening whatever was last read. */
   const [sheet, setSheet] = useState<string | null>(null);
+  /* The + sheet's "Issue" option hands off to RaiseFindingSheet, which is
+     its own modal, not one more `sheet` key — the + sheet closes first
+     (sheet -> null), then this opens, so only one is ever on screen. */
+  const [raiseOpen, setRaiseOpen] = useState(false);
   /* Whether this screen has been scrolled at all.
    *
    *  From lg the two columns scroll inside themselves and this container never
@@ -1327,6 +1333,13 @@ export default function CheckDetail({
             <Btn icon onClick={() => setSheet("more")} aria-label="More — Flag for review, ACSA wording, prior finding">
               <IconMore width={14} height={14} />
             </Btn>
+            {/* "+" — build prompt 5, the one unified add-anything entry
+                point. Pre-filled with this check's own id/system/discipline,
+                so Evidence/Issue never ask for what this screen already
+                knows. */}
+            <Btn icon onClick={() => setSheet("add")} aria-label="Add — photo, voice note, evidence or an issue, for this check">
+              <IconPlus width={14} height={14} />
+            </Btn>
           </div>
         </div>
       )}
@@ -1586,6 +1599,25 @@ export default function CheckDetail({
           )}
         </div>
       </Sheet>
+
+      {/* THE + SHEET — build prompt 5. "Issue" hands off to RaiseFindingSheet
+          (its own modal, not a `sheet` key) with the same check context. */}
+      <AddSheet
+        open={sheet === "add"}
+        onClose={() => setSheet(null)}
+        onRaiseIssue={() => setRaiseOpen(true)}
+        presetCheckId={check.id}
+        presetSystem={check.system}
+        presetDiscipline={check.discipline}
+      />
+      <RaiseFindingSheet
+        open={raiseOpen}
+        onClose={() => setRaiseOpen(false)}
+        onSaved={() => setRaiseOpen(false)}
+        presetCheckId={check.id}
+        presetSystem={check.system}
+        presetDiscipline={check.discipline}
+      />
 
       {/* THE ANSWER BOX, PINNED — and the actions that commit it, with it.
 

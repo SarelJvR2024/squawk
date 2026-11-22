@@ -26,6 +26,8 @@ import PageHeading from "@/components/ui/PageHeading";
 import { DisciplineSelect } from "@/components/ui/DisciplineSelect";
 import { FilterPopover } from "@/components/ui/FilterPopover";
 import AddItemSheet from "@/components/AddItemSheet";
+import AddSheet from "@/components/AddSheet";
+import RaiseFindingSheet from "@/components/RaiseFindingSheet";
 import BulkLinkWalkItemsSheet from "@/components/BulkLinkWalkItemsSheet";
 import GroupRow from "@/components/ui/GroupRow";
 import Sheet from "@/components/ui/Sheet";
@@ -587,6 +589,11 @@ export default function FieldPage() {
   const [hazardOpen, setHazardOpen] = useState(false);
   const [hazEvent, setHazEvent] = useState("");
   const [hazWhy, setHazWhy] = useState("");
+  /* The + sheet — build prompt 5. Opened with no preset context: this
+     toolbar is screen-wide, not scoped to one asset system or discipline
+     (the list below groups by either, but nothing here narrows to one). */
+  const [addOpen, setAddOpen] = useState(false);
+  const [raiseOpen, setRaiseOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   /* This site's disciplines and areas — a regional airport has no passenger
      boarding bridges and Corporate Office has no airfield at all. */
@@ -2448,6 +2455,19 @@ export default function FieldPage() {
               <IconFlag width={16} height={16} />
               <span className="hidden sm:inline">Hazard</span>
             </Btn>
+            {/* "+" — build prompt 5, the one unified add-anything entry
+                point (photo, voice note, evidence, issue). Additive to this
+                bar, not a replacement for the photo button above: both
+                still land in the same unassigned tray today. */}
+            <Btn
+              className="min-h-[44px] shrink-0 justify-center px-0 sm:px-[15px]"
+              style={{ width: 44 }}
+              aria-label="Add — photo, voice note, evidence or an issue"
+              onClick={() => setAddOpen(true)}
+            >
+              <IconPlus width={16} height={16} />
+              <span className="hidden sm:inline">Add</span>
+            </Btn>
             {captures.length > 0 && (
               <Btn
                 className="min-h-[44px] shrink-0 px-[11px] sm:px-[15px]"
@@ -2731,6 +2751,22 @@ export default function FieldPage() {
           setExpanded((e) => (e.includes(key) ? e : [...e, key]));
           say(message);
         }}
+      />
+
+      {/* THE + SHEET — build prompt 5. Same preset-discipline rule
+          AddItemSheet just above already uses: filtered to one discipline,
+          that is the context; otherwise nothing is known yet. */}
+      <AddSheet
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onRaiseIssue={() => setRaiseOpen(true)}
+        presetDiscipline={groupBy === "discipline" ? activeFilter || undefined : undefined}
+      />
+      <RaiseFindingSheet
+        open={raiseOpen}
+        onClose={() => setRaiseOpen(false)}
+        onSaved={() => setRaiseOpen(false)}
+        presetDiscipline={groupBy === "discipline" ? activeFilter || undefined : undefined}
       />
 
       <BulkLinkWalkItemsSheet

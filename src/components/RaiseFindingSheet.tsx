@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Sheet from "@/components/ui/Sheet";
 import { Btn, Pill } from "@/components/ui/primitives";
 import { IconSearch, IconX } from "@/components/ui/icons";
@@ -48,10 +48,22 @@ export default function RaiseFindingSheet({
   open,
   onClose,
   onSaved,
+  presetCheckId,
+  presetSystem,
+  presetDiscipline,
 }: {
   open: boolean;
   onClose: () => void;
   onSaved?: (id: string, message: string) => void;
+  /** Build prompt 5 (the + sheet): context the + sheet already had when
+   *  "Issue" was tapped, so this screen does not ask again for a
+   *  discipline/system/check-point it was opened already knowing. Plain
+   *  defaults, same fields this sheet already lets the auditor pick by
+   *  hand — not locked, since "asset system and check-point are both
+   *  optional" already means a preset one can still be widened or cleared. */
+  presetCheckId?: string;
+  presetSystem?: string;
+  presetDiscipline?: string;
 }) {
   const entityCode = useEntityCode();
   const auditor = useStore((s) => s.auditor);
@@ -71,6 +83,23 @@ export default function RaiseFindingSheet({
   const [checkId, setCheckId] = useState<string | null>(null);
   const [checkQuery, setCheckQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  /* Apply the + sheet's context on the transition into open, not on every
+     render — the picker state below is otherwise freely editable by hand,
+     same as before this prop existed, and re-applying the preset on a
+     render the open check-point triggered (picking a check back-fills
+     discipline/system below) would fight the auditor's own edit. */
+  /* eslint-disable react-hooks/set-state-in-effect -- genuinely syncing to
+     the moment `open` flips true, not state derivable from props/state
+     alone (see the comment above this effect) */
+  useEffect(() => {
+    if (!open) return;
+    if (presetDiscipline) setDiscipline(presetDiscipline);
+    if (presetSystem) setSystem(presetSystem);
+    if (presetCheckId) setCheckId(presetCheckId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only `open` is meant to retrigger this; the preset props are read, not depended on
+  }, [open]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   /* PHOTOS AND A VOICE NOTE, CAPTURED BEFORE ANYTHING ELSE IS TYPED —
    *  field-capture mobile pass, matching AddItemSheet's own "take the
