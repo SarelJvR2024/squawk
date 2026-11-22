@@ -42,8 +42,10 @@ import {
   useStore,
 } from "@/lib/store";
 import {
+  DISPLAY_STATUS_LABEL,
   MEDIUM_LABEL,
   RETURNABLE,
+  displayStatus,
   evidenceStage,
   heldMs,
   heldOriginals,
@@ -52,12 +54,14 @@ import {
   logText,
   outstanding,
   pendingWithoutEntry,
+  satisfiesLabel,
   unbackedSignatures,
 } from "@/lib/evidence";
+import type { EvidenceDisplayStatus } from "@/lib/evidence";
 import { portalIdFor, siteCodeFor, siteFor } from "@/lib/sites";
 import { useNow } from "@/lib/clock";
 import { useFormsHubDeepLink } from "@/lib/deepLink";
-import { AttachmentStrip, PhotoButton } from "@/components/Capture";
+import { AttachmentStrip, FileButton, PhotoButton } from "@/components/Capture";
 import EvidenceReviewView from "@/components/EvidenceReviewView";
 import { SignaturePad } from "@/components/SignaturePad";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
@@ -106,6 +110,7 @@ export default function EvidencePage() {
   const patch = useStore((s) => s.updateEvidenceItem);
   const remove = useStore((s) => s.removeEvidenceItem);
   const receive = useStore((s) => s.receiveEvidence);
+  const reRequest = useStore((s) => s.reRequestEvidence);
   const sign = useStore((s) => s.signEvidence);
   const addPhoto = useStore((s) => s.addEvidenceAttachment);
   const removePhoto = useStore((s) => s.removeEvidenceAttachment);
@@ -118,6 +123,12 @@ export default function EvidencePage() {
      actually asked for, rather than leading with the old flat custody
      form. "By document" is untouched and still reachable as a tab. */
   const [view, setView] = useState<"document" | "discipline">("discipline");
+  /* Build prompt 6: "count chips act as filters" — same role=radiogroup
+     pattern EvidenceReviewView's own STATUS_PILLS already uses, driven by
+     the new 3-state displayStatus() rather than that view's own 8-state
+     trackingStage(), since this is the unified "exactly Requested,
+     Received, Not available" screen the spec asks for. */
+  const [statusFilter, setStatusFilter] = useState<"all" | EvidenceDisplayStatus>("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [signing, setSigning] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -201,6 +212,19 @@ export default function EvidencePage() {
   }
 
   const unbacked = unbackedSignatures(items);
+
+  const statusCounts = useMemo(() => {
+    const c: Record<"all" | EvidenceDisplayStatus, number> = {
+      all: items.length,
+      requested: 0,
+      received: 0,
+      unavailable: 0,
+    };
+    for (const e of items) c[displayStatus(e)]++;
+    return c;
+  }, [items]);
+  const visibleItems =
+    statusFilter === "all" ? items : items.filter((e) => displayStatus(e) === statusFilter);
 
   return (
     <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -308,12 +332,43 @@ export default function EvidencePage() {
           </span>
         </Empty>
       ) : (
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-            {items.length} ENTR{items.length === 1 ? "Y" : "IES"} — OUTSTANDING FIRST
-          </span>
-          <Btn onClick={() => void copyLog()}>{copied ? "Copied" : "Copy the log"}</Btn>
-        </div>
+        <>
+          <div className="mb-3 flex flex-wrap gap-[6px]" role="radiogroup" aria-label="Filter by status">
+            {(
+              [
+                ["all", "All"],
+                ["requested", DISPLAY_STATUS_LABEL.requested],
+                ["received", DISPLAY_STATUS_LABEL.received],
+                ["unavailable", DISPLAY_STATUS_LABEL.unavailable],
+              ] as const
+            ).map(([key, label]) => {
+              const selected = statusFilter === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => setStatusFilter(key)}
+                  className="rounded-full border px-[11px] py-[5px] text-[11.5px] transition-[var(--t)]"
+                  style={
+                    selected
+                      ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
+                      : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
+                  }
+                >
+                  {label} ({statusCounts[key]})
+                </button>
+              );
+            })}
+          </div>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+              {visibleItems.length} ENTR{visibleItems.length === 1 ? "Y" : "IES"} — OUTSTANDING FIRST
+            </span>
+            <Btn onClick={() => void copyLog()}>{copied ? "Copied" : "Copy the log"}</Btn>
+          </div>
+        </>
       )}
 
       {unbacked.length ? (
@@ -324,8 +379,9 @@ export default function EvidencePage() {
         </p>
       ) : null}
 
-      {items.map((e) => {
+      {visibleItems.map((e) => {
         const stage = evidenceStage(e);
+        const dstatus = displayStatus(e);
         const isOpen = openId === e.id;
         const gaps = itemGaps(e);
         const heldFor = isHeldOriginal(e) ? heldMs(e, now) : null;
@@ -346,14 +402,33 @@ export default function EvidencePage() {
                   <p className="mt-1 text-[13px]">{e.title || "—"}</p>
                   <div className="mt-1 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
                     {e.documentNo ? `${e.documentNo}${e.revision ? ` REV ${e.revision}` : ""} · ` : ""}
-                    {e.checkIds.length
-                      ? `${e.checkIds.length} CHECK-POINT${e.checkIds.length > 1 ? "S" : ""}`
-                      : "NO CHECK-POINT LINKED"}
+                    {satisfiesLabel(e.checkIds, (id) => portalIdFor(entityCode, id)).toUpperCase()}
                     {heldFor !== null ? ` · HELD ${days(heldFor).toUpperCase()}` : ""}
                     {gaps.length ? ` · ${gaps.length} FIELD${gaps.length > 1 ? "S" : ""} MISSING` : ""}
                   </div>
                 </div>
               </button>
+
+              {/* ACTIONS PER ITEM, QUICK — build prompt 6: "Open, Load file,
+                  mark status, re-request", reachable without expanding the
+                  full edit form below (that form IS "Open", already). Driven
+                  by the new 3-state displayStatus, not the richer stage
+                  above — this row only ever shows the three actions the
+                  spec names. */}
+              <div className="mt-2 flex flex-wrap items-center gap-[6px]" onClick={(ev) => ev.stopPropagation()}>
+                <FileButton compact onCaptured={(m) => addPhoto(e.id, { ...m, createdBy: auditor })} />
+                {dstatus === "requested" && (
+                  <>
+                    {/* Same minimal patch EvidenceReviewView's own "Mark
+                        received" quick action already uses — just the
+                        timestamp; who handed it over and the medium are
+                        filled in on Open, below, same as there. */}
+                    <Btn onClick={() => patch(e.id, { receivedAt: Date.now() })}>Mark received</Btn>
+                    <Btn onClick={() => patch(e.id, { unavailableAt: Date.now() })}>Not available</Btn>
+                  </>
+                )}
+                {dstatus !== "requested" && <Btn onClick={() => reRequest(e.id)}>Re-request</Btn>}
+              </div>
 
               {isOpen ? (
                 <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--line)" }}>
