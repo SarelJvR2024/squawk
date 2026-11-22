@@ -28,7 +28,8 @@ const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8"
 const css = src("app", "globals.css");
 const detail = src("components", "CheckDetail.tsx");
 const acsaPanel = src("components", "AcsaRequirementPanel.tsx");
-const field = src("app", "(app)", "field", "page.tsx");
+/* build prompt 7 (22 Nov 2026): /field is now a redirect; moved to walk/page.tsx. */
+const field = src("app", "(app)", "walk", "page.tsx");
 const capture = src("components", "Capture.tsx");
 const shell = src("components", "AppShell.tsx");
 const sticky = src("components", "StickyActions.tsx");
@@ -426,13 +427,20 @@ check(
  *  UPDATED again — /workspace (the consolidated capture tree, see its own
  *  page header) is the same shape a third time: a tree rail with its own
  *  `overflow-y-auto` plus CheckDetail on the right when a check is active.
- *  Same reason, same exception. */
+ *  Same reason, same exception.
+ *
+ *  UPDATED AGAIN, build prompt 7 (22 Nov 2026) — /field is now a bare
+ *  server-side redirect() to /walk (see that file's own header comment):
+ *  it never renders any layout at all, so a scroller on it would be dead
+ *  code, not a fix for anything. /walk, which carries the real screen this
+ *  rule exists to check, is in `screenDirs` on its own account and already
+ *  has `.app-scroll`, ported unchanged from field/page.tsx. */
 const appDir = path.join(here, "..", "src", "app", "(app)");
 const screenDirs = fs
   .readdirSync(appDir, { withFileTypes: true })
   .filter((d) => d.isDirectory() && fs.existsSync(path.join(appDir, d.name, "page.tsx")))
   .map((d) => d.name)
-  .filter((name) => name !== "capture" && name !== "review" && name !== "workspace");
+  .filter((name) => name !== "capture" && name !== "review" && name !== "workspace" && name !== "field");
 const missingScroller = screenDirs.filter(
   (name) => !/app-scroll/.test(src("app", "(app)", name, "page.tsx"))
 );

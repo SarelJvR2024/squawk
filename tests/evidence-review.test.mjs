@@ -496,6 +496,9 @@ check(
 const CAPTURE_SURFACES = [
   ["src", "app", "(app)", "capture", "page.tsx"],
   ["src", "app", "(app)", "field", "page.tsx"],
+  /* build prompt 7 (22 Nov 2026): /field is now a redirect; the actual
+     walk-screen content lives at walk/page.tsx. */
+  ["src", "app", "(app)", "walk", "page.tsx"],
   ["src", "app", "(app)", "raise"],
   ["src", "app", "(app)", "workspace", "page.tsx"],
 ];

@@ -36,7 +36,8 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (...p) => fs.readFileSync(path.join(here, "..", ...p), "utf8");
 const types = read("src", "lib", "types.ts");
-const field = read("src", "app", "(app)", "field", "page.tsx");
+/* build prompt 7 (22 Nov 2026): /field is now a redirect; moved to walk/page.tsx. */
+const field = read("src", "app", "(app)", "walk", "page.tsx");
 const capture = read("src", "components", "Capture.tsx");
 const review = read("src", "app", "(app)", "review", "page.tsx");
 const closure = read("src", "app", "(app)", "closure", "page.tsx");

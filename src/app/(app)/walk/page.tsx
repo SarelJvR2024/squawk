@@ -1764,7 +1764,7 @@ export default function WalkPage() {
                   setSearchOpen(true);
                   requestAnimationFrame(() => searchInputRef.current?.focus());
                 }}
-                aria-label="Search any check"
+                aria-label="Open search"
                 title="Search"
                 className="flex min-h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[11px] border"
                 style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-3)" }}

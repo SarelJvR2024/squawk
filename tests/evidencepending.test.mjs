@@ -59,7 +59,9 @@ const types = read("src/lib/types.ts");
 const store = read("src/lib/store.ts");
 const exports_ = read("src/lib/exports.ts");
 const detail = read("src/components/CheckDetail.tsx");
-const field = read("src/app/(app)/field/page.tsx");
+/* build prompt 7 (22 Nov 2026): /field is now a redirect; the field screen's
+   own Outcome control moved to walk/page.tsx unchanged. */
+const field = read("src/app/(app)/walk/page.tsx");
 
 /* ---- ONE: it is a flag, not a fifth Compliance token ------------------- */
 
@@ -112,7 +114,7 @@ ok(
 
 /* And nowhere else in the app may write it at all: every screen has to go
    through setCompliance, which is what makes the invariant hold. */
-const strayWriters = ["src/components/CheckDetail.tsx", "src/app/(app)/field/page.tsx"].filter(
+const strayWriters = ["src/components/CheckDetail.tsx", "src/app/(app)/walk/page.tsx"].filter(
   (f) => /patch\([^)]*evidencePending/.test(read(f))
 );
 ok(

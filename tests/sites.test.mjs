@@ -230,7 +230,9 @@ check(
 const screens = [
   ["home/page.tsx", src("app", "(app)", "home", "page.tsx")],
   ["capture/page.tsx", src("app", "(app)", "capture", "page.tsx")],
-  ["field/page.tsx", src("app", "(app)", "field", "page.tsx")],
+  /* build prompt 7 (22 Nov 2026): /field is now a redirect; the real
+     content moved to walk/page.tsx. */
+  ["walk/page.tsx", src("app", "(app)", "walk", "page.tsx")],
   ["review/page.tsx", src("app", "(app)", "review", "page.tsx")],
   ["findings/page.tsx", src("app", "(app)", "findings", "page.tsx")],
   ["closure/page.tsx", src("app", "(app)", "closure", "page.tsx")],

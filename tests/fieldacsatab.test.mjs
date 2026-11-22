@@ -24,7 +24,9 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8");
 
-const field = src("app", "(app)", "field", "page.tsx");
+/* build prompt 7 (22 Nov 2026): /field is now a redirect; the walk's own
+   ACSA tab this suite reads moved to walk/page.tsx. */
+const field = src("app", "(app)", "walk", "page.tsx");
 const detail = src("components", "CheckDetail.tsx");
 const panel = src("components", "AcsaRequirementPanel.tsx");
 

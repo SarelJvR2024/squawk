@@ -22,7 +22,9 @@ const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8"
 const store = src("lib", "store.ts");
 const types = src("lib", "types.ts");
 const detail = src("components", "CheckDetail.tsx");
-const field = src("app", "(app)", "field", "page.tsx");
+/* build prompt 7 (22 Nov 2026): /field is now a redirect; the field half's
+   own screen logic this suite reads moved to walk/page.tsx. */
+const field = src("app", "(app)", "walk", "page.tsx");
 const capture = src("app", "(app)", "capture", "page.tsx");
 const shell = src("components", "AppShell.tsx");
 const exports_ = src("lib", "exports.ts");
