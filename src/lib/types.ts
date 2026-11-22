@@ -635,6 +635,58 @@ export interface Response {
    *  off, the same choice `evidenceStatusNote` makes: a note typed once
    *  is not worth losing to an accidental tap. */
   improvementNote?: string;
+  /** AN INTERNAL NOTE ON THIS CHECK, FOR THIS AUDIT — never printed in any
+   *  report, never synced to SharePoint. Build prompt 3 (Checks screen
+   *  redesign, 21 Nov 2026): "Internal note" (voice or text), one of the
+   *  two fields that are always on the new check screen.
+   *
+   *  NOT `SystemAssessment.internalNote` (13 October 2026) — that one is
+   *  shared by every check under one asset system ("add a field to add
+   *  internal notes per asset system"); this one is this check's own, for
+   *  this audit, and both exist deliberately side by side (confirmed with
+   *  Sarel rather than assumed): a system-wide note and a check-specific
+   *  one answer different questions, and collapsing them into one would
+   *  lose whichever scope the auditor meant. Same never-exported rule as
+   *  that field and as `improvementNote` above — see the comment on every
+   *  read site in sharepoint.ts/exports.ts, there is no allowlist
+   *  enforcing it beyond that.
+   *
+   *  Optional, additive, same shape as `improvementFlag`/`location` — a
+   *  record written before this existed simply has none, which reads
+   *  correctly as "no note", so no persist version bump is needed. */
+  internalNote?: string;
+  /** INTERVIEW DONE — a tick, independent of `compliance`. Build prompt 3's
+   *  three channel rows (Interview/Evidence/Walk) each need a real
+   *  tick/N/A/empty answer; Evidence already has one (`evidenceStatus`)
+   *  and Walk already has one (`fieldDoneAt`), but nothing marked "the
+   *  interview itself happened" as distinct from "the check got answered
+   *  somehow" — confirmed with Sarel to add this explicitly rather than
+   *  infer it from `compliance`/`observation` being non-empty, which would
+   *  conflate "answered" with "the conversation happened". Mutually
+   *  exclusive with `interviewNA` in the UI (CheckDetail only ever sets
+   *  one at a time), not enforced here — same convention `evidenceStatus`'s
+   *  four states already use, nothing stored forces it.
+   *
+   *  Optional, additive. */
+  interviewDone?: boolean;
+  /** INTERVIEW N/A — this check's interview channel is on (Setup has not
+   *  switched it off), but for this specific audit there was nobody to
+   *  ask, or nothing to ask them. Distinct from Setup's channel switch,
+   *  which hides the row site-wide for every future audit too; this is a
+   *  per-audit answer on a row that is still shown. See `interviewDone`
+   *  just above for why this exists as its own field rather than being
+   *  read off `compliance`.
+   *
+   *  Optional, additive. */
+  interviewNA?: boolean;
+  /** WALK N/A — same shape and same reasoning as `interviewNA`, for the
+   *  Walk channel: the channel is on, but this audit has nothing to
+   *  confirm by walking out to it (not Setup's switched-off state, which
+   *  already hides the row entirely — see `interviewNA`). `fieldDoneAt`
+   *  (already on this record) is Walk's own tick; this is its N/A.
+   *
+   *  Optional, additive. */
+  walkNA?: boolean;
   /** THE REVIEWER'S OWN SIGN-OFF, ON THIS CHECK — a separate question from
    *  `compliance` (what the asset is) and from `evidenceStatus` (whether
    *  proof exists). This is "is the RECORD itself done — right observation,

@@ -27,6 +27,7 @@ const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8"
 
 const css = src("app", "globals.css");
 const detail = src("components", "CheckDetail.tsx");
+const acsaPanel = src("components", "AcsaRequirementPanel.tsx");
 const field = src("app", "(app)", "field", "page.tsx");
 const capture = src("components", "Capture.tsx");
 const shell = src("components", "AppShell.tsx");
@@ -83,55 +84,48 @@ check(
 
 /* ------------------------------------- Part 2: capture is not below the fold */
 
-/* The two panes were ONE for a while. An iPad in landscape is 1180px and the
-   check was spending 508px of it on a system rail and a check list beside
-   the panes, each pane with its own tab strip — that busyness is what
-   became one tabbed panel taking the whole width.
-
-   Then Sarel, reading the register's own wording in that one panel on a
-   desk-width window with photographs already attached: "the space to read
-   the box of text is getting very small, rework this layout so that it is
-   easier to read, maybe split into a left and right panel." From lg the
-   panel is half the width again, but what made the old two-pane layout
-   busy was never "two columns" on its own — it was two separate tab
-   strips, one per pane, doubling the thing an auditor had to track. There
-   is still exactly one tab strip here, above both columns, and only the
-   content it opens is split: the reference material scrolls on the left,
-   the capture column scrolls on the right, beside it rather than below
-   it. */
+/* THE TWO-COLUMN TAB STRIP IS GONE (build prompt 3, "the check, one
+   screen" redesign, 21 Nov 2026) — not narrowed, removed. What it
+   guarded against — a second copy of the controls, doubling what an
+   auditor has to track — is now guarded a different way: there is
+   exactly one Interview/Evidence/Walk row each, flat content, not a
+   tab that could exist twice in two columns because there is only one
+   column left. */
 check(
-  "the check screen keeps one tab strip even where it splits into two columns from lg",
-  /* The {0,400} window widened to {0,700} — overnight refinement, tasks 1
-     + 3 added the accessible-tabs wiring (id/aria-labelledby/tabIndex and
-     the comment explaining them) onto this same role="tabpanel" element,
-     which pushed the gap to its own className past the old window. Still
-     the same element, still immediately followed by its lg: layout
-     classes — just with the new tab-model attributes in between, which is
-     exactly what this assertion is checking still belongs to ONE panel. */
+  "the check screen is a single column at every width — no two-pane tab split survives",
   !/lg:grid-cols-\[minmax\(0,1fr\)_minmax\(0,1\.08fr\)\]/.test(detail) &&
-    (detail.match(/className="flex flex-nowrap items-center gap-x-\[14px\]/g) || []).length === 1 &&
-    /role="tabpanel"[\s\S]{0,700}lg:min-h-0 lg:w-1\/2 lg:shrink-0 lg:overflow-y-auto/.test(detail),
-  "a tab strip per column was the busyness Sarel named — one strip above two scrolling columns is not the same layout"
+    !/role="tabpanel"/.test(detail) &&
+    !/lg:w-1\/2 lg:shrink-0 lg:overflow-y-auto lg:border-r/.test(detail),
+  "a tab strip per column was the busyness Sarel named — removing the second column removes the risk of a second strip with it"
+);
+check(
+  "each channel row (Interview, Evidence, Walk) appears exactly once, not duplicated across a layout split",
+  (detail.match(/font-semibold">Interview</g) || []).length === 1 &&
+    (detail.match(/font-semibold">Evidence</g) || []).length === 1 &&
+    (detail.match(/font-semibold">Walk</g) || []).length === 1
 );
 
-/* The strip is three groups now — The requirement, then the Answer library,
-   then Reference — and the screen opens on ACSA's own requirement rather than
-   on our evidence list (Sarel, 10 Sep). What this assertion has always been
-   guarding is unchanged and is the part that matters on a tablet: the CAPTURE
-   tabs come before the rest of the reference material, so an auditor is not
-   scrolling past four pages of background to reach the controls. */
+/* CAPTURE STILL COMES BEFORE REFERENCE — same concern the old strip-
+   ordering check guarded ("an auditor is not scrolling past four pages
+   of background to reach the controls"), now satisfied more directly:
+   the three channel rows sit in the normal scroll flow right after the
+   question; ACSA's own wording and the register's reference material
+   are not in that flow at all by default — they are a Sheet, reached
+   only on request. */
 check(
-  "capture comes before the reference in the strip",
-  detail.indexOf('group: "do"') < detail.indexOf('group: "read"') &&
-    /\(\["acsa", "do", "read"\] as const\)/.test(detail),
-  "the reference used to be first in the DOM and sat above the controls when the panes stacked"
+  "the channel rows sit ahead of any reference content in the DOM, not behind it",
+  detail.indexOf('font-semibold">Interview<') <
+    detail.indexOf('<Sheet open={sheet === "standard"}'),
+  "the reference used to be first in the DOM and sat above the controls when the panes stacked — it must not be first again"
 );
 
 check(
-  "the reference is still shown, not hidden",
-  !/hidden lg:block[\s\S]{0,200}?reference/.test(detail) &&
-    /siteVariant &&/.test(detail),
-  "the site variant must never be collapsed away — 40 checks are stricter here"
+  "the reference is still reachable, not hidden behind a desktop-only class",
+  !/hidden lg:block[\s\S]{0,200}?AcsaRequirementPanel/.test(detail) &&
+    /<AcsaRequirementPanel check=\{check\} \/>/.test(detail) &&
+    /check\.siteVariant\?\.conflict \? \(/.test(acsaPanel) &&
+    /\) : check\.siteVariant \? \(/.test(acsaPanel),
+  "the site variant must never be collapsed away — 40 checks are stricter here, and the panel that shows it is unconditionally reachable from CheckDetail, not width-gated"
 );
 
 /* ------------------------- Part 3: field mode does the walkabout it is for */

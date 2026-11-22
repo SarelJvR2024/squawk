@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Check, Compliance, EvidenceStatus } from "@/lib/types";
 import { channelsOf } from "@/lib/channels";
 import {
+  deskDone,
   needsDeskCommit,
   priorFor,
   useEntityCode,
+  useEvidenceItems,
   useResponses,
   useStore,
   useVisitFindings,
@@ -20,10 +22,13 @@ import {
   transcriptContext,
   useAssistAvailable,
 } from "@/lib/assist";
-import { modeLabels, needsField } from "@/lib/verification";
+import { modeLabels, needsDesk, needsField } from "@/lib/verification";
+import { checksOf } from "@/lib/register";
+import { trackingStage } from "@/lib/evidence";
 import { AttachmentStrip, FileButton, PhotoButton, VoiceNoteButton } from "./Capture";
 import AcsaRequirementPanel from "./AcsaRequirementPanel";
 import FindingDetail from "./FindingDetail";
+import Sheet from "./ui/Sheet";
 import {
   IconCheck,
   IconClipboard,
@@ -33,6 +38,7 @@ import {
   IconHelp,
   IconInfo,
   IconLeft,
+  IconMore,
   IconPin,
   IconPlus,
   IconRight,
@@ -252,67 +258,6 @@ export const EVIDENCE_VERDICTS: {
   { key: "N/A", label: "Not Applicable", Icon: IconDash, tone: "neu" },
 ];
 
-/** A SCROLLABLE ROW SAYS SO. Sarel, reviewing a 390px screenshot of the tag
- *  row and the tab strip: both are cut off at the edge with nothing on
- *  screen to say there is more if you swipe. Both rows already scroll
- *  sideways on purpose (see each one's own comment — the tab strip in
- *  particular is a direct, quoted Sarel decision never to wrap), so the fix
- *  is the fade-plus-chevron pair home/page.tsx's audit calendar strip
- *  already uses for the same shape of problem, not a new pattern invented
- *  for this one. */
-function useEdgeScroll(ref: React.RefObject<HTMLDivElement | null>) {
-  const [edge, setEdge] = useState({ left: false, right: false });
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const measure = () => {
-      setEdge({
-        left: el.scrollLeft > 2,
-        right: el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
-      });
-    };
-    measure();
-    el.addEventListener("scroll", measure, { passive: true });
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => {
-      el.removeEventListener("scroll", measure);
-      ro.disconnect();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  return edge;
-}
-
-/** The fade+chevron themselves, as the two edge-conditional siblings — never
- *  children — of the scroller they sit beside. An absolutely positioned
- *  child of the scroller would scroll away with it instead of staying put
- *  at the edge; same split home/page.tsx's calendar strip already made. */
-function ScrollEdges({ edge }: { edge: { left: boolean; right: boolean } }) {
-  return (
-    <>
-      {edge.left && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-y-0 left-0 flex w-[22px] items-center justify-start"
-          style={{ background: "linear-gradient(90deg, var(--panel) 35%, transparent)" }}
-        >
-          <IconLeft width={10} height={10} style={{ color: "var(--ink-3)" }} />
-        </span>
-      )}
-      {edge.right && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-0 flex w-[22px] items-center justify-end"
-          style={{ background: "linear-gradient(270deg, var(--panel) 35%, transparent)" }}
-        >
-          <IconRight width={10} height={10} style={{ color: "var(--ink-3)" }} />
-        </span>
-      )}
-    </>
-  );
-}
-
 /** Every reference extract reads the same way: the document's words, set as
  *  the document set them. Whitespace is preserved because ACSA's procedures
  *  carry numbered sub-clauses on their own lines and reflowing them loses the
@@ -390,7 +335,8 @@ export default function CheckDetail({
   onNext: () => void;
   onSaved: (msg: string) => void;
 }) {
-  const r = useResponses()[check.id] ?? {
+  const responses = useResponses();
+  const r = responses[check.id] ?? {
     checkId: check.id,
     compliance: null,
     observation: "",
@@ -438,35 +384,21 @@ export default function CheckDetail({
   const [draft, setDraft] = useState<string | null>(null);
   const [thinking, setThinking] = useState<null | "observation">(null);
   const [titleOpen, setTitleOpen] = useState(false);
-  /* ONE open panel, by key.
+  /* WHICH SHEET IS OPEN, by key, or null for none (build prompt 3, "the
+   *  check, one screen" redesign, 21 Nov 2026). Replaces the single
+   *  always-one-panel-open tab strip: the new layout shows Interview/
+   *  Evidence/Walk/Issues as flat summary rows by default, each opening
+   *  its own Sheet on tap for the detail that used to be a tab. "How to
+   *  ask", "ACSA requirement" and the "More" overflow (Flag for review,
+   *  ACSA wording, the carried-forward prior note) are Sheets too, so this
+   *  one piece of state covers all of them.
    *
-   *  It used to be two pieces of state — an index into the reference extracts
-   *  on the left and a key into the capture panels on the right — because
-   *  there were two columns. There is one now, so there is one.
-   *
-   *  It is deliberately NOT reset when the check changes. An auditor walking a
-   *  discipline works the same panel check after check — evidence, evidence,
-   *  evidence — and being thrown back to the first tab on every Save & next is
-   *  a press per check for the whole walk. A key that this check does not
-   *  carry falls back to the first one it does.
-   *
-   *  THIRD TIME HOLDING AT "standard" (ACSA requirement) — ui-refresh Stage
-   *  2, Area 3 tried moving the default to each check's own first capture
-   *  ("do") panel instead, on the reasoning that a reference panel open by
-   *  default competes with the primary read → record → attach → decide →
-   *  save flow for first-paint attention. Sarel, reviewing it: keep it the
-   *  way he originally wanted — the requirement stays the tab already open,
-   *  not one to go and find. Reverted; see tests/checkscreen.test.mjs for
-   *  the regression guard, unchanged back to what it asserted before this
-   *  attempt. */
-  const [panel, setPanel] = useState("standard");
-  /* A stable, instance-unique id for the tab ↔ tabpanel wiring below
-     (aria-controls / aria-labelledby). `useId()` rather than a literal
-     string — CheckDetail opens inside a Sheet from several screens
-     (Capture, Findings, Field), and more than one could in principle sit
-     in the DOM at once; two tabpanels sharing one id would make the
-     aria-labelledby/aria-controls pair ambiguous for a screen reader. */
-  const panelBaseId = useId();
+   *  RESET ON EVERY CHECK CHANGE, unlike the old `panel` state it replaces.
+   *  That one stayed open on purpose, walking a discipline tab after tab;
+   *  a Sheet is a deliberate, momentary look at one thing, not a resting
+   *  view of the screen, so the next check opens with every Sheet closed
+   *  rather than reopening whatever was last read. */
+  const [sheet, setSheet] = useState<string | null>(null);
   /* Whether this screen has been scrolled at all.
    *
    *  From lg the two columns scroll inside themselves and this container never
@@ -478,13 +410,6 @@ export default function CheckDetail({
    *  still there. */
   const scrollRef = useRef<HTMLDivElement>(null);
   const [stuck, setStuck] = useState(false);
-  /* The tag row and the tab strip both scroll sideways on purpose (see each
-     one's own comment) — these two just say so. See useEdgeScroll/
-     ScrollEdges above. */
-  const tagRowRef = useRef<HTMLDivElement>(null);
-  const tagRowEdge = useEdgeScroll(tagRowRef);
-  const tabStripRef = useRef<HTMLDivElement>(null);
-  const tabStripEdge = useEdgeScroll(tabStripRef);
   const obsRef = useRef<HTMLTextAreaElement>(null);
   const a = useAnswers(check.id);
   const entityCode = useEntityCode();
@@ -514,6 +439,7 @@ export default function CheckDetail({
     setDraft(null);
     setThinking(null);
     setTitleOpen(false);
+    setSheet(null);
   }
 
   useEffect(() => {
@@ -1179,19 +1105,18 @@ export default function CheckDetail({
     }
   }
 
-  /* Falls back to the first panel rather than showing nothing: which panels
-     exist depends on this check's own fields and on what the library holds for
-     it, and the auditor arrives with one already chosen. */
-  const openKey = panels.some((t) => t.key === panel) ? panel : panels[0].key;
-  const open = panels.find((t) => t.key === openKey)!;
+  /* A Sheet shows one panel's body at a time now, by key — see `sheet`'s own
+     doc comment above. `panelByKey` is the lookup every Sheet below reads;
+     a key with no matching panel (the check it belonged to has none, or
+     Setup switched the channel off since it was opened) renders nothing
+     rather than throwing, same reasoning the old `openKey` fallback existed
+     for. */
+  const panelByKey = (key: string | null) => panels.find((t) => t.key === key);
 
-  /* The evidence line that stays above the tabs. The register's own sentence
-     where it has one, ACSA's named records where it does not — one line, with
-     the whole of it a tap away under ACSA wording. Empty when Setup has
-     switched evidence off for this check — same as the evidenceStatus tab
-     itself (line ~1098) and the Evidence row the Setup screen's own channel
-     switches describe; this line is evidence guidance too, not a separate
-     thing that forgot to check. */
+  /* The evidence line that stays above the rows — the register's own
+     sentence where it has one, ACSA's named records where it does not.
+     Empty when Setup has switched evidence off for this check, same as the
+     evidenceStatus panel itself and the Evidence row just below. */
   const evidenceLine = channels.evidence
     ? check.evidenceExpected || (check.acsaEvidence.length > 0 ? check.acsaEvidence.join(" · ") : "")
     : "";
@@ -1200,138 +1125,108 @@ export default function CheckDetail({
   const voice = r.attachments.find((x) => x.kind === "voice");
   const files = r.attachments.filter((x) => x.kind === "file").length;
 
+  /* THE THREE CHANNEL ROWS' OWN SUMMARIES (build prompt 3, 21 Nov 2026) —
+   *  computed once here, read by the flat rows below and by their Sheets'
+   *  badges. Each is independent of the other two and of `compliance`: a
+   *  check can be Non-compliance overall while its Walk channel reads
+   *  "done" and its Evidence channel reads "Open", because those are three
+   *  different questions (was it asked, is the document in, was the asset
+   *  seen), not three votes toward one answer. */
+  const interviewState: "done" | "na" | "empty" = r.interviewNA
+    ? "na"
+    : r.interviewDone
+      ? "done"
+      : "empty";
+  /* Every EvidenceItem that names this check among its checkIds — the same
+     many-to-many EvidenceReviewView.tsx already reads (one item can satisfy
+     several checks, a check can need several items). "Settled" is received,
+     in analysis, or returned (the custody record closed one way or
+     another) — trackingStage's own ranking, not a second one invented
+     here. */
+  const evidenceItems = useEvidenceItems().filter((e) => e.checkIds.includes(check.id));
+  const evidenceSettled = evidenceItems.filter((e) =>
+    ["received", "analysis", "returned"].includes(trackingStage(e))
+  ).length;
+  const walkState: "done" | "na" | "empty" = r.walkNA ? "na" : r.fieldDoneAt ? "done" : "empty";
+
+  /* THE HEADER'S "N / M" — desk progress for THIS asset system only, the
+     same pair capture/page.tsx's own per-system row already computes
+     (checksOf(entityCode, discipline, system).filter(needsDesk) + deskDone)
+     — not threaded in as a prop, because every other per-check number on
+     this screen (pf, evidenceLine, the channel summaries above) is already
+     computed locally rather than passed down, and a second source for the
+     same pair is how the two drift. */
+  const systemChecks = checksOf(entityCode, check.discipline, check.system).filter((c) =>
+    needsDesk(c, channelConfig)
+  );
+  const systemDone = systemChecks.filter((c) => deskDone(responses[c.id])).length;
+
   return (
     <div ref={scrollRef} className="app-scroll flex min-w-0 flex-1 flex-col overflow-y-auto">
-      {/* EVERYTHING THAT MUST NOT MOVE, IN ONE PINNED BLOCK: which check this
-          is, what to ask, what evidence is needed, and the tabs that choose
-          what fills the rest of the screen.
-
-          The tab strip used to sit in the scrolling body. On a tablet that was
-          invisible — the body scrolls inside itself there and the strip never
-          moves anyway — but on a phone the whole screen scrolls, and a strip
-          scrolled to the foot of it sits UNDER the pinned answer bar, where it
-          cannot be pressed. "Tabs at the top so I don't need to scroll" is not
-          true of a strip you have to scroll to. */}
-      <div className="relative z-[6] sm:sticky sm:top-0" style={{ background: "var(--panel)" }}>
+      {/* ONE SLIM PINNED BLOCK (build prompt 3, "the check, one screen"
+          redesign, 21 Nov 2026) — Sarel: "One slim header: discipline, asset
+          system, '19 / 24', thin progress bar... Remove the icon row
+          clutter and the 'Step 1 of 7' line from this screen." Replaces the
+          old header's full tag row (seven kinds of pill: modes, coverage,
+          variant/conflict, confirmedBy, inspect, prior rating, captured
+          status) with exactly the identity and position prompt 3 names.
+          Nothing in that old row was deleted without a replacement —
+          modeLabels/confirmedBy/inspect move into the ACSA requirement
+          Sheet as supporting context; coverage/conflict/prior-rating, the
+          genuine safety-relevant warnings among them, stay visible here as
+          one compact pill rather than buried a tap away. "Step 1 of 7" is
+          suppressed for this one route in AppShell.tsx, not deleted — every
+          other screen in the seven-step flow still shows it. */}
       <div
-        /* PINNED AS A BLOCK FROM sm, and only the identity below it.
-
-           On a 390px phone this block measured 308px with the answer bar at
-           292 — between them there was no check left on the screen at all.
-           Nothing here is worth less than the others; there is simply not room
-           to pin all of it on a phone, so below sm only the line saying WHICH
-           CHECK THIS IS stays, and the brief and the strip scroll with the
-           rest. They are near the top of the scroll, which on a phone is where
-           a thumb starts. */
-        className="sticky top-0 z-[6] border-b px-5 pt-[11px] pb-2.5 sm:static"
+        className="sticky top-0 z-[6] border-b px-5 pt-[11px] pb-2.5"
         style={{ background: "var(--panel)", borderColor: "var(--line)" }}
       >
-        {/* ONE LINE THAT SCROLLS on a phone, wrapping only where there is
-            room. Three wrapped rows of pills is 50px of pinned header taken
-            off a 664px screen before the check has said anything.
-
-            relative + ScrollEdges, below sm only (sm:overflow-visible
-            already means there is never an edge to show from sm up — the
-            row wraps there instead, see the className). */}
-        <div className="relative mb-[5px]">
-        <div
-          ref={tagRowRef}
-          className="flex flex-nowrap items-center gap-[7px] overflow-x-auto font-mono text-[10px] [&>*]:shrink-0 sm:flex-wrap sm:overflow-visible"
-          style={{ color: "var(--ink-3)" }}
-        >
+        <div className="mb-[5px] flex flex-wrap items-center gap-[7px] font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
           <span>{portalId}</span>
           <span>·</span>
           <span>{check.system}</span>
-          {/* HOW THIS CHECK IS ANSWERED, as an icon and a word.
-              From the register's own `vtype`, which is one of seven
-              combinations — a check can be any of asking, collecting and
-              looking, or all three at once, and 290 of the 324 are more than
-              one. The icon is what an auditor reads at a glance across a list
-              of pills that otherwise all look alike; the word stays because an
-              icon alone is a guess, and "Physical" in particular carries a
-              consequence the shape cannot say — the check is also waiting on
-              the tablet in Field mode, and saving here does not answer that
-              half. */}
-          {modeLabels(check).map((m) => {
-            const Icon = MODE_ICON[m] ?? IconInfo;
-            /* How the check is answered is a category, not a status —
-               item 4 of Sarel's second visual-hierarchy pass takes the
-               brand accent off every mode but Physical, which keeps its
-               warn because it carries a real consequence (see above). */
-            return (
-              <Pill key={m} tone={m === "Physical" ? "warn" : "neutral"}>
-                <Icon width={10} height={10} aria-hidden />
-                {m.toUpperCase()}
-              </Pill>
-            );
-          })}
+          <span>·</span>
+          <span className="tnum">
+            {systemDone} / {systemChecks.length}
+          </span>
+          <span
+            className="h-[4px] min-w-[40px] flex-1 overflow-hidden rounded-full"
+            style={{ background: "var(--line)" }}
+            role="img"
+            aria-label={`${systemDone} of ${systemChecks.length} captured in ${check.system}`}
+          >
+            <span
+              className="block h-full rounded-full"
+              style={{
+                width: `${systemChecks.length ? Math.round((systemDone / systemChecks.length) * 100) : 0}%`,
+                background: "var(--acc)",
+              }}
+              aria-hidden="true"
+            />
+          </span>
+          {/* THE GENUINELY SAFETY-RELEVANT WARNINGS, one pill, not seven.
+              A conflict or a missing ACSA basis is not clutter — it is the
+              one thing on the old pill row an auditor could not afford to
+              miss — so it stays pinned rather than moving into the ACSA
+              requirement Sheet with the rest. */}
           {check.coverage === "none" && <Pill tone="bad">NO ACSA BASIS</Pill>}
-          {/* A CONFLICT IS NOT A VARIANT, and it does not get a variant's pill.
-              Sarel: "highlight it in the heading so that it is clear there is a
-              conflict." A variant adds detail the network default omits; a
-              conflict means the check's own title says something ACSA
-              contradicts at this site — MEC-037 is titled "A 3 yearly ...
-              Piping Pressure test" while D060 021M cl. 4.17.5 makes it YEARLY
-              at King Shaka. An auditor who reads the title and nothing else
-              audits to the wrong interval, so the heading has to say so before
-              anything else does. */}
-          {check.siteVariant?.conflict ? (
+          {check.siteVariant?.conflict && (
             <Pill tone="bad">
               CONFLICT · {check.siteVariant.site} {check.siteVariant.conflict.direction.toUpperCase()}
             </Pill>
-          ) : (
-            check.siteVariant && <Pill tone="warn">{check.siteVariant.site} VARIANT</Pill>
           )}
-          {/* What settles this check, from the register review. Two axes, so
-              two pills: a Document check that is also a reconcile says both,
-              which is the pair the old single vtype tag could not express. */}
-          {check.confirmedBy && (
-            /* What settles the check is a category, not a status — item 4
-               of Sarel's second visual-hierarchy pass takes the brand
-               accent off "Practice", which now reads the same neutral
-               every other non-Asset value already does. */
-            <Pill tone={check.confirmedBy === "Asset" ? "warn" : "neutral"}>
-              {check.confirmedBy.toUpperCase()}
+          {pf?.rating === "Unacceptable" && (
+            <Pill tone="bad">
+              {pf.key} · 2025 UNACCEPTABLE
             </Pill>
           )}
-          {check.inspect && check.inspect !== "none" && (
-            <Pill tone="neutral">{check.inspect === "reconcile" ? "GO AND RECONCILE" : "GO AND SEE"}</Pill>
-          )}
-          {pf && (
-            <Pill tone={pf.rating === "Unacceptable" ? "bad" : pf.rating === "Tolerable" ? "warn" : "good"}>
-              {pf.key} · 2025 {pf.rating.toUpperCase()}
-            </Pill>
-          )}
-          {/* Where the check stands, pinned. The sentence in the action bar
-              says it more fully and is hidden on a phone, so the pill carries
-              it there. */}
-          {r.captured ? (
-            <Pill tone={r.compliance === "NC" ? "bad" : r.compliance === "C" ? "good" : r.compliance === "NV" ? "warn" : "neutral"}>
-              {r.compliance}
-            </Pill>
-          ) : r.deskDoneAt ? (
-            <Pill tone="warn">DESK DONE</Pill>
-          ) : null}
-        </div>
-        <div className="sm:hidden">
-          <ScrollEdges edge={tagRowEdge} />
-        </div>
         </div>
         {/* THE REGISTER'S OWN CHECK TEXT, VERBATIM, AND LABELLED AS SUCH.
             `check.requirement` is the Rev A2 check-point wording — ACSA's
-            words, not ours — and it is what a finding must cite. It was
-            already the heading; what it did not say was whose it is, and on a
-            screen that also carries our question, our evidence list and our
-            suggested answers, "the biggest text on the page" is not the same
-            as "attributed". Not summarised, not truncated, not title-cased. */}
+            words, not ours — and it is what a finding must cite. Not
+            summarised, not truncated, not title-cased. */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            {/* FIELD-CAPTURE MOBILE PASS: this attribution line is useful
-               context at a desk, and costs nothing there — hidden below lg
-               only, where every line between opening a check and reaching
-               the question itself is a line of the question you cannot see
-               yet. The portal id, system and mode pills above already carry
-               the identifying context on a phone. */}
             <div className="label-xs mb-[2px] hidden lg:block" style={{ color: "var(--ink-4)" }}>
               ACSA check-point · the register&rsquo;s wording
             </div>
@@ -1384,259 +1279,304 @@ export default function CheckDetail({
         )}
       </div>
 
-      {/* A DECISION OF SAREL'S THAT HE LATER REVERSED: this banner used to
-          show here only for the checks that `needsField` picked out as
-          also belonging on Inspection (290 of them), flagging the overlap. Capture and
-          Field both list the full 324 now (see the note on needsDesk/
-          needsField in src/lib/verification.ts), so "this check also needs
-          the asset seen on site" would be true of every check on this
-          screen, every time — a permanent banner that never distinguishes
-          anything is not information, it is wallpaper. Removed rather than
-          made unconditional. */}
 
-      {/* THE TWO LINES THE CONVERSATION STARTS FROM, above the tabs and out
-          of them. Everything else about this check is one tap away; these two
-          are what the auditor says out loud and what they are there to
-          collect, so they never move and are never behind a tab.
-
-          Neither is clamped at rest — half a question or half an evidence
-          list is worse than a few extra lines, and the longest evidence
-          sentence runs to 606 characters, which used to be cut to one line
-          with an ellipsis. Sarel: make sure it expands so all the text is
-          visible, not cut off. Both still clamp to one line once the header
-          is "stuck" (scrolled), the same bargain the pinned title already
-          makes — full text is one scroll-to-top away, not gone. */}
-      {((check.question && channels.interview) || evidenceLine) && (
+      {/* THE QUESTION, AND THE TWO BUTTONS THAT READ FOR IT — build prompt 3:
+          "The question, with two buttons: 'How to ask' (opens the saved
+          note) and 'ACSA requirement' (opens the clause/policy)." Not
+          clamped at rest, same reasoning the old version of this block
+          followed — half a question is worse than a few extra lines — and
+          still one line once the header is "stuck". */}
+      {check.question && channels.interview && (
         <div
           className="border-b px-5 py-[8px]"
           style={{ background: "var(--focus-surface)", borderColor: "var(--line)" }}
         >
-          {check.question && channels.interview && (
-            <div className="flex items-baseline gap-2">
-              {/* OURS, AND IT SAYS SO. This is TPJV's reading of the
-                  check-point above — how we propose to test whether it is met
-                  — and it is not in ACSA's register. An auditor quoting it as
-                  though ACSA wrote it can be contested on the spot; ACSA
-                  cannot contest a finding raised against their own wording,
-                  which is why the two are one above the other and labelled
-                  differently. Same rule the Inspection screen follows. */}
-              <span className="label-xs shrink-0 pt-[2px] whitespace-nowrap" style={{ color: "var(--acc)" }}>
-                TPJV asks
-              </span>
-              <span
-                /* Full at rest — half a question is worse than a third line —
-                   and one line once the screen has been scrolled, which is the
-                   same bargain the title makes and for the same reason: on a
-                   phone every pinned line is a line of the check you cannot
-                   see. It comes back by scrolling to the top. */
-                className={`min-w-0 max-w-[92ch] xl:max-w-[150ch] text-[13.5px] leading-[1.4] font-semibold${
-                  stuck ? " line-clamp-1" : ""
-                }`}
-                style={{ color: "var(--acc)" }}
-              >
-                {check.question}
-              </span>
-            </div>
-          )}
-          {evidenceLine && (
-            <button
-              onClick={() => setPanel("acsa")}
-              title={evidenceLine}
-              className="mt-[3px] flex w-full items-start gap-2 text-left"
+          <div className="flex items-baseline gap-2">
+            <span className="label-xs shrink-0 pt-[2px] whitespace-nowrap" style={{ color: "var(--acc)" }}>
+              TPJV asks
+            </span>
+            <span
+              className={`min-w-0 max-w-[92ch] xl:max-w-[150ch] text-[13.5px] leading-[1.4] font-semibold${
+                stuck ? " line-clamp-1" : ""
+              }`}
+              style={{ color: "var(--acc)" }}
             >
-              <span className="label-xs shrink-0 pt-[1px]">Evidence</span>
-              <span
-                className={`min-w-0 flex-1 text-[12px] leading-[1.4]${stuck ? " truncate" : ""}`}
-                style={{ color: "var(--ink-2)" }}
-              >
-                {evidenceLine}
-              </span>
-              <span
-                className="shrink-0 pt-[1px] font-mono text-[9px] tracking-[.04em] uppercase"
-                style={{ color: "var(--acc)" }}
-              >
-                ACSA wording
-              </span>
-            </button>
-          )}
+              {check.question}
+            </span>
+          </div>
+          <div className="mt-[6px] flex flex-wrap gap-[6px]">
+            {/* "HOW TO ASK" — build prompt 4 ("How to ask notes", Setup
+                section, bulk apply, voice input) owns the real feature. This
+                button is the structural placeholder prompt 3 asks for: it
+                opens, and says honestly that there is nothing here yet
+                rather than pretending to be prompt 4 early. */}
+            <Btn onClick={() => setSheet("howToAsk")} className="text-[11px]">
+              How to ask
+            </Btn>
+            <Btn onClick={() => setSheet("standard")} className="text-[11px]">
+              ACSA requirement
+            </Btn>
+            {/* "⋯ MORE" — Flag for review, ACSA wording, and the
+                carried-forward prior finding, folded into one overflow
+                Sheet rather than left as tabs of their own (confirmed with
+                Sarel: nothing here is deleted, just no longer competing for
+                space with the three channel rows below). */}
+            <Btn icon onClick={() => setSheet("more")} aria-label="More — Flag for review, ACSA wording, prior finding">
+              <IconMore width={14} height={14} />
+            </Btn>
+          </div>
         </div>
       )}
 
-      {/* ONE STRIP, TWO GROUPS. What the auditor does with this check, then
-          what the auditor reads to do it — separated by a gap rather than a
-          heading, because eleven pills under two headings is a heading per
-          three pills.
-
-          IT SCROLLS SIDEWAYS, ALWAYS, rather than wrapping from sm. Sarel:
-          "make all buttons fit in one row (the buttons for acsa
-          requirements, issues, walkabout...)." It used to wrap on anything
-          with room, so nothing tapped was ever hidden by a closed panel —
-          but twelve tabs beside a half-width reference panel wraps to two
-          rows even on a desk-width window, and two rows of tab strip is
-          the same busyness the tabbed redesign was built to get rid of.
-          One row, scrolling, is the same bargain the strip already made
-          for a phone, now kept at every width. */}
-      <div className="relative">
-      <div
-        ref={tabStripRef}
-        className="flex flex-nowrap items-center gap-x-[14px] gap-y-[5px] overflow-x-auto border-b px-5 py-[8px] whitespace-nowrap"
-        style={{ background: "var(--panel)", borderColor: "var(--line)" }}
-      >
-        {(["acsa", "do", "read"] as const).map((group) => {
-          const mine = panels.filter((t) => t.group === group);
-          if (mine.length === 0) return null;
-          /* THE SAME TAB nobody has to re-discover with a mouse. ARIA's
-             tabs pattern keeps exactly one tab per tablist in the normal
-             Tab order (the rest are tabIndex=-1) and moves focus between
-             them with the arrow keys instead — so Tab skips straight from
-             "before the strip" to "after it" rather than stopping at every
-             pill. The one IN the tab order is whichever tab is actually
-             open, when it belongs to this group; otherwise this group's
-             own first tab, so the group is still reachable at all.
-             Arrow/Home/End below both move focus AND activate the tab
-             landed on — the same "selection follows focus" model a tablist
-             this shallow (two or three tabs per group) reads most simply. */
-          const groupHasOpen = mine.some((t) => t.key === openKey);
-          const onTabKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-            const list = Array.from(
-              e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')
-            );
-            if (list.length === 0) return;
-            const i = list.indexOf(document.activeElement as HTMLButtonElement);
-            let next = -1;
-            if (e.key === "ArrowRight") next = i < 0 ? 0 : (i + 1) % list.length;
-            else if (e.key === "ArrowLeft") next = i < 0 ? list.length - 1 : (i - 1 + list.length) % list.length;
-            else if (e.key === "Home") next = 0;
-            else if (e.key === "End") next = list.length - 1;
-            else return;
-            e.preventDefault();
-            const btn = list[next];
-            btn.focus();
-            if (btn.dataset.key) setPanel(btn.dataset.key);
-          };
-          return (
-            <div
-              key={group}
-              role="tablist"
-              aria-label={
-                group === "acsa"
-                  ? "The requirement"
-                  : group === "do"
-                    ? "Answer library"
-                    : "Reference"
-              }
-              onKeyDown={onTabKeyDown}
-              className="flex shrink-0 flex-nowrap gap-[14px]"
+      {/* THE THREE CHANNEL ROWS, FIXED ORDER, SAME COLOURS EVERY TIME — build
+          prompt 3. A row for a channel Setup has switched off for this check
+          is not shown at all (channels.interview/evidence/walk, same test
+          every other screen in this redesign uses). Each row is a summary;
+          the detail each one used to be a whole tab for — the walkabout
+          chip picker, the four-state evidence picker, "what the interview
+          actually found" — opens in its own Sheet on tap, reusing that tab's
+          exact body rather than rebuilding it. */}
+      <div className="flex flex-col gap-[1px] border-b px-5 py-[7px]" style={{ borderColor: "var(--line)", background: "var(--panel)" }}>
+        {channels.interview && (
+          <div className="flex min-h-[40px] items-center justify-between gap-2 py-[5px]">
+            <span className="text-[12.5px] font-semibold">Interview</span>
+            <div className="flex items-center gap-[6px]">
+              <button
+                type="button"
+                onClick={() => patch(check.id, { interviewDone: !r.interviewDone, interviewNA: false })}
+                aria-pressed={interviewState === "done"}
+                aria-label="Interview done"
+                className="flex h-[30px] w-[30px] items-center justify-center rounded-full border"
+                style={toneStyle("good", interviewState === "done", true)}
+              >
+                <IconCheck width={14} height={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => patch(check.id, { interviewNA: !r.interviewNA, interviewDone: false })}
+                aria-pressed={interviewState === "na"}
+                className="rounded-full border px-[9px] py-[5px] text-[10px] font-semibold"
+                style={toneStyle("neu", interviewState === "na", true)}
+              >
+                N/A
+              </button>
+            </div>
+          </div>
+        )}
+        {channels.evidence && (
+          <button
+            type="button"
+            onClick={() => setSheet("evidenceStatus")}
+            className="flex min-h-[40px] items-center justify-between gap-2 py-[5px] text-left"
+          >
+            <span className="min-w-0">
+              <span className="text-[12.5px] font-semibold">Evidence</span>
+              {/* What ACSA's own wording names, or the register's own
+                  evidence sentence — the same text the old "evidence line"
+                  carried above the tab strip, now the Evidence row's own
+                  secondary line rather than a separate always-visible
+                  banner. */}
+              {evidenceLine && (
+                <span className="block max-w-[46ch] truncate text-[10.5px]" style={{ color: "var(--ink-4)" }}>
+                  {evidenceLine}
+                </span>
+              )}
+            </span>
+            <span className="flex shrink-0 items-center gap-[6px] font-mono text-[11px]" style={{ color: "var(--ink-3)" }}>
+              {r.evidenceStatus === "noneAvailable" ? (
+                <Pill tone="neutral">N/A</Pill>
+              ) : evidenceItems.length > 0 ? (
+                <>
+                  {evidenceSettled} of {evidenceItems.length}
+                  <Pill tone={evidenceSettled === evidenceItems.length ? "good" : "warn"}>
+                    {evidenceSettled === evidenceItems.length ? "Complete" : "Open"}
+                  </Pill>
+                </>
+              ) : (
+                <Pill tone={r.evidenceStatus ? "warn" : "neutral"}>
+                  {r.evidenceStatus
+                    ? EVIDENCE_STATUSES.find((s) => s.key === r.evidenceStatus)?.label
+                    : "Open"}
+                </Pill>
+              )}
+            </span>
+          </button>
+        )}
+        {channels.walk && (
+          <div className="flex min-h-[40px] items-center justify-between gap-2 py-[5px]">
+            <button
+              type="button"
+              onClick={() => setSheet("walkabout")}
+              className="flex flex-1 items-center gap-2 text-left"
             >
-              {mine.map((t, i) => {
-                const on = openKey === t.key;
-                const inTabOrder = groupHasOpen ? on : i === 0;
+              <span className="text-[12.5px] font-semibold">Walk</span>
+              {photos > 0 && (
+                <span className="font-mono text-[10.5px]" style={{ color: "var(--ink-3)" }}>
+                  {photos} photo{photos > 1 ? "s" : ""}
+                </span>
+              )}
+            </button>
+            <div className="flex items-center gap-[6px]">
+              <span
+                aria-label={walkState === "done" ? "Walk done" : "Walk not yet done"}
+                className="flex h-[30px] w-[30px] items-center justify-center rounded-full border"
+                style={toneStyle("good", walkState === "done", true)}
+              >
+                <IconCheck width={14} height={14} />
+              </span>
+              <button
+                type="button"
+                onClick={() => patch(check.id, { walkNA: !r.walkNA })}
+                aria-pressed={walkState === "na"}
+                className="rounded-full border px-[9px] py-[5px] text-[10px] font-semibold"
+                style={toneStyle("neu", walkState === "na", true)}
+              >
+                N/A
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ISSUES — "Open issues on this check shown as a row" (build prompt
+          3). Shown even at zero, same reasoning the row above it gives an
+          auditor "nothing attached yet" rather than disappearing: a row
+          that only exists once there is something in it looks like it was
+          never built. Opens the exact FindingDetail content the old
+          "Findings" tab showed, when there is something to open. */}
+      <button
+        type="button"
+        onClick={() => checkFindings.length > 0 && setSheet("findings")}
+        disabled={checkFindings.length === 0}
+        className="flex min-h-[40px] w-full items-center justify-between gap-2 border-b px-5 py-[7px] text-left disabled:opacity-60"
+        style={{ borderColor: "var(--line)", background: "var(--panel)" }}
+      >
+        <span className="text-[12.5px] font-semibold">Issues</span>
+        {checkFindings.length > 0 ? (
+          <span className="flex items-center gap-[6px] font-mono text-[11px]" style={{ color: "var(--ink-3)" }}>
+            {checkFindings.length} issue{checkFindings.length > 1 ? "s" : ""}
+            <Pill tone="warn">Open</Pill>
+          </span>
+        ) : (
+          <span className="font-mono text-[11px]" style={{ color: "var(--ink-4)" }}>
+            No issues
+          </span>
+        )}
+      </button>
+
+      {/* INTERNAL NOTE — this check's own, for this audit; never printed,
+          never synced. See Response.internalNote's own doc comment for why
+          this sits beside, not instead of, the asset-system-wide internal
+          note (still reachable under "More"). */}
+      <div className="border-b px-5 py-[9px]" style={{ borderColor: "var(--line)" }}>
+        <div className="mb-[5px] flex items-center gap-[6px] text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
+          <IconInfo width={12} height={12} />
+          Internal note — never printed in any report
+        </div>
+        <textarea
+          value={r.internalNote ?? ""}
+          onChange={(e) => patch(check.id, { internalNote: e.target.value })}
+          rows={2}
+          aria-label="Internal note for this check"
+          placeholder="A note for the team, this audit only"
+          className="w-full resize-y rounded-[8px] border px-3 py-2 text-[12.5px]"
+          style={{ background: "var(--bg)", borderColor: "var(--line-2)" }}
+        />
+      </div>
+
+      {/* EVERY TAB THE OLD STRIP CARRIED, STILL REACHABLE — now as Sheets,
+          one per row/button above, each showing one panel's exact body.
+          `panelByKey` returns undefined for a key this check has no panel
+          for (Setup switched evidence/walk off since the Sheet was last
+          opened, or this check carries no prior-year note) — the Sheet
+          then renders nothing rather than guessing at a fallback, same
+          "falls back to nothing it does not have" rule the old openKey
+          computation used to apply to a single open tab. */}
+      <Sheet open={sheet === "howToAsk"} onClose={() => setSheet(null)} title="How to ask">
+        <p className="text-[12.5px]" style={{ color: "var(--ink-3)" }}>
+          No note set yet. &ldquo;How to ask&rdquo; notes are written in Setup
+          — coming in a later update.
+        </p>
+      </Sheet>
+      <Sheet open={sheet === "standard"} onClose={() => setSheet(null)} title="ACSA requirement" wide>
+        {panelByKey("standard")?.body}
+      </Sheet>
+      <Sheet open={sheet === "evidenceStatus"} onClose={() => setSheet(null)} title="Evidence status" wide>
+        {/* THE FULL EVIDENCE LINE, NEVER CUT OFF — Sarel: "make sure it
+            expands so all the text is visible, not cut off." The Evidence
+            row itself (above) truncates to one line for the flat-row
+            summary; the whole sentence, up to 606 characters in the
+            register, is always here, uncut, one tap away. */}
+        {evidenceLine && (
+          <div
+            className="mb-2.5 rounded-[8px] border px-[10px] py-[8px]"
+            style={{ background: "var(--sunken)", borderColor: "var(--line-2)" }}
+          >
+            <div className="label-xs">Evidence needed</div>
+            <RefText>{evidenceLine}</RefText>
+          </div>
+        )}
+        {panelByKey("evidenceStatus")?.body}
+      </Sheet>
+      <Sheet open={sheet === "walkabout"} onClose={() => setSheet(null)} title="Walkabout">
+        {panelByKey("walkabout")?.body}
+      </Sheet>
+      <Sheet open={sheet === "findings"} onClose={() => setSheet(null)} title="Findings" wide>
+        {panelByKey("findings")?.body}
+      </Sheet>
+      <Sheet open={sheet === "more"} onClose={() => setSheet(null)} title="More" subtitle="ACSA wording · Flag for review · asset-system note · prior finding" wide>
+        <div className="flex flex-col gap-5">
+          {(modeLabels(check).length > 0 || check.confirmedBy || (check.inspect && check.inspect !== "none")) && (
+            <div className="flex flex-wrap gap-[6px]">
+              {modeLabels(check).map((m) => {
+                const Icon = MODE_ICON[m] ?? IconInfo;
                 return (
-                  /* UNDERLINE TABS, not filled pills — desktop/tablet
-                     redesign, phase 2, item B: "build on the accessible tab
-                     model already added, just restyle the tab bar itself to
-                     an underline style." Every aria/keyboard attribute above
-                     this button (id, role, aria-selected, aria-controls,
-                     tabIndex) and the group's own keyboard handling are
-                     untouched — this changes only how the OPEN tab is shown:
-                     a 2px accent rule under the active tab and accent text,
-                     quiet text otherwise, no border and no filled
-                     background competing with the accent reserved for
-                     primary actions and active selection. */
-                  <button
-                    key={t.key}
-                    id={`${panelBaseId}-tab-${t.key}`}
-                    data-key={t.key}
-                    role="tab"
-                    aria-selected={on}
-                    aria-controls={`${panelBaseId}-tabpanel`}
-                    tabIndex={inTabOrder ? 0 : -1}
-                    onClick={() => setPanel(t.key)}
-                    className="relative flex shrink-0 items-center gap-[5px] px-[3px] pt-[6px] pb-[8px] font-display text-[10.5px] font-semibold whitespace-nowrap transition-[var(--t)]"
-                    style={{
-                      color: on ? "var(--acc)" : group === "do" ? "var(--ink-2)" : "var(--ink-3)",
-                    }}
-                  >
-                    {t.label}
-                    {t.badge && (
-                      <span
-                        className="rounded-full px-[5px] font-mono text-[9px]"
-                        style={
-                          on
-                            ? { background: "var(--acc-soft)", color: "var(--acc)" }
-                            : { background: "var(--sunken)", color: "var(--ink-3)" }
-                        }
-                      >
-                        {t.badge}
-                      </span>
-                    )}
-                    {/* The underline itself — absolutely positioned so it
-                        never shifts the row's own height between the open
-                        and closed state, same reasoning the system row's
-                        own progress underline follows in capture/page.tsx. */}
-                    <span
-                      aria-hidden="true"
-                      className="absolute inset-x-0 bottom-0 h-[2px] rounded-full"
-                      style={{ background: on ? "var(--acc)" : "transparent" }}
-                    />
-                  </button>
+                  <Pill key={m} tone={m === "Physical" ? "warn" : "neutral"}>
+                    <Icon width={10} height={10} aria-hidden />
+                    {m.toUpperCase()}
+                  </Pill>
                 );
               })}
+              {check.confirmedBy && (
+                <Pill tone={check.confirmedBy === "Asset" ? "warn" : "neutral"}>
+                  {check.confirmedBy.toUpperCase()}
+                </Pill>
+              )}
+              {check.inspect && check.inspect !== "none" && (
+                <Pill tone="neutral">{check.inspect === "reconcile" ? "GO AND RECONCILE" : "GO AND SEE"}</Pill>
+              )}
             </div>
-          );
-        })}
-      </div>
-      {/* Every width, not sm:hidden — this row scrolls at every width by
-          design (see the comment above it), unlike the tag row above,
-          which only scrolls below sm. */}
-      <ScrollEdges edge={tabStripEdge} />
-      </div>
-      </div>
-
-      {/* FROM lg, TWO COLUMNS, EACH SCROLLING INSIDE ITSELF.
-          Sarel: "the space to read the box of text is getting very small,
-          rework this layout so that it is easier to read, maybe split into
-          a left and right panel." The reference panel used to take the
-          whole width and whatever height was left under the capture column
-          below it — on a desk-width window with photographs and a long
-          observation already attached, that could be three lines of ACSA's
-          own wording in a box with a scrollbar. Reading and writing now sit
-          side by side instead, each with the full leftover height to
-          scroll inside, so the reference text is never squeezed by how
-          much the auditor has already written below it.
-
-          Below lg this is a plain stack again, unchanged from before — a
-          two-column row on a phone is two half-width columns neither one
-          can be read in. */}
-      <div className="lg:flex lg:min-h-0 lg:flex-1 lg:items-stretch">
-      {/* THE PANEL — half the width from lg, the whole leftover height,
-          scrolling inside itself.
-
-          `flex-1` only from lg, and that is a bug fix, not a tidy-up. From lg
-          the panel scrolls inside itself, so it must take the leftover height
-          and stop — that is what flex-1 with min-h-0 does. Below lg the whole
-          screen scrolls and the panel has to be as tall as its content;
-          flex-1 gave it the leftover height instead, its content spilled out
-          of a short box, and the sticky bar — which can only stick within its
-          parent's content box — came to rest in the MIDDLE of the screen. */}
-      <div
-        id={`${panelBaseId}-tabpanel`}
-        role="tabpanel"
-        aria-labelledby={`${panelBaseId}-tab-${openKey}`}
-        tabIndex={0}
-        data-panel={openKey}
-        /* No deep bottom padding at lg any more: the panel is its own
-           scroller and the capture column is a sibling beside it, not
-           something floating over its last line. Below lg the whole screen
-           scrolls and the bar is the last thing in it, so the same holds. */
-        className="px-5 pt-[13px] pb-[18px] lg:min-h-0 lg:w-1/2 lg:shrink-0 lg:overflow-y-auto lg:border-r"
-        style={{
-          background: open.group === "do" ? "var(--focus-surface)" : "var(--sunken)",
-          borderColor: "var(--line)",
-        }}
-      >
-        {open.body}
-      </div>
+          )}
+          {panelByKey("acsa") && (
+            <div>
+              <div className="label-xs mb-1.5">ACSA wording</div>
+              {panelByKey("acsa")?.body}
+            </div>
+          )}
+          <div>
+            <div className="label-xs mb-1.5">Flag for review</div>
+            {panelByKey("improve")?.body}
+          </div>
+          {/* THE ASSET-SYSTEM NOTE — code review on this branch caught that
+              this never actually made it into the Sheet, even though the
+              PR description and checkscreen.test.mjs both claimed it had:
+              the test only grepped for patchSystem's own source text, which
+              still existed, not for it being rendered anywhere reachable.
+              Labelled distinctly from the new per-check note above (the
+              flat row, not this Sheet) — see Response.internalNote's own
+              doc comment for the two notes' different scopes. */}
+          <div>
+            <div className="label-xs mb-1.5">Internal note — this asset system, every check under it</div>
+            {panelByKey("internalNote")?.body}
+          </div>
+          {panelByKey("prior") && (
+            <div>
+              <div className="label-xs mb-1.5">Prior finding</div>
+              {panelByKey("prior")?.body}
+            </div>
+          )}
+        </div>
+      </Sheet>
 
       {/* THE ANSWER BOX, PINNED — and the actions that commit it, with it.
 
@@ -1701,7 +1641,7 @@ export default function CheckDetail({
            reference panel, where the Observation block's own
            lg:overflow-y-auto does the scrolling at that width instead —
            this rule must not fight that one. */
-        className="sticky bottom-0 z-[7] flex min-h-0 max-h-[25vh] flex-col overflow-hidden has-[.obs-pane:focus-within]:max-h-[70vh] lg:static lg:w-1/2 lg:shrink-0 lg:max-h-none lg:overflow-visible"
+        className="sticky bottom-0 z-[7] flex min-h-0 max-h-[25vh] flex-col overflow-hidden has-[.obs-pane:focus-within]:max-h-[70vh]"
         style={{
           background: "var(--panel)",
           boxShadow: "0 -6px 18px -10px rgba(22,16,40,.2)",
@@ -1815,7 +1755,7 @@ export default function CheckDetail({
               Photo deliberately stays a full 44px labelled button in the bar.
               It is the one of the four used in gloves on an apron, and a 34px
               icon in a text field is the wrong target for that. */}
-          <div className="relative lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
+          <div className="relative">
             <textarea
               ref={obsRef}
               value={r.observation}
@@ -1865,7 +1805,7 @@ export default function CheckDetail({
                  chase. The padding is on the RIGHT rather than the bottom
                  because the box is 44px at rest — a bottom gutter would
                  leave a single line of writing nowhere to sit. */
-              className="max-h-[26vh] min-h-[44px] w-full resize-y rounded-[11px] border py-2 pr-[260px] pl-3 text-[12.5px] leading-[1.55] outline-none transition-[var(--t)] focus:min-h-[112px] focus:border-[var(--acc)] sm:min-h-[68px] sm:py-2.5 lg:max-h-none lg:min-h-0 lg:flex-1"
+              className="max-h-[26vh] min-h-[44px] w-full resize-y rounded-[11px] border py-2 pr-[260px] pl-3 text-[12.5px] leading-[1.55] outline-none transition-[var(--t)] focus:min-h-[112px] focus:border-[var(--acc)] sm:min-h-[68px] sm:py-2.5"
               style={{ background: "var(--focus-surface)", borderColor: "var(--line-2)" }}
             />
             {/* top-right, not centred: the box grows to 112px on focus and a
@@ -2141,7 +2081,6 @@ export default function CheckDetail({
               ` · ${r.issuesPicked.length} finding${r.issuesPicked.length > 1 ? "s" : ""}`}
           </div>
         </div>
-      </div>
       </div>
     </div>
   );
