@@ -1239,5 +1239,66 @@ check(
   })()
 );
 
+/* ---- Finding.critical / Finding.safetyTag (Issues screen, build prompt
+   8) — found missing from both sheets within hours of the fields
+   landing, by the same standing sync-integrity review. The Findings
+   sheet is one row per finding, no aggregation question; the Hazards
+   sheet takes ANY of its consolidated findings flagged, same function
+   sharepoint.ts's own portal sync now uses. ---------------------------- */
+
+check(
+  "the Findings sheet carries a finding's own critical/safety flags directly",
+  (() => {
+    const sheet = ex.findingsSheet({
+      ...BASE,
+      checks: [],
+      responses: {},
+      findings: [FINDING_FOR_EXPORT({ critical: true, safetyTag: false })],
+    });
+    return cellOf(sheet, 0, "Critical") === "Yes" && cellOf(sheet, 0, "Safety") === "No";
+  })()
+);
+
+check(
+  "a finding with neither flag set reads No on both, not blank — absent means false",
+  (() => {
+    const sheet = ex.findingsSheet({ ...BASE, checks: [], responses: {}, findings: [FINDING_FOR_EXPORT()] });
+    return cellOf(sheet, 0, "Critical") === "No" && cellOf(sheet, 0, "Safety") === "No";
+  })()
+);
+
+check(
+  "the Hazards sheet reads Critical if ANY of its findings is flagged, not just the first",
+  (() => {
+    const sheet = ex.hazardsSheet({
+      ...BASE,
+      findings: [
+        FINDING_FOR_EXPORT({ id: "f1", critical: false }),
+        FINDING_FOR_EXPORT({ id: "f2", critical: true }),
+      ],
+      hazards: [HAZARD_FOR_EXPORT({ findingIds: ["f1", "f2"] })],
+    });
+    return cellOf(sheet, 0, "Critical (findings)") === "Yes";
+  })(),
+  "f2 is critical — the hazard's row must say Yes, not No because f1 (listed first) is not"
+);
+
+check(
+  "the Hazards sheet and the portal sync agree on critical/safety too, from the exact same function",
+  (() => {
+    const findings = [
+      FINDING_FOR_EXPORT({ id: "f1", safetyTag: true }),
+      FINDING_FOR_EXPORT({ id: "f2" }),
+    ];
+    const hazard = HAZARD_FOR_EXPORT({ findingIds: ["f1", "f2"] });
+    const sheet = ex.hazardsSheet({ ...BASE, findings, hazards: [hazard] });
+    const viaSync = sp.findingRiskFieldsFor(hazard, findings);
+    return (
+      cellOf(sheet, 0, "Critical (findings)") === viaSync.critical &&
+      cellOf(sheet, 0, "Safety (findings)") === viaSync.safetyTag
+    );
+  })()
+);
+
 console.log(`\n${failures === 0 ? "ALL PASS" : `${failures} FAILED`}`);
 process.exit(failures ? 1 : 0);

@@ -1273,6 +1273,73 @@ check(
   })()
 );
 
+/* ---- Finding.critical / Finding.safetyTag (Issues screen, build prompt
+   8) — found missing from this file by the same standing sync-integrity
+   review within hours of the fields landing. Each is a per-finding flag;
+   a hazard consolidating several findings takes ANY of them wins, same
+   "worst of several" shape as findingTimeline just above, never an
+   average or whichever finding happened to be checked first. ----------- */
+
+check(
+  "a hazard reads Critical if ANY of its consolidated findings is flagged critical, not just the first",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...HAZ,
+        findings: [
+          { id: "f1", entity: "FALE", checkId: "KSIA-ELE-001", critical: false },
+          { id: "f2", entity: "FALE", checkId: "KSIA-ELE-002", critical: true },
+          { id: "f3", entity: "FALE", checkId: "KSIA-ELE-001" },
+        ],
+      },
+      NOTHING
+    );
+    return p.findings.find((r) => r.key === "KSIA-ELE-P01").values.findingCritical === "Yes";
+  })(),
+  "f2 is critical — the hazard's own row must say Yes, not No because f1 and f3 (listed first) are not"
+);
+
+check(
+  "a hazard reads Safety the same way — ANY of its findings tagged, not an average",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...HAZ,
+        findings: [
+          { id: "f1", entity: "FALE", checkId: "KSIA-ELE-001" },
+          { id: "f2", entity: "FALE", checkId: "KSIA-ELE-002", safetyTag: true },
+          { id: "f3", entity: "FALE", checkId: "KSIA-ELE-001" },
+        ],
+      },
+      NOTHING
+    );
+    return p.findings.find((r) => r.key === "KSIA-ELE-P01").values.findingSafetyTag === "Yes";
+  })()
+);
+
+check(
+  "a hazard whose findings are all un-flagged reads No — not null, and not an empty string",
+  (() => {
+    const v = sp.buildPlan(HAZ, NOTHING).findings.find((r) => r.key === "KSIA-ELE-P01").values;
+    return v.findingCritical === "No" && v.findingSafetyTag === "No";
+  })(),
+  "HAZ's own f1/f2/f3 fixture flags neither — a reader must be told No, the real answer, not nothing"
+);
+
+check(
+  "a hazard with no findings at all reads null for both, not No — there is nothing to consult",
+  (() => {
+    const legacyHazard = { ...HAZ.hazards[0], findingIds: [] };
+    const v = sp.buildPlan({ ...HAZ, hazards: [legacyHazard] }, NOTHING).findings.find((r) => r.key === "KSIA-ELE-P01").values;
+    return v.findingCritical === null && v.findingSafetyTag === null;
+  })()
+);
+
+check(
+  "both are in the FINDINGS contract, so the columns get asked for",
+  ["findingCritical", "findingSafetyTag"].every((k) => sp.FINDING_FIELDS.includes(k))
+);
+
 /* A SITE NOBODY HAS AUDITED YET — the check that would have caught both Bram
  * Fischer incidents, added 16 September 2026 at Sarel's request. Every other
  * guard passed on those syncs, correctly: the rows carried the right BFIA

@@ -428,6 +428,15 @@ export function findingsSheet(x: ExportInput): Sheet {
          finding here too, so this is exactly this finding's own value,
          same as timeline just above — no aggregation question. */
       f.actionPlan ?? "",
+      /* CRITICAL / SAFETY — the Issues screen's own two tags (build prompt
+         8, 22 Nov 2026), found missing from this sheet and the SharePoint
+         sync by the standing sync-integrity review within hours of the
+         fields landing. One row per finding here too, so this is exactly
+         this finding's own flag — no aggregation question, same reasoning
+         as timeline/actionPlan just above. Absent-means-false, same
+         convention as the field itself. */
+      f.critical ? "Yes" : "No",
+      f.safetyTag ? "Yes" : "No",
       /* Several actions now, each with its own discipline, owner, date and
          status — flattened the same way the asset-system assessment sheet
          already flattens MitigationAction[], one line each, so a reader
@@ -508,6 +517,8 @@ export function findingsSheet(x: ExportInput): Sheet {
       { header: "Root cause note confirmed", width: 18 },
       { header: "Timeline", width: 18 },
       { header: "Action plan", width: 40, wrap: true },
+      { header: "Critical", width: 10 },
+      { header: "Safety", width: 10 },
       { header: "Remediation action", width: 58, wrap: true },
       { header: "Owner", width: 30 },
       { header: "Due date", width: 12 },
@@ -1004,6 +1015,13 @@ export function hazardsSheet(x: ExportInput): Sheet {
          see findingRiskFieldsFor's own doc comment. */
       riskFields.timeline ?? "",
       riskFields.actionPlan ?? "",
+      /* CRITICAL / SAFETY — same findingRiskFieldsFor() aggregation as the
+         portal sync now uses: ANY of the hazard's consolidated findings
+         flagged wins, not an average. Found missing from this sheet and
+         the portal by the standing sync-integrity review within hours of
+         the fields landing. */
+      riskFields.critical ?? "",
+      riskFields.safetyTag ?? "",
       h.disciplines.length,
       h.findingIds.join(" · "),
       h.findingIds.length,
@@ -1103,6 +1121,8 @@ export function hazardsSheet(x: ExportInput): Sheet {
          kept paired with the sync-integrity review's other four so this
          sheet and the portal can never drift apart on it. */
       { header: "Action plan (findings)", width: 40, wrap: true },
+      { header: "Critical (findings)", width: 14 },
+      { header: "Safety (findings)", width: 14 },
       { header: "Disciplines spanned", width: 18 },
       { header: "Findings behind it", width: 30 },
       { header: "Findings", width: 10 },
