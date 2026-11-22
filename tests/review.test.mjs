@@ -41,17 +41,13 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8");
 
+/* build prompt 8 (22 Nov 2026): /review is now a redirect — see this
+   file's own Parts 1-3 retirement note below for what moved where. */
 const review = src("app", "(app)", "review", "page.tsx");
 const reviewDetail = src("components", "ReviewDetail.tsx");
 const checkDetail = src("components", "CheckDetail.tsx");
 const types = src("lib", "types.ts");
 const shell = src("components", "AppShell.tsx");
-
-/* Comments discuss what this screen deliberately does NOT do (needsDesk,
-   deskDone) by name, same as tests/location.test.mjs's own codeOnly — the
-   CODE is what has to be right, not whether the word appears at all. */
-const codeOnly = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
-const reviewCode = codeOnly(review);
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -62,114 +58,37 @@ const check = (name, cond, detail = "") => {
   }
 };
 
-/* ------------------------------------------- Part 1: the tree is the register */
-
+/* ----------------- Parts 1-3 RETIRED, build prompt 8 (22 Nov 2026) --------
+ *
+ *  /review is now a bare redirect to /issues?filter=toReview (see that
+ *  file's own header). The "By check" tab this file's Parts 1-3 used to
+ *  guard — the register tree, the reviewer-specific isolators (NC/
+ *  findings/flagged/evidence/unsigned), the rail's sign-off marks, the
+ *  reviewed/total discipline count — is retired outright, not hidden
+ *  behind a flag: folded into the Checks screen's own "everything for one
+ *  check is captured on that screen, nothing duplicated elsewhere" (build
+ *  prompt 3), not into Issues, which is finding-centric and has no slot in
+ *  its own filter-chip row (All/To review/Carried/Critical/Safety/Closed)
+ *  for "every check, reviewer-filtered". The ~20 assertions this comment
+ *  replaces are not rewritten against the Checks screen either: that
+ *  screen was not built BY this prompt and asserting its exact source
+ *  here would be guessing at an interface this prompt does not own.
+ *
+ *  Part 4 below (ReviewDetail.tsx itself) is UNTOUCHED and still fully
+ *  correct — this prompt did not edit that component, and its own
+ *  assertions keep passing because the component itself still exists,
+ *  simply with no route left that mounts it (dead code, same category as
+ *  EvidenceQuickCapture.tsx — see tests/review-table-v2.test.mjs's own
+ *  note). The two checks in old Part 4 that asserted review/page.tsx
+ *  ACTUALLY MOUNTING ReviewDetail (and wiring prev/next to it) are removed
+ *  here for the same reason as Parts 1-3: that mount no longer exists.
+ *  Build prompt 10 removes this dead code when it does its own
+ *  "/closure and /review and /cleanup -> /issues... remove dead code only
+ *  after the redirects work" pass — explicitly that prompt's job, not
+ *  this one's. */
 check(
-  "the rail is built from the register, per discipline",
-  /disciplinesAt\(entityCode\)/.test(review) &&
-    /checksOf\(\s*entityCode,\s*discipline\s*\)/.test(review),
-  "the left rail is the audit checks, not a derived gallery of what happened to have photos"
-);
-
-/* The one real behavioural difference from Capture's own rail: Capture
-   filters to `needsDesk` because a check with no question and no evidence to
-   gather has nothing for a desk to progress. A reviewer needs the opposite —
-   a physical-only check can still carry an observation, an attachment, or a
-   finding worth a second look, and hiding it here would be the one place in
-   the app nobody could go back and check that. */
-check(
-  "every check is listed, not only the ones a desk can answer",
-  /checksOf\(\s*entityCode,\s*discipline\s*\)/.test(reviewCode) && !/needsDesk/.test(reviewCode),
-  "needsDesk exists to keep a tablet from offering a dead question — it says nothing about whether there is something to review"
-);
-
-check(
-  "no ad-hoc walk item reaches this screen",
-  !/useAdhoc/.test(review) && !/AdHocItem/.test(review),
-  "'audit checks... per discipline' is the register; a hand-added observation with no register id is reviewed where it was raised"
-);
-
-check(
-  "and no loose capture is folded in as a row either",
-  !/useCaptures\(\)/.test(review) && !/captureAsAttachment/.test(review),
-  "the gallery's three row sources (checks, walk items, unassigned captures) collapse to one: the register"
-);
-
-/* --------------------------------------------- Part 2: review-shaped filters */
-
-/* Capture's chips are a DESK WORKFLOW over the register — what is still open,
-   what needs asking, what carries last year's finding. A reviewer going back
-   over a finished visit is not working the desk a second time; they want
-   whatever still needs a second look. REVERSED from the old file's own
-   assertion here, which checked that discipline was a chip row rather than a
-   dropdown — this screen deliberately takes Capture's rail shape instead,
-   `<select>` included, because it is reviewing the same register the same
-   way Capture captures it. */
-check(
-  "the filters are a reviewer's, not the desk's capture workflow",
-  /\["all", "All"\]/.test(review) &&
-    /"nc", "NC"/.test(review) &&
-    /"findings", "Findings"/.test(review) &&
-    !/"q", "Ask"/.test(review) &&
-    !/"pf", "2025"/.test(review),
-  "open/ask/2025 are about what is left to capture; non-compliant/findings/flagged/evidence are about what needs a second look"
-);
-
-check(
-  "non-compliant checks can be isolated",
-  /responses\[c\.id\]\?\.compliance === "NC"/.test(review),
-  ""
-);
-
-check(
-  "checks with a finding raised against them can be isolated",
-  /useVisitFindings\(\)/.test(review) && /findingsOn\(c\.id\)\.length > 0/.test(review),
-  "a finding living only on the Asset Assurance screen is a finding the reviewer of the check it came from has to go hunting for"
-);
-
-check(
-  "flagged checks can be isolated",
-  /responses\[c\.id\]\?\.improvementFlag/.test(review),
-  "the same flag CheckDetail's own 'Flag for review' panel sets — one flag, read the same way everywhere"
-);
-
-check(
-  "checks with evidence still outstanding can be isolated",
-  /status === "toBeProvided" \|\| status === "specificNotAvailable"/.test(review),
-  ""
-);
-
-/* Sarel: "implement a status in the review, for the reviewer to confirm
-   that everything is correct and can be shared with the client, or if
-   changes are required - per audit check." The reviewer's own queue, not
-   the same thing "open" already covers — a check can be fully answered
-   and still not have had a reviewer's own pass over it. */
-check(
-  "checks nobody has signed off on yet can be isolated",
-  /\["unsigned", "Not signed off"\]/.test(review) &&
-    /if \(filter === "unsigned"\) list = list\.filter\(\(c\) => !responses\[c\.id\]\?\.reviewStatus\)/.test(review),
-  "a desk can finish a check and a reviewer can still not have looked at it — those are two different queues"
-);
-
-check(
-  "the rail shows a check's sign-off state, not just its compliance",
-  /signOff === "approved" && <Pill tone="good">✓<\/Pill>/.test(review) &&
-    /signOff === "changesRequired" && <Pill tone="warn">⚠<\/Pill>/.test(review),
-  "a reviewer working the rail needs to see at a glance what they have already signed off, without opening every row"
-);
-
-check(
-  "the discipline select shows reviewed/total, not desk-done/total",
-  !/deskDone/.test(reviewCode) && !/deskAnswered/.test(reviewCode) && /reviewed\(/.test(reviewCode),
-  "a desk commit flag is a capture-workflow concept; this screen reads straight off whatever is on the record"
-);
-
-/* ----------------------------------------- Part 3: no desk-commit machinery */
-
-check(
-  "there is no 'save all' — nothing here is a desk answer to commit",
-  !/[Ss]ave all/.test(review) && !/useStore\(\(s\) => s\.commit\)/.test(review),
-  "committing a desk answer is Capture's job; reviewing and editing a record that already exists needs no commit step of its own"
+  "/review is a bare redirect now, not a screen with its own tree/filters/ReviewDetail mount to guard",
+  /redirect\("\/issues\?filter=toReview"\);/.test(review)
 );
 
 /* ------------------------------------------ Part 4: the detail is ReviewDetail
@@ -180,19 +99,10 @@ check(
    verdict, every photo/voice note with its caption — not the full editing
    workspace Capture and Field still share. */
 
-check(
-  "the selected check opens in ReviewDetail, not the full CheckDetail workspace",
-  /import ReviewDetail from "@\/components\/ReviewDetail";/.test(review) &&
-    /<ReviewDetail\s*\n\s*key=\{active\.id\}\s*\n\s*check=\{active\}/.test(review),
-  "a reviewer's own trimmed view — observation, evidence, photos — not the policy references and full edit workspace Capture and Field use"
-);
-
-check(
-  "prev/next are wired the same way Capture wires them",
-  /onPrev=\{\(\) => move\(-1\)\}/.test(review) &&
-    /onNext=\{\(\) => move\(1\)\}/.test(review),
-  ""
-);
+/* The two checks that used to stand here (review/page.tsx actually
+   mounting ReviewDetail, with prev/next wired to it) are removed, build
+   prompt 8 — see this file's own Parts 1-3 retirement note above; /review
+   no longer mounts anything at all. */
 
 check(
   "this screen itself writes nothing to the store — every edit goes through ReviewDetail",
@@ -369,20 +279,12 @@ check(
  * exports — see sites.test.mjs/photos.test.mjs/raisefinding.test.mjs, which
  * still pass and still assert portalIdFor() is used correctly in store.ts,
  * exports.ts, the raise-finding sheet and CheckDetail.tsx. */
-check(
-  "the sidebar row shows the check's own readable requirement text, not a reference code",
-  /\{c\.requirement\}/.test(review),
-  "the requirement text already carries the 'what is this check' job, same as the detail panel's own heading"
-);
+/* The sidebar-row and entity-scoping checks that used to stand here are
+   removed, build prompt 8 — /review has no sidebar or register reads of
+   its own left to scope; see this file's own Parts 1-3 retirement note. */
 check(
   "portalIdFor is no longer called anywhere on this screen — page.tsx and ReviewDetail.tsx both dropped it",
   !/portalIdFor/.test(review) && !/portalIdFor/.test(reviewDetail)
-);
-
-check(
-  "the screen is scoped to the site in view, not the whole register",
-  /useEntityCode\(\)/.test(review) && !/\bCHECKS\.(length|filter|map|find)\b/.test(review),
-  "the register is shared by ten sites; reading it unscoped puts the wrong checklist in front of a reviewer"
 );
 
 check(

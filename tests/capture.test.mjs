@@ -32,7 +32,11 @@ const checkDetail = src("components", "CheckDetail.tsx");
 const field = src("app", "(app)", "walk", "page.tsx");
 const store = src("lib", "store.ts");
 const types = src("lib", "types.ts");
-const raise = src("app", "(app)", "raise", "page.tsx");
+/* build prompt 8 (22 Nov 2026): /raise is now a redirect; its large
+   camera/gallery/voice capture trio moved to RaiseFindingSheet.tsx, the
+   one place every screen's own "+" now raises an issue from — see that
+   component's own comment on the move. */
+const raise = src("components", "RaiseFindingSheet.tsx");
 
 /* The UI surfaces where an auditor captures evidence. Library code is excluded
    deliberately: media.ts is allowed to name a duration, because it measures
@@ -165,9 +169,9 @@ check(
 );
 
 check(
-  "Raise a finding renders the gallery picker alongside the camera button, not instead of it",
-  /<PhotoButton[\s\S]{0,40}large\s*\n\s*primary/.test(raise) &&
-    /<PhotoButton[\s\S]{0,40}large\s*\n\s*fromLibrary/.test(raise),
+  "Raise a finding (RaiseFindingSheet, every screen's own '+') renders the gallery picker alongside the camera button, not instead of it",
+  /<PhotoButton\s*\n\s*large\s*\n\s*primary/.test(raise) &&
+    /<PhotoButton\s*\n\s*large\s*\n\s*fromLibrary/.test(raise),
   "Sarel asked to add the option, not replace the camera button"
 );
 

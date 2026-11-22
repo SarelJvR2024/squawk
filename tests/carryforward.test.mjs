@@ -44,7 +44,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8");
 
 const cf = src("lib", "carryforward.ts");
-const closure = src("app", "(app)", "closure", "page.tsx");
+/* build prompt 8 (22 Nov 2026): /closure is now a redirect; the worklist
+   this suite reads moved to issues/page.tsx's "Carried" filter, ported
+   unchanged — see that file's own header comment. */
+const closure = src("app", "(app)", "issues", "page.tsx");
 const filterBar = src("components", "ui", "FilterBar.tsx");
 
 let failures = 0;
@@ -466,6 +469,20 @@ const sameVisitFinding = baseFinding({
   checkId: null,
   originVisit: LATER_VISIT,
 });
+/* BUILD PROMPT 8 (22 Nov 2026) — the Issues screen's own spec: "Observations
+   and non-compliances BOTH carry forward to the next audit... confirm
+   observations carry, fix it if not." outstandingFor()/fromCarried() read
+   nowhere does either function branch on findingType — proven here rather
+   than just read, same as every other case above. */
+const observationFinding = baseFinding({
+  id: "F-T0005",
+  checkId: null,
+  findingType: "observation",
+  /* A different asset system from F-T0001/F-T0002 — this fixture must not
+     change what the pre-existing "same count either way" assertion below
+     counts on Standby Generators. */
+  system: "UPS & Batteries",
+});
 
 const carried = fromCarried(noCheckFinding);
 check(
@@ -488,6 +505,7 @@ const out = outstandingFor(ENTITY, LATER_VISIT, [
   withCheckFinding,
   closedFinding,
   sameVisitFinding,
+  observationFinding,
 ]);
 const outIds = out.filter((o) => o.source === "carried").map((o) => o.key);
 
@@ -524,6 +542,18 @@ check(
 check(
   "a checkless finding and a check-raised one on the same asset system both carry — same count either way",
   out.filter((o) => o.source === "carried" && o.system === "Standby Generators").length === 2
+);
+check(
+  "an observation carries exactly like a non-compliance — findingType is not a filter here",
+  outIds.includes("F-T0005"),
+  `outstanding carried keys: ${outIds.join(", ")}`
+);
+const observationRow = out.find((o) => o.key === "F-T0005");
+check(
+  "the carried observation groups and closes the same way a non-compliance does",
+  observationRow?.findingId === "F-T0005" &&
+    observationRow?.discipline === "Electrical & Essential Power" &&
+    observationRow?.system === "UPS & Batteries"
 );
 
 /* ------------------------------------------------------------------ result */

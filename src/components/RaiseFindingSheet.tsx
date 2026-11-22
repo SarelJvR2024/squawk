@@ -241,14 +241,36 @@ export default function RaiseFindingSheet({
     >
       {/* PHOTO AND VOICE, FIRST — field-capture mobile pass. See the note on
          pendingAttachments above for where a capture taken here actually
-         ends up. */}
+         ends up.
+
+         LARGE, PRIMARY, AND A GALLERY PICKER ALONGSIDE THE CAMERA — build
+         prompt 8 (22 Nov 2026), ported from the old /raise screen rather
+         than lost when that screen became a redirect. Sarel, on that
+         screen: "I want to upload a photo, because it might be that
+         there's some photos already on the phone... the easiest way will
+         be then just to select a photo from my gallery." Same handler,
+         same resulting attachment either way — PhotoButton's own
+         `fromLibrary` prop only changes which OS picker opens. This sheet
+         is now the one place every screen's own "+" raises an issue from
+         (build prompt 5), so the capability moves with it rather than
+         staying behind on the one screen it used to be the only path to. */}
       <div className="flex flex-wrap items-center gap-[10px]">
         <PhotoButton
+          large
+          primary
+          onCaptured={(m) => {
+            setPendingAttachments((cur) => [...cur, { ...m, createdBy: auditor, id: uid(), createdAt: Date.now() }]);
+          }}
+        />
+        <PhotoButton
+          large
+          fromLibrary
           onCaptured={(m) => {
             setPendingAttachments((cur) => [...cur, { ...m, createdBy: auditor, id: uid(), createdAt: Date.now() }]);
           }}
         />
         <VoiceNoteButton
+          large
           onCaptured={(m) => {
             setPendingAttachments((cur) => [...cur, { ...m, createdBy: auditor, id: uid(), createdAt: Date.now() }]);
           }}

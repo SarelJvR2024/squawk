@@ -196,6 +196,7 @@ const WORDS = {
   "hundred-and-fourteen": 114,
   "hundred-and-fifteen": 115,
   "hundred-and-sixteen": 116,
+  "hundred-and-seventeen": 117,
   "thirty-seven": 37,
   "twenty-four": 24, "twenty-five": 25, "twenty-six": 26,
   "twenty-seven": 27, "twenty-eight": 28, "twenty-nine": 29,

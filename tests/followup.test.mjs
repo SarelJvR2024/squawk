@@ -34,7 +34,9 @@ const read = (...p) => fs.readFileSync(path.join(here, "..", ...p), "utf8");
 const types = read("src", "lib", "types.ts");
 const store = read("src", "lib", "store.ts");
 const carry = read("src", "lib", "carryforward.ts");
-const closure = read("src", "app", "(app)", "closure", "page.tsx");
+/* build prompt 8 (22 Nov 2026): /closure is now a redirect; moved to
+   issues/page.tsx's "Carried" filter unchanged. */
+const closure = read("src", "app", "(app)", "issues", "page.tsx");
 const stream = read("src", "components", "ItemStream.tsx");
 const events = read("src", "components", "PossibleEvents.tsx");
 const merge = read("src", "lib", "merge.ts");

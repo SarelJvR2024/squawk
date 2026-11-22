@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Hundred-and-sixteen suites, no framework. Thirteen need a running server; hundred-and-three do not.
+Hundred-and-seventeen suites, no framework. Thirteen need a running server; hundred-and-four do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -54,12 +54,12 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `capture.test.mjs` | no | 45 |
 | `scope.test.mjs` | no | 48 |
 | `dashboard-hierarchy.test.mjs` | no | 8 |
-| `carryforward.test.mjs` | no | 58 |
+| `carryforward.test.mjs` | no | 60 |
 | `crosswalk.test.mjs` | no | 13 |
 | `faor-import.test.mjs` | no | 28 |
 | `faor-import-other-disciplines.test.mjs` | no | 26 |
 | `sync-coverage.test.mjs` | no | 27 |
-| `review.test.mjs` | no | 42 |
+| `review.test.mjs` | no | 26 |
 | `reviewcompliance.test.mjs` | no | 7 |
 | `syncwatermark.test.mjs` | no | 14 |
 | `tablet.test.mjs` | no | 48 |
@@ -115,7 +115,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `checktabs-a11y.test.mjs` | no | 15 |
 | `checksfilter.test.mjs` | no | 3 |
 | `cleanup.test.mjs` | no | 22 |
-| `filterbar.test.mjs` | no | 21 |
+| `filterbar.test.mjs` | no | 17 |
 | `filterbar-aria.test.mjs` | no | 5 |
 | `filterpopover-a11y.test.mjs` | no | 10 |
 | `dataloss.test.mjs` | no | 17 |
@@ -153,6 +153,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `evidencedisplay.test.mjs` | no | 25 |
 | `evidenceimport.test.mjs` | no | 17 |
 | `walkscreen.test.mjs` | no | 31 |
+| `issuesscreen.test.mjs` | no | 26 |
 | `e2e.js` | yes | 24 |
 | `robustness.js` | yes | 53 |
 | `exports.js` | yes | 32 |
@@ -167,7 +168,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**4,458 assertions in total**, every count above verified by running the suite,
+**4,466 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —

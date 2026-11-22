@@ -39,8 +39,14 @@ const types = read("src", "lib", "types.ts");
 /* build prompt 7 (22 Nov 2026): /field is now a redirect; moved to walk/page.tsx. */
 const field = read("src", "app", "(app)", "walk", "page.tsx");
 const capture = read("src", "components", "Capture.tsx");
+/* build prompt 8 (22 Nov 2026): /review and /closure are now redirects —
+   see each file's own header comment for where their logic actually
+   moved. `review` below reads the now-tiny redirect stub itself (the
+   ReviewDetail check just below exists precisely to confirm nothing
+   imports it any more); `closure` reads issues/page.tsx, where the
+   worklist moved unchanged. */
 const review = read("src", "app", "(app)", "review", "page.tsx");
-const closure = read("src", "app", "(app)", "closure", "page.tsx");
+const closure = read("src", "app", "(app)", "issues", "page.tsx");
 const shell = read("src", "components", "AppShell.tsx");
 const css = read("src", "app", "globals.css");
 const store = read("src", "lib", "store.ts");
@@ -471,12 +477,19 @@ check(
    was built for, so those three checks are replaced rather than chased
    through a component that no longer exists. useRecordImage and the gate in
    front of it (src/app/api/photos/route.ts) are unaffected — tested in full
-   in tests/photoview.test.mjs — they simply have one fewer caller. */
+   in tests/photoview.test.mjs — they simply have one fewer caller.
+   REVERSED AGAIN, build prompt 8 (22 Nov 2026) — /review is now a redirect
+   (see that file's own header); its "By check" tab (the one thing that
+   mounted ReviewDetail) folds into Checks screen's own "everything for one
+   check is captured on that screen" (build prompt 3), not into Issues,
+   which is finding-centric. ReviewDetail.tsx itself is untouched, dead code
+   until build prompt 10 removes it along with every other retired route —
+   "Remove dead code only after the redirects work" is explicitly that
+   prompt's own instruction, not this one's. */
 check(
-  "Review shows a photograph through ReviewDetail, not a renderer of its own",
-  /import ReviewDetail from "@\/components\/ReviewDetail";/.test(review) &&
-    !/useRecordImage/.test(review),
-  "one place in the app that knows how to resolve a blobKey, not two that could disagree about a photo nobody uploaded from this device"
+  "ReviewDetail is no longer wired into any route — it rendered only inside /review's own retired 'By check' tab",
+  !/import ReviewDetail from "@\/components\/ReviewDetail";/.test(review),
+  "the component itself is untouched (build prompt 10 removes dead code); this just confirms nothing still imports it"
 );
 
 /* ---- 11 · and it reaches the workbook ----------------------------------- */

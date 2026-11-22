@@ -434,13 +434,31 @@ check(
  *  it never renders any layout at all, so a scroller on it would be dead
  *  code, not a fix for anything. /walk, which carries the real screen this
  *  rule exists to check, is in `screenDirs` on its own account and already
- *  has `.app-scroll`, ported unchanged from field/page.tsx. */
+ *  has `.app-scroll`, ported unchanged from field/page.tsx.
+ *
+ *  UPDATED AGAIN, build prompt 8 (22 Nov 2026) — /closure and /raise are
+ *  now the same kind of bare redirect() (to /issues?filter=carried and
+ *  /issues?open=raise respectively; see each file's own header), same
+ *  reasoning as /field above. /review is already excluded by name, for
+ *  its own two-pane reason, so it needed no new entry here even though it
+ *  is also a redirect now. /issues, which carries the real screens this
+ *  rule exists to check, is in `screenDirs` on its own account and already
+ *  has `.app-scroll` in its "Carried" branch, ported unchanged from
+ *  closure/page.tsx. */
 const appDir = path.join(here, "..", "src", "app", "(app)");
 const screenDirs = fs
   .readdirSync(appDir, { withFileTypes: true })
   .filter((d) => d.isDirectory() && fs.existsSync(path.join(appDir, d.name, "page.tsx")))
   .map((d) => d.name)
-  .filter((name) => name !== "capture" && name !== "review" && name !== "workspace" && name !== "field");
+  .filter(
+    (name) =>
+      name !== "capture" &&
+      name !== "review" &&
+      name !== "workspace" &&
+      name !== "field" &&
+      name !== "closure" &&
+      name !== "raise",
+  );
 const missingScroller = screenDirs.filter(
   (name) => !/app-scroll/.test(src("app", "(app)", name, "page.tsx"))
 );

@@ -103,18 +103,18 @@ check(
   })()
 );
 check(
-  "\"Open in By check\" hands off to the caller's onOpenCheck rather than duplicating ReviewDetail's own editing UI here",
+  /* build prompt 8 (22 Nov 2026): the button's own text changed from
+     "Open in By check" to "Open check" — the "By check" tab it used to
+     name is retired, see this file's own next check. */
+  "\"Open check\" hands off to the caller's onOpenCheck rather than duplicating ReviewDetail's own editing UI here",
   /onClick=\{\(\) => onOpenCheck\(finding\.checkId!\)\}/.test(panel)
 );
 check(
-  "the page wires onOpenCheck to switch BOTH the discipline filter and the active check, not just the tab",
+  "the Issues screen wires onOpenCheck to the real Checks screen directly — the 'By check' tab/tree it used to switch is retired, folded into Checks itself (build prompt 3), not into Issues",
   (() => {
-    const reviewPage = read("src", "app", "(app)", "review", "page.tsx");
-    return (
-      /const openCheckInByCheckTab = \(checkId: string\) => \{/.test(reviewPage) &&
-      /setDiscipline\(c\.discipline\)/.test(reviewPage) &&
-      /setActiveId\(checkId\)/.test(reviewPage) &&
-      /setTab\("checks"\)/.test(reviewPage)
+    const issuesPage = read("src", "app", "(app)", "issues", "page.tsx");
+    return /onOpenCheck: \(checkId: string\) => router\.push\(`\/capture\?check=\$\{checkId\}`\),/.test(
+      issuesPage,
     );
   })()
 );

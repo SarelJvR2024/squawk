@@ -65,7 +65,7 @@ import {
 } from "@/lib/reviewRisk";
 import { ALL_DISCIPLINES, checksAt, systemsAt, systemsOf } from "@/lib/register";
 import { entity as entityOf } from "@/lib/programme";
-import { useFieldSaveStatus, useStore } from "@/lib/store";
+import { useFieldSaveStatus, useStore, useVisitId } from "@/lib/store";
 import { getBlob, useBlobUrl } from "@/lib/media";
 import { assist, polishContext, transcribe, useAssistAvailable, useTranscribeAvailable } from "@/lib/assist";
 import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
@@ -119,7 +119,13 @@ export default function ReviewRiskTable({
    *  linked check's own desk note (`observation`) and evidence verdict
    *  (`evidenceProves`) next to the finding itself, without a second,
    *  duplicate source of the same text (see the Finding column's own
-   *  comment below). Never written from this table. */
+   *  comment below). Never written from this table.
+   *
+   *  ALWAYS THE CALLER'S CURRENT-VISIT DATA (useResponses()), whatever
+   *  findings this table is showing — this table does not, and cannot,
+   *  read another visit's responses. The Finding column only actually
+   *  uses it for a finding raised on the current visit; see the
+   *  originVisit guard where `r` is read, below. */
   responses: Record<string, Response>;
   activeId: string | null;
   onActivate: (id: string) => void;
@@ -128,6 +134,14 @@ export default function ReviewRiskTable({
   onChange: (id: string, patch: Partial<Finding>) => void;
 }) {
   const [filter, setFilter] = useState<ReviewRiskFilter>({ kind: "all" });
+  /* CODE REVIEW ON BUILD PROMPT 8's OWN BRANCH — see the identical guard
+     and comment in ReviewRiskPanel.tsx. `responses` is always the
+     CALLER's current-visit data; reading it unconditionally per row was
+     safe while every caller only ever passed current-visit findings. The
+     Issues screen's entity-wide filters are the first to pass older
+     findings through this same table, so the Finding column's own
+     linked-check context (below) is gated on originVisit too. */
+  const visitId = useVisitId();
   /* PRIORITY 2 (review redesign) — one shared saving/saved/failed
      indicator for the whole table (not one per row/cell — with many rows
      editable at once, N independent indicators would be noise, and every
@@ -565,7 +579,7 @@ export default function ReviewRiskTable({
                       here before. */}
                   <td className="min-w-[220px] max-w-[400px] p-2 align-top">
                     {(() => {
-                      const r = f.checkId ? responses[f.checkId] : undefined;
+                      const r = f.checkId && f.originVisit === visitId ? responses[f.checkId] : undefined;
                       const question = f.checkId ? checksById.get(f.checkId)?.requirement : undefined;
                       return (
                         <div className="flex flex-col gap-[6px]">

@@ -27,7 +27,12 @@ const table = read("src", "components", "ReviewRiskTable.tsx");
 const panel = read("src", "components", "ReviewRiskPanel.tsx");
 const evidencePage = read("src", "app", "(app)", "evidence", "page.tsx");
 const evidenceQuick = read("src", "components", "EvidenceQuickCapture.tsx");
-const reviewPage = read("src", "app", "(app)", "review", "page.tsx");
+/* build prompt 8 (22 Nov 2026): /review is now a redirect; the Risk &
+   root cause table/panel mounting this suite reads moved to
+   issues/page.tsx's own IssuesRiskView, reusing the exact same
+   ReviewRiskTable/ReviewRiskPanel components and the same
+   onChange-through-updateFinding division of labour. */
+const reviewPage = read("src", "app", "(app)", "issues", "page.tsx");
 const assistPromptsSrc = read("src", "lib", "assistPrompts.ts");
 
 let failures = 0;
@@ -725,19 +730,29 @@ check(
   "a successful request confirms inline, naming what was asked for and where it now lives",
   /requested — it&rsquo;s in the Evidence log now\./.test(evidenceQuick)
 );
+/* build prompt 8 (22 Nov 2026): /review is now a redirect (see that file's
+   own header) — its "Evidence" tab (EvidenceQuickCapture above the full
+   EvidenceReviewView) does not have a seat on the Issues screen: AddSheet's
+   own build-prompt-5 header already named EvidenceQuickCapture on Review as
+   one of the three entry points its "Evidence" option was built to replace
+   ("the Raise a finding screen, EvidenceQuickCapture on Review, and
+   Inspection's own photo button"), so this tab's retirement was planned
+   before this prompt, not an oversight of it. EvidenceReviewView itself is
+   untouched and still fully reachable — /evidence's own "By discipline" tab
+   (build prompt 6) already mounts it; only the SECOND path to it, through
+   Review, is gone. EvidenceQuickCapture.tsx is dead code now (same category
+   as ReviewDetail.tsx — see tests/location.test.mjs's own note), left for
+   build prompt 10 to remove alongside the rest. */
 check(
-  "review/page.tsx has a third \"Evidence\" tab, alongside \"By check\" and \"Risk & root cause\"",
-  /type ReviewTab = "checks" \| "risk" \| "evidence";/.test(reviewPage) &&
-    /\["evidence", "Evidence"\]/.test(reviewPage)
+  "review/page.tsx no longer has an Evidence tab — it's a redirect now, not a screen with its own tabs to carry one",
+  !/type ReviewTab = "checks" \| "risk" \| "evidence";/.test(reviewPage) &&
+    !/\["evidence", "Evidence"\]/.test(reviewPage)
 );
 check(
-  "the Evidence tab renders EvidenceQuickCapture above the full EvidenceReviewView tracking view — status, compliance rating and review feedback all come from the one component /evidence's \"By discipline\" tab already uses",
-  (() => {
-    const branch = reviewPage.indexOf('tab === "evidence"');
-    const quick = reviewPage.indexOf("<EvidenceQuickCapture", branch);
-    const view = reviewPage.indexOf("<EvidenceReviewView", branch);
-    return branch !== -1 && quick !== -1 && view !== -1 && quick < view;
-  })()
+  "the ONE remaining path to EvidenceReviewView — /evidence's own 'By discipline' tab — still renders it",
+  /\{view === "discipline" \? <EvidenceReviewView onOpenRecord=\{openInDocumentView\} \/> : null\}/.test(
+    read("src", "app", "(app)", "evidence", "page.tsx"),
+  )
 );
 
 /* ---- 15 · live-table feedback, 16 Nov 2026 — photo size, Finding column
@@ -754,9 +769,15 @@ check(
     !/Evidence review\s*<\/div>/.test(table)
 );
 check(
+  /* build prompt 8 (22 Nov 2026): this anchor's own line changed — `r` is
+     now also gated on the finding being from the current visit (code
+     review on that branch; see tests/issuesscreen.test.mjs's own
+     regression test for why). Same cell, same four sources, same order. */
   "the four sources (the audit check's own question, the audit check note, the finding itself, evidence review) still render in order, just without their own heading line each",
   (() => {
-    const cellStart = table.indexOf("const r = f.checkId ? responses[f.checkId] : undefined;");
+    const cellStart = table.indexOf(
+      "const r = f.checkId && f.originVisit === visitId ? responses[f.checkId] : undefined;",
+    );
     const cellEnd = table.indexOf("})()}", cellStart);
     const cell = cellStart === -1 ? "" : table.slice(cellStart, cellEnd);
     return (

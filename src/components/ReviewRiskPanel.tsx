@@ -38,7 +38,7 @@ import { assist, polishContext, useAssistAvailable } from "@/lib/assist";
 import { TRACKING_LABEL, trackingStage } from "@/lib/evidence";
 import { entity as entityOf } from "@/lib/programme";
 import { checksAt, checksOf, disciplinesAt, systemsOf } from "@/lib/register";
-import { useStore, useEvidenceItems, useFieldSaveStatus, useResponses } from "@/lib/store";
+import { useStore, useEvidenceItems, useFieldSaveStatus, useResponses, useVisitId } from "@/lib/store";
 import { AttachmentStrip } from "@/components/Capture";
 import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
 import type { Compliance, Finding } from "@/lib/types";
@@ -86,6 +86,12 @@ export type RiskPatch = Pick<
   /* The airport's own action & improvement plan — see this field's own
      doc comment in types.ts and the textarea below. */
   | "actionPlan"
+  /* CRITICAL/SAFETY — build prompt 8 (Issues screen, 22 Nov 2026): set here,
+     alongside Type, during classification — see their own doc comments on
+     Finding (types.ts) for what each means and how Safety differs from an
+     Immediate Safety Finding. */
+  | "critical"
+  | "safetyTag"
   /* HEADLINE, EDITABLE HERE TOO — Sarel, after correcting a finding's
      notes: "it now left the old note and the new note, it should only
      have my corrected note, not the original voice transcription." The
@@ -121,10 +127,19 @@ export default function ReviewRiskPanel({
    *  /review's own page), so it needs a way back to "nothing selected,
    *  full-width table" rather than staying pinned to the last row forever. */
   onClose: () => void;
-  /** PRIORITY 4 — "From linked audit check" (below) hands off to the
-   *  real "By check" tab/ReviewDetail for that exact check, rather than
-   *  duplicating its own editing UI here. The caller owns switching tabs
-   *  and the tree's own discipline/active-check state. */
+  /** PRIORITY 4 — "From linked audit check" (below) hands off to that
+   *  check's own full record, rather than duplicating its own editing UI
+   *  here.
+   *
+   *  REWIRED, build prompt 8 (22 Nov 2026, the Issues screen) — review/
+   *  page.tsx's own "By check" tab/ReviewDetail (the previous destination
+   *  this handed off to) is retired: folded into the Checks screen itself
+   *  ("everything for one check is captured on that screen, nothing
+   *  duplicated elsewhere" — build prompt 3), not into Issues, which is
+   *  finding-centric. issues/page.tsx's own onOpenCheck now navigates
+   *  there directly (`router.push(/capture?check=${checkId})`) instead of
+   *  switching a tab/tree's own discipline+active-check state, which no
+   *  longer exists to switch. */
   onOpenCheck: (checkId: string) => void;
   /** Sarel: "add an option to delete a finding from the root cause tab."
    *  Wired to the store's own `removeFinding` — present since the Import
@@ -212,11 +227,27 @@ export default function ReviewRiskPanel({
      "Open" below hands off to. */
   const responses = useResponses();
   const evidenceItems = useEvidenceItems();
+  const visitId = useVisitId();
   const linkedCheck = useMemo(
     () => (finding.checkId ? checksAt(entityCode).find((c) => c.id === finding.checkId) : undefined),
     [entityCode, finding.checkId]
   );
-  const linkedResponse = finding.checkId ? responses[finding.checkId] : undefined;
+  /* CODE REVIEW ON BUILD PROMPT 8's OWN BRANCH — `responses` (useResponses)
+     is always THIS VISIT's own data; it was safe to read unconditionally
+     here because every caller before this prompt only ever passed a
+     current-visit finding (review/page.tsx's own `useVisitFindings()`).
+     The Issues screen's "All"/"Critical"/"Safety"/"Closed" filters are the
+     first callers to pass an ENTITY-WIDE finding (useEntityFindings(),
+     possibly raised visits ago) into this same panel — without this guard,
+     an old finding would show THIS VISIT's unrelated answer for its linked
+     check as if it were that finding's own context, which can read as
+     "already fixed" or "still wrong" for a reason that has nothing to do
+     with the finding on screen. Gated on originVisit rather than dropped
+     for every finding with a checkId, so the common case (a finding raised
+     this visit, viewed under any filter) keeps its live context exactly as
+     before. */
+  const linkedResponse =
+    finding.checkId && finding.originVisit === visitId ? responses[finding.checkId] : undefined;
   const linkedEvidenceAxis = useMemo(() => {
     if (!linkedResponse || !finding.checkId) return null;
     const forThisCheck = evidenceItems.filter((e) => e.checkIds.includes(finding.checkId!));
@@ -382,6 +413,21 @@ export default function ReviewRiskPanel({
             {FINDING_TYPE_LABEL[t]}
           </Chip>
         ))}
+      </div>
+
+      {/* TAGS — build prompt 8. Two independent flags, not a third Type
+          option: a finding can be Critical, Safety-tagged, both or neither,
+          same reasoning the Type chips above do NOT try to carry — see
+          their own doc comments on Finding (types.ts). The Issues screen's
+          own Critical/Safety count chips read these two fields directly. */}
+      <div className="mb-2 font-display text-[11px] font-semibold">Tags</div>
+      <div className="mb-3.5 flex flex-wrap gap-[6px]">
+        <Chip selected={!!finding.critical} onClick={() => onChange({ critical: !finding.critical })}>
+          Critical
+        </Chip>
+        <Chip selected={!!finding.safetyTag} onClick={() => onChange({ safetyTag: !finding.safetyTag })}>
+          Safety
+        </Chip>
       </div>
 
       {/* HEADLINE — Sarel: "it now left the old note and the new note, it
@@ -673,7 +719,7 @@ export default function ReviewRiskPanel({
               className="text-[10.5px] font-semibold underline"
               style={{ color: "var(--acc)" }}
             >
-              Open in By check
+              Open check
             </button>
           </div>
           {linkedCheck && (

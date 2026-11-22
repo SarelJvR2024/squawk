@@ -1,0 +1,1841 @@
+"use client";
+
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  checksOf,
+  useEntity,
+  useEntityCode,
+  useEntityFindings,
+  useResponses,
+  useStore,
+  useVerifications,
+  useVisitFindings,
+  useVisitId,
+  useVisits,
+} from "@/lib/store";
+import {
+  carriesWork,
+  currentRatingOf,
+  timelineFor,
+  useKnownHazardousEvents,
+  useOutstanding,
+  useStream,
+  visitsOpen,
+  visitsSurvived,
+} from "@/lib/carryforward";
+import type { Outstanding } from "@/lib/carryforward";
+import ItemStream from "@/components/ItemStream";
+import PossibleEvents from "@/components/PossibleEvents";
+import GroupRow from "@/components/ui/GroupRow";
+import { PROGRAMME_VISITS } from "@/lib/programme";
+import { portalIdFor } from "@/lib/sites";
+import { movement } from "@/lib/risk";
+import { worstRating } from "@/lib/crosswalk";
+import { Btn, Dot, Empty, Panel, Pill } from "@/components/ui/primitives";
+import { FilterBar } from "@/components/ui/FilterBar";
+import {
+  IconCheck,
+  IconClock,
+  IconDash,
+  IconInbox,
+  IconLeft,
+  IconPlus,
+  IconRight,
+  IconX,
+} from "@/components/ui/icons";
+import { AttachmentStrip, FileButton, PhotoButton, VoiceNoteButton } from "@/components/Capture";
+import type { Finding, VerificationOutcome } from "@/lib/types";
+import ReviewRiskTable from "@/components/ReviewRiskTable";
+import ReviewRiskPanel from "@/components/ReviewRiskPanel";
+import Sheet from "@/components/ui/Sheet";
+import AddSheet from "@/components/AddSheet";
+import RaiseFindingSheet from "@/components/RaiseFindingSheet";
+
+/** THE ISSUES SCREEN — build prompt 8, 22 Nov 2026: "one Issues screen holds
+ *  every finding. It replaces Raise a finding, Follow-up (/closure), Review
+ *  (/review) and Cleanup as separate screens."
+ *
+ *  PORTED, NOT REWRITTEN — same precedent build prompt 7 (the Walk screen)
+ *  set for field/page.tsx. This file started as a copy of closure/page.tsx
+ *  (the old Follow-up screen): that screen's own worklist — grouped by asset
+ *  system, each one a timeline of audit rounds, with the full Verify flow
+ *  (Verification/Evidence/Remediation/Updates/Supporting evidence cards) —
+ *  already IS the spec's "Carried" filter almost verbatim ("Carried issues
+ *  show Verify: actions since the last audit, then Open, Partially closed or
+ *  Closed. Only a verified closure removes it from the list" is exactly what
+ *  the OUTCOMES buttons below already did, unchanged). What is new in this
+ *  file is layered on top: the filter-chip row itself, and the four other
+ *  filters (All/To review/Critical/Safety/Closed), which reuse
+ *  ReviewRiskTable/ReviewRiskPanel — review/page.tsx's own "Risk & root
+ *  cause" tab, moved here rather than rebuilt — with a phone-card
+ *  alternative the old /review never had (its detail panel was `hidden
+ *  md:flex`, so a phone tapping a row saw nothing; see IssuesRiskView below).
+ *
+ *  /closure, /review and /raise all become thin redirects to this screen
+ *  with the matching filter — see their own files. /cleanup is deliberately
+ *  left untouched this prompt: it is an AI-polish utility (observation/
+ *  caption wording), not a finding-browsing view, so it has no "matching
+ *  filter" to redirect to here, and build prompt 10's own task list
+ *  re-states "/closure and /review and /cleanup -> /issues" as its own job
+ *  anyway — folding Cleanup's distinct tool in is that prompt's call to
+ *  make, not a guess this one should make for it. */
+
+type IssuesFilter = "all" | "toReview" | "carried" | "critical" | "safety" | "closed";
+
+const ISSUES_FILTER_LABEL: Record<IssuesFilter, string> = {
+  all: "All",
+  toReview: "To review",
+  carried: "Carried",
+  critical: "Critical",
+  safety: "Safety",
+  closed: "Closed",
+};
+
+const OUTCOMES: { key: VerificationOutcome; label: string; Icon: typeof IconCheck; tone: string }[] = [
+  { key: "Closed", label: "Closed", Icon: IconCheck, tone: "good" },
+  { key: "Partially closed", label: "Partially", Icon: IconClock, tone: "warn" },
+  { key: "Open - repeat", label: "Repeat", Icon: IconX, tone: "bad" },
+  { key: "Not verified", label: "Not verified", Icon: IconDash, tone: "neu" },
+];
+
+const ratingTone = (r: string) =>
+  r === "Unacceptable" ? "bad" : r === "Tolerable" ? "warn" : r === "Acceptable" ? "good" : "neutral";
+
+type Filter = "all" | "unacceptable" | "context";
+
+const FILTER_LABEL: Record<Filter, string> = {
+  all: "Carries work",
+  unacceptable: "Unacceptable rating of previous finding",
+  context: "Context only",
+};
+
+/** Same shape as CheckDetail.tsx's useEdgeScroll/ScrollEdges, kept local
+ *  here rather than imported — this lifecycle strip is the only thing on
+ *  this page that scrolls sideways, and a shared import across two
+ *  unrelated screens is a coupling this one small fade doesn't earn.
+ *
+ *  Day-2 mobile review: the lifecycle strip (Raised → Remediated →
+ *  Verified → Closed/Re-check) is `overflow-x-auto` with no cue at all —
+ *  measured scrollWidth ~425px against a ~295-334px clientWidth at both
+ *  375 and 414px, so roughly a third of it, including the final step, is
+ *  cut off at a hard edge with nothing suggesting it's swipeable. Unlike
+ *  Checks' tag row and tab strip (which already have this), this one
+ *  genuinely had no affordance. */
+function useEdgeScroll(ref: React.RefObject<HTMLDivElement | null>) {
+  const [edge, setEdge] = useState({ left: false, right: false });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      setEdge({
+        left: el.scrollLeft > 2,
+        right: el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
+      });
+    };
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      ro.disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return edge;
+}
+
+/** The fade+chevron, as edge-conditional siblings of the scroller rather
+ *  than its children — an absolutely positioned child would scroll away
+ *  with the content instead of staying put at the edge. */
+function ScrollEdges({ edge }: { edge: { left: boolean; right: boolean } }) {
+  return (
+    <>
+      {edge.left && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 left-0 flex w-[22px] items-center justify-start rounded-l-[11px]"
+          style={{ background: "linear-gradient(90deg, var(--sunken) 35%, transparent)" }}
+        >
+          <IconLeft width={10} height={10} style={{ color: "var(--ink-3)" }} />
+        </span>
+      )}
+      {edge.right && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 flex w-[22px] items-center justify-end rounded-r-[11px]"
+          style={{ background: "linear-gradient(270deg, var(--sunken) 35%, transparent)" }}
+        >
+          <IconRight width={10} height={10} style={{ color: "var(--ink-3)" }} />
+        </span>
+      )}
+    </>
+  );
+}
+
+/** A NUMBERED CARD, NOT A HEADING OVER A TEXTBOX — Sarel, on a live
+ *  screenshot of this card's Follow-up fields: "create some sections...
+ *  easier to see which areas should be completed and how it should flow,
+ *  not just a bunch of text boxes." The fields underneath (Evidence,
+ *  Remediation, Progress, …) didn't change; what they lacked was a
+ *  boundary of their own and a sense of where each one sits in the order
+ *  you'd actually work through them, closing a finding out. The step
+ *  number reuses the exact circle the lifecycle strip above already
+ *  draws (done = filled var(--good), otherwise the plain step digit) —
+ *  one place this card counts "where are we", not two different ones. */
+function FollowUpSection({
+  step,
+  title,
+  hint,
+  done,
+  children,
+}: {
+  step: number;
+  title: string;
+  hint?: string;
+  /** Left out entirely when a section has no single field that "finishes"
+   *  it (Progress and the ACSA log are both running notes, not a thing to
+   *  tick off) — a badge with nothing meaningful to report is worse than
+   *  no badge. */
+  done?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="mt-4 overflow-hidden rounded-[13px] border"
+      style={{ borderColor: "var(--line)" }}
+    >
+      <div
+        className="flex items-center justify-between gap-2 px-3 py-2"
+        style={{ background: "var(--sunken)", borderBottom: "1px solid var(--line)" }}
+      >
+        <div className="flex items-center gap-2">
+          <span
+            className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full font-mono text-[8.5px] font-semibold"
+            style={{
+              background: done ? "var(--good)" : "var(--line)",
+              color: done ? "#fff" : "var(--ink-3)",
+            }}
+          >
+            {done ? "✓" : step}
+          </span>
+          <b className="font-display text-[11px] font-semibold">{title}</b>
+        </div>
+        {hint && (
+          <span className="shrink-0 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+            {hint}
+          </span>
+        )}
+      </div>
+      <div className="flex flex-col gap-3 p-3">{children}</div>
+    </div>
+  );
+}
+
+/** The small caption above a field inside a FollowUpSection — one
+ *  definition, not seven copies of the same className drifting apart the
+ *  first time one of them needs to change. */
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mb-1.5 font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
+      {children}
+    </div>
+  );
+}
+
+/** THE FOUR "TABLE" FILTERS — All/To review/Critical/Safety/Closed —
+ *  reusing ReviewRiskTable/ReviewRiskPanel wholesale (review/page.tsx's own
+ *  "Risk & root cause" tab mount code, verbatim: same props, same
+ *  onChange-through-updateFinding division of labour) rather than a second
+ *  implementation of the same classification UI.
+ *
+ *  WHAT IS GENUINELY NEW HERE is the phone half. review/page.tsx's own
+ *  detail column is `hidden md:flex` — on a phone, tapping a table row
+ *  opened nothing; the spec's "Laptop: the Risk and root cause table...
+ *  phone: cards" is this screen's own fix for that, not a restatement of
+ *  what already worked. `isWide` gates which of two mutually exclusive
+ *  shells renders the SAME ReviewRiskPanel for the active finding — never
+ *  both at once, the same reasoning WideCheckPane/Sheet on the Walk screen
+ *  already documents at length (two mounted copies would mean two focus
+ *  traps and duplicate field ids). */
+function useIsWide() {
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const update = () => setWide(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return wide;
+}
+
+function IssuesRiskView({
+  findings,
+  entityCode,
+  filter,
+  onUpdateFinding,
+}: {
+  findings: Finding[];
+  entityCode: string;
+  filter: IssuesFilter;
+  onUpdateFinding: (id: string, patch: Partial<Finding>) => void;
+}) {
+  const router = useRouter();
+  const responses = useResponses();
+  const removeFinding = useStore((s) => s.removeFinding);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const active = findings.find((f) => f.id === activeId) ?? null;
+  const isWide = useIsWide();
+
+  const EMPTY_MESSAGE: Record<Exclude<IssuesFilter, "carried">, string> = {
+    all: "No open issues.",
+    toReview: "Nothing raised this visit to review yet.",
+    critical: "No issues tagged Critical.",
+    safety: "No issues tagged Safety.",
+    closed: "Nothing closed yet.",
+  };
+
+  const panelProps = active
+    ? {
+        finding: active,
+        entityCode,
+        onChange: (patch: Partial<Finding>) => onUpdateFinding(active.id, patch),
+        onClose: () => setActiveId(null),
+        onOpenCheck: (checkId: string) => router.push(`/capture?check=${checkId}`),
+        onDelete: () => {
+          removeFinding(active.id);
+          setActiveId(null);
+        },
+      }
+    : null;
+
+  if (findings.length === 0) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <Empty>
+          <IconInbox width={26} height={26} />
+          <div>{EMPTY_MESSAGE[filter as Exclude<IssuesFilter, "carried">]}</div>
+        </Empty>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1">
+      <ReviewRiskTable
+        findings={findings}
+        entityCode={entityCode}
+        responses={responses}
+        activeId={active?.id ?? null}
+        onActivate={setActiveId}
+        onChange={onUpdateFinding}
+      />
+      {/* DESKTOP — the same inline column review/page.tsx already used. */}
+      {isWide && panelProps && (
+        <div
+          className="flex min-h-0 w-[320px] shrink-0 flex-col border-l"
+          style={{ borderColor: "var(--line)", background: "var(--panel)" }}
+        >
+          <ReviewRiskPanel key={active!.id} {...panelProps} />
+        </div>
+      )}
+      {/* PHONE — the same panel, in a Sheet instead of a fixed column, so
+          editing a finding is reachable at all below `md`. */}
+      {!isWide && (
+        <Sheet open={!!active} onClose={() => setActiveId(null)} title={active?.title || "Issue"} wide>
+          {panelProps && <ReviewRiskPanel key={active!.id} {...panelProps} />}
+        </Sheet>
+      )}
+    </div>
+  );
+}
+
+export default function IssuesPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-[12px]">Loading…</div>}>
+      <IssuesPageInner />
+    </Suspense>
+  );
+}
+
+/** `?filter=` opens straight on the matching chip, read once on mount, same
+ *  convention review/page.tsx's own `?tab=risk` already set — see this
+ *  file's own header for who sends each value: /closure sends "carried",
+ *  /review sends "toReview", neither sends is the plain /issues default
+ *  ("all"). `?open=raise` is /raise's own redirect: no filter describes
+ *  "add a new one", so it opens the + flow instead — see addOpen below. */
+function filterFromParam(v: string | null): IssuesFilter {
+  return v === "carried" || v === "toReview" || v === "critical" || v === "safety" || v === "closed"
+    ? v
+    : "all";
+}
+
+function IssuesPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [issuesFilter, setIssuesFilter] = useState<IssuesFilter>(() =>
+    filterFromParam(searchParams.get("filter")),
+  );
+  const [addOpen, setAddOpen] = useState(() => searchParams.get("open") === "raise");
+  const [raiseOpen, setRaiseOpen] = useState(false);
+  const entityFindings = useEntityFindings();
+  const responses = useResponses();
+  const findings = useVisitFindings();
+  const verifications = useVerifications();
+  const patchVerification = useStore((s) => s.patchVerification);
+  const addProgress = useStore((s) => s.addProgress);
+  /* The ACSA discussion log — same mechanism as addProgress, a separate log.
+     See Verification.discussionLog's own note. */
+  const addDiscussionNote = useStore((s) => s.addDiscussionNote);
+  const addVerificationAttachment = useStore((s) => s.addVerificationAttachment);
+  const removeVerificationAttachment = useStore((s) => s.removeVerificationAttachment);
+  const updateVerificationAttachment = useStore((s) => s.updateVerificationAttachment);
+  const addPossibleEvent = useStore((s) => s.addPossibleEvent);
+  const patchPossibleEvent = useStore((s) => s.patchPossibleEvent);
+  const removePossibleEvent = useStore((s) => s.removePossibleEvent);
+  const hazards = useStore((s) => s.hazards);
+  const addHazard = useStore((s) => s.addHazard);
+  const updateHazard = useStore((s) => s.updateHazard);
+  const auditor = useStore((s) => s.auditor);
+  const knownEvents = useKnownHazardousEvents();
+  const [progressText, setProgressText] = useState("");
+  const [discussionText, setDiscussionText] = useState("");
+  /* Called unconditionally here, not inside the `active &&` block the
+     lifecycle strip itself renders in — the strip is conditional, hooks
+     are not. */
+  const lifecycleRef = useRef<HTMLDivElement>(null);
+  const lifecycleEdge = useEdgeScroll(lifecycleRef);
+  const whyRef = useRef<HTMLDivElement>(null);
+  const whyEdge = useEdgeScroll(whyRef);
+  const updateFinding = useStore((s) => s.updateFinding);
+  const entity = useEntity();
+  const entityCode = useEntityCode();
+  const visitId = useVisitId();
+
+  /* Everything an earlier visit at this entity left open — the seeded 2025
+     findings and any finding this app raised on a previous visit that nobody
+     closed. Both are the same question in front of the asset. */
+  const outstanding = useOutstanding();
+
+  /* THE OTHER FIVE CHIPS' OWN DATA — real Finding[] arrays (not Outstanding,
+     carryforward's own read-only wrapper the "Carried" worklist above uses),
+     because these feed ReviewRiskTable/ReviewRiskPanel, which edit Finding
+     fields directly. "All" and "Closed" read the whole entity, every visit
+     — a reviewer closing out an old finding, or checking what has already
+     been closed, needs more than this visit's own work. "To review" stays
+     scoped to THIS visit, same as /review always was: a reviewer classifies
+     what was just raised, not every finding this entity has ever carried. */
+  const allOpenFindings = useMemo(
+    () => entityFindings.filter((f) => f.actionStatus !== "Closed"),
+    [entityFindings],
+  );
+  const closedFindings = useMemo(
+    () => entityFindings.filter((f) => f.actionStatus === "Closed"),
+    [entityFindings],
+  );
+  const criticalFindings = useMemo(() => allOpenFindings.filter((f) => f.critical), [allOpenFindings]);
+  const safetyFindings = useMemo(() => allOpenFindings.filter((f) => f.safetyTag), [allOpenFindings]);
+  const riskViewFindings: Finding[] =
+    issuesFilter === "toReview"
+      ? findings
+      : issuesFilter === "critical"
+        ? criticalFindings
+        : issuesFilter === "safety"
+          ? safetyFindings
+          : issuesFilter === "closed"
+            ? closedFindings
+            : allOpenFindings;
+  /* CODE REVIEW ON THIS BRANCH — every other chip's count is exactly what
+     tapping it shows by default; "Carried" used to read `outstanding.length`
+     (every carried-forward item, including ones rated Acceptable — "context
+     only", not work), but the Carried view's own default sub-filter is
+     "Carries work" (`carriesWork`, below), which excludes those. A reader
+     who tapped "Carried 40" and saw 35 rows had no way to know the chip was
+     counting something the view wasn't showing by default. Scoped to match,
+     same as every other chip — the excluded context-only items are still
+     fully reachable through that view's own "Context only" sub-filter,
+     nothing is hidden, only the top-level number is now honest about what
+     it is the count of. */
+  const issuesCounts = {
+    all: allOpenFindings.length,
+    toReview: findings.length,
+    carried: outstanding.filter(carriesWork).length,
+    critical: criticalFindings.length,
+    safety: safetyFindings.length,
+    closed: closedFindings.length,
+  };
+
+  /* Through `useVisits`, not a raw `PROGRAMME_VISITS.find`/`.filter` — the
+     latter ignores a correction made in the Audits panel
+     (AuditDateOverride.label), so a renamed audit would still show its old
+     name here and in the "carries to {nextVisit}" copy below. */
+  const correctedVisits = useVisits(entityCode);
+  const visitLabel =
+    correctedVisits.find((v) => v.id === visitId)?.label ?? visitId;
+  const nextVisit = correctedVisits.filter((v) => v.id > visitId)[0];
+
+  const [filter, setFilter] = useState<Filter>("all");
+  /* The closure conversation happens with ONE discipline in the room. O.R.
+     Tambo carries 33 open items; fifteen rows of somebody else's assets is
+     what derails the meeting, and the Electrical lead scrolling past Civil to
+     find their own is the failure mode this prevents. */
+  const [discipline, setDiscipline] = useState<string>("all");
+  const [activePf, setActivePf] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const say = (m: string) => {
+    setToast(m);
+    setTimeout(() => setToast(null), 2400);
+  };
+
+  /** Current rating of an asset system, from this visit's captured data.
+   *  Shared with the dashboard — see currentRatingOf in carryforward.ts. */
+  const currentRating = (discipline: string, system: string) =>
+    currentRatingOf(
+      checksOf(entityCode, discipline, system),
+      findings.filter((f) => f.discipline === discipline && f.system === system),
+      responses
+    );
+  /** Compared through the crosswalk, not by name text. A split 2025 system is
+   *  compared with the worst of its current systems. */
+  const ratingOfItem = (p: Outstanding) =>
+    worstRating(p.currentSystems.map((s) => currentRating(p.discipline, s)));
+  const checksOfItem = (p: Outstanding) =>
+    p.currentSystems.flatMap((s) => checksOf(entityCode, p.discipline, s));
+
+  const list = useMemo(() => {
+    let l = outstanding;
+    /* CONTEXT IS NOT WORK, so it is not in the list by default. An item rated
+       Acceptable needed no mitigation, so there is nothing to verify was
+       implemented — counting it as outstanding makes the real number look
+       bigger than it is. It is not hidden: the chip below says how many there
+       are and shows them. */
+    l = filter === "context" ? l.filter((p) => !carriesWork(p)) : l.filter(carriesWork);
+    if (discipline !== "all") l = l.filter((p) => p.discipline === discipline);
+    if (filter === "unacceptable") l = l.filter((p) => p.rating === "Unacceptable");
+    return l;
+  }, [filter, discipline, outstanding]);
+
+  /* Every visit this entity has, oldest first — including the ones marked
+     `skipped`, which is exactly the point: a visit that did not happen has to
+     appear on the timeline as not audited rather than be left out and read as
+     a clean sheet. */
+  const entityVisits = useMemo(
+    () => PROGRAMME_VISITS.filter((v) => v.entity === entityCode),
+    [entityCode]
+  );
+  const byVisit = useStore((s) => s.byVisit);
+  const timelines = useMemo(() => {
+    const m = new Map<string, ReturnType<typeof timelineFor>>();
+    for (const p of outstanding) {
+      m.set(p.key, timelineFor(byVisit, entityCode, visitId, p, entityVisits));
+    }
+    return m;
+  }, [byVisit, entityCode, visitId, outstanding, entityVisits]);
+
+  /* GROUPED BY ASSET SYSTEM, because that is the unit the close-out
+     conversation is actually held in — the discipline lead answers for a
+     switchboard, not for a list of finding numbers — and it is the unit ACSA
+     rates and compares year on year. Every prior audit's items are in here
+     together: a 2025 finding and one this app raised in 2026 are the same
+     question in front of the same asset, and splitting them by where they came
+     from would ask it twice. */
+  const grouped = useMemo(() => {
+    const key = (p: { system: string }) => p.system?.trim() || "No asset system recorded";
+    /* THE COUNT IS OF EVERYTHING THE ASSET SYSTEM CARRIES, not of what the
+       chip filter left standing. "2/3" that changes meaning when somebody
+       presses "Repeats" is not progress, it is arithmetic about a filter — and
+       this screen's whole job is telling a discipline lead how much of their
+       own asset system is still undecided. Scoped to the discipline in the
+       room, because that genuinely changes whose work it is; not to the chips,
+       which only change what is being looked at. */
+    const carriedHere = outstanding
+      .filter(carriesWork)
+      .filter((p) => discipline === "all" || p.discipline === discipline);
+    const totals = new Map<string, { done: number; total: number }>();
+    for (const p of carriedHere) {
+      const k = key(p);
+      const t = totals.get(k) ?? { done: 0, total: 0 };
+      t.total++;
+      if (verifications[p.key]?.outcome) t.done++;
+      totals.set(k, t);
+    }
+
+    const by = new Map<string, typeof list>();
+    for (const p of list) {
+      const k = key(p);
+      const g = by.get(k);
+      if (g) g.push(p);
+      else by.set(k, [p]);
+    }
+    return [...by.entries()]
+      .map(([sys, items]) => ({
+        sys,
+        items,
+        /* THE SAME ITEMS, ROUND BY ROUND. An open asset system reads as a
+           timeline — the audit that raised each finding, oldest first — so the
+           grouping is computed once here rather than per render in the tree.
+           Visit ids are "YYYY-MM" and sort lexicographically, which is why
+           there is no date parsing anywhere in this file. */
+        byAudit: (() => {
+          const rounds = new Map<string, { visit: string; label: string; items: Outstanding[] }>();
+          for (const p of items) {
+            const r = rounds.get(p.originVisit);
+            if (r) r.items.push(p);
+            else
+              rounds.set(p.originVisit, {
+                visit: p.originVisit,
+                label: p.originLabel,
+                items: [p],
+              });
+          }
+          return [...rounds.values()].sort((a, b) => a.visit.localeCompare(b.visit));
+        })(),
+        done: totals.get(sys)?.done ?? items.filter((p) => verifications[p.key]?.outcome).length,
+        total: totals.get(sys)?.total ?? items.length,
+      }))
+      .sort((a, b) => a.sys.localeCompare(b.sys));
+  }, [list, verifications, outstanding, discipline]);
+
+  /* THE ORDER THE LEFT PANEL ACTUALLY DRAWS, flattened once.
+   *
+   *  Sarel, 2026-09-11: "clicking on save and next jump to almost the end of
+   *  the items on the left panel, it should move to the next finding in the
+   *  hierarchy as it is displayed on the left."
+   *
+   *  Save & next walked `list`, which is register order — the order the items
+   *  came out of the carry-forward, with no relation to what is on screen. The
+   *  left panel draws `grouped`: asset systems sorted by name, each one a
+   *  timeline of audit rounds oldest first. So "next" could be anywhere,
+   *  including several asset systems away, and the row you land on is usually
+   *  nowhere near the row you just left.
+   *
+   *  Derived from `grouped` rather than re-sorted here, so there is exactly one
+   *  definition of the order and the two can never disagree. */
+  const displayOrder = useMemo(
+    () => grouped.flatMap((g) => g.byAudit.flatMap((round) => round.items)),
+    [grouped]
+  );
+
+  /* SHUT BY DEFAULT — and this reverses what it was.
+     2026-09-09: everything opened by default, on the reasoning that this is a
+     worklist to burn down rather than a tree to explore, and an auditor
+     arriving at a closed list has to press every group before seeing any work.
+     2026-09-10, Sarel, looking at it on his laptop: "the whole asset
+     system/checklist hierarchy should be minimised by default, it is currently
+     all expanded." Both halves are recorded rather than the first overwritten,
+     because the earlier reasoning is still true of a short list — it is the
+     LONG one it gets wrong. O.R. Tambo carries 33 open items across a dozen
+     asset systems; opening all of them makes the screen a scroll with no shape
+     to it, and the shape is what tells an auditor which asset to take next.
+
+     `null` means "not yet decided by anybody" and reads as all-shut; once the
+     auditor opens or closes anything it becomes their own set, and a group they
+     opened stays open while they work it. */
+  const [openSystems, setOpenSystems] = useState<string[] | null>(null);
+
+  const active = list.find((p) => p.key === activePf) ?? list[0];
+  const v = active ? verifications[active.key] : undefined;
+  /* EVERYTHING RECORDED AGAINST THE ACTIVE ITEM, across every visit — see
+     streamFor(). Memoised on the fields it actually reads rather than on
+     `active`, which is a fresh object on every render and would rebuild the
+     stream on every keystroke in the evidence box. */
+  const originVisit = active?.originVisit;
+  const originRating = active?.rating ?? null;
+  const raised = useMemo(
+    () =>
+      originVisit
+        ? {
+            /* Visit ids are "YYYY-MM"; Date parses that as UTC midnight on the
+               first, which is an honest floor for a record whose own date is
+               the audit and nothing finer. `dated: "visit"` says so. */
+            at: Date.parse(`${originVisit}-01T00:00:00Z`),
+            dated: "visit" as const,
+            visit: originVisit,
+            rating: originRating,
+          }
+        : undefined,
+    [originVisit, originRating]
+  );
+  const stream = useStream(active?.key ?? "", raised);
+
+  const carries = useMemo(() => outstanding.filter(carriesWork), [outstanding]);
+  const context = useMemo(() => outstanding.filter((p) => !carriesWork(p)), [outstanding]);
+  /* How many of what carries work were rated Unacceptable at the audit that
+     raised them — the one filter Sarel asked to keep, in place of the
+     six-chip row. Scoped to `carries`, not `outstanding`, so the count in
+     the chip always matches what "all" already shows. */
+  const unacceptablePrevCount = useMemo(
+    () => carries.filter((p) => p.rating === "Unacceptable").length,
+    [carries]
+  );
+  /* The disciplines actually present in what carries, so the picker never
+     offers a discipline with nothing behind it. */
+  const disciplines = useMemo(
+    () => [...new Set(carries.map((p) => p.discipline))].sort(),
+    [carries]
+  );
+
+  const counts = {
+    closed: outstanding.filter((p) => verifications[p.key]?.outcome === "Closed").length,
+    partial: outstanding.filter((p) => verifications[p.key]?.outcome === "Partially closed").length,
+    repeat: outstanding.filter((p) => verifications[p.key]?.outcome === "Open - repeat").length,
+    unverified: outstanding.filter((p) => !verifications[p.key]?.outcome).length,
+    carried: outstanding.filter((p) => p.source === "carried").length,
+  };
+
+  const isDefault = discipline === "all" && filter === "all";
+  const filterSummary = isDefault
+    ? "everything that carries work"
+    : [discipline !== "all" ? discipline : null, FILTER_LABEL[filter]].filter(Boolean).join(" · ");
+
+  const linked = active ? checksOfItem(active) : [];
+  const linkedNC = linked.filter((c) => responses[c.id]?.compliance === "NC").length;
+  const cur = active ? ratingOfItem(active) : "";
+  const move = active ? movement(active.rating, cur) : null;
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* THE FILTER-CHIP ROW — build prompt 8's own top-level chrome, the
+          one thing every filter shares. "+" opens the same unified add flow
+          every other screen's own toolbar already does (build prompt 5) —
+          general issues (no check, no asset system) are explicitly allowed
+          by the spec, which is exactly what opening it from here, with no
+          preset context, already gives for free. */}
+      <div className="shrink-0 border-b px-5 pt-4 pb-2.5" style={{ borderColor: "var(--line)", background: "var(--panel)" }}>
+        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-[17px] font-bold">Issues at {entity.short}</h2>
+          <Btn
+            variant="primary"
+            className="min-h-[36px] px-3 py-1.5 text-[11.5px]"
+            onClick={() => setAddOpen(true)}
+          >
+            <IconPlus width={14} height={14} />
+            Add issue
+          </Btn>
+        </div>
+        <div role="radiogroup" aria-label="Filter issues" className="flex flex-wrap gap-[6px]">
+          {(Object.keys(ISSUES_FILTER_LABEL) as IssuesFilter[]).map((f) => (
+            <button
+              key={f}
+              role="radio"
+              aria-checked={issuesFilter === f}
+              onClick={() => setIssuesFilter(f)}
+              className="flex min-h-[32px] items-center gap-[6px] rounded-full border px-3 py-1.5 font-display text-[11px] font-semibold transition-[var(--t)]"
+              style={
+                issuesFilter === f
+                  ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
+                  : { background: "var(--sunken)", borderColor: "transparent", color: "var(--ink-2)" }
+              }
+            >
+              {ISSUES_FILTER_LABEL[f]}
+              <span
+                className="font-mono text-[10px]"
+                style={{ color: issuesFilter === f ? "var(--on-acc)" : "var(--ink-4)" }}
+              >
+                {issuesCounts[f]}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {issuesFilter !== "carried" ? (
+        <IssuesRiskView
+          findings={riskViewFindings}
+          entityCode={entityCode}
+          filter={issuesFilter}
+          onUpdateFinding={(id, patch) => updateFinding(id, patch)}
+        />
+      ) : (
+      <div className="app-scroll min-h-0 flex-1 overflow-y-auto">
+      <div className="mx-auto w-full max-w-[1240px] px-5 pt-5 pb-16">
+        {/* THE TOP OF THIS SCREEN WAS HALF THE SCREEN.
+            Heading, a four-line paragraph, five cards about 100px tall, a
+            standing explanation of the 3-year cycle, two rows of chips and a
+            legend — measured on Sarel's laptop, roughly 560px before the first
+            item of work. His words: "the top section is too big where it has
+            the heading and description of what the page is about, we lose a lot
+            of screen space."
+
+            What it is now: the heading with the count in it, the five figures
+            as ONE line, and the cycle explanation behind a summary that opens.
+            Nothing is deleted — every number and every sentence is still
+            reachable — but the default state of the screen is the worklist.
+
+            THE HEADING ITSELF MOVED UP, to the filter-chip row every filter
+            shares — this paragraph is what stayed local to "Carried". */}
+        <div className="mb-2.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+          <p className="text-[12px]" style={{ color: "var(--ink-2)" }}>
+            {outstanding.length === 0 ? (
+              <>Nothing outstanding coming into {visitLabel}.</>
+            ) : (
+              <>
+                {outstanding.length} item{outstanding.length === 1 ? "" : "s"} left open by earlier
+                visits. Open an asset system for its findings in audit order; open one for
+                everything ever recorded against it.
+              </>
+            )}
+          </p>
+        </div>
+
+        {/* ONE LINE, AT EVERY WIDTH. It was this line below sm and five cards
+            above it — the same five numbers rendered twice, and the card
+            version cost about 110px of a laptop screen to say what fits on
+            one. The colour is still on each number, so the close-out meeting
+            reads it the same way; it just does not own the first screen. */}
+        <div
+          className="mb-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[11px] border px-3 py-2 text-[11px]"
+          style={{ background: "var(--panel)", borderColor: "var(--line)" }}
+        >
+          {(
+            [
+              [counts.closed, "verified closed", "good"],
+              [counts.partial, "partially closed", "warn"],
+              [counts.repeat, "still open — repeat", "bad"],
+              [counts.unverified, "not yet verified", "neu"],
+              [counts.carried, "carried from a visit", "acc"],
+            ] as [number, string, string][]
+          ).map(([n, label, tone]) => (
+            <span key={label} className="flex items-baseline gap-1.5">
+              <b className="tnum font-mono text-[15px] leading-none" style={{ color: `var(--${tone})` }}>
+                {n}
+              </b>
+              <span style={{ color: "var(--ink-3)" }}>{label}</span>
+            </span>
+          ))}
+        </div>
+
+        {/* THE CYCLE, FOLDED. It is the single most important thing to
+            understand about this screen and it is read once, not every time —
+            a standing banner that says the same four sentences on every visit
+            is furniture by the second day. The summary line still names the
+            cycle, so nobody has to know to open it to learn that one exists. */}
+        {/* Reference information, not a status — item 4 of Sarel's second
+            visual-hierarchy pass takes the brand accent off this
+            disclosure. */}
+        <details className="mb-2.5">
+          <summary
+            className="cursor-pointer list-none rounded-[8px] border px-3 py-[7px] text-[11px]"
+            style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+          >
+            Findings carry on the <b>3-year cycle</b> — what that means for closing one
+          </summary>
+          <div className="mt-1.5 px-3 text-[11.5px] leading-[1.5]" style={{ color: "var(--ink-2)" }}>
+            Anything still open when this visit ends reappears
+            {nextVisit ? ` at ${nextVisit.label}` : " on the next visit"} with its owner, due date
+            and evidence trail intact — and marking one <b>Closed</b> here closes the finding
+            itself, so it stops carrying.
+          </div>
+        </details>
+
+        {/* FILTERS, FOLDED AND CUT DOWN. Sarel first folded this row behind a
+            summary because it was too many chips at once; then, looking at
+            the deployed screen again: "remove the bottom row of filters. add
+            filter for Unacceptable rating of previous audit finding." So the
+            six-chip row (priority / unverified / repeat / carried / nocover /
+            context) is gone — those counts are still readable in the summary
+            band above — and the one filter he actually asked for replaces it:
+            whether the finding's own rating, the time it was raised, was
+            Unacceptable. Shut by default, uncontrolled (no useState) — opens
+            on tap and stays open for the rest of this page visit. */}
+        <FilterBar
+          className="mb-3"
+          summary={<>Showing: <b>{filterSummary}</b></>}
+          active={!isDefault}
+          groups={[
+            ...(disciplines.length > 1
+              ? [
+                  {
+                    label: "Discipline",
+                    variant: "soft" as const,
+                    chipClassName: "min-h-[44px]",
+                    options: ["all", ...disciplines].map((d) => ({
+                      key: d,
+                      label:
+                        d === "all"
+                          ? `All ${carries.length}`
+                          : `${d} (${carries.filter((p) => p.discipline === d).length})`,
+                    })),
+                    value: discipline,
+                    onChange: setDiscipline,
+                  },
+                ]
+              : []),
+            {
+              options: (
+                [
+                  ["all", `Carries work (${carries.length})`],
+                  [
+                    "unacceptable",
+                    `Unacceptable rating of previous finding (${unacceptablePrevCount})`,
+                  ],
+                  /* Kept even after the six-chip cull — NOT hidden clutter,
+                     it's the one honesty guard the old row carried: a
+                     closure list that quietly drops the items it decided
+                     need no work is a list nobody can trust blind. Only
+                     offered when there's something behind it, same as
+                     always. */
+                  ...(context.length
+                    ? ([["context", `Context only (${context.length})`]] as [Filter, string][])
+                    : []),
+                ] as [Filter, string][]
+              ).map(([key, label]) => ({ key, label })),
+              value: filter,
+              onChange: (k) => setFilter(k as Filter),
+            },
+          ]}
+        />
+
+        {/* THE LEGEND WENT WITH THE STRIP IT EXPLAINED.
+            It was six little cells and their words, above the list, teaching a
+            shape that is no longer drawn — Sarel: "don't have an icon per
+            audit, just need to see the current status of the finding, and the
+            year/month when it was logged". A legend for a control that does not
+            exist is the worst kind of furniture: it costs a row of the screen
+            AND teaches something untrue. The status is a word on the row now,
+            the date is beside it, and the sequence across audits is written out
+            in the detail pane's history. VisitStrip itself is kept — the
+            timeline it draws is still what visitsSurvived() counts, and it will
+            be wanted again when there is somewhere with room for it. */}
+
+        {/* `grid-cols-1` BELOW `lg`, NOT JUST "grid" ON ITS OWN. A bare `grid`
+            sets no `grid-template-columns`, so the browser's implicit single
+            column has `min-width: auto` — it refuses to shrink below its
+            content's own min-content width, which on this screen is a
+            GroupRow wide enough to hold a full discipline/system name.
+            Below `lg` that overflowed the panel by nearly 300px, clipped
+            silently by the panel's own `overflow-hidden` rather than
+            wrapping or scrolling — which is why Sarel saw it as broken, not
+            just cramped: rows were cut off mid-word, and a tap landing past
+            the visible 350px could miss a control that was there, just
+            off-screen. `grid-cols-1` compiles to
+            `grid-template-columns: repeat(1, minmax(0, 1fr))` — the same
+            `minmax(0, ...)` floor `lg:`'s own `[380px_minmax(0,1fr)]`
+            already gives its second column — so the single mobile column
+            can shrink to the panel's actual width instead of the content's
+            natural one. */}
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[380px_minmax(0,1fr)]">
+          <div className="overflow-hidden rounded-[16px] border" style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
+            {list.length === 0 ? (
+              <Empty>Nothing matches this filter.</Empty>
+            ) : (
+              grouped.map((g) => {
+                /* The system holding the item on the right stays open however
+                   the list is folded — a detail pane showing a finding whose
+                   row is inside a shut group is a screen that has lost track of
+                   what it is showing. */
+                const open = openSystems === null
+                  ? active?.system === g.sys
+                  : openSystems.includes(g.sys);
+                return (
+                  <div key={g.sys} data-system={g.sys}>
+                    <GroupRow
+                      label={g.sys}
+                      done={g.done}
+                      total={g.total}
+                      open={open}
+                      holds={active?.system === g.sys}
+                      onToggle={() =>
+                        setOpenSystems((cur) => {
+                          /* The first press takes over from the default, and
+                             takes the default's own state with it — otherwise
+                             opening a second system would silently shut the one
+                             the detail pane is showing. */
+                          const base =
+                            cur ?? (active?.system ? [active.system] : []);
+                          return base.includes(g.sys)
+                            ? base.filter((x) => x !== g.sys)
+                            : [...base, g.sys];
+                        })
+                      }
+                      title={`${g.sys} — ${g.done} of ${g.total} decided this visit`}
+                    />
+                    {open && (
+                      /* THE TIMELINE, IN THE LEFT PANEL.
+                         Sarel: "I like this idea of the timeline view, let's
+                         bring that into the left panel — when you expand an
+                         asset system it brings up this timeline view of all
+                         findings in order of the audit timeline, and the
+                         current status of each finding."
+
+                         So an open asset system is not a flat list any more.
+                         Its findings are grouped under the audit that RAISED
+                         them, oldest audit first, on a rail — which is the one
+                         ordering that answers the question this screen exists
+                         for: what has this asset system been carrying, and for
+                         how long. A March 2025 finding and a September 2026 one
+                         in the same system are different ages of problem and
+                         the list used to render them identically.
+
+                         THE PER-AUDIT CELL STRIP IS GONE from the row, at his
+                         instruction — "don't have an icon per audit, just need
+                         to see the current status of the finding, and the
+                         year/month when it was logged". The strip's whole job
+                         was to show the shape across visits; the rail's audit
+                         markers now carry the "when", the status pill carries
+                         the "what", and the full open→closed→open sequence
+                         lives in the detail pane's stream, which is where there
+                         is room to write it in words. */
+                      <div className="pb-1">
+                        {g.byAudit.map((round) => (
+                          <div key={round.visit}>
+                            {/* THE AUDIT MARKER. Small, mono, and it is a
+                                date rather than a heading — the findings under
+                                it are the work; this says when they started. */}
+                            <div
+                              className="flex items-center gap-2 px-[11px] pt-[7px] pb-[3px]"
+                              style={{ color: "var(--ink-4)" }}
+                            >
+                              <span
+                                aria-hidden
+                                className="h-[7px] w-[7px] shrink-0 rounded-full"
+                                style={{ background: "var(--line-3)" }}
+                              />
+                              <span className="font-mono text-[9px] tracking-[0.08em] uppercase">
+                                raised {round.label}
+                              </span>
+                              <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+                              <span className="font-mono text-[9px]">
+                                {round.items.length}
+                              </span>
+                            </div>
+                            {round.items.map((p) => {
+                              const o = verifications[p.key]?.outcome;
+                              const on = p.key === active?.key;
+                              const cells = timelines.get(p.key) ?? [];
+                              const survived = visitsSurvived(cells, visitId);
+                              const covered =
+                                checksOf(entityCode, p.discipline, p.system).length > 0;
+                              /* THE CURRENT STATUS, IN WORDS.
+                                 An item is in this list because it is
+                                 outstanding, so with nothing recorded this
+                                 visit it is OPEN — not "not verified", which
+                                 describes what the auditor has not done rather
+                                 than what the finding is. Once this visit
+                                 records an outcome, that outcome is the
+                                 status. */
+                              const status = o ?? "Open";
+                              const tone =
+                                o === "Closed"
+                                  ? "good"
+                                  : o === "Open - repeat"
+                                    ? "bad"
+                                    : o === "Partially closed"
+                                      ? "warn"
+                                      : "neutral";
+                              return (
+                                <button
+                                  key={p.key}
+                                  data-item={p.key}
+                                  onClick={() => setActivePf(p.key)}
+                                  className="relative flex w-full items-start gap-2 border-b py-[9px] pr-[11px] pl-[22px] text-left transition-[var(--t)]"
+                                  style={{
+                                    borderColor: "var(--line)",
+                                    background: on ? "var(--acc-soft)" : "transparent",
+                                  }}
+                                >
+                                  {/* The rail. Decorative — the audit marker
+                                      above says the date in words and the row
+                                      says the id and the status, so this is a
+                                      second reading of something written. */}
+                                  <span
+                                    aria-hidden
+                                    className="absolute inset-y-0 left-[14px] w-px"
+                                    style={{ background: "var(--line)" }}
+                                  />
+                                  {on && (
+                                    <span
+                                      className="absolute inset-y-0 left-0 w-[2.5px]"
+                                      style={{ background: "var(--acc)" }}
+                                    />
+                                  )}
+                                  <span className="min-w-0 flex-1">
+                                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                      <span
+                                        className="font-mono text-[9px]"
+                                        style={{ color: "var(--ink-4)" }}
+                                      >
+                                        {p.key}
+                                      </span>
+                                      {/* WHEN IT WAS LOGGED, on the row, in
+                                          full. It is the second half of what
+                                          Sarel asked the strip to be replaced
+                                          by, and it survives the row being read
+                                          out of the context of its marker. */}
+                                      <span
+                                        className="font-mono text-[9px]"
+                                        style={{ color: "var(--ink-4)" }}
+                                      >
+                                        {p.originLabel}
+                                      </span>
+                                      <span className="ml-auto shrink-0">
+                                        <Pill tone={tone}>{status.toUpperCase()}</Pill>
+                                      </span>
+                                    </span>
+                                    <span className="mt-[3px] block truncate text-[11.5px]">
+                                      {p.finding}
+                                    </span>
+                                    <span className="mt-[3px] flex flex-wrap items-center gap-2 font-mono text-[9px]">
+                                      <span style={{ color: "var(--ink-4)" }}>
+                                        {p.rating}
+                                      </span>
+                                      {survived > 0 && (
+                                        <span style={{ color: "var(--warn)" }}>
+                                          survived {survived} visit{survived === 1 ? "" : "s"}
+                                        </span>
+                                      )}
+                                      {/* THE COVERAGE GUARD, on the row rather
+                                          than only in the detail pane. Closure
+                                          cannot be evidenced against a check
+                                          nobody is doing, and the person
+                                          deciding needs to know that before they
+                                          decide, not after. */}
+                                      {!covered && (
+                                        <span style={{ color: "var(--bad)" }}>
+                                          not covered this visit
+                                        </span>
+                                      )}
+                                    </span>
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {active && (
+            <>
+              {/* THE BOUNDARY BETWEEN LIST AND EDITOR, below `lg` only.
+                  Today's mobile review: scrolling past the item list lands
+                  straight inside this finding's full editor with nothing
+                  marking the switch — at `lg` the two-column grid already
+                  makes list and editor two visibly separate things, so this
+                  divider has nothing to add there and stays hidden. Same
+                  quiet-divider shape this file already uses for "raised
+                  {round.label}" above, not a new pattern. */}
+              <div className="flex items-center gap-2 px-1 lg:hidden" aria-hidden="true">
+                <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+                <span className="font-mono text-[9px] tracking-[0.08em] uppercase" style={{ color: "var(--ink-4)" }}>
+                  Now editing
+                </span>
+                <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+              </div>
+            <div className="rounded-[16px] border p-[18px]" style={{ background: "var(--panel)", borderColor: "var(--line)", boxShadow: "var(--e2)" }}>
+              <div className="mb-1.5 flex flex-wrap items-center gap-[7px] font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
+                <span>{active.key}</span>
+                <span>·</span>
+                <span>{active.discipline}</span>
+                <span>·</span>
+                <span>{active.system}</span>
+                <Pill tone={ratingTone(active.rating)}>
+                  {active.originLabel.toUpperCase()} {active.rating.toUpperCase()}
+                </Pill>
+                {/* A provenance mark, not a status — item 4 of Sarel's
+                    second visual-hierarchy pass takes the brand accent
+                    off it. */}
+                {active.source === "carried" && <Pill>CARRIED FORWARD</Pill>}
+                {(() => {
+                  const n = visitsOpen(active, entityCode, visitId);
+                  return n > 0 ? (
+                    <Pill tone="bad">
+                      OPEN ACROSS {n + 1} VISIT{n ? "S" : ""}
+                    </Pill>
+                  ) : null;
+                })()}
+                {active.owner && <span>· {active.owner}</span>}
+                {active.dueDate && <span>· due {active.dueDate}</span>}
+              </div>
+              <h3 className="mb-1 text-[14.5px] leading-[1.35] font-bold">{active.finding}</h3>
+
+              {/* WHY, not just WHAT. Sarel, looking at "Tolerable" on its own:
+                  "we dont see the reason or explanation why, this need to be
+                  visible for the user on the same timeline." The finding text
+                  above is what was found; this is the basis the rating was
+                  actually built on, carried straight through from the origin
+                  record rather than re-derived, so it can never disagree with
+                  the report it came from. */}
+              {(active.severity || active.likelihood || active.riskPriority) && (
+                /* Border only, not --sunken like the lifecycle strip right
+                   below it. Both this chip row and that strip used to carry
+                   the same generic container tint back to back, which reads
+                   as one undifferentiated block rather than two different
+                   things (why the rating is what it is, then where the
+                   finding stands) — --sunken means nothing semantic here, so
+                   repeating it on adjacent unrelated content was noise, not
+                   signal.
+
+                   no-scrollbar + overflow-x-auto, not flex-wrap — Sarel,
+                   on a live screenshot: "some lines go to a second row but
+                   should rather have been in one row." Four badges
+                   (Why X / Severity / Likelihood / Risk priority) is
+                   already tight on a phone; `flex-wrap` dropped the ones
+                   that didn't fit onto a second row instead of keeping the
+                   explanation on the one line it is — this scrolls
+                   sideways instead, same convention the lifecycle strip
+                   right below it already uses for the same reason — same
+                   `relative` wrapper + useEdgeScroll + ScrollEdges too,
+                   not just the bare overflow-x-auto: this file's own Day-2
+                   note on that lifecycle strip found scrolling with no
+                   affordance at all reads as a hard edge, not something
+                   swipeable, and a row that newly scrolls has exactly
+                   that problem until it gets the same fade+chevron cue. */
+                <div className="relative mb-3">
+                  <div
+                    ref={whyRef}
+                    className="no-scrollbar flex items-center gap-x-3 overflow-x-auto rounded-[8px] border px-[10px] py-[7px] text-[11.5px] whitespace-nowrap"
+                    style={{ borderColor: "var(--line)" }}
+                  >
+                    <span className="label-xs shrink-0" style={{ color: "var(--ink-3)" }}>
+                      Why {active.rating.toLowerCase()}
+                    </span>
+                    {active.severity && <span className="shrink-0">Severity {active.severity}</span>}
+                    {active.likelihood && <span className="shrink-0">Likelihood {active.likelihood}</span>}
+                    {active.riskPriority && <span className="shrink-0">Risk priority {active.riskPriority}</span>}
+                  </div>
+                  <ScrollEdges edge={whyEdge} />
+                </div>
+              )}
+
+              {/* lifecycle — relative wrapper so ScrollEdges can sit as an
+                  edge-conditional sibling of the scroller, not a child of
+                  it (a child would scroll away with the content). */}
+              <div className="relative my-3">
+              <div
+                ref={lifecycleRef}
+                className="no-scrollbar flex items-center overflow-x-auto rounded-[11px] border px-[13px] py-[11px]"
+                style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
+              >
+                {[
+                  { n: "✓", t: "Raised", s: active.originLabel, done: true },
+                  {
+                    n: "2",
+                    t: "Remediated",
+                    s: `by ${entity.short}`,
+                    done: !!v?.outcome && v.outcome !== "Not verified",
+                  },
+                  { n: "3", t: "Verified", s: visitLabel, done: !!v?.outcome, now: !v?.outcome },
+                  {
+                    n: "4",
+                    t: v?.outcome === "Closed" ? "Closed" : "Re-check",
+                    s: v?.outcome === "Closed" ? "does not carry" : (nextVisit?.label ?? "next visit"),
+                    done: v?.outcome === "Closed",
+                  },
+                ].map((step, i, arr) => (
+                  <span key={step.t} className="flex shrink-0 items-center">
+                    <span className="flex shrink-0 items-center gap-2">
+                      <span
+                        className="flex h-[20px] w-[20px] items-center justify-center rounded-full font-mono text-[8.5px] font-semibold"
+                        style={{
+                          background: step.done ? "var(--good)" : step.now ? "var(--acc)" : "var(--line)",
+                          color: step.done ? "#fff" : step.now ? "var(--on-acc)" : "var(--ink-3)",
+                          boxShadow: step.now ? "0 0 0 3px var(--acc-soft)" : "none",
+                        }}
+                      >
+                        {step.done ? "✓" : step.n}
+                      </span>
+                      <span>
+                        <b className="block font-display text-[10px] font-semibold whitespace-nowrap">{step.t}</b>
+                        <span className="text-[9px] whitespace-nowrap" style={{ color: "var(--ink-4)" }}>
+                          {step.s}
+                        </span>
+                      </span>
+                    </span>
+                    {i < arr.length - 1 && (
+                      <span
+                        className="mx-2 h-[1.5px] w-[20px] shrink-0 rounded-[8px]"
+                        style={{ background: step.done ? "var(--good-line)" : "var(--line)" }}
+                      />
+                    )}
+                  </span>
+                ))}
+              </div>
+              <ScrollEdges edge={lifecycleEdge} />
+              </div>
+
+              {/* FIVE SECTIONS, IN THE ORDER YOU'D ACTUALLY WORK THROUGH THEM
+                  — Sarel, on a live screenshot of this card: "create some
+                  sections... easier to see which areas should be
+                  completed and how it should flow, not just a bunch of
+                  text boxes." Every field below is the same field it was;
+                  only the boundary around each group and the step number
+                  on it are new — see FollowUpSection's own doc comment. */}
+              <FollowUpSection step={1} title="Verification" hint="what did you find this time?" done={!!v?.outcome}>
+                <div className="grid grid-cols-2 gap-[6px] sm:grid-cols-4">
+                  {OUTCOMES.map(({ key, label, Icon, tone }) => {
+                    const on = v?.outcome === key;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => {
+                          const outcome = on ? null : key;
+                          patchVerification(active.key, {
+                            outcome,
+                            verifiedAt: Date.now(),
+                          });
+                          /* A carried finding is a real record, not a row in a
+                             list. Closing it here has to close it there, or it
+                             reappears on the next visit having been verified
+                             closed on this one. Un-picking reopens it for the
+                             same reason. */
+                          if (active.findingId) {
+                            updateFinding(active.findingId, {
+                              actionStatus:
+                                outcome === "Closed"
+                                  ? "Closed"
+                                  : outcome === "Partially closed"
+                                    ? "In progress"
+                                    : "Open",
+                            });
+                          }
+                          if (!on) say(`${active.key} — ${label}`);
+                        }}
+                        className="flex min-h-[56px] flex-col items-center justify-center gap-[5px] rounded-[11px] border-[1.5px] px-1 py-2.5 font-display text-[10.5px] font-semibold transition-[var(--t)] hover:-translate-y-[1px]"
+                        style={
+                          on
+                            ? { background: `var(--${tone}-bg)`, borderColor: `var(--${tone})`, color: `var(--${tone})` }
+                            : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
+                        }
+                      >
+                        <Icon width={15} height={15} />
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </FollowUpSection>
+
+              {/* TWO SECTIONS, ONE PAIR — what was asked for against what has
+                  actually come in. Sarel: "'is evidence of closure' assume
+                  it is the evidence received/captured which is used to
+                  support the closure? Where do you put in the evidence
+                  which you specifically request for closure? Both sections
+                  required." `evidence` below already was the received half;
+                  this is the other one, read together as a pair rather than
+                  one box asked to do both jobs. */}
+              <FollowUpSection step={2} title="Evidence" hint="what's outstanding, and what proves it" done={!!v?.evidence?.trim()}>
+                <div>
+                  <FieldLabel>Requested for closure</FieldLabel>
+                  <textarea
+                    value={v?.evidenceRequested ?? ""}
+                    onChange={(e) => patchVerification(active.key, { evidenceRequested: e.target.value })}
+                    placeholder="What's still needed to close this out…"
+                    aria-label="Evidence requested for closure"
+                    className="min-h-[54px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                    style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                  />
+                </div>
+
+                <div>
+                  <FieldLabel>Of closure</FieldLabel>
+                  <textarea
+                    value={v?.evidence ?? ""}
+                    onChange={(e) => patchVerification(active.key, { evidence: e.target.value })}
+                    placeholder="What proves it was fixed…"
+                    aria-label="Evidence that it was fixed"
+                    className="min-h-[70px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                    style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                  />
+                </div>
+
+                {/* EVIDENCE FOR REVIEW/CLOSURE — PENDING, on this Follow-up
+                    item. Sarel: "can we have a block 'Evidence For
+                    Review/Closure_Pending'. Cannot use the 'Evidence pending'
+                    tab under the 'Checks' workflow as it will relate to
+                    present 'Checks' and not 'Follow Up'." DELIBERATELY its own
+                    flag — Verification.evidencePending, not
+                    Response.evidencePending — toggled through
+                    patchVerification like every other field on this card, so
+                    the two can never collide. Same small-pill shape as the
+                    "photograph expected" warning on the Inspection screen,
+                    the nearest existing use of this tone. */}
+                <button
+                  onClick={() =>
+                    patchVerification(active.key, { evidencePending: !v?.evidencePending })
+                  }
+                  aria-pressed={!!v?.evidencePending}
+                  className="flex w-full items-center gap-2 rounded-[8px] border px-[10px] py-[7px] text-left text-[11px] transition-[var(--t)]"
+                  style={
+                    v?.evidencePending
+                      ? { background: "var(--warn-bg)", borderColor: "var(--warn-line)", color: "var(--warn)" }
+                      : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-3)" }
+                  }
+                >
+                  <IconClock width={13} height={13} />
+                  Evidence for review/closure — pending
+                </button>
+              </FollowUpSection>
+
+              {/* TWO FIELDS, TWO QUESTIONS, and they used to be one that only
+                  appeared when the outcome was not Closed.
+
+                  Sarel: "need to capture remediation actions and next steps and
+                  updates logged to the current audit." They are genuinely
+                  different things and ACSA's own sheet folds them into one cell,
+                  which is how a finding regularly arrives at the next audit with
+                  the chase recorded and no remedy at all:
+
+                    REMEDIATION is what fixes the thing. A finding closed this
+                    visit still has one, and it is the single most useful
+                    sentence at the next audit — hence always shown, not only
+                    while something is outstanding.
+
+                    NEXT STEP is what happens next in getting it done: who is
+                    being chased, what the site committed to at close-out, which
+                    report is being waited for.
+
+                  Both are recorded against the CARRIED item rather than raised
+                  as a new finding — a new finding breaks the chain back to the
+                  audit that found it, and the same problem then reads as two. */}
+              <FollowUpSection step={3} title="Remediation & next step" hint="what fixes it, and what happens next" done={!!v?.action?.trim()}>
+                <div>
+                  <FieldLabel>Remediation action — what fixes it</FieldLabel>
+                  <textarea
+                    value={v?.action ?? ""}
+                    onChange={(e) => patchVerification(active.key, { action: e.target.value })}
+                    placeholder="What was done, or what has to be done, and who has it…"
+                    aria-label="Remediation action"
+                    className="min-h-[60px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                    style={{
+                      background: "var(--panel)",
+                      /* The warn border only where a blank is actually a gap: an
+                         item this visit says is still open with no action recorded.
+                         A closed item with no action is untidy, not wrong. */
+                      borderColor:
+                        !v?.action && v?.outcome && v.outcome !== "Closed"
+                          ? "var(--warn-line)"
+                          : "var(--line-2)",
+                    }}
+                  />
+                </div>
+
+                <div>
+                  {/* min-h-[72px], not [54px] — on a 375px phone the full
+                      placeholder wraps to 3 lines, and 54px only gave room for
+                      2, so the last word was sliced off at the box's own bottom
+                      border. 72px is still a one-line box once something is
+                      typed (resize-y lets it grow from there); the extra height
+                      only shows while the placeholder itself is doing the
+                      wrapping. */}
+                  <FieldLabel>Next step — what happens next</FieldLabel>
+                  <textarea
+                    value={v?.nextStep ?? ""}
+                    onChange={(e) => patchVerification(active.key, { nextStep: e.target.value })}
+                    placeholder="Who is being chased, what the site committed to, what is being waited for…"
+                    aria-label="Next step"
+                    className="min-h-[72px] w-full resize-y rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                    style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                  />
+                </div>
+              </FollowUpSection>
+
+              {/* Progress and the ACSA discussion log are both running notes,
+                  never "finished" — no done badge on this one, see
+                  FollowUpSection's own comment on why. */}
+              <FollowUpSection step={4} title="Updates & discussion" hint="progress notes, and ACSA's own log">
+                <div>
+                  {/* The dated log. ACSA's Progress/Update is one cell that gets
+                      typed over; this appends, keeping the author, the time and
+                      the visit, and the export flattens it back into their cell. */}
+                  <FieldLabel>Progress</FieldLabel>
+                  {/* `min-w-[200px]`, not `min-w-0` — plenty of room for "Add to
+                      the log" was being taken from the input first, down to
+                      179px at 375px wide, where the placeholder "What moved, in
+                      one line…" hard-clipped mid-word with no ellipsis. A real
+                      floor makes the button wrap to its own row below instead,
+                      which `flex-wrap` already does once there is somewhere to
+                      wrap to. */}
+                  <div className="flex flex-wrap gap-2">
+                    <input
+                      value={progressText}
+                      onChange={(e) => setProgressText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && progressText.trim()) {
+                          addProgress(active.key, progressText);
+                          setProgressText("");
+                          say("Progress recorded");
+                        }
+                      }}
+                      placeholder="What moved, in one line…"
+                      aria-label="Progress note"
+                      className="min-w-[200px] flex-1 rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                      style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                    />
+                    <Btn
+                      disabled={!progressText.trim()}
+                      onClick={() => {
+                        addProgress(active.key, progressText);
+                        setProgressText("");
+                        say("Progress recorded");
+                      }}
+                    >
+                      Add to the log
+                    </Btn>
+                  </div>
+                </div>
+
+                {/* THE ACSA DISCUSSION LOG — its OWN section, distinct from
+                    Progress above. Sarel: "can a section be included to
+                    capture 'ACSA discussion log_with date'… to park
+                    discussion notes so it is not lost? I put a note in the
+                    'next step' section and it doesn't make sense there."
+                    Same append-only mechanism and shape as Progress — same
+                    ProgressNote, same one-line-input-plus-button pattern —
+                    because that log is already proven correct for exactly
+                    this; it is simply a separate list for a separate
+                    question (what was discussed, not what moved). */}
+                <div>
+                  <FieldLabel>ACSA discussion log</FieldLabel>
+                  {(v?.discussionLog?.length ?? 0) > 0 && (
+                    <div className="mb-2 flex flex-col gap-1.5">
+                      {v!.discussionLog!.map((n, i) => (
+                        <div
+                          key={i}
+                          className="rounded-[8px] border px-3 py-2 text-[11.5px] leading-[1.45]"
+                          style={{ background: "var(--sunken)", borderColor: "var(--line)" }}
+                        >
+                          <div className="mb-[2px] font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                            {new Date(n.at).toLocaleDateString()} · {n.by}
+                          </div>
+                          {n.note}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <input
+                      value={discussionText}
+                      onChange={(e) => setDiscussionText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && discussionText.trim()) {
+                          addDiscussionNote(active.key, discussionText);
+                          setDiscussionText("");
+                          say("Discussion note recorded");
+                        }
+                      }}
+                      placeholder="What ACSA said, in one line…"
+                      aria-label="ACSA discussion note"
+                      className="min-w-0 flex-1 rounded-[11px] border px-3 py-2.5 text-[12.5px] outline-none focus:border-[var(--acc)]"
+                      style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
+                    />
+                    <Btn
+                      disabled={!discussionText.trim()}
+                      onClick={() => {
+                        addDiscussionNote(active.key, discussionText);
+                        setDiscussionText("");
+                        say("Discussion note recorded");
+                      }}
+                    >
+                      Add to the log
+                    </Btn>
+                  </div>
+                </div>
+              </FollowUpSection>
+
+              {/* VERIFICATION'S OWN PHOTOGRAPHS, VOICE NOTES AND DOCUMENTS.
+                  Sarel: "can a section be included to upload 'verification'
+                  photo's or information for closure? Have some at present
+                  and doesn't make sense to keep them under 'inspection'."
+                  Verification.attachments already existed in the type —
+                  this is the first UI that ever writes to it, same
+                  camera/mic + AttachmentStrip pattern as every other capture
+                  screen in this app.
+
+                  FileButton added here 20 Oct 2026 — Sarel, again on this
+                  same section: "record what evidence was provided, and also
+                  an option to capture photos, multiple photos, or upload
+                  multiple documents as evidence that the finding can be
+                  closed." Photo and voice were already here; a closure is as
+                  often proved by a certificate, a work order or a report as
+                  by a photograph, and there was no way to attach one without
+                  misfiling it as a "photo". Same FileButton CheckDetail.tsx's
+                  own Evidence status panel already uses — any format, picked
+                  several at once (the input's own `multiple`), nothing
+                  re-encoded, same single attachments array and strip every
+                  other evidence control on this card already writes to and
+                  renders from. */}
+              <FollowUpSection
+                step={5}
+                title="Supporting evidence"
+                hint="photos, voice notes, documents"
+                done={(v?.attachments?.length ?? 0) > 0}
+              >
+                <div className="flex justify-end gap-2">
+                  <PhotoButton
+                    compact
+                    onCaptured={(m) =>
+                      addVerificationAttachment(active.key, { ...m, createdBy: auditor })
+                    }
+                  />
+                  <VoiceNoteButton
+                    compact
+                    onCaptured={(m) =>
+                      addVerificationAttachment(active.key, { ...m, createdBy: auditor })
+                    }
+                  />
+                  <FileButton
+                    compact
+                    onCaptured={(m) =>
+                      addVerificationAttachment(active.key, { ...m, createdBy: auditor })
+                    }
+                  />
+                </div>
+                {(v?.attachments?.length ?? 0) > 0 && (
+                  <AttachmentStrip
+                    attachments={v!.attachments}
+                    thumbSize={40}
+                    onRemove={(id) => removeVerificationAttachment(active.key, id)}
+                    onUpdate={(id, pa) => updateVerificationAttachment(active.key, id, pa)}
+                  />
+                )}
+              </FollowUpSection>
+
+              {/* The hazardous events this finding could lead to, each with its
+                  own likelihood. See the component — plural is the point. */}
+              <PossibleEvents
+                events={v?.possibleEvents ?? []}
+                suggestions={knownEvents}
+                onAdd={(text) => {
+                  addPossibleEvent(active.key, text);
+                  /* FLOWS TO HIRA ON ADD, not left sitting on this screen
+                     until somebody remembers to raise it. Sarel: "once it is
+                     captured/added it should flow to the HIRA view." An
+                     event already on this entity's register — matched on the
+                     same normalised text the suggestions above offer — links
+                     this finding into it rather than minting a second row for
+                     the same hazard; a genuinely new one gets its own, always
+                     unrated, because this screen names the event and the HIRA
+                     group is who rates it. */
+                  const normalised = text.trim().toLowerCase();
+                  const existing = hazards.find(
+                    (h) => h.entity === entityCode && h.event.trim().toLowerCase() === normalised
+                  );
+                  const findingRef = active.findingId ?? active.key;
+                  if (existing) {
+                    updateHazard(existing.id, {
+                      findingIds: existing.findingIds.includes(findingRef)
+                        ? existing.findingIds
+                        : [...existing.findingIds, findingRef],
+                      disciplines: existing.disciplines.includes(active.discipline)
+                        ? existing.disciplines
+                        : [...existing.disciplines, active.discipline],
+                      systems: existing.systems.includes(active.system)
+                        ? existing.systems
+                        : [...existing.systems, active.system],
+                    });
+                    say(`${text.trim()} — already on HIRA, linked to ${active.key}`);
+                  } else {
+                    addHazard({
+                      originVisit: visitId,
+                      event: text.trim(),
+                      description: "",
+                      why: "",
+                      findingIds: [findingRef],
+                      disciplines: [active.discipline],
+                      systems: [active.system],
+                      areas: [],
+                      otherImpacts: [],
+                      /* Unrated, on both instruments, always. This screen
+                         names the event; the HIRA group rates it. */
+                      severity: null,
+                      likelihood: null,
+                      ratingConfirmed: false,
+                      ermConsequence: null,
+                      ermLikelihood: null,
+                      ermConfirmed: false,
+                      ermLikelihoodAssumed: false,
+                      /* Raised against an existing finding, not fresh off a
+                         walk — the case `consolidated` exists for. */
+                      origin: "consolidated",
+                      note: `Raised from the follow-up conversation on ${active.key} — ${active.finding}`,
+                      occurrence: "",
+                      ratingRationale: "",
+                      progress: [],
+                      immediate: false,
+                      reassessedAt: null,
+                      reassessNote: "",
+                      rootCause: "",
+                      actions: [],
+                      actionStatus: "Open",
+                      createdBy: auditor,
+                    });
+                    say(`${text.trim()} — now on HIRA, rate its likelihood there`);
+                  }
+                }}
+                onPatch={(id, patch) => patchPossibleEvent(active.key, id, patch)}
+                onRemove={(id) => {
+                  removePossibleEvent(active.key, id);
+                  say("Event removed");
+                }}
+              />
+
+              {/* EVERYTHING THAT TOUCHED THIS, in one order — the outcome each
+                  audit recorded, the evidence, the photographs somebody went
+                  and took, the voice notes, the updates and the possible events.
+                  It replaces ItemTimeline, which was one row per audit off the
+                  verification alone and had nowhere to put a photograph. The
+                  open → closed → open sequence Sarel asked to see is the
+                  outcome entries read down the column, in words. */}
+              <ItemStream entries={stream} />
+
+              <div className="mt-4 mb-2 flex items-center justify-between">
+                <b className="font-display text-[11px] font-semibold">
+                  {visitLabel} checks covering {active.system}
+                </b>
+                <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                  {linked.length} linked · {linkedNC} NC · current: {cur}
+                </span>
+              </div>
+
+              {linked.length === 0 ? (
+                <Panel tone="warn">
+                  <div className="text-[11.5px]" style={{ color: "var(--warn)" }}>
+                    <b>Coverage guard:</b> no check-point in this visit&apos;s scope covers{" "}
+                    <b>{active.system}</b>. Closure cannot be evidenced from the register — add a check
+                    or record it as an ad-hoc finding in the field.
+                  </div>
+                </Panel>
+              ) : (
+                <div className="max-h-[220px] overflow-y-auto rounded-[11px] border" style={{ borderColor: "var(--line)" }}>
+                  {linked.map((c) => {
+                    const rr = responses[c.id];
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => router.push(`/capture?check=${c.id}`)}
+                        className="flex w-full items-start gap-2 border-b px-[11px] py-2 text-left transition-[var(--t)] hover:bg-[var(--sunken)]"
+                        style={{ borderColor: "var(--line)" }}
+                      >
+                        <Dot
+                          tone={
+                            !rr?.captured
+                              ? "pending"
+                              : rr.compliance === "NC"
+                                ? "bad"
+                                : rr.compliance === "C"
+                                  ? "good"
+                                  : rr.compliance === "NV"
+                                    ? "warn"
+                                    : "neutral"
+                          }
+                        label={rr?.compliance ?? "Not captured"}
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+                            {/* THE SITE'S NUMBER, NOT THE REGISTER'S. The register is held
+                                once and its ids are KSIA-prefixed; portalIdFor turns one
+                                into the number this site actually uses. Printing c.id raw
+                                showed King Shaka check numbers on an O.R. Tambo screen. */}
+                            {portalIdFor(entityCode, c.id)}
+                          </span>
+                          <span className="line-clamp-2 block text-[11.5px] leading-snug">{c.requirement}</span>
+                        </span>
+                        <span className="mt-[2px]">
+                          <Pill
+                            tone={
+                              rr?.compliance === "NC"
+                                ? "bad"
+                                : rr?.compliance === "C"
+                                  ? "good"
+                                  : rr?.compliance === "NV"
+                                    ? "warn"
+                                    : "neutral"
+                            }
+                          >
+                            {rr?.compliance ?? "OPEN"}
+                          </Pill>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* STUCK TO THE BOTTOM OF THE PANEL.
+                  Sarel: "the save button should stick at the bottom so that it
+                  is always visible." The pane runs long — the event stream, the
+                  remediation and next-step boxes, the possible-events list —
+                  and Save & next was below all of it, so working an item meant
+                  scrolling back down to leave it. `-mx-[18px] px-[18px]` lets
+                  the bar span the panel's full width against its own padding,
+                  and the background is opaque so the content scrolls under it
+                  rather than showing through. */}
+              <div
+                className="sticky bottom-0 z-[6] -mx-[18px] -mb-[18px] mt-4 flex flex-wrap items-center justify-between gap-3 border-t px-[18px] pt-3.5 pb-[18px]"
+                style={{ borderColor: "var(--line)", background: "var(--panel)" }}
+              >
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <span className="font-mono text-[10px]" style={{ color: "var(--ink-3)" }}>
+                    current: <b style={{ color: "var(--ink)" }}>{cur}</b>
+                  </span>
+                  {move && (
+                    <Pill tone={move === "Improved" ? "good" : move === "Worsened" ? "bad" : "warn"}>
+                      {move === "Improved" ? "↑" : move === "Worsened" ? "↓" : "→"} {move}
+                    </Pill>
+                  )}
+                </div>
+                <Btn
+                  variant="primary"
+                  onClick={() => {
+                    const i = displayOrder.findIndex((p) => p.key === active.key);
+                    const next = displayOrder[i + 1];
+                    if (!next) {
+                      say(`${active.key} saved — that was the last one`);
+                      return;
+                    }
+                    setActivePf(next.key);
+                    /* Opening the group it landed in, when the next item is in
+                       a different asset system that happens to be folded. The
+                       row is otherwise invisible while its detail fills the
+                       right-hand panel, which is the same trap the Inspection
+                       screen fell into with a newly recorded walk item. */
+                    if (next.system !== active.system) {
+                      setOpenSystems((cur) => {
+                        const sys = next.system?.trim() || "No asset system recorded";
+                        if (cur === null) return [sys];
+                        return cur.includes(sys) ? cur : [...cur, sys];
+                      });
+                    }
+                    say(`${active.key} saved`);
+                  }}
+                >
+                  <IconCheck width={14} height={14} />
+                  Save &amp; next
+                </Btn>
+              </div>
+            </div>
+            </>
+          )}
+        </div>
+      </div>
+      </div>
+      )}
+
+      {toast && (
+        <div
+          className="toast-bottom fixed left-1/2 z-[100] -translate-x-1/2 rounded-[11px] px-[15px] py-2.5 text-[12px] font-medium"
+          style={{ background: "var(--ink)", color: "var(--bg)", boxShadow: "var(--e3)" }}
+        >
+          {toast}
+        </div>
+      )}
+
+      {/* THE + SHEET — same unified entry point every screen's own toolbar
+          already has (build prompt 5). Opened from a general place with no
+          preset context, same as Home/Issues already behaved under that
+          prompt's own rule for "opening from a general place pre-fills
+          nothing". */}
+      <AddSheet open={addOpen} onClose={() => setAddOpen(false)} onRaiseIssue={() => setRaiseOpen(true)} />
+      <RaiseFindingSheet open={raiseOpen} onClose={() => setRaiseOpen(false)} onSaved={() => setRaiseOpen(false)} />
+    </div>
+  );
+}

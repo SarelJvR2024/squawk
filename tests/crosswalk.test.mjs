@@ -41,7 +41,9 @@ const lib = src("lib", "crosswalk.ts");
 check("exact match short-circuits on a register assetSystem", /if \(p\.assetSystem\) return \{ systems: \[p\.assetSystem\], type: "exact"/.test(lib));
 check("unmapped name is returned, not dropped", /type: "unmapped"/.test(lib));
 const dash = src("app", "(app)", "dashboard", "page.tsx");
-const closure = src("app", "(app)", "closure", "page.tsx");
+/* build prompt 8 (22 Nov 2026): /closure is now a redirect; moved to
+   issues/page.tsx's "Carried" filter unchanged. */
+const closure = src("app", "(app)", "issues", "page.tsx");
 const exp = src("lib", "exports.ts");
 check("dashboard compares through the crosswalk", dash.includes("mappingFor(p)") && dash.includes("worstRating"));
 check("closure compares through the crosswalk", closure.includes("ratingOfItem") && closure.includes("checksOfItem"));
