@@ -63,9 +63,11 @@ import type {
   CheckChannelConfig,
   CheckChannels,
   HowToAskConfig,
+  PhotoTargetsConfig,
 } from "./types";
 import { withChannels } from "./channels";
 import { withHowToAsk } from "./howtoask";
+import { withPhotoTarget } from "./phototargets";
 import {
   type AuditDateOverride,
   auditWindow,
@@ -446,6 +448,11 @@ interface State {
    *  Setup before the audit, shown on the Checks screen during the
    *  interview — see lib/howtoask.ts. */
   howToAsk: HowToAskConfig;
+  /** An override on how many photographs a discipline's walk should aim for
+   *  — by discipline, not by check. A discipline with no entry uses
+   *  DEFAULT_PHOTO_TARGET (lib/phototargets.ts). Set in the Setup screen,
+   *  read by the Walk screen's own counter. */
+  photoTargets: PhotoTargetsConfig;
   /** Flat across the whole programme — a finding carries its own entity and
    *  originVisit, which is what lets a later visit see what an earlier one
    *  left open. */
@@ -553,6 +560,9 @@ interface State {
    *  reading the latest value at write time — see its own implementation
    *  comment for why that matters. */
   appendHowToAsk: (checkId: string, text: string) => void;
+  /** Sets (or, given a non-positive number, clears back to the default) one
+   *  discipline's own photo target. */
+  setPhotoTarget: (discipline: string, target: number) => void;
   openAudit: (entityCode: string, visitId: string) => void;
 
   visitData: () => VisitData;
@@ -1172,6 +1182,7 @@ export const useStore = create<State>()(
         auditDateOverrides: {},
         checkChannels: {},
         howToAsk: {},
+        photoTargets: {},
         findings: [],
         hazards: [],
         syncRuns: [],
@@ -1296,6 +1307,10 @@ export const useStore = create<State>()(
             const next = cur.trim() ? `${cur}\n${text}` : text;
             return { howToAsk: withHowToAsk(s.howToAsk, [checkId], next) };
           });
+        },
+
+        setPhotoTarget: (discipline, target) => {
+          set((s) => ({ photoTargets: withPhotoTarget(s.photoTargets, discipline, target) }));
         },
 
         clearAuditDateOverride: (entityCode, visitId) => {
@@ -5151,6 +5166,7 @@ export const useStore = create<State>()(
         pendingLabelFixes: s.pendingLabelFixes,
         checkChannels: s.checkChannels,
         howToAsk: s.howToAsk,
+        photoTargets: s.photoTargets,
       }),
     }
   )

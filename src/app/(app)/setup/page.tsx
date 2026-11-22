@@ -14,6 +14,7 @@ import { useMemo, useRef, useState } from "react";
 import { CHECKS, ALL_DISCIPLINES } from "@/lib/register";
 import { CHANNEL_KEYS, CHANNEL_LABEL, channelCounts, channelsOf } from "@/lib/channels";
 import { howToAskCount } from "@/lib/howtoask";
+import { DEFAULT_PHOTO_TARGET, photoTarget } from "@/lib/phototargets";
 import {
   applyEvidenceImportPlan,
   buildEvidenceImportPlan,
@@ -392,6 +393,8 @@ export default function SetupPage() {
   const setCheckChannels = useStore((s) => s.setCheckChannels);
   const howToAsk = useStore((s) => s.howToAsk);
   const setHowToAsk = useStore((s) => s.setHowToAsk);
+  const photoTargets = useStore((s) => s.photoTargets);
+  const setPhotoTarget = useStore((s) => s.setPhotoTarget);
   const [discipline, setDiscipline] = useState<string>("");
   const [q, setQ] = useState("");
 
@@ -630,6 +633,43 @@ export default function SetupPage() {
           </details>
         );
       })}
+
+      {/* Build prompt 7 (Walk screen, 22 Nov 2026): a photo counter against a
+          target on the Walk screen, so the auditor knows when they have
+          photographed enough of a discipline. Per discipline, not per
+          check — a target that fine-grained would need its own list the
+          size of the register for no benefit nobody asked for. A blank box
+          means "use the default" (DEFAULT_PHOTO_TARGET); typing 0 or
+          clearing it both read the same way, via setPhotoTarget. */}
+      <h2 className="mt-6 mb-1 text-[16px] font-bold">Photo targets</h2>
+      <p className="mb-3 text-[13px]" style={{ color: "var(--ink-3)" }}>
+        How many photographs the Walk screen expects per discipline, for its own counter. Leave
+        blank to use the default of {DEFAULT_PHOTO_TARGET}.
+      </p>
+      <div className="mb-3 rounded-lg border" style={{ borderColor: "var(--line)" }}>
+        {ALL_DISCIPLINES.map((d, i) => (
+          <div
+            key={d}
+            className="flex items-center gap-2 px-3 py-2"
+            style={i > 0 ? { borderTop: "1px solid var(--line)" } : undefined}
+          >
+            <span className="min-w-[160px] flex-1 text-[13px]">{d}</span>
+            <input
+              type="number"
+              min={1}
+              value={photoTargets[d] ?? ""}
+              onChange={(e) => setPhotoTarget(d, Number(e.target.value))}
+              placeholder={String(DEFAULT_PHOTO_TARGET)}
+              aria-label={`Photo target for ${d}`}
+              className="w-[80px] rounded-md border px-2 py-1 text-[13px]"
+              style={{ borderColor: "var(--line)", background: "var(--bg)" }}
+            />
+            <span className="w-[70px] text-[11px]" style={{ color: "var(--ink-4)" }}>
+              now {photoTarget(photoTargets, d)}
+            </span>
+          </div>
+        ))}
+      </div>
 
       <BulkEvidenceUpload />
     </div>
