@@ -38,6 +38,7 @@ import { assist, polishContext, useAssistAvailable } from "@/lib/assist";
 import { TRACKING_LABEL, trackingStage } from "@/lib/evidence";
 import { entity as entityOf } from "@/lib/programme";
 import { checksAt, checksOf, disciplinesAt, systemsOf } from "@/lib/register";
+import { ALL_PROCEDURES, docRefLabel, procedureMatches } from "@/lib/library";
 import { useStore, useEvidenceItems, useFieldSaveStatus, useResponses, useVisitId } from "@/lib/store";
 import { AttachmentStrip } from "@/components/Capture";
 import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
@@ -92,6 +93,9 @@ export type RiskPatch = Pick<
      Immediate Safety Finding. */
   | "critical"
   | "safetyTag"
+  /* CITE A PROCEDURE — build prompt 9 (Library). See Finding.citedDocs'
+     own doc comment in types.ts. */
+  | "citedDocs"
   /* HEADLINE, EDITABLE HERE TOO — Sarel, after correcting a finding's
      notes: "it now left the old note and the new note, it should only
      have my corrected note, not the original voice transcription." The
@@ -149,6 +153,7 @@ export default function ReviewRiskPanel({
    *  of labour as onChange/onClose. */
   onDelete: () => void;
 }) {
+  const router = useRouter();
   const type = findingTypeFor(finding);
   /* Arms on the first click, fires on the second — a finding can carry a
      root cause, an action plan, photos and voice notes, so one stray tap
@@ -157,6 +162,13 @@ export default function ReviewRiskPanel({
      remounts the component on every selection change, so this needs no
      extra reset of its own). */
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  /* CITE A PROCEDURE (build prompt 9) — the picker is closed by default;
+     opened on demand so a finding that already has what it needs doesn't
+     carry an idle search box. Resets per finding, same `key={finding.id}`
+     remount reasoning as `dirty` above. */
+  const [procPickerOpen, setProcPickerOpen] = useState(false);
+  const [procQuery, setProcQuery] = useState("");
 
   /* PRIORITY 2 (review redesign) — "show saving, saved and failed states;
      never silently lose an edit." `dirty` is a plain boolean, not a fresh
@@ -428,6 +440,120 @@ export default function ReviewRiskPanel({
         <Chip selected={!!finding.safetyTag} onClick={() => onChange({ safetyTag: !finding.safetyTag })}>
           Safety
         </Chip>
+      </div>
+
+      {/* CITE A PROCEDURE — build prompt 9 (Library). A finding with its
+          own citedDocs shows exactly those, each opening the Library card
+          at that clause. A finding with none yet, but a linked check, shows
+          that check's own acsaDocs as a read-only SUGGESTION ("from CHECK-
+          ID", never silently treated as the finding's own citation — see
+          Finding.citedDocs' doc comment in types.ts) with one tap to adopt
+          it. Either way "Cite a procedure" opens the same Library-backed
+          search to add another. */}
+      <div className="mb-2 font-display text-[11px] font-semibold">Procedure</div>
+      <div className="mb-3.5">
+        {finding.citedDocs && finding.citedDocs.length > 0 ? (
+          <div className="mb-1.5 flex flex-wrap gap-[6px]">
+            {finding.citedDocs.map((ref, i) => (
+              <Chip
+                key={`${ref.doc}-${ref.clause ?? i}`}
+                onClick={() =>
+                  ref.doc &&
+                  router.push(
+                    `/library?doc=${encodeURIComponent(ref.doc)}${ref.clause ? `&clause=${encodeURIComponent(ref.clause)}` : ""}`
+                  )
+                }
+                title="Open in Library"
+              >
+                {docRefLabel(ref)}
+                <span
+                  role="button"
+                  aria-label={`Remove citation ${docRefLabel(ref)}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onChange({ citedDocs: finding.citedDocs!.filter((_, j) => j !== i) });
+                  }}
+                  className="ml-1"
+                >
+                  ×
+                </span>
+              </Chip>
+            ))}
+          </div>
+        ) : linkedCheck && linkedCheck.acsaDocs.length > 0 ? (
+          <div className="mb-1.5 text-[11px]" style={{ color: "var(--ink-3)" }}>
+            Not cited yet. Suggested from {linkedCheck.id}:{" "}
+            {linkedCheck.acsaDocs.map((d) => docRefLabel(d)).join("; ")}
+            <button
+              type="button"
+              onClick={() => onChange({ citedDocs: linkedCheck.acsaDocs })}
+              className="ml-1.5 font-semibold underline"
+              style={{ color: "var(--acc)" }}
+            >
+              Use these
+            </button>
+          </div>
+        ) : (
+          <div className="mb-1.5 text-[11px]" style={{ color: "var(--ink-4)" }}>
+            Not cited yet.
+          </div>
+        )}
+        {procPickerOpen ? (
+          <div className="rounded-[11px] border p-2" style={{ borderColor: "var(--line-2)" }}>
+            <input
+              autoFocus
+              value={procQuery}
+              onChange={(e) => setProcQuery(e.target.value)}
+              placeholder="Search by code, title or wording"
+              aria-label="Search procedures to cite"
+              className="mb-1.5 w-full rounded-[8px] border px-2 py-[6px] text-[12px]"
+              style={{ borderColor: "var(--line-2)", background: "var(--panel)" }}
+            />
+            <div className="max-h-[160px] overflow-y-auto">
+              {ALL_PROCEDURES.filter((p) => procedureMatches(p, procQuery))
+                .slice(0, 20)
+                .map((p) => (
+                  <button
+                    key={p.doc}
+                    type="button"
+                    onClick={() => {
+                      onChange({ citedDocs: [...(finding.citedDocs ?? []), { doc: p.doc, title: p.title, clause: null }] });
+                      setProcPickerOpen(false);
+                      setProcQuery("");
+                    }}
+                    className="block w-full rounded-[6px] px-1.5 py-1 text-left text-[11.5px] hover:bg-[var(--sunken)]"
+                  >
+                    <span className="font-mono text-[10px]" style={{ color: "var(--ink-4)" }}>
+                      {p.doc}
+                    </span>{" "}
+                    {p.title}
+                  </button>
+                ))}
+              {ALL_PROCEDURES.filter((p) => procedureMatches(p, procQuery)).length === 0 && (
+                <div className="px-1.5 py-1 text-[11px]" style={{ color: "var(--ink-4)" }}>
+                  No procedure matches.
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => { setProcPickerOpen(false); setProcQuery(""); }}
+              className="mt-1.5 text-[10.5px] font-semibold underline"
+              style={{ color: "var(--ink-3)" }}
+            >
+              Close
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setProcPickerOpen(true)}
+            className="text-[10.5px] font-semibold underline"
+            style={{ color: "var(--acc)" }}
+          >
+            Cite a procedure
+          </button>
+        )}
       </div>
 
       {/* HEADLINE — Sarel: "it now left the old note and the new note, it
@@ -733,6 +859,36 @@ export default function ReviewRiskPanel({
             <ComplianceChip label="Site inspection" value={linkedResponse.siteInspection} />
             <ComplianceChip label="Combined" value={linkedCombined} />
           </div>
+        </div>
+      )}
+
+      {/* ACSA CLAUSE, TAP TO READ — build prompt 9 (Library). Independent
+          of linkedResponse's own current-visit gate just above: the
+          citation is a property of the CHECK, not of this visit's
+          response, so it shows for a finding carried from an earlier
+          visit too. */}
+      {linkedCheck && linkedCheck.acsaDocs.length > 0 && (
+        <div className="mb-3.5 flex flex-wrap items-center gap-[6px]">
+          <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>
+            ACSA clause ·
+          </span>
+          {linkedCheck.acsaDocs.map((d, i) =>
+            d.doc ? (
+              <button
+                key={`${d.doc}-${d.clause ?? i}`}
+                type="button"
+                onClick={() =>
+                  router.push(
+                    `/library?doc=${encodeURIComponent(d.doc!)}${d.clause ? `&clause=${encodeURIComponent(d.clause)}` : ""}`
+                  )
+                }
+                className="text-[11px] font-semibold underline"
+                style={{ color: "var(--acc)" }}
+              >
+                {docRefLabel(d)}
+              </button>
+            ) : null
+          )}
         </div>
       )}
 
