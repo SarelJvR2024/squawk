@@ -229,6 +229,10 @@ const OFF_NAV: Record<string, string> = {
      ninth without reopening the mobile label-wrapping problem noted above
      /findings's own NAV entry. */
   "/workspace": "Capture (all)",
+  /* LIBRARY (build prompt 9) — ACSA's procedures, as reference. More-menu
+     only, like Setup above; reached from the MoreItem below and from the
+     deep links in AcsaRequirementPanel/ReviewRiskPanel/ReviewRiskTable. */
+  "/library": "Library",
 };
 
 /** Hidden for now — Sarel, 5 October 2026: official O.R. Tambo work has
@@ -1165,6 +1169,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       hint="What each check needs: interview, evidence, walk"
                       selected={pathname === "/setup"}
                       onClick={() => { setMore(false); router.push("/setup"); }}
+                    />
+                    {/* LIBRARY (build prompt 9) — ACSA's procedures as
+                        read-only reference, aggregated from the register's
+                        own acsaDocs/acsaRequirement/etc. fields (see
+                        src/lib/library.ts). Also reached from a check's
+                        "ACSA requirement" panel and from Issues. */}
+                    <MoreItem
+                      icon={<IconClipboard width={14} height={14} />}
+                      label="Library"
+                      hint="ACSA's procedures, as reference"
+                      selected={pathname === "/library"}
+                      onClick={() => { setMore(false); router.push("/library"); }}
                     />
                     <MoreItem
                       icon={<IconPlus width={14} height={14} />}
