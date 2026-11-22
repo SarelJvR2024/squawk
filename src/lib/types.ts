@@ -1154,6 +1154,17 @@ export interface Finding {
    *  route for something urgent enough to act on today; this is a report
    *  tag on an ordinary Finding, set after the fact during classification. */
   safetyTag?: boolean;
+  /** CITE A PROCEDURE — build prompt 9 (Library, 22 Nov 2026). Which ACSA
+   *  document(s)/clause(s) this finding is actually about, set explicitly
+   *  by whoever classifies it (ReviewRiskPanel's "Procedure" section) —
+   *  distinct from `checkId`'s own acsaDocs, which is the LINKED CHECK's
+   *  citation and may not be what the finding itself turns on, especially
+   *  for an ad-hoc finding with no checkId at all. Optional and
+   *  absent-means-unset, same convention as `critical`/`safetyTag` above:
+   *  a finding with none yet falls back to the linked check's own
+   *  acsaDocs as a read-only suggestion (see ReviewRiskPanel), never a
+   *  silently-assumed citation. */
+  citedDocs?: AcsaDocRef[];
   /** Plural — see MitigatingAction. */
   actions: MitigationAction[];
   /** Dated, attributed updates on the remediation.

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { Check } from "@/lib/types";
 
 /** ACSA's own requirement for one check, read-only, independent of any
@@ -28,6 +29,7 @@ import type { Check } from "@/lib/types";
  *  collapse applies wherever either shows it. */
 export default function AcsaRequirementPanel({ check }: { check: Check }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
   return (
     <>
       <button
@@ -69,6 +71,35 @@ export default function AcsaRequirementPanel({ check }: { check: Check }) {
           <div className="mt-1 max-w-[92ch] xl:max-w-[150ch] text-[12.5px] leading-[1.55]">
             {check.acsaRequirement}
           </div>
+          {/* LIBRARY DEEP LINKS (build prompt 9) — "ACSA requirement (opens
+              the clause/policy)", the promise CheckDetail's own panel-list
+              comment made for this button since build prompt 3. Each doc
+              this check cites gets its own link, at its own clause, into
+              the aggregated Library card — see src/lib/library.ts and
+              src/app/(app)/library/page.tsx. Additive: nothing above is
+              touched, so every existing pin on this panel still matches. */}
+          {check.acsaDocs.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+              {check.acsaDocs.map((d, i) =>
+                d.doc ? (
+                  <button
+                    key={`${d.doc}-${d.clause ?? i}`}
+                    type="button"
+                    onClick={() =>
+                      router.push(
+                        `/library?doc=${encodeURIComponent(d.doc!)}${d.clause ? `&clause=${encodeURIComponent(d.clause)}` : ""}`
+                      )
+                    }
+                    className="text-[10.5px] font-semibold underline"
+                    style={{ color: "var(--acc)" }}
+                  >
+                    Open in Library · {d.doc}
+                    {d.clause ? ` cl. ${d.clause}` : ""}
+                  </button>
+                ) : null
+              )}
+            </div>
+          )}
         </div>
       )}
 
