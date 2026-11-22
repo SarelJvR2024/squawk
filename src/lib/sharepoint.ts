@@ -328,6 +328,15 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
      same caution this file's own comment on findingRootCauseCategories
      gives for `rootCause` vs the finding-level categories. */
   findingActionPlan: ["Action plan", "Improvement plan", "Action and improvement plan", "Finding action plan"],
+  /* CRITICAL / SAFETY — the Issues screen's own two tags on Finding (build
+     prompt 8, 22 Nov 2026), aggregated onto the Hazard row the same way
+     as the fields above — ANY of the hazard's consolidated findings
+     flagged wins, same "worst of several" shape as findingTimeline. Found
+     missing from the portal (and exports.ts) by the standing
+     sync-integrity review within hours of the fields landing — same bug
+     class, same fix shape, yet again. */
+  findingCritical: ["Critical", "Finding critical", "Critical issue"],
+  findingSafetyTag: ["Safety", "Safety tag", "Finding safety tag"],
   /* THE PHOTOGRAPH COLUMNS. Prince Mahlangu, 17 September 2026, on the first
      five files to reach the library: "They carry no metadata at all: CheckID,
      AssetSystem, PhotographReference, CaptionSource and AttachedBy are blank,
@@ -559,6 +568,7 @@ export const FINDING_FIELDS = [
   "evidenceRequested", "discussionLog",
   "findingRootCauseCategories", "findingImpactAreas", "findingRootCauseNote",
   "findingRootCauseConfirmed", "findingTimeline", "findingActionPlan",
+  "findingCritical", "findingSafetyTag",
 ] as const;
 
 /** The column contract, for a person to build against: the name to create, and
@@ -1646,6 +1656,8 @@ export function findingRiskFieldsFor(
   rootCauseConfirmed: string | null;
   timeline: string | null;
   actionPlan: string | null;
+  critical: string | null;
+  safetyTag: string | null;
 } {
   if (!h.findingIds?.length) {
     return {
@@ -1655,6 +1667,8 @@ export function findingRiskFieldsFor(
       rootCauseConfirmed: null,
       timeline: null,
       actionPlan: null,
+      critical: null,
+      safetyTag: null,
     };
   }
   const mine = new Set(h.findingIds);
@@ -1681,6 +1695,23 @@ export function findingRiskFieldsFor(
      needs to know the earliest deadline any of its findings actually
      carries, not a muddle of several. */
   let timelineRank = Infinity;
+  /* CRITICAL / SAFETY — the Issues screen's own two tags (build prompt 8,
+     22 Nov 2026, Finding.critical/safetyTag), found missing from this
+     file by the same standing sync-integrity review that caught the
+     fields just above. Each is a per-finding flag, not a free-text or
+     multi-select value, so there is no join/union question — but a
+     hazard still consolidates several findings, and if ANY of them is
+     flagged, a reader of the hazard's own row needs to know that, not an
+     average or "whichever finding happened to be checked last." Same
+     "worst of several" reasoning as `timelineRank` just above: ANY wins,
+     not ALL. Unlike the free-text fields above, false is itself a real,
+     reportable answer once there is at least one finding to consult —
+     "No" is not "nothing recorded," it is "none of these are," so this
+     returns "Yes"/"No" rather than null whenever h.findingIds is
+     non-empty (the null case is handled entirely by the early return
+     above, same as every other field here). */
+  let anyCritical = false;
+  let anySafety = false;
   for (const f of findings ?? []) {
     if (!mine.has(f.id)) continue;
     for (const c of f.rootCauseCategories ?? []) categories.add(c);
@@ -1697,6 +1728,8 @@ export function findingRiskFieldsFor(
     }
     const plan = f.actionPlan?.trim();
     if (plan) actionPlans.add(plan);
+    if (f.critical) anyCritical = true;
+    if (f.safetyTag) anySafety = true;
   }
   return {
     rootCauseCategories: categories.size ? [...categories].join(", ") : null,
@@ -1705,6 +1738,8 @@ export function findingRiskFieldsFor(
     rootCauseConfirmed: withNote ? `${confirmed} of ${withNote} confirmed` : null,
     timeline: timelineRank === Infinity ? null : TIMELINES[timelineRank],
     actionPlan: actionPlans.size ? [...actionPlans].join(" | ") : null,
+    critical: anyCritical ? "Yes" : "No",
+    safetyTag: anySafety ? "Yes" : "No",
   };
 }
 
@@ -2359,6 +2394,8 @@ export function buildPlan(
         findingRootCauseConfirmed: riskFields.rootCauseConfirmed,
         findingTimeline: riskFields.timeline,
         findingActionPlan: riskFields.actionPlan,
+        findingCritical: riskFields.critical,
+        findingSafetyTag: riskFields.safetyTag,
         observation: [h.event, h.description].filter(Boolean).join(" — "),
         severity: agreed ? portalSeverity(h.ermConsequence) : null,
         likelihood: agreed ? portalLikelihood(h.ermLikelihood) : null,
