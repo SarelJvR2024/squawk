@@ -516,7 +516,9 @@ export default function ReviewRiskPanel({
                   <button
                     key={p.doc}
                     type="button"
+                    disabled={!!finding.citedDocs?.some((d) => d.doc === p.doc)}
                     onClick={() => {
+                      if (finding.citedDocs?.some((d) => d.doc === p.doc)) return;
                       onChange({ citedDocs: [...(finding.citedDocs ?? []), { doc: p.doc, title: p.title, clause: null }] });
                       setProcPickerOpen(false);
                       setProcQuery("");

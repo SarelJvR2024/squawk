@@ -44,6 +44,10 @@ check("every procedure's doc code is unique and every one has a title", () => {
   if (new Set(docs).size !== docs.length) throw new Error("duplicate doc code");
   if (ALL_PROCEDURES.some((p) => !p.title)) throw new Error("a procedure has no title");
 });
+check("a citation carries only what's actually used downstream — no unread checkRequirementLabel left over from an earlier draft", () => {
+  const keys = Object.keys(ALL_PROCEDURES[0].citations[0]);
+  if (keys.includes("checkRequirementLabel")) throw new Error("dead field still present");
+});
 check("the busiest procedure, D080 002M, is cited by exactly 34 of the register's checks — matches the register directly, not a hand-typed table", () => {
   const p = procedureByDoc("D080 002M");
   if (!p) throw new Error("not found");
@@ -175,6 +179,13 @@ check("with no citedDocs yet, the linked check's own acsaDocs show as a labelled
 check("\"Cite a procedure\" opens a real search over the same 70 procedures the Library page lists, not a hand-typed list", () => {
   if (!/ALL_PROCEDURES\.filter\(\(p\) => procedureMatches\(p, procQuery\)\)/.test(reviewPanel)) throw new Error("no search");
 });
+check(
+  "a procedure already cited on this finding is disabled in the picker — citing it twice would list the same procedure twice on export",
+  () => {
+    if (!/disabled=\{!!finding\.citedDocs\?\.some\(\(d\) => d\.doc === p\.doc\)\}/.test(reviewPanel))
+      throw new Error("no dedup guard on the picker button");
+  },
+);
 
 /* ---------- entry point 3: Issues "To review" shows the clause, tap to read ---------- */
 

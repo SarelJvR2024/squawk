@@ -41,7 +41,6 @@ export interface AcsaProcedure {
    *  rather than restated or summarised — nothing here is invented. */
   citations: {
     checkId: string;
-    checkRequirementLabel: string;
     clauses: string[];
     acsaRequirement: string;
     acsaThreshold: string;
@@ -79,7 +78,6 @@ function buildProcedures(checks: Check[]): Map<string, AcsaProcedure> {
         seenDocsOnThisCheck.add(ref.doc);
         proc.citations.push({
           checkId: check.id,
-          checkRequirementLabel: check.requirement,
           clauses: check.acsaDocs.filter((d) => d.doc === ref.doc).map((d) => d.clause ?? "").filter(Boolean),
           acsaRequirement: check.acsaRequirement,
           acsaThreshold: check.acsaThreshold,
