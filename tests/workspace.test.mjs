@@ -147,7 +147,8 @@ check(
 check(
   "the three screens this consolidates (Checks, Inspection, Raise a finding) don't route to or import /workspace",
   (() => {
-    const field = src("app", "(app)", "field", "page.tsx");
+    /* build prompt 7 (22 Nov 2026): /field is now a redirect; moved to walk/page.tsx. */
+    const field = src("app", "(app)", "walk", "page.tsx");
     const raise = src("app", "(app)", "raise", "page.tsx");
     const capture = src("app", "(app)", "capture", "page.tsx");
     const linksToIt = /["'`]\/workspace["'`]|app\/\(app\)\/workspace/;

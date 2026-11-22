@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Hundred-and-fifteen suites, no framework. Thirteen need a running server; hundred-and-two do not.
+Hundred-and-sixteen suites, no framework. Thirteen need a running server; hundred-and-three do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -84,15 +84,15 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `attendanceregister.test.mjs` | no | 66 |
 | `suite-table.test.mjs` | no | 5 |
 | `reviewfields.test.mjs` | no | 20 |
-| `review-risk-fields.test.mjs` | no | 48 |
-| `review-table-v2.test.mjs` | no | 107 |
+| `review-risk-fields.test.mjs` | no | 49 |
+| `review-table-v2.test.mjs` | no | 108 |
 | `reviewreport.test.mjs` | no | 45 |
 | `reviewlayout.test.mjs` | no | 8 |
 | `reviewsavestate.test.mjs` | no | 14 |
 | `reviewpanelcontent.test.mjs` | no | 14 |
 | `reviewaiassist.test.mjs` | no | 21 |
 | `reviewbulkai.test.mjs` | no | 25 |
-| `evidence-review.test.mjs` | no | 67 |
+| `evidence-review.test.mjs` | no | 68 |
 | `evidencepending.test.mjs` | no | 31 |
 | `evidencestatus.test.mjs` | no | 23 |
 | `evidenceverdict.test.mjs` | no | 10 |
@@ -152,6 +152,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `addsheet.test.mjs` | no | 24 |
 | `evidencedisplay.test.mjs` | no | 25 |
 | `evidenceimport.test.mjs` | no | 17 |
+| `walkscreen.test.mjs` | no | 31 |
 | `e2e.js` | yes | 24 |
 | `robustness.js` | yes | 53 |
 | `exports.js` | yes | 32 |
@@ -166,7 +167,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**4,424 assertions in total**, every count above verified by running the suite,
+**4,458 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —

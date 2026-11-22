@@ -27,7 +27,9 @@ const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8"
 const media = src("lib", "media.ts");
 const capture = src("components", "Capture.tsx");
 const checkDetail = src("components", "CheckDetail.tsx");
-const field = src("app", "(app)", "field", "page.tsx");
+/* build prompt 7 (22 Nov 2026): /field is now a redirect; its capture
+   controls moved to walk/page.tsx unchanged. */
+const field = src("app", "(app)", "walk", "page.tsx");
 const store = src("lib", "store.ts");
 const types = src("lib", "types.ts");
 const raise = src("app", "(app)", "raise", "page.tsx");
@@ -37,7 +39,7 @@ const raise = src("app", "(app)", "raise", "page.tsx");
    one. */
 const uiSurfaces = [
   ["CheckDetail.tsx", checkDetail],
-  ["field/page.tsx", field],
+  ["walk/page.tsx", field],
 ];
 
 let failures = 0;

@@ -22,8 +22,10 @@ import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "..");
+/* build prompt 7 (22 Nov 2026): /field is now a redirect; WideCheckPane and
+   selectedDetail moved to walk/page.tsx unchanged. */
 const page = fs.readFileSync(
-  path.join(root, "src", "app", "(app)", "field", "page.tsx"),
+  path.join(root, "src", "app", "(app)", "walk", "page.tsx"),
   "utf8"
 );
 

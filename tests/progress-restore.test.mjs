@@ -56,7 +56,9 @@ const src = (...p) => fs.readFileSync(path.join(root, "src", ...p), "utf8");
 
 const shell = src("components", "AppShell.tsx");
 const capture = src("app", "(app)", "capture", "page.tsx");
-const field = src("app", "(app)", "field", "page.tsx");
+/* build prompt 7 (22 Nov 2026): /field is now a redirect; the figure this
+   suite proves against the real store moved to walk/page.tsx unchanged. */
+const field = src("app", "(app)", "walk", "page.tsx");
 const groupRow = src("components", "ui", "GroupRow.tsx");
 
 let failures = 0;

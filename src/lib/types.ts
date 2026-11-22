@@ -2964,3 +2964,12 @@ export type CheckChannelConfig = Record<string, Partial<Record<CheckChannelKey, 
  *  `State` next to `checkChannels`, not on `Response`. A missing key, or an
  *  empty string, both mean "no note" — see lib/howtoask.ts. */
 export type HowToAskConfig = Record<string, string>;
+
+/** PHOTO TARGET, PER DISCIPLINE — build prompt 7 (Walk screen, 22 Nov 2026):
+ *  "a photo counter against a target, so the auditor knows when they have
+ *  photographed enough of a discipline." Site-wide like `CheckChannelConfig`
+ *  and `HowToAskConfig`, not per-visit: how many photographs a discipline's
+ *  walk warrants does not change audit to audit. A missing key means "the
+ *  default (20)" — see lib/phototargets.ts — never zero; nothing here can
+ *  switch a discipline's target off, only raise or lower it. */
+export type PhotoTargetsConfig = Record<string, number>;

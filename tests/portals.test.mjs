@@ -160,7 +160,8 @@ check(
 
 const verification = src("lib", "verification.ts");
 const capture = src("app", "(app)", "capture", "page.tsx");
-const field = src("app", "(app)", "field", "page.tsx");
+/* build prompt 7 (22 Nov 2026): /field is now a redirect; moved to walk/page.tsx. */
+const field = src("app", "(app)", "walk", "page.tsx");
 const detail = src("components", "CheckDetail.tsx");
 
 check(

@@ -28,7 +28,9 @@ import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "..");
-const field = fs.readFileSync(path.join(root, "src", "app", "(app)", "field", "page.tsx"), "utf8");
+/* build prompt 7 (22 Nov 2026): /field is now a redirect; this logic moved
+   to walk/page.tsx unchanged. */
+const field = fs.readFileSync(path.join(root, "src", "app", "(app)", "walk", "page.tsx"), "utf8");
 const findings = fs.readFileSync(path.join(root, "src", "app", "(app)", "findings", "page.tsx"), "utf8");
 
 let failures = 0;
