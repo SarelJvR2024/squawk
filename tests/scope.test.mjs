@@ -32,7 +32,10 @@ const checkDetail = src("components", "CheckDetail.tsx");
 const screens = [
   ["home/page.tsx", src("app", "(app)", "home", "page.tsx")],
   ["capture/page.tsx", src("app", "(app)", "capture", "page.tsx")],
-  ["field/page.tsx", src("app", "(app)", "field", "page.tsx")],
+  /* build prompt 7 (22 Nov 2026): /field is now a redirect to /walk, which
+     carries the logic this suite is actually checking — see walk/page.tsx's
+     own header comment. */
+  ["walk/page.tsx", src("app", "(app)", "walk", "page.tsx")],
   ["findings/page.tsx", src("app", "(app)", "findings", "page.tsx")],
   ["closure/page.tsx", src("app", "(app)", "closure", "page.tsx")],
   ["dashboard/page.tsx", src("app", "(app)", "dashboard", "page.tsx")],
@@ -162,9 +165,9 @@ check(
 );
 
 check(
-  "field mode asks for the location axis of the entity in view",
+  "walk mode asks for the location axis of the entity in view",
   /locationAxis\(entityCode\)/.test(
-    fs.readFileSync(path.join(here, "..", "src", "app", "(app)", "field", "page.tsx"), "utf8")
+    fs.readFileSync(path.join(here, "..", "src", "app", "(app)", "walk", "page.tsx"), "utf8")
   ),
   "the default argument silently resolved to the programme's starting entity"
 );

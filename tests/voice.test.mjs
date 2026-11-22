@@ -42,7 +42,9 @@ const prompts = src("lib", "assistPrompts.ts");
 const transcribeRoute = src("app", "api", "transcribe", "route.ts");
 const capture = src("components", "Capture.tsx");
 const detail = src("components", "CheckDetail.tsx");
-const field = src("app", "(app)", "field", "page.tsx");
+/* build prompt 7 (22 Nov 2026): moved from field/page.tsx to walk/page.tsx
+   when /field became a redirect — see that file's own header comment. */
+const field = src("app", "(app)", "walk", "page.tsx");
 const shell = src("components", "AppShell.tsx");
 const capturePage = src("app", "(app)", "capture", "page.tsx");
 

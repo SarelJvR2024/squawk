@@ -136,11 +136,14 @@ check(
   ),
 );
 
-const field = src("src", "app", "(app)", "field", "page.tsx");
+/* build prompt 7 (22 Nov 2026): this is now walk/page.tsx — /field itself
+   is a redirect. This same toolbar carried over unchanged by the port; see
+   walk/page.tsx's own header comment. */
+const field = src("src", "app", "(app)", "walk", "page.tsx");
 check(
   "Walk: the + button is additive to the existing toolbar, not a replacement for the photo button already there",
   /<IconFlag width=\{16\} height=\{16\} \/>/.test(field) && /aria-label="Add — photo, voice note, evidence or an issue"/.test(field),
-  "field/page.tsx is the 2,700-line screen prompt 7 replaces wholesale — rewiring its existing, heavily-tested photo button is out of scope for this prompt",
+  "this toolbar carried over from field/page.tsx unchanged when build prompt 7 ported it to walk/page.tsx",
 );
 check(
   "and reuses the SAME preset-discipline rule AddItemSheet's own pre-fill already uses on this screen, not a second, different one",

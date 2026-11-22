@@ -26,7 +26,11 @@ const shared = read("src", "lib", "shared.ts");
 const exports_ = read("src", "lib", "exports.ts");
 const outcome = read("src", "components", "OutcomeControl.tsx");
 const sheet = read("src", "components", "AddItemSheet.tsx");
-const field = read("src", "app", "(app)", "field", "page.tsx");
+/* build prompt 7 (22 Nov 2026): this logic moved from field/page.tsx to
+   walk/page.tsx when /field became a redirect — see that file's own header
+   comment. The variable name stays `field` since every check below still
+   reads as "the walk screen's own copy", not because the file is. */
+const field = read("src", "app", "(app)", "walk", "page.tsx");
 const panel = read("src", "components", "SyncPanel.tsx");
 const bulkLinkSheet = read("src", "components", "BulkLinkWalkItemsSheet.tsx");
 
@@ -310,8 +314,8 @@ check(
    had already centralized the SHAPE into one helper, but that helper still
    lived inside AddItemSheet.tsx — so the guarantee only held for items
    whose outcome changed through that one sheet. A second screen quietly
-   had its own, third copy of the same shape (field/page.tsx's
-   raiseInternalFinding, for Internal Working Area items), and anything
+   had its own, third copy of the same shape (field/page.tsx's, now
+   walk/page.tsx's, raiseInternalFinding, for Internal Working Area items), and anything
    that set outcome "NC" any other way — a different screen, an import
    script — skipped the auto-raise entirely, which is exactly the gap
    Sarel is describing here having reappeared.
@@ -327,7 +331,7 @@ check(
     /title: "Seen on the walk",/.test(
       store.slice(store.indexOf("raiseFindingFromAdhoc: (item)"), store.indexOf("raiseFindingFromAdhoc: (item)") + 800)
     ),
-  "a second copy of this shape is exactly what let field/page.tsx's version drift into a third"
+  "a second copy of this shape is exactly what let field/page.tsx's (now walk/page.tsx's) version drift into a third"
 );
 check(
   "an item created already marked NC raises automatically, from the store, not the component that called addAdhoc",
@@ -370,7 +374,7 @@ check(
   "calling raiseFindingFromAdhoc here too, on top of what addAdhoc/updateAdhoc already raised, would mint two findings for one observation"
 );
 check(
-  "field/page.tsx's Internal Working Area items raise through the SAME store helper, not a third copy of the shape",
+  "walk/page.tsx's Internal Working Area items raise through the SAME store helper, not a third copy of the shape",
   /const raiseInternalFinding = \(item: AdHocItem\) => \{\s*\n\s*if \(item\.findingId\) return;\s*\n\s*const id = useStore\.getState\(\)\.raiseFindingFromAdhoc\(item\);/.test(
     field
   ) && !/const addFinding = useStore/.test(field),

@@ -1107,6 +1107,16 @@ interface State {
   removeAdhocAttachment: (id: string, attachmentId: string) => void;
 
   addCapture: (c: Omit<Capture, "id" | "createdAt">) => void;
+  /** THE TRAY'S OWN "ATTACH TO ASSET SYSTEM" — build prompt 7. Sets `area`
+   *  to a real asset-system name rather than creating a fourth kind of
+   *  record: the Walk screen's own per-system photo count already counts
+   *  whatever a capture's `area` says (AddSheet's precedent, build prompt
+   *  5 — see that sheet's own comment on reusing this same field for
+   *  exactly this). `id`/`blobKey`/`createdAt` are not patchable here, same
+   *  convention updateAttachment/updateAdhocAttachment already enforce:
+   *  this changes where a capture is filed, never what it is or which
+   *  bytes it points at. */
+  updateCapture: (captureId: string, patch: Partial<Omit<Capture, "id" | "blobKey" | "createdAt">>) => void;
   assignCapture: (captureId: string, checkId: string) => void;
   dropCapture: (captureId: string) => void;
   discardCapture: (captureId: string) => void;
@@ -4206,6 +4216,11 @@ export const useStore = create<State>()(
         addCapture: (c) =>
           writeScope((d) => ({
             captures: [...d.captures, { ...c, id: `CAP-${uid()}`, createdAt: Date.now() }],
+          })),
+
+        updateCapture: (captureId, patch) =>
+          writeScope((d) => ({
+            captures: d.captures.map((c) => (c.id === captureId ? { ...c, ...patch } : c)),
           })),
 
         assignCapture: (captureId, checkId) => {
