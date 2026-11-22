@@ -61,7 +61,9 @@ import { AttachmentStrip, PhotoButton } from "@/components/Capture";
 import EvidenceReviewView from "@/components/EvidenceReviewView";
 import { SignaturePad } from "@/components/SignaturePad";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
-import { IconCheck, IconX } from "@/components/ui/icons";
+import { IconCheck, IconPlus, IconX } from "@/components/ui/icons";
+import AddSheet from "@/components/AddSheet";
+import RaiseFindingSheet from "@/components/RaiseFindingSheet";
 import type { EvidenceMedium, EvidenceStage } from "@/lib/types";
 
 const MEDIA: EvidenceMedium[] = ["paper", "digital", "photographed", "portal", "verbal"];
@@ -120,6 +122,10 @@ export default function EvidencePage() {
   const [signing, setSigning] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [handedBy, setHandedBy] = useState<Record<string, string>>({});
+  /* The + sheet — build prompt 5. No preset context: this header is
+     screen-wide, not scoped to one document or check. */
+  const [addOpen, setAddOpen] = useState(false);
+  const [raiseOpen, setRaiseOpen] = useState(false);
   useFormsHubDeepLink(setOpenId);
 
   const site = siteFor(entityCode);
@@ -199,15 +205,23 @@ export default function EvidencePage() {
   return (
     <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
       <div className="mx-auto w-full max-w-[760px] px-4 pb-24 pt-3">
-      <header className="mb-3">
-        <h2 className="font-display text-[15px] font-semibold">
-          Document and evidence collection log
-        </h2>
-        <p className="mt-1 text-[11px]" style={{ color: "var(--ink-3)" }}>
-          TK-003 form 7. What ACSA handed over, who handed it over, and what went back.
-          It is custody, not an audit answer — 180 of the 324 check-points turn on a
-          document.
-        </p>
+      <header className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-[15px] font-semibold">
+            Document and evidence collection log
+          </h2>
+          <p className="mt-1 text-[11px]" style={{ color: "var(--ink-3)" }}>
+            TK-003 form 7. What ACSA handed over, who handed it over, and what went back.
+            It is custody, not an audit answer — 180 of the 324 check-points turn on a
+            document.
+          </p>
+        </div>
+        {/* "+" — build prompt 5, the one unified add-anything entry point
+            (photo, voice note, evidence, issue), reachable here too. */}
+        <Btn className="shrink-0 text-[12px]" aria-label="Add — photo, voice note, evidence or an issue" onClick={() => setAddOpen(true)}>
+          <IconPlus width={14} height={14} />
+          Add
+        </Btn>
       </header>
 
       {/* View switch — "By document" is this screen exactly as it always
@@ -738,6 +752,18 @@ export default function EvidencePage() {
         );
       })}
       </>}
+
+      {/* THE + SHEET — build prompt 5. */}
+      <AddSheet
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onRaiseIssue={() => setRaiseOpen(true)}
+      />
+      <RaiseFindingSheet
+        open={raiseOpen}
+        onClose={() => setRaiseOpen(false)}
+        onSaved={() => setRaiseOpen(false)}
+      />
       </div>
     </div>
   );

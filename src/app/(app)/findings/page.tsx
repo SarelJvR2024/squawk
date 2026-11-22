@@ -72,6 +72,7 @@ import FindingDetail from "@/components/FindingDetail";
 import CheckDetail from "@/components/CheckDetail";
 import SystemTreatment from "@/components/SystemTreatment";
 import RaiseFindingSheet from "@/components/RaiseFindingSheet";
+import AddSheet from "@/components/AddSheet";
 import { IconCheck, IconInbox, IconLeft, IconPlus, IconSearch, IconX } from "@/components/ui/icons";
 import { FilterBar } from "@/components/ui/FilterBar";
 import PageHeading from "@/components/ui/PageHeading";
@@ -316,6 +317,9 @@ function FindingsPageInner() {
      outside the register (or at consolidation, reviewing several checks at
      once) had nowhere to go but the walk screen's ad-hoc flow. */
   const [raiseOpen, setRaiseOpen] = useState(false);
+  /* The + sheet — build prompt 5. No preset context: opened from this
+     screen's own toolbar, not from one check or one asset system's row. */
+  const [addOpen, setAddOpen] = useState(false);
 
   const say = (m: string) => {
     setToast(m);
@@ -684,6 +688,15 @@ function FindingsPageInner() {
             >
               <IconPlus width={14} height={14} />
               Raise a finding
+            </Btn>
+            {/* "+" — build prompt 5, the one unified add-anything entry
+                point (photo, voice note, evidence, a general issue). A
+                quiet secondary beside "Raise a finding" — that stays the
+                primary action here, unchanged. Labelled, not icon-only,
+                so two plus-icon buttons side by side read as two
+                different things, not one doubled up. */}
+            <Btn className="shrink-0 text-[12px]" onClick={() => setAddOpen(true)}>
+              Add
             </Btn>
           </div>
 
@@ -1523,6 +1536,14 @@ function FindingsPageInner() {
           setMode("findings");
           setActiveFindingId(id);
         }}
+      />
+
+      {/* THE + SHEET — build prompt 5. "Issue" reuses the SAME
+          RaiseFindingSheet instance just above, not a second one. */}
+      <AddSheet
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onRaiseIssue={() => setRaiseOpen(true)}
       />
 
       {toast && (
