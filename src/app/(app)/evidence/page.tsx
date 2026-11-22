@@ -63,6 +63,7 @@ import { useNow } from "@/lib/clock";
 import { useFormsHubDeepLink } from "@/lib/deepLink";
 import { AttachmentStrip, FileButton, PhotoButton } from "@/components/Capture";
 import EvidenceReviewView from "@/components/EvidenceReviewView";
+import EvidenceByCheckView from "@/components/EvidenceByCheckView";
 import { SignaturePad } from "@/components/SignaturePad";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconPlus, IconX } from "@/components/ui/icons";
@@ -122,7 +123,7 @@ export default function EvidencePage() {
      discipline retaining asset/check context, the thing Priority 5
      actually asked for, rather than leading with the old flat custody
      form. "By document" is untouched and still reachable as a tab. */
-  const [view, setView] = useState<"document" | "discipline">("discipline");
+  const [view, setView] = useState<"document" | "discipline" | "check">("discipline");
   /* Build prompt 6: "count chips act as filters" — same role=radiogroup
      pattern EvidenceReviewView's own STATUS_PILLS already uses, driven by
      the new 3-state displayStatus() rather than that view's own 8-state
@@ -251,12 +252,17 @@ export default function EvidencePage() {
       {/* View switch — "By document" is this screen exactly as it always
           was; "By discipline" groups the same log by discipline and shows
           where each item has got to (not started / requested / received /
-          analysis), per Sarel's own four states. */}
+          analysis), per Sarel's own four states; "By check" (build
+          prompt 6) is the spec's own named second view, added alongside
+          rather than replacing "By discipline" — see EvidenceByCheckView.tsx's
+          own doc comment for why nothing existing was touched to make room
+          for it. */}
       <div className="mb-3 flex items-center gap-[6px]">
         {(
           [
             ["document", "By document"],
             ["discipline", "By discipline"],
+            ["check", "By check"],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -277,6 +283,7 @@ export default function EvidencePage() {
       </div>
 
       {view === "discipline" ? <EvidenceReviewView onOpenRecord={openInDocumentView} /> : null}
+      {view === "check" ? <EvidenceByCheckView onOpenRecord={openInDocumentView} /> : null}
 
       {view === "document" && <>
       {/* LOG ONE. Pinned, one field. */}
