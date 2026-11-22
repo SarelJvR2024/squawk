@@ -2748,10 +2748,27 @@ export default function WalkPage() {
                             say("Describe what the photo shows first");
                             return;
                           }
+                          /* NEITHER SENTINEL EVER BECOMES A REAL FIELD VALUE.
+                             `activeFilter` can legitimately read NO_DISCIPLINE
+                             (the "No discipline recorded" bucket is one of
+                             `tops`'s own options, same as every other filter
+                             value) and `cap.area` falls back to NO_SYSTEM
+                             when a capture was never assigned one — both are
+                             this screen's own placeholder TEXT for "nothing
+                             recorded", not a real discipline or system name,
+                             and AdHocItem's own header is explicit that an
+                             unattributed field is `null`, never a string that
+                             reads like a real one. */
                           const id = promoteCaptureToIssue(cap.id, {
                             description: promoteDesc.trim(),
-                            discipline: groupBy === "discipline" ? activeFilter || null : null,
-                            system: cap.area?.trim() && cap.area !== "Unspecified" ? cap.area : null,
+                            discipline:
+                              groupBy === "discipline" && activeFilter && activeFilter !== NO_DISCIPLINE
+                                ? activeFilter
+                                : null,
+                            system:
+                              cap.area?.trim() && cap.area !== "Unspecified" && cap.area !== NO_SYSTEM
+                                ? cap.area
+                                : null,
                           });
                           setPromotingCaptureId(null);
                           say(`${id} raised from this photo`);

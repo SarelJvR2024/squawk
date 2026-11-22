@@ -152,7 +152,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `addsheet.test.mjs` | no | 24 |
 | `evidencedisplay.test.mjs` | no | 25 |
 | `evidenceimport.test.mjs` | no | 17 |
-| `walkscreen.test.mjs` | no | 29 |
+| `walkscreen.test.mjs` | no | 31 |
 | `e2e.js` | yes | 24 |
 | `robustness.js` | yes | 53 |
 | `exports.js` | yes | 32 |
@@ -167,7 +167,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**4,456 assertions in total**, every count above verified by running the suite,
+**4,458 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —

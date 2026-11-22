@@ -22,7 +22,15 @@ export function withPhotoTarget(
 ): PhotoTargetsConfig {
   const next: PhotoTargetsConfig = { ...config };
   if (!discipline) return next;
-  if (!Number.isFinite(target) || target <= 0) delete next[discipline];
-  else next[discipline] = Math.round(target);
+  /* ROUNDED BEFORE THE "IS IT POSITIVE" CHECK, NOT AFTER — code review on
+     this branch: checking `target <= 0` on the UNROUNDED value let 0.4
+     (typed directly into the number input, not just reached via its
+     spinner) through as "positive", then round it down to the literal 0
+     this type's own header promises never happens. Rounding first means
+     the only number that can ever be stored is the one the check is
+     actually about. */
+  const rounded = Math.round(target);
+  if (!Number.isFinite(rounded) || rounded <= 0) delete next[discipline];
+  else next[discipline] = rounded;
   return next;
 }

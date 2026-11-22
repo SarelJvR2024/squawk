@@ -58,6 +58,14 @@ check("withPhotoTarget clears back to the default on 0, a negative number, or Na
     if ("Electrical" in next) throw new Error(`target ${bad} left an entry: ${JSON.stringify(next)}`);
   }
 }, "a target of 0 read literally would make the Walk screen's counter permanently 'at target'");
+check(
+  "a target that rounds DOWN to zero clears, not stores a literal 0 — code review on this branch",
+  () => {
+    const next = withPhotoTarget({}, "Electrical", 0.4);
+    if ("Electrical" in next) throw new Error(JSON.stringify(next));
+  },
+  "0.4 is a real number > 0, so checking that before rounding let it through and then rounded it down to the exact 0 this type's header promises never happens",
+);
 check("withPhotoTarget never mutates the config it was given", () => {
   const seeded = Object.freeze({ Civil: 10 });
   withPhotoTarget(seeded, "Electrical", 20);
@@ -165,6 +173,15 @@ check("assignCapture and promoteCaptureToIssue share one copy of the capture-to-
 });
 check("the tray offers the description prompt inline, not a separate sheet — the one field assignCapture's own dropdown does not need", () =>
   /promotingCaptureId === cap\.id &&/.test(walk) && /What you found/.test(walk));
+check(
+  "turning a capture into an issue never writes the 'no discipline/system recorded' placeholder text as if it were a real value — code review on this branch",
+  () => {
+    const body = walk.slice(walk.indexOf("const id = promoteCaptureToIssue(cap.id, {"), walk.indexOf("const id = promoteCaptureToIssue(cap.id, {") + 500);
+    if (!/activeFilter !== NO_DISCIPLINE/.test(body)) throw new Error("discipline sentinel not guarded");
+    if (!/cap\.area !== NO_SYSTEM/.test(body)) throw new Error("system sentinel not guarded");
+  },
+  "filtered to the 'No discipline recorded' bucket, activeFilter literally equals that placeholder string — without the guard it would be stored on the new AdHocItem as if it were a real discipline name",
+);
 
 /* ---------- 4. /field redirects, it does not 404 ---------- */
 
