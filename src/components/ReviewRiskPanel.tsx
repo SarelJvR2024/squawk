@@ -86,6 +86,12 @@ export type RiskPatch = Pick<
   /* The airport's own action & improvement plan — see this field's own
      doc comment in types.ts and the textarea below. */
   | "actionPlan"
+  /* CRITICAL/SAFETY — build prompt 8 (Issues screen, 22 Nov 2026): set here,
+     alongside Type, during classification — see their own doc comments on
+     Finding (types.ts) for what each means and how Safety differs from an
+     Immediate Safety Finding. */
+  | "critical"
+  | "safetyTag"
   /* HEADLINE, EDITABLE HERE TOO — Sarel, after correcting a finding's
      notes: "it now left the old note and the new note, it should only
      have my corrected note, not the original voice transcription." The
@@ -382,6 +388,21 @@ export default function ReviewRiskPanel({
             {FINDING_TYPE_LABEL[t]}
           </Chip>
         ))}
+      </div>
+
+      {/* TAGS — build prompt 8. Two independent flags, not a third Type
+          option: a finding can be Critical, Safety-tagged, both or neither,
+          same reasoning the Type chips above do NOT try to carry — see
+          their own doc comments on Finding (types.ts). The Issues screen's
+          own Critical/Safety count chips read these two fields directly. */}
+      <div className="mb-2 font-display text-[11px] font-semibold">Tags</div>
+      <div className="mb-3.5 flex flex-wrap gap-[6px]">
+        <Chip selected={!!finding.critical} onClick={() => onChange({ critical: !finding.critical })}>
+          Critical
+        </Chip>
+        <Chip selected={!!finding.safetyTag} onClick={() => onChange({ safetyTag: !finding.safetyTag })}>
+          Safety
+        </Chip>
       </div>
 
       {/* HEADLINE — Sarel: "it now left the old note and the new note, it

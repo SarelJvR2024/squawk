@@ -1138,6 +1138,22 @@ export interface Finding {
    *  this is the FINDING's own, and a finding can carry one with no
    *  linked check at all (Raise-a-finding, the walk's free-text path). */
   findingType?: "non-compliance" | "observation" | "needs-evidence";
+  /** CRITICAL — build prompt 8 (Issues screen, 22 Nov 2026): one of the
+   *  Issues screen's own count-chip filters ("All, To review, Carried,
+   *  Critical, Safety, Closed"). Set during classification (ReviewRiskPanel,
+   *  same place Type/root cause/impact/timeline are set) — a flag on the
+   *  finding, not a derived read of severity/likelihood, which this app's
+   *  own 16 Nov 2026 decision already took off the per-finding level (see
+   *  this panel's own header comment). Optional, absent-means-false, same
+   *  convention as `internalOnly` just above. */
+  critical?: boolean;
+  /** SAFETY — same shape and same place as `critical` just above. "The
+   *  Safety tag here is only for the report" (the build prompt's own
+   *  words) — distinct from, and never to be confused with, an Immediate
+   *  Safety Finding (SafetyFinding, /isf): that is its own record and
+   *  route for something urgent enough to act on today; this is a report
+   *  tag on an ordinary Finding, set after the fact during classification. */
+  safetyTag?: boolean;
   /** Plural — see MitigatingAction. */
   actions: MitigationAction[];
   /** Dated, attributed updates on the remediation.
