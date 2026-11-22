@@ -1524,7 +1524,7 @@ export default function CheckDetail({
       <Sheet open={sheet === "findings"} onClose={() => setSheet(null)} title="Findings" wide>
         {panelByKey("findings")?.body}
       </Sheet>
-      <Sheet open={sheet === "more"} onClose={() => setSheet(null)} title="More" subtitle="ACSA wording · Flag for review · prior finding" wide>
+      <Sheet open={sheet === "more"} onClose={() => setSheet(null)} title="More" subtitle="ACSA wording · Flag for review · asset-system note · prior finding" wide>
         <div className="flex flex-col gap-5">
           {(modeLabels(check).length > 0 || check.confirmedBy || (check.inspect && check.inspect !== "none")) && (
             <div className="flex flex-wrap gap-[6px]">
@@ -1556,6 +1556,18 @@ export default function CheckDetail({
           <div>
             <div className="label-xs mb-1.5">Flag for review</div>
             {panelByKey("improve")?.body}
+          </div>
+          {/* THE ASSET-SYSTEM NOTE — code review on this branch caught that
+              this never actually made it into the Sheet, even though the
+              PR description and checkscreen.test.mjs both claimed it had:
+              the test only grepped for patchSystem's own source text, which
+              still existed, not for it being rendered anywhere reachable.
+              Labelled distinctly from the new per-check note above (the
+              flat row, not this Sheet) — see Response.internalNote's own
+              doc comment for the two notes' different scopes. */}
+          <div>
+            <div className="label-xs mb-1.5">Internal note — this asset system, every check under it</div>
+            {panelByKey("internalNote")?.body}
           </div>
           {panelByKey("prior") && (
             <div>

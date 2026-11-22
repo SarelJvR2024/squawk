@@ -361,10 +361,15 @@ check(
    on its face, and is still keyed to the system, reachable now from the
    "More" Sheet rather than its own tab. */
 check(
-  "the asset-system note is STILL reachable, keyed to the system, not the check",
+  "the asset-system note's panel body is still BUILT, keyed to the system, not the check",
   /const sysA = systemAssessment\(check\.discipline, check\.system\);/.test(detail) &&
     /patchSystem\(check\.discipline, check\.system, \{ internalNote: e\.target\.value \}\)/.test(detail),
   "every check under one asset system shares the same note, not a copy per check-point — build prompt 3 adds a check-level note beside it, it does not delete this one"
+);
+check(
+  "and it is actually RENDERED inside the More Sheet, not just built and left unreachable",
+  /\{panelByKey\("internalNote"\)\?\.body\}/.test(detail),
+  "code review on this branch caught this gap: the panel existed in `panels`, but nothing in the More Sheet's JSX ever read it — building a panel body is not the same as a reader being able to reach it, and a test that only greps for patchSystem's own source text cannot tell the difference"
 );
 
 check(
