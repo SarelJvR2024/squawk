@@ -115,10 +115,22 @@ check("evidenceNA takes priority in the row's own status pill, same as evidenceS
 /* ---------- the By-document view actually uses the new status model ---------- */
 
 const evidencePage = src("src", "app", "(app)", "evidence", "page.tsx");
-check("By document has status-filter count chips, same role=radiogroup pattern EvidenceReviewView already uses", () =>
-  assert.match(evidencePage, /role="radiogroup" aria-label="Filter by status"/));
-check("and the chips are driven by the new displayStatus, not the richer evidenceStage", () =>
-  assert.match(evidencePage, /for \(const e of items\) c\[displayStatus\(e\)\]\+\+;/));
+check("By document renders the shared status-filter chips over every item", () =>
+  assert.match(
+    evidencePage,
+    /<EvidenceStatusChips items=\{items\} value=\{statusFilter\} onChange=\{setStatusFilter\} \/>/,
+  ));
+
+const statusChips = src("src", "components", "EvidenceStatusChips.tsx");
+check("the shared chips use the same role=radiogroup pattern EvidenceReviewView's own STATUS_PILLS already uses", () =>
+  assert.match(statusChips, /role="radiogroup" aria-label="Filter by status"/));
+check("and are driven by the new displayStatus, not the richer evidenceStage", () =>
+  assert.match(statusChips, /for \(const e of items\) c\[displayStatus\(e\)\]\+\+;/));
+check("BY DOCUMENT AND BY CHECK SHARE ONE CHIPS COMPONENT — not two copies that could drift", () => {
+  const byCheckSrc = src("src", "components", "EvidenceByCheckView.tsx");
+  assert.match(evidencePage, /import EvidenceStatusChips from "@\/components\/EvidenceStatusChips";/);
+  assert.match(byCheckSrc, /import EvidenceStatusChips from "@\/components\/EvidenceStatusChips";/);
+}, "code review on this branch caught the two views each carrying their own copy of this exact markup and counting logic — which had already silently drifted (see the next check)");
 check("each item row shows the real check numbers it satisfies, not just a count", () =>
   assert.match(evidencePage, /satisfiesLabel\(e\.checkIds, \(id\) => portalIdFor\(entityCode, id\)\)/));
 check("re-request calls the existing store action, not a hand-rolled patch", () =>
@@ -146,6 +158,33 @@ check("same three quick actions as By document — Load file, mark status, re-re
   assert.match(byCheck, /Not available/);
   assert.match(byCheck, /Re-request/);
 });
+check(
+  "By check's chip counts and groups are both built from the SAME eligible population (check-linked, channel-on) — not all items globally",
+  () => {
+    assert.match(
+      byCheck,
+      /const eligibleItems = useMemo\(\s*\(\) => items\.filter\(\(e\) => e\.checkIds\.some\(\(id\) => checkById\.has\(id\)\)\),/,
+    );
+    assert.match(byCheck, /<EvidenceStatusChips items=\{eligibleItems\}/);
+  },
+  "code review on this branch caught the chips counting over every EvidenceItem while the groups below only ever showed check-linked, channel-on items — an 'All' chip that could never match what the list actually rendered",
+);
+
+/* ---------- re-request actually clears every fact that would otherwise keep displayStatus stuck ---------- */
+
+const store = src("src", "lib", "store.ts");
+check(
+  "reRequestEvidence clears unavailableAt/unavailableReason too, not just insufficientAt/receivedAt/analysisAt",
+  () => {
+    const body = store.slice(
+      store.indexOf("reRequestEvidence: (id) => {"),
+      store.indexOf("signEvidence: (id, sig) => {"),
+    );
+    assert.match(body, /unavailableAt: null,/);
+    assert.match(body, /unavailableReason: "",/);
+  },
+  "code review on this branch caught a real bug: the new quick-action 'Re-request' button is the first caller of this action ever reachable from an item already marked unavailable — without clearing unavailableAt here, displayStatus() would read 'unavailable' forever no matter how many times Re-request was pressed",
+);
 
 if (failed) process.exit(1);
 console.log(failed ? "FAILED" : "all passed");

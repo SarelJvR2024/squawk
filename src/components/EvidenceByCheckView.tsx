@@ -29,15 +29,12 @@
 import { useMemo, useState } from "react";
 import { checksAt, useEntityCode, useEvidenceItems, useStore } from "@/lib/store";
 import { channelsOf } from "@/lib/channels";
-import {
-  DISPLAY_STATUS_LABEL,
-  displayStatus,
-  satisfiesLabel,
-} from "@/lib/evidence";
+import { DISPLAY_STATUS_LABEL, displayStatus, satisfiesLabel } from "@/lib/evidence";
 import type { EvidenceDisplayStatus } from "@/lib/evidence";
 import { portalIdFor } from "@/lib/sites";
 import { Btn, Empty, Panel, Pill } from "@/components/ui/primitives";
 import { FileButton } from "@/components/Capture";
+import EvidenceStatusChips from "@/components/EvidenceStatusChips";
 import type { EvidenceItem } from "@/lib/types";
 
 const STATUS_TONE: Record<EvidenceDisplayStatus, "good" | "warn"> = {
@@ -71,19 +68,22 @@ export default function EvidenceByCheckView({
   );
   const checkById = useMemo(() => new Map(checks.map((c) => [c.id, c])), [checks]);
 
-  const statusCounts = useMemo(() => {
-    const c: Record<"all" | EvidenceDisplayStatus, number> = {
-      all: items.length,
-      requested: 0,
-      received: 0,
-      unavailable: 0,
-    };
-    for (const e of items) c[displayStatus(e)]++;
-    return c;
-  }, [items]);
+  /* THE POPULATION THE CHIPS COUNT OVER MUST MATCH WHAT THIS VIEW ACTUALLY
+     SHOWS — code review on this branch caught an earlier version counting
+     over every EvidenceItem (including ones with no check-point linked, or
+     linked only to a check whose evidence channel is off), while the list
+     below only ever renders items linked to a check in `checkById`. An
+     item with no checkIds at all, or none that land in `checkById`,
+     belongs in "By document" and nowhere in this view's own counts. */
+  const eligibleItems = useMemo(
+    () => items.filter((e) => e.checkIds.some((id) => checkById.has(id))),
+    [items, checkById],
+  );
 
   const visibleItems =
-    statusFilter === "all" ? items : items.filter((e) => displayStatus(e) === statusFilter);
+    statusFilter === "all"
+      ? eligibleItems
+      : eligibleItems.filter((e) => displayStatus(e) === statusFilter);
 
   const byCheck = useMemo(() => {
     const map = new Map<string, EvidenceItem[]>();
@@ -100,35 +100,7 @@ export default function EvidenceByCheckView({
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap gap-[6px]" role="radiogroup" aria-label="Filter by status">
-        {(
-          [
-            ["all", "All"],
-            ["requested", DISPLAY_STATUS_LABEL.requested],
-            ["received", DISPLAY_STATUS_LABEL.received],
-            ["unavailable", DISPLAY_STATUS_LABEL.unavailable],
-          ] as const
-        ).map(([key, label]) => {
-          const selected = statusFilter === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              onClick={() => setStatusFilter(key)}
-              className="rounded-full border px-[11px] py-[5px] text-[11.5px] transition-[var(--t)]"
-              style={
-                selected
-                  ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
-                  : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
-              }
-            >
-              {label} ({statusCounts[key]})
-            </button>
-          );
-        })}
-      </div>
+      <EvidenceStatusChips items={eligibleItems} value={statusFilter} onChange={setStatusFilter} />
 
       {groups.length === 0 ? (
         <Empty>

@@ -2621,6 +2621,18 @@ export const useStore = create<State>()(
             receivedAt: null,
             analysisAt: null,
             analysisNote: "",
+            /* Build prompt 6's code review: this used to leave
+               unavailableAt/unavailableReason untouched, which never
+               surfaced because the only existing caller reached this from
+               stage "insufficient" — where unavailableAt is never set.
+               Wiring "Re-request" up for an item already declared
+               unavailable (the new unified screens' own quick action)
+               exposed it: without clearing it here, displayStatus() would
+               keep reading "unavailable" forever, the exact same way
+               receiveEvidence already clears it on the opposite path
+               ("receiving contradicts having declared it unproducible"). */
+            unavailableAt: null,
+            unavailableReason: "",
           });
         },
 

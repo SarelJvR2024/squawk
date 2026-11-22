@@ -42,7 +42,6 @@ import {
   useStore,
 } from "@/lib/store";
 import {
-  DISPLAY_STATUS_LABEL,
   MEDIUM_LABEL,
   RETURNABLE,
   displayStatus,
@@ -64,6 +63,7 @@ import { useFormsHubDeepLink } from "@/lib/deepLink";
 import { AttachmentStrip, FileButton, PhotoButton } from "@/components/Capture";
 import EvidenceReviewView from "@/components/EvidenceReviewView";
 import EvidenceByCheckView from "@/components/EvidenceByCheckView";
+import EvidenceStatusChips from "@/components/EvidenceStatusChips";
 import { SignaturePad } from "@/components/SignaturePad";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconPlus, IconX } from "@/components/ui/icons";
@@ -214,16 +214,6 @@ export default function EvidencePage() {
 
   const unbacked = unbackedSignatures(items);
 
-  const statusCounts = useMemo(() => {
-    const c: Record<"all" | EvidenceDisplayStatus, number> = {
-      all: items.length,
-      requested: 0,
-      received: 0,
-      unavailable: 0,
-    };
-    for (const e of items) c[displayStatus(e)]++;
-    return c;
-  }, [items]);
   const visibleItems =
     statusFilter === "all" ? items : items.filter((e) => displayStatus(e) === statusFilter);
 
@@ -340,35 +330,7 @@ export default function EvidencePage() {
         </Empty>
       ) : (
         <>
-          <div className="mb-3 flex flex-wrap gap-[6px]" role="radiogroup" aria-label="Filter by status">
-            {(
-              [
-                ["all", "All"],
-                ["requested", DISPLAY_STATUS_LABEL.requested],
-                ["received", DISPLAY_STATUS_LABEL.received],
-                ["unavailable", DISPLAY_STATUS_LABEL.unavailable],
-              ] as const
-            ).map(([key, label]) => {
-              const selected = statusFilter === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() => setStatusFilter(key)}
-                  className="rounded-full border px-[11px] py-[5px] text-[11.5px] transition-[var(--t)]"
-                  style={
-                    selected
-                      ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
-                      : { background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }
-                  }
-                >
-                  {label} ({statusCounts[key]})
-                </button>
-              );
-            })}
-          </div>
+          <EvidenceStatusChips items={items} value={statusFilter} onChange={setStatusFilter} />
           <div className="mb-3 flex items-center justify-between gap-3">
             <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
               {visibleItems.length} ENTR{visibleItems.length === 1 ? "Y" : "IES"} — OUTSTANDING FIRST
