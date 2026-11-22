@@ -753,11 +753,16 @@ export default function EvidencePage() {
       })}
       </>}
 
-      {/* THE + SHEET — build prompt 5. */}
+      {/* THE + SHEET — build prompt 5. `onEvidenceCreated` opens the new
+          item directly: the `/evidence?open=` deep link this sheet uses
+          everywhere else does nothing on the Evidence screen's OWN + button
+          — see AddSheet.tsx's own doc comment on why (code review on this
+          branch caught it). */}
       <AddSheet
         open={addOpen}
         onClose={() => setAddOpen(false)}
         onRaiseIssue={() => setRaiseOpen(true)}
+        onEvidenceCreated={setOpenId}
       />
       <RaiseFindingSheet
         open={raiseOpen}

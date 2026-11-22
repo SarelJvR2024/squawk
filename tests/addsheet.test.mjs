@@ -83,9 +83,20 @@ check(
 /* ---------- Issue ---------- */
 
 check(
-  "Issue does not build a new form — it hands the same context off to whatever the caller already uses to raise one",
-  /onRaiseIssue\(\{ checkId: presetCheckId, system: presetSystem, discipline: presetDiscipline \}\);/.test(sheet),
+  "Issue does not build a new form — it hands off to whatever the caller already uses to raise one, no context argument",
+  /function handleIssue\(\) \{\s*onClose\(\);\s*onRaiseIssue\(\);\s*\}/.test(sheet),
   "prompt 8 owns the real Observation/Non-compliance + Critical/Safety issue form; this sheet's contract does not change when that lands",
+);
+check(
+  "onRaiseIssue takes NO context — the caller gives RaiseFindingSheet the same presetX props directly, one source for that context, not two that could drift",
+  /onRaiseIssue: \(\) => void;/.test(sheet),
+  "code review on this branch caught an earlier version passing a ctx object here that every one of the four callers then silently discarded",
+);
+check(
+  "same-screen evidence creation opens the new item directly, not through the /evidence?open= deep link",
+  /onEvidenceCreated\?: \(id: string\) => void;/.test(sheet) &&
+    /if \(onEvidenceCreated\) \{\s*onEvidenceCreated\(id\);\s*\} else \{\s*router\.push\(`\/evidence\?open=\$\{id\}`\);\s*\}/.test(sheet),
+  "code review on this branch caught that the deep link relies on a mount-only effect (lib/deepLink.ts) which does not re-fire for a same-route navigation, so opening the sheet FROM the Evidence screen and tapping Evidence would create the item and never show it",
 );
 
 /* ---------- RaiseFindingSheet: the preset props actually reach its own state ---------- */
@@ -156,6 +167,10 @@ check(
 check(
   "with Issue available here too, since this screen never had any way to raise one before",
   /<RaiseFindingSheet\s+open=\{raiseOpen\}/.test(evidence),
+);
+check(
+  "and Evidence passes its own setOpenId so a new item opens directly, not through the deep link that does nothing on this screen",
+  /<AddSheet\s+open=\{addOpen\}[\s\S]{0,200}onEvidenceCreated=\{setOpenId\}/.test(evidence),
 );
 
 /* ---------- nothing already there was deleted ---------- */

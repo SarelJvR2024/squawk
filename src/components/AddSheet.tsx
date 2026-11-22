@@ -60,16 +60,31 @@ export default function AddSheet({
   open,
   onClose,
   onRaiseIssue,
+  onEvidenceCreated,
   presetCheckId,
   presetSystem,
   presetDiscipline,
 }: {
   open: boolean;
   onClose: () => void;
-  /** Prompt 5 does not build the issue form — this hands off to whatever
-   *  the caller already uses to raise one (RaiseFindingSheet today),
-   *  pre-filled with the same context this sheet was given. */
-  onRaiseIssue: (ctx: { checkId?: string; system?: string; discipline?: string }) => void;
+  /** Prompt 5 does not build the issue form — this opens whatever the
+   *  caller already uses to raise one (RaiseFindingSheet today). Takes no
+   *  context: the caller gives RaiseFindingSheet the SAME presetCheckId/
+   *  presetSystem/presetDiscipline it gave this sheet, at the same call
+   *  site — a single source for that context, not two that could drift.
+   *  (Code review on this branch caught an earlier version that handed a
+   *  ctx object here which every caller then silently discarded.) */
+  onRaiseIssue: () => void;
+  /** When the + sheet is opened FROM the Evidence screen itself, navigating
+   *  to `/evidence?open=` does nothing: useFormsHubDeepLink (lib/deepLink.ts)
+   *  reads the query string in a mount-only effect, and a same-route
+   *  `router.push` does not remount the page or re-run it — the new item
+   *  would be created and then never open (code review on this branch
+   *  caught this). Evidence's own page passes its `setOpenId` here to open
+   *  the new item directly instead; everywhere else, where the + sheet is
+   *  opened from a DIFFERENT route, the deep link still does the job (a
+   *  fresh mount of /evidence runs that effect for the first time). */
+  onEvidenceCreated?: (id: string) => void;
   presetCheckId?: string;
   presetSystem?: string;
   presetDiscipline?: string;
@@ -102,12 +117,16 @@ export default function AddSheet({
       ...(presetDiscipline ? { discipline: presetDiscipline } : {}),
     });
     onClose();
-    router.push(`/evidence?open=${id}`);
+    if (onEvidenceCreated) {
+      onEvidenceCreated(id);
+    } else {
+      router.push(`/evidence?open=${id}`);
+    }
   }
 
   function handleIssue() {
     onClose();
-    onRaiseIssue({ checkId: presetCheckId, system: presetSystem, discipline: presetDiscipline });
+    onRaiseIssue();
   }
 
   const hasContext = Boolean(presetCheckId || presetSystem || presetDiscipline);
