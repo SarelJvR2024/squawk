@@ -371,6 +371,9 @@ export default function CheckDetail({
      out. All three until the config says otherwise. */
   const channelConfig = useStore((s) => s.checkChannels);
   const channels = channelsOf(channelConfig, check.id);
+  /* Written in Setup, not per-visit — same reasoning as channelConfig just
+     above. Build prompt 4 ("How to ask" notes). */
+  const howToAskNote = useStore((s) => s.howToAsk[check.id]) ?? "";
   const appendObservation = useStore((s) => s.appendObservation);
   const patch = useStore((s) => s.patch);
   const addAttachment = useStore((s) => s.addAttachment);
@@ -1492,11 +1495,17 @@ export default function CheckDetail({
           then renders nothing rather than guessing at a fallback, same
           "falls back to nothing it does not have" rule the old openKey
           computation used to apply to a single open tab. */}
+      {/* Build prompt 4: a note written in Setup, before the audit, shown here
+          collapsed by default — this Sheet IS the collapse: nothing shows
+          until the button above is tapped. */}
       <Sheet open={sheet === "howToAsk"} onClose={() => setSheet(null)} title="How to ask">
-        <p className="text-[12.5px]" style={{ color: "var(--ink-3)" }}>
-          No note set yet. &ldquo;How to ask&rdquo; notes are written in Setup
-          — coming in a later update.
-        </p>
+        {howToAskNote.trim() ? (
+          <p className="whitespace-pre-wrap text-[13px] leading-[1.5]">{howToAskNote}</p>
+        ) : (
+          <p className="text-[12.5px]" style={{ color: "var(--ink-3)" }}>
+            No note set for this check. Write one in Setup → How to ask notes.
+          </p>
+        )}
       </Sheet>
       <Sheet open={sheet === "standard"} onClose={() => setSheet(null)} title="ACSA requirement" wide>
         {panelByKey("standard")?.body}

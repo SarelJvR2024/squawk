@@ -62,8 +62,10 @@ import type {
   Verification,
   CheckChannelConfig,
   CheckChannels,
+  HowToAskConfig,
 } from "./types";
 import { withChannels } from "./channels";
+import { withHowToAsk } from "./howtoask";
 import {
   type AuditDateOverride,
   auditWindow,
@@ -440,6 +442,10 @@ interface State {
   /** Which of interview / evidence / walk each check needs, by check id.
    *  Exceptions only — see lib/channels.ts. Set in the Setup screen. */
   checkChannels: CheckChannelConfig;
+  /** An optional "how to ask this" note per check, by check id. Written in
+   *  Setup before the audit, shown on the Checks screen during the
+   *  interview — see lib/howtoask.ts. */
+  howToAsk: HowToAskConfig;
   /** Flat across the whole programme — a finding carries its own entity and
    *  originVisit, which is what lets a later visit see what an earlier one
    *  left open. */
@@ -540,6 +546,9 @@ interface State {
   clearAuditDateOverride: (entityCode: string, visitId: string) => void;
   /** Turn interview / evidence / walk on or off for a set of checks. */
   setCheckChannels: (checkIds: string[], patch: Partial<CheckChannels>) => void;
+  /** Sets the same note on every given check id — one id for a single
+   *  check's own editor, several for "Apply to similar checks" in Setup. */
+  setHowToAsk: (checkIds: string[], note: string) => void;
   openAudit: (entityCode: string, visitId: string) => void;
 
   visitData: () => VisitData;
@@ -1158,6 +1167,7 @@ export const useStore = create<State>()(
         customVisits: [],
         auditDateOverrides: {},
         checkChannels: {},
+        howToAsk: {},
         findings: [],
         hazards: [],
         syncRuns: [],
@@ -1264,6 +1274,10 @@ export const useStore = create<State>()(
 
         setCheckChannels: (checkIds, patch) => {
           set((s) => ({ checkChannels: withChannels(s.checkChannels, checkIds, patch) }));
+        },
+
+        setHowToAsk: (checkIds, note) => {
+          set((s) => ({ howToAsk: withHowToAsk(s.howToAsk, checkIds, note) }));
         },
 
         clearAuditDateOverride: (entityCode, visitId) => {
@@ -5106,6 +5120,7 @@ export const useStore = create<State>()(
         lastSavedAt: s.lastSavedAt,
         pendingLabelFixes: s.pendingLabelFixes,
         checkChannels: s.checkChannels,
+        howToAsk: s.howToAsk,
       }),
     }
   )
