@@ -62,7 +62,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `review.test.mjs` | no | 42 |
 | `reviewcompliance.test.mjs` | no | 7 |
 | `syncwatermark.test.mjs` | no | 14 |
-| `tablet.test.mjs` | no | 47 |
+| `tablet.test.mjs` | no | 48 |
 | `channels.test.mjs` | no | 9 |
 | `checkresult.test.mjs` | no | 24 |
 | `channel-counts.test.mjs` | no | 11 |
@@ -111,8 +111,8 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `graph.test.mjs` | no | 16 |
 | `activity.test.mjs` | no | 34 |
 | `assets.test.mjs` | no | 21 |
-| `checkscreen.test.mjs` | no | 54 |
-| `checktabs-a11y.test.mjs` | no | 9 |
+| `checkscreen.test.mjs` | no | 52 |
+| `checktabs-a11y.test.mjs` | no | 15 |
 | `checksfilter.test.mjs` | no | 3 |
 | `cleanup.test.mjs` | no | 22 |
 | `filterbar.test.mjs` | no | 21 |
@@ -162,7 +162,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**4,328 assertions in total**, every count above verified by running the suite,
+**4,333 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
@@ -780,40 +780,38 @@ record configured to be worth updating.
 
 ## `checkscreen.test.mjs`
 
-Guards the shape of the check screen after it was cut down to a brief, and then
-again after Sarel used the brief and said it was still too busy. What was there
-first worked and was unreadable: seven panels of equal weight down the left, the
-four compliance buttons at the top of the right-hand column where reading the
-left scrolled them out of sight, and — on a phone — the voice note and camera
-below six groups of chips. What replaced it was two columns, each with its own
-tab strip, and compliance buttons big enough to be the first thing on the
-screen. It is one tabbed panel now, with the compliance buttons in the pinned
-bar beside Save.
+Guards the shape of the check screen through three redesigns. First it was cut
+down to a brief, then — Sarel having used the brief — merged into one tabbed
+panel with the compliance buttons in a pinned bar. Build prompt 3 ("the check,
+one screen", 21 Nov 2026) removed the tab strip outright: Interview, Evidence
+and Walk are flat rows, always visible; ACSA requirement, ACSA wording, Flag
+for review, "How to ask" and the carried-forward prior finding are Sheets, one
+tap away rather than a tab switch; Save is gone too (build prompt 2), replaced
+by one "Next check" action in the same pinned bottom bar.
 
 ```bash
 node tests/checkscreen.test.mjs
 ```
 
 Two kinds of assertion, and the second matters more. First, that the shape is
-the one asked for: the question to ask and the evidence needed outside the tabs
-entirely, pinned with the check's identity so neither can be scrolled away; one
-tab strip in two groups, doing before reading; the site's stricter threshold
-inside the standard rather than beside it; the compliance buttons in the pinned
-bar with Save, at 44px, and in exactly one place in the file; the answer box,
-the voice note and the camera pinned with them; evidence to request leading the
-strip and open by default. Second, THAT NOTHING WAS DROPPED — every field the
-register carries for a check is still rendered somewhere, because a redesign
-that quietly loses the external basis is not a tidier screen, it is a smaller
-audit.
+the one build prompt 3 asked for: the question and the three channel rows on
+screen by default, no `role="tablist"` left anywhere; only the check's own
+identity pinned, not the rows below it; the full evidence line never cut off
+(a tap away in the Evidence Sheet, even though the row itself previews it
+truncated); the site's stricter threshold inside the standard rather than
+beside it; the compliance buttons in the pinned bar with Next check, at 44px,
+in exactly one place in the file; the answer box, voice note and camera pinned
+with them; Interview/Evidence/Walk each gating on their own Setup channel;
+Issues showing even at zero; the new per-check Internal note sitting beside,
+not replacing, the older per-asset-system one; and ACSA wording/Flag for
+review/the prior finding all still reachable from the "More" Sheet. Second,
+THAT NOTHING WAS DROPPED — every field the register carries for a check is
+still rendered somewhere, because a redesign that quietly loses the external
+basis is not a tidier screen, it is a smaller audit.
 
-It also pins the layout bugs the two redesigns turned up: the grid taking the
-flex container's leftover height below `lg` while its content spilled out of it,
-which left the pinned bar resting in the middle of the screen with chips
-scrolling underneath; the header compaction being driven by the scroll container
-rather than by a breakpoint, so it does nothing from `lg` where the panel
-scrolls inside itself; and the tab strip left in the scrolling body, which on a
-phone came to rest UNDER the pinned answer bar where it could not be pressed at
-all.
+It also pins the layout bugs the earlier redesigns turned up: the header
+compaction being driven by the scroll container rather than by a breakpoint;
+and the long-title clamp-and-expand control staying reachable.
 
 ## `figures.test.mjs`
 

@@ -1,33 +1,31 @@
-/* The check screen, after it was cut down to a brief.
+/* The check screen, redesigned twice.
  *
- *  What was there worked and was unreadable. Seven panels of equal weight ran
- *  down the left — the question, the threshold, ACSA's quote, a document
- *  conflict, a plain reading, the walkabout line, and a folded pile of
- *  extracts — and the answer, the four compliance buttons, sat at the top of
- *  the right-hand column where reading the left scrolled it out of sight. On a
- *  phone the voice-note and photograph buttons were the last thing on the
- *  screen, below six groups of chips.
+ *  FIRST (ui-refresh): seven reference panels and the compliance buttons
+ *  merged into one tabbed strip above two columns — the question and the
+ *  evidence line stayed pinned above the tabs, out of them, because those
+ *  are the two things a conversation actually starts from.
  *
- *  Sarel's brief was specific: the question to ask, the threshold, and a plain
- *  explanation are the three things that must be unmissable; everything else is
- *  reference and needs a better way in than a stack; and knowing what evidence
- *  to ask for is the most important thing on the capture side.
+ *  SECOND (build prompt 3, "the check, one screen", 21 Nov 2026): the tab
+ *  strip is gone too. Sarel's brief this time: "One slim header... The
+ *  question, with two buttons... Three one-line channel rows in fixed
+ *  order... Open issues on this check shown as a row... Two fields,
+ *  always: Internal note and Observation... Result, then one Next
+ *  button... Replace the tab strip with this structure. Keep every
+ *  existing capability reachable; nothing is deleted without a
+ *  replacement." A reference panel that used to be the tab already open
+ *  by default (ACSA requirement) is a button that opens a Sheet now; the
+ *  two tabs the row list did not name (ACSA wording, Flag for review) and
+ *  the carried-forward prior finding fold into one "More" Sheet rather
+ *  than being deleted.
  *
- *  THEN HE USED IT, and the second brief was just as specific: it is still too
- *  busy, the compliance buttons are too big and should go down to the pinned
- *  bar where there is open space, the ACSA background and the answer chips
- *  should be ONE space with tabs at the top rather than two columns, and the
- *  only things that should never move are a short line saying what to ask and
- *  what evidence is needed. So the two columns are one tabbed panel now, and
- *  the compliance buttons live in the same pinned bar as Save.
+ *  So this suite still asserts two different kinds of thing, and the
+ *  second still matters more than the first:
  *
- *  So this suite asserts two different kinds of thing, and the second matters
- *  more than the first:
- *
- *    1. that the new shape is the shape asked for, and
- *    2. THAT NOTHING WAS DROPPED. Every field the register carries for a check
- *       is still rendered somewhere. A redesign that quietly loses the external
- *       basis is not a tidier screen, it is a smaller audit.
+ *    1. that the new shape is the shape build prompt 3 asked for, and
+ *    2. THAT NOTHING WAS DROPPED. Every field the register carries for a
+ *       check is still rendered somewhere, reachable from this screen —
+ *       a redesign that quietly loses the external basis is not a
+ *       tidier screen, it is a smaller audit.
  *
  *  Source-read, like the other offline suites. */
 
@@ -40,11 +38,10 @@ const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8"
 
 const detail = src("components", "CheckDetail.tsx");
 /* The ACSA-requirement content (standard, threshold, site variant/conflict,
-   "compliant when") moved into its own component — see
-   AcsaRequirementPanel.tsx's own header note — reused unchanged from the
-   walk screen's new ACSA tab. Checked together: CheckDetail renders it via
-   <AcsaRequirementPanel>, the literal text being checked for lives in the
-   extracted file now. */
+   "compliant when") lives in its own component, reused unchanged — see
+   AcsaRequirementPanel.tsx's own header note. Checked together: CheckDetail
+   renders it via <AcsaRequirementPanel>, the literal text being checked for
+   lives in the extracted file now. */
 const acsaPanel = src("components", "AcsaRequirementPanel.tsx");
 const detailAndPanel = detail + acsaPanel;
 const css = src("app", "globals.css");
@@ -68,11 +65,12 @@ const at = (needle) => codeOnly.indexOf(needle);
 /* ------------------------------- the brief -------------------------------- */
 
 check(
-  "THE QUESTION AND THE EVIDENCE NEEDED ARE NOT IN A TAB",
-  at("{check.question}") < at('role="tablist"') &&
-    at("{evidenceLine}") < at('role="tablist"') &&
-    at("{evidenceLine}") > at("{check.question}"),
-  "the two lines the conversation starts from are the two that must never move"
+  "THE QUESTION AND THE CHANNEL ROWS ARE NOT BEHIND A SHEET — on screen by default",
+  at("{check.question}") < at('font-semibold">Interview<') &&
+    at('font-semibold">Interview<') < at('font-semibold">Evidence<') &&
+    at('font-semibold">Evidence<') < at('font-semibold">Walk<') &&
+    !/role="tablist"/.test(codeOnly),
+  "the tab strip is gone outright, not relabelled — everything build prompt 3 names a row is flat content, not a panel you switch to"
 );
 
 check(
@@ -83,19 +81,17 @@ check(
 );
 
 check(
-  "the brief and the tabs are pinned with the check's identity, not left to scroll",
-  at('className="relative z-[6] sm:sticky sm:top-0"') < at("{check.question}") &&
-    at("{check.question}") < at('role="tablist"') &&
-    at('role="tablist"') < at('role="tabpanel"'),
-  "a strip scrolled under the pinned answer bar cannot be pressed at all"
+  "ONLY THE IDENTITY IS PINNED NOW — the question, rows, note and Observation scroll normally",
+  at('className="sticky top-0 z-[6] border-b px-5') < at("{check.question}") &&
+    at("{check.question}") < at("Interview"),
+  "build prompt 3: 'One slim header' — the old version pinned the question and the tab strip too; this one pins only the check's own identity and heading"
 );
 
 check(
-  "the evidence line is whole at rest, and one line only once the screen has been scrolled",
-  /stuck \? " truncate" : ""[\s\S]{0,120}\{evidenceLine\}/.test(codeOnly) &&
-    /setPanel\("acsa"\)/.test(codeOnly) &&
-    /ACSA wording/.test(codeOnly),
-  "Sarel: make sure it expands so all the text is visible, not cut off — the longest evidence sentence in the register runs to 606 characters and used to be truncated at rest, same mistake the question line next to it never made"
+  "the full evidence line is never cut off — one tap away, in the Evidence Sheet, not truncated on the row forever",
+  /Evidence needed<\/div>/.test(codeOnly) &&
+    /<RefText>\{evidenceLine\}<\/RefText>/.test(codeOnly),
+  "Sarel: make sure it expands so all the text is visible, not cut off — the longest evidence sentence in the register runs to 606 characters; the flat row previews it truncated, the Sheet behind it never does"
 );
 
 check(
@@ -112,32 +108,19 @@ check(
   "silence reads as nothing to see here; it is the opposite"
 );
 
-/* A DECISION OF SAREL'S THAT HE LATER REVERSED: "In plain English" and
-   "External basis" were two tabs in the Reference group — an AI reading of
-   the check back in plain words, and the clause from an external instrument
-   (SACAA, SANS, OHS Act) a check was built on where one applied. Sarel:
-   "remove the external and in plain english buttons here" — the tab strip
-   was already eight tabs scrolling sideways, and neither read as something
-   an auditor reached for during a visit. Both panels, their state
-   (`explained`), and the "basis"/"plain" keys are gone from CheckDetail.tsx;
-   `check.basis`/`basisConfidence`/`basisNote` are unused here now but stay
-   on the Check type and in the register data — removing a tab is not the
-   same decision as removing what the register itself carries. */
-
 /* ------------------------ the answer, always on screen -------------------- */
 
 const header = codeOnly.slice(
-  at('className="relative z-[6] sm:sticky'),
-  at('{((check.question && channels.interview) || evidenceLine) && (')
+  at('className="sticky top-0 z-[6] border-b px-5'),
+  at("{check.question && channels.interview && (")
 );
-/* The className grew lg: variants once the bar became the right-hand
-   column from lg (see the note on it in CheckDetail.tsx) — anchor on the
+/* The className grows with the responsive rules it needs — anchor on the
    prefix, not the exact attribute value, so an appended class does not
    move this slice. */
 const pinnedBar = codeOnly.slice(at('className="sticky bottom-0 z-[7]'));
 
 check(
-  "THE COMPLIANCE BUTTONS ARE IN THE PINNED BOTTOM BAR, WITH SAVE",
+  "THE COMPLIANCE BUTTONS ARE IN THE PINNED BOTTOM BAR, WITH NEXT CHECK",
   /STATUSES\.map\(/.test(pinnedBar) && /setCompliance\(check\.id/.test(pinnedBar),
   "they were the biggest thing on the screen and they were above the material the decision is made from"
 );
@@ -149,52 +132,17 @@ check(
 );
 
 check(
-  "the bar is still pinned below lg, so the answer is on screen at every scroll position",
+  "the bar is still pinned, so the answer is on screen at every scroll position",
   /className="sticky bottom-0 z-\[7\]/.test(codeOnly),
   "moving them down is only safe because this bar does not scroll away"
 );
 
-/* A DECISION RECORDED HERE, THEN OVERRIDDEN TWICE, AND ALL THREE HALVES
-   KEPT — same rule the "evidence to request" reversal below already
-   follows: a test that quietly forgets what it used to guard cannot
-   explain itself.
-
-   THEN: the verdict and the non-answers were two rows, deliberately, not
-   a way to fit five boxes across 390px. The top row was what the audit
-   concludes about the asset; the bottom row was this check not applying
-   here and ACSA not producing the document while we were on site.
-   Rendered as five identical boxes those would read as five equal
-   choices, so they were split.
-
-   THEN (30 Sep): Sarel, looking at the live bar on a wide desktop window
-   — "make these buttons smaller. this should all fit in one row." One
-   grid of five, from lg (1024px) only: five columns wrapped labels to
-   two lines at 820px, the tablet this app is actually built for.
-
-   NOW (2 Oct): Sarel — "On the checks page we have an option for
-   compliant pending evidence, i want to remove that option. Also remove
-   the not available options." Both of STATUSES' two qualifier rows are
-   gone — "Compliant, evidence pending" and "Not available" moved off the
-   verdict entirely, into their own Evidence status panel, which asks a
-   different question from this one (see EVIDENCE_STATUSES). Three
-   buttons fit a single row at every width, so the lg-only five-column
-   grid and its narrower fallback both went with them. STATUSES is left
-   with two verdicts and one qualifier (N/A); `quiet` (from
-   `st.group === "qualifier"`) still drops the border weight and lets
-   toneStyle mute it, same as every earlier shape did. */
-/* 19 Nov 2026 — FOUR IN ONE ROW, not three: Sarel asked the removed NV
- * verdict back ("on this screen on the compliance add 'require evidence
- * to verify' as an additional option"), reversing the 2 October removal
- * this file's own surrounding comment describes. The grid widened from
- * 3 to 4 columns; `quiet` styling, read off `st.group === "qualifier"`,
- * still applies to both qualifiers now (N/A and the new NV entry) the
- * same way it applied to N/A alone before. */
 check(
   "FOUR IN ONE ROW AT EVERY WIDTH, AND BOTH QUALIFIERS STAY VISUALLY QUIETER",
   /grid min-w-\[280px\] flex-1 grid-cols-4 gap-\[4px\]">/.test(codeOnly) &&
     /const quiet = st\.group === "qualifier"/.test(codeOnly) &&
     /quiet \? "border" : "border-\[1\.5px\]"/.test(codeOnly),
-  "two verdicts and two qualifiers (N/A, and NV again) fit one row at every width — N/A and NV still shouldn't look like the same kind of answer as Compliant/Non-compliant"
+  "two verdicts and two qualifiers (N/A, and NV) fit one row at every width — N/A and NV still shouldn't look like the same kind of answer as Discussed/Non-compliance"
 );
 
 check(
@@ -204,30 +152,17 @@ check(
   "a second array would let key 3 mean one thing to the hand and another to the eye"
 );
 
-/* REVERSED, 20 Oct 2026 (ui-refresh checkpoint feedback): Sarel, reviewing a
-   390px screenshot — "the outcome buttons must read 'Compliant',
-   'Non-compliant', 'N/A', not C/NC." The code-on-a-phone/word-everywhere-
-   else split this check used to guard is gone: `<span>{st.label}</span>`
-   is now the button's only text, at every width, so the accessible name
-   comes from the button's own content and no longer needs its own
-   aria-label to say the word the visible text was abbreviating. st.short
-   still exists on STATUSES itself (still ACSA's own code, see the type's
-   own doc comment) — it just is not what this button shows or says. */
 check(
   "the outcome buttons show the full word, not the ACSA code, at every width",
   /<st\.Icon width=\{12\} height=\{12\} className="shrink-0" \/>\s*\n\s*<span>\{st\.label\}<\/span>/.test(
     codeOnly
   ) &&
     !/<span className="sm:hidden">\{st\.short\}<\/span>/.test(codeOnly),
-  "a 390px screenshot showed C/NC — the button must read Compliant/Non-compliant/N/A at every width, not just from sm"
+  "a 390px screenshot showed C/NC — the button must read Discussed/Non-compliance/Not applicable at every width, not just from sm"
 );
 
 check(
   "and each is still a 44px target",
-  /* One button definition now, not two, since the merge into a single
-     five-column row — min-w-0 is what keeps all five columns equal width
-     instead of one long label (e.g. "Compliant · pending") blowing its
-     column wider than the rest. The 44px floor itself is unchanged. */
   (codeOnly.match(/min-h-\[44px\] min-w-0 items-center justify-center/g) || []).length === 1
 );
 
@@ -273,17 +208,6 @@ check(
   "a pinned six-line box leaves two lines of check above it on a phone"
 );
 
-/* THE WRITING TOOLS ARE IN THE BOX THEY WRITE INTO.
-   Sarel, 2026-09-12: "Move mic icon and choose from taps and draft with ai as
-   small icons in the text box on the right."
-
-   They were three labelled buttons in the bar, which put the three ways of
-   filling the observation in a different place from the observation, and spent
-   a row the compliance answer now uses for its second line. What is left in
-   the bar is Photo — the one control used in gloves on an apron, where a 34px
-   icon in a text field is the wrong target — and the pills saying what is
-   attached. That row still scrolls rather than wrapping: at 44px a wrapped
-   toolbar is a second 50px band off a 664px screen for the whole session. */
 check(
   "COMPOSE, DRAFT AND THE MIC ARE INSIDE THE OBSERVATION BOX",
   /aria-label="Compose from taps"/.test(codeOnly) &&
@@ -292,43 +216,20 @@ check(
   "three labelled buttons in the bar put the ways in somewhere other than the field"
 );
 check(
-  "the box reserves room for them rather than running text underneath — 260px, not 164px or 248px, since Sarel: 'these buttons are in the way' once the mic button's own recording-plus-discard state (wider than the four icons at rest, and wider still once a long recording's timer gains a second minute digit) was the thing actually overlapping",
+  "the box reserves room for them rather than running text underneath — 260px",
   /pr-\[260px\]/.test(codeOnly) && !/pr-\[164px\]/.test(codeOnly) && !/pr-\[248px\]/.test(codeOnly)
 );
 check(
   "and they are anchored to the top, so they do not walk down a box that grows on focus",
   /absolute top-\[5px\] right-\[5px\]/.test(codeOnly)
 );
-/* Sarel, later: "remove the paperclip and photo icon, introduce them in
-   the evidence section — all photos and evidence will be uploaded in the
-   evidence section." Photo and File moved out of this bar into the
-   Evidence status panel, the one place an auditor reached for either,
-   rather than a second copy floating under every tab.
-
-   PHOTO CAME BACK, INLINE, 31 October 2026 — the field-capture mobile pass.
-   Camera is the one of the two used constantly on a walk, and reaching it
-   meant leaving the always-visible bar for the Evidence status tab, against
-   a ten-second-per-item budget. It writes into the exact same
-   r.attachments array via the exact same addAttachment call the Evidence
-   panel's own PhotoButton already uses — one photo, two places to reach
-   for it, never two copies of what attaching one does. File — opened far
-   less often, and never in gloves on an apron — stays Evidence-status-only;
-   Sarel's reasoning for moving it out still holds for File even though it
-   no longer holds for Photo. */
 check(
-  "PHOTO IS BACK IN THE PINNED BAR, INLINE WITH VOICE; FILE STAYS EVIDENCE-STATUS-ONLY",
+  "PHOTO IS IN THE PINNED BAR, INLINE WITH VOICE; FILE STAYS EVIDENCE-STATUS-ONLY",
   /<PhotoButton\s+inline/.test(pinned) &&
     !/<FileButton/.test(pinned) &&
     /<PhotoButton/.test(codeOnly) &&
     /<FileButton/.test(codeOnly),
   "Camera reachable without leaving the always-visible bar; File stays the one place an auditor reaches for it"
-);
-check(
-  "the remaining row still scrolls sideways rather than wrapping to a second 50px band",
-  /flex flex-nowrap items-center gap-\[6px\] overflow-x-auto sm:overflow-visible \[&>\*\]:shrink-0/.test(
-    codeOnly
-  ),
-  ""
 );
 
 check(
@@ -345,15 +246,6 @@ check(
 
 /* -------------------------- evidence leads the capture -------------------- */
 
-/* "EVIDENCE TO REQUEST", "LIKELY ANSWERS" AND "ISSUES FOUND" ARE GONE, 11
-   October 2026 — Sarel: remove those three tabs. Their own history (both
-   reversals — "most important" opening default, then ACSA's requirement
-   taking that place instead) is no longer worth tracking here because
-   there is no tab left to order; what is worth a permanent guard is that
-   they do not quietly come back. `key: "evidence"`/`"answers"`/`"issues"`
-   were each a push onto the `panels` array — gone with the tabs, not just
-   relabelled, so a search for any one of them finding nothing is the
-   actual regression guard. */
 check(
   "evidence to request, likely answers and issues found do not come back",
   !/key: "evidence"/.test(codeOnly) &&
@@ -361,28 +253,15 @@ check(
     !/key: "issues"/.test(codeOnly),
   "chip-picking tabs, replaced by what the evidence proves — see EVIDENCE_VERDICTS"
 );
+
 check(
-  "ACSA's own requirement is the first tab in the strip",
-  at('group: "acsa"') > 0 && /\(\["acsa", "do", "read"\] as const\)/.test(codeOnly),
-  "it was fourth in Reference, behind five tabs of TPJV's own material"
-);
-/* TRIED AND REVERTED, 20 Oct 2026 (ui-refresh Stage 2, Area 3): moving the
-   default off "standard" so a brand-new check opened on its own capture
-   ("do") panel instead, on the reasoning that an auto-opened reference
-   panel competes with the primary flow for first-paint attention. Sarel,
-   asked directly: keep it the way he originally wanted. Reverted — the
-   check below is the same regression guard as before this attempt. */
-check(
-  "and it is the tab already open, not one to go and find",
-  /useState\("standard"\)/.test(codeOnly),
-  "a default of anything else buries the thing he named as most important"
+  "ACSA's own requirement is its own button, primary, beside How to ask",
+  /onClick=\{\(\) => setSheet\("standard"\)\}/.test(codeOnly) &&
+    /ACSA requirement/.test(codeOnly) &&
+    /onClick=\{\(\) => setSheet\("howToAsk"\)\}/.test(codeOnly),
+  "build prompt 3: 'The question, with two buttons: How to ask... and ACSA requirement'"
 );
 
-/* WHAT REPLACED THEM: not a chip to tap, a verdict to judge and a sentence
-   to write — see EVIDENCE_VERDICTS and Response.evidenceProves/
-   evidenceVerdict in types.ts. Unconditional, like the status buttons
-   beside it, because the question applies whether or not researched
-   options ever existed for this check. */
 check(
   "the evidence status tab carries what the evidence proves and a verdict",
   /value=\{r\.evidenceProves\}/.test(codeOnly) &&
@@ -397,26 +276,7 @@ check(
     /key: "NV", label: "Not Verified"/.test(codeOnly),
   "evidence cannot answer whether a check applies at all, only what it shows once it does"
 );
-/* A DECISION OF SAREL'S THAT HE LATER REVERSED, recorded for the same
-   reason the one above it is: "make all buttons fit in one row (the
-   buttons for acsa requirements, issues, walkabout...)" — twelve tabs
-   beside a half-width reference panel wrapped to two rows even on a
-   desk-width window, the same busyness the tabbed redesign was built to
-   remove. The strip now scrolls sideways at every width instead. */
-check(
-  "the strip SCROLLS SIDEWAYS AT EVERY WIDTH, rather than wrapping to a second row",
-  /className="flex flex-nowrap items-center gap-x-\[14px\] gap-y-\[5px\] overflow-x-auto border-b px-5 py-\[8px\] whitespace-nowrap"/.test(
-    codeOnly
-  ),
-  "two rows of PINNED tab strip is most of a 664px phone, and it is no less true on a desk-width window beside a half-width reference panel"
-);
 
-/* (?<!EVIDENCE_) EXCLUDES EVIDENCE_STATUSES.map( — added 2 October 2026
-   alongside STATUSES for the separate Evidence status panel. Its name
-   ends in the same four letters, so a plain /STATUSES\.map\(/ search
-   also matches inside "EVIDENCE_STATUSES.map(" and this check would
-   fail for the wrong reason: two arrays that answer two different
-   questions, not two copies of one. */
 check(
   "there is exactly ONE definition of the compliance buttons in the file",
   (codeOnly.match(/^export const STATUSES/gm) || []).length === 1 &&
@@ -426,12 +286,6 @@ check(
 
 /* --------------------------- NOTHING WAS DROPPED -------------------------- */
 
-/* A DECISION OF SAREL'S THAT HE LATER REVERSED: check.basis and
-   check.basisNote — the external-instrument citation and its qualifying
-   note — were rendered under "External basis", removed along with that tab
-   (see the note above, under "the answer, always on screen"). They are no
-   longer in this list because they are genuinely gone from the screen, not
-   because this list stopped checking. */
 const fields = [
   ["check.acsaRequirement", "what ACSA's procedure requires"],
   ["check.acsaEvidence", "the records ACSA names"],
@@ -451,97 +305,97 @@ for (const [field, what] of fields) {
   );
 }
 
-/* ------------------------------- the tabs --------------------------------- */
+/* --------------------- the three channel rows + Issues --------------------- */
 
-/* ONE STRIP, TWO GROUPS: what the auditor DOES with the check, then what the
-   auditor READS to do it. Both are `panels.push`, which is what makes the
-   merge real rather than two strips drawn next to each other. The reference
-   group shrank from four tabs to two (ACSA wording, and the 2025 prior
-   finding where one exists) once "In plain English" and "External basis"
-   were removed — down from "at least 4", not a regression.
-
-   DOWN AGAIN, 11 October 2026 (not a regression either): "Evidence to
-   request", "Likely answers" and "Issues found" removed (Sarel) took the
-   "do" group from 6 possible pushes (3 conditional-on-`a`, now 1 —
-   walkabout — plus evidenceStatus and improve, always pushed) to 3. Two of
-   those three ("do") are unconditional; walkabout still depends on the
-   Answer Library the same way the three removed ones did. */
 check(
-  "the doing and the reading are tabs in the same list",
-  (codeOnly.match(/group: "do"/g) || []).length >= 3 &&
-    (codeOnly.match(/group: "read"/g) || []).length >= 2,
-  "capture panels and reference panels, in one strip"
+  "Interview, Evidence and Walk each gate on their own channel — a switched-off channel's row is not shown",
+  /\{channels\.interview && \(/.test(codeOnly) &&
+    /\{channels\.evidence && \(/.test(codeOnly) &&
+    /\{channels\.walk && \(/.test(codeOnly),
+  "build prompt 3: 'A row for a switched-off channel is not shown'"
 );
 
 check(
-  "a tab exists only where the register carries that field",
-  /if \(pf\?\.note\)\n\s*panels\.push/.test(codeOnly) &&
-    /check\.acsaRequirement \|\|\n?\s*check\.acsaEvidence\.length > 0/.test(codeOnly),
-  "a thin check shows the tabs it has, not empty ones"
+  "Interview and Walk each offer a real tick AND an N/A, not one combined toggle",
+  /interviewDone: !r\.interviewDone, interviewNA: false/.test(codeOnly) &&
+    /interviewNA: !r\.interviewNA, interviewDone: false/.test(codeOnly) &&
+    /walkNA: !r\.walkNA/.test(codeOnly),
+  "'Each channel on a check: tick (done), N/A, or empty' — three states need two independent controls, not a cycle nobody can see the state of"
 );
 
 check(
-  "THE OPEN TAB IS RESOLVED AGAINST WHAT EXISTS, not trusted",
-  /const openKey = panels\.some\(\(t\) => t\.key === panel\) \? panel : panels\[0\]\.key;/.test(codeOnly),
-  "a key carried from the last check must never open a panel this one does not have"
+  "Evidence counts settled items of total linked, same many-to-many EvidenceReviewView already reads",
+  /useEvidenceItems\(\)\.filter\(\(e\) => e\.checkIds\.includes\(check\.id\)\)/.test(codeOnly) &&
+    /\["received", "analysis", "returned"\]\.includes\(trackingStage\(e\)\)/.test(codeOnly),
+  "'Evidence (e.g. \"2 of 3\", Open)'"
 );
 
 check(
-  "and it is deliberately NOT reset when the check changes",
-  !/setPanel\("evidence"\);/.test(codeOnly.slice(at("if (shownFor !== check.id)"), at("useEffect(() => {"))),
-  "an auditor walking a discipline works the same panel check after check"
+  "Issues shows a row even at zero, not a tab that only exists once there is something in it",
+  /No issues/.test(codeOnly) && /checkFindings\.length > 0/.test(codeOnly),
+  "a row that disappears at zero looks like it was never built"
 );
 
-/* Sarel, later: "the space to read the box of text is getting very small,
-   rework this layout so that it is easier to read, maybe split into a left
-   and right panel." The panel used to take the whole width and whatever
-   height the capture column below it left over — on a desk-width window
-   with photographs already attached, that could be a few lines of ACSA's
-   own wording behind a scrollbar. It is half the width now, beside the
-   capture column rather than above it, with the full leftover height to
-   itself; the capture column gets the other half and scrolls its own
-   Observation block the same way, so neither one is squeezed by the
-   other's content any more. */
-check(
-  "the panel takes half the width from lg and scrolls inside itself",
-  /lg:min-h-0 lg:w-1\/2 lg:shrink-0 lg:overflow-y-auto lg:border-r/.test(codeOnly) &&
-    /role="tabpanel"/.test(codeOnly),
-  "below lg the whole screen scrolls, and flex-1 there spilled the content out of a short box"
-);
+/* ------------------- an internal note, both scopes, never synced ---------- */
 
-/* NO LONGER lg:-ONLY, 20 Oct 2026 (ui-refresh checkpoint feedback: "make the
-   pinned bottom area smaller when no field is focused"). The flex-col split
-   this check guards — the Observation block is the one that gives
-   (flex-1/min-h-0/overflow-y-auto), the answer bar below it (compliance
-   buttons + Save) is the one that never does (shrink-0) — used to only
-   apply from lg, because below lg the whole bar just grew to fit its
-   content instead. It is unconditional now: the bar caps at 25vh at rest
-   and 70vh while the Observation box has focus (`has-[.obs-pane:focus-
-   within]`, see the bar's own class), and that ceiling is only safe for
-   Save and the compliance buttons if the SAME give-or-never-give split
-   already existed below lg too — which is what this check now proves,
-   at every width, not only from lg. */
+/* THIS CHECK, THIS AUDIT — build prompt 3, 21 Nov 2026. New field, new row,
+   confirmed with Sarel to sit beside (not replace) the asset-system-wide
+   note below. */
 check(
-  "and the capture column beside it scrolls its own Observation block the same way",
-  /flex min-h-0 max-h-\[25vh\] flex-col overflow-hidden has-\[\.obs-pane:focus-within\]:max-h-\[70vh\] lg:static lg:w-1\/2 lg:shrink-0 lg:max-h-none lg:overflow-visible/.test(
-    codeOnly
-  ) &&
-    /obs-pane flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain border-t px-5 pt-\[9px\] pb-\[9px\]/.test(
-      codeOnly
-    ) &&
-    /shrink-0 flex flex-wrap items-center gap-x-3 gap-y-\[6px\] border-t px-5 py-2/.test(codeOnly),
-  "a long observation with several photographs attached must not push the compliance buttons off the bottom of their own column, at any width"
+  "the new internal note is read and written through THIS CHECK's own response, not the system's",
+  /value=\{r\.internalNote \?\? ""\}/.test(detail) &&
+    /patch\(check\.id, \{ internalNote: e\.target\.value \}\)/.test(detail),
+  "one note per check-point, for this audit — the asset-system-wide note is a different field, see below"
 );
 
 check(
-  "and the two columns sit in one row from lg, a plain stack below it",
-  /lg:flex lg:min-h-0 lg:flex-1 lg:items-stretch/.test(codeOnly),
-  "a two-column row on a phone is two half-width columns neither one can be read in"
+  "and it says plainly it is never printed, right on the row",
+  /Internal note — never printed in any report/.test(detail)
+);
+
+/* THIS ASSET SYSTEM, EVERY AUDIT — 13 October 2026, kept alongside the one
+   above rather than replaced by it (confirmed with Sarel, not assumed):
+   see tests/sharepoint.test.mjs's own "the reviewer's own fields never
+   reach the portal" section for the functional proof against the real
+   sync code; this file checks the panel itself still exists, still warns
+   on its face, and is still keyed to the system, reachable now from the
+   "More" Sheet rather than its own tab. */
+check(
+  "the asset-system note is STILL reachable, keyed to the system, not the check",
+  /const sysA = systemAssessment\(check\.discipline, check\.system\);/.test(detail) &&
+    /patchSystem\(check\.discipline, check\.system, \{ internalNote: e\.target\.value \}\)/.test(detail),
+  "every check under one asset system shares the same note, not a copy per check-point — build prompt 3 adds a check-level note beside it, it does not delete this one"
 );
 
 check(
-  "the tabs are reachable to a screen reader as tabs",
-  /role="tablist"/.test(codeOnly) && /role="tab"/.test(codeOnly) && /aria-selected=\{on\}/.test(codeOnly)
+  "and its own internal-only banner is still on the panel's face",
+  /INTERNAL ONLY — never synced to SharePoint, never in a client report/.test(detail),
+  "a label a reviewer can see is what stops a working note being mistaken for something client-facing"
+);
+
+/* ------------------- "More": ACSA wording, Flag for review, prior -------- */
+
+check(
+  "ACSA wording, Flag for review and the prior finding are all reachable from one overflow Sheet",
+  /sheet === "more"/.test(codeOnly) &&
+    /ACSA wording/.test(codeOnly) &&
+    /Flag for review/.test(codeOnly) &&
+    /Prior finding/.test(codeOnly),
+  "confirmed with Sarel: folded into one 'More' Sheet, not deleted — the row list build prompt 3 named does not mention these three, and 'nothing is deleted without a replacement' still applies to what it left out"
+);
+
+check(
+  "the register-metadata pills (mode, confirmedBy, inspect) moved into that same Sheet, not deleted",
+  /modeLabels\(check\)\.map\(\(m\) => \{/.test(codeOnly) &&
+    /check\.confirmedBy\.toUpperCase\(\)/.test(codeOnly) &&
+    /GO AND RECONCILE/.test(codeOnly),
+  "the old header's icon row — prompt 3: 'remove the icon row clutter' — moved, it did not vanish"
+);
+
+check(
+  "but the genuinely safety-relevant warnings (conflict, no ACSA basis, an unacceptable prior rating) stay pinned, not buried in More",
+  /NO ACSA BASIS/.test(header) && /CONFLICT ·/.test(header) && /2025 UNACCEPTABLE/.test(header),
+  "clutter and a warning an auditor cannot afford to miss are not the same thing"
 );
 
 /* ---------------------- the two layout bugs this turned up ---------------- */
@@ -549,8 +403,7 @@ check(
 check(
   "the header compacts only where the screen actually scrolls",
   /const onScroll = \(\) => setStuck\(el\.scrollTop > 24\);/.test(codeOnly) &&
-    /stuck && !titleOpen/.test(codeOnly),
-  "from lg the panel scrolls inside itself, so stuck stays false and the full title stays"
+    /stuck && !titleOpen/.test(codeOnly)
 );
 
 check(
@@ -559,31 +412,8 @@ check(
     /Show the full wording/.test(codeOnly)
 );
 
-/* ------------------- an internal note, never synced, per asset system ----- */
-
-/* Sarel: "add a field to add internal notes per asset system, clearly label
-   this as an internal note and this must never get synced to sharepoint or
-   reported to a client report." See tests/sharepoint.test.mjs's own
-   "the reviewer's own fields never reach the portal" section for the
-   functional proof against the real sync code; this file checks the panel
-   itself exists, warns on its face, and is keyed to the system, not the
-   check. */
-
-check(
-  "the internal note is read and written through the asset system's own record, not the check's",
-  /const sysA = systemAssessment\(check\.discipline, check\.system\);/.test(detail) &&
-    /patchSystem\(check\.discipline, check\.system, \{ internalNote: e\.target\.value \}\)/.test(detail),
-  "every check under one asset system shares the same note, not a copy per check-point"
-);
-
-check(
-  "the internal-only banner is on the panel's face, not only in a code comment",
-  /INTERNAL ONLY — never synced to SharePoint, never in a client report/.test(detail),
-  "a label a reviewer can see is what stops a working note being mistaken for something client-facing"
-);
-
 /* --------------------------------------------------------------------------
-   the reviewer's own sign-off moved to ReviewDetail.tsx, not here — see
+   the reviewer's own sign-off is on ReviewDetail.tsx, not here — see
    tests/review.test.mjs's own section on it. CheckDetail (Capture, Field)
    is a capture-time workspace; "fit to share with the client" is a
    review-time question, asked on /review's own detail pane now. */

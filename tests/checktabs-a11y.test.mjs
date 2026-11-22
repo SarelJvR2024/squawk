@@ -2,17 +2,22 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-/* TASKS 1 + 3 OF THE OVERNIGHT REFINEMENT PASS — CheckDetail's panel
- * selector already had role="tablist"/role="tab"/role="tabpanel" and
- * aria-selected (an earlier pass's work — see checkscreen.test.mjs's own
- * "the tabs are reachable to a screen reader as tabs"). What was missing is
- * the rest of the accessible tabs model the brief calls for: aria-controls/
- * aria-labelledby actually tying a tab to the one shared tabpanel, roving
- * tabindex (only the open tab — or a group's first, if none of its tabs is
- * open — stays in the normal Tab order), and arrow-key/Home/End navigation
- * within each group's own tablist. Every existing panel (the register's
- * panels array) is untouched; this is markup and keyboard behaviour only.
- * Static source read — no browser/Playwright in this sandbox. */
+/* THE TAB STRIP IS GONE (build prompt 3, "the check, one screen"
+ * redesign, 21 Nov 2026) — replaced by flat rows and seven Sheets, one
+ * per thing that used to be a tab. The accessible-tabs model this file
+ * used to guard (role="tablist"/"tab"/"tabpanel", roving tabindex,
+ * arrow-key/Home/End navigation within a group) no longer applies: there
+ * is no tab strip left to navigate.
+ *
+ * Sheet's OWN accessibility — role="dialog", a focus trap, Escape,
+ * backdrop click, focus returned to whatever opened it — is a shared
+ * mechanism, tested once for every sheet in the app in
+ * tests/sheet.test.mjs; this file does not re-prove it. What is worth
+ * guarding here, specific to CheckDetail, is: the old tab pattern is
+ * genuinely gone, not just relabelled, and every one of the seven
+ * Sheets this screen opens is wired correctly — a real `open`/`onClose`
+ * pair, a title, and a close that actually clears `sheet` back to
+ * `null` rather than leaving the dialog unable to close. */
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "..");
@@ -27,53 +32,68 @@ const check = (name, cond, detail = "") => {
   }
 };
 
-check(
-  "there is one stable id shared between every tab and the one tabpanel",
-  /panelBaseId = useId\(\)/.test(src)
-);
+/* -------------------------------- the old tab pattern is actually gone --- */
 
 check(
-  "each tab points at the shared tabpanel via aria-controls",
-  /aria-controls={`\$\{panelBaseId\}-tabpanel`}/.test(src)
+  "no role=\"tablist\"/\"tab\"/\"tabpanel\" is left anywhere in this file",
+  !/role="tablist"/.test(src) && !/role="tab"/.test(src) && !/role="tabpanel"/.test(src)
+);
+check(
+  "no roving-tabindex or arrow-key tab navigation is left either",
+  !/groupHasOpen/.test(src) && !/onTabKeyDown/.test(src)
+);
+check(
+  "panelBaseId (the tab ↔ tabpanel id-sharing this file no longer needs) is gone",
+  !/panelBaseId/.test(src)
 );
 
-check(
-  "the tabpanel is labelled by whichever tab is actually open",
-  /id={`\$\{panelBaseId\}-tabpanel`}/.test(src) &&
-    /aria-labelledby={`\$\{panelBaseId\}-tab-\$\{openKey\}`}/.test(src)
-);
+/* --------------------- one `sheet` key, read by Sheet's own `open` prop --- */
 
 check(
-  "roving tabindex: only the open tab (or a group's own first tab) is in the normal tab order",
-  /const inTabOrder = groupHasOpen \? on : i === 0;/.test(src) &&
-    /tabIndex={inTabOrder \? 0 : -1}/.test(src)
+  "sheet state is a single key, not reused tab-strip state",
+  /const \[sheet, setSheet\] = useState<string \| null>\(null\);/.test(src)
+);
+check(
+  "it resets to null when the check changes, unlike the old panel state that deliberately stayed",
+  /setSheet\(null\);/.test(
+    src.slice(src.indexOf("if (shownFor !== check.id)"), src.indexOf("useEffect(() => {"))
+  )
 );
 
+/* ---------------- every one of the seven Sheets is wired, not orphaned --- */
+
+const sheetKeys = ["howToAsk", "standard", "evidenceStatus", "walkabout", "findings", "more"];
+for (const key of sheetKeys) {
+  check(
+    `the "${key}" Sheet opens from sheet === "${key}" and closes back to null`,
+    new RegExp(`<Sheet open=\\{sheet === "${key}"\\} onClose=\\{\\(\\) => setSheet\\(null\\)\\}`).test(
+      src
+    ),
+    "a Sheet with no real onClose, or gated on the wrong key, cannot be closed or never opens"
+  );
+}
 check(
-  "ArrowRight/ArrowLeft move focus within a group's own tablist, wrapping",
-  /next = i < 0 \? 0 : \(i \+ 1\) % list\.length/.test(src) &&
-    /next = i < 0 \? list\.length - 1 : \(i - 1 \+ list\.length\) % list\.length/.test(src)
+  "every Sheet declares a title — a screen reader announces an unlabelled dialog as nothing at all",
+  (src.match(/<Sheet open=\{sheet === "[a-zA-Z]+"\}/g) || []).length ===
+    (src.match(/<Sheet open=\{sheet === "[a-zA-Z]+"\}.*?title=/g) || []).length,
+  "Sheet.tsx itself requires `title` in its own type, but a literal that slips past it would still read as a bug here"
 );
 
-check(
-  "Home/End jump to the first/last tab in that same group",
-  /e\.key === "Home"\) next = 0/.test(src) && /e\.key === "End"\) next = list\.length - 1/.test(src)
-);
+/* ------------------- the triggers actually open the right Sheet, by key --- */
 
 check(
-  "moving focus with the keyboard also activates the tab landed on",
-  /btn\.focus\(\);\s*if \(btn\.dataset\.key\) setPanel\(btn\.dataset\.key\);/.test(src)
+  "How to ask and ACSA requirement are two distinct buttons, opening two distinct Sheets",
+  /onClick=\{\(\) => setSheet\("howToAsk"\)\}/.test(src) &&
+    /onClick=\{\(\) => setSheet\("standard"\)\}/.test(src)
 );
-
 check(
-  "the keydown handler is scoped to its own group's tablist, not the whole strip",
-  /querySelectorAll<HTMLButtonElement>\('\[role="tab"\]'\)/.test(src),
-  "three separate role=tablist groups share one shared tabpanel; each must cycle its own tabs only"
+  "the Evidence row opens evidenceStatus, the Walk row opens walkabout — not swapped",
+  /onClick=\{\(\) => setSheet\("evidenceStatus"\)\}/.test(src) &&
+    /onClick=\{\(\) => setSheet\("walkabout"\)\}/.test(src)
 );
-
 check(
-  "the tabpanel itself is reachable by Tab (APG recommendation for a panel with no focusable child)",
-  /role="tabpanel"[\s\S]{0,80}tabIndex={0}/.test(src)
+  "the Issues row only opens its Sheet when there is something to show",
+  /onClick=\{\(\) => checkFindings\.length > 0 && setSheet\("findings"\)\}/.test(src)
 );
 
 console.log(`\n${failures === 0 ? "OK" : `${failures} FAILED`}`);

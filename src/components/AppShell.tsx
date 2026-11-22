@@ -1572,7 +1572,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           (which would mean touching this seven-screen's worth of page
           files for a wording-free restyle). Still one central render, keyed
           off the route; FlowStepper still returns null off the sequence. */}
-      {FLOW_STEPS.some((s) => s.href === pathname) && (
+      {/* NOT ON /capture — build prompt 3 (Checks screen redesign, 21 Nov
+          2026): "Remove the icon row clutter and the 'Step 1 of 7' line
+          from this screen." Every other screen in the seven-step flow
+          still shows it; FLOW_STEPS itself is untouched (Checks stays
+          step 1 of 7, and Inspection's own "‹ Checks" link still works),
+          only this one render is suppressed for this one route. */}
+      {FLOW_STEPS.some((s) => s.href === pathname) && pathname !== "/capture" && (
         <div className="shrink-0 px-3.5 pt-2 pb-1">
           <FlowStepper current={pathname} />
         </div>
