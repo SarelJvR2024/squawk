@@ -687,6 +687,19 @@ export interface Response {
    *
    *  Optional, additive. */
   walkNA?: boolean;
+  /** EVIDENCE N/A — build prompt 6: "Evidence can also be marked N/A as a
+   *  channel on a check (separate from the status)." Same shape and same
+   *  reasoning as `interviewNA`/`walkNA`: the channel is on, but this
+   *  audit has nothing to request — distinct from `evidenceStatus ===
+   *  "noneAvailable"`, which is a narrative answer about the document
+   *  itself ("nothing exists to collect"), and distinct again from
+   *  Setup's channel switch, which hides the row site-wide. Both
+   *  `evidenceStatus` and any `EvidenceItem`s linked to this check stay
+   *  exactly as they are — this is one more independent fact a check can
+   *  carry, not a replacement for either.
+   *
+   *  Optional, additive. */
+  evidenceNA?: boolean;
   /** THE REVIEWER'S OWN SIGN-OFF, ON THIS CHECK — a separate question from
    *  `compliance` (what the asset is) and from `evidenceStatus` (whether
    *  proof exists). This is "is the RECORD itself done — right observation,

@@ -361,6 +361,51 @@ export function trackingStage(e: EvidenceItem): EvidenceTrackingStage {
   return "notStarted";
 }
 
+/* ------------------------------------------- build prompt 6: the unified document/check view
+ *
+ * A THIRD, narrower read of the same timestamps — same reasoning as
+ * `trackingStage`'s own doc comment above: deliberately not merged into
+ * `EvidenceStage` or `EvidenceTrackingStage`, both of which stay exactly
+ * as they are for their own existing screens (the custody register, the
+ * grouped-by-discipline review table). This one answers only the
+ * question the spec asks for — "Requested, Received, Not available" —
+ * nothing about custody, analysis or re-request history, which the other
+ * two reads already own. */
+
+export type EvidenceDisplayStatus = "requested" | "received" | "unavailable";
+
+export const DISPLAY_STATUS_LABEL: Record<EvidenceDisplayStatus, string> = {
+  requested: "Requested",
+  received: "Received",
+  unavailable: "Not available",
+};
+
+/** Collapses every richer fact this item can carry down to the three
+ *  states the spec names. `received` outranks `unavailable` for the same
+ *  reason `evidenceStage` already gives it priority — producing a
+ *  document contradicts having declared it unproducible, and the store
+ *  clears `unavailableAt` on receipt anyway. Everything short of received
+ *  or declared unavailable — not started, requested, uploaded,
+ *  insufficient — reads as "requested": the spec says "'Not available'
+ *  stays an OPEN item until the evidence is received", so it must never
+ *  collapse into the same bucket as evidence nobody has asked for yet. */
+export function displayStatus(e: EvidenceItem): EvidenceDisplayStatus {
+  if (e.receivedAt) return "received";
+  if (e.unavailableAt) return "unavailable";
+  return "requested";
+}
+
+/** "Satisfies checks 19, 20, 23" — never re-asks what a check already
+ *  told the register. Takes a formatter rather than importing
+ *  `portalIdFor` directly: this module stays entity-agnostic, same as
+ *  every other function in it. An item with nothing linked reads as "No
+ *  check-point linked", the exact words the custody register's own count
+ *  already used for the same case. */
+export function satisfiesLabel(checkIds: string[], portalId: (id: string) => string): string {
+  if (checkIds.length === 0) return "No check-point linked";
+  return `Satisfies check${checkIds.length > 1 ? "s" : ""} ${checkIds.map(portalId).join(", ")}`;
+}
+
 /** A short, fixed word for an attachment's format — "Files" column/card type
  *  badges (3.3/4.4 of the brief). Read off the mime type where there is one,
  *  else the file extension, else the attachment's own `kind` — a photograph
