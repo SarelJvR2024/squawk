@@ -549,6 +549,10 @@ interface State {
   /** Sets the same note on every given check id — one id for a single
    *  check's own editor, several for "Apply to similar checks" in Setup. */
   setHowToAsk: (checkIds: string[], note: string) => void;
+  /** Appends a transcribed voice note to one check's "how to ask" note,
+   *  reading the latest value at write time — see its own implementation
+   *  comment for why that matters. */
+  appendHowToAsk: (checkId: string, text: string) => void;
   openAudit: (entityCode: string, visitId: string) => void;
 
   visitData: () => VisitData;
@@ -1278,6 +1282,20 @@ export const useStore = create<State>()(
 
         setHowToAsk: (checkIds, note) => {
           set((s) => ({ howToAsk: withHowToAsk(s.howToAsk, checkIds, note) }));
+        },
+
+        /* Reads the current note INSIDE the updater, not from a prop or a
+           closure taken when transcription started — a voice note can take
+           a moment to come back, and whatever was typed by hand in that gap
+           must not be lost under it (code review on this branch: the first
+           version read `note` from a stale closure and silently discarded
+           anything typed while transcribe() was in flight). */
+        appendHowToAsk: (checkId, text) => {
+          set((s) => {
+            const cur = s.howToAsk[checkId] ?? "";
+            const next = cur.trim() ? `${cur}\n${text}` : text;
+            return { howToAsk: withHowToAsk(s.howToAsk, [checkId], next) };
+          });
         },
 
         clearAuditDateOverride: (entityCode, visitId) => {

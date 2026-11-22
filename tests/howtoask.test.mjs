@@ -75,6 +75,13 @@ check(
     store,
   ),
 );
+check(
+  "appendHowToAsk reads the CURRENT note from inside the store updater, not a value passed in",
+  /appendHowToAsk: \(checkId, text\) => \{\s*set\(\(s\) => \{\s*const cur = s\.howToAsk\[checkId\] \?\? "";/.test(
+    store,
+  ),
+  "a value passed as an argument can go stale during an async gap (transcription); reading state.howToAsk inside set()'s own updater cannot — code review on this branch caught the stale-closure version",
+);
 
 /* ---------- CheckDetail reads it from Setup's config, not per-visit ---------- */
 
@@ -108,12 +115,31 @@ check(
 );
 check(
   "apply-to-group replaces the group's notes, after a confirm — same destructive-bulk-action pattern as Reset to all three",
-  /onApplyToSystem[\s\S]{0,400}window\.confirm[\s\S]{0,300}setHowToAsk\(groupIds, note\)/.test(setup) &&
+  /onApplyToSystem[\s\S]{0,400}window\.confirm[\s\S]{0,300}setHowToAsk\(systemIds, note\)/.test(setup) &&
     /onApplyToDiscipline[\s\S]{0,400}window\.confirm[\s\S]{0,300}setHowToAsk\(disciplineIds, note\)/.test(setup),
 );
 check(
-  "voice input appends to, rather than replaces, whatever is already typed",
-  /onTranscribed=\{\(text\) => onChange\(note\.trim\(\) \? `\$\{note\}\\n\$\{text\}` : text\)\}/.test(setup),
+  "the apply-to-system scope is the FULL asset system, not the search-narrowed group list",
+  /const systemIds = CHECKS\.filter\(\s*\(x\) => x\.discipline === c\.discipline && x\.system === c\.system,\s*\)\.map\(\(x\) => x\.id\);/.test(
+    setup,
+  ),
+  "code review on this branch caught `groupIds` (the search/discipline-filtered list) being used here instead — under an active search, \"Apply to N checks in this system\" would have silently covered only the visible subset",
+);
+check(
+  "voice input appends through the store's own action, keyed by check id — not a prop closed over a note value",
+  /<NoteMicButton checkId=\{check\.id\} \/>/.test(setup),
+);
+check(
+  "NoteMicButton calls appendHowToAsk on both a normal stop and an interrupted recording",
+  (() => {
+    const body = setup.slice(setup.indexOf("function NoteMicButton"), setup.indexOf("function CheckNoteRow"));
+    const interruptedCount = (body.match(/appendHowToAsk\(checkId, text\.trim\(\)\)/g) ?? []).length;
+    return (
+      /const rec = useRecorder\(\(result\) => \{/.test(body) &&
+      interruptedCount === 2
+    );
+  })(),
+  "one call for the normal Stop path, one for useRecorder's onInterrupted — a recording cut off by collapsing the row or opening another check must still reach the note, not be silently dropped",
 );
 
 /* ---------- never a report, never SharePoint ---------- */

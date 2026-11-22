@@ -57,14 +57,36 @@ function Toggle({
  *  editor it sits beside. Deliberately NOT VoiceNoteButton (Capture.tsx):
  *  that button keeps the recording itself as an attachment, which this note
  *  has nowhere to show — only the transcribed words matter here, so the
- *  blob is discarded once transcribe() has read it. */
-function NoteMicButton({ onTranscribed }: { onTranscribed: (text: string) => void }) {
+ *  blob is discarded once transcribe() has read it.
+ *
+ *  Appends through `appendHowToAsk` (store.ts), not a note value passed in
+ *  as a prop — that value would be whatever `note` the row held at the
+ *  moment recording stopped, stale by the time transcribe()'s network
+ *  round-trip resolves if anything was typed by hand in between. Reading
+ *  the store fresh at write time, inside the store's own updater, cannot
+ *  go stale the way a closed-over prop can (code review on this branch
+ *  caught the closure version actually doing this). */
+function NoteMicButton({ checkId }: { checkId: string }) {
   const canTranscribe = useTranscribeAvailable();
   const isClient = useIsClient();
   const supported = !isClient || supportsRecording();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
-  const rec = useRecorder();
+  const appendHowToAsk = useStore((s) => s.appendHowToAsk);
+
+  /* A recording cut off mid-record (the row collapsed, or another check's
+     editor opened) must still reach the note, not be silently thrown away
+     — same reasoning useRecorder's own doc comment gives, and the same
+     thing VoiceNoteButton (Capture.tsx) wires up for this hook. There is
+     nobody left mounted to show a failure to by the time this fires, so
+     it is best-effort and silent on error, same as that component. */
+  const rec = useRecorder((result) => {
+    void transcribe(result.blob, "how-to-ask.webm")
+      .then(({ text }) => {
+        if (text.trim()) appendHowToAsk(checkId, text.trim());
+      })
+      .catch(() => {});
+  });
   const recording = rec.state === "recording";
 
   async function toggle() {
@@ -81,7 +103,7 @@ function NoteMicButton({ onTranscribed }: { onTranscribed: (text: string) => voi
       const result = await rec.stop();
       if (result) {
         const { text } = await transcribe(result.blob, "how-to-ask.webm");
-        if (text.trim()) onTranscribed(text.trim());
+        if (text.trim()) appendHowToAsk(checkId, text.trim());
       }
     } catch (e) {
       setFailed(e instanceof Error ? e.message : "Transcription is unavailable.");
@@ -175,7 +197,7 @@ function CheckNoteRow({
             style={{ background: "var(--bg)", borderColor: "var(--line-2)" }}
           />
           <div className="flex flex-wrap items-center gap-2">
-            <NoteMicButton onTranscribed={(text) => onChange(note.trim() ? `${note}\n${text}` : text)} />
+            <NoteMicButton checkId={check.id} />
             <button
               type="button"
               onClick={onApplyToSystem}
@@ -396,6 +418,16 @@ export default function SetupPage() {
             </summary>
             <div className="border-t px-3 py-2" style={{ borderColor: "var(--line)" }}>
               {checks.map((c) => {
+                /* The FULL asset system and discipline, from the unfiltered
+                   register — not `groupIds`/`checks` above, which are
+                   narrowed by the search box. "Apply to N checks" under an
+                   active search must mean every check in that system or
+                   discipline, not just the ones the search happens to be
+                   showing right now — same reasoning `scopeChecks` above
+                   already applies to the channel-switch bulk bar. */
+                const systemIds = CHECKS.filter(
+                  (x) => x.discipline === c.discipline && x.system === c.system,
+                ).map((x) => x.id);
                 const disciplineIds = CHECKS.filter((x) => x.discipline === c.discipline).map((x) => x.id);
                 return (
                   <CheckNoteRow
@@ -403,16 +435,16 @@ export default function SetupPage() {
                     check={c}
                     note={howToAsk[c.id] ?? ""}
                     onChange={(next) => setHowToAsk([c.id], next)}
-                    systemCount={groupIds.length}
+                    systemCount={systemIds.length}
                     disciplineCount={disciplineIds.length}
                     onApplyToSystem={() => {
                       const note = howToAsk[c.id] ?? "";
                       if (
                         window.confirm(
-                          `Apply this note to all ${groupIds.length} checks in ${name}? This replaces any note already set on them.`,
+                          `Apply this note to all ${systemIds.length} checks in ${name}? This replaces any note already set on them.`,
                         )
                       ) {
-                        setHowToAsk(groupIds, note);
+                        setHowToAsk(systemIds, note);
                       }
                     }}
                     onApplyToDiscipline={() => {
