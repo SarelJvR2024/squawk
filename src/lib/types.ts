@@ -2943,3 +2943,11 @@ export interface Contact {
 export type CheckChannelKey = "interview" | "evidence" | "walk";
 export type CheckChannels = Record<CheckChannelKey, boolean>;
 export type CheckChannelConfig = Record<string, Partial<Record<CheckChannelKey, false>>>;
+
+/** HOW TO ASK, PER CHECK — build prompt 4 (21 Nov 2026): an optional note,
+ *  written in Setup before the audit, shown on the Checks screen during the
+ *  interview. Site-wide like `CheckChannelConfig`, not per-visit: a check's
+ *  phrasing guidance does not change audit to audit, so this lives on
+ *  `State` next to `checkChannels`, not on `Response`. A missing key, or an
+ *  empty string, both mean "no note" — see lib/howtoask.ts. */
+export type HowToAskConfig = Record<string, string>;

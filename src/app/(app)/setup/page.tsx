@@ -13,8 +13,12 @@
 import { useMemo, useState } from "react";
 import { CHECKS, ALL_DISCIPLINES } from "@/lib/register";
 import { CHANNEL_KEYS, CHANNEL_LABEL, channelCounts, channelsOf } from "@/lib/channels";
+import { howToAskCount } from "@/lib/howtoask";
 import { useStore } from "@/lib/store";
 import type { CheckChannelKey } from "@/lib/types";
+import { transcribe, useTranscribeAvailable } from "@/lib/assist";
+import { supportsRecording, useIsClient, useRecorder } from "@/lib/media";
+import { IconMic } from "@/components/ui/icons";
 
 function Toggle({
   on,
@@ -49,9 +53,179 @@ function Toggle({
   );
 }
 
+/** Record a short voice note and append its transcript to the How-to-ask
+ *  editor it sits beside. Deliberately NOT VoiceNoteButton (Capture.tsx):
+ *  that button keeps the recording itself as an attachment, which this note
+ *  has nowhere to show — only the transcribed words matter here, so the
+ *  blob is discarded once transcribe() has read it.
+ *
+ *  Appends through `appendHowToAsk` (store.ts), not a note value passed in
+ *  as a prop — that value would be whatever `note` the row held at the
+ *  moment recording stopped, stale by the time transcribe()'s network
+ *  round-trip resolves if anything was typed by hand in between. Reading
+ *  the store fresh at write time, inside the store's own updater, cannot
+ *  go stale the way a closed-over prop can (code review on this branch
+ *  caught the closure version actually doing this). */
+function NoteMicButton({ checkId }: { checkId: string }) {
+  const canTranscribe = useTranscribeAvailable();
+  const isClient = useIsClient();
+  const supported = !isClient || supportsRecording();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+  const appendHowToAsk = useStore((s) => s.appendHowToAsk);
+
+  /* A recording cut off mid-record (the row collapsed, or another check's
+     editor opened) must still reach the note, not be silently thrown away
+     — same reasoning useRecorder's own doc comment gives, and the same
+     thing VoiceNoteButton (Capture.tsx) wires up for this hook. There is
+     nobody left mounted to show a failure to by the time this fires, so
+     it is best-effort and silent on error, same as that component. */
+  const rec = useRecorder((result) => {
+    void transcribe(result.blob, "how-to-ask.webm")
+      .then(({ text }) => {
+        if (text.trim()) appendHowToAsk(checkId, text.trim());
+      })
+      .catch(() => {});
+  });
+  const recording = rec.state === "recording";
+
+  async function toggle() {
+    if (busy) return;
+    if (!recording) {
+      setBusy(true);
+      setFailed(null);
+      await rec.start();
+      setBusy(false);
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await rec.stop();
+      if (result) {
+        const { text } = await transcribe(result.blob, "how-to-ask.webm");
+        if (text.trim()) appendHowToAsk(checkId, text.trim());
+      }
+    } catch (e) {
+      setFailed(e instanceof Error ? e.message : "Transcription is unavailable.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!canTranscribe || !supported) return null;
+  return (
+    <span className="inline-flex items-center gap-2">
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={busy}
+        aria-pressed={recording}
+        aria-label={recording ? "Stop recording" : "Record a voice note for this field"}
+        className="inline-flex items-center gap-1 rounded-full border px-3 py-[6px] text-[12px] font-semibold"
+        style={{
+          borderColor: recording ? "var(--bad)" : "var(--line)",
+          color: recording ? "var(--bad)" : "var(--ink-3)",
+        }}
+      >
+        <IconMic width={13} height={13} />
+        {recording ? "Stop" : busy ? "…" : "Voice"}
+      </button>
+      {failed && (
+        <span className="text-[11px]" style={{ color: "var(--bad)" }}>
+          {failed}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** One check's "How to ask" editor, collapsed to its id/requirement + a
+ *  Set/No note chip until opened — 324 open textareas at once is not a
+ *  screen anyone could use. */
+function CheckNoteRow({
+  check,
+  note,
+  onChange,
+  systemCount,
+  disciplineCount,
+  onApplyToSystem,
+  onApplyToDiscipline,
+}: {
+  check: (typeof CHECKS)[number];
+  note: string;
+  onChange: (next: string) => void;
+  systemCount: number;
+  disciplineCount: number;
+  onApplyToSystem: () => void;
+  onApplyToDiscipline: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const set = note.trim().length > 0;
+  return (
+    <div className="border-t py-2" style={{ borderColor: "var(--line)" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full flex-wrap items-center gap-2 text-left"
+      >
+        <span className="min-w-[240px] flex-1 text-[12.5px] leading-[1.3]">
+          <span className="font-mono text-[10px]" style={{ color: "var(--ink-4)" }}>
+            {check.id}
+          </span>{" "}
+          {check.requirement}
+        </span>
+        <span
+          className="rounded-full border px-2 py-[3px] text-[11px] font-semibold"
+          style={{
+            borderColor: set ? "var(--acc)" : "var(--line)",
+            color: set ? "var(--acc)" : "var(--ink-4)",
+          }}
+        >
+          {set ? "Set" : "No note"}
+        </span>
+      </button>
+      {open && (
+        <div className="mt-2 flex flex-col gap-2">
+          <textarea
+            value={note}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="How should an auditor ask this question?"
+            aria-label={`How to ask note for ${check.id}`}
+            rows={3}
+            className="w-full resize-y rounded-[8px] border px-3 py-2 text-[13px]"
+            style={{ background: "var(--bg)", borderColor: "var(--line-2)" }}
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <NoteMicButton checkId={check.id} />
+            <button
+              type="button"
+              onClick={onApplyToSystem}
+              className="rounded-full border px-3 py-[6px] text-[12px] font-semibold"
+              style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}
+            >
+              Apply to {systemCount} checks in this asset system
+            </button>
+            <button
+              type="button"
+              onClick={onApplyToDiscipline}
+              className="rounded-full border px-3 py-[6px] text-[12px] font-semibold"
+              style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}
+            >
+              Apply to {disciplineCount} checks in this discipline
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SetupPage() {
   const config = useStore((s) => s.checkChannels);
   const setCheckChannels = useStore((s) => s.setCheckChannels);
+  const howToAsk = useStore((s) => s.howToAsk);
+  const setHowToAsk = useStore((s) => s.setHowToAsk);
   const [discipline, setDiscipline] = useState<string>("");
   const [q, setQ] = useState("");
 
@@ -90,6 +264,8 @@ export default function SetupPage() {
       setCheckChannels(scopeIds, { interview: true, evidence: true, walk: true });
     }
   };
+
+  const howToAskTotal = howToAskCount(howToAsk, CHECKS.map((c) => c.id));
 
   return (
     <div className="app-scroll mx-auto min-h-0 w-full max-w-[900px] flex-1 overflow-y-auto px-4 py-4">
@@ -205,6 +381,83 @@ export default function SetupPage() {
                       />
                     ))}
                   </div>
+                );
+              })}
+            </div>
+          </details>
+        );
+      })}
+
+      {/* Build prompt 4, 21 Nov 2026: an optional per-check note, written
+          here, shown on the Checks screen during the interview. Uses the
+          same search/discipline filter above it, rather than a second copy
+          of that UI for one more list. */}
+      <h2 className="mt-6 mb-1 text-[16px] font-bold">How to ask notes</h2>
+      <p className="mb-3 text-[13px]" style={{ color: "var(--ink-3)" }}>
+        Optional guidance for how to phrase a question during the interview. Never shown in a
+        report.
+      </p>
+      <div className="mb-3 flex flex-wrap gap-2 text-[12px]" aria-label="How to ask totals">
+        <span className="rounded-full border px-3 py-1" style={{ borderColor: "var(--line)" }}>
+          {howToAskTotal} of {CHECKS.length} set
+        </span>
+      </div>
+
+      {groups.map(([name, checks]) => {
+        const groupIds = checks.map((c) => c.id);
+        const groupSet = howToAskCount(howToAsk, groupIds);
+        return (
+          <details key={`notes-${name}`} className="mb-2 rounded-lg border" style={{ borderColor: "var(--line)" }}>
+            <summary className="flex cursor-pointer flex-wrap items-center gap-2 px-3 py-2">
+              <span className="min-w-[180px] flex-1 text-[14px] font-semibold">
+                {name} <span style={{ color: "var(--ink-4)" }}>({checks.length})</span>
+              </span>
+              <span className="text-[12px]" style={{ color: "var(--ink-3)" }}>
+                {groupSet} of {checks.length} set
+              </span>
+            </summary>
+            <div className="border-t px-3 py-2" style={{ borderColor: "var(--line)" }}>
+              {checks.map((c) => {
+                /* The FULL asset system and discipline, from the unfiltered
+                   register — not `groupIds`/`checks` above, which are
+                   narrowed by the search box. "Apply to N checks" under an
+                   active search must mean every check in that system or
+                   discipline, not just the ones the search happens to be
+                   showing right now — same reasoning `scopeChecks` above
+                   already applies to the channel-switch bulk bar. */
+                const systemIds = CHECKS.filter(
+                  (x) => x.discipline === c.discipline && x.system === c.system,
+                ).map((x) => x.id);
+                const disciplineIds = CHECKS.filter((x) => x.discipline === c.discipline).map((x) => x.id);
+                return (
+                  <CheckNoteRow
+                    key={c.id}
+                    check={c}
+                    note={howToAsk[c.id] ?? ""}
+                    onChange={(next) => setHowToAsk([c.id], next)}
+                    systemCount={systemIds.length}
+                    disciplineCount={disciplineIds.length}
+                    onApplyToSystem={() => {
+                      const note = howToAsk[c.id] ?? "";
+                      if (
+                        window.confirm(
+                          `Apply this note to all ${systemIds.length} checks in ${name}? This replaces any note already set on them.`,
+                        )
+                      ) {
+                        setHowToAsk(systemIds, note);
+                      }
+                    }}
+                    onApplyToDiscipline={() => {
+                      const note = howToAsk[c.id] ?? "";
+                      if (
+                        window.confirm(
+                          `Apply this note to all ${disciplineIds.length} checks in ${c.discipline}? This replaces any note already set on them.`,
+                        )
+                      ) {
+                        setHowToAsk(disciplineIds, note);
+                      }
+                    }}
+                  />
                 );
               })}
             </div>

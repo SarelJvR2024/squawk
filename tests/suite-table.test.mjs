@@ -190,6 +190,7 @@ const WORDS = {
   "hundred-and-nine": 109,
   "hundred-and-ten": 110,
   "hundred-and-eleven": 111,
+  "hundred-and-twelve": 112,
   "thirty-seven": 37,
   "twenty-four": 24, "twenty-five": 25, "twenty-six": 26,
   "twenty-seven": 27, "twenty-eight": 28, "twenty-nine": 29,
