@@ -38,7 +38,7 @@ import { assist, polishContext, useAssistAvailable } from "@/lib/assist";
 import { TRACKING_LABEL, trackingStage } from "@/lib/evidence";
 import { entity as entityOf } from "@/lib/programme";
 import { checksAt, checksOf, disciplinesAt, systemsOf } from "@/lib/register";
-import { useStore, useEvidenceItems, useFieldSaveStatus, useResponses } from "@/lib/store";
+import { useStore, useEvidenceItems, useFieldSaveStatus, useResponses, useVisitId } from "@/lib/store";
 import { AttachmentStrip } from "@/components/Capture";
 import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
 import type { Compliance, Finding } from "@/lib/types";
@@ -227,11 +227,27 @@ export default function ReviewRiskPanel({
      "Open" below hands off to. */
   const responses = useResponses();
   const evidenceItems = useEvidenceItems();
+  const visitId = useVisitId();
   const linkedCheck = useMemo(
     () => (finding.checkId ? checksAt(entityCode).find((c) => c.id === finding.checkId) : undefined),
     [entityCode, finding.checkId]
   );
-  const linkedResponse = finding.checkId ? responses[finding.checkId] : undefined;
+  /* CODE REVIEW ON BUILD PROMPT 8's OWN BRANCH — `responses` (useResponses)
+     is always THIS VISIT's own data; it was safe to read unconditionally
+     here because every caller before this prompt only ever passed a
+     current-visit finding (review/page.tsx's own `useVisitFindings()`).
+     The Issues screen's "All"/"Critical"/"Safety"/"Closed" filters are the
+     first callers to pass an ENTITY-WIDE finding (useEntityFindings(),
+     possibly raised visits ago) into this same panel — without this guard,
+     an old finding would show THIS VISIT's unrelated answer for its linked
+     check as if it were that finding's own context, which can read as
+     "already fixed" or "still wrong" for a reason that has nothing to do
+     with the finding on screen. Gated on originVisit rather than dropped
+     for every finding with a checkId, so the common case (a finding raised
+     this visit, viewed under any filter) keeps its live context exactly as
+     before. */
+  const linkedResponse =
+    finding.checkId && finding.originVisit === visitId ? responses[finding.checkId] : undefined;
   const linkedEvidenceAxis = useMemo(() => {
     if (!linkedResponse || !finding.checkId) return null;
     const forThisCheck = evidenceItems.filter((e) => e.checkIds.includes(finding.checkId!));

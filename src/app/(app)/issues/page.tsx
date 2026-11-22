@@ -447,10 +447,21 @@ function IssuesPageInner() {
           : issuesFilter === "closed"
             ? closedFindings
             : allOpenFindings;
+  /* CODE REVIEW ON THIS BRANCH — every other chip's count is exactly what
+     tapping it shows by default; "Carried" used to read `outstanding.length`
+     (every carried-forward item, including ones rated Acceptable — "context
+     only", not work), but the Carried view's own default sub-filter is
+     "Carries work" (`carriesWork`, below), which excludes those. A reader
+     who tapped "Carried 40" and saw 35 rows had no way to know the chip was
+     counting something the view wasn't showing by default. Scoped to match,
+     same as every other chip — the excluded context-only items are still
+     fully reachable through that view's own "Context only" sub-filter,
+     nothing is hidden, only the top-level number is now honest about what
+     it is the count of. */
   const issuesCounts = {
     all: allOpenFindings.length,
     toReview: findings.length,
-    carried: outstanding.length,
+    carried: outstanding.filter(carriesWork).length,
     critical: criticalFindings.length,
     safety: safetyFindings.length,
     closed: closedFindings.length,

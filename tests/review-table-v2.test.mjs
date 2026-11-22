@@ -769,9 +769,15 @@ check(
     !/Evidence review\s*<\/div>/.test(table)
 );
 check(
+  /* build prompt 8 (22 Nov 2026): this anchor's own line changed — `r` is
+     now also gated on the finding being from the current visit (code
+     review on that branch; see tests/issuesscreen.test.mjs's own
+     regression test for why). Same cell, same four sources, same order. */
   "the four sources (the audit check's own question, the audit check note, the finding itself, evidence review) still render in order, just without their own heading line each",
   (() => {
-    const cellStart = table.indexOf("const r = f.checkId ? responses[f.checkId] : undefined;");
+    const cellStart = table.indexOf(
+      "const r = f.checkId && f.originVisit === visitId ? responses[f.checkId] : undefined;",
+    );
     const cellEnd = table.indexOf("})()}", cellStart);
     const cell = cellStart === -1 ? "" : table.slice(cellStart, cellEnd);
     return (

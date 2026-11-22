@@ -66,8 +66,11 @@ check("Critical/Safety are derived from allOpenFindings, not a fresh entity read
   if (!/const safetyFindings = useMemo\(\(\) => allOpenFindings\.filter\(\(f\) => f\.safetyTag\), \[allOpenFindings\]\);/.test(issues))
     throw new Error("safetyFindings wrong derivation");
 });
-check("\"Carried\" reads outstanding.length — the exact same carryforward data the old Follow-up screen's own worklist already used", () =>
-  /carried: outstanding\.length,/.test(issues));
+check(
+  "\"Carried\"'s count matches what its own default view actually shows (Carries work), not every outstanding item including context-only ones — code review on this branch",
+  () => /carried: outstanding\.filter\(carriesWork\)\.length,/.test(issues),
+  "every other chip's count is exactly what tapping it shows by default; outstanding.length included context-only (Acceptable-rated) items the view's own default sub-filter excludes",
+);
 
 /* ---------- Critical/Safety tags, end to end ---------- */
 
@@ -164,6 +167,29 @@ check("the Carried branch still drives the exact same OUTCOMES buttons into patc
   if (!/actionStatus:\s*\n\s*outcome === "Closed"\s*\n\s*\? "Closed"/.test(issues))
     throw new Error("updateFinding actionStatus mirror missing");
 });
+
+/* ---------- cross-visit findings never show another visit's response data — code review on this branch ---------- */
+
+check(
+  "ReviewRiskPanel's linked-check context is gated on the finding being from the CURRENT visit — useResponses() is always this-visit data, and the Issues screen's entity-wide filters are the first caller to pass an older finding through it",
+  () => {
+    if (!/const visitId = useVisitId\(\);/.test(panel)) throw new Error("no visitId read");
+    if (!/finding\.checkId && finding\.originVisit === visitId \? responses\[finding\.checkId\] : undefined;/.test(panel))
+      throw new Error("linkedResponse not gated on originVisit");
+  },
+  "without the guard, a finding raised visits ago would show THIS VISIT's unrelated answer for its linked check as if it were that finding's own context",
+);
+check(
+  "ReviewRiskTable's own Finding-column context gets the identical guard, for the identical reason",
+  () => {
+    if (!/const visitId = useVisitId\(\);/.test(src("src", "components", "ReviewRiskTable.tsx")))
+      throw new Error("no visitId read");
+    if (!/const r = f\.checkId && f\.originVisit === visitId \? responses\[f\.checkId\] : undefined;/.test(
+      src("src", "components", "ReviewRiskTable.tsx"),
+    ))
+      throw new Error("r not gated on originVisit");
+  },
+);
 
 if (failed) process.exit(1);
 console.log(failed ? "FAILED" : "all passed");
