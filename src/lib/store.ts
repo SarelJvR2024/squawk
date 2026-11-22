@@ -361,6 +361,33 @@ export const needsDeskCommit = (r: Response | undefined) =>
 /** Has the field half been answered? */
 export const fieldDone = (r: Response | undefined) => !!r?.fieldDoneAt;
 
+/** A Capture's own fields, reshaped into what addAttachment/addAdhocAttachment
+ *  take — the bytes stay where they are (`blobKey` is carried, not copied),
+ *  only the record around them changes shape. One copy of this field list,
+ *  used by both assignCapture and promoteCaptureToIssue, rather than two that
+ *  drift the next time a field is added to Capture and only one call site
+ *  remembers to carry it. */
+function capturePayload(cap: Capture): Omit<Attachment, "id" | "createdAt"> {
+  return {
+    kind: cap.kind,
+    name: cap.name,
+    blobKey: cap.blobKey,
+    mimeType: cap.mimeType,
+    dataUrl: cap.dataUrl,
+    /* Without this, an attachment assigned from the tray has no
+       thumbDataUrl, so EvidenceThumb (ReviewRiskTable.tsx) falls through to
+       fetching the full blob for its inline tile — exactly the per-row cost
+       the thumb-first fix there exists to avoid, and tray-assigned photos
+       are the common case. */
+    thumbDataUrl: cap.thumbDataUrl,
+    durationSec: cap.durationSec,
+    transcript: cap.transcript,
+    transcriptSource: cap.transcriptSource,
+    unavailable: cap.unavailable,
+    createdBy: cap.createdBy,
+  };
+}
+
 /** Complete means both halves have been answered — not "somebody pressed
  *  Save once". Every one of the 324 checks now appears on both Capture and
  *  Field (see the note on needsDesk/needsField in src/lib/verification.ts),
@@ -1083,6 +1110,21 @@ interface State {
   assignCapture: (captureId: string, checkId: string) => void;
   dropCapture: (captureId: string) => void;
   discardCapture: (captureId: string) => void;
+  /** THE THIRD WAY TO GET AN UNASSIGNED CAPTURE OUT OF THE TRAY — build
+   *  prompt 7 (Walk screen, 22 Nov 2026). The first two already existed:
+   *  assign it to a check (assignCapture) or discard it (discardCapture).
+   *  A photograph of something the register does not cover is neither — it
+   *  wants to become its own record, the same AdHocItem/"WALK-xxxxx" walk
+   *  item every other ad-hoc observation on this screen already is, not a
+   *  fourth kind of thing. `description` is required here for the same
+   *  reason it is required on AdHocItem itself (see that type's own header):
+   *  a photograph with no account of what it shows is not a record of
+   *  anything, so this cannot default it the way `area`/`discipline`/
+   *  `system` safely can. Returns the new item's id. */
+  promoteCaptureToIssue: (
+    captureId: string,
+    patch: { description: string; discipline?: string | null; system?: string | null },
+  ) => string;
 
   /** Clears the CURRENT visit only. Wiping the whole programme because one
    *  visit needs restarting is not a thing anyone means to do. */
@@ -4172,25 +4214,31 @@ export const useStore = create<State>()(
           /* The attachment takes over the capture's blobKey — the bytes are not
              copied and must not be deleted. dropCapture removes the tray record
              only; discardCapture is the one that deletes media. */
-          get().addAttachment(checkId, {
-            kind: cap.kind,
-            name: cap.name,
-            blobKey: cap.blobKey,
-            mimeType: cap.mimeType,
-            dataUrl: cap.dataUrl,
-            /* Without this, an attachment assigned from the tray has no
-               thumbDataUrl, so EvidenceThumb (ReviewRiskTable.tsx) falls
-               through to fetching the full blob for its inline tile —
-               exactly the per-row cost the thumb-first fix there exists
-               to avoid, and tray-assigned photos are the common case. */
-            thumbDataUrl: cap.thumbDataUrl,
-            durationSec: cap.durationSec,
-            transcript: cap.transcript,
-            transcriptSource: cap.transcriptSource,
-            unavailable: cap.unavailable,
+          get().addAttachment(checkId, capturePayload(cap));
+          get().dropCapture(captureId);
+        },
+
+        promoteCaptureToIssue: (captureId, patch) => {
+          const cap = get().visitData().captures.find((c) => c.id === captureId);
+          if (!cap) return "";
+          const id = get().addAdhoc({
+            origin: "field",
+            description: patch.description,
+            discipline: patch.discipline ?? null,
+            system: patch.system ?? null,
+            /* "Unspecified" is addCapture's own placeholder (the photo/add
+               bar's camera button) — a real area/system name carries over,
+               that placeholder does not. */
+            area: cap.area?.trim() && cap.area !== "Unspecified" ? cap.area : "",
+            outcome: null,
+            note: "",
+            attachments: [],
+            findingId: null,
             createdBy: cap.createdBy,
           });
+          get().addAdhocAttachment(id, capturePayload(cap));
           get().dropCapture(captureId);
+          return id;
         },
 
         dropCapture: (captureId) =>
