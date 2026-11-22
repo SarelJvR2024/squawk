@@ -36,8 +36,19 @@ const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8"
 
 const filterBar = src("components", "ui", "FilterBar.tsx");
 const capture = src("app", "(app)", "capture", "page.tsx");
-const review = src("app", "(app)", "review", "page.tsx");
-const closure = src("app", "(app)", "closure", "page.tsx");
+/* build prompt 8 (22 Nov 2026): /review is now a redirect. Its own
+   FilterBar-based status row lived in the "By check" tab specifically —
+   retired, folded into Checks screen's own "everything for one check is
+   captured on that screen" (build prompt 3), not carried into Issues,
+   which is finding-centric. Every check below that named `review` is
+   removed for that reason, not repointed — Issues' own top-level filter
+   row (issues/page.tsx) is a deliberately different, simpler control (one
+   radiogroup, not two FilterBar groups that could cross-wire), so the
+   cross-axis-independence guard this file exists for does not apply to it
+   the same way. /closure is also now a redirect — its worklist moved to
+   issues/page.tsx's "Carried" filter unchanged, so `closure` below reads
+   that file instead. */
+const closure = src("app", "(app)", "issues", "page.tsx");
 const forms = src("app", "(app)", "forms", "page.tsx");
 
 let failures = 0;
@@ -59,14 +70,14 @@ check(
 
 /* ----------------------- Part 2: the four screens wire it without crossing */
 
-/* Capture and Review each give FilterBar exactly one group (status) —
-   discipline lives in its own DisciplineSelect, outside FilterBar entirely,
-   so there is no second axis inside the same control for a copy-pasted
-   onChange to reach into. That separation is itself the guard; this just
-   confirms it is still true. */
+/* Capture gives FilterBar exactly one group (status) — discipline lives in
+   its own DisciplineSelect, outside FilterBar entirely, so there is no
+   second axis inside the same control for a copy-pasted onChange to reach
+   into. That separation is itself the guard; this just confirms it is
+   still true. (Review used to be checked here too; see this file's own
+   header for why that case is gone, not repointed.) */
 for (const [name, page] of [
   ["capture", capture],
-  ["review", review],
 ]) {
   check(
     `${name}'s FilterBar has one group (status), discipline is a separate control`,
@@ -108,10 +119,6 @@ function at(hay, needle) {
 check(
   "capture's status setter is local UI state",
   /const \[filter, setFilter\] = useState<Filter>\("all"\);/.test(capture)
-);
-check(
-  "review's status setter is local UI state",
-  /const \[filter, setFilter\] = useState<Filter>\("all"\);/.test(review)
 );
 check(
   "closure's discipline AND status setters are both local UI state, not store actions",
@@ -164,7 +171,6 @@ function groupsBlock(page) {
 }
 for (const [name, page] of [
   ["capture", capture],
-  ["review", review],
   ["closure", closure],
   ["forms", forms],
 ]) {

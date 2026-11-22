@@ -23,7 +23,12 @@ const register = await import("../src/lib/register.ts");
 const types = read("src", "lib", "types.ts");
 const panel = read("src", "components", "ReviewRiskPanel.tsx");
 const table = read("src", "components", "ReviewRiskTable.tsx");
-const reviewPage = read("src", "app", "(app)", "review", "page.tsx");
+/* build prompt 8 (22 Nov 2026): /review is now a redirect; the Risk &
+   root cause table/panel mounting this suite reads moved to
+   issues/page.tsx's own IssuesRiskView, reusing the exact same
+   ReviewRiskTable/ReviewRiskPanel components and the same
+   onChange-through-updateFinding division of labour. */
+const reviewPage = read("src", "app", "(app)", "issues", "page.tsx");
 
 let failures = 0;
 const check = (name, cond, detail = "") => {
@@ -450,21 +455,28 @@ check(
 /* Table/panel consistency. Both read from the SAME findings array by
  * construction -- there is no second fetch, no local copy either
  * component maintains that could drift from the other. */
+/* build prompt 8 (22 Nov 2026): this mounting code moved into
+   issues/page.tsx's own IssuesRiskView — a reusable component, not inline
+   page code, so `findings` arrives as a PROP (the page's own
+   riskViewFindings, itself one of several filter-specific derivations of
+   useEntityFindings()/useVisitFindings() — never a second fetch inside
+   IssuesRiskView itself) rather than a direct useVisitFindings() call, and
+   the active finding is named `active`/`activeId`, not `riskActive`/
+   `riskActiveId`. The INVARIANT these two checks exist for — table and
+   panel read the same array by construction, no second fetch, no snapshot
+   — holds exactly as before; only the names changed. */
 check(
-  "the table's own findings prop and the panel's own finding prop both trace back to ONE useVisitFindings() call in page.tsx, not two independent reads",
-  (() => {
-    const findingsDecl = (reviewPage.match(/const findings = useVisitFindings\(\);/g) ?? []).length;
-    return (
-      findingsDecl === 1 &&
-      /riskActive = findings\.find\(\(f\) => f\.id === riskActiveId\) \?\? null;/.test(reviewPage) &&
-      /findings=\{findings\}/.test(reviewPage) &&
-      /finding=\{riskActive\}/.test(reviewPage)
-    );
-  })()
+  "IssuesRiskView takes findings as a prop (no second fetch inside it) and both the table and the panel read from that same array",
+  !/useVisitFindings\(\)/.test(
+    reviewPage.slice(reviewPage.indexOf("function IssuesRiskView"), reviewPage.indexOf("export default function IssuesPage")),
+  ) &&
+    /const active = findings\.find\(\(f\) => f\.id === activeId\) \?\? null;/.test(reviewPage) &&
+    /findings=\{findings\}/.test(reviewPage) &&
+    /finding: active,/.test(reviewPage)
 );
 check(
-  "editing a row in the table (updateFinding) and reading it in the panel both go through the SAME Finding object reference on the next render -- riskActive is derived from findings, not a snapshot taken once",
-  /const riskActive = findings\.find/.test(reviewPage) && !/useState[^;]*riskActive[^I]/.test(reviewPage)
+  "editing a row in the table (updateFinding) and reading it in the panel both go through the SAME Finding object reference on the next render -- active is derived from findings, not a snapshot taken once",
+  /const active = findings\.find/.test(reviewPage) && !/const \[active, set/.test(reviewPage),
 );
 
 /* The passphrase gate. tests/shared.js already proves a wrong passphrase

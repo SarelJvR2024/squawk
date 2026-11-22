@@ -127,10 +127,19 @@ export default function ReviewRiskPanel({
    *  /review's own page), so it needs a way back to "nothing selected,
    *  full-width table" rather than staying pinned to the last row forever. */
   onClose: () => void;
-  /** PRIORITY 4 — "From linked audit check" (below) hands off to the
-   *  real "By check" tab/ReviewDetail for that exact check, rather than
-   *  duplicating its own editing UI here. The caller owns switching tabs
-   *  and the tree's own discipline/active-check state. */
+  /** PRIORITY 4 — "From linked audit check" (below) hands off to that
+   *  check's own full record, rather than duplicating its own editing UI
+   *  here.
+   *
+   *  REWIRED, build prompt 8 (22 Nov 2026, the Issues screen) — review/
+   *  page.tsx's own "By check" tab/ReviewDetail (the previous destination
+   *  this handed off to) is retired: folded into the Checks screen itself
+   *  ("everything for one check is captured on that screen, nothing
+   *  duplicated elsewhere" — build prompt 3), not into Issues, which is
+   *  finding-centric. issues/page.tsx's own onOpenCheck now navigates
+   *  there directly (`router.push(/capture?check=${checkId})`) instead of
+   *  switching a tab/tree's own discipline+active-check state, which no
+   *  longer exists to switch. */
   onOpenCheck: (checkId: string) => void;
   /** Sarel: "add an option to delete a finding from the root cause tab."
    *  Wired to the store's own `removeFinding` — present since the Import
@@ -694,7 +703,7 @@ export default function ReviewRiskPanel({
               className="text-[10.5px] font-semibold underline"
               style={{ color: "var(--acc)" }}
             >
-              Open in By check
+              Open check
             </button>
           </div>
           {linkedCheck && (

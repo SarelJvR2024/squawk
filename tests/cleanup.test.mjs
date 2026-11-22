@@ -121,15 +121,18 @@ check(
    it) — this screen now just counts and links there, same honest count
    as every other section here, not a guess. */
 check(
-  "finding descriptions moved to the Review page — this screen counts them and links to /review?tab=risk, rather than polishing them a second time here",
+  /* build prompt 8 (22 Nov 2026): /review is now a redirect; this link
+     was repointed straight at /issues?filter=toReview, its real
+     destination, rather than through that extra hop. */
+  "finding descriptions moved to the Issues screen's 'To review' filter — this screen counts them and links there, rather than polishing them a second time here",
   /const findingCount = useMemo\(/.test(cleanup) &&
     /f\.description\?\.trim\(\)/.test(cleanup) &&
-    /href="\/review\?tab=risk"/.test(cleanup)
+    /href="\/issues\?filter=toReview"/.test(cleanup)
 );
 check(
-  "the link actually reaches the Risk & root cause tab — /review reads ?tab=risk on mount",
-  /searchParams\.get\("tab"\) === "risk" \? "risk" : "checks"/.test(
-    fs.readFileSync(path.join(here, "..", "src", "app", "(app)", "review", "page.tsx"), "utf8")
+  "the link actually reaches the Issues screen filtered to 'To review' — issues/page.tsx reads ?filter= on mount",
+  /filterFromParam\(searchParams\.get\("filter"\)\)/.test(
+    fs.readFileSync(path.join(here, "..", "src", "app", "(app)", "issues", "page.tsx"), "utf8")
   )
 );
 

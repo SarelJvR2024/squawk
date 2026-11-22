@@ -44,7 +44,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const src = (...p) => fs.readFileSync(path.join(here, "..", "src", ...p), "utf8");
 
 const cf = src("lib", "carryforward.ts");
-const closure = src("app", "(app)", "closure", "page.tsx");
+/* build prompt 8 (22 Nov 2026): /closure is now a redirect; the worklist
+   this suite reads moved to issues/page.tsx's "Carried" filter, ported
+   unchanged — see that file's own header comment. */
+const closure = src("app", "(app)", "issues", "page.tsx");
 const filterBar = src("components", "ui", "FilterBar.tsx");
 
 let failures = 0;

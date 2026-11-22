@@ -138,10 +138,17 @@ ok(
    AttachmentStrip's local blob/thumbnail chain (src/components/Capture.tsx),
    not this hook. The hook itself, and the gate in front of it, are
    unaffected and still proven by every assertion above and below this one;
-   Review is simply no longer a caller of it. */
+   Review is simply no longer a caller of it.
+   REVERSED AGAIN, build prompt 8 (22 Nov 2026) — /review is now a bare
+   redirect (see that file's own header); the "By check" tab that mounted
+   CheckDetail is retired, folded into the Checks screen itself (build
+   prompt 3), not into Issues. The invariant that actually matters —
+   nothing still calls useRecordImage from a page that was built to not
+   need it — is restated against the redirect stub directly: a one-line
+   file cannot possibly call the hook. */
 ok(
-  "Review no longer renders photographs itself — CheckDetail does that now",
-  !/useRecordImage/.test(review) && /CheckDetail/.test(review)
+  "Review no longer renders photographs itself — it's a redirect now, not a screen with its own image renderer to confuse this hook with",
+  !/useRecordImage/.test(review)
 );
 
 /* ---- and the thumbnail stays a thumbnail ------------------------------ */

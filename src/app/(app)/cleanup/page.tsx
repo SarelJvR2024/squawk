@@ -441,13 +441,20 @@ export default function CleanupPage() {
                       {findingCount} {findingCount === 1 ? "finding" : "findings"} in this
                       discipline · now cleaned up from the Review page itself, in bulk, with fuller context
                     </span>
+                    {/* build prompt 8 (22 Nov 2026): /review is now a
+                        redirect to /issues?filter=toReview — pointed
+                        straight at the real destination rather than
+                        through that extra hop. The Risk & root cause
+                        table/panel themselves moved unchanged (same
+                        ReviewRiskTable/ReviewRiskPanel), just under the
+                        Issues screen's own "To review" filter now. */}
                     <Link
-                      href="/review?tab=risk"
+                      href="/issues?filter=toReview"
                       className="inline-flex items-center gap-[5px] rounded-[8px] px-[9px] py-[6px] text-[11px] font-semibold"
                       style={{ background: "var(--acc)", color: "#fff" }}
                     >
                       <IconSpark width={12} height={12} />
-                      Open Review · Risk &amp; root cause
+                      Open Issues · To review
                     </Link>
                   </div>
                 )}
