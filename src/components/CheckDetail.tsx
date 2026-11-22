@@ -1380,43 +1380,59 @@ export default function CheckDetail({
           </div>
         )}
         {channels.evidence && (
-          <button
-            type="button"
-            onClick={() => setSheet("evidenceStatus")}
-            className="flex min-h-[40px] items-center justify-between gap-2 py-[5px] text-left"
-          >
-            <span className="min-w-0">
-              <span className="text-[12.5px] font-semibold">Evidence</span>
-              {/* What ACSA's own wording names, or the register's own
-                  evidence sentence — the same text the old "evidence line"
-                  carried above the tab strip, now the Evidence row's own
-                  secondary line rather than a separate always-visible
-                  banner. */}
-              {evidenceLine && (
-                <span className="block max-w-[46ch] truncate text-[10.5px]" style={{ color: "var(--ink-4)" }}>
-                  {evidenceLine}
-                </span>
-              )}
-            </span>
-            <span className="flex shrink-0 items-center gap-[6px] font-mono text-[11px]" style={{ color: "var(--ink-3)" }}>
-              {r.evidenceStatus === "noneAvailable" ? (
-                <Pill tone="neutral">N/A</Pill>
-              ) : evidenceItems.length > 0 ? (
-                <>
-                  {evidenceSettled} of {evidenceItems.length}
-                  <Pill tone={evidenceSettled === evidenceItems.length ? "good" : "warn"}>
-                    {evidenceSettled === evidenceItems.length ? "Complete" : "Open"}
+          <div className="flex min-h-[40px] items-center justify-between gap-2 py-[5px]">
+            <button
+              type="button"
+              onClick={() => setSheet("evidenceStatus")}
+              className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left"
+            >
+              <span className="min-w-0">
+                <span className="text-[12.5px] font-semibold">Evidence</span>
+                {/* What ACSA's own wording names, or the register's own
+                    evidence sentence — the same text the old "evidence line"
+                    carried above the tab strip, now the Evidence row's own
+                    secondary line rather than a separate always-visible
+                    banner. */}
+                {evidenceLine && (
+                  <span className="block max-w-[46ch] truncate text-[10.5px]" style={{ color: "var(--ink-4)" }}>
+                    {evidenceLine}
+                  </span>
+                )}
+              </span>
+              <span className="flex shrink-0 items-center gap-[6px] font-mono text-[11px]" style={{ color: "var(--ink-3)" }}>
+                {r.evidenceNA || r.evidenceStatus === "noneAvailable" ? (
+                  <Pill tone="neutral">N/A</Pill>
+                ) : evidenceItems.length > 0 ? (
+                  <>
+                    {evidenceSettled} of {evidenceItems.length}
+                    <Pill tone={evidenceSettled === evidenceItems.length ? "good" : "warn"}>
+                      {evidenceSettled === evidenceItems.length ? "Complete" : "Open"}
+                    </Pill>
+                  </>
+                ) : (
+                  <Pill tone={r.evidenceStatus ? "warn" : "neutral"}>
+                    {r.evidenceStatus
+                      ? EVIDENCE_STATUSES.find((s) => s.key === r.evidenceStatus)?.label
+                      : "Open"}
                   </Pill>
-                </>
-              ) : (
-                <Pill tone={r.evidenceStatus ? "warn" : "neutral"}>
-                  {r.evidenceStatus
-                    ? EVIDENCE_STATUSES.find((s) => s.key === r.evidenceStatus)?.label
-                    : "Open"}
-                </Pill>
-              )}
-            </span>
-          </button>
+                )}
+              </span>
+            </button>
+            {/* EVIDENCE N/A — build prompt 6, same shape as Interview/Walk's
+                own N/A buttons just above/below: a per-audit answer on a row
+                that is still shown, independent of evidenceStatus (a
+                narrative about the document) and of any EvidenceItems
+                already linked to this check. */}
+            <button
+              type="button"
+              onClick={() => patch(check.id, { evidenceNA: !r.evidenceNA })}
+              aria-pressed={!!r.evidenceNA}
+              className="shrink-0 rounded-full border px-[9px] py-[5px] text-[10px] font-semibold"
+              style={toneStyle("neu", !!r.evidenceNA, true)}
+            >
+              N/A
+            </button>
+          </div>
         )}
         {channels.walk && (
           <div className="flex min-h-[40px] items-center justify-between gap-2 py-[5px]">

@@ -10,14 +10,22 @@
  *  Switch a whole asset system at once, or open it and set single checks.
  *  Stored as exceptions only — see lib/channels.ts. */
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { CHECKS, ALL_DISCIPLINES } from "@/lib/register";
 import { CHANNEL_KEYS, CHANNEL_LABEL, channelCounts, channelsOf } from "@/lib/channels";
 import { howToAskCount } from "@/lib/howtoask";
-import { useStore } from "@/lib/store";
+import {
+  applyEvidenceImportPlan,
+  buildEvidenceImportPlan,
+  evidenceImportCounts,
+  parseEvidenceList,
+  type EvidenceImportPlan,
+} from "@/lib/evidenceImport";
+import { useEvidenceItems, useStore } from "@/lib/store";
 import type { CheckChannelKey } from "@/lib/types";
 import { transcribe, useTranscribeAvailable } from "@/lib/assist";
 import { supportsRecording, useIsClient, useRecorder } from "@/lib/media";
+import { IconUpload } from "@/components/ui/icons";
 import { IconMic } from "@/components/ui/icons";
 
 function Toggle({
@@ -215,6 +223,164 @@ function CheckNoteRow({
               Apply to {disciplineCount} checks in this discipline
             </button>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** BULK EVIDENCE LIST UPLOAD — build prompt 6: "upload a CSV/XLSX of
+ *  evidence items per check (columns: check id, evidence name). Preview,
+ *  then import." Same file-picker-driven, parse → preview → confirm shape
+ *  as ImportPackPanel.tsx; nothing is written until Confirm is pressed,
+ *  and the preview names exactly what it will do — how many rows, which
+ *  are unmapped, which are already logged and will be skipped. */
+function BulkEvidenceUpload() {
+  const items = useEvidenceItems();
+  const addEvidenceItem = useStore((s) => s.addEvidenceItem);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [plan, setPlan] = useState<EvidenceImportPlan | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [imported, setImported] = useState<number | null>(null);
+  const [showRows, setShowRows] = useState(false);
+
+  async function pickFile(f: File) {
+    setError(null);
+    setImported(null);
+    setPlan(null);
+    let bytes: Uint8Array;
+    try {
+      bytes = new Uint8Array(await f.arrayBuffer());
+    } catch {
+      setError("That file could not be read.");
+      return;
+    }
+    try {
+      const rows = parseEvidenceList(bytes, f.name);
+      setPlan(buildEvidenceImportPlan(rows, CHECKS, items));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "That file could not be read.");
+    }
+  }
+
+  function confirm() {
+    if (!plan) return;
+    const n = applyEvidenceImportPlan(plan, addEvidenceItem);
+    setImported(n);
+    setPlan(null);
+  }
+
+  const counts = plan ? evidenceImportCounts(plan) : null;
+
+  return (
+    <div className="mt-8">
+      <h2 className="mb-1 text-[16px] font-bold">Bulk evidence list upload</h2>
+      <p className="mb-3 text-[13px]" style={{ color: "var(--ink-3)" }}>
+        A CSV or XLSX with two columns — &ldquo;check id&rdquo; and &ldquo;evidence
+        name&rdquo; — one row per document you want on the custody log before the
+        visit. Nothing is imported until you confirm.
+      </p>
+      <input
+        ref={fileInput}
+        type="file"
+        accept=".csv,.xlsx"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) void pickFile(f);
+          e.target.value = "";
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => fileInput.current?.click()}
+        className="flex items-center gap-[6px] rounded-full border px-3 py-[6px] text-[12px] font-semibold"
+        style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}
+      >
+        <IconUpload width={14} height={14} />
+        Choose file
+      </button>
+
+      {error && (
+        <p className="mt-2 text-[12.5px]" style={{ color: "var(--bad)" }}>
+          {error}
+        </p>
+      )}
+      {imported !== null && (
+        <p className="mt-2 text-[12.5px]" style={{ color: "var(--good)" }}>
+          {imported} evidence request{imported === 1 ? "" : "s"} imported.
+        </p>
+      )}
+
+      {plan && counts && (
+        <div className="mt-3 rounded-[10px] border p-3" style={{ borderColor: "var(--line)" }}>
+          <div className="mb-2 flex flex-wrap gap-2 text-[12px]" aria-label="Import preview">
+            <span className="rounded-full border px-3 py-1" style={{ borderColor: "var(--line)" }}>
+              {counts.total} rows
+            </span>
+            <span
+              className="rounded-full border px-3 py-1"
+              style={{ borderColor: "var(--acc)", color: "var(--acc)" }}
+            >
+              {counts.toImport} to import
+            </span>
+            {counts.alreadyLogged > 0 && (
+              <span className="rounded-full border px-3 py-1" style={{ borderColor: "var(--line)" }}>
+                {counts.alreadyLogged} already logged — skipped
+              </span>
+            )}
+            {counts.unmapped > 0 && (
+              <span
+                className="rounded-full border px-3 py-1"
+                style={{ borderColor: "var(--warn-line)", color: "var(--warn)" }}
+              >
+                {counts.unmapped} unmapped check id{counts.unmapped === 1 ? "" : "s"}
+              </span>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowRows((v) => !v)}
+            className="mb-2 font-mono text-[9.5px] uppercase tracking-[.04em]"
+            style={{ color: "var(--acc)" }}
+          >
+            {showRows ? "Hide every row" : "Show every row"}
+          </button>
+          {showRows && (
+            <div className="mb-2 max-h-[280px] overflow-y-auto">
+              {plan.rows.map((r) => (
+                <div
+                  key={r.rowIndex}
+                  className="flex items-center justify-between gap-2 border-t py-1.5 text-[11.5px]"
+                  style={{ borderColor: "var(--line)" }}
+                >
+                  <span className="min-w-0 flex-1 truncate">
+                    <span className="font-mono text-[10px]" style={{ color: "var(--ink-4)" }}>
+                      {r.checkId}
+                    </span>{" "}
+                    {r.title || "—"}
+                  </span>
+                  <span
+                    className="shrink-0 font-mono text-[9px] uppercase"
+                    style={{ color: !r.check ? "var(--warn)" : r.alreadyLogged ? "var(--ink-4)" : "var(--acc)" }}
+                  >
+                    {!r.check ? "Unmapped" : r.alreadyLogged ? "Already logged" : "Will import"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={confirm}
+            disabled={counts.toImport === 0}
+            className="rounded-full px-4 py-[8px] text-[13px] font-semibold text-white disabled:opacity-40"
+            style={{ background: "var(--acc)" }}
+          >
+            Confirm — import {counts.toImport} row{counts.toImport === 1 ? "" : "s"}
+          </button>
         </div>
       )}
     </div>
@@ -464,6 +630,8 @@ export default function SetupPage() {
           </details>
         );
       })}
+
+      <BulkEvidenceUpload />
     </div>
   );
 }

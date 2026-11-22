@@ -414,10 +414,11 @@ check(
  * changed, not the screen itself. */
 check(
   "the By-discipline view is now the default — confirmed with the user, not an accidental flip",
-  /useState<"document" \| "discipline">\("discipline"\)/.test(evidencePage)
+  /useState<"document" \| "discipline" \| "check">\("discipline"\)/.test(evidencePage),
+  'build prompt 6 added a third view, "By check", alongside the other two — the type widened from two options to three, but "discipline" stays the one picked by default'
 );
 check(
-  "By document itself is untouched -- still one of the two view options, still a real tab",
+  "By document itself is untouched -- still one of the two original view options, still a real tab",
   /\["document", "By document"\]/.test(evidencePage) && /\["discipline", "By discipline"\]/.test(evidencePage)
 );
 

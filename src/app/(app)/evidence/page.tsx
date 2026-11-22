@@ -44,6 +44,7 @@ import {
 import {
   MEDIUM_LABEL,
   RETURNABLE,
+  displayStatus,
   evidenceStage,
   heldMs,
   heldOriginals,
@@ -52,13 +53,17 @@ import {
   logText,
   outstanding,
   pendingWithoutEntry,
+  satisfiesLabel,
   unbackedSignatures,
 } from "@/lib/evidence";
+import type { EvidenceDisplayStatus } from "@/lib/evidence";
 import { portalIdFor, siteCodeFor, siteFor } from "@/lib/sites";
 import { useNow } from "@/lib/clock";
 import { useFormsHubDeepLink } from "@/lib/deepLink";
-import { AttachmentStrip, PhotoButton } from "@/components/Capture";
+import { AttachmentStrip, FileButton, PhotoButton } from "@/components/Capture";
 import EvidenceReviewView from "@/components/EvidenceReviewView";
+import EvidenceByCheckView from "@/components/EvidenceByCheckView";
+import EvidenceStatusChips from "@/components/EvidenceStatusChips";
 import { SignaturePad } from "@/components/SignaturePad";
 import { Btn, Empty, Field, Panel, Pill } from "@/components/ui/primitives";
 import { IconCheck, IconPlus, IconX } from "@/components/ui/icons";
@@ -106,6 +111,7 @@ export default function EvidencePage() {
   const patch = useStore((s) => s.updateEvidenceItem);
   const remove = useStore((s) => s.removeEvidenceItem);
   const receive = useStore((s) => s.receiveEvidence);
+  const reRequest = useStore((s) => s.reRequestEvidence);
   const sign = useStore((s) => s.signEvidence);
   const addPhoto = useStore((s) => s.addEvidenceAttachment);
   const removePhoto = useStore((s) => s.removeEvidenceAttachment);
@@ -117,7 +123,13 @@ export default function EvidencePage() {
      discipline retaining asset/check context, the thing Priority 5
      actually asked for, rather than leading with the old flat custody
      form. "By document" is untouched and still reachable as a tab. */
-  const [view, setView] = useState<"document" | "discipline">("discipline");
+  const [view, setView] = useState<"document" | "discipline" | "check">("discipline");
+  /* Build prompt 6: "count chips act as filters" — same role=radiogroup
+     pattern EvidenceReviewView's own STATUS_PILLS already uses, driven by
+     the new 3-state displayStatus() rather than that view's own 8-state
+     trackingStage(), since this is the unified "exactly Requested,
+     Received, Not available" screen the spec asks for. */
+  const [statusFilter, setStatusFilter] = useState<"all" | EvidenceDisplayStatus>("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [signing, setSigning] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -202,6 +214,9 @@ export default function EvidencePage() {
 
   const unbacked = unbackedSignatures(items);
 
+  const visibleItems =
+    statusFilter === "all" ? items : items.filter((e) => displayStatus(e) === statusFilter);
+
   return (
     <div className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
       <div className="mx-auto w-full max-w-[760px] px-4 pb-24 pt-3">
@@ -227,12 +242,17 @@ export default function EvidencePage() {
       {/* View switch — "By document" is this screen exactly as it always
           was; "By discipline" groups the same log by discipline and shows
           where each item has got to (not started / requested / received /
-          analysis), per Sarel's own four states. */}
+          analysis), per Sarel's own four states; "By check" (build
+          prompt 6) is the spec's own named second view, added alongside
+          rather than replacing "By discipline" — see EvidenceByCheckView.tsx's
+          own doc comment for why nothing existing was touched to make room
+          for it. */}
       <div className="mb-3 flex items-center gap-[6px]">
         {(
           [
             ["document", "By document"],
             ["discipline", "By discipline"],
+            ["check", "By check"],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -253,6 +273,7 @@ export default function EvidencePage() {
       </div>
 
       {view === "discipline" ? <EvidenceReviewView onOpenRecord={openInDocumentView} /> : null}
+      {view === "check" ? <EvidenceByCheckView onOpenRecord={openInDocumentView} /> : null}
 
       {view === "document" && <>
       {/* LOG ONE. Pinned, one field. */}
@@ -308,12 +329,15 @@ export default function EvidencePage() {
           </span>
         </Empty>
       ) : (
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
-            {items.length} ENTR{items.length === 1 ? "Y" : "IES"} — OUTSTANDING FIRST
-          </span>
-          <Btn onClick={() => void copyLog()}>{copied ? "Copied" : "Copy the log"}</Btn>
-        </div>
+        <>
+          <EvidenceStatusChips items={items} value={statusFilter} onChange={setStatusFilter} />
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <span className="font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
+              {visibleItems.length} ENTR{visibleItems.length === 1 ? "Y" : "IES"} — OUTSTANDING FIRST
+            </span>
+            <Btn onClick={() => void copyLog()}>{copied ? "Copied" : "Copy the log"}</Btn>
+          </div>
+        </>
       )}
 
       {unbacked.length ? (
@@ -324,8 +348,9 @@ export default function EvidencePage() {
         </p>
       ) : null}
 
-      {items.map((e) => {
+      {visibleItems.map((e) => {
         const stage = evidenceStage(e);
+        const dstatus = displayStatus(e);
         const isOpen = openId === e.id;
         const gaps = itemGaps(e);
         const heldFor = isHeldOriginal(e) ? heldMs(e, now) : null;
@@ -346,14 +371,33 @@ export default function EvidencePage() {
                   <p className="mt-1 text-[13px]">{e.title || "—"}</p>
                   <div className="mt-1 font-mono text-[9px]" style={{ color: "var(--ink-4)" }}>
                     {e.documentNo ? `${e.documentNo}${e.revision ? ` REV ${e.revision}` : ""} · ` : ""}
-                    {e.checkIds.length
-                      ? `${e.checkIds.length} CHECK-POINT${e.checkIds.length > 1 ? "S" : ""}`
-                      : "NO CHECK-POINT LINKED"}
+                    {satisfiesLabel(e.checkIds, (id) => portalIdFor(entityCode, id)).toUpperCase()}
                     {heldFor !== null ? ` · HELD ${days(heldFor).toUpperCase()}` : ""}
                     {gaps.length ? ` · ${gaps.length} FIELD${gaps.length > 1 ? "S" : ""} MISSING` : ""}
                   </div>
                 </div>
               </button>
+
+              {/* ACTIONS PER ITEM, QUICK — build prompt 6: "Open, Load file,
+                  mark status, re-request", reachable without expanding the
+                  full edit form below (that form IS "Open", already). Driven
+                  by the new 3-state displayStatus, not the richer stage
+                  above — this row only ever shows the three actions the
+                  spec names. */}
+              <div className="mt-2 flex flex-wrap items-center gap-[6px]" onClick={(ev) => ev.stopPropagation()}>
+                <FileButton compact onCaptured={(m) => addPhoto(e.id, { ...m, createdBy: auditor })} />
+                {dstatus === "requested" && (
+                  <>
+                    {/* Same minimal patch EvidenceReviewView's own "Mark
+                        received" quick action already uses — just the
+                        timestamp; who handed it over and the medium are
+                        filled in on Open, below, same as there. */}
+                    <Btn onClick={() => patch(e.id, { receivedAt: Date.now() })}>Mark received</Btn>
+                    <Btn onClick={() => patch(e.id, { unavailableAt: Date.now() })}>Not available</Btn>
+                  </>
+                )}
+                {dstatus !== "requested" && <Btn onClick={() => reRequest(e.id)}>Re-request</Btn>}
+              </div>
 
               {isOpen ? (
                 <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--line)" }}>
