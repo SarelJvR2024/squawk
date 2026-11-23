@@ -1300,5 +1300,63 @@ check(
   })()
 );
 
+/* ---- Finding.citedDocs (Library, build prompt 9) — found missing from
+   both sheets within hours of the field landing, by the same standing
+   sync-integrity review. The Findings sheet is one row per finding, no
+   aggregation question; the Hazards sheet takes the UNION of its
+   consolidated findings' citations, same function sharepoint.ts's own
+   portal sync now uses. -------------------------------------------------- */
+
+check(
+  "the Findings sheet carries a finding's own cited procedures directly, same label the UI renders",
+  (() => {
+    const sheet = ex.findingsSheet({
+      ...BASE,
+      checks: [],
+      responses: {},
+      findings: [FINDING_FOR_EXPORT({ citedDocs: [{ doc: "B170", clause: "001M", title: null }] })],
+    });
+    return cellOf(sheet, 0, "Cited procedures") === "B170 cl. 001M";
+  })()
+);
+
+check(
+  "a finding with no citation reads blank on the Findings sheet, not undefined or a crash",
+  (() => {
+    const sheet = ex.findingsSheet({ ...BASE, checks: [], responses: {}, findings: [FINDING_FOR_EXPORT()] });
+    return cellOf(sheet, 0, "Cited procedures") === "";
+  })()
+);
+
+check(
+  "the Hazards sheet unions its findings' DISTINCT citations, deduplicated",
+  (() => {
+    const sheet = ex.hazardsSheet({
+      ...BASE,
+      findings: [
+        FINDING_FOR_EXPORT({ id: "f1", citedDocs: [{ doc: "B170", clause: "001M", title: null }] }),
+        FINDING_FOR_EXPORT({ id: "f2", citedDocs: [{ doc: "B170", clause: "001M", title: null }, { doc: "J050", clause: null, title: null }] }),
+      ],
+      hazards: [HAZARD_FOR_EXPORT({ findingIds: ["f1", "f2"] })],
+    });
+    return cellOf(sheet, 0, "Cited procedures (findings)") === "B170 cl. 001M; J050";
+  })(),
+  "f1 and f2 both cite B170 cl. 001M — one entry on the hazard's row, not two; f2's own second citation still carries across"
+);
+
+check(
+  "the Hazards sheet and the portal sync agree on cited procedures too, from the exact same function",
+  (() => {
+    const findings = [
+      FINDING_FOR_EXPORT({ id: "f1", citedDocs: [{ doc: "B170", clause: "001M", title: null }] }),
+      FINDING_FOR_EXPORT({ id: "f2" }),
+    ];
+    const hazard = HAZARD_FOR_EXPORT({ findingIds: ["f1", "f2"] });
+    const sheet = ex.hazardsSheet({ ...BASE, findings, hazards: [hazard] });
+    const viaSync = sp.findingRiskFieldsFor(hazard, findings);
+    return cellOf(sheet, 0, "Cited procedures (findings)") === viaSync.citedDocs;
+  })()
+);
+
 console.log(`\n${failures === 0 ? "ALL PASS" : `${failures} FAILED`}`);
 process.exit(failures ? 1 : 0);

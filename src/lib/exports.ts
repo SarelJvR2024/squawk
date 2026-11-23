@@ -32,6 +32,7 @@ import { portalIdFor } from "./sites";
 import { priorFor } from "./register";
 import { mappingFor } from "./crosswalk";
 import { effectiveWalkOutcome, findingRiskFieldsFor, flattenProgress } from "./sharepoint";
+import { docRefLabel } from "./library";
 import { findingTypeFor } from "./reviewRisk";
 import { EVIDENCE_COMPLIANCE_LABEL } from "./evidence";
 import { evidenceAxisFor, reviewCombinedCompliance } from "./review";
@@ -437,6 +438,14 @@ export function findingsSheet(x: ExportInput): Sheet {
          convention as the field itself. */
       f.critical ? "Yes" : "No",
       f.safetyTag ? "Yes" : "No",
+      /* CITE A PROCEDURE — Finding.citedDocs (Library, build prompt 9),
+         found missing from this sheet and the SharePoint sync by the
+         standing sync-integrity review within hours of the field
+         landing. One row per finding here too — this finding's own
+         citations, no aggregation question. Same docRefLabel() the UI
+         itself renders (ReviewRiskPanel's chips), not a second
+         hand-rolled format. */
+      (f.citedDocs ?? []).map(docRefLabel).join("; "),
       /* Several actions now, each with its own discipline, owner, date and
          status — flattened the same way the asset-system assessment sheet
          already flattens MitigationAction[], one line each, so a reader
@@ -519,6 +528,7 @@ export function findingsSheet(x: ExportInput): Sheet {
       { header: "Action plan", width: 40, wrap: true },
       { header: "Critical", width: 10 },
       { header: "Safety", width: 10 },
+      { header: "Cited procedures", width: 34, wrap: true },
       { header: "Remediation action", width: 58, wrap: true },
       { header: "Owner", width: 30 },
       { header: "Due date", width: 12 },
@@ -1022,6 +1032,13 @@ export function hazardsSheet(x: ExportInput): Sheet {
          the fields landing. */
       riskFields.critical ?? "",
       riskFields.safetyTag ?? "",
+      /* CITE A PROCEDURE — same findingRiskFieldsFor() aggregation as the
+         portal sync now uses: every DISTINCT citation across the hazard's
+         consolidated findings, union/dedup same shape as the root-cause
+         categories above. Found missing from this sheet and the portal
+         by the standing sync-integrity review within hours of the field
+         landing. */
+      riskFields.citedDocs ?? "",
       h.disciplines.length,
       h.findingIds.join(" · "),
       h.findingIds.length,
@@ -1123,6 +1140,7 @@ export function hazardsSheet(x: ExportInput): Sheet {
       { header: "Action plan (findings)", width: 40, wrap: true },
       { header: "Critical (findings)", width: 14 },
       { header: "Safety (findings)", width: 14 },
+      { header: "Cited procedures (findings)", width: 34, wrap: true },
       { header: "Disciplines spanned", width: 18 },
       { header: "Findings behind it", width: 30 },
       { header: "Findings", width: 10 },
