@@ -331,6 +331,10 @@ function IssuesRiskView({
         activeId={active?.id ?? null}
         onActivate={setActiveId}
         onChange={onUpdateFinding}
+        onDeleteMany={(ids) => {
+          for (const id of ids) removeFinding(id);
+          if (active && ids.includes(active.id)) setActiveId(null);
+        }}
       />
       {/* DESKTOP — the same inline column review/page.tsx already used. */}
       {isWide && panelProps && (
