@@ -271,6 +271,14 @@ export interface Attachment {
   id: string;
   kind: "photo" | "voice" | "file";
   name: string;
+  /** WHICH CHANNEL OF THE CHECK THIS WAS CAPTURED IN — "check" (the desk
+   *  observation / interview), "walk" (the walkabout) or "evidence"
+   *  (documents and reports we request). Set at capture so each channel's own
+   *  sheet shows only its own material: a voice note recorded against the
+   *  check must not turn up under Evidence, and a walk photo belongs under
+   *  Walk. Optional and absent-means-default (see lib/attachmentChannel.ts),
+   *  so records from before this field existed need no migration. */
+  channel?: "check" | "walk" | "evidence";
   /** Key into the media store (src/lib/media.ts), NOT the bytes. Blobs are
    *  held under their own IndexedDB keys because this record is persisted
    *  inside one JSON value that rewrites on every keystroke. */

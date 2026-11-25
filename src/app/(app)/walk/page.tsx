@@ -1166,6 +1166,7 @@ export default function WalkPage() {
             onCaptured={(m) => {
               addAttachment(c.id, {
                 ...m,
+                channel: "walk",
                 /* WHERE IT WAS TAKEN, WITHOUT A SINGLE EXTRA TAP —
                    when this check already has one typed. No running
                    location to fall back on any more; a photograph on
@@ -1181,7 +1182,7 @@ export default function WalkPage() {
             compact
             className="min-h-[44px] w-[44px] justify-center"
             onCaptured={(m) => {
-              addAttachment(c.id, { ...m, createdBy: auditor });
+              addAttachment(c.id, { ...m, channel: "walk", createdBy: auditor });
               say(`Voice note added to ${portalIdFor(entityCode, c.id)}`);
             }}
           />

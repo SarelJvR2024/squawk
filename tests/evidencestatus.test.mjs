@@ -214,7 +214,7 @@ check(
     const slice = codeOnly.slice(start, end === -1 ? start + 1800 : end);
     return (
       /<AttachmentStrip/.test(slice) &&
-      /attachments=\{r\.attachments\.filter\(\(a\) => a\.kind !== "photo"\)\}/.test(slice) &&
+      /attachments=\{r\.attachments\.filter\(\(a\) => a\.kind !== "photo" && channelOf\(a\) === "evidence"\)\}/.test(slice) &&
       /onUpdate=\{\(id, p\) => updateAttachment\(check\.id, id, p\)\}/.test(slice)
     );
   })()
