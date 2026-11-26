@@ -29,6 +29,7 @@ import { trackingStage } from "@/lib/evidence";
 import { AttachmentStrip, FileButton, PhotoButton, VoiceNoteButton } from "./Capture";
 import AcsaRequirementPanel from "./AcsaRequirementPanel";
 import { StandardsPanel, EvidenceListPanel } from "./CheckStandardsSheets";
+import { ReferencePanel } from "./ReferencePanel";
 import FindingDetail from "./FindingDetail";
 import Sheet from "./ui/Sheet";
 import AddSheet from "./AddSheet";
@@ -1361,6 +1362,9 @@ export default function CheckDetail({
             ACSA requirement
           </Btn>
         )}
+        <Btn onClick={() => setSheet("reference")} className="text-[11px]">
+          Reference &amp; specs
+        </Btn>
         <Btn onClick={() => setSheet("icao")} className="text-[11px]">
           ICAO &amp; standards
         </Btn>
@@ -1560,6 +1564,9 @@ export default function CheckDetail({
             No note set for this check. Write one in Setup → How to ask notes.
           </p>
         )}
+      </Sheet>
+      <Sheet open={sheet === "reference"} onClose={() => setSheet(null)} title="Reference & specs" wide>
+        <ReferencePanel check={check} />
       </Sheet>
       <Sheet open={sheet === "icao"} onClose={() => setSheet(null)} title="ICAO & standards" wide>
         <StandardsPanel check={check} />

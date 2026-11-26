@@ -29,6 +29,7 @@ import {
 import { DisciplineSelect } from "@/components/ui/DisciplineSelect";
 import { Btn, Empty, Panel } from "@/components/ui/primitives";
 import { IconLeft, IconSearch } from "@/components/ui/icons";
+import { DocumentAccess } from "@/components/DocumentAccess";
 
 export default function LibraryPage() {
   return (
@@ -138,6 +139,8 @@ function ProcedureList() {
           ))}
         </ul>
       )}
+
+      <DocumentAccess />
 
       <div
         className="rounded-[11px] border px-3 py-2.5 text-[11.5px] leading-[1.5]"

@@ -354,6 +354,22 @@ export default function AddItemSheet({
                       else setPendingAttachments((cur) => [...cur, { ...a, id: uid(), createdAt: Date.now() }]);
                     }}
                   />
+                  <PhotoButton
+                    fromLibrary
+                    label="Upload"
+                    onCaptured={(m) => {
+                      const a = {
+                        ...m,
+                        /* WHERE IT WAS TAKEN, WITHOUT AN EXTRA TAP. The camera is
+                           always where the auditor is, so it inherits the item's
+                           own location; editable per photograph afterwards. */
+                        location: value.area.trim(),
+                        createdBy: auditor,
+                      };
+                      if (item) addAdhocAttachment(item.id, a);
+                      else setPendingAttachments((cur) => [...cur, { ...a, id: uid(), createdAt: Date.now() }]);
+                    }}
+                  />
                   <VoiceNoteButton
                     onCaptured={(m) => {
                       const a = { ...m, createdBy: auditor };

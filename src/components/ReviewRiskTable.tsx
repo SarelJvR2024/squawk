@@ -162,6 +162,7 @@ export default function ReviewRiskTable({
   const saveStatus = useFieldSaveStatus(
     lastEditedId ? (findings.find((f) => f.id === lastEditedId)?.updatedAt ?? null) : null
   );
+  const aiOn = useAssistAvailable();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   /* Inline photo thumbnails (below) open here full-size rather than
      navigating away — a lightbox over the table, not a second screen. */
@@ -351,12 +352,41 @@ export default function ReviewRiskTable({
             to. It reads no data from here — the new tab shares this same
             browser's IndexedDB, so it sees the same findings without a
             second copy passed through the URL. */}
+        {/* CLEAN UP WORDING — Sarel, 26 Nov 2026: "On triage, add a button to
+            allow cleanup of findings where it will give proper cleanup
+            technical wording, and allow user to approve changes or reject
+            changes." The machinery already exists (BulkSuggestWording: the
+            "polish" task, one proposal per finding, Accept/Reject each) but
+            sat inside the bulk bar, which only appears once rows are
+            ticked — nobody found it. This button ticks every finding in the
+            current view and scrolls the bulk bar into sight; nothing is
+            written until a proposal is accepted. */}
+        <button
+          type="button"
+          disabled={visible.length === 0}
+          onClick={() => {
+            setSelected(new Set(visible.map((f) => f.id)));
+            requestAnimationFrame(() =>
+              document.getElementById("triage-bulk-bar")?.scrollIntoView({ behavior: "smooth", block: "nearest" })
+            );
+          }}
+          title={
+            aiOn
+              ? "Propose cleaner technical wording for every finding shown, then accept or reject each one"
+              : "Needs the assistant switched on for this deployment (ANTHROPIC_API_KEY)"
+          }
+          className="ml-auto flex h-[30px] items-center gap-[5px] rounded-[8px] border px-3 text-[11px] font-semibold disabled:opacity-50"
+          style={{ borderColor: "var(--acc-line)", color: "var(--acc)", background: "var(--acc-soft)" }}
+        >
+          <IconSpark width={12} height={12} />
+          Clean up wording
+        </button>
         {filter.kind === "discipline" ? (
           <a
             href={`/report?discipline=${encodeURIComponent(filter.discipline)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto flex h-[30px] items-center rounded-[8px] px-3 text-[11px] font-semibold"
+            className="flex h-[30px] items-center rounded-[8px] px-3 text-[11px] font-semibold"
             style={{ background: "var(--acc)", color: "#fff" }}
           >
             Generate report
@@ -366,7 +396,7 @@ export default function ReviewRiskTable({
             type="button"
             disabled
             title="Pick one discipline above first — a report is generated for one discipline at a time."
-            className="ml-auto flex h-[30px] items-center rounded-[8px] px-3 text-[11px] font-semibold opacity-50"
+            className="flex h-[30px] items-center rounded-[8px] px-3 text-[11px] font-semibold opacity-50"
             style={{ background: "var(--acc)", color: "#fff" }}
           >
             Generate report
@@ -1099,6 +1129,7 @@ function BulkBar({
 
   return (
     <div
+      id="triage-bulk-bar"
       className="mb-2.5 rounded-[11px] border p-2.5"
       style={{ background: "var(--acc-soft)", borderColor: "var(--acc-line)" }}
     >
@@ -1290,7 +1321,12 @@ function BulkSuggestWording({
     for (const f of eligible) if (proposals[f.id]?.state === "proposed") applyOne(f);
   }
 
-  if (!aiOn) return null;
+  if (!aiOn)
+    return (
+      <div className="text-[10.5px]" style={{ color: "var(--ink-3)" }}>
+        Wording cleanup needs the assistant, which is not switched on for this deployment.
+      </div>
+    );
 
   return (
     <div>
