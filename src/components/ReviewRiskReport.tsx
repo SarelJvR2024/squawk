@@ -282,6 +282,86 @@ export default function ReviewRiskReport({
     [sorted]
   );
 
+  const ncList = sorted.filter((f) => findingTypeFor(f) === "non-compliance");
+  const obsList = sorted.filter((f) => findingTypeFor(f) !== "non-compliance");
+  /* Same row layout for both lists — Sarel, 26 Nov 2026: observations get
+     their own section instead of sharing one table with non-compliances. */
+  const findingsTable = (list: Finding[]) => (
+            <table className="rr-table">
+              <thead>
+                <tr>
+                  <th style={{ width: "6%" }}>Type</th>
+                  <th style={{ width: "9%" }}>Asset system</th>
+                  <th style={{ width: "21%" }}>Finding</th>
+                  <th style={{ width: "11%" }}>Root cause / Impact</th>
+                  <th style={{ width: "7%" }}>Timeline</th>
+                  {/* NARROWED FROM 38% — Sarel, on a live report screenshot:
+                      "a lot of wasted open space, use it more effectively."
+                      A 144px photo plus its caption never used anywhere
+                      near 38% of a landscape page; the space it gave up
+                      goes to the new Action plan column right beside it,
+                      not back into Finding/Root cause, which already had
+                      enough room for their own text. */}
+                  <th style={{ width: "21%" }}>Evidence</th>
+                  {/* ACTION PLAN, NEXT TO THE PHOTO — Sarel: "add the
+                      action plan column to the right of the photo."
+                      Alongside the dedicated Action & improvement plan
+                      section below, not instead of it: that section is
+                      the scannable, findings-with-a-plan-only list; this
+                      is the full findings list showing the same text
+                      inline, so a reader going straight down this table
+                      never has to cross-reference the other one to see
+                      what's already planned for a given row. */}
+                  <th style={{ width: "25%" }}>Action plan</th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.map((f) => {
+                  const type = findingTypeFor(f);
+                  const photos = f.attachments.filter((a) => a.kind === "photo");
+                  const voices = f.attachments.filter((a) => a.kind === "voice").length;
+                  return (
+                    <tr key={f.id}>
+                      <td style={{ fontWeight: 600, color: type === "non-compliance" ? "#A32626" : INK_SOFT }}>
+                        {FINDING_TYPE_LABEL[type]}
+                      </td>
+                      <td>{f.system || "General"}</td>
+                      <td>{findingText(f, responses)}</td>
+                      <td>
+                        {(f.rootCauseCategories ?? []).join(", ") || "—"}
+                        {f.impactAreas && f.impactAreas.length > 0 ? (
+                          <div style={{ color: INK_SOFT, marginTop: 2 }}>{f.impactAreas.join(", ")}</div>
+                        ) : null}
+                      </td>
+                      <td style={{ fontWeight: 600, color: f.timeline ? TIMELINE_COLOR[f.timeline] : INK_SOFT }}>
+                        {f.timeline || "Not set"}
+                      </td>
+                      <td>
+                        {photos.length > 0 && (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
+                            {photos.slice(0, 2).map((a) => (
+                              <ReportPhoto key={a.id} attachment={a} />
+                            ))}
+                            {photos.length > 2 && (
+                              <span style={{ alignSelf: "center", fontSize: 10, color: INK_SOFT }}>
+                                +{photos.length - 2} more
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        <span style={{ fontSize: 10, color: INK_SOFT }}>
+                          {photos.length} photo{photos.length === 1 ? "" : "s"}
+                          {voices > 0 ? `, ${voices} voice note${voices === 1 ? "" : "s"}` : ""}
+                        </span>
+                      </td>
+                      <td className="rr-plan" style={{ color: f.actionPlan ? undefined : INK_SOFT }}>{f.actionPlan || "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+  );
+
   const generated = new Date();
 
   return (
@@ -543,83 +623,20 @@ export default function ReviewRiskReport({
             id (the table's own default order), now with the finding's own
             photographs shown inline rather than only counted. */}
         <div style={{ padding: "24px 36px 0" }}>
-          <SectionHeading>All findings &middot; {findings.length} in {discipline}</SectionHeading>
-          {sorted.length === 0 ? (
-            <p style={{ fontSize: 12, color: INK_SOFT }}>No findings raised against this discipline this visit.</p>
+          <SectionHeading>Non-compliances &middot; {ncList.length} in {discipline}</SectionHeading>
+          {ncList.length === 0 ? (
+            <p style={{ fontSize: 12, color: INK_SOFT }}>No non-compliances raised against this discipline this visit.</p>
           ) : (
-            <table className="rr-table">
-              <thead>
-                <tr>
-                  <th style={{ width: "6%" }}>Type</th>
-                  <th style={{ width: "9%" }}>Asset system</th>
-                  <th style={{ width: "21%" }}>Finding</th>
-                  <th style={{ width: "11%" }}>Root cause / Impact</th>
-                  <th style={{ width: "7%" }}>Timeline</th>
-                  {/* NARROWED FROM 38% — Sarel, on a live report screenshot:
-                      "a lot of wasted open space, use it more effectively."
-                      A 144px photo plus its caption never used anywhere
-                      near 38% of a landscape page; the space it gave up
-                      goes to the new Action plan column right beside it,
-                      not back into Finding/Root cause, which already had
-                      enough room for their own text. */}
-                  <th style={{ width: "21%" }}>Evidence</th>
-                  {/* ACTION PLAN, NEXT TO THE PHOTO — Sarel: "add the
-                      action plan column to the right of the photo."
-                      Alongside the dedicated Action & improvement plan
-                      section below, not instead of it: that section is
-                      the scannable, findings-with-a-plan-only list; this
-                      is the full findings list showing the same text
-                      inline, so a reader going straight down this table
-                      never has to cross-reference the other one to see
-                      what's already planned for a given row. */}
-                  <th style={{ width: "25%" }}>Action plan</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sorted.map((f) => {
-                  const type = findingTypeFor(f);
-                  const photos = f.attachments.filter((a) => a.kind === "photo");
-                  const voices = f.attachments.filter((a) => a.kind === "voice").length;
-                  return (
-                    <tr key={f.id}>
-                      <td style={{ fontWeight: 600, color: type === "non-compliance" ? "#A32626" : INK_SOFT }}>
-                        {FINDING_TYPE_LABEL[type]}
-                      </td>
-                      <td>{f.system || "General"}</td>
-                      <td>{findingText(f, responses)}</td>
-                      <td>
-                        {(f.rootCauseCategories ?? []).join(", ") || "—"}
-                        {f.impactAreas && f.impactAreas.length > 0 ? (
-                          <div style={{ color: INK_SOFT, marginTop: 2 }}>{f.impactAreas.join(", ")}</div>
-                        ) : null}
-                      </td>
-                      <td style={{ fontWeight: 600, color: f.timeline ? TIMELINE_COLOR[f.timeline] : INK_SOFT }}>
-                        {f.timeline || "Not set"}
-                      </td>
-                      <td>
-                        {photos.length > 0 && (
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
-                            {photos.slice(0, 2).map((a) => (
-                              <ReportPhoto key={a.id} attachment={a} />
-                            ))}
-                            {photos.length > 2 && (
-                              <span style={{ alignSelf: "center", fontSize: 10, color: INK_SOFT }}>
-                                +{photos.length - 2} more
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        <span style={{ fontSize: 10, color: INK_SOFT }}>
-                          {photos.length} photo{photos.length === 1 ? "" : "s"}
-                          {voices > 0 ? `, ${voices} voice note${voices === 1 ? "" : "s"}` : ""}
-                        </span>
-                      </td>
-                      <td className="rr-plan" style={{ color: f.actionPlan ? undefined : INK_SOFT }}>{f.actionPlan || "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            findingsTable(ncList)
+          )}
+        </div>
+
+        <div style={{ padding: "24px 36px 0" }}>
+          <SectionHeading>Observations &middot; {obsList.length} in {discipline}</SectionHeading>
+          {obsList.length === 0 ? (
+            <p style={{ fontSize: 12, color: INK_SOFT }}>No observations raised against this discipline this visit.</p>
+          ) : (
+            findingsTable(obsList)
           )}
         </div>
 
