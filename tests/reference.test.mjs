@@ -93,5 +93,9 @@ check("Report: safety concerns and critical items counted and listed separately,
   const r = src("../src/components/ReviewRiskReport.tsx");
   assert.ok(r.includes("<TaggedList") && r.includes("How to read the counts and tags") && !r.includes("f.critical || f.safetyTag"));
 });
+check("Report: observations have their own section, apart from non-compliances", () => {
+  const r = src("../src/components/ReviewRiskReport.tsx");
+  assert.ok(r.includes("Observations &middot; {obsList.length}") && r.includes("Non-compliances &middot; {ncList.length}") && !r.includes("All findings &middot;"));
+});
 console.log(failed ? `${failed} FAILED` : "all passed");
 process.exit(failed ? 1 : 0);
