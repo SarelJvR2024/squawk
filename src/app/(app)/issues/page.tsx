@@ -7,6 +7,7 @@ import {
   useEntity,
   useEntityCode,
   useEntityFindings,
+  useDeletedFindings,
   useResponses,
   useStore,
   useVerifications,
@@ -81,7 +82,7 @@ import RaiseFindingSheet from "@/components/RaiseFindingSheet";
  *  anyway — folding Cleanup's distinct tool in is that prompt's call to
  *  make, not a guess this one should make for it. */
 
-type IssuesFilter = "all" | "toReview" | "carried" | "critical" | "safety" | "closed";
+type IssuesFilter = "all" | "toReview" | "carried" | "critical" | "safety" | "closed" | "deleted";
 
 const ISSUES_FILTER_LABEL: Record<IssuesFilter, string> = {
   all: "All",
@@ -90,6 +91,7 @@ const ISSUES_FILTER_LABEL: Record<IssuesFilter, string> = {
   critical: "Critical",
   safety: "Safety",
   closed: "Closed",
+  deleted: "Deleted",
 };
 
 const OUTCOMES: { key: VerificationOutcome; label: string; Icon: typeof IconCheck; tone: string }[] = [
@@ -271,6 +273,46 @@ function useIsWide() {
   return wide;
 }
 
+/** DELETED — findings flagged as deleted. Nothing is ever removed; a mistake
+ *  is undone here with Restore (Sarel, 26 Nov 2026). */
+function DeletedList({ findings }: { findings: Finding[] }) {
+  const restoreFinding = useStore((s) => s.restoreFinding);
+  if (findings.length === 0)
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <Empty>
+          <IconInbox width={26} height={26} />
+          <div>Nothing deleted. Deleted findings are kept here so a mistake can be undone.</div>
+        </Empty>
+      </div>
+    );
+  return (
+    <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-4">
+      <div className="text-[11.5px]" style={{ color: "var(--ink-3)" }}>
+        Deleted findings are hidden everywhere else, including reports. They are kept here, with their photos and notes, so you can restore one.
+      </div>
+      {findings.map((f) => (
+        <div key={f.id} className="flex items-center gap-3 rounded-[10px] border p-3" style={{ borderColor: "var(--line-2)", background: "var(--panel)" }}>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-semibold">{f.title || f.id}</div>
+            <div className="truncate text-[11px]" style={{ color: "var(--ink-3)" }}>
+              {f.discipline}{f.system ? ` · ${f.system}` : ""} · deleted {f.deletedAt ? new Date(f.deletedAt).toLocaleString() : ""}{f.deletedBy ? ` by ${f.deletedBy}` : ""}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => restoreFinding(f.id)}
+            className="rounded-[8px] px-3 py-2 text-[12px] font-semibold"
+            style={{ background: "var(--acc)", color: "#fff" }}
+          >
+            Restore
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function IssuesRiskView({
   findings,
   entityCode,
@@ -295,6 +337,7 @@ function IssuesRiskView({
     critical: "No issues tagged Critical.",
     safety: "No issues tagged Safety.",
     closed: "Nothing closed yet.",
+    deleted: "Nothing deleted.",
   };
 
   const panelProps = active
@@ -439,6 +482,7 @@ function IssuesPageInner() {
     () => entityFindings.filter((f) => f.actionStatus === "Closed"),
     [entityFindings],
   );
+  const deletedFindings = useDeletedFindings();
   const criticalFindings = useMemo(() => allOpenFindings.filter((f) => f.critical), [allOpenFindings]);
   const safetyFindings = useMemo(() => allOpenFindings.filter((f) => f.safetyTag), [allOpenFindings]);
   const riskViewFindings: Finding[] =
@@ -469,6 +513,7 @@ function IssuesPageInner() {
     critical: criticalFindings.length,
     safety: safetyFindings.length,
     closed: closedFindings.length,
+    deleted: deletedFindings.length,
   };
 
   /* Through `useVisits`, not a raw `PROGRAMME_VISITS.find`/`.filter` — the
@@ -746,7 +791,9 @@ function IssuesPageInner() {
         </div>
       </div>
 
-      {issuesFilter !== "carried" ? (
+      {issuesFilter === "deleted" ? (
+        <DeletedList findings={deletedFindings} />
+      ) : issuesFilter !== "carried" ? (
         <IssuesRiskView
           findings={riskViewFindings}
           entityCode={entityCode}

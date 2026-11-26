@@ -1155,6 +1155,13 @@ export interface Finding {
    *  this panel's own header comment). Optional, absent-means-false, same
    *  convention as `internalOnly` just above. */
   critical?: boolean;
+  /** SOFT DELETE — Sarel, 26 Nov 2026: "never permanently delete anything,
+   *  just flag as deleted and don't include anywhere but always keep a copy
+   *  somewhere in case it was a mistake." A flagged finding is hidden from
+   *  every screen and report and listed only under Issues, Deleted, where it
+   *  can be restored. The record, its photos and its voice notes are kept. */
+  deletedAt?: number;
+  deletedBy?: string;
   /** SAFETY — same shape and same place as `critical` just above. "The
    *  Safety tag here is only for the report" (the build prompt's own
    *  words) — distinct from, and never to be confused with, an Immediate

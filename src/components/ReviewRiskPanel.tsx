@@ -361,6 +361,17 @@ export default function ReviewRiskPanel({
         style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
       >
         <div className="flex items-center gap-[8px]">
+          {/* Close, on the LEFT of the header where it can never be pushed
+              off-screen by a wide table (Sarel, 26 Nov 2026: "we need a
+              close button to close the right hand panel"). */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-[6px] border px-[8px] py-[3px] text-[11px] font-semibold"
+            style={{ borderColor: "var(--line-2)", color: "var(--ink-2)", background: "var(--panel)" }}
+          >
+            ✕ Close
+          </button>
           <b className="font-display text-[11.5px] font-semibold">Finding</b>
           <SaveStatusPill status={saveStatus} />
         </div>
@@ -368,7 +379,7 @@ export default function ReviewRiskPanel({
           {confirmingDelete ? (
             <>
               <span className="text-[11px] font-semibold" style={{ color: "var(--bad)" }}>
-                Delete for good?
+                Delete? It is kept and can be restored.
               </span>
               <button
                 type="button"

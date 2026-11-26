@@ -643,6 +643,8 @@ interface State {
    *  from outside the store would bypass whatever else this file ever
    *  decides a removal should do — same reasoning as removeHazard. */
   removeFinding: (id: string) => void;
+  /** Undo removeFinding — clears the deleted flag. */
+  restoreFinding: (id: string) => void;
 
   /** Hazards, flat across the programme like findings, each carrying its own
    *  entity and originVisit. Same reason: a hazard raised in September is what
@@ -1312,7 +1314,7 @@ export const useStore = create<State>()(
               Object.keys(d.verifications).length > 0 ||
               d.captures.length > 0);
           const hasFindings = get().findings.some(
-            (f) => f.entity === entityCode && f.originVisit === visitId
+            (f) => f.entity === entityCode && f.originVisit === visitId && !f.deletedAt
           );
           if (hasData || hasFindings)
             return "That audit holds captured data. Reset it first if you mean to discard it.";
@@ -1450,7 +1452,7 @@ export const useStore = create<State>()(
           if (c === "NC") {
             const entity = get().entity;
             const hasOpenFinding = get().findings.some(
-              (f) => f.checkId === checkId && f.entity === entity && f.actionStatus !== "Closed"
+              (f) => f.checkId === checkId && f.entity === entity && f.actionStatus !== "Closed" && !f.deletedAt
             );
             if (!hasOpenFinding) get().raiseFindingFromCheck(checkId);
           }
@@ -1766,19 +1768,25 @@ export const useStore = create<State>()(
          *      that hazard's own "second opinion" AI-assist throws once
          *      the id it looks up no longer resolves to anything. */
         removeFinding: (id) => {
-          const f = get().findings.find((x) => x.id === id);
-          for (const a of f?.attachments ?? []) {
-            if (a.blobKey) void delBlob(a.blobKey);
-          }
+          /* SOFT: flag, never remove — see Finding.deletedAt. Photos, voice
+             notes and hazard links are all kept so a restore is complete. */
           set((s) => ({
-            findings: s.findings.filter((x) => x.id !== id),
-            hazards: s.hazards.map((h) =>
-              h.findingIds.includes(id)
-                ? { ...h, findingIds: h.findingIds.filter((fid) => fid !== id) }
-                : h
+            findings: s.findings.map((x) =>
+              x.id === id ? { ...x, deletedAt: Date.now(), deletedBy: s.auditor } : x
             ),
           }));
         },
+
+        restoreFinding: (id) =>
+          set((s) => ({
+            findings: s.findings.map((x) => {
+              if (x.id !== id) return x;
+              const { deletedAt: _d, deletedBy: _b, ...rest } = x;
+              void _d;
+              void _b;
+              return rest;
+            }),
+          })),
 
         addHazard: (h) => {
           const id = `HZ-${uid().toUpperCase().slice(0, 5)}`;
@@ -5358,8 +5366,19 @@ export function useVisitFindings(): Finding[] {
   const entity = useStore((s) => s.entity);
   const visit = useStore((s) => s.visit);
   return useMemo(
-    () => all.filter((f) => f.entity === entity && f.originVisit === visit),
+    () => all.filter((f) => f.entity === entity && f.originVisit === visit && !f.deletedAt),
     [all, entity, visit]
+  );
+}
+
+/** Findings flagged as deleted at the entity in view, newest first. Kept so a
+ *  mistaken delete can be restored; shown nowhere else. */
+export function useDeletedFindings(): Finding[] {
+  const all = useStore((s) => s.findings);
+  const entity = useStore((s) => s.entity);
+  return useMemo(
+    () => all.filter((f) => f.entity === entity && f.deletedAt).sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0)),
+    [all, entity]
   );
 }
 
@@ -5367,7 +5386,7 @@ export function useVisitFindings(): Finding[] {
 export function useEntityFindings(): Finding[] {
   const all = useStore((s) => s.findings);
   const entity = useStore((s) => s.entity);
-  return useMemo(() => all.filter((f) => f.entity === entity), [all, entity]);
+  return useMemo(() => all.filter((f) => f.entity === entity && !f.deletedAt), [all, entity]);
 }
 
 /** Every sync run ever recorded at the entity in view, across all visits,
@@ -5616,7 +5635,7 @@ export function usePortfolio(): PortfolioRow[] {
           checks: checksAt(e.code).length,
           captured: seen.size,
           nc,
-          findings: findings.filter((f) => f.entity === e.code).length,
+          findings: findings.filter((f) => f.entity === e.code && !f.deletedAt).length,
           prior: priorFindingsAt(e.code).length,
         };
       }),
@@ -5704,6 +5723,7 @@ export function useAuditProgress(): AuditProgress[] {
       }
     }
     for (const f of findings) {
+      if (f.deletedAt) continue;
       const r = row(f.entity, f.originVisit);
       r.findings++;
       touch(r, f.updatedAt);

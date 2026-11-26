@@ -122,7 +122,7 @@ export default function ImportPackPanel() {
           auditor,
           existingAdhoc: useStore.getState().visitData().adhoc ?? [],
           existingFindings: useStore.getState().findings.filter(
-            (x) => x.entity === entityCode && x.originVisit === visitId
+            (x) => !x.deletedAt && x.entity === entityCode && x.originVisit === visitId
           ),
           existingHazards: useStore.getState().hazards.filter(
             (x) => x.entity === entityCode && x.originVisit === visitId
@@ -147,7 +147,7 @@ export default function ImportPackPanel() {
       {
         adhoc: useStore.getState().visitData().adhoc ?? [],
         findings: useStore.getState().findings.filter(
-          (x) => x.entity === entityCode && x.originVisit === visitId
+          (x) => !x.deletedAt && x.entity === entityCode && x.originVisit === visitId
         ),
         hazards: useStore.getState().hazards.filter(
           (x) => x.entity === entityCode && x.originVisit === visitId
@@ -168,7 +168,7 @@ export default function ImportPackPanel() {
           auditor,
           existingAdhoc: useStore.getState().visitData().adhoc ?? [],
           existingFindings: useStore.getState().findings.filter(
-            (x) => x.entity === entityCode && x.originVisit === visitId
+            (x) => !x.deletedAt && x.entity === entityCode && x.originVisit === visitId
           ),
           existingHazards: useStore.getState().hazards.filter(
             (x) => x.entity === entityCode && x.originVisit === visitId
