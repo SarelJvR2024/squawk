@@ -44,6 +44,17 @@ const uid = () => Math.random().toString(36).slice(2, 10);
  *  asset system and check-point are both optional. Forcing either would put
  *  a guess into a finding that may genuinely be about neither. */
 
+/** Hand-off from the + sheet: a photo or voice note taken there is carried
+ *  into the full raise form (discipline, asset system, check, text, type,
+ *  tags) instead of being saved on its own. Sarel, 26 Nov 2026: "go back to
+ *  the way add a finding previously worked... at the moment it kicks you
+ *  out of that process." A module-level slot, not a prop, so the six
+ *  screens that already render AddSheet + RaiseFindingSheet need no change. */
+let carriedMedia: Omit<Attachment, "id" | "createdAt" | "createdBy">[] = [];
+export function carryMediaToRaiseForm(m: Omit<Attachment, "id" | "createdAt" | "createdBy">) {
+  carriedMedia = [...carriedMedia, m];
+}
+
 export default function RaiseFindingSheet({
   open,
   onClose,
@@ -75,6 +86,7 @@ export default function RaiseFindingSheet({
   const disciplines = useMemo(() => disciplinesAt(entityCode), [entityCode]);
   const checks = useMemo(() => checksAt(entityCode), [entityCode]);
 
+  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [discipline, setDiscipline] = useState<string>("");
@@ -104,6 +116,14 @@ export default function RaiseFindingSheet({
      alone (see the comment above this effect) */
   useEffect(() => {
     if (!open) return;
+    if (carriedMedia.length > 0) {
+      const taken = carriedMedia;
+      carriedMedia = [];
+      setPendingAttachments((cur) => [
+        ...cur,
+        ...taken.map((m) => ({ ...m, createdBy: auditor, id: uid(), createdAt: Date.now() }) as Attachment),
+      ]);
+    }
     if (presetDiscipline) setDiscipline(presetDiscipline);
     if (presetSystem) setSystem(presetSystem);
     if (presetCheckId) setCheckId(presetCheckId);
@@ -124,7 +144,6 @@ export default function RaiseFindingSheet({
    *  so every capture here joins the FINDING's own attachments via
    *  addFindingAttachment once it exists — a check-point, if one is ever
    *  picked, is no longer a precondition for keeping a photo. */
-  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
 
   /* Scoped to the discipline once one is chosen — same rule AddItemSheet's
      own asset-system picker uses — and searched otherwise. */
