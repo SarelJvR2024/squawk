@@ -50,5 +50,44 @@ check("Triage has a Clean up wording button that selects the visible findings; u
   assert.ok(t.includes("Clean up wording") && t.includes('id="triage-bulk-bar"'));
   assert.ok(t.includes("not switched on for this deployment"));
 });
+check("every check carries inspection records where it is inspected, and PM requests where it has maintenance tasks", () => {
+  let insp = 0, pm = 0;
+  for (const r of Object.values(ref)) { insp += r.inspection?.length ? 1 : 0; pm += r.maintenance?.length ? 1 : 0; }
+  assert.ok(insp >= 300, "inspection " + insp);
+  assert.ok(pm >= 200, "maintenance " + pm);
+  for (const r of Object.values(ref)) for (const m of r.maintenance ?? []) assert.ok(m.t.length > 20);
+});
+check("checks that name an ACSA form list it with its code, as a blank template plus completed copies", () => {
+  const r = ref["KSIA-MEC-017"];
+  assert.ok(r.inspection.some((i) => /CMMS 008/.test(i.t) && /blank template/.test(i.t)));
+});
+check("Triage: request evidence, tags, all root causes shown, airport report", () => {
+  const t = src("../src/components/ReviewRiskTable.tsx");
+  assert.ok(t.includes("<EvidenceQuickCapture />") && t.includes('href="/report?discipline=all"'));
+  assert.ok(t.includes("f.safetyTag") && t.includes("f.critical") && t.includes('f.timeline === "Immediate"'));
+  assert.ok(!/\+\{selected\.length - 1\}/.test(t), "no +N hiding");
+  assert.ok(t.includes("min-h-[200px]"));
+});
+check("Report: real PDF download, airport-wide mode, smaller action-plan print", () => {
+  const p = src("../src/app/report/page.tsx");
+  assert.ok(p.includes("downloadReportPdf") && p.includes('"all"'));
+  assert.ok(src("../src/lib/reportPdf.ts").includes("pdf.save(filename)"));
+  assert.ok(src("../src/components/ReviewRiskReport.tsx").includes("td.rr-plan { font-size: 9px"));
+});
+check("Triage: per-row delete with a confirm step", () => {
+  const t = src("../src/components/ReviewRiskTable.tsx");
+  assert.ok(t.includes("function RowDelete") && t.includes("onDeleteMany([f.id])") && t.includes("Cannot be undone"));
+});
+check("Report: KPI tiles — critical/safety, immediate, non-compliances and observations with photos; no action-plans or findings-this-visit tiles", () => {
+  const r = src("../src/components/ReviewRiskReport.tsx");
+  assert.ok(r.includes("Critical / safety issues") && r.includes("Immediate items to address") && r.includes("photosOf"));
+  assert.ok(!r.includes('label: "Action plans set"') && !r.includes('label: "Findings this visit"'));
+});
+check("Report: interim/copyright clause and previous open findings with status and comments", () => {
+  const r = src("../src/components/ReviewRiskReport.tsx");
+  assert.ok(r.includes("Interim report, copyright and limitations") && r.includes("All rights") && r.includes("new information becomes available"));
+  assert.ok(r.includes("Previous open findings") && r.includes("Status now") && r.includes("Comments"));
+  assert.ok(src("../src/app/report/page.tsx").includes("useOutstanding"));
+});
 console.log(failed ? `${failed} FAILED` : "all passed");
 process.exit(failed ? 1 : 0);

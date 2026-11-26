@@ -608,15 +608,11 @@ check(
   })()
 );
 check(
-  "with something selected, the first tag shows as a compact Pill, with a +N badge for the rest — Sarel's own example, [Maintenance backlog] [+1]",
+  "with something selected, EVERY selected tag shows as a Pill — none hidden behind a +N (Sarel, 26 Nov 2026: \"don't hide multiple root cause and impact\")",
   (() => {
     const start = table.indexOf("function MultiSelectCell");
     const fn = start === -1 ? "" : table.slice(start, table.indexOf("\n}\n", start) + 2);
-    return (
-      fn.length > 0 &&
-      /<Pill tone="neutral">\{selected\[0\]\}<\/Pill>/.test(fn) &&
-      /selected\.length > 1[\s\S]{0,200}\+\{selected\.length - 1\}/.test(fn)
-    );
+    return fn.length > 0 && /selected\.map\(\(v\) =>[\s\S]{0,120}<Pill key=\{v\} tone="neutral">/.test(fn) && !/\+\{selected\.length - 1\}/.test(fn);
   })()
 );
 check(
@@ -695,8 +691,8 @@ check(
    own "By discipline" tab already renders. ------------------------------- */
 
 check(
-  "EvidenceQuickCapture no longer lives inside ReviewRiskTable.tsx — it moved out to its own file",
-  !/function EvidenceQuickCapture\(\)/.test(table) && !/<EvidenceQuickCapture/.test(table)
+  "EvidenceQuickCapture is still its own file; Triage only opens it from a Request evidence button (Sarel, 26 Nov 2026)",
+  !/function EvidenceQuickCapture\(\)/.test(table) && /evidenceOpen && <EvidenceQuickCapture \/>/.test(table)
 );
 check(
   "it is two fields and a button — a discipline select and a free-text \"what's needed\" line, nothing else",

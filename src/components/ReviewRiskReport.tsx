@@ -126,6 +126,23 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** `/report?discipline=all` — the whole airport in one report. */
+/** One earlier-audit finding that was open coming into this visit, with its
+ *  status now and the comments recorded against it. Built in report/page.tsx
+ *  from carryforward + the verifications, so this component stays pure. */
+export interface PreviousFindingRow {
+  key: string;
+  discipline: string;
+  system: string;
+  raisedAt: string;
+  finding: string;
+  rating: string;
+  status: string;
+  comments: string[];
+}
+
+export const ALL_DISCIPLINES_LABEL = "All disciplines";
+
 export default function ReviewRiskReport({
   findings: allFindings,
   discipline,
@@ -134,6 +151,7 @@ export default function ReviewRiskReport({
   evidenceItems,
   visitLabel,
   auditor,
+  previous = [],
 }: {
   findings: Finding[];
   discipline: string;
@@ -147,6 +165,8 @@ export default function ReviewRiskReport({
   evidenceItems: EvidenceItem[];
   visitLabel: string;
   auditor: string;
+  /** Findings left open by earlier audits, with where each stands now. */
+  previous?: PreviousFindingRow[];
 }) {
   const airport = entityOf(entityCode);
 
@@ -167,6 +187,13 @@ export default function ReviewRiskReport({
   );
 
   const nonCompliances = findings.filter((f) => findingTypeFor(f) === "non-compliance").length;
+  const observations = findings.filter((f) => findingTypeFor(f) === "observation").length;
+  const criticalSafety = findings.filter((f) => f.critical || f.safetyTag).length;
+  /** Photos attached to findings of one type. */
+  const photosOf = (t: string) =>
+    findings
+      .filter((f) => findingTypeFor(f) === t)
+      .reduce((n, f) => n + f.attachments.filter((a) => a.kind === "photo").length, 0);
   const byTimeline = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const t of TIMELINES) counts[t] = 0;
@@ -197,7 +224,10 @@ export default function ReviewRiskReport({
     return (id: string) => m.get(id);
   }, [entityCode]);
   const evidenceForDiscipline = useMemo(
-    () => evidenceItems.filter((e) => disciplineFor(e, checkDisciplineOf) === discipline),
+    () =>
+      discipline === ALL_DISCIPLINES_LABEL
+        ? evidenceItems
+        : evidenceItems.filter((e) => disciplineFor(e, checkDisciplineOf) === discipline),
     [evidenceItems, checkDisciplineOf, discipline]
   );
 
@@ -254,6 +284,8 @@ export default function ReviewRiskReport({
         .rr-table th { background: ${PURPLE}; color: #FFFFFF; text-align: left; padding: 8px 10px; font-weight: 600; font-size: 10.5px; }
         .rr-table td { padding: 8px 10px; border-bottom: 1px solid ${LINE}; vertical-align: top; color: ${INK}; }
         .rr-table tr:nth-child(even) td { background: #FAF9FC; }
+        /* Action plan: captured in a large box, printed small so the plan does not dominate the row. */
+        .rr-table td.rr-plan { font-size: 9px; line-height: 1.3; max-width: 150px; }
         .rr-table.rr-amber th { background: ${TIMELINE_COLOR.Immediate}; }
         .rr-table.rr-amber tr:nth-child(even) td { background: ${AMBER_SOFT}; }
       `}</style>
@@ -273,17 +305,21 @@ export default function ReviewRiskReport({
           </div>
         </div>
 
-        {/* KPI STRIP */}
+        {/* KPI STRIP — Sarel, 26 Nov 2026: add critical/safety issues and
+            immediate items to address; add observations and
+            non-compliances each with their photo count in the box; remove
+            "Findings this visit" and "Action plans set" (the action-plan
+            table below stays). */}
         <div style={{ display: "flex", gap: 12, padding: "20px 36px 0" }}>
           {(
             [
-              [findings.length, "Findings this visit"],
-              [nonCompliances, "Non-compliances"],
-              [immediate, "Immediate — attend to first"],
-              [evidenceForDiscipline.length, "Evidence requested"],
-              [withActionPlan.length, "Action plans set"],
-            ] as [number, string][]
-          ).map(([n, label]) => (
+              { n: criticalSafety, label: "Critical / safety issues", tone: "bad" },
+              { n: immediate, label: "Immediate items to address", tone: "imm" },
+              { n: nonCompliances, label: "Non-compliances", photos: photosOf("non-compliance") },
+              { n: observations, label: "Observations", photos: photosOf("observation") },
+              { n: evidenceForDiscipline.length, label: "Evidence requested" },
+            ] as { n: number; label: string; photos?: number; tone?: string }[]
+          ).map(({ n, label, photos, tone }) => (
             <div
               key={label}
               className="rr-card"
@@ -292,9 +328,21 @@ export default function ReviewRiskReport({
               <div style={{ fontSize: 9.5, color: INK_SOFT, textTransform: "uppercase", letterSpacing: 0.5 }}>
                 {label}
               </div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: label.startsWith("Immediate") ? TIMELINE_COLOR.Immediate : INK, marginTop: 2 }}>
+              <div
+                style={{
+                  fontSize: 24,
+                  fontWeight: 700,
+                  color: tone === "imm" ? TIMELINE_COLOR.Immediate : tone === "bad" ? "#B3261E" : INK,
+                  marginTop: 2,
+                }}
+              >
                 {n}
               </div>
+              {photos !== undefined && (
+                <div style={{ fontSize: 10, color: INK_SOFT, marginTop: 2 }}>
+                  {photos} {photos === 1 ? "photo" : "photos"}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -430,7 +478,7 @@ export default function ReviewRiskReport({
                   <tr key={f.id}>
                     <td style={{ fontWeight: 600 }}>{f.system || "General"}</td>
                     <td>{findingText(f, responses)}</td>
-                    <td style={{ color: f.actionPlan?.trim() ? INK : INK_SOFT, fontStyle: f.actionPlan?.trim() ? "normal" : "italic" }}>
+                    <td className="rr-plan" style={{ color: f.actionPlan?.trim() ? INK : INK_SOFT, fontStyle: f.actionPlan?.trim() ? "normal" : "italic" }}>
                       {f.actionPlan?.trim() || "Not yet planned"}
                     </td>
                   </tr>
@@ -516,7 +564,7 @@ export default function ReviewRiskReport({
                           {voices > 0 ? `, ${voices} voice note${voices === 1 ? "" : "s"}` : ""}
                         </span>
                       </td>
-                      <td style={{ color: f.actionPlan ? undefined : INK_SOFT }}>{f.actionPlan || "—"}</td>
+                      <td className="rr-plan" style={{ color: f.actionPlan ? undefined : INK_SOFT }}>{f.actionPlan || "—"}</td>
                     </tr>
                   );
                 })}
@@ -554,12 +602,84 @@ export default function ReviewRiskReport({
                     <td style={{ fontWeight: 600, color: f.timeline ? TIMELINE_COLOR[f.timeline] : INK_SOFT }}>
                       {f.timeline || "Not set"}
                     </td>
-                    <td>{f.actionPlan}</td>
+                    <td className="rr-plan">{f.actionPlan}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
+        </div>
+
+        {/* PREVIOUS OPEN FINDINGS — Sarel, 26 Nov 2026: "the report should
+            also show previous open findings and their new status and
+            comments". */}
+        <div style={{ padding: "24px 36px 0" }}>
+          <SectionHeading>Previous open findings &mdash; status update &middot; {previous.length}</SectionHeading>
+          {previous.length === 0 ? (
+            <p style={{ fontSize: 12, color: INK_SOFT }}>No findings from earlier audits were open for {discipline}.</p>
+          ) : (
+            <table className="rr-table">
+              <thead>
+                <tr>
+                  <th style={{ width: "13%" }}>Asset system</th>
+                  <th style={{ width: "9%" }}>Raised</th>
+                  <th style={{ width: "30%" }}>Original finding</th>
+                  <th style={{ width: "9%" }}>Rating</th>
+                  <th style={{ width: "13%" }}>Status now</th>
+                  <th style={{ width: "26%" }}>Comments</th>
+                </tr>
+              </thead>
+              <tbody>
+                {previous.map((r) => (
+                  <tr key={r.key}>
+                    <td style={{ fontWeight: 600 }}>{r.system || "General"}</td>
+                    <td>{r.raisedAt}</td>
+                    <td>{r.finding}</td>
+                    <td>{r.rating}</td>
+                    <td style={{ fontWeight: 600, color: r.status === "Closed" ? "#1B7F4B" : r.status === "Not yet verified" ? INK_SOFT : "#B3261E" }}>
+                      {r.status}
+                    </td>
+                    <td>{r.comments.length ? r.comments.join(" \u2022 ") : "\u2014"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* INTERIM-REPORT NOTICE AND COPYRIGHT — Sarel, 26 Nov 2026: "add a
+            detailed clause of copyright and that this is an interim system
+            generated report... to cover us". Wording is drafted for him to
+            have his legal advisers confirm. */}
+        <div
+          className="rr-card"
+          style={{ margin: "18px 36px 0", padding: "12px 14px", border: `1px solid ${LINE}`, borderRadius: 8, background: PURPLE_SOFT, fontSize: 9.5, lineHeight: 1.5, color: INK }}
+        >
+          <div style={{ fontWeight: 700, color: PURPLE, marginBottom: 4 }}>Interim report, copyright and limitations</div>
+          <p style={{ margin: "0 0 4px" }}>
+            <strong>Interim status.</strong> This is an interim, system-generated report. It is based only on the
+            information, records, evidence and observations available to the audit team at the time of generation
+            ({new Date().toISOString().slice(0, 10)}), and is shared to show project progress. It is not a final audit
+            report. Findings, ratings, root causes, impacts, timelines, action plans and statuses may be incomplete and
+            may be updated, corrected or withdrawn as new information becomes available. A blank field means not yet
+            captured, not a decision.
+          </p>
+          <p style={{ margin: "0 0 4px" }}>
+            <strong>No warranty or reliance.</strong> The content is provided in good faith for information only. No
+            representation or warranty, express or implied, is given as to its completeness or accuracy, and it must not
+            be treated as a certificate of compliance, a safety clearance or professional advice. To the fullest extent
+            permitted by law, the authors and their employers accept no liability for loss or damage arising from
+            reliance on this interim report. Decisions affecting safety or operations should be confirmed against the
+            current records and the final report. Nothing here amends the contract or any contractual notice, rating or
+            instruction.
+          </p>
+          <p style={{ margin: 0 }}>
+            <strong>Copyright.</strong> &copy; {new Date().getFullYear()} the audit team and their employers. All rights
+            reserved. The report is confidential and is issued solely to the intended recipient for this project. It
+            may not be copied, reproduced, published or disclosed to a third party, in whole or in part, without prior
+            written consent. Third-party material referred to (including ACSA procedures and ICAO documents) remains
+            the property of its owners.
+          </p>
         </div>
 
         <p style={{ padding: "24px 36px 0", fontSize: 10, color: INK_SOFT, borderTop: `1px solid ${LINE}`, marginTop: 20, paddingTop: 14 }}>
