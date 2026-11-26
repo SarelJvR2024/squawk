@@ -1300,5 +1300,41 @@ check(
   })()
 );
 
+/* ---- A soft-deleted finding's id (store.ts's removeFinding, Issues ·
+   Deleted, build prompt 10) is deliberately kept on its hazard's
+   findingIds so a restore is complete — but that means the array can
+   hold an id for a finding no longer in x.findings, and the Hazards
+   sheet must not show or count it: deleted findings are "hidden
+   everywhere else, including reports." Found by the standing
+   sync-integrity review. ------------------------------------------------ */
+
+check(
+  "the Hazards sheet does not list or count a soft-deleted finding's id",
+  (() => {
+    const sheet = ex.hazardsSheet({
+      ...BASE,
+      findings: [FINDING_FOR_EXPORT({ id: "f1" })],
+      hazards: [HAZARD_FOR_EXPORT({ findingIds: ["f1", "f2-deleted"] })],
+    });
+    return (
+      cellOf(sheet, 0, "Findings behind it") === "f1" &&
+      cellOf(sheet, 0, "Findings") === 1
+    );
+  })(),
+  "f2-deleted is no longer in x.findings — the sheet's own count and list must match what's actually there, not the hazard's raw array"
+);
+
+check(
+  "a hazard whose only finding was soft-deleted shows no findings, not a dangling count of one",
+  (() => {
+    const sheet = ex.hazardsSheet({
+      ...BASE,
+      findings: [],
+      hazards: [HAZARD_FOR_EXPORT({ findingIds: ["f1-deleted"] })],
+    });
+    return cellOf(sheet, 0, "Findings behind it") === "" && cellOf(sheet, 0, "Findings") === 0;
+  })()
+);
+
 console.log(`\n${failures === 0 ? "ALL PASS" : `${failures} FAILED`}`);
 process.exit(failures ? 1 : 0);
