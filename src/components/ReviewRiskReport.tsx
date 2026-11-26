@@ -120,6 +120,38 @@ function ReportPhoto({ attachment }: { attachment: Attachment }) {
   );
 }
 
+function TaggedList({ title, list, none, responses }: { title: string; list: Finding[]; none: string; responses: Record<string, Response> }) {
+  return (
+    <div style={{ padding: "24px 36px 0" }}>
+      <SectionHeading>{title} &middot; {list.length}</SectionHeading>
+      {list.length === 0 ? (
+        <p style={{ fontSize: 12, color: INK_SOFT }}>{none}</p>
+      ) : (
+        <table className="rr-table">
+          <thead>
+            <tr>
+              <th style={{ width: "18%" }}>Asset system</th>
+              <th style={{ width: "46%" }}>Finding</th>
+              <th style={{ width: "10%" }}>Timeline</th>
+              <th style={{ width: "26%" }}>Action &amp; improvement plan</th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((f) => (
+              <tr key={f.id}>
+                <td style={{ fontWeight: 600 }}>{f.system || "General"}</td>
+                <td>{findingText(f, responses)}</td>
+                <td style={{ fontWeight: 600, color: f.timeline ? TIMELINE_COLOR[f.timeline] : INK_SOFT }}>{f.timeline || "Not set"}</td>
+                <td className="rr-plan">{f.actionPlan?.trim() || "Not yet planned"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
     <h2 style={{ fontSize: 13, fontWeight: 700, color: PURPLE, margin: "0 0 10px" }}>{children}</h2>
@@ -188,7 +220,10 @@ export default function ReviewRiskReport({
 
   const nonCompliances = findings.filter((f) => findingTypeFor(f) === "non-compliance").length;
   const observations = findings.filter((f) => findingTypeFor(f) === "observation").length;
-  const criticalSafety = findings.filter((f) => f.critical || f.safetyTag).length;
+  /* Two separate tags, reported separately (Sarel, 26 Nov 2026): an
+     immediate safety concern is not the same call as a critical item. */
+  const safetyList = findings.filter((f) => f.safetyTag);
+  const criticalList = findings.filter((f) => f.critical);
   /** Photos attached to findings of one type. */
   const photosOf = (t: string) =>
     findings
@@ -313,7 +348,8 @@ export default function ReviewRiskReport({
         <div style={{ display: "flex", gap: 12, padding: "20px 36px 0" }}>
           {(
             [
-              { n: criticalSafety, label: "Critical / safety issues", tone: "bad" },
+              { n: safetyList.length, label: "Immediate safety concerns", tone: "bad" },
+              { n: criticalList.length, label: "Critical items to attend to", tone: "bad" },
               { n: immediate, label: "Immediate items to address", tone: "imm" },
               { n: nonCompliances, label: "Non-compliances", photos: photosOf("non-compliance") },
               { n: observations, label: "Observations", photos: photosOf("observation") },
@@ -346,6 +382,20 @@ export default function ReviewRiskReport({
             </div>
           ))}
         </div>
+
+        {/* HOW TO READ THIS REPORT, then the two tagged lists, kept apart. */}
+        <div style={{ padding: "24px 36px 0" }}>
+          <SectionHeading>How to read the counts and tags</SectionHeading>
+          <ul style={{ fontSize: 10.5, lineHeight: 1.5, color: INK, margin: 0, paddingLeft: 16 }}>
+            <li><strong>Immediate safety concern</strong> &mdash; a finding the auditor tagged as a hazard to people or operations that needs attention now. Counted and listed on its own.</li>
+            <li><strong>Critical item to attend to</strong> &mdash; a finding tagged as serious enough to be dealt with as a priority. Counted and listed on its own; a finding can carry both tags and then appears in both lists.</li>
+            <li><strong>Immediate items to address</strong> &mdash; findings whose timeline is Immediate (act now), whatever their tags.</li>
+            <li><strong>Non-compliance / Observation</strong> &mdash; a departure from a requirement, versus a point noted that is not yet a breach. Photo counts are the photographs attached to those findings.</li>
+            <li>A blank tag or field means not yet set, never a decision.</li>
+          </ul>
+        </div>
+        <TaggedList title="Immediate safety concerns" list={safetyList} none={`No immediate safety concerns tagged in ${discipline} this visit.`} responses={responses} />
+        <TaggedList title="Critical items to attend to" list={criticalList} none={`No critical items tagged in ${discipline} this visit.`} responses={responses} />
 
         {/* FINDINGS BY TIMELINE */}
         <div style={{ padding: "24px 36px 0" }}>
