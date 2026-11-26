@@ -109,8 +109,13 @@ export default function ReviewRiskTable({
   activeId,
   onActivate,
   onChange: onChangeProp,
+  onDeleteMany,
 }: {
   findings: Finding[];
+  /** Deletes the findings with these ids. Optional: a screen that does not
+   *  pass it shows no Delete in the bulk bar. The bar asks to confirm
+   *  first, and says how many go. */
+  onDeleteMany?: (ids: string[]) => void;
   /** For the Audit check column's requirement-text lookup and the Asset
    *  system filter's register lookups — this table reads no other check
    *  data. */
@@ -417,6 +422,14 @@ export default function ReviewRiskTable({
           }}
           onChangeOne={onChange}
           onClear={() => setSelected(new Set())}
+          onDelete={
+            onDeleteMany
+              ? () => {
+                  onDeleteMany(selectedFindings.map((f) => f.id));
+                  setSelected(new Set());
+                }
+              : undefined
+          }
         />
       )}
 
@@ -1102,6 +1115,7 @@ function BulkBar({
   onApply,
   onChangeOne,
   onClear,
+  onDelete,
 }: {
   count: number;
   /** The actual selected records, not just how many — the AI tools below
@@ -1118,7 +1132,10 @@ function BulkBar({
    *  across every selected row with an empty patch on all but one. */
   onChangeOne: (id: string, patch: Partial<Finding>) => void;
   onClear: () => void;
+  /** Present only when the screen allows deleting. */
+  onDelete?: () => void;
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [impactAdd, setImpactAdd] = useState<string[]>([]);
   const [impactRemove, setImpactRemove] = useState<string[]>([]);
   const [causeAdd, setCauseAdd] = useState<string[]>([]);
@@ -1135,9 +1152,40 @@ function BulkBar({
     >
       <div className="mb-2 flex items-center justify-between">
         <b className="text-[11.5px]">{count} selected</b>
-        <button type="button" onClick={onClear} className="text-[10.5px] underline" style={{ color: "var(--ink-3)" }}>
-          Clear
-        </button>
+        <div className="flex items-center gap-3">
+          {onDelete &&
+            (confirmDelete ? (
+              <span className="flex items-center gap-2 text-[10.5px]" style={{ color: "var(--bad)" }}>
+                Delete {count} finding{count === 1 ? "" : "s"}? This cannot be undone.
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmDelete(false);
+                    onDelete();
+                  }}
+                  className="rounded-[6px] px-2 py-[3px] font-semibold"
+                  style={{ background: "var(--bad)", color: "#fff" }}
+                >
+                  Yes, delete
+                </button>
+                <button type="button" onClick={() => setConfirmDelete(false)} className="underline" style={{ color: "var(--ink-3)" }}>
+                  Keep
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                className="text-[10.5px] font-semibold underline"
+                style={{ color: "var(--bad)" }}
+              >
+                Delete selected
+              </button>
+            ))}
+          <button type="button" onClick={onClear} className="text-[10.5px] underline" style={{ color: "var(--ink-3)" }}>
+            Clear
+          </button>
+        </div>
       </div>
 
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
