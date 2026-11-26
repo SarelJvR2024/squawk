@@ -599,16 +599,16 @@ export default function ReviewRiskTable({
                       <Chip
                         selected={!!f.safetyTag}
                         onClick={() => onChange(f.id, { safetyTag: !f.safetyTag })}
-                        title="Tag as a safety finding in the report"
+                        title="Immediate safety concern: a hazard to people or operations that needs attention now. Reported separately from Critical."
                       >
-                        Safety
+                        Safety concern
                       </Chip>
                       <Chip
                         selected={!!f.critical}
                         onClick={() => onChange(f.id, { critical: !f.critical })}
-                        title="Tag as critical"
+                        title="Critical item to attend to: a serious finding that must be dealt with. Reported separately from Safety concern."
                       >
-                        Critical
+                        Critical item
                       </Chip>
                       {/* Delete this row — Sarel, 26 Nov 2026: "add a feature
                           to delete a row". Same delete as "Delete selected"
