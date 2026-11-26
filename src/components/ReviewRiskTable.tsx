@@ -69,8 +69,9 @@ import { useEvidenceItems, useFieldSaveStatus, useStore, useVisitId } from "@/li
 import { getBlob, useBlobUrl } from "@/lib/media";
 import { assist, polishContext, transcribe, useAssistAvailable, useTranscribeAvailable } from "@/lib/assist";
 import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
-import { IconCamera, IconMic, IconSpark } from "@/components/ui/icons";
+import { IconCamera, IconClipboard, IconEye, IconMic, IconSpark, IconTeam } from "@/components/ui/icons";
 import { basicTidy, wordDiff } from "@/lib/wordDiff";
+import { evidenceChannelStatus, inspectionStatus, interviewStatus, TONE_COLOUR, type ChannelStatus } from "@/lib/triageStatus";
 import EvidenceQuickCapture from "@/components/EvidenceQuickCapture";
 import type { Attachment, Check, Finding, Response } from "@/lib/types";
 
@@ -487,6 +488,26 @@ export default function ReviewRiskTable({
           Type · Location/Hierarchy · Finding/comment · Root cause · Impact
           · Timeline · Evidence. */}
       <div className="overflow-x-auto rounded-[11px] border" style={{ borderColor: "var(--line)" }}>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-3 py-1.5 text-[10.5px]" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
+          <span className="inline-flex items-center gap-1"><IconTeam width={13} height={13} /> Interview</span>
+          <span className="inline-flex items-center gap-1"><IconClipboard width={13} height={13} /> Evidence</span>
+          <span className="inline-flex items-center gap-1"><IconEye width={13} height={13} /> Inspection</span>
+          <span>&middot;</span>
+          {(
+            [
+              ["good", "Done, no issues"],
+              ["bad", "Issues found / non-compliance"],
+              ["warn", "More evidence needed / not verified"],
+              ["na", "N/A"],
+              ["none", "Not done yet"],
+            ] as const
+          ).map(([tone, label]) => (
+            <span key={tone} className="inline-flex items-center gap-1">
+              <span style={{ width: 9, height: 9, borderRadius: 9, background: TONE_COLOUR[tone], display: "inline-block" }} />
+              {label}
+            </span>
+          ))}
+        </div>
         <table className="w-full text-[11.5px]">
           <thead>
             <tr style={{ background: "var(--sunken)" }}>
@@ -644,6 +665,27 @@ export default function ReviewRiskTable({
                     ) : (
                       <Pill tone="neutral">General</Pill>
                     )}
+                    {/* Status of the three ways a check is assessed — Sarel,
+                        26 Nov 2026. Colour = status; hover or long-press for
+                        the words. Legend above the table. */}
+                    {(() => {
+                      const chk = f.checkId && f.originVisit === visitId ? responses[f.checkId] : undefined;
+                      const items: { key: string; Icon: typeof IconEye; name: string; st: ChannelStatus }[] = [
+                        { key: "i", Icon: IconTeam, name: "Interview", st: interviewStatus(chk) },
+                        { key: "e", Icon: IconClipboard, name: "Evidence", st: evidenceChannelStatus(chk) },
+                        { key: "s", Icon: IconEye, name: "Inspection", st: inspectionStatus(chk) },
+                      ];
+                      return (
+                        <div className="mt-1.5 flex items-center gap-[8px]">
+                          {items.map(({ key, Icon, name, st }) => (
+                            <span key={key} title={st.label} aria-label={st.label} role="img" className="inline-flex" style={{ color: TONE_COLOUR[st.tone] }}>
+                              <Icon width={18} height={18} />
+                              <span className="sr-only">{name}</span>
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </td>
 
                   {/* Finding — Sarel: "remove duplication of the same

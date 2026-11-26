@@ -120,5 +120,17 @@ check("Wording cleanup: side-by-side review with highlighted changes, Basic tidy
   assert.ok(t.includes("wordDiff(f.description, suggestion)") && t.includes("Basic tidy") && t.includes("Accept all"));
   assert.ok(src("../src/app/api/assist/route.ts").includes("ANTHROPIC_API_KEY in the Vercel project settings"));
 });
+const ts = await import("../src/lib/triageStatus.ts");
+check("Triage row status icons: interview, evidence and inspection each coloured by status (done, issues, more evidence, N/A, not done)", () => {
+  assert.equal(ts.interviewStatus({ compliance: "C" }).tone, "good");
+  assert.equal(ts.interviewStatus({ compliance: "NC" }).tone, "bad");
+  assert.equal(ts.interviewStatus({ compliance: "N/A" }).tone, "na");
+  assert.equal(ts.interviewStatus(undefined).tone, "none");
+  assert.equal(ts.inspectionStatus({ siteInspection: "NC" }).tone, "bad");
+  assert.equal(ts.evidenceChannelStatus({ evidenceStatus: "toBeProvided", evidenceVerdict: null }).tone, "warn");
+  assert.equal(ts.evidenceChannelStatus({ evidenceVerdict: "NC" }).tone, "bad");
+  const t = src("../src/components/ReviewRiskTable.tsx");
+  assert.ok(t.includes("interviewStatus(chk)") && t.includes("evidenceChannelStatus(chk)") && t.includes("inspectionStatus(chk)") && t.includes("Issues found / non-compliance"));
+});
 console.log(failed ? `${failed} FAILED` : "all passed");
 process.exit(failed ? 1 : 0);
