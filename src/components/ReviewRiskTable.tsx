@@ -70,6 +70,7 @@ import { getBlob, useBlobUrl } from "@/lib/media";
 import { assist, polishContext, transcribe, useAssistAvailable, useTranscribeAvailable } from "@/lib/assist";
 import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
 import { IconCamera, IconMic, IconSpark } from "@/components/ui/icons";
+import EvidenceQuickCapture from "@/components/EvidenceQuickCapture";
 import type { Attachment, Check, Finding, Response } from "@/lib/types";
 
 /** The sort key an empty/absent Asset system sorts under — see `visible`'s
@@ -169,6 +170,7 @@ export default function ReviewRiskTable({
   );
   const aiOn = useAssistAvailable();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
   /* Inline photo thumbnails (below) open here full-size rather than
      navigating away — a lightbox over the table, not a second screen. */
   const [lightbox, setLightbox] = useState<Attachment | null>(null);
@@ -357,6 +359,26 @@ export default function ReviewRiskTable({
             to. It reads no data from here — the new tab shares this same
             browser's IndexedDB, so it sees the same findings without a
             second copy passed through the URL. */}
+        {/* REQUEST EVIDENCE — Sarel, 26 Nov 2026: "add a link to capture
+            evidence request from the triage page". Opens the existing quick
+            capture (same addEvidenceItem write as the Evidence tab and
+            /evidence) so a gap noticed while triaging is logged on the spot. */}
+        <button
+          type="button"
+          aria-expanded={evidenceOpen}
+          onClick={() => setEvidenceOpen((o) => !o)}
+          className="ml-auto flex h-[30px] items-center rounded-[8px] border px-3 text-[11px] font-semibold"
+          style={{ borderColor: "var(--line-2)", color: "var(--ink-2)", background: "var(--panel)" }}
+        >
+          Request evidence
+        </button>
+        <a
+          href="/evidence"
+          className="flex h-[30px] items-center text-[11px] underline"
+          style={{ color: "var(--ink-3)" }}
+        >
+          Evidence log
+        </a>
         {/* CLEAN UP WORDING — Sarel, 26 Nov 2026: "On triage, add a button to
             allow cleanup of findings where it will give proper cleanup
             technical wording, and allow user to approve changes or reject
@@ -380,12 +402,22 @@ export default function ReviewRiskTable({
               ? "Propose cleaner technical wording for every finding shown, then accept or reject each one"
               : "Needs the assistant switched on for this deployment (ANTHROPIC_API_KEY)"
           }
-          className="ml-auto flex h-[30px] items-center gap-[5px] rounded-[8px] border px-3 text-[11px] font-semibold disabled:opacity-50"
+          className="flex h-[30px] items-center gap-[5px] rounded-[8px] border px-3 text-[11px] font-semibold disabled:opacity-50"
           style={{ borderColor: "var(--acc-line)", color: "var(--acc)", background: "var(--acc-soft)" }}
         >
           <IconSpark width={12} height={12} />
           Clean up wording
         </button>
+        <a
+          href="/report?discipline=all"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="One report for every discipline at this airport"
+          className="flex h-[30px] items-center rounded-[8px] border px-3 text-[11px] font-semibold"
+          style={{ borderColor: "var(--acc)", color: "var(--acc)", background: "var(--panel)" }}
+        >
+          Airport report
+        </a>
         {filter.kind === "discipline" ? (
           <a
             href={`/report?discipline=${encodeURIComponent(filter.discipline)}`}
@@ -411,6 +443,7 @@ export default function ReviewRiskTable({
 
       {/* Bulk bar — §3: set severity/likelihood/impact/root cause for every
           selected row at once. */}
+      {evidenceOpen && <EvidenceQuickCapture />}
       {selected.size > 0 && (
         <BulkBar
           count={selected.size}
@@ -550,6 +583,37 @@ export default function ReviewRiskTable({
                       >
                         Internal
                       </Chip>
+                      {/* Tags — Sarel, 26 Nov 2026: "add an option to add
+                          immediate, safety and critical tags". Critical and
+                          Safety are the report tags the Issues count chips
+                          already filter on; Immediate sets the Timeline to
+                          Immediate (the same field the Timeline select edits)
+                          and clears it again when switched off. */}
+                      <Chip
+                        selected={f.timeline === "Immediate"}
+                        onClick={() => onChange(f.id, { timeline: f.timeline === "Immediate" ? undefined : "Immediate" })}
+                        title="Immediate: act on this now (sets the Timeline to Immediate)"
+                      >
+                        Immediate
+                      </Chip>
+                      <Chip
+                        selected={!!f.safetyTag}
+                        onClick={() => onChange(f.id, { safetyTag: !f.safetyTag })}
+                        title="Tag as a safety finding in the report"
+                      >
+                        Safety
+                      </Chip>
+                      <Chip
+                        selected={!!f.critical}
+                        onClick={() => onChange(f.id, { critical: !f.critical })}
+                        title="Tag as critical"
+                      >
+                        Critical
+                      </Chip>
+                      {/* Delete this row — Sarel, 26 Nov 2026: "add a feature
+                          to delete a row". Same delete as "Delete selected"
+                          (onDeleteMany), for one finding, with a confirm. */}
+                      {onDeleteMany && <RowDelete title={f.title || f.id} onConfirm={() => onDeleteMany([f.id])} />}
                     </div>
                   </td>
 
@@ -944,7 +1008,7 @@ function MultiSelectCell({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={label}
-        className="flex min-h-[26px] max-w-[150px] flex-wrap items-center gap-[4px] rounded-[6px] px-[5px] py-[3px] text-left transition-[var(--t)]"
+        className="flex min-h-[26px] max-w-[220px] flex-wrap items-center gap-[4px] rounded-[6px] px-[5px] py-[3px] text-left transition-[var(--t)]"
         style={{ background: open ? "var(--acc-soft)" : "transparent" }}
       >
         {selected.length === 0 ? (
@@ -956,12 +1020,14 @@ function MultiSelectCell({
           </span>
         ) : (
           <>
-            <Pill tone="neutral">{selected[0]}</Pill>
-            {selected.length > 1 && (
-              <span className="font-mono text-[9.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
-                +{selected.length - 1}
-              </span>
-            )}
+            {/* Every selected value is shown — Sarel, 26 Nov 2026: "don't
+                hide multiple root cause and impact, I need to see all
+                selected ones". The old "first + N more" hid them. */}
+            {selected.map((v) => (
+              <Pill key={v} tone="neutral">
+                {v}
+              </Pill>
+            ))}
           </>
         )}
       </button>
@@ -1062,7 +1128,7 @@ function ActionPlanCell({
           <div
             role="dialog"
             aria-label={label}
-            className="absolute left-0 top-[calc(100%+4px)] z-[75] w-[280px] rounded-[10px] border p-[8px]"
+            className="absolute right-0 top-[calc(100%+4px)] z-[75] w-[min(440px,90vw)] rounded-[10px] border p-[8px]"
             style={{ background: "var(--menu-bg)", borderColor: "var(--menu-line)", boxShadow: "var(--e3)" }}
           >
             <textarea
@@ -1071,13 +1137,48 @@ function ActionPlanCell({
               value={value}
               onChange={(e) => onChange(e.target.value)}
               placeholder="What the airport will do to close this out…"
-              className="min-h-[90px] w-full resize-y rounded-[6px] border px-2 py-1.5 text-[11.5px]"
+              className="min-h-[200px] w-full resize-y rounded-[6px] border px-2 py-1.5 text-[12.5px] leading-[1.5]"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             />
           </div>
         </>
       )}
     </div>
+  );
+}
+
+function RowDelete({ title, onConfirm }: { title: string; onConfirm: () => void }) {
+  const [ask, setAsk] = useState(false);
+  if (!ask)
+    return (
+      <button
+        type="button"
+        onClick={() => setAsk(true)}
+        aria-label={`Delete ${title}`}
+        className="rounded-[6px] border px-1.5 py-1 text-[10.5px] font-semibold"
+        style={{ borderColor: "var(--bad-line)", color: "var(--bad)", background: "var(--panel)" }}
+      >
+        Delete
+      </button>
+    );
+  return (
+    <span className="flex flex-wrap items-center gap-1.5 text-[10.5px]" style={{ color: "var(--bad)" }}>
+      Delete this finding? Cannot be undone.
+      <button
+        type="button"
+        onClick={() => {
+          setAsk(false);
+          onConfirm();
+        }}
+        className="rounded-[6px] px-2 py-[3px] font-semibold"
+        style={{ background: "var(--bad)", color: "#fff" }}
+      >
+        Yes, delete
+      </button>
+      <button type="button" onClick={() => setAsk(false)} className="underline" style={{ color: "var(--ink-3)" }}>
+        Keep
+      </button>
+    </span>
   );
 }
 

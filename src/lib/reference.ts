@@ -16,6 +16,8 @@ export interface CheckReference {
   icao?: { status: "cited" | "indicative"; items: string[] };
   freq?: { tasks: string[]; meaning: string[] };
   evidence?: string[];
+  inspection?: { t: string; k: "form" | "task" | "none"; s?: string }[];
+  maintenance?: { t: string; s?: string }[];
   site?: { look?: string | null; pass?: string | null };
   demo?: { approach?: string; ask?: string; test?: string; proves?: string };
   specs?: RefSpec[];

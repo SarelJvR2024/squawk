@@ -90,7 +90,43 @@ export function ReferencePanel({ check }: { check: Check }) {
         )}
       </Sec>
 
-      <Sec title="Evidence needed">{r?.evidence ? <List items={r.evidence} /> : <Nil>None listed.</Nil>}</Sec>
+      <Sec title="Documents & reports">{r?.evidence ? <List items={r.evidence} /> : <Nil>None listed.</Nil>}</Sec>
+
+      <Sec title="Inspection records & templates">
+        {r?.inspection?.length ? (
+          <ul className="list-disc pl-4 text-[12.5px] leading-[1.7]" style={body}>
+            {r.inspection.map((i, n) => (
+              <li key={n}>
+                {i.t}
+                {i.s ? <span style={sub}> [{i.s}]</span> : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <Nil>Not an inspected item: the evidence is the documents above.</Nil>
+        )}
+        <p className="mt-1 text-[11px]" style={sub}>
+          Ask for the blank template as well as completed copies, so you can see what the inspector was meant to check.
+        </p>
+      </Sec>
+
+      <Sec title="Maintenance & PM information to request">
+        {r?.maintenance?.length ? (
+          <ul className="list-disc pl-4 text-[12.5px] leading-[1.7]" style={body}>
+            {r.maintenance.map((i, n) => (
+              <li key={n}>
+                {i.t}
+                {i.s ? <span style={sub}> [{i.s}]</span> : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <Nil>No maintenance programme applies to this check.</Nil>
+        )}
+        <Link href="/evidence" className="mt-1 inline-block text-[11.5px] underline" style={sub}>
+          Log an evidence request
+        </Link>
+      </Sec>
 
       <Sec title="What to see on site">
         {r?.site ? (
