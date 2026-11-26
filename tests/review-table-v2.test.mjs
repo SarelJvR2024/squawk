@@ -172,7 +172,7 @@ check(
    into one "Location / Hierarchy" header — Sarel: "combine Discipline
    and Audit Check into a single clean 'Location / Hierarchy' column...
    remove redundant repetition of 'General' across two columns." */
-for (const col of ["Type", "Location / Hierarchy", "Root cause", "Impact", "Timeline", "Evidence"]) {
+for (const col of ["Type", "Location / Hierarchy", "Root cause", "Impact", "Timeline", "Photos"]) {
   check(`the table always renders a "${col}" column header`, new RegExp(`<Th>${col}</Th>|>${col}<`).test(table));
 }
 check(
@@ -268,10 +268,10 @@ check(
  * need to allow for inline editing." The panel's own chips are unchanged
  * and still work; both write through the same onChange. */
 check(
-  "the table's Type cell is inline-editable, a <select> over findingTypeFor's own three values",
+  "the table's Type cell is inline-editable: all three types shown as single-select buttons over findingTypeFor's own values (Sarel, 26 Nov 2026)",
   /const type = findingTypeFor\(f\)/.test(table) &&
-    /value={type}/.test(table) &&
-    /onChange={\(e\) =>\s*\n\s*onChange\(f\.id, {\s*\n\s*findingType: e\.target\.value as/.test(table) &&
+    /role="radiogroup"/.test(table) &&
+    /onClick=\{\(\) => onChange\(f\.id, \{ findingType: t \}\)\}/.test(table) &&
     /FINDING_TYPE_LABEL\[t\]/.test(table)
 );
 check(
@@ -755,8 +755,8 @@ check(
    headings, Root cause/Impact editing, Audit check column width --------- */
 
 check(
-  "the inline photo thumbnail grew from 28px to 56px — Sarel: \"increase the size of the photo so that you can see it properly inline\"",
-  /width: 56, height: 56/.test(table) && !/width: 28, height: 28/.test(table)
+  "the inline photo thumbnail is now 120px — Sarel, 26 Nov 2026: \"increase the size of the photo\"",
+  /width: 120, height: 120/.test(table) && !/width: 56, height: 56/.test(table)
 );
 check(
   "the Finding column no longer prints \"AUDIT CHECK NOTE\"/\"FINDING\"/\"EVIDENCE REVIEW\" eyebrow labels — Sarel: \"no need for headings in the column\"",

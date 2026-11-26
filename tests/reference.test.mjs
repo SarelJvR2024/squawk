@@ -97,5 +97,28 @@ check("Report: observations have their own section, apart from non-compliances",
   const r = src("../src/components/ReviewRiskReport.tsx");
   assert.ok(r.includes("Observations &middot; {obsList.length}") && r.includes("Non-compliances &middot; {ncList.length}") && !r.includes("All findings &middot;"));
 });
+check("Triage row: check ref shown with the question, tags in their own multi-select column, delete in its own last column", () => {
+  const r = src("../src/components/ReviewRiskTable.tsx");
+  assert.ok(r.includes("{f.checkId}") && r.includes("<Th>Tags</Th>") && r.includes("Immediate safety concern") && r.includes("Immediate critical item"));
+  assert.ok(/far right of the row/.test(r) && /onDeleteMany && <RowDelete/.test(r));
+});
+check("Soft delete: findings are flagged not removed, hidden everywhere, restorable from Issues > Deleted", () => {
+  const st = src("../src/lib/store.ts");
+  assert.ok(st.includes("deletedAt: Date.now()") && st.includes("restoreFinding: (id) =>") && st.includes("useDeletedFindings"));
+  assert.ok(!/findings: s\.findings\.filter\(\(x\) => x\.id !== id\)/.test(st));
+  const i = src("../src/app/(app)/issues/page.tsx");
+  assert.ok(i.includes("function DeletedList") && i.includes("Restore"));
+});
+check("Triage: evidence-requested column with comments; Close button on the right-hand panel; professional report footer", () => {
+  const t = src("../src/components/ReviewRiskTable.tsx");
+  assert.ok(t.includes("Evidence requested &amp; comments") && t.includes("e.checkIds.includes(f.checkId!)") && t.includes("Evidence shows: "));
+  assert.ok(src("../src/components/ReviewRiskPanel.tsx").includes("\u2715 Close") || src("../src/components/ReviewRiskPanel.tsx").includes("✕ Close"));
+  assert.ok(src("../src/components/ReviewRiskReport.tsx").includes("not yet been assessed or completed"));
+});
+check("Wording cleanup: side-by-side review with highlighted changes, Basic tidy fallback, and a plain explanation when the AI key is rejected", () => {
+  const t = src("../src/components/ReviewRiskTable.tsx");
+  assert.ok(t.includes("wordDiff(f.description, suggestion)") && t.includes("Basic tidy") && t.includes("Accept all"));
+  assert.ok(src("../src/app/api/assist/route.ts").includes("ANTHROPIC_API_KEY in the Vercel project settings"));
+});
 console.log(failed ? `${failed} FAILED` : "all passed");
 process.exit(failed ? 1 : 0);

@@ -65,11 +65,12 @@ import {
 } from "@/lib/reviewRisk";
 import { ALL_DISCIPLINES, checksAt, systemsAt, systemsOf } from "@/lib/register";
 import { entity as entityOf } from "@/lib/programme";
-import { useFieldSaveStatus, useStore, useVisitId } from "@/lib/store";
+import { useEvidenceItems, useFieldSaveStatus, useStore, useVisitId } from "@/lib/store";
 import { getBlob, useBlobUrl } from "@/lib/media";
 import { assist, polishContext, transcribe, useAssistAvailable, useTranscribeAvailable } from "@/lib/assist";
 import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
 import { IconCamera, IconMic, IconSpark } from "@/components/ui/icons";
+import { basicTidy, wordDiff } from "@/lib/wordDiff";
 import EvidenceQuickCapture from "@/components/EvidenceQuickCapture";
 import type { Attachment, Check, Finding, Response } from "@/lib/types";
 
@@ -168,7 +169,6 @@ export default function ReviewRiskTable({
   const saveStatus = useFieldSaveStatus(
     lastEditedId ? (findings.find((f) => f.id === lastEditedId)?.updatedAt ?? null) : null
   );
-  const aiOn = useAssistAvailable();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   /* Inline photo thumbnails (below) open here full-size rather than
@@ -180,6 +180,7 @@ export default function ReviewRiskTable({
    *  the readable requirement text takes their place everywhere a check is
    *  linked. Built once per entity rather than re-scanning checksAt() on
    *  every row's render. */
+  const evidenceItems = useEvidenceItems();
   const checksById = useMemo(() => {
     const m = new Map<string, Check>();
     for (const c of checksAt(entityCode)) m.set(c.id, c);
@@ -398,9 +399,7 @@ export default function ReviewRiskTable({
             );
           }}
           title={
-            aiOn
-              ? "Propose cleaner technical wording for every finding shown, then accept or reject each one"
-              : "Needs the assistant switched on for this deployment (ANTHROPIC_API_KEY)"
+            "Propose cleaner technical wording for every finding shown (AI, or Basic tidy), then accept or reject each one"
           }
           className="flex h-[30px] items-center gap-[5px] rounded-[8px] border px-3 text-[11px] font-semibold disabled:opacity-50"
           style={{ borderColor: "var(--acc-line)", color: "var(--acc)", background: "var(--acc-soft)" }}
@@ -502,6 +501,7 @@ export default function ReviewRiskTable({
                 />
               </th>
               <Th>Type</Th>
+              <Th>Tags</Th>
               <Th>Location / Hierarchy</Th>
               <th className="p-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
                 Finding
@@ -510,7 +510,9 @@ export default function ReviewRiskTable({
               <Th>Impact</Th>
               <Th>Timeline</Th>
               <Th>Action plan</Th>
-              <Th>Evidence</Th>
+              <Th>Evidence requested &amp; comments</Th>
+              <Th>Photos</Th>
+              <Th>{""}</Th>
             </tr>
           </thead>
           <tbody>
@@ -551,44 +553,39 @@ export default function ReviewRiskTable({
                       reports." See ReviewRiskReport.tsx for the one
                       place that flag is actually read. */}
                   <td className="p-2" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex flex-col items-start gap-[4px]">
-                      <select
-                        aria-label={`Type for ${f.title || f.id}`}
-                        value={type}
-                        onChange={(e) =>
-                          onChange(f.id, {
-                            findingType: e.target.value as
-                              | "non-compliance"
-                              | "observation"
-                              | "needs-evidence",
-                          })
-                        }
-                        className="rounded-[6px] border px-1.5 py-1 text-[10.5px] font-semibold"
-                        style={{
-                          background: type === "non-compliance" ? "var(--bad-bg)" : "var(--panel)",
-                          borderColor: type === "non-compliance" ? "var(--bad-line)" : "var(--line-2)",
-                          color: type === "non-compliance" ? "var(--bad)" : "var(--ink-2)",
-                        }}
-                      >
-                        {(["non-compliance", "observation", "needs-evidence"] as const).map((t) => (
-                          <option key={t} value={t}>
+                    {/* One click picks the type — all three shown, single
+                        select (Sarel, 26 Nov 2026). */}
+                    <div role="radiogroup" aria-label={`Type for ${f.title || f.id}`} className="flex flex-col items-stretch gap-[4px]">
+                      {(["observation", "non-compliance", "needs-evidence"] as const).map((t) => {
+                        const on = type === t;
+                        const bad = t === "non-compliance";
+                        return (
+                          <button
+                            key={t}
+                            type="button"
+                            role="radio"
+                            aria-checked={on}
+                            onClick={() => onChange(f.id, { findingType: t })}
+                            className="rounded-[6px] border px-2 py-1 text-left text-[10.5px] font-semibold"
+                            style={{
+                              background: on ? (bad ? "var(--bad-bg)" : "var(--acc-soft)") : "var(--panel)",
+                              borderColor: on ? (bad ? "var(--bad-line)" : "var(--acc)") : "var(--line-2)",
+                              color: on ? (bad ? "var(--bad)" : "var(--acc)") : "var(--ink-3)",
+                            }}
+                          >
+                            {on ? "\u25CF " : "\u25CB "}
                             {FINDING_TYPE_LABEL[t]}
-                          </option>
-                        ))}
-                      </select>
-                      <Chip
-                        selected={!!f.internalOnly}
-                        onClick={() => onChange(f.id, { internalOnly: !f.internalOnly })}
-                        title={`Keep "${f.title || f.id}" internal — leave it out of reports`}
-                      >
-                        Internal
-                      </Chip>
-                      {/* Tags — Sarel, 26 Nov 2026: "add an option to add
-                          immediate, safety and critical tags". Critical and
-                          Safety are the report tags the Issues count chips
-                          already filter on; Immediate sets the Timeline to
-                          Immediate (the same field the Timeline select edits)
-                          and clears it again when switched off. */}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </td>
+
+                  {/* Tags — multi-select: any combination. Immediate sets the
+                      Timeline to Immediate; Internal keeps the row out of
+                      reports. */}
+                  <td className="p-2 align-top" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-col items-start gap-[4px]">
                       <Chip
                         selected={f.timeline === "Immediate"}
                         onClick={() => onChange(f.id, { timeline: f.timeline === "Immediate" ? undefined : "Immediate" })}
@@ -601,19 +598,22 @@ export default function ReviewRiskTable({
                         onClick={() => onChange(f.id, { safetyTag: !f.safetyTag })}
                         title="Immediate safety concern: a hazard to people or operations that needs attention now. Reported separately from Critical."
                       >
-                        Safety concern
+                        Immediate safety concern
                       </Chip>
                       <Chip
                         selected={!!f.critical}
                         onClick={() => onChange(f.id, { critical: !f.critical })}
-                        title="Critical item to attend to: a serious finding that must be dealt with. Reported separately from Safety concern."
+                        title="Immediate critical item: a serious finding that must be dealt with. Reported separately from Safety concern."
                       >
-                        Critical item
+                        Immediate critical item
                       </Chip>
-                      {/* Delete this row — Sarel, 26 Nov 2026: "add a feature
-                          to delete a row". Same delete as "Delete selected"
-                          (onDeleteMany), for one finding, with a confirm. */}
-                      {onDeleteMany && <RowDelete title={f.title || f.id} onConfirm={() => onDeleteMany([f.id])} />}
+                      <Chip
+                        selected={!!f.internalOnly}
+                        onClick={() => onChange(f.id, { internalOnly: !f.internalOnly })}
+                        title={`Keep "${f.title || f.id}" internal — leave it out of reports`}
+                      >
+                        Internal
+                      </Chip>
                     </div>
                   </td>
 
@@ -692,6 +692,9 @@ export default function ReviewRiskTable({
                         <div className="flex flex-col gap-[6px]">
                           {question && (
                             <div className="whitespace-normal break-words text-[10.5px] italic" style={{ color: "var(--ink-3)" }}>
+                              <span className="mr-1.5 rounded-[4px] border px-1 font-mono text-[9.5px] not-italic font-semibold" style={{ borderColor: "var(--line-2)", color: "var(--ink-2)" }}>
+                                {f.checkId}
+                              </span>
                               {question}
                             </div>
                           )}
@@ -788,6 +791,53 @@ export default function ReviewRiskTable({
                     />
                   </td>
 
+                  {/* EVIDENCE REQUESTED AND COMMENTS ON IT — Sarel, 26 Nov 2026:
+                      "add a column for evidence requested and comments on the
+                      evidence." The evidence requests logged against this
+                      finding's audit check (EvidenceItem.checkIds), each with
+                      where it stands, plus what was said about it: the
+                      analysis note, why it was insufficient or unavailable,
+                      and the check's own "what the evidence proves". */}
+                  <td className="min-w-[200px] max-w-[280px] p-2 align-top" onClick={(e) => e.stopPropagation()}>
+                    {(() => {
+                      const items = f.checkId ? evidenceItems.filter((e) => e.checkIds.includes(f.checkId!)) : [];
+                      const proves = f.checkId ? responses[f.checkId]?.evidenceProves?.trim() : "";
+                      if (items.length === 0 && !proves)
+                        return <span className="text-[10.5px]" style={{ color: "var(--ink-4)" }}>None requested</span>;
+                      return (
+                        <div className="flex flex-col gap-[6px]">
+                          {items.map((e) => {
+                            const status = e.unavailableAt
+                              ? "Not available"
+                              : e.insufficientAt
+                                ? "Insufficient"
+                                : e.receivedAt
+                                  ? "Received"
+                                  : e.requestedAt
+                                    ? "Requested"
+                                    : "Not yet requested";
+                            const comment = [e.analysisNote, e.insufficientReason, e.unavailableReason].filter((t) => t && t.trim()).join(" · ");
+                            return (
+                              <div key={e.id} className="text-[10.5px]">
+                                <div className="font-semibold" style={{ color: "var(--ink-2)" }}>{e.title || e.id}</div>
+                                <div style={{ color: e.unavailableAt || e.insufficientAt ? "var(--bad)" : e.receivedAt ? "var(--good)" : "var(--ink-3)" }}>
+                                  {status}
+                                </div>
+                                {comment && <div className="whitespace-normal break-words" style={{ color: "var(--ink-3)" }}>{comment}</div>}
+                              </div>
+                            );
+                          })}
+                          {proves && (
+                            <div className="whitespace-normal break-words text-[10.5px]" style={{ color: "var(--ink-2)" }}>
+                              <span className="font-semibold">Evidence shows: </span>
+                              {proves}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </td>
+
                   {/* Evidence — Sarel: "add the photos in the row so that
                       the photos can be viewed inline." Up to 4 small
                       thumbnails (the finding's own photo evidence; EvidenceItem
@@ -795,8 +845,8 @@ export default function ReviewRiskTable({
                       tapping one opens it full-size in the lightbox below
                       without leaving the table; "+N" for anything beyond
                       that rather than growing the row unboundedly. */}
-                  <td className="p-2 align-top" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex flex-wrap items-center gap-[4px]">
+                  <td className="min-w-[250px] p-2 align-top" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-wrap items-center gap-[6px]">
                       {photoAttachments.slice(0, 4).map((a) => (
                         <EvidenceThumb key={a.id} attachment={a} onOpen={() => setLightbox(a)} />
                       ))}
@@ -814,6 +864,13 @@ export default function ReviewRiskTable({
                         <IconMic width={11} height={11} /> {voices}
                       </span>
                     </div>
+                  </td>
+
+                  {/* Delete — far right of the row, away from the tags, with a
+                      confirm step (Sarel, 26 Nov 2026: "move the delete
+                      button somewhere more user friendly"). */}
+                  <td className="p-2 align-top" onClick={(e) => e.stopPropagation()}>
+                    {onDeleteMany && <RowDelete title={f.title || f.id} onConfirm={() => onDeleteMany([f.id])} />}
                   </td>
                 </tr>
               );
@@ -897,7 +954,7 @@ function EvidenceThumb({ attachment, onOpen }: { attachment: Attachment; onOpen:
       onClick={onOpen}
       aria-label={attachment.caption ? `View photo: ${attachment.caption}` : "View photo"}
       className="block overflow-hidden rounded-[6px] border p-0"
-      style={{ borderColor: "var(--line-2)", width: 56, height: 56 }}
+      style={{ borderColor: "var(--line-2)", width: 120, height: 120 }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- a local blob/data URL, not a remote asset next/image can optimise */}
       <img src={src} alt="" className="h-full w-full object-cover" />
@@ -1381,6 +1438,8 @@ function BulkBar({
 type AiProposalState = "loading" | "proposed" | "applied" | "error";
 interface AiProposal {
   state: AiProposalState;
+  /** Produced by the offline Basic tidy, not the AI. */
+  basic?: boolean;
   text?: string;
   error?: string;
 }
@@ -1415,24 +1474,28 @@ function BulkSuggestWording({
   const aiOn = useAssistAvailable();
   const [proposals, setProposals] = useState<Record<string, AiProposal>>({});
   const [running, setRunning] = useState(false);
-  /* Same synchronous double-fire guard as BulkTranscribeVoiceNotes, same
-     reasoning — `running` state lags one render behind a raw click. Every
-     result here still sits behind its own Accept/Reject either way, so a
-     double-fire could only waste a duplicate "polish" call, never write
-     twice — but there is no reason to risk even that. */
+  /* Edited suggestion text, per finding, so the reviewer can tweak a
+     suggestion before accepting it. */
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  /* Same synchronous double-fire guard as before. */
   const runningRef = useRef(false);
 
   const eligible = findings.filter((f) => f.description.trim());
   const pending = eligible.filter((f) => !proposals[f.id] || proposals[f.id].state === "error");
-  const proposedCount = Object.values(proposals).filter((p) => p.state === "proposed").length;
+  const proposedList = eligible.filter((f) => proposals[f.id]?.state === "proposed");
   const appliedCount = Object.values(proposals).filter((p) => p.state === "applied").length;
+  const failed = eligible.filter((f) => proposals[f.id]?.state === "error");
 
-  async function run() {
+  async function run(offline = false) {
     if (runningRef.current) return;
     runningRef.current = true;
     setRunning(true);
     for (const f of eligible) {
       if (proposals[f.id]?.state === "proposed" || proposals[f.id]?.state === "applied") continue;
+      if (offline) {
+        setProposals((p) => ({ ...p, [f.id]: { state: "proposed", text: basicTidy(f.description), basic: true } }));
+        continue;
+      }
       setProposals((p) => ({ ...p, [f.id]: { state: "loading" } }));
       try {
         const text = await assist(
@@ -1461,96 +1524,152 @@ function BulkSuggestWording({
 
   function applyOne(f: Finding) {
     const prop = proposals[f.id];
-    if (!prop?.text) return;
-    onChangeOne(f.id, { description: prop.text });
+    const text = (edits[f.id] ?? prop?.text ?? "").trim();
+    if (!text) return;
+    onChangeOne(f.id, { description: text });
     setProposals((p) => ({ ...p, [f.id]: { ...prop, state: "applied" } }));
   }
 
-  function applyAllProposed() {
-    for (const f of eligible) if (proposals[f.id]?.state === "proposed") applyOne(f);
+  function rejectOne(id: string) {
+    setProposals((p) => {
+      const next = { ...p };
+      delete next[id];
+      return next;
+    });
   }
 
-  if (!aiOn)
-    return (
-      <div className="text-[10.5px]" style={{ color: "var(--ink-3)" }}>
-        Wording cleanup needs the assistant, which is not switched on for this deployment.
-      </div>
-    );
+  const reviewing = Object.keys(proposals).length > 0;
 
   return (
     <div>
       <div className="mb-1 text-[10px]" style={{ color: "var(--ink-3)" }}>
-        AI — rewrite each selected finding&rsquo;s notes, reviewed before anything is applied
+        Wording cleanup — rewrite each selected finding&rsquo;s notes; nothing changes until you accept it
       </div>
       <div className="flex flex-wrap items-center gap-[6px]">
-        <button
-          type="button"
-          onClick={() => void run()}
-          disabled={running || eligible.length === 0 || pending.length === 0}
-          className="flex items-center gap-[5px] rounded-[8px] px-[9px] py-[6px] text-[11px] font-semibold disabled:opacity-55"
-          style={{ background: "var(--acc)", color: "#fff" }}
-        >
-          <IconSpark width={12} height={12} />
-          {running ? "Suggesting…" : pending.length === 0 ? "All proposed" : `Suggest wording for ${pending.length}`}
-        </button>
-        {proposedCount > 0 && (
+        {aiOn && (
           <button
             type="button"
-            onClick={applyAllProposed}
-            className="rounded-[8px] border px-[9px] py-[6px] text-[11px] font-semibold"
-            style={{ borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+            onClick={() => void run(false)}
+            disabled={running || eligible.length === 0 || pending.length === 0}
+            className="flex items-center gap-[5px] rounded-[8px] px-[9px] py-[6px] text-[11px] font-semibold disabled:opacity-55"
+            style={{ background: "var(--acc)", color: "#fff" }}
           >
-            Apply {proposedCount} accepted
+            <IconSpark width={12} height={12} />
+            {running ? "Suggesting…" : pending.length === 0 ? "All proposed" : `AI cleanup for ${pending.length}`}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => void run(true)}
+          disabled={running || eligible.length === 0 || pending.length === 0}
+          className="rounded-[8px] border px-[9px] py-[6px] text-[11px] font-semibold disabled:opacity-55"
+          style={{ borderColor: "var(--line-2)", color: "var(--ink-2)", background: "var(--panel)" }}
+          title="Spelling, capital letters, full stops and plain wording. Works without the AI and adds no facts."
+        >
+          Basic tidy{aiOn ? "" : ` for ${pending.length}`}
+        </button>
+        {proposedList.length > 0 && (
+          <button
+            type="button"
+            onClick={() => proposedList.forEach(applyOne)}
+            className="rounded-[8px] px-[9px] py-[6px] text-[11px] font-semibold"
+            style={{ background: "var(--good)", color: "#fff" }}
+          >
+            Accept all {proposedList.length}
           </button>
         )}
         {appliedCount > 0 && <Pill tone="good">{appliedCount} applied</Pill>}
       </div>
-      {Object.keys(proposals).length > 0 && (
-        <div className="mt-1.5 flex max-h-[220px] flex-col gap-[6px] overflow-y-auto">
+      {!aiOn && (
+        <div className="mt-1 text-[10px]" style={{ color: "var(--ink-3)" }}>
+          The AI assistant is not switched on for this deployment, so Basic tidy is offered instead.
+        </div>
+      )}
+      {failed.length > 0 && (
+        <div role="alert" className="mt-1.5 rounded-[8px] border px-2 py-1.5 text-[10.5px]" style={{ borderColor: "var(--bad-line)", background: "var(--bad-bg)", color: "var(--bad)" }}>
+          {failed[0].id && proposals[failed[0].id]?.error}{" "}
+          {failed.length > 1 ? `(${failed.length} findings affected.) ` : ""}
+          <button type="button" onClick={() => void run(true)} className="font-semibold underline">
+            Use Basic tidy for these instead
+          </button>
+        </div>
+      )}
+      {reviewing && (
+        <div className="mt-2 flex flex-col gap-2">
           {eligible
-            .filter((f) => proposals[f.id])
+            .filter((f) => proposals[f.id] && proposals[f.id].state !== "error")
             .map((f) => {
               const prop = proposals[f.id];
+              const suggestion = edits[f.id] ?? prop.text ?? "";
+              const parts = prop.state === "proposed" ? wordDiff(f.description, suggestion) : [];
+              const changes = parts.filter((x) => x.kind !== "same").length;
               return (
-                <div
-                  key={f.id}
-                  className="rounded-[8px] border px-2 py-1.5 text-[10.5px]"
-                  style={{ borderColor: "var(--line-2)", background: "var(--panel)" }}
-                >
-                  <div className="mb-1 truncate font-semibold" style={{ color: "var(--ink-2)" }}>
-                    {f.title || f.id}
+                <div key={f.id} className="rounded-[10px] border p-2.5 text-[11.5px]" style={{ borderColor: "var(--line-2)", background: "var(--panel)" }}>
+                  <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                    <span className="font-semibold" style={{ color: "var(--ink)" }}>{f.title || f.id}</span>
+                    <span className="text-[10px]" style={{ color: "var(--ink-3)" }}>
+                      {f.discipline}{f.system ? ` · ${f.system}` : ""}
+                    </span>
+                    {prop.state === "proposed" && (
+                      <Pill tone={changes === 0 ? "neutral" : "warn"}>
+                        {changes === 0 ? "No change needed" : `${changes} change${changes === 1 ? "" : "s"}`}
+                      </Pill>
+                    )}
+                    {prop.basic && <Pill tone="neutral">Basic tidy</Pill>}
                   </div>
-                  {prop.state === "loading" && <div style={{ color: "var(--ink-4)" }}>Thinking…</div>}
-                  {prop.state === "error" && <div style={{ color: "var(--bad)" }}>{prop.error}</div>}
+                  {prop.state === "loading" && <div style={{ color: "var(--ink-4)" }}>Working on it…</div>}
+                  {prop.state === "applied" && <div style={{ color: "var(--good)" }}>Applied.</div>}
                   {prop.state === "proposed" && (
                     <>
-                      <div
-                        className="mb-1 rounded-[6px] border px-1.5 py-1"
-                        style={{ borderColor: "var(--acc)", background: "var(--acc-soft)" }}
-                      >
-                        {prop.text}
+                      <div className="grid gap-2 md:grid-cols-2">
+                        <div>
+                          <div className="mb-0.5 text-[9.5px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)" }}>
+                            Now (removed words struck through)
+                          </div>
+                          <div className="whitespace-pre-wrap rounded-[6px] border px-2 py-1.5 leading-[1.5]" style={{ borderColor: "var(--line-2)" }}>
+                            {parts.filter((x) => x.kind !== "add").map((x, i) =>
+                              x.kind === "del" ? (
+                                <span key={i} style={{ background: "var(--bad-bg)", color: "var(--bad)", textDecoration: "line-through" }}>{x.text}</span>
+                              ) : (
+                                <span key={i}>{x.text}</span>
+                              )
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="mb-0.5 text-[9.5px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)" }}>
+                            Suggested (added words highlighted)
+                          </div>
+                          <div className="whitespace-pre-wrap rounded-[6px] border px-2 py-1.5 leading-[1.5]" style={{ borderColor: "var(--acc)", background: "var(--acc-soft)" }}>
+                            {parts.filter((x) => x.kind !== "del").map((x, i) =>
+                              x.kind === "add" ? (
+                                <span key={i} style={{ background: "var(--good-bg, #d9f2e3)", color: "var(--good)", fontWeight: 600 }}>{x.text}</span>
+                              ) : (
+                                <span key={i}>{x.text}</span>
+                              )
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex gap-[6px]">
-                        <button
-                          type="button"
-                          onClick={() => applyOne(f)}
-                          className="rounded-[5px] px-[7px] py-[3px] text-[10px] font-semibold"
-                          style={{ background: "var(--acc)", color: "#fff" }}
-                        >
+                      <details className="mt-1.5">
+                        <summary className="cursor-pointer text-[10.5px]" style={{ color: "var(--ink-3)" }}>Edit the suggestion before accepting</summary>
+                        <textarea
+                          value={suggestion}
+                          onChange={(e) => setEdits((c) => ({ ...c, [f.id]: e.target.value }))}
+                          className="mt-1 min-h-[90px] w-full rounded-[6px] border p-2 text-[11.5px]"
+                          style={{ borderColor: "var(--line-2)", background: "var(--panel)", color: "var(--ink)" }}
+                        />
+                      </details>
+                      <div className="mt-2 flex gap-2">
+                        <button type="button" onClick={() => applyOne(f)} className="rounded-[7px] px-3 py-1.5 text-[11px] font-semibold" style={{ background: "var(--good)", color: "#fff" }}>
                           Accept
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => setProposals((p) => { const next = { ...p }; delete next[f.id]; return next; })}
-                          className="rounded-[5px] px-[7px] py-[3px] text-[10px] font-semibold"
-                          style={{ color: "var(--bad)" }}
-                        >
-                          Reject
+                        <button type="button" onClick={() => rejectOne(f.id)} className="rounded-[7px] border px-3 py-1.5 text-[11px] font-semibold" style={{ borderColor: "var(--bad-line)", color: "var(--bad)" }}>
+                          Reject (keep as is)
                         </button>
                       </div>
                     </>
                   )}
-                  {prop.state === "applied" && <div style={{ color: "var(--good)" }}>Applied.</div>}
                 </div>
               );
             })}
