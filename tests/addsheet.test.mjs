@@ -54,17 +54,19 @@ check(
 /* ---------- Photo / Voice note ---------- */
 
 check(
-  "with a check in context, media attaches to THAT check, not the tray",
-  /if \(presetCheckId\) \{\s*addAttachment\(presetCheckId, \{ \.\.\.m, createdBy: auditor \}\);/.test(sheet),
+  "a photo or voice note taken in the + sheet opens the full raise form with the capture attached — it is not saved on its own and closed (Sarel, 26 Nov 2026)",
+  /carryMediaToRaiseForm\(m\);\s*onClose\(\);\s*onRaiseIssue\(\);/.test(sheet) && !/addCapture\(|addAttachment\(/.test(sheet),
 );
 check(
-  "with no check but a system known, the unassigned tray's area is pre-filled with it — not asked again",
-  /addCapture\(\{ \.\.\.m, area: presetSystem \|\| "Unspecified", createdBy: auditor \}\);/.test(sheet),
-  "no schema change: the same addCapture tray Inspection's own photo button already writes to, just a smarter area default",
+  "the raise form takes the carried capture into its own pending attachments when it opens",
+  (() => {
+    const r = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "../src/components/RaiseFindingSheet.tsx"), "utf8");
+    return /carriedMedia = \[\];\s*setPendingAttachments/.test(r) && r.includes("export function carryMediaToRaiseForm");
+  })(),
 );
 check(
-  "PhotoButton and VoiceNoteButton share the one handler — one place a captured photo or voice note is routed, not two",
-  (sheet.match(/onCaptured=\{handleMedia\}/g) ?? []).length === 2,
+  "Photo, Upload and Voice note share the one handler — one place a captured photo or voice note is routed",
+  (sheet.match(/onCaptured=\{handleMedia\}/g) ?? []).length === 3,
 );
 
 /* ---------- Evidence ---------- */
