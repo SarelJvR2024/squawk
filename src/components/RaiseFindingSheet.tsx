@@ -82,6 +82,16 @@ export default function RaiseFindingSheet({
   const [systemQuery, setSystemQuery] = useState("");
   const [checkId, setCheckId] = useState<string | null>(null);
   const [checkQuery, setCheckQuery] = useState("");
+  /* TYPE AND TAGS, SET AT RAISING — Sarel (25 Nov 2026): "when raising a
+     finding add an option to indicate compliance as Observation. Add option
+     to tag it as critical, safety." They are the same Finding fields the
+     Issues screen already sets and filters on (findingType, critical,
+     safetyTag), so a finding raised here lands under the right chip with no
+     second pass. Default is non-compliance, the same default findingTypeFor()
+     already applies to an unset one. */
+  const [findingType, setFindingType] = useState<"non-compliance" | "observation">("non-compliance");
+  const [critical, setCritical] = useState(false);
+  const [safetyTag, setSafetyTag] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   /* Apply the + sheet's context on the transition into open, not on every
@@ -157,6 +167,9 @@ export default function RaiseFindingSheet({
     setCheckId(null);
     setCheckQuery("");
     setError(null);
+    setFindingType("non-compliance");
+    setCritical(false);
+    setSafetyTag(false);
     setPendingAttachments([]);
   };
 
@@ -204,6 +217,9 @@ export default function RaiseFindingSheet({
       adHoc: true,
       createdBy: auditor,
       attachments: [],
+      findingType,
+      ...(critical ? { critical: true } : {}),
+      ...(safetyTag ? { safetyTag: true } : {}),
     });
     /* Always the FINDING's own attachments now, checkId picked or not — see
        Finding.attachments' own doc comment. addFindingAttachment generates
@@ -330,6 +346,57 @@ export default function RaiseFindingSheet({
           style={boxStyle}
         />
       </label>
+
+      <div className="mt-4">
+        <span className={label}>Type</span>
+        <div className="mt-1.5 flex flex-wrap gap-[6px]" role="group" aria-label="Finding type">
+          {(
+            [
+              ["non-compliance", "Non-compliance"],
+              ["observation", "Observation"],
+            ] as const
+          ).map(([v, text]) => (
+            <button
+              key={v}
+              type="button"
+              aria-pressed={findingType === v}
+              onClick={() => setFindingType(v)}
+              className="min-h-[38px] rounded-full border px-3 text-[12px] font-semibold"
+              style={
+                findingType === v
+                  ? { background: "var(--acc)", color: "#fff", borderColor: "var(--acc)" }
+                  : { background: "var(--panel)", color: "var(--ink-2)", borderColor: "var(--line-2)" }
+              }
+            >
+              {text}
+            </button>
+          ))}
+        </div>
+        <span className={`${label} mt-3 block`}>Tag</span>
+        <div className="mt-1.5 flex flex-wrap gap-[6px]" role="group" aria-label="Finding tags">
+          {(
+            [
+              ["Critical", critical, setCritical],
+              ["Safety", safetyTag, setSafetyTag],
+            ] as const
+          ).map(([text, on, set]) => (
+            <button
+              key={text}
+              type="button"
+              aria-pressed={on}
+              onClick={() => set(!on)}
+              className="min-h-[38px] rounded-full border px-3 text-[12px] font-semibold"
+              style={
+                on
+                  ? { background: "var(--bad)", color: "#fff", borderColor: "var(--bad)" }
+                  : { background: "var(--panel)", color: "var(--ink-2)", borderColor: "var(--line-2)" }
+              }
+            >
+              {text}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {error && (
         <div className="mt-2 text-[11.5px]" style={{ color: "var(--warn)" }}>
