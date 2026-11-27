@@ -139,12 +139,12 @@ check(
    still directly tested above against the real function; only these two
    screens' own use of it was removed. */
 check(
-  "the table shows Priority only through PriorityBadge (Sarel, 27 Nov 2026), which calls priorityFor — a derived value, never typed; there is still no Rating column",
-  /<PriorityBadge/.test(table) && /priorityFor\(f\)/.test(read("src", "components", "TriageCells.tsx")) && !/>Rating<\/th>/.test(table)
+  "Priority is shown only in the drawer, through PriorityBadge, which calls priorityFor — a derived value, never typed; the table has no Priority or Rating column",
+  !/<PriorityBadge/.test(table) && /<PriorityBadge/.test(panel) && /priorityFor\(f\)/.test(read("src", "components", "TriageCells.tsx")) && !/>Rating<\/th>/.test(table)
 );
 check(
-  "the panel no longer calls priorityFor either — same removal",
-  !/priorityFor\(/.test(panel)
+  "the drawer shows the calculated priority's label from priorityFor, the one place a band is derived — it never invents its own",
+  /priorityFor\(finding\)/.test(panel)
 );
 
 /* ---- 4 · multi-select save/load round-trip, empty array allowed -------- */
@@ -340,7 +340,7 @@ check(
 
 check(
   "root cause CATEGORIES reuse ROOT_CAUSES, not the addendum's own provisional list",
-  /import \{ IMPACT_AREAS, ROOT_CAUSES, TIMELINES \} from "\.\/riskVocab"/.test(read("src", "lib", "reviewRisk.ts"))
+  /import \{ IMPACT_AREAS, LEGACY_ROOT_CAUSES, ROOT_CAUSES, TIMELINES \} from "\.\/riskVocab"/.test(read("src", "lib", "reviewRisk.ts"))
 );
 check(
   "the addendum's own provisional category list is not spelled out anywhere as a real vocabulary",

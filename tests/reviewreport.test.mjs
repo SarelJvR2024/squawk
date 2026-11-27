@@ -100,7 +100,7 @@ check(
 );
 check(
   "the timeline distribution reads TIMELINES from riskVocab.ts, not a hand-typed list that could drift from the table's own",
-  /import \{ ROOT_CAUSES, IMPACT_AREAS, TIMELINES \} from "@\/lib\/riskVocab"/.test(report)
+  /import \{ ROOT_CAUSES, LEGACY_ROOT_CAUSES, IMPACT_AREAS, TIMELINES \} from "@\/lib\/riskVocab"/.test(report)
 );
 check(
   "TIMELINES is still exactly the three categories this report's distribution table assumes",
@@ -126,11 +126,11 @@ check(
 );
 check(
   "the findings list is a plain HTML <table>, specifically so the browser repeats <thead> on every printed page with no custom pagination code",
-  /thead \{ display: table-header-group; \}/.test(report)
+  /thead \{ display: table-header-group !important; \}/.test(report)
 );
 check(
   "table rows and KPI cards are guarded against being split across a page break",
-  /tr, \.report-card, \.metric-box, \.rr-card, figure \{ break-inside: avoid; page-break-inside: avoid; \}/.test(report) &&
+  /tr, \.report-card, \.metric-box, \.rr-card, figure \{ break-inside: avoid !important; page-break-inside: avoid !important; \}/.test(report) &&
     /tbody\.rr-unit \{ break-inside: avoid/.test(report) &&
     /rr-table tbody tr:last-child \{ break-before: avoid; \}/.test(report)
 );
@@ -335,5 +335,20 @@ check(
   /max-width: 860px/.test(report) && !/max-width: 1200px/.test(report)
 );
 
+
+check(
+  "a finding linked to an audit check reads 'REQUIREMENT:' (muted, upper) then 'DEFECT OBSERVED:' (lower); an unlinked one shows its text alone, with no empty requirement block",
+  /function FindingCell/.test(report) && /REQUIREMENT:/.test(report) && /DEFECT OBSERVED:/.test(report) &&
+    /if \(!req\) return <>\{body\}<\/>/.test(report) && !/findingText\(f, responses, requirementOf\)\}\s*<\/td>/.test(report)
+);
+check(
+  "no check reference code (KSIA-…) or finding id is printed in any report table cell",
+  !/\{f\.checkId\}/.test(report) && !/[^=]\{f\.id\}/.test(report) && !/Asset system &amp; ref/.test(report)
+);
+check(
+  "every report table drops its Action plan column when no row has a plan and caps it at 15% when some do (findings tables 42% Finding / 20% Root cause & impact without one)",
+  /finding: "42%", cause: "20%"/.test(report) && /plan: "15%"/.test(report) && /\{hasPlan && <th style=\{\{ width: "15%" \}\}>Action plan<\/th>\}/.test(report) &&
+    /quickWins\.some\(\(f\) => f\.actionPlan\?\.trim\(\)\)/.test(report)
+);
 console.log(failures === 0 ? "\nREVIEW REPORT OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

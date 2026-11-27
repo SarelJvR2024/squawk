@@ -97,10 +97,10 @@ check("Report: observations have their own section, apart from non-compliances",
   const r = src("../src/components/ReviewRiskReport.tsx");
   assert.ok(r.includes("Observations &middot; {obsList.length}") && r.includes("Non-compliances &middot; {ncList.length}") && !r.includes("All findings &middot;"));
 });
-check("Triage row: check ref shown with the question, tags in their own multi-select column, delete in its own last column", () => {
+check("Triage row: no check reference code in the Finding cell, tag badges / + Tag beside the text, delete in its own last column", () => {
   const r = src("../src/components/ReviewRiskTable.tsx");
   const c = src("../src/components/TriageCells.tsx");
-  assert.ok(r.includes("{f.checkId}") && r.includes("<TagsMenu") && r.includes("<TagBadges") && c.includes("Immediate safety concern") && c.includes("Immediate critical item"));
+  assert.ok(!r.includes("{f.checkId}") && r.includes("<TagsMenu") && c.includes("Immediate Safety Concern") && c.includes("Immediate Critical Item") && c.includes("Immediate Safety") && c.includes("Critical Item"));
   assert.ok(/onDeleteMany && <RowDelete/.test(r) && r.lastIndexOf('<span className="sr-only">Delete</span></th>') > r.lastIndexOf(">Photos</th>"));
 });
 check("Soft delete: findings are flagged not removed, hidden everywhere, restorable from Issues > Deleted", () => {
@@ -140,9 +140,9 @@ check("Triage density: 52px rows, active type only as one pill with a menu, tags
   const c = src("../src/components/TriageCells.tsx");
   assert.ok(t.includes("h-[52px]") && t.includes("align-middle") && t.includes("<TypePill") && t.includes("<TimelineSelect"));
   assert.ok(!t.includes('role="radiogroup"') && !t.includes("flex-col items-stretch"), "no stacked options in a cell");
-  assert.ok(c.includes('role="menu"') && c.includes("+ Tag") && c.includes("group-hover:opacity-100"));
+  assert.ok(c.includes('role="menu"') && c.includes("+ Tag") && !c.includes("group-hover:opacity-100"));
   assert.ok(!t.includes('"Done, no issues"'), "the colour legend bar is gone");
-  assert.ok(t.includes("PriorityBadge") && c.includes("Level {p.priority}") && c.includes("priorityFor(f)"));
+  assert.ok(!t.includes("PriorityBadge") && src("../src/components/ReviewRiskPanel.tsx").includes("<PriorityBadge") && c.includes("Level {p.priority}") && c.includes("priorityFor(f)"));
 });
 check("Triage toolbar: row 1 on the Issues page (title, status pills, Log finding, Export list); row 2 search + four filters + Clean up wording + Evidence log menu", () => {
   const i = src("../src/app/(app)/issues/page.tsx");

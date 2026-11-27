@@ -34,6 +34,7 @@ const evidenceQuick = read("src", "components", "EvidenceQuickCapture.tsx");
    ReviewRiskTable/ReviewRiskPanel components and the same
    onChange-through-updateFinding division of labour. */
 const reviewPage = read("src", "app", "(app)", "issues", "page.tsx");
+const lightbox = read("src", "components", "PhotoLightbox.tsx");
 const assistPromptsSrc = read("src", "lib", "assistPrompts.ts");
 
 let failures = 0;
@@ -172,12 +173,15 @@ check(
    into one "Location / Hierarchy" header — Sarel: "combine Discipline
    and Audit Check into a single clean 'Location / Hierarchy' column...
    remove redundant repetition of 'General' across two columns." */
-/* 27 Nov 2026 — Sarel's high-density refactor: Location replaces Location /
-   Hierarchy, and Root cause, Impact, Action plan and the evidence comments
-   moved into the detail drawer, replaced by Sev, Lik and Priority. */
-for (const col of ["Type", "Location", "Finding", "Sev", "Lik", "Priority", "Timeline", "Photos"]) {
+/* 27 Nov 2026 (second pass) — Sev, Lik and Priority are OUT of the table and
+   live only in the drawer; Root cause and Impact are back as inline columns. */
+for (const col of ["Type", "Location", "Finding", "Root cause", "Impact", "Timeline", "Photos"]) {
   check(`the table always renders a "${col}" column header`, new RegExp(`>${col}</th>`).test(table));
 }
+check(
+  "the table has no Sev, Lik or Priority column header — they were ~140px of empty dashes",
+  !/>Sev<\/th>/.test(table) && !/>Lik<\/th>/.test(table) && !/>Priority<\/th>/.test(table)
+);
 check(
   "Discipline and Asset system share one column — no separate Asset system header",
   !/<Th>Asset system<\/Th>/.test(table)
@@ -191,10 +195,12 @@ check(
    Severity, Likelihood and the derived Rating column are gone from this
    table — see ReviewRiskTable.tsx's own header. */
 check(
-  "Severity (A-E) and Likelihood (1-5) are inline selects again (Sarel, 27 Nov 2026, reversing the 16 Nov removal), and Priority is calculated by priorityFor from them, never typed",
-  /<RiskSelect kind="severity"/.test(table) &&
-    /<RiskSelect kind="likelihood"/.test(table) &&
-    /<PriorityBadge f=\{f\}/.test(table) &&
+  "Severity (A-E), Likelihood (1-5) and the calculated Priority badge are edited ONLY in the drawer; the table has no RiskSelect or PriorityBadge, and Priority is still calculated by priorityFor, never typed",
+  !/<RiskSelect/.test(table) &&
+    !/<PriorityBadge/.test(table) &&
+    /<RiskSelect full kind="severity"/.test(panel) &&
+    /<RiskSelect full kind="likelihood"/.test(panel) &&
+    /<PriorityBadge f=\{finding\}/.test(panel) &&
     /priorityFor\(f\)/.test(cells) &&
     !/>Rating<\/th>/.test(table)
 );
@@ -218,8 +224,8 @@ check(
  * Hierarchy (that stays Discipline + Asset system only, still dense),
  * but as the first line of the Finding cell, above the desk note. */
 check(
-  "the Finding cell shows the audit-check ref beside the text, clamped to two lines; the check's own question stays reachable in the drawer",
-  /line-clamp-2/.test(table) && /\{f\.checkId\}/.test(table) && /\.requirement/.test(panel)
+  "the Finding cell shows NO audit-check reference code, only the defect text clamped to two lines; the check's own question stays reachable in the drawer",
+  /line-clamp-2/.test(table) && !/\{f\.checkId\}/.test(table) && !/KSIA-/.test(table) && /\.requirement/.test(panel)
 );
 check(
   "portalIdFor is not called anywhere in this file any more — the ref-code column dropped it",
@@ -240,7 +246,7 @@ check(
 );
 check(
   "a finding with no asset system AND no linked check reads one subtle General badge — not the plain italic text the old two-column version used",
-  /\{f\.system \|\| f\.checkId \? \([\s\S]{0,400}\) : \(\s*<span className="min-w-0 flex-1">\s*<Pill tone="neutral">General<\/Pill>/.test(table)
+  /\{f\.system \? \([\s\S]{0,400}\) : \(\s*<span className="min-w-0 flex-1">\s*<Pill tone="neutral">General<\/Pill>/.test(table)
 );
 check(
   "a finding linked to a check but with no asset system name still reads General, muted — it's not fully unlinked",
@@ -248,7 +254,7 @@ check(
 );
 check(
   "the Photos column shows one 36px thumbnail with the photo count; clicking it opens the gallery in the drawer — Sarel: 'add the photos in the row so that the photos can be viewed inline'",
-  /<EvidenceThumb attachment=\{photoAttachments\[0\]\} count=\{photoAttachments\.length\} size=\{36\} onOpen=\{\(\) => onActivate\(f\.id\)\}/.test(table)
+  /<EvidenceThumb attachment=\{photoAttachments\[0\]\} count=\{photoAttachments\.length\} size=\{36\} preview=\{\{ entityCode, visitId \}\} onOpen=\{\(\) => setLightbox\(\{ id: f\.id, index: 0 \}\)\}/.test(table)
 );
 /* ---- 4 · the Type tag's own panel toggle and table rendering ----------- */
 
@@ -559,8 +565,12 @@ check(
    panel's own chip rows, same toggleMulti and vocabulary), no longer as table
    columns: that is what took a row from ~50px to ~250px. */
 check(
-  "the table no longer carries Root cause / Impact / Action plan cells — MultiSelectCell and ActionPlanCell are gone",
-  !/function MultiSelectCell/.test(table) && !/function ActionPlanCell/.test(table) && !/ROOT_CAUSES\}/.test(table.split("function BulkBar")[0])
+  "Root cause and Impact are inline MultiPill popover cells (check / uncheck, saved on each tick through onChange); Action plan stays in the drawer",
+  /<MultiPill[\s\S]{0,200}options=\{ROOT_CAUSES\}/.test(table) && /<MultiPill[\s\S]{0,200}options=\{IMPACT_AREAS\}/.test(table) &&
+    /\+ Root cause/.test(table) && /\+ Impact/.test(table) &&
+    /onChange=\{\(next\) => onChange\(f\.id, \{ rootCauseCategories: next \}\)\}/.test(table) &&
+    /onChange=\{\(next\) => onChange\(f\.id, \{ impactAreas: next \}\)\}/.test(table) &&
+    !/function ActionPlanCell/.test(table)
 );
 check(
   "the drawer edits both through the SAME toggleMulti and vocabulary, one function, one surface",
@@ -690,13 +700,13 @@ check(
     !/Evidence review\s*<\/div>/.test(table)
 );
 check(
-  "the Finding cell reads: audit-check ref, then the finding text clamped to two lines, then its tags — the desk note and evidence notes live in the drawer",
+  "the Finding cell reads: the finding text clamped to two lines, then its tag badges / + Tag — no reference code; the desk note and evidence notes live in the drawer",
   (() => {
-    const cell = table.slice(table.indexOf("Finding: at most two lines"), table.indexOf("<RiskSelect kind=\"severity\""));
+    const cell = table.slice(table.indexOf("Finding: at most two lines"), table.indexOf("<MultiPill"));
     return (
       cell.length > 0 &&
-      cell.indexOf("{f.checkId}") < cell.lastIndexOf("{text}") &&
-      cell.lastIndexOf("{text}") < cell.indexOf("<TagBadges") &&
+      !cell.includes("{f.checkId}") &&
+      cell.lastIndexOf("{text}") < cell.indexOf("<TagsMenu") &&
       /line-clamp-2/.test(cell) &&
       /FILLER_WORDS/.test(table)
     );
@@ -743,6 +753,52 @@ check(
 check(
   "that stays ONE task/one model call, not three — polish's own instruction (assistPrompts.ts) already covers all three in one pass",
   /polish:\s*\n?\s*"Rewrite the note below[\s\S]{0,2000}answer it/.test(assistPromptsSrc)
+);
+
+
+/* ---- 27 Nov 2026, second pass: vocabularies, tags, location, photos ----- */
+check(
+  "ROOT_CAUSES is exactly the eight choices the popover offers, and the two retired values are kept only as LEGACY_ROOT_CAUSES so stored data is never rewritten",
+  /ROOT_CAUSES = \[\s*"Maintenance backlog",\s*"Documentation gap",\s*"Design \/ installation defect",\s*"Operational wear & tear",\s*"Environmental \/ weather",\s*"Procurement delay",\s*"Training \/ procedure gap",\s*"Other",\s*\]/.test(riskVocab) &&
+    /LEGACY_ROOT_CAUSES = \["Design \/ original installation", "Resourcing \/ staffing"\]/.test(riskVocab) &&
+    /legacy=\{LEGACY_ROOT_CAUSES\}/.test(table)
+);
+check(
+  "the Root cause pill shows the first choice and '+N'; the Impact pill is outlined; an empty cell is a quiet '+ Add' button",
+  /filled\s*\n?\s*addLabel="\+ Root cause"/.test(table) && /filled=\{false\}\s*\n?\s*addLabel="\+ Impact"/.test(table) && /\+\{rest\.length\}/.test(cells)
+);
+check(
+  "tags: red '🚨 Immediate Safety' and amber '⚡ Critical Item' badges are themselves the menu trigger, '+ Tag' is always visible, and the two toggles write safetyTag / critical",
+  /border-red-200 bg-red-50 text-red-700`\}>\{"\\u\{1F6A8\}"\} Immediate Safety/.test(cells) &&
+    /border-amber-200 bg-amber-50 text-amber-700`\}>\{"\\u26A1"\} Critical Item/.test(cells) &&
+    /\{any \? <TagBadges f=\{f\} \/> : "\+ Tag"\}/.test(cells) && !/group-hover:opacity-100/.test(cells) &&
+    /Immediate Safety Concern/.test(cells) && /Immediate Critical Item/.test(cells) &&
+    /safetyTag: !f\.safetyTag/.test(cells) && /critical: !f\.critical/.test(cells)
+);
+check(
+  "the Critical / Safety header counts are read from the findings' own critical / safetyTag fields, so a tag toggle moves them without a reload",
+  /criticalFindings/.test(reviewPage) && /safetyFindings/.test(reviewPage) && /critical: criticalFindings\.length/.test(reviewPage) && /safety: safetyFindings\.length/.test(reviewPage)
+);
+check(
+  "Location wraps instead of truncating: no 'truncate' class in the Location cell, discipline medium on line 1, asset system text-xs muted on line 2",
+  (() => {
+    const cell = table.slice(table.indexOf("Location: discipline"), table.indexOf("Finding: at most two lines"));
+    return cell.length > 0 && !/truncate/.test(cell) && /break-words text-\[13px\] font-medium/.test(cell) && /break-words text-xs/.test(cell) && /w-\[210px\][^>]*>Location/.test(table);
+  })()
+);
+check(
+  "photos: the thumbnail opens a lightbox (not the drawer) and shows a 200ms hover preview; the lightbox loads the full image through useRecordImage, never the thumbnail by choice",
+  /useHoverPreview\(delay = 200\)/.test(lightbox) && /width=\{?280|const W = 280/.test(lightbox) && /const H = 180/.test(lightbox) &&
+    /useRecordImage\(cur\.attachment, entityCode, visitId\)/.test(lightbox) && /<PhotoLightbox/.test(table) && /<PhotoLightbox/.test(panel)
+);
+check(
+  "lightbox: zoom to 400%, drag to pan, Zoom in / Zoom out / Fit to screen / 1:1 actual size, arrows and Escape, metadata bar with asset system, summary and capture time",
+  /const MAX = 4/.test(lightbox) && /Zoom in/.test(lightbox) && /Zoom out/.test(lightbox) && /Fit to screen/.test(lightbox) && /1:1 actual size/.test(lightbox) &&
+    /"ArrowLeft"/.test(lightbox) && /"ArrowRight"/.test(lightbox) && /"Escape"/.test(lightbox) && /passive: false/.test(lightbox) && /Asset system/.test(lightbox) && /Captured/.test(lightbox) && /Showing the small preview only/.test(lightbox)
+);
+check(
+  "drawer photographs render at full row width (min 340px) from the full-size copy, each with an 'Inspect full-size' button",
+  /largePhotos/.test(panel) && /minWidth: 340/.test(read("src", "components", "Capture.tsx")) && /Inspect full-size/.test(read("src", "components", "Capture.tsx")) && /useRecordImage\(a, entityCode, visitId\)/.test(read("src", "components", "Capture.tsx"))
 );
 
 console.log(failures === 0 ? "\nREVIEW TABLE V2 OK" : `\n${failures} FAILURES`);
