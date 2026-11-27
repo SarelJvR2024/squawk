@@ -87,14 +87,14 @@ check(
     const fn = start === -1 ? "" : report.slice(start, report.indexOf("\n}\n", start) + 2);
     return (
       fn.length > 0 &&
-      fn.indexOf("r?.observation") < fn.indexOf("f.title || f.description || f.id") &&
-      fn.indexOf("f.title || f.description || f.id") < fn.indexOf("r?.evidenceProves")
+      fn.indexOf("r?.observation") < fn.indexOf("reportFindingText(f") &&
+      fn.indexOf("reportFindingText(f") < fn.indexOf("r?.evidenceProves")
     );
   })()
 );
 check(
   "root cause / impact distributions use the SAME countByMultiSelect every other roll-up in this app uses — not a second counting function",
-  /import \{ countByMultiSelect, findingTypeFor, FINDING_TYPE_LABEL \} from "@\/lib\/reviewRisk"/.test(report) &&
+  /import \{ countByMultiSelect, findingTypeFor \} from "@\/lib\/reviewRisk"/.test(report) &&
     /countByMultiSelect\(findings, \(f\) => f\.rootCauseCategories\)/.test(report) &&
     /countByMultiSelect\(findings, \(f\) => f\.impactAreas\)/.test(report)
 );
@@ -107,8 +107,8 @@ check(
   /export const TIMELINES = \["Immediate", "Before next audit", "Long term"\];/.test(riskVocab)
 );
 check(
-  "Type reads findingTypeFor/FINDING_TYPE_LABEL — the same non-compliance/observation classification the table uses, not a re-derived one",
-  /findingTypeFor\(f\)/.test(report) && /FINDING_TYPE_LABEL\[type\]/.test(report)
+  "the non-compliance/observation split reads findingTypeFor — the same classification the table uses — and the Type column is gone (the section heading already says which it is)",
+  /findingTypeFor\(f\) === "non-compliance"/.test(report) && !/<th[^>]*>Type<\/th>/.test(report)
 );
 
 /* ---- 4 · print output is deterministic, not theme- or viewport-dependent */
@@ -130,11 +130,13 @@ check(
 );
 check(
   "table rows and KPI cards are guarded against being split across a page break",
-  /tr, \.rr-card \{ break-inside: avoid; \}/.test(report)
+  /tr, \.report-card, \.metric-box, \.rr-card, figure \{ break-inside: avoid; page-break-inside: avoid; \}/.test(report) &&
+    /tbody\.rr-unit \{ break-inside: avoid/.test(report) &&
+    /rr-table tbody tr:last-child \{ break-before: avoid; \}/.test(report)
 );
 check(
   "the on-screen toolbar (Download PDF button) is hidden in print, so it never shows up on the PDF itself",
-  /\.rr-report-toolbar \{ display: none !important; \}/.test(report)
+  /\.rr-report-toolbar, \.rr-noprint \{ display: none !important; \}/.test(report)
 );
 
 /* ---- 5 · the app's fixed-shell html/body rule is overridden for this
@@ -264,9 +266,9 @@ check(
   /rr-amber/.test(report) && /\.rr-table\.rr-amber th/.test(report)
 );
 check(
-  "the full findings list now shows actual photographs, not only a count — thumbDataUrl, never a live blob/object-URL hook, so the report never waits on async IndexedDB reads to have something to print",
+  "the full findings list shows actual photographs as numbered figures — thumbDataUrl, never a live blob/object-URL hook, so the report never waits on async IndexedDB reads",
   (() => {
-    const start = report.indexOf("function ReportPhoto");
+    const start = report.indexOf("function ReportFigure");
     const fn = start === -1 ? "" : report.slice(start, report.indexOf("\n}\n", start) + 2);
     return fn.length > 0 && /attachment\.thumbDataUrl \|\| attachment\.dataUrl/.test(fn) && !/useBlobUrl/.test(fn);
   })()
@@ -298,11 +300,34 @@ check(
   /size: A4 portrait;/.test(report) && !/size: A4 landscape;/.test(report)
 );
 check(
-  "photos render at 144px — bigger than the first pass's 64px, and still a downscale (not an upscale) of the 240px thumbDataUrl source",
+  "figures are 240x160 with a 180x120 floor, rounded and bordered, captioned 'Figure N: system — description', laid out two-up",
   (() => {
-    const start = report.indexOf("function ReportPhoto");
+    const start = report.indexOf("function ReportFigure");
     const fn = start === -1 ? "" : report.slice(start, report.indexOf("\n}\n", start) + 2);
-    return fn.length > 0 && /width: 144, height: 144/.test(fn);
+    return fn.length > 0 && /width: 240, height: 160, minWidth: 180, minHeight: 120/.test(fn) && /borderRadius: 6/.test(fn) &&
+      /Figure \{n\}: \{system \|\| "General"\} &mdash; \{caption\}/.test(fn);
+  })()
+);
+check(
+  "the KPI row is exactly four cards, the 'How to read the counts and tags' explainer is gone, and an empty category is a 'None recorded' chip, not an empty table",
+  ["Total findings", "Immediate action required", "Routine / before next audit", "Evidence outstanding"].every((l) => report.includes(`label: "${l}"`)) &&
+    !report.includes("How to read the counts and tags") && /function NoneChip/.test(report) && /None recorded/.test(report)
+);
+check(
+  "the Action plan column is dropped when no row in the table has one",
+  /const hasPlan = list\.some\(\(f\) => f\.actionPlan\?\.trim\(\)\)/.test(report) && /\{hasPlan && <th/.test(report)
+);
+check(
+  "running header on pages 2+ and Page X of Y + timestamp + disclaimer footer in the @page margin boxes; margins 15mm 12mm",
+  /size: A4 portrait;\s*margin: 15mm 12mm 15mm 12mm/.test(report) && /@page :first \{ @top-left \{ content: none; \} \}/.test(report) && /@top-left \{ content: "\$\{runningHead\}"/.test(report) &&
+    /Interim, system-generated report: subject to update/.test(report) && /Squawk Assurance/.test(report)
+);
+check(
+  "the downloaded PDF engine repeats the table header on continuation pages, draws a running header from the page's meta, and avoids orphan rows",
+  (() => {
+    const pdf = src("lib", "reportPdf.ts");
+    return /header\?: string/.test(pdf) && /Page \$\{|Page " ?\+|of \$\{/.test(pdf) && /thead/.test(pdf) && /orphan|second-to-last|keepnext|data-keepnext/i.test(pdf) &&
+      /header:/.test(reportPage);
   })()
 );
 check(

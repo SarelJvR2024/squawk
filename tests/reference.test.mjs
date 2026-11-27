@@ -78,9 +78,9 @@ check("Triage: per-row delete with a confirm step", () => {
   const t = src("../src/components/ReviewRiskTable.tsx");
   assert.ok(t.includes("function RowDelete") && t.includes("onDeleteMany([f.id])") && t.includes("can be restored") && !t.includes("Cannot be undone"));
 });
-check("Report: KPI tiles — critical/safety, immediate, non-compliances and observations with photos; no action-plans or findings-this-visit tiles", () => {
+check("Report: four KPI cards — total (NC/observation pills), immediate action, routine, evidence outstanding; no action-plans or findings-this-visit tiles", () => {
   const r = src("../src/components/ReviewRiskReport.tsx");
-  assert.ok(r.includes("Immediate safety concerns") && r.includes("Critical items to attend to") && r.includes("Immediate items to address") && r.includes("photosOf"));
+  assert.ok(r.includes('label: "Total findings"') && r.includes('label: "Immediate action required"') && r.includes('label: "Routine / before next audit"') && r.includes('label: "Evidence outstanding"'));
   assert.ok(!r.includes('label: "Action plans set"') && !r.includes('label: "Findings this visit"'));
 });
 check("Report: interim/copyright clause and previous open findings with status and comments", () => {
@@ -89,9 +89,9 @@ check("Report: interim/copyright clause and previous open findings with status a
   assert.ok(r.includes("Previous open findings") && r.includes("Status now") && r.includes("Comments"));
   assert.ok(src("../src/app/report/page.tsx").includes("useOutstanding"));
 });
-check("Report: safety concerns and critical items counted and listed separately, with an explainer", () => {
+check("Report: safety concerns and critical items counted and listed separately; no explainer, empty categories are a None-recorded chip", () => {
   const r = src("../src/components/ReviewRiskReport.tsx");
-  assert.ok(r.includes("<TaggedList") && r.includes("How to read the counts and tags") && !r.includes("f.critical || f.safetyTag"));
+  assert.ok(r.includes("<TaggedList") && !r.includes("How to read the counts and tags") && r.includes("NoneChip") && !r.includes("f.critical || f.safetyTag"));
 });
 check("Report: observations have their own section, apart from non-compliances", () => {
   const r = src("../src/components/ReviewRiskReport.tsx");
