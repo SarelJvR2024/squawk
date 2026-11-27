@@ -40,7 +40,7 @@ import { entity as entityOf } from "@/lib/programme";
 import { checksAt, checksOf, disciplinesAt, systemsOf } from "@/lib/register";
 import { ALL_PROCEDURES, docRefLabel, procedureMatches } from "@/lib/library";
 import { useStore, useEvidenceItems, useFieldSaveStatus, useResponses, useVisitId } from "@/lib/store";
-import { AttachmentStrip } from "@/components/Capture";
+import { AttachmentStrip, PhotoButton } from "@/components/Capture";
 import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
 import type { Compliance, Finding } from "@/lib/types";
 
@@ -239,6 +239,10 @@ export default function ReviewRiskPanel({
      "Open" below hands off to. */
   const responses = useResponses();
   const evidenceItems = useEvidenceItems();
+  const addFindingAttachment = useStore((s) => s.addFindingAttachment);
+  const removeFindingAttachment = useStore((s) => s.removeFindingAttachment);
+  const updateFindingAttachment = useStore((s) => s.updateFindingAttachment);
+  const auditor = useStore((s) => s.auditor);
   const visitId = useVisitId();
   const linkedCheck = useMemo(
     () => (finding.checkId ? checksAt(entityCode).find((c) => c.id === finding.checkId) : undefined),
@@ -841,7 +845,36 @@ export default function ReviewRiskPanel({
             </div>
           </div>
         )}
-        {finding.attachments.length > 0 && <AttachmentStrip attachments={finding.attachments} thumbSize={56} />}
+        {/* PHOTO GALLERY — Sarel, 27 Nov 2026: the drawer is where photos
+            are viewed large, deleted and added (the table row only shows a
+            36px thumbnail with a count). Capture and Upload both add to this
+            finding; Remove is on each photo. */}
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <span className="font-display text-[11px] font-semibold" style={{ color: "var(--ink-3)" }}>
+            Photos &amp; notes &middot; {finding.attachments.length}
+          </span>
+          <span className="flex items-center gap-[6px]">
+            <PhotoButton
+              compact
+              className="min-h-[34px] w-[34px] justify-center"
+              onCaptured={(m) => addFindingAttachment(finding.id, { ...m, createdBy: auditor })}
+            />
+            <PhotoButton
+              compact
+              fromLibrary
+              className="min-h-[34px] w-[34px] justify-center"
+              onCaptured={(m) => addFindingAttachment(finding.id, { ...m, createdBy: auditor })}
+            />
+          </span>
+        </div>
+        {finding.attachments.length > 0 && (
+          <AttachmentStrip
+            attachments={finding.attachments}
+            thumbSize={132}
+            onRemove={(id) => removeFindingAttachment(finding.id, id)}
+            onUpdate={(id, p) => updateFindingAttachment(finding.id, id, p)}
+          />
+        )}
       </div>
 
       {/* PRIORITY 4 — "compliance assessments, clearly identifying their
@@ -864,6 +897,21 @@ export default function ReviewRiskPanel({
           {linkedCheck && (
             <div className="mb-1.5 text-[11px]" style={{ color: "var(--ink-3)" }}>
               {linkedCheck.requirement.slice(0, 110)}
+            </div>
+          )}
+          {/* The desk note and what the evidence shows used to print in the
+              table's Finding cell; with the rows compacted (Sarel, 27 Nov 2026)
+              they are read here instead. */}
+          {linkedResponse.observation && (
+            <div className="mb-1.5 text-[11px]" style={{ color: "var(--ink-2)" }}>
+              <span className="font-semibold">Desk note: </span>
+              {linkedResponse.observation}
+            </div>
+          )}
+          {linkedResponse.evidenceProves && (
+            <div className="mb-1.5 text-[11px]" style={{ color: "var(--ink-2)" }}>
+              <span className="font-semibold">Evidence shows: </span>
+              {linkedResponse.evidenceProves}
             </div>
           )}
           <div className="flex flex-wrap gap-[6px]">
@@ -1047,7 +1095,19 @@ function EvidenceSection({ finding }: { finding: Finding }) {
               className="flex items-center justify-between gap-2 rounded-[8px] border px-2 py-[6px] text-left text-[11px]"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             >
-              <span className="min-w-0 truncate">{e.title || e.id}</span>
+              <span className="min-w-0">
+                <span className="block truncate">{e.title || e.id}</span>
+                {(() => {
+                  const comment = [e.analysisNote, e.insufficientReason, e.unavailableReason]
+                    .filter((t) => t && t.trim())
+                    .join(" \u00b7 ");
+                  return comment ? (
+                    <span className="mt-[2px] line-clamp-3 block whitespace-normal text-[10.5px]" style={{ color: "var(--ink-3)" }}>
+                      {comment}
+                    </span>
+                  ) : null;
+                })()}
+              </span>
               <Pill tone={trackingStage(e) === "analysis" ? "good" : trackingStage(e) === "received" ? "good" : trackingStage(e) === "requested" ? "warn" : "neutral"}>
                 {TRACKING_LABEL[trackingStage(e)]}
               </Pill>

@@ -64,9 +64,9 @@ check("checks that name an ACSA form list it with its code, as a blank template 
 check("Triage: request evidence, tags, all root causes shown, airport report", () => {
   const t = src("../src/components/ReviewRiskTable.tsx");
   assert.ok(t.includes("<EvidenceQuickCapture />") && t.includes('href="/report?discipline=all"'));
-  assert.ok(t.includes("f.safetyTag") && t.includes("f.critical") && t.includes('f.timeline === "Immediate"'));
+  const c = src("../src/components/TriageCells.tsx");
+  assert.ok(c.includes("f.safetyTag") && c.includes("f.critical") && c.includes('f.timeline === "Immediate"'));
   assert.ok(!/\+\{selected\.length - 1\}/.test(t), "no +N hiding");
-  assert.ok(t.includes("min-h-[200px]"));
 });
 check("Report: real PDF download, airport-wide mode, smaller action-plan print", () => {
   const p = src("../src/app/report/page.tsx");
@@ -76,7 +76,7 @@ check("Report: real PDF download, airport-wide mode, smaller action-plan print",
 });
 check("Triage: per-row delete with a confirm step", () => {
   const t = src("../src/components/ReviewRiskTable.tsx");
-  assert.ok(t.includes("function RowDelete") && t.includes("onDeleteMany([f.id])") && t.includes("Cannot be undone"));
+  assert.ok(t.includes("function RowDelete") && t.includes("onDeleteMany([f.id])") && t.includes("can be restored") && !t.includes("Cannot be undone"));
 });
 check("Report: KPI tiles — critical/safety, immediate, non-compliances and observations with photos; no action-plans or findings-this-visit tiles", () => {
   const r = src("../src/components/ReviewRiskReport.tsx");
@@ -99,8 +99,9 @@ check("Report: observations have their own section, apart from non-compliances",
 });
 check("Triage row: check ref shown with the question, tags in their own multi-select column, delete in its own last column", () => {
   const r = src("../src/components/ReviewRiskTable.tsx");
-  assert.ok(r.includes("{f.checkId}") && r.includes("<Th>Tags</Th>") && r.includes("Immediate safety concern") && r.includes("Immediate critical item"));
-  assert.ok(/far right of the row/.test(r) && /onDeleteMany && <RowDelete/.test(r));
+  const c = src("../src/components/TriageCells.tsx");
+  assert.ok(r.includes("{f.checkId}") && r.includes("<TagsMenu") && r.includes("<TagBadges") && c.includes("Immediate safety concern") && c.includes("Immediate critical item"));
+  assert.ok(/onDeleteMany && <RowDelete/.test(r) && r.lastIndexOf('<span className="sr-only">Delete</span></th>') > r.lastIndexOf(">Photos</th>"));
 });
 check("Soft delete: findings are flagged not removed, hidden everywhere, restorable from Issues > Deleted", () => {
   const st = src("../src/lib/store.ts");
@@ -111,8 +112,10 @@ check("Soft delete: findings are flagged not removed, hidden everywhere, restora
 });
 check("Triage: evidence-requested column with comments; Close button on the right-hand panel; professional report footer", () => {
   const t = src("../src/components/ReviewRiskTable.tsx");
-  assert.ok(t.includes("Evidence requested &amp; comments") && t.includes("e.checkIds.includes(f.checkId!)") && t.includes("Evidence shows: "));
-  assert.ok(src("../src/components/ReviewRiskPanel.tsx").includes("\u2715 Close") || src("../src/components/ReviewRiskPanel.tsx").includes("✕ Close"));
+  const pn = src("../src/components/ReviewRiskPanel.tsx");
+  assert.ok(pn.includes("e.analysisNote, e.insufficientReason, e.unavailableReason") && pn.includes("Evidence shows"), "drawer shows evidence requested with comments");
+  assert.ok(!t.includes("Evidence requested &amp; comments"), "no longer a table column");
+  assert.ok(pn.includes("\u2715 Close") || pn.includes("✕ Close"));
   assert.ok(src("../src/components/ReviewRiskReport.tsx").includes("not yet been assessed or completed"));
 });
 check("Wording cleanup: side-by-side review with highlighted changes, Basic tidy fallback, and a plain explanation when the AI key is rejected", () => {
@@ -130,7 +133,28 @@ check("Triage row status icons: interview, evidence and inspection each coloured
   assert.equal(ts.evidenceChannelStatus({ evidenceStatus: "toBeProvided", evidenceVerdict: null }).tone, "warn");
   assert.equal(ts.evidenceChannelStatus({ evidenceVerdict: "NC" }).tone, "bad");
   const t = src("../src/components/ReviewRiskTable.tsx");
-  assert.ok(t.includes("interviewStatus(chk)") && t.includes("evidenceChannelStatus(chk)") && t.includes("inspectionStatus(chk)") && t.includes("Issues found / non-compliance"));
+  assert.ok(t.includes("interviewStatus(chk)") && t.includes("evidenceChannelStatus(chk)") && t.includes("inspectionStatus(chk)") && t.includes("Red = issues found or non-compliance"));
+});
+check("Triage density: 52px rows, active type only as one pill with a menu, tags in a popover, no stacked option buttons, no legend bar", () => {
+  const t = src("../src/components/ReviewRiskTable.tsx");
+  const c = src("../src/components/TriageCells.tsx");
+  assert.ok(t.includes("h-[52px]") && t.includes("align-middle") && t.includes("<TypePill") && t.includes("<TimelineSelect"));
+  assert.ok(!t.includes('role="radiogroup"') && !t.includes("flex-col items-stretch"), "no stacked options in a cell");
+  assert.ok(c.includes('role="menu"') && c.includes("+ Tag") && c.includes("group-hover:opacity-100"));
+  assert.ok(!t.includes('"Done, no issues"'), "the colour legend bar is gone");
+  assert.ok(t.includes("PriorityBadge") && c.includes("Level {p.priority}") && c.includes("priorityFor(f)"));
+});
+check("Triage toolbar: row 1 on the Issues page (title, status pills, Log finding, Export list); row 2 search + four filters + Clean up wording + Evidence log menu", () => {
+  const i = src("../src/app/(app)/issues/page.tsx");
+  const t = src("../src/components/ReviewRiskTable.tsx");
+  assert.ok(i.includes("Issues at {entity.short}") && i.includes("Log finding") && i.includes("Export list") && i.includes("function exportFindingsCsv"));
+  assert.ok(i.includes("w-[440px]") && i.includes("absolute inset-y-0 right-0"), "440px slide-out drawer");
+  assert.ok(t.includes('w-[220px]') && t.includes("Clean up wording") && t.includes('label="Evidence log"'));
+});
+check("Drawer: photo gallery with capture, upload and remove; export list neutralises spreadsheet formulas", () => {
+  const pn = src("../src/components/ReviewRiskPanel.tsx");
+  assert.ok(pn.includes("fromLibrary") && pn.includes("removeFindingAttachment(finding.id, id)") && pn.includes("thumbSize={132}"));
+  assert.ok(src("../src/app/(app)/issues/page.tsx").includes('/^[=+\\-@]/'));
 });
 console.log(failed ? `${failed} FAILED` : "all passed");
 process.exit(failed ? 1 : 0);

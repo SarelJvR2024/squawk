@@ -154,20 +154,20 @@ check(
 
 check(
   "ReviewRiskTable.tsx has a Generate report link, enabled only once a discipline is picked — not system/impact/root-cause, which narrow WITHIN a discipline rather than naming one",
-  /filter\.kind === "discipline" \? \(/.test(table) &&
-    /href=\{`\/report\?discipline=\$\{encodeURIComponent\(filter\.discipline\)\}`\}/.test(table)
+  /fx\.discipline \? \(/.test(table) &&
+    /href=\{`\/report\?discipline=\$\{encodeURIComponent\(fx\.discipline\)\}`\}/.test(table)
 );
 check(
   "it opens in a new tab, not router.push — the report is meant to be printed/saved and come back to, not navigated away to",
   (() => {
-    const start = table.indexOf("Generate report");
+    const start = table.indexOf("Report for {fx.discipline}");
     const near = start === -1 ? "" : table.slice(Math.max(0, start - 400), start);
     return /target="_blank"/.test(near) && /rel="noopener noreferrer"/.test(near);
   })()
 );
 check(
   "with no discipline picked, the button is disabled with a tooltip explaining why — same convention EvidenceReviewView's own discipline-gated button uses",
-  /disabled\s*\n\s*title="Pick one discipline above first/.test(table)
+  /title="Pick one discipline in the filter first"/.test(table)
 );
 
 /* ---- 7 · Finding.actionPlan — Sarel: "Add an option to add action and
@@ -183,21 +183,8 @@ check(
   /version: 45,/.test(storeSrc) && /if \(from < 44\)/.test(storeSrc)
 );
 check(
-  "the table has an Action plan column, with its own compact trigger-plus-popover cell (ActionPlanCell) — a textarea cannot be a chip row",
-  /<Th>Action plan<\/Th>/.test(table) && /function ActionPlanCell/.test(table)
-);
-check(
-  "the cell shows a ghost \"+ Add\" with nothing written, and the SAME value.trim() gate the table's own MultiSelectCell convention uses elsewhere",
-  (() => {
-    const start = table.indexOf("function ActionPlanCell");
-    const fn = start === -1 ? "" : table.slice(start, table.indexOf("\n}\n", start) + 2);
-    return fn.length > 0 && /value\.trim\(\)/.test(fn) && /\+ Add/.test(fn);
-  })()
-);
-check(
-  "the row wires it straight through onChange — bound on every keystroke, no separate Save button, same as every other free-text field here",
-  /value={f\.actionPlan \?\? ""}/.test(table) &&
-    /onChange={\(v\) => onChange\(f\.id, { actionPlan: v \|\| undefined }\)}/.test(table)
+  "the Action plan is edited in the drawer (Sarel, 27 Nov 2026: the table row is one line), no longer as a table column with its own popover cell",
+  !/function ActionPlanCell/.test(table) && !/<Th>Action plan<\/Th>/.test(table) && /Action &amp; improvement plan/.test(panel)
 );
 check(
   "the drawer (ReviewRiskPanel) ALSO carries the field — RiskPatch includes actionPlan, and its own textarea binds directly",

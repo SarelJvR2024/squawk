@@ -51,28 +51,26 @@
  *  "make sure all AI cleanup is available and accessible from root cause
  *  page"). */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
-  FINDING_TYPE_LABEL,
   IMPACT_AREAS,
   ROOT_CAUSES,
   TIMELINES,
   applyBulkMulti,
   findingTypeFor,
-  matchesReviewRiskFilter,
-  toggleMulti,
-  type ReviewRiskFilter,
+  priorityFor,
 } from "@/lib/reviewRisk";
 import { ALL_DISCIPLINES, checksAt, systemsAt, systemsOf } from "@/lib/register";
 import { entity as entityOf } from "@/lib/programme";
-import { useEvidenceItems, useFieldSaveStatus, useStore, useVisitId } from "@/lib/store";
+import { useFieldSaveStatus, useStore, useVisitId } from "@/lib/store";
 import { getBlob, useBlobUrl } from "@/lib/media";
 import { assist, polishContext, transcribe, useAssistAvailable, useTranscribeAvailable } from "@/lib/assist";
 import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
-import { IconCamera, IconClipboard, IconEye, IconMic, IconSpark, IconTeam } from "@/components/ui/icons";
+import { IconCamera, IconClipboard, IconEye, IconMic, IconSpark, IconTeam, IconTrash } from "@/components/ui/icons";
 import { basicTidy, wordDiff } from "@/lib/wordDiff";
 import { evidenceChannelStatus, inspectionStatus, interviewStatus, TONE_COLOUR, type ChannelStatus } from "@/lib/triageStatus";
 import EvidenceQuickCapture from "@/components/EvidenceQuickCapture";
+import { Menu, PriorityBadge, RiskSelect, TagBadges, TagsMenu, TimelineSelect, TypePill } from "@/components/TriageCells";
 import type { Attachment, Check, Finding, Response } from "@/lib/types";
 
 /** The sort key an empty/absent Asset system sorts under — see `visible`'s
@@ -97,6 +95,10 @@ const GENERAL_SYSTEM_SORT_KEY = String.fromCharCode(0xffff);
  *  filtered, sorted array — is untouched and still what the row count,
  *  Select all and bulk actions operate on; only the .map() that mounts
  *  <tr>s is capped, via `shown`. */
+/** Voice-note transcripts carry "uh", "um" and "erm"; a finding with any of them
+ *  gets a sparkle button that opens the wording review for it. */
+const FILLER_WORDS = /\b(uh+|um+|uhm+|erm+)\b/i;
+
 const PAGE_SIZE_INITIAL = 50;
 const PAGE_SIZE_STEP = 100;
 /** "Show more" stops growing the page past this — otherwise enough clicks
@@ -141,7 +143,19 @@ export default function ReviewRiskTable({
    *  this app a table edits a record in place. */
   onChange: (id: string, patch: Partial<Finding>) => void;
 }) {
-  const [filter, setFilter] = useState<ReviewRiskFilter>({ kind: "all" });
+  /* TOOLBAR FILTERS — Sarel, 27 Nov 2026. Search plus Discipline, Asset
+     system, Priority and Timeline, and they COMBINE (the old single-filter
+     union replaced one choice with the next). `priority` is the Level the
+     5x5 matrix gives (priorityFor), "none" meaning not yet rated. */
+  const [fx, setFx] = useState<{ q: string; discipline: string; system: string; priority: string; timeline: string }>({
+    q: "",
+    discipline: "",
+    system: "",
+    priority: "",
+    timeline: "",
+  });
+  const setFilterPart = (patch: Partial<typeof fx>) => setFx((s) => ({ ...s, ...patch }));
+  const filtersOn = Object.values(fx).some(Boolean);
   /* CODE REVIEW ON BUILD PROMPT 8's OWN BRANCH — see the identical guard
      and comment in ReviewRiskPanel.tsx. `responses` is always the
      CALLER's current-visit data; reading it unconditionally per row was
@@ -172,61 +186,55 @@ export default function ReviewRiskTable({
   );
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [evidenceOpen, setEvidenceOpen] = useState(false);
-  /* Inline photo thumbnails (below) open here full-size rather than
-     navigating away — a lightbox over the table, not a second screen. */
-  const [lightbox, setLightbox] = useState<Attachment | null>(null);
 
   /* Audit-check reference codes are presentation we no longer show (see
    *  PR "Review pages: remove audit-check reference codes from the UI") —
    *  the readable requirement text takes their place everywhere a check is
    *  linked. Built once per entity rather than re-scanning checksAt() on
    *  every row's render. */
-  const evidenceItems = useEvidenceItems();
   const checksById = useMemo(() => {
     const m = new Map<string, Check>();
     for (const c of checksAt(entityCode)) m.set(c.id, c);
     return m;
   }, [entityCode]);
-
-  /* PRIORITY 2 — sorted Discipline, then Asset system, so a reviewer going
-     down the table moves through one discipline's systems together rather
-     than in raise-order. "General" (no system) sorts after every named
-     system within its discipline, never before — GENERAL_SYSTEM_SORT_KEY
-     (module scope, below) is the highest BMP code point, which sorts after
-     any real system name under localeCompare, so an empty/absent system is
-     pushed to the end of its discipline's own group without needing a
-     second pass. */
+  /* Sorted Discipline, then Asset system (a no-system row last in its
+     discipline), as before; now filtered by every toolbar part at once. */
   const visible = useMemo(() => {
-    const filtered = findings.filter((f) => matchesReviewRiskFilter(f, filter));
+    const q = fx.q.trim().toLowerCase();
+    const filtered = findings.filter((f) => {
+      if (fx.discipline && f.discipline !== fx.discipline) return false;
+      if (fx.system && f.system !== fx.system) return false;
+      if (fx.timeline && f.timeline !== fx.timeline) return false;
+      if (fx.priority) {
+        const p = priorityFor(f)?.priority ?? "none";
+        if (p !== fx.priority) return false;
+      }
+      if (q) {
+        const hay = `${f.title} ${f.description} ${f.discipline} ${f.system} ${f.checkId ?? ""} ${f.actionPlan ?? ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
     return [...filtered].sort((a, b) => {
       const byDiscipline = (a.discipline || "").localeCompare(b.discipline || "");
       if (byDiscipline !== 0) return byDiscipline;
       return (a.system || GENERAL_SYSTEM_SORT_KEY).localeCompare(b.system || GENERAL_SYSTEM_SORT_KEY);
     });
-  }, [findings, filter]);
+  }, [findings, fx]);
 
-  /* How many of `visible` are actually mounted as <tr>s — see
-     PAGE_SIZE_INITIAL's own comment. Reset to the initial page whenever
-     the filter narrows or widens the set, so switching filters always
-     starts cheap rather than carrying over a large page size from a
-     previous, bigger view. Adjusted during render against the previous
-     filter, React's own documented pattern for this ("Adjusting state
-     when a prop changes") — not an effect, which would cost an extra,
-     visible render of the stale page before snapping back. */
+  /* Rows mounted: reset to the first page whenever a filter changes (React's
+     "adjust state while rendering" pattern, not an effect). */
   const [shown, setShown] = useState(PAGE_SIZE_INITIAL);
-  const [prevFilter, setPrevFilter] = useState(filter);
-  if (filter !== prevFilter) {
-    setPrevFilter(filter);
+  const [prevFx, setPrevFx] = useState(fx);
+  if (fx !== prevFx) {
+    setPrevFx(fx);
     setShown(PAGE_SIZE_INITIAL);
   }
 
-  /* Asset system options narrow to the active Discipline filter's own
-     systems — systemsOf — and fall back to every system at this entity —
-     systemsAt — the rest of the time. Neither list is invented here. */
+  /* Asset system options narrow to the chosen Discipline. */
   const systemOptions = useMemo(
-    () =>
-      filter.kind === "discipline" ? systemsOf(entityCode, filter.discipline) : systemsAt(entityCode),
-    [entityCode, filter]
+    () => (fx.discipline ? systemsOf(entityCode, fx.discipline) : systemsAt(entityCode)),
+    [entityCode, fx.discipline]
   );
 
   const toggleRow = (id: string) =>
@@ -241,205 +249,191 @@ export default function ReviewRiskTable({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-3">
-      {/* Filters — the Rating/Not-rated/Root-cause-unconfirmed CHIP ROW Sarel
-          asked removed ("remove these filters", screenshot of the All/
-          Priority I/II/III/Not rated row) is gone. The four dropdowns below
-          stay — his screenshot didn't mark those, and they're how a reviewer
-          narrows a 36+-row table down rather than scanning it. A finding can
-          still be reached by any of the filter KINDS `ReviewRiskFilter`
-          supports (nothing was removed from reviewRisk.ts) — there is simply
-          no chip bound to "priority"/"notRated"/"unconfirmed" any more. */}
-      <div className="mb-2.5 flex flex-wrap items-center gap-[6px]">
-        <select
-          aria-label="Filter by discipline"
-          value={filter.kind === "discipline" ? filter.discipline : ""}
-          onChange={(e) =>
-            e.target.value
-              ? setFilter({ kind: "discipline", discipline: e.target.value })
-              : setFilter({ kind: "all" })
-          }
-          className="h-[30px] rounded-[8px] border px-2 text-[11px]"
-          style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
-        >
-          <option value="">Discipline…</option>
-          {ALL_DISCIPLINES.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label="Filter by asset system"
-          value={filter.kind === "system" ? filter.system : ""}
-          onChange={(e) =>
-            e.target.value
-              ? setFilter({ kind: "system", system: e.target.value })
-              : setFilter({ kind: "all" })
-          }
-          className="h-[30px] rounded-[8px] border px-2 text-[11px]"
-          style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
-        >
-          <option value="">Asset system…</option>
-          {systemOptions.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label="Filter by impact area"
-          value={filter.kind === "impact" ? filter.area : ""}
-          onChange={(e) =>
-            e.target.value
-              ? setFilter({ kind: "impact", area: e.target.value })
-              : setFilter({ kind: "all" })
-          }
-          className="h-[30px] rounded-[8px] border px-2 text-[11px]"
-          style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
-        >
-          <option value="">Impact area…</option>
-          {IMPACT_AREAS.map((a) => (
-            <option key={a} value={a}>
-              {a}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label="Filter by root cause category"
-          value={filter.kind === "rootCause" ? filter.category : ""}
-          onChange={(e) =>
-            e.target.value
-              ? setFilter({ kind: "rootCause", category: e.target.value })
-              : setFilter({ kind: "all" })
-          }
-          className="h-[30px] rounded-[8px] border px-2 text-[11px]"
-          style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
-        >
-          <option value="">Root cause category…</option>
-          {ROOT_CAUSES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        {/* Type filter — Sarel, same request as the inline edit above:
-            "add this as an additional filter on the table." Reads the
-            SAME FINDING_TYPE_LABEL/findingTypeFor the cell and the
-            panel's own chips already use, not a second vocabulary. */}
-        <select
-          aria-label="Filter by type"
-          value={filter.kind === "type" ? filter.type : ""}
-          onChange={(e) =>
-            e.target.value
-              ? setFilter({
-                  kind: "type",
-                  type: e.target.value as "non-compliance" | "observation" | "needs-evidence",
-                })
-              : setFilter({ kind: "all" })
-          }
-          className="h-[30px] rounded-[8px] border px-2 text-[11px]"
-          style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
-        >
-          <option value="">Type…</option>
-          {(["non-compliance", "observation", "needs-evidence"] as const).map((t) => (
-            <option key={t} value={t}>
-              {FINDING_TYPE_LABEL[t]}
-            </option>
-          ))}
-        </select>
-
-        {/* GENERATE REPORT — Sarel: "make the report available to generate
-            a PDF from the review root cause page to generate a report
-            based on the discipline that's selected in the filters." Needs
-            one discipline picked (the Discipline select above, not
-            system/impact/root-cause, which narrow within a discipline
-            rather than naming one) — disabled with a tooltip otherwise,
-            same convention EvidenceReviewView's own "Share list with
-            discipline" button already uses. Opens /report in a new tab: a
-            plain, unrouted <a>, not router.push, because the report is
-            meant to be printed/saved and come back to, not navigated away
-            to. It reads no data from here — the new tab shares this same
-            browser's IndexedDB, so it sees the same findings without a
-            second copy passed through the URL. */}
-        {/* REQUEST EVIDENCE — Sarel, 26 Nov 2026: "add a link to capture
-            evidence request from the triage page". Opens the existing quick
-            capture (same addEvidenceItem write as the Evidence tab and
-            /evidence) so a gap noticed while triaging is logged on the spot. */}
-        <button
-          type="button"
-          aria-expanded={evidenceOpen}
-          onClick={() => setEvidenceOpen((o) => !o)}
-          className="ml-auto flex h-[30px] items-center rounded-[8px] border px-3 text-[11px] font-semibold"
-          style={{ borderColor: "var(--line-2)", color: "var(--ink-2)", background: "var(--panel)" }}
-        >
-          Request evidence
-        </button>
-        <a
-          href="/evidence"
-          className="flex h-[30px] items-center text-[11px] underline"
-          style={{ color: "var(--ink-3)" }}
-        >
-          Evidence log
-        </a>
-        {/* CLEAN UP WORDING — Sarel, 26 Nov 2026: "On triage, add a button to
-            allow cleanup of findings where it will give proper cleanup
-            technical wording, and allow user to approve changes or reject
-            changes." The machinery already exists (BulkSuggestWording: the
-            "polish" task, one proposal per finding, Accept/Reject each) but
-            sat inside the bulk bar, which only appears once rows are
-            ticked — nobody found it. This button ticks every finding in the
-            current view and scrolls the bulk bar into sight; nothing is
-            written until a proposal is accepted. */}
-        <button
-          type="button"
-          disabled={visible.length === 0}
-          onClick={() => {
-            setSelected(new Set(visible.map((f) => f.id)));
-            requestAnimationFrame(() =>
-              document.getElementById("triage-bulk-bar")?.scrollIntoView({ behavior: "smooth", block: "nearest" })
-            );
-          }}
-          title={
-            "Propose cleaner technical wording for every finding shown (AI, or Basic tidy), then accept or reject each one"
-          }
-          className="flex h-[30px] items-center gap-[5px] rounded-[8px] border px-3 text-[11px] font-semibold disabled:opacity-50"
-          style={{ borderColor: "var(--acc-line)", color: "var(--acc)", background: "var(--acc-soft)" }}
-        >
-          <IconSpark width={12} height={12} />
-          Clean up wording
-        </button>
-        <a
-          href="/report?discipline=all"
-          target="_blank"
-          rel="noopener noreferrer"
-          title="One report for every discipline at this airport"
-          className="flex h-[30px] items-center rounded-[8px] border px-3 text-[11px] font-semibold"
-          style={{ borderColor: "var(--acc)", color: "var(--acc)", background: "var(--panel)" }}
-        >
-          Airport report
-        </a>
-        {filter.kind === "discipline" ? (
-          <a
-            href={`/report?discipline=${encodeURIComponent(filter.discipline)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex h-[30px] items-center rounded-[8px] px-3 text-[11px] font-semibold"
-            style={{ background: "var(--acc)", color: "#fff" }}
+      {/* ROW 2 OF THE SCREEN'S TOOLBAR (row 1 — title, status pills, Log
+          finding and Export list — is the Issues page's own header).
+          Sarel, 27 Nov 2026: search (220px) and four compact filters on the
+          left, the utility actions on the right, fitting 1280px without a
+          button clipping or wrapping on its own. The filters COMBINE. The
+          eight-item colour legend that used to sit above the table is gone;
+          the status icons keep their words as hover text, and the
+          "Statuses" info button below explains them on demand. */}
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-[6px]">
+          <input
+            type="search"
+            aria-label="Search findings"
+            placeholder="Search findings"
+            value={fx.q}
+            onChange={(e) => setFilterPart({ q: e.target.value })}
+            className="h-[30px] w-[220px] rounded-[8px] border px-2.5 text-[12px]"
+            style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink)" }}
+          />
+          <select
+            aria-label="Filter by discipline"
+            value={fx.discipline}
+            onChange={(e) => setFilterPart({ discipline: e.target.value, system: "" })}
+            className="h-[30px] w-[108px] rounded-[8px] border px-2 text-[11.5px]"
+            style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
           >
-            Generate report
-          </a>
-        ) : (
+            <option value="">Discipline</option>
+            {ALL_DISCIPLINES.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter by asset system"
+            value={fx.system}
+            onChange={(e) => setFilterPart({ system: e.target.value })}
+            className="h-[30px] w-[108px] rounded-[8px] border px-2 text-[11.5px]"
+            style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+          >
+            <option value="">Asset system</option>
+            {systemOptions.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter by priority"
+            value={fx.priority}
+            onChange={(e) => setFilterPart({ priority: e.target.value })}
+            className="h-[30px] w-[96px] rounded-[8px] border px-2 text-[11.5px]"
+            style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+          >
+            <option value="">Priority</option>
+            <option value="I">Level I</option>
+            <option value="II">Level II</option>
+            <option value="III">Level III</option>
+            <option value="none">Not rated</option>
+          </select>
+          <select
+            aria-label="Filter by timeline"
+            value={fx.timeline}
+            onChange={(e) => setFilterPart({ timeline: e.target.value })}
+            className="h-[30px] w-[104px] rounded-[8px] border px-2 text-[11.5px]"
+            style={{ background: "var(--panel)", borderColor: "var(--line-2)", color: "var(--ink-2)" }}
+          >
+            <option value="">Timeline</option>
+            {TIMELINES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-[6px]">
+          {/* CLEAN UP WORDING — ticks every finding in view and opens the
+              existing review (AI or Basic tidy, side by side, accept or
+              reject each). Nothing is written until a proposal is accepted. */}
           <button
             type="button"
-            disabled
-            title="Pick one discipline above first — a report is generated for one discipline at a time."
-            className="flex h-[30px] items-center rounded-[8px] px-3 text-[11px] font-semibold opacity-50"
-            style={{ background: "var(--acc)", color: "#fff" }}
+            disabled={visible.length === 0}
+            onClick={() => {
+              setSelected(new Set(visible.map((f) => f.id)));
+              requestAnimationFrame(() =>
+                document.getElementById("triage-bulk-bar")?.scrollIntoView({ behavior: "smooth", block: "nearest" })
+              );
+            }}
+            title="Propose cleaner technical wording for every finding shown (AI, or Basic tidy), then accept or reject each one"
+            className="flex h-[30px] items-center gap-[5px] whitespace-nowrap rounded-[8px] border px-3 text-[11.5px] font-semibold disabled:opacity-50"
+            style={{ borderColor: "var(--acc-line)", color: "var(--acc)", background: "var(--acc-soft)" }}
           >
-            Generate report
+            <IconSpark width={12} height={12} />
+            Clean up wording
           </button>
-        )}
+          <Menu
+            label="Evidence log"
+            width={190}
+            trigger={({ open, toggle, ref }) => (
+              <button
+                ref={ref}
+                type="button"
+                onClick={toggle}
+                aria-haspopup="menu"
+                aria-expanded={open}
+                className="flex h-[30px] items-center gap-[4px] whitespace-nowrap rounded-[8px] border px-3 text-[11.5px] font-semibold"
+                style={{ borderColor: "var(--line-2)", color: "var(--ink-2)", background: "var(--panel)" }}
+              >
+                Evidence log <span aria-hidden="true" className="text-[9px] opacity-60">&#9662;</span>
+              </button>
+            )}
+          >
+            {(close) => (
+              <>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setEvidenceOpen((o) => !o);
+                    close();
+                  }}
+                  className="flex w-full rounded-[7px] px-[8px] py-[6px] text-left text-[11.5px]"
+                  style={{ color: "var(--ink)" }}
+                >
+                  {evidenceOpen ? "Close request form" : "Request evidence"}
+                </button>
+                <a href="/evidence" role="menuitem" className="flex w-full rounded-[7px] px-[8px] py-[6px] text-[11.5px]" style={{ color: "var(--ink)" }}>
+                  Open the evidence log
+                </a>
+              </>
+            )}
+          </Menu>
+          <Menu
+            label="Reports"
+            width={210}
+            trigger={({ open, toggle, ref }) => (
+              <button
+                ref={ref}
+                type="button"
+                onClick={toggle}
+                aria-haspopup="menu"
+                aria-expanded={open}
+                className="flex h-[30px] items-center gap-[4px] whitespace-nowrap rounded-[8px] border px-3 text-[11.5px] font-semibold"
+                style={{ borderColor: "var(--acc)", color: "var(--acc)", background: "var(--panel)" }}
+              >
+                Report <span aria-hidden="true" className="text-[9px] opacity-60">&#9662;</span>
+              </button>
+            )}
+          >
+            {() => (
+              <>
+                <a
+                  href="/report?discipline=all"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  role="menuitem"
+                  title="One report for every discipline at this airport"
+                  className="flex w-full rounded-[7px] px-[8px] py-[6px] text-[11.5px]"
+                  style={{ color: "var(--ink)" }}
+                >
+                  Airport report
+                </a>
+                {fx.discipline ? (
+                  <a
+                    href={`/report?discipline=${encodeURIComponent(fx.discipline)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    role="menuitem"
+                    className="flex w-full rounded-[7px] px-[8px] py-[6px] text-[11.5px]"
+                    style={{ color: "var(--ink)" }}
+                  >
+                    Report for {fx.discipline}
+                  </a>
+                ) : (
+                  <span className="flex w-full rounded-[7px] px-[8px] py-[6px] text-[11.5px] opacity-50" style={{ color: "var(--ink)" }} title="Pick one discipline in the filter first">
+                    Report for one discipline (pick one first)
+                  </span>
+                )}
+              </>
+            )}
+          </Menu>
+        </div>
       </div>
+
 
       {/* Bulk bar — §3: set severity/likelihood/impact/root cause for every
           selected row at once. */}
@@ -474,44 +468,40 @@ export default function ReviewRiskTable({
       <div className="mb-1.5 flex items-center gap-[8px] text-[10.5px]" style={{ color: "var(--ink-3)" }}>
         <span>
           {visible.length} finding{visible.length === 1 ? "" : "s"}
-          {filter.kind !== "all" ? ` matching this filter (of ${findings.length} total)` : ""}
+          {filtersOn ? ` matching these filters (of ${findings.length} total)` : ""}
+        </span>
+        {filtersOn && (
+          <button
+            type="button"
+            onClick={() => setFx({ q: "", discipline: "", system: "", priority: "", timeline: "" })}
+            className="font-semibold underline"
+            style={{ color: "var(--acc)" }}
+          >
+            Clear filters
+          </button>
+        )}
+        <span
+          className="inline-flex h-[15px] w-[15px] cursor-help items-center justify-center rounded-full border text-[9px] font-bold"
+          style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+          title={"Icons under Location: interview, evidence and inspection status. Green = done, no issues. Red = issues found or non-compliance. Amber = more evidence needed or not verified. Grey = not applicable. Pale = not done yet."}
+        >
+          i
         </span>
         <SaveStatusPill status={saveStatus} />
       </div>
 
-      {/* The table itself — Sarel's mockup column set, narrowed per his own
-          follow-up requests since: Severity/Likelihood/Rating removed (not
-          rated at finding level — see this file's own header); Discipline
-          and Audit check merged into one "Location / Hierarchy" column
-          (see that column's own comment below for why); Evidence shows
-          actual photo thumbnails, not only a count. Current set — select ·
-          Type · Location/Hierarchy · Finding/comment · Root cause · Impact
-          · Timeline · Evidence. */}
+      {/* THE TABLE — one row per finding, 52px, everything centred.
+          Sarel, 27 Nov 2026: "collapse row height", no stacked buttons in
+          cells, 8-12 findings visible on a 13-inch laptop. Root cause,
+          Impact, Action plan, the evidence-requested comments and the photo
+          gallery are all in the detail drawer (click a row) rather than as
+          columns; the table keeps what a reviewer scans: Type, Location,
+          Finding, the 5x5 rating and its Priority, Timeline, Photos. */}
       <div className="overflow-x-auto rounded-[11px] border" style={{ borderColor: "var(--line)" }}>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-3 py-1.5 text-[10.5px]" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
-          <span className="inline-flex items-center gap-1"><IconTeam width={13} height={13} /> Interview</span>
-          <span className="inline-flex items-center gap-1"><IconClipboard width={13} height={13} /> Evidence</span>
-          <span className="inline-flex items-center gap-1"><IconEye width={13} height={13} /> Inspection</span>
-          <span>&middot;</span>
-          {(
-            [
-              ["good", "Done, no issues"],
-              ["bad", "Issues found / non-compliance"],
-              ["warn", "More evidence needed / not verified"],
-              ["na", "N/A"],
-              ["none", "Not done yet"],
-            ] as const
-          ).map(([tone, label]) => (
-            <span key={tone} className="inline-flex items-center gap-1">
-              <span style={{ width: 9, height: 9, borderRadius: 9, background: TONE_COLOUR[tone], display: "inline-block" }} />
-              {label}
-            </span>
-          ))}
-        </div>
-        <table className="w-full text-[11.5px]">
+        <table className="w-full min-w-[880px] table-fixed text-[12px]">
           <thead>
             <tr style={{ background: "var(--sunken)" }}>
-              <th className="w-[32px] p-2">
+              <th className="w-[34px] px-2 py-2">
                 <input
                   type="checkbox"
                   aria-label="Select all visible"
@@ -521,37 +511,38 @@ export default function ReviewRiskTable({
                   }
                 />
               </th>
-              <Th>Type</Th>
-              <Th>Tags</Th>
-              <Th>Location / Hierarchy</Th>
-              <th className="p-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
-                Finding
-              </th>
-              <Th>Root cause</Th>
-              <Th>Impact</Th>
-              <Th>Timeline</Th>
-              <Th>Action plan</Th>
-              <Th>Evidence requested &amp; comments</Th>
-              <Th>Photos</Th>
-              <Th>{""}</Th>
+              <th className="w-[140px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Type</th>
+              <th className="w-[180px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Location</th>
+              <th className="px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Finding</th>
+              <th className="w-[58px] px-1 py-2 text-center font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }} title="Severity: A Catastrophic, B Hazardous, C Major, D Minor, E Negligible">Sev</th>
+              <th className="w-[58px] px-1 py-2 text-center font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }} title="Likelihood: 1 Extremely improbable, 2 Improbable, 3 Remote, 4 Occasional, 5 Frequent">Lik</th>
+              <th className="w-[92px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Priority</th>
+              <th className="w-[144px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Timeline</th>
+              <th className="w-[56px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Photos</th>
+              <th className="w-[48px] px-2 py-2"><span className="sr-only">Delete</span></th>
             </tr>
           </thead>
           <tbody>
             {visible.slice(0, shown).map((f) => {
-              const impact = f.impactAreas ?? [];
-              const causes = f.rootCauseCategories ?? [];
               const type = findingTypeFor(f);
               const photoAttachments = f.attachments.filter((a) => a.kind === "photo");
-              const voices = f.attachments.filter((a) => a.kind === "voice").length;
               const on = f.id === activeId;
+              const chk = f.checkId && f.originVisit === visitId ? responses[f.checkId] : undefined;
+              const statusItems: { key: string; Icon: typeof IconEye; name: string; st: ChannelStatus }[] = [
+                { key: "i", Icon: IconTeam, name: "Interview", st: interviewStatus(chk) },
+                { key: "e", Icon: IconClipboard, name: "Evidence", st: evidenceChannelStatus(chk) },
+                { key: "s", Icon: IconEye, name: "Inspection", st: inspectionStatus(chk) },
+              ];
+              const text = f.title || f.description || f.id;
+              const needsTidy = FILLER_WORDS.test(`${f.title} ${f.description}`);
               return (
                 <tr
                   key={f.id}
                   onClick={() => onActivate(f.id)}
-                  className="cursor-pointer border-t"
+                  className="group h-[52px] cursor-pointer border-t"
                   style={{ borderColor: "var(--line)", background: on ? "var(--acc-soft)" : "transparent" }}
                 >
-                  <td className="p-2" onClick={(e) => e.stopPropagation()}>
+                  <td className="px-2 py-1 align-middle" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       aria-label={`Select ${f.title || f.id}`}
@@ -560,358 +551,112 @@ export default function ReviewRiskTable({
                     />
                   </td>
 
-                  {/* Type — inline-editable now, same plain-<select>
-                      pattern as Timeline below, rather than the panel
-                      being the only place to set it — Sarel: "the type
-                      need to allow for inline editing to select between
-                      observation and non-compliance and require evidence
-                      to verify." The panel keeps its own Type chips too;
-                      both write through the same onChange. Internal is
-                      editable right here too, same column, since both
-                      are classification — Sarel, separately: "add an
-                      option in root cause to tag rows 'internal' to keep
-                      as our internal info and not make it into any
-                      reports." See ReviewRiskReport.tsx for the one
-                      place that flag is actually read. */}
-                  <td className="p-2" onClick={(e) => e.stopPropagation()}>
-                    {/* One click picks the type — all three shown, single
-                        select (Sarel, 26 Nov 2026). */}
-                    <div role="radiogroup" aria-label={`Type for ${f.title || f.id}`} className="flex flex-col items-stretch gap-[4px]">
-                      {(["observation", "non-compliance", "needs-evidence"] as const).map((t) => {
-                        const on = type === t;
-                        const bad = t === "non-compliance";
-                        return (
-                          <button
-                            key={t}
-                            type="button"
-                            role="radio"
-                            aria-checked={on}
-                            onClick={() => onChange(f.id, { findingType: t })}
-                            className="rounded-[6px] border px-2 py-1 text-left text-[10.5px] font-semibold"
-                            style={{
-                              background: on ? (bad ? "var(--bad-bg)" : "var(--acc-soft)") : "var(--panel)",
-                              borderColor: on ? (bad ? "var(--bad-line)" : "var(--acc)") : "var(--line-2)",
-                              color: on ? (bad ? "var(--bad)" : "var(--acc)") : "var(--ink-3)",
-                            }}
-                          >
-                            {on ? "\u25CF " : "\u25CB "}
-                            {FINDING_TYPE_LABEL[t]}
-                          </button>
-                        );
-                      })}
-                    </div>
+                  {/* Type: the active one only; click for the menu. */}
+                  <td className="px-2 py-1 align-middle" onClick={(e) => e.stopPropagation()}>
+                    <TypePill
+                      type={type}
+                      label={`Type for ${f.title || f.id}`}
+                      onChange={(t) => onChange(f.id, { findingType: t })}
+                    />
                   </td>
 
-                  {/* Tags — multi-select: any combination. Immediate sets the
-                      Timeline to Immediate; Internal keeps the row out of
-                      reports. */}
-                  <td className="p-2 align-top" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex flex-col items-start gap-[4px]">
-                      <Chip
-                        selected={f.timeline === "Immediate"}
-                        onClick={() => onChange(f.id, { timeline: f.timeline === "Immediate" ? undefined : "Immediate" })}
-                        title="Immediate: act on this now (sets the Timeline to Immediate)"
-                      >
-                        Immediate
-                      </Chip>
-                      <Chip
-                        selected={!!f.safetyTag}
-                        onClick={() => onChange(f.id, { safetyTag: !f.safetyTag })}
-                        title="Immediate safety concern: a hazard to people or operations that needs attention now. Reported separately from Critical."
-                      >
-                        Immediate safety concern
-                      </Chip>
-                      <Chip
-                        selected={!!f.critical}
-                        onClick={() => onChange(f.id, { critical: !f.critical })}
-                        title="Immediate critical item: a serious finding that must be dealt with. Reported separately from Safety concern."
-                      >
-                        Immediate critical item
-                      </Chip>
-                      <Chip
-                        selected={!!f.internalOnly}
-                        onClick={() => onChange(f.id, { internalOnly: !f.internalOnly })}
-                        title={`Keep "${f.title || f.id}" internal — leave it out of reports`}
-                      >
-                        Internal
-                      </Chip>
-                    </div>
-                  </td>
-
-                  {/* LOCATION / HIERARCHY — Discipline and Audit check used
-                      to be two separate columns, each capable of printing
-                      its own "General" when nothing more specific was
-                      linked — Sarel: "remove redundant repetition of
-                      'General' across two columns... combine Discipline and
-                      Audit Check into a single clean 'Location / Hierarchy'
-                      column." The audit check's own requirement TEXT isn't
-                      shown here any more either (it was the widest thing in
-                      the row and directly fought the density goal above);
-                      it's still one click away in the detail panel's own
-                      "linked audit check" section, which is where editing
-                      the link happens too. Discipline is always shown (it's
-                      a required field, never empty); the asset system below
-                      it in muted text, or one subtle badge when nothing
-                      more specific — system or check — is linked, instead
-                      of the plain italic "General" used before. */}
-                  <td className="min-w-[90px] max-w-[150px] p-2 align-top whitespace-nowrap">
-                    <div className="truncate font-semibold" style={{ color: "var(--ink)" }}>
+                  {/* Location: discipline (13px medium), asset system (12px
+                      muted) or a grey "General" badge, and the three
+                      assessment-status icons (hover for the words). */}
+                  <td className="px-2 py-1 align-middle">
+                    <div className="truncate text-[13px] font-medium" style={{ color: "var(--ink)" }}>
                       {f.discipline || "—"}
                     </div>
-                    {f.system || f.checkId ? (
-                      <div className="mt-[1px] truncate text-[10px]" style={{ color: "var(--ink-3)" }}>
-                        {f.system || "General"}
-                      </div>
-                    ) : (
-                      <Pill tone="neutral">General</Pill>
-                    )}
-                    {/* Status of the three ways a check is assessed — Sarel,
-                        26 Nov 2026. Colour = status; hover or long-press for
-                        the words. Legend above the table. */}
-                    {(() => {
-                      const chk = f.checkId && f.originVisit === visitId ? responses[f.checkId] : undefined;
-                      const items: { key: string; Icon: typeof IconEye; name: string; st: ChannelStatus }[] = [
-                        { key: "i", Icon: IconTeam, name: "Interview", st: interviewStatus(chk) },
-                        { key: "e", Icon: IconClipboard, name: "Evidence", st: evidenceChannelStatus(chk) },
-                        { key: "s", Icon: IconEye, name: "Inspection", st: inspectionStatus(chk) },
-                      ];
-                      return (
-                        <div className="mt-1.5 flex items-center gap-[8px]">
-                          {items.map(({ key, Icon, name, st }) => (
-                            <span key={key} title={st.label} aria-label={st.label} role="img" className="inline-flex" style={{ color: TONE_COLOUR[st.tone] }}>
-                              <Icon width={18} height={18} />
-                              <span className="sr-only">{name}</span>
-                            </span>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                  </td>
-
-                  {/* Finding — Sarel: "remove duplication of the same
-                      infomation in the findings column, this should be the
-                      notes from the audit check, the finding and the
-                      evidence review." Three distinct sources, each only
-                      rendered when it actually has something to say, never
-                      the same text repeated under two labels:
-                        - the linked check's own desk note (Response.observation)
-                        - the finding itself (title, then description if it
-                          says something the title didn't already)
-                        - what the evidence review found (Response.evidenceProves)
-                      A finding with no checkId has no audit-check note or
-                      evidence-review verdict to show — those two lines are
-                      simply absent, not "General".
-                      16 Nov 2026 — Sarel, on the live table: "remove the
-                      heading findings, audit check notes from the findings
-                      column, no need for headings in the column." The
-                      "AUDIT CHECK NOTE"/"FINDING"/"EVIDENCE REVIEW" eyebrow
-                      labels are gone; the three sources still read in the
-                      same order and stay visually distinct by weight alone
-                      (the finding itself bold, the other two not) — the
-                      same distinction `about`/`checkRequirement` in the AI
-                      prompts below reads programmatically, this is just no
-                      longer spelled out on screen too.
-
-                      18 Nov 2026 — Sarel: "the audit check questions must
-                      be in the table in root cause, make sure it is
-                      there." The check's own requirement wording came out
-                      of this table entirely in the Location/Hierarchy pass
-                      above (it was the widest thing in the row); asked
-                      back, it goes here — in the findings/observation
-                      column, not a column of its own, per Sarel's own
-                      answer on where. ACSA's words, muted and above the
-                      desk note, the same attribution the Checks screen
-                      itself gives this exact text (CheckDetail.tsx's own
-                      "the register's wording" note) — this table is not
-                      inventing a fourth source, it is showing one that was
-                      always available via checksById, just not rendered
-                      here before. */}
-                  <td className="min-w-[220px] max-w-[400px] p-2 align-top">
-                    {(() => {
-                      const r = f.checkId && f.originVisit === visitId ? responses[f.checkId] : undefined;
-                      const question = f.checkId ? checksById.get(f.checkId)?.requirement : undefined;
-                      return (
-                        <div className="flex flex-col gap-[6px]">
-                          {question && (
-                            <div className="whitespace-normal break-words text-[10.5px] italic" style={{ color: "var(--ink-3)" }}>
-                              <span className="mr-1.5 rounded-[4px] border px-1 font-mono text-[9.5px] not-italic font-semibold" style={{ borderColor: "var(--line-2)", color: "var(--ink-2)" }}>
-                                {f.checkId}
-                              </span>
-                              {question}
-                            </div>
-                          )}
-                          {r?.observation && (
-                            <div className="whitespace-normal break-words text-[10.5px]" style={{ color: "var(--ink-2)" }}>
-                              {r.observation}
-                            </div>
-                          )}
-                          <div>
-                            <div className="whitespace-normal break-words font-semibold" style={{ color: "var(--ink)" }}>
-                              {f.title || f.description || f.id}
-                            </div>
-                            {f.description && f.title && f.description !== f.title && (
-                              <div className="mt-[2px] whitespace-normal break-words text-[10.5px]" style={{ color: "var(--ink-3)" }}>
-                                {f.description}
-                              </div>
-                            )}
-                          </div>
-                          {r?.evidenceProves && (
-                            <div className="whitespace-normal break-words text-[10.5px]" style={{ color: "var(--ink-2)" }}>
-                              {r.evidenceProves}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </td>
-
-                  {/* PRIORITY 2 (review redesign) — Root cause and Impact
-                      are now editable right here, not panel-only. Every
-                      option renders directly inside a stopPropagation'd
-                      <td> (see MultiSelectCell's own header, 16 Nov 2026,
-                      for why nothing is hidden behind a disclosure any
-                      more), so tapping a chip never selects the row.
-                      toggleMulti/IMPACT_AREAS/ROOT_CAUSES are the exact
-                      same values and toggle function the panel's own chip
-                      rows already use — one vocabulary, one toggle, two
-                      surfaces. */}
-                  <td className="p-2 align-top" onClick={(e) => e.stopPropagation()}>
-                    <MultiSelectCell
-                      label={`Root cause categories for ${f.title || f.id}`}
-                      options={ROOT_CAUSES}
-                      selected={causes}
-                      onToggle={(v) => onChange(f.id, { rootCauseCategories: toggleMulti(f.rootCauseCategories, v) })}
-                    />
-                  </td>
-                  <td className="p-2 align-top" onClick={(e) => e.stopPropagation()}>
-                    <MultiSelectCell
-                      label={`Impact areas for ${f.title || f.id}`}
-                      options={IMPACT_AREAS}
-                      selected={impact}
-                      onToggle={(v) => onChange(f.id, { impactAreas: toggleMulti(f.impactAreas, v) })}
-                    />
-                  </td>
-
-                  {/* Timeline — single-select, same pattern as Severity/
-                      Likelihood above (a plain <select>, not the multi-
-                      select popover), since a finding is remedied on ONE
-                      of these, not several. */}
-                  <td className="p-2" onClick={(e) => e.stopPropagation()}>
-                    <select
-                      aria-label={`Timeline for ${f.title || f.id}`}
-                      value={f.timeline ?? ""}
-                      onChange={(e) => onChange(f.id, { timeline: e.target.value || undefined })}
-                      className="rounded-[6px] border px-1.5 py-1 text-[10.5px]"
-                      style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-                    >
-                      <option value="">—</option>
-                      {TIMELINES.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-
-                  {/* ACTION & IMPROVEMENT PLAN — Sarel: "Add an option to
-                      add action and improvement plan for any row in the
-                      root cause table. This will be the action plan for
-                      the airports to improve the asset assurance." Same
-                      compact trigger-plus-popover shape as MultiSelectCell
-                      just above, swapped for a textarea instead of
-                      checkboxes — a preview (or a ghost "+ Add") until
-                      opened, nothing hidden about WHETHER a plan exists,
-                      only the full text until the row is asked to show it.
-                      Bound directly, same as every other free-text field
-                      in this app (no separate Save button) — the shared
-                      SaveStatusPill above the table is the feedback. */}
-                  <td className="p-2 align-top" onClick={(e) => e.stopPropagation()}>
-                    <ActionPlanCell
-                      label={`Action and improvement plan for ${f.title || f.id}`}
-                      value={f.actionPlan ?? ""}
-                      onChange={(v) => onChange(f.id, { actionPlan: v || undefined })}
-                    />
-                  </td>
-
-                  {/* EVIDENCE REQUESTED AND COMMENTS ON IT — Sarel, 26 Nov 2026:
-                      "add a column for evidence requested and comments on the
-                      evidence." The evidence requests logged against this
-                      finding's audit check (EvidenceItem.checkIds), each with
-                      where it stands, plus what was said about it: the
-                      analysis note, why it was insufficient or unavailable,
-                      and the check's own "what the evidence proves". */}
-                  <td className="min-w-[200px] max-w-[280px] p-2 align-top" onClick={(e) => e.stopPropagation()}>
-                    {(() => {
-                      const items = f.checkId ? evidenceItems.filter((e) => e.checkIds.includes(f.checkId!)) : [];
-                      const proves = f.checkId ? responses[f.checkId]?.evidenceProves?.trim() : "";
-                      if (items.length === 0 && !proves)
-                        return <span className="text-[10.5px]" style={{ color: "var(--ink-4)" }}>None requested</span>;
-                      return (
-                        <div className="flex flex-col gap-[6px]">
-                          {items.map((e) => {
-                            const status = e.unavailableAt
-                              ? "Not available"
-                              : e.insufficientAt
-                                ? "Insufficient"
-                                : e.receivedAt
-                                  ? "Received"
-                                  : e.requestedAt
-                                    ? "Requested"
-                                    : "Not yet requested";
-                            const comment = [e.analysisNote, e.insufficientReason, e.unavailableReason].filter((t) => t && t.trim()).join(" · ");
-                            return (
-                              <div key={e.id} className="text-[10.5px]">
-                                <div className="font-semibold" style={{ color: "var(--ink-2)" }}>{e.title || e.id}</div>
-                                <div style={{ color: e.unavailableAt || e.insufficientAt ? "var(--bad)" : e.receivedAt ? "var(--good)" : "var(--ink-3)" }}>
-                                  {status}
-                                </div>
-                                {comment && <div className="whitespace-normal break-words" style={{ color: "var(--ink-3)" }}>{comment}</div>}
-                              </div>
-                            );
-                          })}
-                          {proves && (
-                            <div className="whitespace-normal break-words text-[10.5px]" style={{ color: "var(--ink-2)" }}>
-                              <span className="font-semibold">Evidence shows: </span>
-                              {proves}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </td>
-
-                  {/* Evidence — Sarel: "add the photos in the row so that
-                      the photos can be viewed inline." Up to 4 small
-                      thumbnails (the finding's own photo evidence; EvidenceItem
-                      document-custody requests still live in the panel),
-                      tapping one opens it full-size in the lightbox below
-                      without leaving the table; "+N" for anything beyond
-                      that rather than growing the row unboundedly. */}
-                  <td className="min-w-[250px] p-2 align-top" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex flex-wrap items-center gap-[6px]">
-                      {photoAttachments.slice(0, 4).map((a) => (
-                        <EvidenceThumb key={a.id} attachment={a} onOpen={() => setLightbox(a)} />
-                      ))}
-                      {photoAttachments.length > 4 && (
-                        <span className="font-mono text-[9.5px]" style={{ color: "var(--ink-3)" }}>
-                          +{photoAttachments.length - 4}
+                    <div className="flex items-center gap-[6px]">
+                      {f.system || f.checkId ? (
+                        <span className="min-w-0 flex-1 truncate text-[12px]" style={{ color: "var(--ink-3)" }}>
+                          {f.system || "General"}
+                        </span>
+                      ) : (
+                        <span className="min-w-0 flex-1">
+                          <Pill tone="neutral">General</Pill>
                         </span>
                       )}
-                      {photoAttachments.length === 0 && (
-                        <span className="inline-flex items-center gap-[2px] font-mono text-[10px]" style={{ color: "var(--ink-4)" }}>
-                          <IconCamera width={11} height={11} /> 0
-                        </span>
-                      )}
-                      <span className="inline-flex items-center gap-[2px] font-mono text-[10px]" style={{ color: "var(--ink-3)" }} title={`${voices} voice note${voices === 1 ? "" : "s"}`}>
-                        <IconMic width={11} height={11} /> {voices}
+                      <span className="inline-flex shrink-0 items-center gap-[3px]">
+                        {statusItems.map(({ key, Icon, name, st }) => (
+                          <span key={key} title={st.label} aria-label={st.label} role="img" className="inline-flex" style={{ color: TONE_COLOUR[st.tone] }}>
+                            <Icon width={14} height={14} />
+                            <span className="sr-only">{name}</span>
+                          </span>
+                        ))}
                       </span>
                     </div>
                   </td>
 
-                  {/* Delete — far right of the row, away from the tags, with a
-                      confirm step (Sarel, 26 Nov 2026: "move the delete
-                      button somewhere more user friendly"). */}
-                  <td className="p-2 align-top" onClick={(e) => e.stopPropagation()}>
+                  {/* Finding: at most two lines, the rest in the drawer. */}
+                  <td className="px-2 py-1 align-middle">
+                    <div className="flex items-center gap-2">
+                      <div className="min-w-0 flex-1">
+                        <span className="line-clamp-2 break-words text-[12.5px] leading-[16px]" style={{ color: "var(--ink)" }} title={text}>
+                          {f.checkId && (
+                            <span className="mr-1.5 inline-block rounded-[4px] border px-1 align-[1px] font-mono text-[9.5px] font-semibold" style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}>
+                              {f.checkId}
+                            </span>
+                          )}
+                          {text}
+                        </span>
+                      </div>
+                      {needsTidy && (
+                        <button
+                          type="button"
+                          title="Filler words in this note. Click to review a cleaned-up version."
+                          aria-label={`Clean up wording for ${f.title || f.id}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelected(new Set([f.id]));
+                            requestAnimationFrame(() =>
+                              document.getElementById("triage-bulk-bar")?.scrollIntoView({ behavior: "smooth", block: "nearest" })
+                            );
+                          }}
+                          className="inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[6px]"
+                          style={{ color: "var(--acc)", background: "var(--acc-soft)" }}
+                        >
+                          <IconSpark width={12} height={12} />
+                        </button>
+                      )}
+                      <div className="flex max-w-[144px] shrink-0 flex-wrap items-center justify-end gap-[3px]" onClick={(e) => e.stopPropagation()}>
+                        <TagBadges f={f} />
+                        <TagsMenu f={f} onChange={(patch) => onChange(f.id, patch)} />
+                      </div>
+                    </div>
+                  </td>
+
+                  <td className="px-1 py-1 text-center align-middle" onClick={(e) => e.stopPropagation()}>
+                    <RiskSelect kind="severity" finding={f} onChange={(patch) => onChange(f.id, patch)} />
+                  </td>
+                  <td className="px-1 py-1 text-center align-middle" onClick={(e) => e.stopPropagation()}>
+                    <RiskSelect kind="likelihood" finding={f} onChange={(patch) => onChange(f.id, patch)} />
+                  </td>
+                  <td className="px-2 py-1 align-middle">
+                    <PriorityBadge f={f} />
+                  </td>
+
+                  <td className="px-2 py-1 align-middle" onClick={(e) => e.stopPropagation()}>
+                    <TimelineSelect
+                      value={f.timeline}
+                      label={`Timeline for ${f.title || f.id}`}
+                      onChange={(v) => onChange(f.id, { timeline: v })}
+                    />
+                  </td>
+
+                  {/* Photos: a 36px square with the count; opens the gallery
+                      in the drawer. */}
+                  <td className="px-2 py-1 align-middle" onClick={(e) => e.stopPropagation()}>
+                    {photoAttachments.length > 0 ? (
+                      <EvidenceThumb attachment={photoAttachments[0]} count={photoAttachments.length} size={36} onOpen={() => onActivate(f.id)} />
+                    ) : (
+                      <span className="inline-flex h-[36px] w-[36px] items-center justify-center rounded-[6px] border border-dashed" style={{ borderColor: "var(--line-2)", color: "var(--ink-4)" }} title="No photos">
+                        <IconCamera width={13} height={13} />
+                      </span>
+                    )}
+                  </td>
+
+                  <td className="px-2 py-1 align-middle" onClick={(e) => e.stopPropagation()}>
                     {onDeleteMany && <RowDelete title={f.title || f.id} onConfirm={() => onDeleteMany([f.id])} />}
                   </td>
                 </tr>
@@ -919,6 +664,7 @@ export default function ReviewRiskTable({
             })}
           </tbody>
         </table>
+
         {visible.length === 0 && (
           <div className="p-6 text-center text-[11.5px]" style={{ color: "var(--ink-3)" }}>
             Nothing matches this filter.
@@ -963,7 +709,6 @@ export default function ReviewRiskTable({
         )}
       </div>
 
-      {lightbox && <EvidenceLightbox attachment={lightbox} onClose={() => setLightbox(null)} />}
     </div>
   );
 }
@@ -985,7 +730,7 @@ export default function ReviewRiskTable({
  *  error, because there was never an exception to catch. The lightbox
  *  below still wants the full blob (`EvidenceLightbox`, one open at a
  *  time) — only this inline tile must stay on the cheap thumbnail. */
-function EvidenceThumb({ attachment, onOpen }: { attachment: Attachment; onOpen: () => void }) {
+function EvidenceThumb({ attachment, onOpen, size = 120, count }: { attachment: Attachment; onOpen: () => void; size?: number; count?: number }) {
   const thumb = attachment.thumbDataUrl || attachment.dataUrl || null;
   const { url } = useBlobUrl(thumb ? null : attachment.blobKey);
   const src = thumb ?? url ?? null;
@@ -995,297 +740,69 @@ function EvidenceThumb({ attachment, onOpen }: { attachment: Attachment; onOpen:
       type="button"
       onClick={onOpen}
       aria-label={attachment.caption ? `View photo: ${attachment.caption}` : "View photo"}
-      className="block overflow-hidden rounded-[6px] border p-0"
-      style={{ borderColor: "var(--line-2)", width: 120, height: 120 }}
+      className="relative block overflow-hidden rounded-[6px] border p-0"
+      style={{ borderColor: "var(--line-2)", width: size, height: size }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- a local blob/data URL, not a remote asset next/image can optimise */}
       <img src={src} alt="" className="h-full w-full object-cover" />
+      {count !== undefined && (
+        <span
+          className="absolute bottom-0 right-0 rounded-tl-[5px] px-[4px] font-mono text-[10px] font-semibold leading-[14px]"
+          style={{ background: "rgba(0,0,0,0.65)", color: "#fff" }}
+        >
+          {count}
+        </span>
+      )}
     </button>
   );
 }
 
-/** Full-size view for a thumbnail tapped in the table — Esc/backdrop/✕ all
- *  close it; nothing here is editable (full editing stays in the panel's own
- *  AttachmentStrip, which also takes onRemove/onUpdate). */
-function EvidenceLightbox({ attachment, onClose }: { attachment: Attachment; onClose: () => void }) {
-  const { url } = useBlobUrl(attachment.blobKey);
-  const src = url ?? attachment.thumbDataUrl ?? attachment.dataUrl ?? null;
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-6"
-      style={{ background: "rgba(0,0,0,0.75)" }}
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Photo"
-    >
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Close photo"
-        className="absolute top-4 right-4 rounded-[6px] px-3 py-1.5 text-[13px] font-semibold"
-        style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}
-      >
-        ✕
-      </button>
-      {src ? (
-        // eslint-disable-next-line @next/next/no-img-element -- local blob/data URL
-        <img
-          src={src}
-          alt={attachment.caption ?? ""}
-          className="max-h-full max-w-full rounded-[8px] object-contain"
-          onClick={(e) => e.stopPropagation()}
-        />
-      ) : (
-        <div className="text-[13px]" style={{ color: "#fff" }}>
-          This photo isn&apos;t available on this device.
-        </div>
-      )}
-      {attachment.caption && (
-        <div
-          className="absolute bottom-6 left-1/2 max-w-[80%] -translate-x-1/2 rounded-[8px] px-3 py-2 text-center text-[12px]"
-          style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}
-        >
-          {attachment.caption}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** THE TABLE'S OWN INLINE EDITOR for a multi-select axis (Root cause
- *  categories, Impact areas), so neither has to leave the row for the
- *  panel just to toggle one value.
- *
- *  16 Nov 2026, Sarel, on the live table: "root cause and impact inline
- *  editing is not user friendly." THAT version hid every option behind a
- *  `<details>` disclosure — nothing to toggle was visible until you tapped
- *  a small "—" or a Pill first. The fix at the time was to show every
- *  option directly, always, as a row of Chips.
- *
- *  16 Nov 2026, LATER THE SAME DAY — Sarel again, this time on row height:
- *  "every single Root Cause and Impact pill is rendered vertically inside
- *  every row, making rows 250px tall and showing only 1.5 findings per
- *  screen... display ONLY selected tags... if 1-2 tags are selected, show
- *  small compact pills... clicking the cell or button opens a compact
- *  popover with checkboxes." So the "always visible" fix from the morning
- *  was itself the problem once ROOT_CAUSES/IMPACT_AREAS (6-8 options each)
- *  rendered in full on every one of 29 rows — this is the second iteration,
- *  not a reversal of the complaint that prompted the first: what stays
- *  constant is "don't make me open something to find out a value is
- *  selected", and that is still true here (the selected tag IS the
- *  trigger, visible with the row closed); what's gone is showing every
- *  UNselected option too. The caller's own `<td onClick={stopPropagation}>`
- *  is what keeps a tap here from also selecting the row. */
-function MultiSelectCell({
-  label,
-  options,
-  selected,
-  onToggle,
-}: {
-  label: string;
-  options: readonly string[];
-  selected: string[];
-  onToggle: (value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label={label}
-        className="flex min-h-[26px] max-w-[220px] flex-wrap items-center gap-[4px] rounded-[6px] px-[5px] py-[3px] text-left transition-[var(--t)]"
-        style={{ background: open ? "var(--acc-soft)" : "transparent" }}
-      >
-        {selected.length === 0 ? (
-          <span
-            className="rounded-full border border-dashed px-[7px] py-[2px] text-[10px]"
-            style={{ borderColor: "var(--line-2)", color: "var(--ink-4)" }}
-          >
-            + Add
-          </span>
-        ) : (
-          <>
-            {/* Every selected value is shown — Sarel, 26 Nov 2026: "don't
-                hide multiple root cause and impact, I need to see all
-                selected ones". The old "first + N more" hid them. */}
-            {selected.map((v) => (
-              <Pill key={v} tone="neutral">
-                {v}
-              </Pill>
-            ))}
-          </>
-        )}
-      </button>
-
-      {open && (
-        <>
-          {/* Invisible, full-screen — tapping anywhere outside the panel
-              closes it, same convention FilterPopover's own backdrop uses. */}
-          <div className="fixed inset-0 z-[70]" onClick={() => setOpen(false)} aria-hidden="true" />
-          <div
-            role="dialog"
-            aria-label={label}
-            className="absolute left-0 top-[calc(100%+4px)] z-[75] w-[230px] rounded-[10px] border p-[6px]"
-            style={{ background: "var(--menu-bg)", borderColor: "var(--menu-line)", boxShadow: "var(--e3)" }}
-          >
-            <div className="flex max-h-[260px] flex-col gap-[2px] overflow-y-auto">
-              {options.map((o) => {
-                const checked = selected.includes(o);
-                return (
-                  <label
-                    key={o}
-                    className="flex cursor-pointer items-center gap-[7px] rounded-[6px] px-[7px] py-[5px] text-[11px]"
-                    style={{ background: checked ? "var(--acc-soft)" : "transparent" }}
-                  >
-                    <input type="checkbox" checked={checked} onChange={() => onToggle(o)} />
-                    {o}
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-/** THE ACTION & IMPROVEMENT PLAN CELL — Sarel: "Add an option to add
- *  action and improvement plan for any row in the root cause table. This
- *  will be the action plan for the airports to improve the asset
- *  assurance." Free text, so it cannot be a chip row like Root cause/
- *  Impact above — a compact trigger (a truncated preview, or a ghost
- *  "+ Add" with nothing written yet) opens a small popover holding the
- *  actual textarea, so a long plan does not grow the row the way showing
- *  it inline would. Bound directly on every keystroke, same as every
- *  other free-text field in this app (Root cause note in the panel,
- *  Finding.description) — no separate Save button, the shared
- *  SaveStatusPill above the table is the feedback, and Escape/an outside
- *  click just closes the popover rather than discarding anything. */
-function ActionPlanCell({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label={label}
-        className="block max-w-[160px] rounded-[6px] px-[5px] py-[3px] text-left text-[10.5px] transition-[var(--t)]"
-        style={{ background: open ? "var(--acc-soft)" : "transparent" }}
-      >
-        {value.trim() ? (
-          <span className="line-clamp-2 break-words" style={{ color: "var(--ink-2)" }}>
-            {value}
-          </span>
-        ) : (
-          <span
-            className="rounded-full border border-dashed px-[7px] py-[2px] text-[10px]"
-            style={{ borderColor: "var(--line-2)", color: "var(--ink-4)" }}
-          >
-            + Add
-          </span>
-        )}
-      </button>
-
-      {open && (
-        <>
-          <div className="fixed inset-0 z-[70]" onClick={() => setOpen(false)} aria-hidden="true" />
-          <div
-            role="dialog"
-            aria-label={label}
-            className="absolute right-0 top-[calc(100%+4px)] z-[75] w-[min(440px,90vw)] rounded-[10px] border p-[8px]"
-            style={{ background: "var(--menu-bg)", borderColor: "var(--menu-line)", boxShadow: "var(--e3)" }}
-          >
-            <textarea
-              autoFocus
-              aria-label={label}
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              placeholder="What the airport will do to close this out…"
-              className="min-h-[200px] w-full resize-y rounded-[6px] border px-2 py-1.5 text-[12.5px] leading-[1.5]"
-              style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
-            />
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
+/** Row delete: one small trash icon; the confirmation opens as a menu so it never
+ *  widens the row. Deleting only FLAGS the finding (Sarel: never permanently
+ *  delete); it is kept under Issues > Deleted and can be restored. */
 function RowDelete({ title, onConfirm }: { title: string; onConfirm: () => void }) {
-  const [ask, setAsk] = useState(false);
-  if (!ask)
-    return (
-      <button
-        type="button"
-        onClick={() => setAsk(true)}
-        aria-label={`Delete ${title}`}
-        className="rounded-[6px] border px-1.5 py-1 text-[10.5px] font-semibold"
-        style={{ borderColor: "var(--bad-line)", color: "var(--bad)", background: "var(--panel)" }}
-      >
-        Delete
-      </button>
-    );
   return (
-    <span className="flex flex-wrap items-center gap-1.5 text-[10.5px]" style={{ color: "var(--bad)" }}>
-      Delete this finding? Cannot be undone.
-      <button
-        type="button"
-        onClick={() => {
-          setAsk(false);
-          onConfirm();
-        }}
-        className="rounded-[6px] px-2 py-[3px] font-semibold"
-        style={{ background: "var(--bad)", color: "#fff" }}
-      >
-        Yes, delete
-      </button>
-      <button type="button" onClick={() => setAsk(false)} className="underline" style={{ color: "var(--ink-3)" }}>
-        Keep
-      </button>
-    </span>
-  );
-}
-
-function Th({ children }: { children: React.ReactNode }) {
-  return (
-    <th className="p-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>
-      {children}
-    </th>
+    <Menu
+      label={`Delete ${title}`}
+      width={250}
+      trigger={({ open, toggle, ref }) => (
+        <button
+          ref={ref}
+          type="button"
+          onClick={toggle}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={`Delete ${title}`}
+          title="Delete"
+          className="inline-flex h-[28px] w-[28px] items-center justify-center rounded-[7px] border"
+          style={{ borderColor: "var(--bad-line)", color: "var(--bad)", background: "var(--panel)" }}
+        >
+          <IconTrash width={14} height={14} />
+        </button>
+      )}
+    >
+      {(close) => (
+        <div className="p-[6px] text-[11.5px]" style={{ color: "var(--ink)" }}>
+          <div className="mb-2">Delete this finding? It is kept under Deleted and can be restored.</div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                close();
+                onConfirm();
+              }}
+              className="rounded-[6px] px-2 py-[4px] font-semibold"
+              style={{ background: "var(--bad)", color: "#fff" }}
+            >
+              Yes, delete
+            </button>
+            <button type="button" onClick={close} className="underline" style={{ color: "var(--ink-3)" }}>
+              Keep
+            </button>
+          </div>
+        </div>
+      )}
+    </Menu>
   );
 }
 
