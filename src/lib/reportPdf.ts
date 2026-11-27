@@ -1,7 +1,7 @@
 /** Builds a real PDF file from the on-screen report and saves it, so
  *  "Download PDF" downloads instead of opening the print dialog.
  *
- *  The report is drawn to a canvas and placed on A4 landscape pages. Page
+ *  The report is drawn to a canvas and placed on A4 portrait pages. Page
  *  breaks fall between table rows and cards (never through one) wherever a
  *  row fits on a page, so no row is sliced in half. The text in the PDF is
  *  an image, not selectable; Print → Save as PDF keeps selectable text. */
@@ -25,7 +25,7 @@ export async function downloadReportPdf(root: HTMLElement, filename: string): Pr
   const SCALE = 2;
   const canvas = await html2canvas(root, { scale: SCALE, backgroundColor: "#FFFFFF", useCORS: true, logging: false });
 
-  const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
   const M = 8;

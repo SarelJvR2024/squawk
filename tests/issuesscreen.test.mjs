@@ -184,10 +184,10 @@ check(
   () => {
     if (!/const visitId = useVisitId\(\);/.test(src("src", "components", "ReviewRiskTable.tsx")))
       throw new Error("no visitId read");
-    if (!/const r = f\.checkId && f\.originVisit === visitId \? responses\[f\.checkId\] : undefined;/.test(
+    if (!/const chk = f\.checkId && f\.originVisit === visitId \? responses\[f\.checkId\] : undefined;/.test(
       src("src", "components", "ReviewRiskTable.tsx"),
     ))
-      throw new Error("r not gated on originVisit");
+      throw new Error("chk not gated on originVisit");
   },
 );
 

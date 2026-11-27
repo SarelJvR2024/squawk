@@ -61,7 +61,7 @@ import { entity as entityOf } from "@/lib/programme";
 import { checksAt } from "@/lib/register";
 import { countByMultiSelect, findingTypeFor, FINDING_TYPE_LABEL } from "@/lib/reviewRisk";
 import { ROOT_CAUSES, IMPACT_AREAS, TIMELINES } from "@/lib/riskVocab";
-import { TRACKING_LABEL, disciplineFor, trackingStage } from "@/lib/evidence";
+import { EVIDENCE_COMPLIANCE_LABEL, TRACKING_LABEL, disciplineFor, trackingStage } from "@/lib/evidence";
 import type { Attachment, EvidenceItem, Finding, Response } from "@/lib/types";
 
 const PURPLE = "#2D1956";
@@ -80,6 +80,19 @@ const TIMELINE_COLOR: Record<string, string> = {
  *  uses — the audit check's own desk note, the finding itself, and what the
  *  evidence review found — so the report never says something different
  *  from the screen it was generated off. */
+/** Evidence feedback for the report: the auditor's compliance rating of the
+ *  document plus whatever was recorded about it (analysis note, why it was
+ *  insufficient, or why it could not be produced). "Awaiting feedback" when
+ *  nothing has been recorded yet, so a blank is never read as "no issues". */
+function evidenceFeedback(e: EvidenceItem): string {
+  const parts: string[] = [];
+  if (e.complianceRating) parts.push(EVIDENCE_COMPLIANCE_LABEL[e.complianceRating]);
+  if (e.analysisNote?.trim()) parts.push(e.analysisNote.trim());
+  if (e.insufficientAt && e.insufficientReason?.trim()) parts.push(`Insufficient: ${e.insufficientReason.trim()}`);
+  if (e.unavailableAt && e.unavailableReason?.trim()) parts.push(`Not available: ${e.unavailableReason.trim()}`);
+  return parts.length ? parts.join(" — ") : "Awaiting feedback";
+}
+
 function findingText(f: Finding, responses: Record<string, Response>): string {
   const r = f.checkId ? responses[f.checkId] : undefined;
   const parts: string[] = [];
@@ -375,19 +388,19 @@ export default function ReviewRiskReport({
            (it's outside the (app) route group), so it opts back into
            ordinary document scrolling, on screen and in print alike. */
         html, body { height: auto !important; overflow: visible !important; background: #FFFFFF !important; }
-        /* LANDSCAPE — Sarel: "maybe so landscape report," in the same
-           breath as asking for bigger photos. The two asks are really
-           one: a photo big enough to actually see needs width, and a
-           portrait A4 page doesn't have it to spare once six columns
-           share it. */
+        /* PORTRAIT — Sarel asked for the report back in portrait ("try and
+           put the report in a portrait layout rather"). It had gone
+           landscape for bigger photos; portrait trades that width for a
+           page that prints, files and reads like the rest of the audit
+           pack, so the screen preview is narrowed to match. */
         @page {
-          size: A4 landscape;
+          size: A4 portrait;
           margin: 14mm 16mm 18mm 16mm;
           @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: Arial, Helvetica, sans-serif; font-size: 9px; color: ${INK_SOFT}; }
           @bottom-left { content: "Squawk \\2014 TPJV for Airports Company South Africa"; font-family: Arial, Helvetica, sans-serif; font-size: 9px; color: ${INK_SOFT}; }
         }
         @media screen {
-          .rr-report-page { max-width: 1200px; margin: 24px auto 64px; box-shadow: 0 1px 10px rgba(0,0,0,0.12); }
+          .rr-report-page { max-width: 860px; margin: 24px auto 64px; box-shadow: 0 1px 10px rgba(0,0,0,0.12); }
         }
         @media print {
           .rr-report-toolbar { display: none !important; }
@@ -565,10 +578,10 @@ export default function ReviewRiskReport({
             <table className="rr-table">
               <thead>
                 <tr>
-                  <th style={{ width: "40%" }}>What&rsquo;s needed</th>
-                  <th style={{ width: "20%" }}>Asset system</th>
-                  <th style={{ width: "20%" }}>Status</th>
-                  <th style={{ width: "20%" }}>Requested from</th>
+                  <th style={{ width: "30%" }}>What&rsquo;s needed</th>
+                  <th style={{ width: "15%" }}>Asset system</th>
+                  <th style={{ width: "15%" }}>Status</th>
+                  <th style={{ width: "40%" }}>Evidence feedback</th>
                 </tr>
               </thead>
               <tbody>
@@ -577,7 +590,7 @@ export default function ReviewRiskReport({
                     <td>{e.title || e.id}</td>
                     <td>{e.system || "General"}</td>
                     <td style={{ fontWeight: 600 }}>{TRACKING_LABEL[trackingStage(e)]}</td>
-                    <td>{e.requestedFrom || "—"}</td>
+                    <td>{evidenceFeedback(e)}</td>
                   </tr>
                 ))}
               </tbody>

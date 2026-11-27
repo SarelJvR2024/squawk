@@ -139,8 +139,8 @@ check(
    still directly tested above against the real function; only these two
    screens' own use of it was removed. */
 check(
-  "the table no longer calls priorityFor — the Rating cell it used to feed is gone",
-  !/priorityFor\(/.test(table)
+  "the table shows Priority only through PriorityBadge (Sarel, 27 Nov 2026), which calls priorityFor — a derived value, never typed; there is still no Rating column",
+  /<PriorityBadge/.test(table) && /priorityFor\(f\)/.test(read("src", "components", "TriageCells.tsx")) && !/>Rating<\/th>/.test(table)
 );
 check(
   "the panel no longer calls priorityFor either — same removal",
@@ -262,8 +262,8 @@ check(
 check(
   "priorityFor's own return type has no setter — it is a plain computed value, not form state",
   /export function priorityFor/.test(read("src", "lib", "reviewRisk.ts")) &&
-    !/useState.*[Pp]riority/.test(panel) &&
-    !/useState.*[Pp]riority/.test(table)
+    !/const \[(priority|rating)\b/i.test(panel) &&
+    !/const \[(priority|rating)\b/i.test(table)
 );
 
 /* ---- 8 · capture surfaces show none of these fields --------------------- */
