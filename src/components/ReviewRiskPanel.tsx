@@ -24,6 +24,9 @@
  *  reason risk.ts's own header explains at length. */
 
 import { useMemo, useState } from "react";
+import { PriorityBadge, RiskSelect } from "@/components/TriageCells";
+import { PhotoLightbox } from "@/components/PhotoLightbox";
+import { priorityFor } from "@/lib/reviewRisk";
 import { useRouter } from "next/navigation";
 import {
   FINDING_TYPE_LABEL,
@@ -72,6 +75,9 @@ export type RiskPatch = Pick<
      inline <select> did. Sarel's redesign spec: "Full Risk Matrix &
      Timeline selectors" in the drawer. */
   | "timeline"
+  /* Severity / Likelihood live ONLY here now (the table no longer carries them). */
+  | "severity"
+  | "likelihood"
   /* PRIORITY 4 (review redesign) — Discipline/Asset system/Audit check,
      added so the hierarchy editor below can patch through the SAME
      onChange every other field here already uses, rather than a second
@@ -161,6 +167,7 @@ export default function ReviewRiskPanel({
      finding (the `key={finding.id}` the caller already mounts this under
      remounts the component on every selection change, so this needs no
      extra reset of its own). */
+  const [inspectId, setInspectId] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   /* CITE A PROCEDURE (build prompt 9) — the picker is closed by default;
@@ -670,6 +677,31 @@ export default function ReviewRiskPanel({
         </select>
       </label>
 
+      {/* RISK RATING — Severity (A-E), Likelihood (1-5) and the calculated 5x5
+          Priority. Edited here and nowhere else: the table has no Sev/Lik/
+          Priority columns any more. Saves on change like every other field. */}
+      <div className="mb-3.5 rounded-[10px] border p-3" style={{ borderColor: "var(--line-2)" }}>
+        <div className="mb-2 flex items-center justify-between">
+          <span className="font-display text-[11px] font-semibold">Risk rating</span>
+          <span className="inline-flex items-center gap-[6px] text-[11px]" style={{ color: "var(--ink-3)" }}>
+            Priority <PriorityBadge f={finding} />
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block">
+            <span className="label-xs">Severity</span>
+            <RiskSelect full kind="severity" finding={finding} onChange={onChange} />
+          </label>
+          <label className="block">
+            <span className="label-xs">Likelihood</span>
+            <RiskSelect full kind="likelihood" finding={finding} onChange={onChange} />
+          </label>
+        </div>
+        <div className="mt-1.5 text-[11px]" style={{ color: "var(--ink-3)" }}>
+          {priorityFor(finding)?.label ?? "Pick a severity and a likelihood to calculate the priority."}
+        </div>
+      </div>
+
       {/* PRIORITY 4/7 — notes, photos and recordings this finding carries
           itself, clearly labelled as THIS finding's own capture (not the
           linked check's — Response.attachments is a separate pool, see
@@ -867,10 +899,29 @@ export default function ReviewRiskPanel({
             />
           </span>
         </div>
+        {inspectId && (() => {
+          const items = finding.attachments
+            .filter((a) => a.kind === "photo")
+            .map((a) => ({ attachment: a, system: finding.system || "General", summary: finding.title || finding.description || "", fallbackAt: finding.createdAt }));
+          const at = items.findIndex((x) => x.attachment.id === inspectId);
+          if (items.length === 0) return null;
+          return (
+            <PhotoLightbox
+              photos={items}
+              index={Math.max(0, at)}
+              onIndex={(i) => setInspectId(items[i].attachment.id)}
+              onClose={() => setInspectId(null)}
+              entityCode={entityCode}
+              visitId={visitId}
+            />
+          );
+        })()}
         {finding.attachments.length > 0 && (
           <AttachmentStrip
             attachments={finding.attachments}
             thumbSize={132}
+            largePhotos
+            onInspect={(id) => setInspectId(id)}
             onRemove={(id) => removeFindingAttachment(finding.id, id)}
             onUpdate={(id, p) => updateFindingAttachment(finding.id, id, p)}
           />

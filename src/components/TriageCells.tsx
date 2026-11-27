@@ -139,10 +139,8 @@ export function TypePill({ type, label, onChange }: { type: FindingType; label: 
 
 /** The four tags, in the order and wording Sarel gave. */
 export const TRIAGE_TAGS = [
-  { key: "immediate", label: "Immediate", title: "Act on this now (sets the Timeline to Immediate)" },
-  { key: "safety", label: "Immediate safety concern", title: "A hazard to people or operations. Reported separately from Critical." },
-  { key: "critical", label: "Immediate critical item", title: "A serious finding that must be dealt with. Reported separately from Safety." },
-  { key: "internal", label: "Internal", title: "Keep it out of reports" },
+  { key: "safety", label: "Immediate Safety Concern", title: "A hazard to people or operations. Counted under the Safety filter." },
+  { key: "critical", label: "Immediate Critical Item", title: "A serious finding that must be dealt with. Counted under the Critical filter." },
 ] as const;
 
 export function activeTags(f: Pick<Finding, "timeline" | "safetyTag" | "critical" | "internalOnly">): string[] {
@@ -154,56 +152,34 @@ export function activeTags(f: Pick<Finding, "timeline" | "safetyTag" | "critical
   return out;
 }
 
-/** Small muted badges for the tags that are on: the most serious one by name,
- *  the rest as "+N" (hover for the list), so a row never grows taller than one
- *  badge and the "+ Tag" control. Nothing when none are on. */
-export function TagBadges({ f }: { f: Pick<Finding, "timeline" | "safetyTag" | "critical" | "internalOnly"> }) {
-  const tags = activeTags(f);
-  if (tags.length === 0) return null;
-  const order = ["Immediate safety concern", "Immediate critical item", "Immediate", "Internal"];
-  const sorted = [...tags].sort((a, b) => order.indexOf(a) - order.indexOf(b));
-  const [first, ...rest] = sorted;
-  const badge = "inline-flex h-[17px] max-w-[140px] items-center whitespace-nowrap rounded-[5px] border px-[5px] text-[9.5px] font-semibold";
+const TAG_BADGE = "inline-flex h-[20px] items-center whitespace-nowrap rounded-[6px] border px-[6px] text-[10.5px] font-semibold";
+
+/** The two tags that matter, as badges: red "Immediate Safety", amber
+ *  "Critical Item". Internal shows as a quiet grey badge. */
+export function TagBadges({ f }: { f: Pick<Finding, "safetyTag" | "critical" | "internalOnly"> }) {
   return (
     <>
-      <span
-        className={badge}
-        style={{
-          background: "var(--sunken)",
-          borderColor: "var(--line-2)",
-          color: first === "Immediate safety concern" || first === "Immediate critical item" ? "var(--bad)" : "var(--ink-3)",
-        }}
-      >
-        <span className="truncate">{first}</span>
-      </span>
-      {rest.length > 0 && (
-        <span className={badge} title={sorted.join(", ")} style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-3)" }}>
-          +{rest.length}
+      {f.safetyTag && <span className={`${TAG_BADGE} border-red-200 bg-red-50 text-red-700`}>{"\u{1F6A8}"} Immediate Safety</span>}
+      {f.critical && <span className={`${TAG_BADGE} border-amber-200 bg-amber-50 text-amber-700`}>{"\u26A1"} Critical Item</span>}
+      {f.internalOnly && (
+        <span className={TAG_BADGE} style={{ background: "var(--sunken)", borderColor: "var(--line-2)", color: "var(--ink-3)" }}>
+          Internal
         </span>
       )}
     </>
   );
 }
 
-/** "+ Tag" (quiet until the row is hovered or focused) opening four checkboxes. */
+/** "+ Tag" (always visible, quiet) when untagged; once tagged, the badges
+ *  themselves are the button. Opens the two toggles, plus a separate
+ *  "Internal only" switch below them. */
 export function TagsMenu({ f, onChange }: { f: Finding; onChange: (patch: Partial<Finding>) => void }) {
-  const on: Record<string, boolean> = {
-    immediate: f.timeline === "Immediate",
-    safety: !!f.safetyTag,
-    critical: !!f.critical,
-    internal: !!f.internalOnly,
-  };
-  const toggle = (key: string) => {
-    if (key === "immediate") onChange({ timeline: on.immediate ? undefined : "Immediate" });
-    else if (key === "safety") onChange({ safetyTag: !f.safetyTag });
-    else if (key === "critical") onChange({ critical: !f.critical });
-    else onChange({ internalOnly: !f.internalOnly });
-  };
-  const any = Object.values(on).some(Boolean);
+  const on: Record<string, boolean> = { safety: !!f.safetyTag, critical: !!f.critical };
+  const any = on.safety || on.critical || !!f.internalOnly;
   return (
     <Menu
       label={`Tags for ${f.title || f.id}`}
-      width={230}
+      width={240}
       trigger={({ open, toggle: t, ref }) => (
         <button
           ref={ref}
@@ -212,20 +188,111 @@ export function TagsMenu({ f, onChange }: { f: Finding; onChange: (patch: Partia
           aria-haspopup="menu"
           aria-expanded={open}
           aria-label={`Tags for ${f.title || f.id}`}
-          className={`inline-flex h-[17px] items-center whitespace-nowrap rounded-[5px] border border-dashed px-[5px] text-[9.5px] transition-opacity focus-visible:opacity-100 group-hover:opacity-100 ${any || open ? "opacity-100" : "opacity-0"}`}
-          style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}
+          className={
+            any
+              ? "flex flex-col items-end gap-[3px] rounded-[6px]"
+              : "inline-flex h-[20px] items-center whitespace-nowrap rounded-[6px] border border-dashed px-[6px] text-[10.5px]"
+          }
+          style={any ? undefined : { borderColor: "var(--line-2)", color: "var(--ink-3)" }}
         >
-          {any ? "Edit" : "+ Tag"}
+          {any ? <TagBadges f={f} /> : "+ Tag"}
+        </button>
+      )}
+    >
+      {() => (
+        <>
+          {TRIAGE_TAGS.map((t) => (
+            <label key={t.key} title={t.title} className="flex cursor-pointer items-center gap-[7px] rounded-[7px] px-[8px] py-[6px] text-[12px]" style={{ background: on[t.key] ? "var(--acc-soft)" : "transparent" }}>
+              <input
+                type="checkbox"
+                checked={on[t.key]}
+                onChange={() => onChange(t.key === "safety" ? { safetyTag: !f.safetyTag } : { critical: !f.critical })}
+              />
+              {t.label}
+            </label>
+          ))}
+          <div className="my-[3px] border-t" style={{ borderColor: "var(--menu-line)" }} />
+          <label title="Keep this finding out of reports" className="flex cursor-pointer items-center gap-[7px] rounded-[7px] px-[8px] py-[5px] text-[11px]" style={{ color: "var(--ink-3)" }}>
+            <input type="checkbox" checked={!!f.internalOnly} onChange={() => onChange({ internalOnly: !f.internalOnly })} />
+            Internal only (kept out of reports)
+          </label>
+        </>
+      )}
+    </Menu>
+  );
+}
+
+/** Root cause / Impact cell: a pill with the first choice (+N for the rest) or a
+ *  quiet "+ Add" button; click for a checklist popover. Saves on each tick.
+ *  Values already stored but no longer offered (`legacy`) stay listed so they
+ *  can be seen and unticked. */
+export function MultiPill({
+  values,
+  options,
+  legacy = [],
+  filled,
+  addLabel,
+  label,
+  onChange,
+}: {
+  values: string[] | undefined;
+  options: readonly string[];
+  legacy?: readonly string[];
+  filled: boolean;
+  addLabel: string;
+  label: string;
+  onChange: (next: string[]) => void;
+}) {
+  const cur = values ?? [];
+  const rows = [...options, ...legacy.filter((l) => cur.includes(l))];
+  const [first, ...rest] = cur;
+  return (
+    <Menu
+      label={label}
+      width={230}
+      trigger={({ open, toggle: t, ref }) => (
+        <button
+          ref={ref}
+          type="button"
+          onClick={t}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={label}
+          title={cur.length ? cur.join(", ") : undefined}
+          className={
+            first
+              ? "inline-flex max-w-full items-center gap-[4px] rounded-[8px] border px-[7px] py-[2px] text-left text-[11px] font-medium leading-[13px]"
+              : "inline-flex h-[20px] items-center whitespace-nowrap rounded-[6px] border border-dashed px-[6px] text-[10.5px]"
+          }
+          style={
+            first
+              ? filled
+                ? { background: "var(--acc-soft)", borderColor: "transparent", color: "var(--acc)" }
+                : { background: "transparent", borderColor: "var(--line-2)", color: "var(--ink-2)" }
+              : { borderColor: "var(--line-2)", color: "var(--ink-3)", opacity: open ? 1 : undefined }
+          }
+        >
+          {first ? (
+            <>
+              <span className="min-w-0 break-words">{first}</span>
+              {rest.length > 0 && <span className="shrink-0 font-semibold">+{rest.length}</span>}
+            </>
+          ) : (
+            addLabel
+          )}
         </button>
       )}
     >
       {() =>
-        TRIAGE_TAGS.map((t) => (
-          <label key={t.key} title={t.title} className="flex cursor-pointer items-center gap-[7px] rounded-[7px] px-[8px] py-[6px] text-[11.5px]" style={{ background: on[t.key] ? "var(--acc-soft)" : "transparent" }}>
-            <input type="checkbox" checked={on[t.key]} onChange={() => toggle(t.key)} />
-            {t.label}
-          </label>
-        ))
+        rows.map((o) => {
+          const on = cur.includes(o);
+          return (
+            <label key={o} className="flex cursor-pointer items-center gap-[7px] rounded-[7px] px-[8px] py-[6px] text-[12px]" style={{ background: on ? "var(--acc-soft)" : "transparent" }}>
+              <input type="checkbox" checked={on} onChange={() => onChange(on ? cur.filter((x) => x !== o) : [...cur, o])} />
+              {o}
+            </label>
+          );
+        })
       }
     </Menu>
   );
@@ -258,7 +325,9 @@ export function RiskSelect({
   kind,
   finding,
   onChange,
+  full = false,
 }: {
+  full?: boolean;
   kind: "severity" | "likelihood";
   finding: Pick<Finding, "severity" | "likelihood" | "title" | "id">;
   onChange: (patch: Partial<Finding>) => void;
@@ -276,13 +345,13 @@ export function RiskSelect({
         const v = e.target.value || null;
         onChange(isSev ? { severity: v as Severity | null } : { likelihood: v as Likelihood | null });
       }}
-      className="h-[24px] w-[46px] rounded-[6px] border px-[3px] text-center text-[11px] font-semibold"
+      className={full ? "h-[32px] w-full rounded-[8px] border px-[8px] text-[12px]" : "h-[24px] w-[46px] rounded-[6px] border px-[3px] text-center text-[11px] font-semibold"}
       style={{ background: value ? "var(--panel)" : "transparent", borderColor: "var(--line-2)", color: value ? "var(--ink)" : "var(--ink-4)" }}
     >
-      <option value="">{isSev ? "Sev" : "Lik"}</option>
+      <option value="">{full ? "Not rated" : isSev ? "Sev" : "Lik"}</option>
       {options.map((o) => (
         <option key={o} value={o}>
-          {o.charAt(0)}
+          {full ? o : o.charAt(0)}
         </option>
       ))}
     </select>

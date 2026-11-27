@@ -60,7 +60,7 @@ import { Fragment, useMemo } from "react";
 import { entity as entityOf } from "@/lib/programme";
 import { checksAt } from "@/lib/register";
 import { countByMultiSelect, findingTypeFor } from "@/lib/reviewRisk";
-import { ROOT_CAUSES, IMPACT_AREAS, TIMELINES } from "@/lib/riskVocab";
+import { ROOT_CAUSES, LEGACY_ROOT_CAUSES, IMPACT_AREAS, TIMELINES } from "@/lib/riskVocab";
 import { EVIDENCE_COMPLIANCE_LABEL, TRACKING_LABEL, disciplineFor, trackingStage } from "@/lib/evidence";
 import { briefOf, cleanSpeech, reportFindingText } from "@/lib/reportText";
 import type { Attachment, EvidenceItem, Finding, Response } from "@/lib/types";
@@ -109,6 +109,27 @@ function findingText(f: Finding, responses: Record<string, Response>, requiremen
   if (f.description && f.title && f.description !== f.title && !main.flags.includes("question-only")) parts.push(cleanSpeech(f.description));
   if (r?.evidenceProves) parts.push(cleanSpeech(r.evidenceProves));
   return parts.filter(Boolean).join(" \u2014 ");
+}
+
+/** The Finding cell. Linked to an audit check: the requirement (muted, upper)
+ *  then the defect observed (standard, lower). Not linked (captured at
+ *  discipline / asset-system level): the finding text alone, no empty
+ *  requirement block. Never a check reference code, only readable words. */
+function FindingCell({ f, responses, requirementOf }: { f: Finding; responses: Record<string, Response>; requirementOf: RequirementOf }) {
+  const req = f.checkId ? requirementOf(f.checkId)?.trim() : undefined;
+  const body = findingText(f, responses, requirementOf);
+  if (!req) return <>{body}</>;
+  const label = { fontWeight: 700, letterSpacing: "0.04em" } as const;
+  return (
+    <>
+      <div style={{ fontSize: 9, lineHeight: 1.35, color: INK_SOFT, marginBottom: 4 }}>
+        <span style={label}>REQUIREMENT:</span> {req}
+      </div>
+      <div>
+        <span style={{ ...label, fontSize: 9, color: INK_SOFT }}>DEFECT OBSERVED:</span> {body}
+      </div>
+    </>
+  );
 }
 
 /** One numbered figure: a photograph at 240x160 (never below 180x120; the stored
@@ -166,7 +187,11 @@ function TimelineBadge({ timeline }: { timeline?: string }) {
         borderRadius: 999,
         fontSize: 9.5,
         fontWeight: 700,
-        whiteSpace: "nowrap",
+        whiteSpace: "normal",
+        overflowWrap: "normal",
+        wordBreak: "keep-all",
+        textAlign: "center",
+        lineHeight: 1.25,
         background: bg[timeline] ?? PURPLE_SOFT,
         color: TIMELINE_COLOR[timeline] ?? INK,
       }}
@@ -177,6 +202,9 @@ function TimelineBadge({ timeline }: { timeline?: string }) {
 }
 
 function TaggedList({ title, list, responses, requirementOf }: { title: string; list: Finding[]; responses: Record<string, Response>; requirementOf: RequirementOf }) {
+  /* No row has an action plan: the column is dropped and its width goes to
+     Finding. Some do: it is capped at 15% and wraps. */
+  const hasPlan = list.some((f) => f.actionPlan?.trim());
   return (
     <div style={{ padding: "20px 36px 0" }}>
       <SectionHeading>{title} &middot; {list.length}</SectionHeading>
@@ -184,18 +212,18 @@ function TaggedList({ title, list, responses, requirementOf }: { title: string; 
         <thead>
           <tr>
             <th style={{ width: "18%" }}>Asset system</th>
-            <th style={{ width: "46%" }}>Finding</th>
-            <th style={{ width: "14%" }}>Timeline</th>
-            <th style={{ width: "22%" }}>Action &amp; improvement plan</th>
+            <th style={{ width: hasPlan ? "52%" : "64%" }}>Finding</th>
+            <th style={{ width: hasPlan ? "15%" : "18%" }}>Timeline</th>
+            {hasPlan && <th style={{ width: "15%" }}>Action plan</th>}
           </tr>
         </thead>
         <tbody>
           {list.map((f) => (
             <tr key={f.id}>
               <td style={{ fontWeight: 600 }}>{f.system || "General"}</td>
-              <td>{findingText(f, responses, requirementOf)}</td>
+              <td><FindingCell f={f} responses={responses} requirementOf={requirementOf} /></td>
               <td><TimelineBadge timeline={f.timeline} /></td>
-              <td className="rr-plan">{f.actionPlan?.trim() || "Not yet planned"}</td>
+              {hasPlan && <td className="rr-plan" style={{ color: f.actionPlan?.trim() ? INK : INK_SOFT }}>{f.actionPlan?.trim() || "\u2014"}</td>}
             </tr>
           ))}
         </tbody>
@@ -405,14 +433,14 @@ export default function ReviewRiskReport({
        otherwise its width goes to Finding and Root cause. */
     const hasPlan = list.some((f) => f.actionPlan?.trim());
     const w = hasPlan
-      ? { asset: "17%", finding: "31%", cause: "16%", time: "12%", plan: "13%", photo: "9%" }
-      : { asset: "22%", finding: "40%", cause: "18%", time: "12%", plan: "0", photo: "8%" };
+      ? { asset: "16%", finding: "33%", cause: "17%", time: "12%", plan: "15%", photo: "7%" }
+      : { asset: "18%", finding: "42%", cause: "20%", time: "12%", plan: "0", photo: "8%" };
     const cols = hasPlan ? 6 : 5;
     return (
       <table className="rr-table rr-findings">
         <thead>
           <tr>
-            <th style={{ width: w.asset }}>Asset system &amp; ref</th>
+            <th style={{ width: w.asset }}>Asset system</th>
             <th style={{ width: w.finding }}>Finding &amp; technical observation</th>
             <th style={{ width: w.cause }}>Root cause &amp; impact</th>
             <th style={{ width: w.time }}>Urgency</th>
@@ -431,13 +459,9 @@ export default function ReviewRiskReport({
               <tr data-keepnext={photos.length > 0 ? "1" : undefined}>
                 <td>
                   <div style={{ fontWeight: 700 }}>{f.system || "General"}</div>
-                  <div style={{ fontSize: 9, color: INK_SOFT, marginTop: 2, fontFamily: "Menlo, Consolas, monospace" }}>
-                    {f.id}
-                    {f.checkId ? ` \u00b7 ${f.checkId}` : ""}
-                  </div>
                 </td>
                 <td>
-                  {findingText(f, responses, requirementOf)}
+                  <FindingCell f={f} responses={responses} requirementOf={requirementOf} />
                   {voices > 0 && (
                     <div style={{ fontSize: 9, color: INK_SOFT, marginTop: 3 }}>
                       {voices} voice note{voices === 1 ? "" : "s"} on file
@@ -535,8 +559,8 @@ export default function ReviewRiskReport({
         @media print {
           .rr-report-toolbar, .rr-noprint { display: none !important; }
           .rr-report-page { box-shadow: none; }
-          thead { display: table-header-group; }
-          tr, .report-card, .metric-box, .rr-card, figure { break-inside: avoid; page-break-inside: avoid; }
+          thead { display: table-header-group !important; }
+          tr, .report-card, .metric-box, .rr-card, figure { break-inside: avoid !important; page-break-inside: avoid !important; }
           tbody.rr-unit { break-inside: avoid; page-break-inside: avoid; }
           h2 { break-after: avoid; page-break-after: avoid; }
           .rr-table tbody tr:first-child { break-after: avoid; }
@@ -567,9 +591,9 @@ export default function ReviewRiskReport({
           <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
             {wordingWarnings.map(({ f, t }) => (
               <li key={f.id}>
-                <span style={{ fontFamily: "Menlo, Consolas, monospace" }}>{f.id}</span> ({f.system || "General"}):{" "}
+                <strong>{f.system || "General"}</strong>:{" "}
                 {t.flags.includes("question-only")
-                  ? "the text is only the audit-check question; say what was actually found"
+                  ? `"${briefOf(t.raw, 60)}" is only the audit-check question; say what was actually found`
                   : `"${t.raw}" is too short to stand as a finding`}
               </li>
             ))}
@@ -715,7 +739,7 @@ export default function ReviewRiskReport({
                 </tr>
               </thead>
               <tbody>
-                {ROOT_CAUSES.map((c) => (
+                {[...ROOT_CAUSES, ...LEGACY_ROOT_CAUSES.filter((c) => (rootCauseCounts[c] ?? 0) > 0)].map((c) => (
                   <tr key={c}>
                     <td>{c}</td>
                     <td style={{ textAlign: "right" }}>{rootCauseCounts[c] ?? 0}</td>
@@ -791,18 +815,20 @@ export default function ReviewRiskReport({
               <thead>
                 <tr>
                   <th style={{ width: "18%" }}>Asset system</th>
-                  <th style={{ width: "52%" }}>Finding</th>
-                  <th style={{ width: "30%" }}>Action &amp; improvement plan</th>
+                  <th style={{ width: quickWins.some((f) => f.actionPlan?.trim()) ? "67%" : "82%" }}>Finding</th>
+                  {quickWins.some((f) => f.actionPlan?.trim()) && <th style={{ width: "15%" }}>Action plan</th>}
                 </tr>
               </thead>
               <tbody>
                 {quickWins.map((f) => (
                   <tr key={f.id}>
                     <td style={{ fontWeight: 600 }}>{f.system || "General"}</td>
-                    <td>{findingText(f, responses, requirementOf)}</td>
-                    <td className="rr-plan" style={{ color: f.actionPlan?.trim() ? INK : INK_SOFT, fontStyle: f.actionPlan?.trim() ? "normal" : "italic" }}>
-                      {f.actionPlan?.trim() || "Not yet planned"}
-                    </td>
+                    <td><FindingCell f={f} responses={responses} requirementOf={requirementOf} /></td>
+                    {quickWins.some((x) => x.actionPlan?.trim()) && (
+                      <td className="rr-plan" style={{ color: f.actionPlan?.trim() ? INK : INK_SOFT }}>
+                        {f.actionPlan?.trim() || "\u2014"}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -857,7 +883,7 @@ export default function ReviewRiskReport({
                 {withActionPlan.map((f) => (
                   <tr key={f.id}>
                     <td style={{ fontWeight: 600 }}>{f.system || "General"}</td>
-                    <td>{findingText(f, responses, requirementOf)}</td>
+                    <td><FindingCell f={f} responses={responses} requirementOf={requirementOf} /></td>
                     <td style={{ fontWeight: 600, whiteSpace: "nowrap", color: f.timeline ? TIMELINE_COLOR[f.timeline] : INK_SOFT }}>
                       {f.timeline || "Not set"}
                     </td>

@@ -54,6 +54,7 @@
 import { useMemo, useRef, useState } from "react";
 import {
   IMPACT_AREAS,
+  LEGACY_ROOT_CAUSES,
   ROOT_CAUSES,
   TIMELINES,
   applyBulkMulti,
@@ -70,7 +71,8 @@ import { IconCamera, IconClipboard, IconEye, IconMic, IconSpark, IconTeam, IconT
 import { basicTidy, wordDiff } from "@/lib/wordDiff";
 import { evidenceChannelStatus, inspectionStatus, interviewStatus, TONE_COLOUR, type ChannelStatus } from "@/lib/triageStatus";
 import EvidenceQuickCapture from "@/components/EvidenceQuickCapture";
-import { Menu, PriorityBadge, RiskSelect, TagBadges, TagsMenu, TimelineSelect, TypePill } from "@/components/TriageCells";
+import { PhotoHoverPreview, PhotoLightbox, useHoverPreview, type LightboxPhoto } from "@/components/PhotoLightbox";
+import { Menu, MultiPill, TagsMenu, TimelineSelect, TypePill } from "@/components/TriageCells";
 import type { Attachment, Check, Finding, Response } from "@/lib/types";
 
 /** The sort key an empty/absent Asset system sorts under — see `visible`'s
@@ -185,6 +187,8 @@ export default function ReviewRiskTable({
     lastEditedId ? (findings.find((f) => f.id === lastEditedId)?.updatedAt ?? null) : null
   );
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  /* The photo viewer: which finding's photographs are open, and which one. */
+  const [lightbox, setLightbox] = useState<{ id: string; index: number } | null>(null);
   const [evidenceOpen, setEvidenceOpen] = useState(false);
 
   /* Audit-check reference codes are presentation we no longer show (see
@@ -210,7 +214,7 @@ export default function ReviewRiskTable({
         if (p !== fx.priority) return false;
       }
       if (q) {
-        const hay = `${f.title} ${f.description} ${f.discipline} ${f.system} ${f.checkId ?? ""} ${f.actionPlan ?? ""}`.toLowerCase();
+        const hay = `${f.title} ${f.description} ${f.discipline} ${f.system} ${f.actionPlan ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
@@ -511,13 +515,12 @@ export default function ReviewRiskTable({
                   }
                 />
               </th>
-              <th className="w-[140px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Type</th>
-              <th className="w-[180px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Location</th>
+              <th className="w-[138px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Type</th>
+              <th className="w-[210px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Location</th>
               <th className="px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Finding</th>
-              <th className="w-[58px] px-1 py-2 text-center font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }} title="Severity: A Catastrophic, B Hazardous, C Major, D Minor, E Negligible">Sev</th>
-              <th className="w-[58px] px-1 py-2 text-center font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }} title="Likelihood: 1 Extremely improbable, 2 Improbable, 3 Remote, 4 Occasional, 5 Frequent">Lik</th>
-              <th className="w-[92px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Priority</th>
-              <th className="w-[144px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Timeline</th>
+              <th className="w-[160px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Root cause</th>
+              <th className="w-[150px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Impact</th>
+              <th className="w-[132px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Timeline</th>
               <th className="w-[56px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Photos</th>
               <th className="w-[48px] px-2 py-2"><span className="sr-only">Delete</span></th>
             </tr>
@@ -564,12 +567,12 @@ export default function ReviewRiskTable({
                       muted) or a grey "General" badge, and the three
                       assessment-status icons (hover for the words). */}
                   <td className="px-2 py-1 align-middle">
-                    <div className="truncate text-[13px] font-medium" style={{ color: "var(--ink)" }}>
+                    <div className="break-words text-[13px] font-medium leading-[16px]" style={{ color: "var(--ink)" }}>
                       {f.discipline || "—"}
                     </div>
-                    <div className="flex items-center gap-[6px]">
-                      {f.system || f.checkId ? (
-                        <span className="min-w-0 flex-1 truncate text-[12px]" style={{ color: "var(--ink-3)" }}>
+                    <div className="flex items-start gap-[6px]">
+                      {f.system ? (
+                        <span className="min-w-0 flex-1 break-words text-xs leading-[15px]" style={{ color: "var(--ink-3)" }}>
                           {f.system || "General"}
                         </span>
                       ) : (
@@ -577,7 +580,7 @@ export default function ReviewRiskTable({
                           <Pill tone="neutral">General</Pill>
                         </span>
                       )}
-                      <span className="inline-flex shrink-0 items-center gap-[3px]">
+                      <span className="inline-flex shrink-0 items-center gap-[3px] pt-[1px]">
                         {statusItems.map(({ key, Icon, name, st }) => (
                           <span key={key} title={st.label} aria-label={st.label} role="img" className="inline-flex" style={{ color: TONE_COLOUR[st.tone] }}>
                             <Icon width={14} height={14} />
@@ -593,11 +596,6 @@ export default function ReviewRiskTable({
                     <div className="flex items-center gap-2">
                       <div className="min-w-0 flex-1">
                         <span className="line-clamp-2 break-words text-[12.5px] leading-[16px]" style={{ color: "var(--ink)" }} title={text}>
-                          {f.checkId && (
-                            <span className="mr-1.5 inline-block rounded-[4px] border px-1 align-[1px] font-mono text-[9.5px] font-semibold" style={{ borderColor: "var(--line-2)", color: "var(--ink-3)" }}>
-                              {f.checkId}
-                            </span>
-                          )}
                           {text}
                         </span>
                       </div>
@@ -619,21 +617,32 @@ export default function ReviewRiskTable({
                           <IconSpark width={12} height={12} />
                         </button>
                       )}
-                      <div className="flex max-w-[144px] shrink-0 flex-wrap items-center justify-end gap-[3px]" onClick={(e) => e.stopPropagation()}>
-                        <TagBadges f={f} />
+                      <div className="flex max-w-[150px] shrink-0 flex-col items-end gap-[3px]" onClick={(e) => e.stopPropagation()}>
                         <TagsMenu f={f} onChange={(patch) => onChange(f.id, patch)} />
                       </div>
                     </div>
                   </td>
 
-                  <td className="px-1 py-1 text-center align-middle" onClick={(e) => e.stopPropagation()}>
-                    <RiskSelect kind="severity" finding={f} onChange={(patch) => onChange(f.id, patch)} />
+                  <td className="px-2 py-1 align-middle" onClick={(e) => e.stopPropagation()}>
+                    <MultiPill
+                      values={f.rootCauseCategories}
+                      options={ROOT_CAUSES}
+                      legacy={LEGACY_ROOT_CAUSES}
+                      filled
+                      addLabel="+ Root cause"
+                      label={`Root cause for ${f.title || f.id}`}
+                      onChange={(next) => onChange(f.id, { rootCauseCategories: next })}
+                    />
                   </td>
-                  <td className="px-1 py-1 text-center align-middle" onClick={(e) => e.stopPropagation()}>
-                    <RiskSelect kind="likelihood" finding={f} onChange={(patch) => onChange(f.id, patch)} />
-                  </td>
-                  <td className="px-2 py-1 align-middle">
-                    <PriorityBadge f={f} />
+                  <td className="px-2 py-1 align-middle" onClick={(e) => e.stopPropagation()}>
+                    <MultiPill
+                      values={f.impactAreas}
+                      options={IMPACT_AREAS}
+                      filled={false}
+                      addLabel="+ Impact"
+                      label={`Impact for ${f.title || f.id}`}
+                      onChange={(next) => onChange(f.id, { impactAreas: next })}
+                    />
                   </td>
 
                   <td className="px-2 py-1 align-middle" onClick={(e) => e.stopPropagation()}>
@@ -648,7 +657,7 @@ export default function ReviewRiskTable({
                       in the drawer. */}
                   <td className="px-2 py-1 align-middle" onClick={(e) => e.stopPropagation()}>
                     {photoAttachments.length > 0 ? (
-                      <EvidenceThumb attachment={photoAttachments[0]} count={photoAttachments.length} size={36} onOpen={() => onActivate(f.id)} />
+                      <EvidenceThumb attachment={photoAttachments[0]} count={photoAttachments.length} size={36} preview={{ entityCode, visitId }} onOpen={() => setLightbox({ id: f.id, index: 0 })} />
                     ) : (
                       <span className="inline-flex h-[36px] w-[36px] items-center justify-center rounded-[6px] border border-dashed" style={{ borderColor: "var(--line-2)", color: "var(--ink-4)" }} title="No photos">
                         <IconCamera width={13} height={13} />
@@ -664,6 +673,25 @@ export default function ReviewRiskTable({
             })}
           </tbody>
         </table>
+
+        {lightbox &&
+          (() => {
+            const lf = findings.find((x) => x.id === lightbox.id);
+            const items: LightboxPhoto[] = (lf?.attachments ?? [])
+              .filter((a) => a.kind === "photo")
+              .map((a) => ({ attachment: a, system: lf?.system || "General", summary: lf?.title || lf?.description || "", fallbackAt: lf?.createdAt }));
+            if (!lf || items.length === 0) return null;
+            return (
+              <PhotoLightbox
+                photos={items}
+                index={Math.min(lightbox.index, items.length - 1)}
+                onIndex={(i) => setLightbox({ id: lightbox.id, index: i })}
+                onClose={() => setLightbox(null)}
+                entityCode={entityCode}
+                visitId={visitId}
+              />
+            );
+          })()}
 
         {visible.length === 0 && (
           <div className="p-6 text-center text-[11.5px]" style={{ color: "var(--ink-3)" }}>
@@ -730,7 +758,8 @@ export default function ReviewRiskTable({
  *  error, because there was never an exception to catch. The lightbox
  *  below still wants the full blob (`EvidenceLightbox`, one open at a
  *  time) — only this inline tile must stay on the cheap thumbnail. */
-function EvidenceThumb({ attachment, onOpen, size = 120, count }: { attachment: Attachment; onOpen: () => void; size?: number; count?: number }) {
+function EvidenceThumb({ attachment, onOpen, size = 120, count, preview }: { attachment: Attachment; onOpen: () => void; size?: number; count?: number; preview?: { entityCode: string; visitId: string } }) {
+  const hover = useHoverPreview();
   const thumb = attachment.thumbDataUrl || attachment.dataUrl || null;
   const { url } = useBlobUrl(thumb ? null : attachment.blobKey);
   const src = thumb ?? url ?? null;
@@ -738,11 +767,19 @@ function EvidenceThumb({ attachment, onOpen, size = 120, count }: { attachment: 
   return (
     <button
       type="button"
-      onClick={onOpen}
+      onClick={() => {
+        hover.off();
+        onOpen();
+      }}
+      onMouseEnter={preview ? (e) => hover.on(e.currentTarget) : undefined}
+      onMouseLeave={preview ? hover.off : undefined}
+      onFocus={preview ? (e) => hover.on(e.currentTarget) : undefined}
+      onBlur={preview ? hover.off : undefined}
       aria-label={attachment.caption ? `View photo: ${attachment.caption}` : "View photo"}
       className="relative block overflow-hidden rounded-[6px] border p-0"
       style={{ borderColor: "var(--line-2)", width: size, height: size }}
     >
+      {preview && hover.rect && <PhotoHoverPreview attachment={attachment} anchor={hover.rect} entityCode={preview.entityCode} visitId={preview.visitId} />}
       {/* eslint-disable-next-line @next/next/no-img-element -- a local blob/data URL, not a remote asset next/image can optimise */}
       <img src={src} alt="" className="h-full w-full object-cover" />
       {count !== undefined && (

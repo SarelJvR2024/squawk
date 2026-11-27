@@ -17,9 +17,9 @@
 
 import type { Finding } from "./types";
 import { bandFor, BAND_AS_PRIORITY, BAND_META } from "./risk";
-import { IMPACT_AREAS, ROOT_CAUSES, TIMELINES } from "./riskVocab";
+import { IMPACT_AREAS, LEGACY_ROOT_CAUSES, ROOT_CAUSES, TIMELINES } from "./riskVocab";
 
-export { IMPACT_AREAS, ROOT_CAUSES, TIMELINES };
+export { IMPACT_AREAS, LEGACY_ROOT_CAUSES, ROOT_CAUSES, TIMELINES };
 
 export interface Priority {
   priority: "I" | "II" | "III";

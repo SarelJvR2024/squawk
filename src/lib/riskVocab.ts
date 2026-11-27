@@ -20,10 +20,18 @@
 export const ROOT_CAUSES = [
   "Maintenance backlog",
   "Documentation gap",
-  "Design / original installation",
-  "Resourcing / staffing",
+  "Design / installation defect",
+  "Operational wear & tear",
+  "Environmental / weather",
+  "Procurement delay",
+  "Training / procedure gap",
   "Other",
 ];
+
+/** Values the earlier five-item list stored. A finding that already carries one
+ *  keeps it (shown, countable, removable); they are no longer offered as new
+ *  choices. Nothing stored is rewritten. */
+export const LEGACY_ROOT_CAUSES = ["Design / original installation", "Resourcing / staffing"];
 
 /** The addendum's "Impact areas" — §2 of the review-risk-fields addendum,
  *  verbatim. Multi-select, zero or more per finding. */
