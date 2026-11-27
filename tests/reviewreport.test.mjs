@@ -253,12 +253,20 @@ check(
 check(
   "an Evidence requested section exists, scoped to this discipline via the SAME disciplineFor() the real Evidence tab uses — not a second scoping rule",
   /Evidence requested/.test(report) &&
-    /import { TRACKING_LABEL, disciplineFor, trackingStage } from "@\/lib\/evidence"/.test(report) &&
+    /import { EVIDENCE_COMPLIANCE_LABEL, TRACKING_LABEL, disciplineFor, trackingStage } from "@\/lib\/evidence"/.test(report) &&
     /disciplineFor\(e, checkDisciplineOf\) === discipline/.test(report)
 );
 check(
   "its status column reads the SAME trackingStage\\(\\)\\/TRACKING_LABEL the real Evidence tab reads, never a second status vocabulary",
   /TRACKING_LABEL\[trackingStage\(e\)\]/.test(report)
+);
+check(
+  "the evidence table shows an Evidence feedback column (rating, analysis note, insufficient/unavailable reason, or 'Awaiting feedback') in place of Requested from",
+  /<th[^>]*>Evidence feedback<\/th>/.test(report) &&
+    !/<th[^>]*>Requested from<\/th>/.test(report) &&
+    /function evidenceFeedback/.test(report) &&
+    /EVIDENCE_COMPLIANCE_LABEL\[e\.complianceRating\]/.test(report) &&
+    /Awaiting feedback/.test(report)
 );
 check(
   "a Quick wins / immediate action items section exists, pulling out Timeline === Immediate on its own rather than leaving it as one row of the distribution table",
@@ -299,8 +307,8 @@ check(
    maybe so landscape report." ------------------------------------------ */
 
 check(
-  "the page is A4 landscape, not portrait",
-  /size: A4 landscape;/.test(report)
+  "the page is A4 portrait (Sarel asked for the report back in portrait)",
+  /size: A4 portrait;/.test(report) && !/size: A4 landscape;/.test(report)
 );
 check(
   "photos render at 144px — bigger than the first pass's 64px, and still a downscale (not an upscale) of the 240px thumbDataUrl source",
@@ -311,8 +319,8 @@ check(
   })()
 );
 check(
-  "the screen preview's own max-width grew to match the wider landscape page, not left at the old portrait-sized 900px",
-  /max-width: 1200px/.test(report) && !/max-width: 900px/.test(report)
+  "the screen preview's max-width is narrowed to match the portrait page, not left at the landscape 1200px",
+  /max-width: 860px/.test(report) && !/max-width: 1200px/.test(report)
 );
 
 console.log(failures === 0 ? "\nREVIEW REPORT OK" : `\n${failures} FAILURES`);
