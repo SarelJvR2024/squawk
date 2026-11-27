@@ -39,7 +39,7 @@ import {
 import { useDictationEnabled, useEntityCode, useStore, useVisitId } from "@/lib/store";
 import { savePhotoToFolder } from "@/lib/localFolder";
 import { useRecordStore } from "@/lib/sync";
-import { fullPhotoBlob } from "@/lib/recordimage";
+import { fullPhotoBlob, useRecordImage } from "@/lib/recordimage";
 import type { Attachment } from "@/lib/types";
 import {
   IconCamera,
@@ -1054,6 +1054,34 @@ export function LocationOptions({ values }: { values: string[] }) {
   );
 }
 
+/** The drawer's photograph: full row width, full-size source, inspect button. */
+function LargePhoto({ a, alt, entityCode, visitId, onInspect }: { a: Attachment; alt: string; entityCode: string; visitId: string; onInspect: () => void }) {
+  const img = useRecordImage(a, entityCode, visitId);
+  return (
+    <div className="relative w-full" style={{ minWidth: 340 }}>
+      {img.url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={img.url} alt={alt} className="block w-full rounded-[8px] border object-contain" style={{ maxHeight: 440, background: "var(--sunken)", borderColor: "var(--line-2)" }} />
+      ) : (
+        <span className="block h-[200px] w-full rounded-[8px]" style={{ background: "var(--sunken)" }} />
+      )}
+      <button
+        type="button"
+        onClick={onInspect}
+        className="absolute right-2 top-2 rounded-[7px] border px-[9px] py-[5px] text-[11px] font-semibold"
+        style={{ background: "rgba(16,10,32,.78)", borderColor: "rgba(255,255,255,.3)", color: "#fff" }}
+      >
+        Inspect full-size
+      </button>
+      {img.thumbOnly && (
+        <span className="mt-1 block text-[10.5px]" style={{ color: "var(--warn)" }}>
+          Small preview only: the full-size image is not on this device or in the record yet.
+        </span>
+      )}
+    </div>
+  );
+}
+
 function PhotoRow({
   a,
   onRemove,
@@ -1067,6 +1095,8 @@ function PhotoRow({
   onUpdateVoiceNote,
   writeUpVoiceNote,
   hideVoiceAccept = false,
+  large = false,
+  onInspect,
 }: {
   a: Attachment;
   onRemove?: () => void;
@@ -1097,6 +1127,11 @@ function PhotoRow({
   /** Hides this photo's own nested voice note's "Use it, word for word"
    *  button — see AttachmentStrip's own `hideVoiceAccept`. */
   hideVoiceAccept?: boolean;
+  /** The Triage drawer's mode: the photograph at the full width of the row
+   *  (never a 64px chip), loaded from the full-size copy, with an "Inspect
+   *  full-size" button that calls `onInspect`. */
+  large?: boolean;
+  onInspect?: () => void;
 }) {
   const { url, missing } = useBlobUrl(a.blobKey);
   const src = url ?? a.thumbDataUrl ?? a.dataUrl ?? null;
@@ -1227,6 +1262,8 @@ function PhotoRow({
           >
             none
           </span>
+        ) : large ? (
+          <LargePhoto a={a} alt={caption || a.name} entityCode={entityCode} visitId={visitId} onInspect={onInspect ?? (() => setOpen(true))} />
         ) : (
           <button
             type="button"
@@ -1525,8 +1562,14 @@ export function AttachmentStrip({
   hideDescribe = false,
   onAddVoice,
   hideVoiceAccept = false,
+  largePhotos = false,
+  onInspect,
 }: {
   attachments: Attachment[];
+  /** Photographs at the full width of the strip, with an "Inspect full-size"
+   *  button (`onInspect` gets the attachment id). The Triage drawer uses it. */
+  largePhotos?: boolean;
+  onInspect?: (id: string) => void;
   onRemove?: (id: string) => void;
   /** Persist a change to one note — a transcript coming back, a rewrite being
    *  produced or discarded. Omit it and a note is read-only. */
@@ -1611,6 +1654,8 @@ export function AttachmentStrip({
           onUpdateVoiceNote={onUpdate}
           writeUpVoiceNote={writeUp}
           hideVoiceAccept={hideVoiceAccept}
+          large={largePhotos}
+          onInspect={onInspect ? () => onInspect(a.id) : undefined}
         />
       ))}
       {voices.map((a) => (

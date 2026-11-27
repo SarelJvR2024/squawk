@@ -7,6 +7,7 @@ import {
   useEntity,
   useEntityCode,
   useEntityFindings,
+  useDeletedFindings,
   useResponses,
   useStore,
   useVerifications,
@@ -47,6 +48,7 @@ import {
 import { AttachmentStrip, FileButton, PhotoButton, VoiceNoteButton } from "@/components/Capture";
 import type { Finding, VerificationOutcome } from "@/lib/types";
 import ReviewRiskTable from "@/components/ReviewRiskTable";
+import { FINDING_TYPE_LABEL, findingTypeFor, priorityFor } from "@/lib/reviewRisk";
 import ReviewRiskPanel from "@/components/ReviewRiskPanel";
 import Sheet from "@/components/ui/Sheet";
 import AddSheet from "@/components/AddSheet";
@@ -81,7 +83,7 @@ import RaiseFindingSheet from "@/components/RaiseFindingSheet";
  *  anyway — folding Cleanup's distinct tool in is that prompt's call to
  *  make, not a guess this one should make for it. */
 
-type IssuesFilter = "all" | "toReview" | "carried" | "critical" | "safety" | "closed";
+type IssuesFilter = "all" | "toReview" | "carried" | "critical" | "safety" | "closed" | "deleted";
 
 const ISSUES_FILTER_LABEL: Record<IssuesFilter, string> = {
   all: "All",
@@ -90,6 +92,7 @@ const ISSUES_FILTER_LABEL: Record<IssuesFilter, string> = {
   critical: "Critical",
   safety: "Safety",
   closed: "Closed",
+  deleted: "Deleted",
 };
 
 const OUTCOMES: { key: VerificationOutcome; label: string; Icon: typeof IconCheck; tone: string }[] = [
@@ -271,6 +274,86 @@ function useIsWide() {
   return wide;
 }
 
+/** DELETED — findings flagged as deleted. Nothing is ever removed; a mistake
+ *  is undone here with Restore (Sarel, 26 Nov 2026). */
+function DeletedList({ findings }: { findings: Finding[] }) {
+  const restoreFinding = useStore((s) => s.restoreFinding);
+  if (findings.length === 0)
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <Empty>
+          <IconInbox width={26} height={26} />
+          <div>Nothing deleted. Deleted findings are kept here so a mistake can be undone.</div>
+        </Empty>
+      </div>
+    );
+  return (
+    <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-4">
+      <div className="text-[11.5px]" style={{ color: "var(--ink-3)" }}>
+        Deleted findings are hidden everywhere else, including reports. They are kept here, with their photos and notes, so you can restore one.
+      </div>
+      {findings.map((f) => (
+        <div key={f.id} className="flex items-center gap-3 rounded-[10px] border p-3" style={{ borderColor: "var(--line-2)", background: "var(--panel)" }}>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-semibold">{f.title || f.id}</div>
+            <div className="truncate text-[11px]" style={{ color: "var(--ink-3)" }}>
+              {f.discipline}{f.system ? ` · ${f.system}` : ""} · deleted {f.deletedAt ? new Date(f.deletedAt).toLocaleString() : ""}{f.deletedBy ? ` by ${f.deletedBy}` : ""}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => restoreFinding(f.id)}
+            className="rounded-[8px] px-3 py-2 text-[12px] font-semibold"
+            style={{ background: "var(--acc)", color: "#fff" }}
+          >
+            Restore
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** EXPORT LIST — Sarel, 27 Nov 2026. The findings under the chosen status pill
+ *  as a CSV (opens in Excel). A cell that starts with = + - or @ is prefixed
+ *  with an apostrophe so a spreadsheet never runs it as a formula. */
+function exportFindingsCsv(list: Finding[], airport: string, label: string) {
+  const cell = (v: unknown) => {
+    let t = String(v ?? "").replace(/\r?\n/g, " ");
+    if (/^[=+\-@]/.test(t)) t = `'${t}`;
+    return `"${t.replace(/"/g, '""')}"`;
+  };
+  const head = ["Ref", "Discipline", "Asset system", "Type", "Finding", "Description", "Audit check", "Severity", "Likelihood", "Priority", "Timeline", "Tags", "Root cause", "Impact", "Action plan"];
+  const rows = list.map((f) =>
+    [
+      f.id,
+      f.discipline,
+      f.system || "General",
+      FINDING_TYPE_LABEL[findingTypeFor(f)],
+      f.title,
+      f.description,
+      f.checkId ?? "",
+      f.severity ?? "",
+      f.likelihood ?? "",
+      priorityFor(f)?.label ?? "Not rated",
+      f.timeline ?? "",
+      [f.timeline === "Immediate" ? "Immediate" : "", f.safetyTag ? "Immediate safety concern" : "", f.critical ? "Immediate critical item" : "", f.internalOnly ? "Internal" : ""].filter(Boolean).join("; "),
+      (f.rootCauseCategories ?? []).join("; "),
+      (f.impactAreas ?? []).join("; "),
+      f.actionPlan ?? "",
+    ]
+      .map(cell)
+      .join(",")
+  );
+  const csv = "\uFEFF" + [head.map(cell).join(","), ...rows].join("\r\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${airport}-issues-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function IssuesRiskView({
   findings,
   entityCode,
@@ -295,6 +378,7 @@ function IssuesRiskView({
     critical: "No issues tagged Critical.",
     safety: "No issues tagged Safety.",
     closed: "Nothing closed yet.",
+    deleted: "Nothing deleted.",
   };
 
   const panelProps = active
@@ -323,7 +407,7 @@ function IssuesRiskView({
   }
 
   return (
-    <div className="flex min-h-0 flex-1">
+    <div className="relative flex min-h-0 flex-1">
       <ReviewRiskTable
         findings={findings}
         entityCode={entityCode}
@@ -331,12 +415,18 @@ function IssuesRiskView({
         activeId={active?.id ?? null}
         onActivate={setActiveId}
         onChange={onUpdateFinding}
+        onDeleteMany={(ids) => {
+          for (const id of ids) removeFinding(id);
+          if (active && ids.includes(active.id)) setActiveId(null);
+        }}
       />
-      {/* DESKTOP — the same inline column review/page.tsx already used. */}
+      {/* DESKTOP — a 440px slide-out over the right edge of the table
+          (Sarel, 27 Nov 2026), not a column that squeezes it, so the table and
+          its toolbar keep their full width with the drawer open. */}
       {isWide && panelProps && (
         <div
-          className="flex min-h-0 w-[320px] shrink-0 flex-col border-l"
-          style={{ borderColor: "var(--line)", background: "var(--panel)" }}
+          className="absolute inset-y-0 right-0 z-[60] flex min-h-0 w-[440px] max-w-full flex-col border-l"
+          style={{ borderColor: "var(--line)", background: "var(--panel)", boxShadow: "-8px 0 24px rgba(0,0,0,0.12)" }}
         >
           <ReviewRiskPanel key={active!.id} {...panelProps} />
         </div>
@@ -435,6 +525,7 @@ function IssuesPageInner() {
     () => entityFindings.filter((f) => f.actionStatus === "Closed"),
     [entityFindings],
   );
+  const deletedFindings = useDeletedFindings();
   const criticalFindings = useMemo(() => allOpenFindings.filter((f) => f.critical), [allOpenFindings]);
   const safetyFindings = useMemo(() => allOpenFindings.filter((f) => f.safetyTag), [allOpenFindings]);
   const riskViewFindings: Finding[] =
@@ -465,6 +556,7 @@ function IssuesPageInner() {
     critical: criticalFindings.length,
     safety: safetyFindings.length,
     closed: closedFindings.length,
+    deleted: deletedFindings.length,
   };
 
   /* Through `useVisits`, not a raw `PROGRAMME_VISITS.find`/`.filter` — the
@@ -704,45 +796,52 @@ function IssuesPageInner() {
           general issues (no check, no asset system) are explicitly allowed
           by the spec, which is exactly what opening it from here, with no
           preset context, already gives for free. */}
-      <div className="shrink-0 border-b px-5 pt-4 pb-2.5" style={{ borderColor: "var(--line)", background: "var(--panel)" }}>
-        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-[17px] font-bold">Issues at {entity.short}</h2>
-          <Btn
-            variant="primary"
-            className="min-h-[36px] px-3 py-1.5 text-[11.5px]"
-            onClick={() => setAddOpen(true)}
-          >
-            <IconPlus width={14} height={14} />
-            Add issue
-          </Btn>
-        </div>
-        <div role="radiogroup" aria-label="Filter issues" className="flex flex-wrap gap-[6px]">
-          {(Object.keys(ISSUES_FILTER_LABEL) as IssuesFilter[]).map((f) => (
-            <button
-              key={f}
-              role="radio"
-              aria-checked={issuesFilter === f}
-              onClick={() => setIssuesFilter(f)}
-              className="flex min-h-[32px] items-center gap-[6px] rounded-full border px-3 py-1.5 font-display text-[11px] font-semibold transition-[var(--t)]"
-              style={
-                issuesFilter === f
-                  ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
-                  : { background: "var(--sunken)", borderColor: "transparent", color: "var(--ink-2)" }
-              }
+      <div className="shrink-0 border-b px-5 py-2.5" style={{ borderColor: "var(--line)", background: "var(--panel)" }}>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+            <h2 className="text-[18px] font-semibold">Issues at {entity.short}</h2>
+            <div role="radiogroup" aria-label="Filter issues" className="flex flex-wrap gap-[5px]">
+              {(Object.keys(ISSUES_FILTER_LABEL) as IssuesFilter[]).map((f) => (
+                <button
+                  key={f}
+                  role="radio"
+                  aria-checked={issuesFilter === f}
+                  onClick={() => setIssuesFilter(f)}
+                  className="flex h-[26px] items-center gap-[5px] rounded-full border px-[10px] font-display text-[11px] font-semibold transition-[var(--t)]"
+                  style={
+                    issuesFilter === f
+                      ? { background: "var(--acc)", borderColor: "var(--acc)", color: "var(--on-acc)" }
+                      : { background: "var(--sunken)", borderColor: "transparent", color: "var(--ink-2)" }
+                  }
+                >
+                  {ISSUES_FILTER_LABEL[f]}
+                  <span className="font-mono text-[10px]" style={{ color: issuesFilter === f ? "var(--on-acc)" : "var(--ink-4)" }}>
+                    {issuesCounts[f]}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-[6px]">
+            <Btn variant="primary" className="min-h-[32px] whitespace-nowrap px-3 py-1 text-[11.5px]" onClick={() => setAddOpen(true)}>
+              <IconPlus width={14} height={14} />
+              Log finding
+            </Btn>
+            <Btn
+              className="min-h-[32px] whitespace-nowrap px-3 py-1 text-[11.5px]"
+              onClick={() => exportFindingsCsv(riskViewFindings, entity.short, ISSUES_FILTER_LABEL[issuesFilter])}
+              disabled={riskViewFindings.length === 0 || issuesFilter === "carried" || issuesFilter === "deleted"}
+              title="Download the findings under the selected status as a spreadsheet (CSV)"
             >
-              {ISSUES_FILTER_LABEL[f]}
-              <span
-                className="font-mono text-[10px]"
-                style={{ color: issuesFilter === f ? "var(--on-acc)" : "var(--ink-4)" }}
-              >
-                {issuesCounts[f]}
-              </span>
-            </button>
-          ))}
+              Export list
+            </Btn>
+          </div>
         </div>
       </div>
 
-      {issuesFilter !== "carried" ? (
+      {issuesFilter === "deleted" ? (
+        <DeletedList findings={deletedFindings} />
+      ) : issuesFilter !== "carried" ? (
         <IssuesRiskView
           findings={riskViewFindings}
           entityCode={entityCode}

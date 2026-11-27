@@ -24,6 +24,9 @@
  *  reason risk.ts's own header explains at length. */
 
 import { useMemo, useState } from "react";
+import { PriorityBadge, RiskSelect } from "@/components/TriageCells";
+import { PhotoLightbox } from "@/components/PhotoLightbox";
+import { priorityFor } from "@/lib/reviewRisk";
 import { useRouter } from "next/navigation";
 import {
   FINDING_TYPE_LABEL,
@@ -40,7 +43,7 @@ import { entity as entityOf } from "@/lib/programme";
 import { checksAt, checksOf, disciplinesAt, systemsOf } from "@/lib/register";
 import { ALL_PROCEDURES, docRefLabel, procedureMatches } from "@/lib/library";
 import { useStore, useEvidenceItems, useFieldSaveStatus, useResponses, useVisitId } from "@/lib/store";
-import { AttachmentStrip } from "@/components/Capture";
+import { AttachmentStrip, PhotoButton } from "@/components/Capture";
 import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
 import type { Compliance, Finding } from "@/lib/types";
 
@@ -72,6 +75,9 @@ export type RiskPatch = Pick<
      inline <select> did. Sarel's redesign spec: "Full Risk Matrix &
      Timeline selectors" in the drawer. */
   | "timeline"
+  /* Severity / Likelihood live ONLY here now (the table no longer carries them). */
+  | "severity"
+  | "likelihood"
   /* PRIORITY 4 (review redesign) — Discipline/Asset system/Audit check,
      added so the hierarchy editor below can patch through the SAME
      onChange every other field here already uses, rather than a second
@@ -161,6 +167,7 @@ export default function ReviewRiskPanel({
      finding (the `key={finding.id}` the caller already mounts this under
      remounts the component on every selection change, so this needs no
      extra reset of its own). */
+  const [inspectId, setInspectId] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   /* CITE A PROCEDURE (build prompt 9) — the picker is closed by default;
@@ -239,6 +246,10 @@ export default function ReviewRiskPanel({
      "Open" below hands off to. */
   const responses = useResponses();
   const evidenceItems = useEvidenceItems();
+  const addFindingAttachment = useStore((s) => s.addFindingAttachment);
+  const removeFindingAttachment = useStore((s) => s.removeFindingAttachment);
+  const updateFindingAttachment = useStore((s) => s.updateFindingAttachment);
+  const auditor = useStore((s) => s.auditor);
   const visitId = useVisitId();
   const linkedCheck = useMemo(
     () => (finding.checkId ? checksAt(entityCode).find((c) => c.id === finding.checkId) : undefined),
@@ -361,6 +372,17 @@ export default function ReviewRiskPanel({
         style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
       >
         <div className="flex items-center gap-[8px]">
+          {/* Close, on the LEFT of the header where it can never be pushed
+              off-screen by a wide table (Sarel, 26 Nov 2026: "we need a
+              close button to close the right hand panel"). */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-[6px] border px-[8px] py-[3px] text-[11px] font-semibold"
+            style={{ borderColor: "var(--line-2)", color: "var(--ink-2)", background: "var(--panel)" }}
+          >
+            ✕ Close
+          </button>
           <b className="font-display text-[11.5px] font-semibold">Finding</b>
           <SaveStatusPill status={saveStatus} />
         </div>
@@ -368,7 +390,7 @@ export default function ReviewRiskPanel({
           {confirmingDelete ? (
             <>
               <span className="text-[11px] font-semibold" style={{ color: "var(--bad)" }}>
-                Delete for good?
+                Delete? It is kept and can be restored.
               </span>
               <button
                 type="button"
@@ -655,6 +677,31 @@ export default function ReviewRiskPanel({
         </select>
       </label>
 
+      {/* RISK RATING — Severity (A-E), Likelihood (1-5) and the calculated 5x5
+          Priority. Edited here and nowhere else: the table has no Sev/Lik/
+          Priority columns any more. Saves on change like every other field. */}
+      <div className="mb-3.5 rounded-[10px] border p-3" style={{ borderColor: "var(--line-2)" }}>
+        <div className="mb-2 flex items-center justify-between">
+          <span className="font-display text-[11px] font-semibold">Risk rating</span>
+          <span className="inline-flex items-center gap-[6px] text-[11px]" style={{ color: "var(--ink-3)" }}>
+            Priority <PriorityBadge f={finding} />
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block">
+            <span className="label-xs">Severity</span>
+            <RiskSelect full kind="severity" finding={finding} onChange={onChange} />
+          </label>
+          <label className="block">
+            <span className="label-xs">Likelihood</span>
+            <RiskSelect full kind="likelihood" finding={finding} onChange={onChange} />
+          </label>
+        </div>
+        <div className="mt-1.5 text-[11px]" style={{ color: "var(--ink-3)" }}>
+          {priorityFor(finding)?.label ?? "Pick a severity and a likelihood to calculate the priority."}
+        </div>
+      </div>
+
       {/* PRIORITY 4/7 — notes, photos and recordings this finding carries
           itself, clearly labelled as THIS finding's own capture (not the
           linked check's — Response.attachments is a separate pool, see
@@ -830,7 +877,55 @@ export default function ReviewRiskPanel({
             </div>
           </div>
         )}
-        {finding.attachments.length > 0 && <AttachmentStrip attachments={finding.attachments} thumbSize={56} />}
+        {/* PHOTO GALLERY — Sarel, 27 Nov 2026: the drawer is where photos
+            are viewed large, deleted and added (the table row only shows a
+            36px thumbnail with a count). Capture and Upload both add to this
+            finding; Remove is on each photo. */}
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <span className="font-display text-[11px] font-semibold" style={{ color: "var(--ink-3)" }}>
+            Photos &amp; notes &middot; {finding.attachments.length}
+          </span>
+          <span className="flex items-center gap-[6px]">
+            <PhotoButton
+              compact
+              className="min-h-[34px] w-[34px] justify-center"
+              onCaptured={(m) => addFindingAttachment(finding.id, { ...m, createdBy: auditor })}
+            />
+            <PhotoButton
+              compact
+              fromLibrary
+              className="min-h-[34px] w-[34px] justify-center"
+              onCaptured={(m) => addFindingAttachment(finding.id, { ...m, createdBy: auditor })}
+            />
+          </span>
+        </div>
+        {inspectId && (() => {
+          const items = finding.attachments
+            .filter((a) => a.kind === "photo")
+            .map((a) => ({ attachment: a, system: finding.system || "General", summary: finding.title || finding.description || "", fallbackAt: finding.createdAt }));
+          const at = items.findIndex((x) => x.attachment.id === inspectId);
+          if (items.length === 0) return null;
+          return (
+            <PhotoLightbox
+              photos={items}
+              index={Math.max(0, at)}
+              onIndex={(i) => setInspectId(items[i].attachment.id)}
+              onClose={() => setInspectId(null)}
+              entityCode={entityCode}
+              visitId={visitId}
+            />
+          );
+        })()}
+        {finding.attachments.length > 0 && (
+          <AttachmentStrip
+            attachments={finding.attachments}
+            thumbSize={132}
+            largePhotos
+            onInspect={(id) => setInspectId(id)}
+            onRemove={(id) => removeFindingAttachment(finding.id, id)}
+            onUpdate={(id, p) => updateFindingAttachment(finding.id, id, p)}
+          />
+        )}
       </div>
 
       {/* PRIORITY 4 — "compliance assessments, clearly identifying their
@@ -853,6 +948,21 @@ export default function ReviewRiskPanel({
           {linkedCheck && (
             <div className="mb-1.5 text-[11px]" style={{ color: "var(--ink-3)" }}>
               {linkedCheck.requirement.slice(0, 110)}
+            </div>
+          )}
+          {/* The desk note and what the evidence shows used to print in the
+              table's Finding cell; with the rows compacted (Sarel, 27 Nov 2026)
+              they are read here instead. */}
+          {linkedResponse.observation && (
+            <div className="mb-1.5 text-[11px]" style={{ color: "var(--ink-2)" }}>
+              <span className="font-semibold">Desk note: </span>
+              {linkedResponse.observation}
+            </div>
+          )}
+          {linkedResponse.evidenceProves && (
+            <div className="mb-1.5 text-[11px]" style={{ color: "var(--ink-2)" }}>
+              <span className="font-semibold">Evidence shows: </span>
+              {linkedResponse.evidenceProves}
             </div>
           )}
           <div className="flex flex-wrap gap-[6px]">
@@ -1036,7 +1146,19 @@ function EvidenceSection({ finding }: { finding: Finding }) {
               className="flex items-center justify-between gap-2 rounded-[8px] border px-2 py-[6px] text-left text-[11px]"
               style={{ background: "var(--panel)", borderColor: "var(--line-2)" }}
             >
-              <span className="min-w-0 truncate">{e.title || e.id}</span>
+              <span className="min-w-0">
+                <span className="block truncate">{e.title || e.id}</span>
+                {(() => {
+                  const comment = [e.analysisNote, e.insufficientReason, e.unavailableReason]
+                    .filter((t) => t && t.trim())
+                    .join(" \u00b7 ");
+                  return comment ? (
+                    <span className="mt-[2px] line-clamp-3 block whitespace-normal text-[10.5px]" style={{ color: "var(--ink-3)" }}>
+                      {comment}
+                    </span>
+                  ) : null;
+                })()}
+              </span>
               <Pill tone={trackingStage(e) === "analysis" ? "good" : trackingStage(e) === "received" ? "good" : trackingStage(e) === "requested" ? "warn" : "neutral"}>
                 {TRACKING_LABEL[trackingStage(e)]}
               </Pill>

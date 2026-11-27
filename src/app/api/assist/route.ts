@@ -186,10 +186,15 @@ export async function POST(req: NextRequest) {
     if (!r.ok) {
       const detail = await r.text();
       console.error("assist upstream", r.status, detail.slice(0, 400));
-      return Response.json(
-        { error: `The model service returned ${r.status}.` },
-        { status: 502 }
-      );
+      const why =
+        r.status === 401 || r.status === 403
+          ? `The AI key on this deployment was rejected (${r.status}). It is missing, revoked or mistyped: set a valid ANTHROPIC_API_KEY in the Vercel project settings and redeploy. Basic tidy still works meanwhile.`
+          : r.status === 404
+            ? `The AI model name on this deployment was not found (${r.status}). Check ASSIST_MODEL in the Vercel project settings.`
+            : r.status === 429
+              ? "The AI service is busy or over its limit (429). Try again shortly."
+              : `The model service returned ${r.status}.`;
+      return Response.json({ error: why }, { status: 502 });
     }
 
     const json = (await r.json()) as {

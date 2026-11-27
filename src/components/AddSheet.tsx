@@ -7,6 +7,7 @@ import { IconActivity, IconClipboard } from "@/components/ui/icons";
 import { PhotoButton, VoiceNoteButton } from "@/components/Capture";
 import type { PhotoCapture, VoiceCapture } from "@/components/Capture";
 import { useStore } from "@/lib/store";
+import { carryMediaToRaiseForm } from "@/components/RaiseFindingSheet";
 
 /** THE + SHEET — build prompt 5, 21 Nov 2026: "one '+' button on Checks,
  *  Evidence, Walk and Issues opens the same sheet... The context is
@@ -89,19 +90,17 @@ export default function AddSheet({
   presetSystem?: string;
   presetDiscipline?: string;
 }) {
-  const addAttachment = useStore((s) => s.addAttachment);
-  const addCapture = useStore((s) => s.addCapture);
   const addEvidenceItem = useStore((s) => s.addEvidenceItem);
-  const auditor = useStore((s) => s.auditor);
   const router = useRouter();
 
+  /* A photo or voice note starts a finding: it opens the full raise form
+     (discipline, asset system, check, text, type, tags, more photos, voice)
+     with the capture already attached — it is no longer saved on its own and
+     closed (Sarel, 26 Nov 2026). */
   function handleMedia(m: PhotoCapture | VoiceCapture) {
-    if (presetCheckId) {
-      addAttachment(presetCheckId, { ...m, createdBy: auditor });
-    } else {
-      addCapture({ ...m, area: presetSystem || "Unspecified", createdBy: auditor });
-    }
+    carryMediaToRaiseForm(m);
     onClose();
+    onRaiseIssue();
   }
 
   function handleEvidence() {
@@ -150,6 +149,7 @@ export default function AddSheet({
     >
       <div className="flex flex-col gap-2">
         <PhotoButton large label="Photo" className="w-full" onCaptured={handleMedia} />
+        <PhotoButton large fromLibrary label="Upload" className="w-full" onCaptured={handleMedia} />
         <VoiceNoteButton large className="w-full" onCaptured={handleMedia} />
         <Btn
           className="min-h-[56px] w-full justify-start gap-2.5 text-[14px] font-semibold"

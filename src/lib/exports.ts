@@ -990,6 +990,14 @@ export function hazardsSheet(x: ExportInput): Sheet {
     const suggested = !agreed ? cellCode(h.severity, h.likelihood) : null;
     const photos = hazardPhotos(x, h);
     const riskFields = findingRiskFieldsFor(h, x.findings);
+    /* A soft-deleted finding's id is deliberately kept on its hazard's
+       findingIds (store.ts's removeFinding) so a restore is complete — but
+       that means the raw array can hold ids a soft-delete has already
+       dropped from x.findings, and this sheet must not show a finding ID
+       or count the deleted findings themselves say are "hidden everywhere
+       else, including reports." Same live-lookup hazardPhotos() and
+       findingRiskFieldsFor() already use above, not a third filter. */
+    const liveFindingIds = h.findingIds.filter((id) => x.findings.some((f) => f.id === id));
     return [
       h.id,
       h.event,
@@ -1040,8 +1048,8 @@ export function hazardsSheet(x: ExportInput): Sheet {
          landing. */
       riskFields.citedDocs ?? "",
       h.disciplines.length,
-      h.findingIds.join(" · "),
-      h.findingIds.length,
+      liveFindingIds.join(" · "),
+      liveFindingIds.length,
       h.importKey ? `${ORIGIN_TEXT[h.origin]} — Imported, TPJV-proposed` : ORIGIN_TEXT[h.origin],
       h.immediate ? "Yes — end-of-week critical review" : "",
       /* ACSA's occurrence history. Four of B170's five likelihood levels are

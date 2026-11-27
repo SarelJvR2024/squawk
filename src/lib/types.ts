@@ -271,6 +271,14 @@ export interface Attachment {
   id: string;
   kind: "photo" | "voice" | "file";
   name: string;
+  /** WHICH CHANNEL OF THE CHECK THIS WAS CAPTURED IN — "check" (the desk
+   *  observation / interview), "walk" (the walkabout) or "evidence"
+   *  (documents and reports we request). Set at capture so each channel's own
+   *  sheet shows only its own material: a voice note recorded against the
+   *  check must not turn up under Evidence, and a walk photo belongs under
+   *  Walk. Optional and absent-means-default (see lib/attachmentChannel.ts),
+   *  so records from before this field existed need no migration. */
+  channel?: "check" | "walk" | "evidence";
   /** Key into the media store (src/lib/media.ts), NOT the bytes. Blobs are
    *  held under their own IndexedDB keys because this record is persisted
    *  inside one JSON value that rewrites on every keystroke. */
@@ -1147,6 +1155,13 @@ export interface Finding {
    *  this panel's own header comment). Optional, absent-means-false, same
    *  convention as `internalOnly` just above. */
   critical?: boolean;
+  /** SOFT DELETE — Sarel, 26 Nov 2026: "never permanently delete anything,
+   *  just flag as deleted and don't include anywhere but always keep a copy
+   *  somewhere in case it was a mistake." A flagged finding is hidden from
+   *  every screen and report and listed only under Issues, Deleted, where it
+   *  can be restored. The record, its photos and its voice notes are kept. */
+  deletedAt?: number;
+  deletedBy?: string;
   /** SAFETY — same shape and same place as `critical` just above. "The
    *  Safety tag here is only for the report" (the build prompt's own
    *  words) — distinct from, and never to be confused with, an Immediate

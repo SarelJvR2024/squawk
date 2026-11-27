@@ -24,6 +24,7 @@ const E = await import("../src/lib/evidence.ts");
 const types = read("src", "lib", "types.ts");
 const storeSrc = read("src", "lib", "store.ts");
 const table = read("src", "components", "ReviewRiskTable.tsx");
+const cells = read("src", "components", "TriageCells.tsx");
 const panel = read("src", "components", "ReviewRiskPanel.tsx");
 const evidencePage = read("src", "app", "(app)", "evidence", "page.tsx");
 const evidenceQuick = read("src", "components", "EvidenceQuickCapture.tsx");
@@ -33,6 +34,7 @@ const evidenceQuick = read("src", "components", "EvidenceQuickCapture.tsx");
    ReviewRiskTable/ReviewRiskPanel components and the same
    onChange-through-updateFinding division of labour. */
 const reviewPage = read("src", "app", "(app)", "issues", "page.tsx");
+const lightbox = read("src", "components", "PhotoLightbox.tsx");
 const assistPromptsSrc = read("src", "lib", "assistPrompts.ts");
 
 let failures = 0;
@@ -159,9 +161,8 @@ check(
 );
 check(
   "the asset system filter narrows by the active discipline filter, via systemsOf — not a static list",
-  /filter\.kind === "discipline" \? systemsOf\(entityCode, filter\.discipline\) : systemsAt\(entityCode\)/.test(table)
+  /fx\.discipline \? systemsOf\(entityCode, fx\.discipline\) : systemsAt\(entityCode\)/.test(table)
 );
-
 /* ---- 3 · the wide table's fixed column set — no toggle any more */
 
 /* "Asset system" dropped from the column-header set — Sarel: "put asset
@@ -172,9 +173,15 @@ check(
    into one "Location / Hierarchy" header — Sarel: "combine Discipline
    and Audit Check into a single clean 'Location / Hierarchy' column...
    remove redundant repetition of 'General' across two columns." */
-for (const col of ["Type", "Location / Hierarchy", "Root cause", "Impact", "Timeline", "Evidence"]) {
-  check(`the table always renders a "${col}" column header`, new RegExp(`<Th>${col}</Th>|>${col}<`).test(table));
+/* 27 Nov 2026 (second pass) — Sev, Lik and Priority are OUT of the table and
+   live only in the drawer; Root cause and Impact are back as inline columns. */
+for (const col of ["Type", "Location", "Finding", "Root cause", "Impact", "Timeline", "Photos"]) {
+  check(`the table always renders a "${col}" column header`, new RegExp(`>${col}</th>`).test(table));
 }
+check(
+  "the table has no Sev, Lik or Priority column header — they were ~140px of empty dashes",
+  !/>Sev<\/th>/.test(table) && !/>Lik<\/th>/.test(table) && !/>Priority<\/th>/.test(table)
+);
 check(
   "Discipline and Asset system share one column — no separate Asset system header",
   !/<Th>Asset system<\/Th>/.test(table)
@@ -188,12 +195,14 @@ check(
    Severity, Likelihood and the derived Rating column are gone from this
    table — see ReviewRiskTable.tsx's own header. */
 check(
-  "Severity, Likelihood and Rating are gone — no column header, no cell left for any of them",
-  !/<Th>Severity<\/Th>/.test(table) &&
-    !/<Th>Likelihood<\/Th>/.test(table) &&
-    !/<Th>Rating<\/Th>/.test(table) &&
-    !/Severity for \$\{f\.title/.test(table) &&
-    !/Likelihood for \$\{f\.title/.test(table)
+  "Severity (A-E), Likelihood (1-5) and the calculated Priority badge are edited ONLY in the drawer; the table has no RiskSelect or PriorityBadge, and Priority is still calculated by priorityFor, never typed",
+  !/<RiskSelect/.test(table) &&
+    !/<PriorityBadge/.test(table) &&
+    /<RiskSelect full kind="severity"/.test(panel) &&
+    /<RiskSelect full kind="likelihood"/.test(panel) &&
+    /<PriorityBadge f=\{finding\}/.test(panel) &&
+    /priorityFor\(f\)/.test(cells) &&
+    !/>Rating<\/th>/.test(table)
 );
 check(
   "the column-toggle UI is gone — this is one fixed table, not a customisable one",
@@ -215,20 +224,8 @@ check(
  * Hierarchy (that stays Discipline + Asset system only, still dense),
  * but as the first line of the Finding cell, above the desk note. */
 check(
-  "the Audit check's own question is back in the table — in the Finding cell, not Location/Hierarchy",
-  (() => {
-    const rowStart = table.indexOf("{visible.slice(0, shown).map((f) => {");
-    const rowEnd = table.indexOf("\n          </tbody>", rowStart);
-    const row = rowStart === -1 ? "" : table.slice(rowStart, rowEnd === -1 ? undefined : rowEnd);
-    if (row.length === 0) return false;
-    const findingCellStart = row.indexOf('min-w-[220px] max-w-[400px]');
-    const locationCell = row.slice(0, findingCellStart);
-    const findingCell = row.slice(findingCellStart);
-    return (
-      !/checksById\.get\(f\.checkId\)\?\.requirement/.test(locationCell) &&
-      /checksById\.get\(f\.checkId\)\?\.requirement/.test(findingCell)
-    );
-  })()
+  "the Finding cell shows NO audit-check reference code, only the defect text clamped to two lines; the check's own question stays reachable in the drawer",
+  /line-clamp-2/.test(table) && !/\{f\.checkId\}/.test(table) && !/KSIA-/.test(table) && /\.requirement/.test(panel)
 );
 check(
   "portalIdFor is not called anywhere in this file any more — the ref-code column dropped it",
@@ -249,30 +246,32 @@ check(
 );
 check(
   "a finding with no asset system AND no linked check reads one subtle General badge — not the plain italic text the old two-column version used",
-  /\{f\.system \|\| f\.checkId \? \([\s\S]{0,300}\) : \(\s*<Pill tone="neutral">General<\/Pill>/.test(table)
+  /\{f\.system \? \([\s\S]{0,400}\) : \(\s*<span className="min-w-0 flex-1">\s*<Pill tone="neutral">General<\/Pill>/.test(table)
 );
 check(
   "a finding linked to a check but with no asset system name still reads General, muted — it's not fully unlinked",
   /\{f\.system \|\| "General"\}/.test(table)
 );
 check(
-  "the Evidence column shows inline photo thumbnails, not only a count — Sarel: 'add the photos in the row so that the photos can be viewed inline'",
-  /photoAttachments\.slice\(0, 4\)\.map/.test(table) &&
-    /EvidenceThumb/.test(table) &&
-    /f\.attachments\.filter\(\(a\) => a\.kind === "voice"\)\.length/.test(table)
+  "the Photos column shows one 36px thumbnail with the photo count; clicking it opens the gallery in the drawer — Sarel: 'add the photos in the row so that the photos can be viewed inline'",
+  /<EvidenceThumb attachment=\{photoAttachments\[0\]\} count=\{photoAttachments\.length\} size=\{36\} preview=\{\{ entityCode, visitId \}\} onOpen=\{\(\) => setLightbox\(\{ id: f\.id, index: 0 \}\)\}/.test(table)
 );
-
 /* ---- 4 · the Type tag's own panel toggle and table rendering ----------- */
 
 /* 19 Nov 2026 — inline-editable now, not read-only — Sarel: "the type
  * need to allow for inline editing." The panel's own chips are unchanged
  * and still work; both write through the same onChange. */
 check(
-  "the table's Type cell is inline-editable, a <select> over findingTypeFor's own three values",
+  "the table's Type cell shows only the ACTIVE type as one pill with a menu, over findingTypeFor's own values (Sarel, 27 Nov 2026)",
   /const type = findingTypeFor\(f\)/.test(table) &&
-    /value={type}/.test(table) &&
-    /onChange={\(e\) =>\s*\n\s*onChange\(f\.id, {\s*\n\s*findingType: e\.target\.value as/.test(table) &&
-    /FINDING_TYPE_LABEL\[t\]/.test(table)
+    /<TypePill/.test(table) &&
+    /onChange=\{\(t\) => onChange\(f\.id, \{ findingType: t \}\)\}/.test(table) &&
+    /FINDING_TYPE_LABEL\[t\]/.test(cells) &&
+    /bg-red-50 text-red-700 border-red-200/.test(cells) &&
+    /bg-amber-50 text-amber-700 border-amber-200/.test(cells) &&
+    /bg-blue-50 text-blue-700 border-blue-200/.test(cells) &&
+    /role="menu"/.test(cells) &&
+    !/role="radiogroup"/.test(table)
 );
 check(
   "the panel's Type toggle patches findingType, through onChange like every other field here",
@@ -516,11 +515,14 @@ check(
     !/function FilterChip/.test(table)
 );
 check(
-  "the four dropdown filters (Discipline/Asset system/Impact area/Root cause category) still work",
-  /Filter by discipline/.test(table) &&
+  "the toolbar has a search box and Discipline / Asset system / Priority / Timeline filters that combine (Sarel, 27 Nov 2026)",
+  /Search findings/.test(table) &&
+    /Filter by discipline/.test(table) &&
     /Filter by asset system/.test(table) &&
-    /Filter by impact area/.test(table) &&
-    /Filter by root cause category/.test(table)
+    /Filter by priority/.test(table) &&
+    /Filter by timeline/.test(table) &&
+    /fx\.discipline && f\.discipline !== fx\.discipline/.test(table) &&
+    /fx\.timeline && f\.timeline !== fx\.timeline/.test(table)
 );
 check(
   "the on-screen count line is computed from `visible`, the exact array the rows below render from — not findings.length, which would drift the moment a filter is active",
@@ -559,90 +561,20 @@ check(
 /* ---- 12 · PRIORITY 2 (review redesign) — Root cause/Impact are now
    inline-editable in the table, not panel-only ---------------------------- */
 
+/* 27 Nov 2026 — Root cause and Impact are edited in the detail drawer (the
+   panel's own chip rows, same toggleMulti and vocabulary), no longer as table
+   columns: that is what took a row from ~50px to ~250px. */
 check(
-  "the Root cause cell is wrapped in the same stopPropagation guard severity/likelihood already use — opening its editor never selects the row",
-  /Root cause categories for \$\{f\.title \|\| f\.id\}[\s\S]{0,20}onClick=\{\(e\) => e\.stopPropagation\(\)\}|onClick=\{\(e\) => e\.stopPropagation\(\)\}[\s\S]{0,200}Root cause categories for/.test(
-    table
-  )
+  "Root cause and Impact are inline MultiPill popover cells (check / uncheck, saved on each tick through onChange); Action plan stays in the drawer",
+  /<MultiPill[\s\S]{0,200}options=\{ROOT_CAUSES\}/.test(table) && /<MultiPill[\s\S]{0,200}options=\{IMPACT_AREAS\}/.test(table) &&
+    /\+ Root cause/.test(table) && /\+ Impact/.test(table) &&
+    /onChange=\{\(next\) => onChange\(f\.id, \{ rootCauseCategories: next \}\)\}/.test(table) &&
+    /onChange=\{\(next\) => onChange\(f\.id, \{ impactAreas: next \}\)\}/.test(table) &&
+    !/function ActionPlanCell/.test(table)
 );
 check(
-  "the Impact cell carries the same guard",
-  /Impact areas for \$\{f\.title \|\| f\.id\}[\s\S]{0,20}onClick=\{\(e\) => e\.stopPropagation\(\)\}|onClick=\{\(e\) => e\.stopPropagation\(\)\}[\s\S]{0,200}Impact areas for/.test(
-    table
-  )
-);
-check(
-  "both inline editors toggle through the SAME toggleMulti the panel already uses — one function, two surfaces",
-  /rootCauseCategories: toggleMulti\(f\.rootCauseCategories, v\)/.test(table) &&
-    /impactAreas: toggleMulti\(f\.impactAreas, v\)/.test(table) &&
-    /toggleMulti,?$/m.test(table.match(/import \{[\s\S]{0,400}\} from "@\/lib\/reviewRisk"/)?.[0] ?? "")
-);
-check(
-  "the inline editors read the same vocabulary as the panel and the bulk bar — ROOT_CAUSES/IMPACT_AREAS, not a third list",
-  /options=\{ROOT_CAUSES\}/.test(table) && /options=\{IMPACT_AREAS\}/.test(table)
-);
-/* 16 Nov 2026, morning — Sarel: "root cause and impact inline editing is
-   not user friendly." The `<details>` disclosure (nothing visible until
-   you first opened it) was replaced with every option shown as a Chip,
-   always.
-   16 Nov 2026, later the same day — Sarel again, now on row height: with
-   6-8 options per axis shown on all 29 rows, "every row [was] 250px
-   tall... only 1.5 findings per screen." Second iteration: show only the
-   SELECTED tag(s) as the trigger (still no disclosure needed to know
-   what's selected — the complaint the morning's fix was actually about),
-   and move the full option list into a popover opened on click. */
-check(
-  "no <details>/<summary> disclosure, and not a Chip row of every option either — MultiSelectCell is a compact trigger now",
-  (() => {
-    const start = table.indexOf("function MultiSelectCell");
-    const fn = start === -1 ? "" : table.slice(start, table.indexOf("\n}\n", start) + 2);
-    return fn.length > 0 && !/<details/.test(fn) && !/<summary/.test(fn) && !/<Chip/.test(fn);
-  })()
-);
-check(
-  "with nothing selected, a faint ghost \"+ Add\" button shows — no options rendered until opened",
-  (() => {
-    const start = table.indexOf("function MultiSelectCell");
-    const fn = start === -1 ? "" : table.slice(start, table.indexOf("\n}\n", start) + 2);
-    return fn.length > 0 && /selected\.length === 0[\s\S]{0,300}\+ Add/.test(fn);
-  })()
-);
-check(
-  "with something selected, the first tag shows as a compact Pill, with a +N badge for the rest — Sarel's own example, [Maintenance backlog] [+1]",
-  (() => {
-    const start = table.indexOf("function MultiSelectCell");
-    const fn = start === -1 ? "" : table.slice(start, table.indexOf("\n}\n", start) + 2);
-    return (
-      fn.length > 0 &&
-      /<Pill tone="neutral">\{selected\[0\]\}<\/Pill>/.test(fn) &&
-      /selected\.length > 1[\s\S]{0,200}\+\{selected\.length - 1\}/.test(fn)
-    );
-  })()
-);
-check(
-  "clicking the trigger — the cell itself — opens a popover with every option as a checkbox, multiple selectable",
-  (() => {
-    const start = table.indexOf("function MultiSelectCell");
-    const fn = start === -1 ? "" : table.slice(start, table.indexOf("\n}\n", start) + 2);
-    return (
-      fn.length > 0 &&
-      /role="dialog"/.test(fn) &&
-      /options\.map\(\(o\) => \{/.test(fn) &&
-      /<input type="checkbox" checked=\{checked\} onChange=\{\(\) => onToggle\(o\)\} \/>/.test(fn)
-    );
-  })()
-);
-check(
-  "the popover closes on Escape and on an outside click, same convention as FilterPopover",
-  (() => {
-    const start = table.indexOf("function MultiSelectCell");
-    const fn = start === -1 ? "" : table.slice(start, table.indexOf("\n}\n", start) + 2);
-    return (
-      fn.length > 0 &&
-      /e\.key === "Escape"\) setOpen\(false\)/.test(fn) &&
-      /onClick=\{\(\) => setOpen\(false\)\}/.test(fn)
-    );
-  })()
+  "the drawer edits both through the SAME toggleMulti and vocabulary, one function, one surface",
+  /toggleMulti/.test(panel) && /ROOT_CAUSES/.test(panel) && /IMPACT_AREAS/.test(panel) && /Action &amp; improvement plan/.test(panel)
 );
 
 /* ---- 13 · Timeline column — Sarel: "make sure that column is in the
@@ -665,8 +597,7 @@ check(
 );
 check(
   "the Timeline cell is a plain <select>, aria-labelled, offering every TIMELINES option plus a blank",
-  /aria-label=\{`Timeline for \$\{f\.title \|\| f\.id\}`\}/.test(table) &&
-    /\{TIMELINES\.map\(\(t\) => \(/.test(table)
+  /aria-label=\{label\}/.test(cells) && /TIMELINES\.map\(\(t\) => \(/.test(cells) && /label=\{`Timeline for \$\{f\.title \|\| f\.id\}`\}/.test(table)
 );
 check(
   "the Timeline cell is wrapped in the same stopPropagation guard Severity/Likelihood/Root cause/Impact already use",
@@ -676,7 +607,7 @@ check(
 );
 check(
   "picking a Timeline writes through onChange, the same per-row patch every other inline edit here uses",
-  /onChange\(f\.id, \{ timeline: e\.target\.value \|\| undefined \}\)/.test(table)
+  /onChange=\{\(v\) => onChange\(f\.id, \{ timeline: v \}\)\}/.test(table)
 );
 check(
   "the version bumped again, to at least 43, for Finding.timeline",
@@ -695,8 +626,8 @@ check(
    own "By discipline" tab already renders. ------------------------------- */
 
 check(
-  "EvidenceQuickCapture no longer lives inside ReviewRiskTable.tsx — it moved out to its own file",
-  !/function EvidenceQuickCapture\(\)/.test(table) && !/<EvidenceQuickCapture/.test(table)
+  "EvidenceQuickCapture is still its own file; Triage only opens it from a Request evidence button (Sarel, 26 Nov 2026)",
+  !/function EvidenceQuickCapture\(\)/.test(table) && /evidenceOpen && <EvidenceQuickCapture \/>/.test(table)
 );
 check(
   "it is two fields and a button — a discipline select and a free-text \"what's needed\" line, nothing else",
@@ -759,8 +690,8 @@ check(
    headings, Root cause/Impact editing, Audit check column width --------- */
 
 check(
-  "the inline photo thumbnail grew from 28px to 56px — Sarel: \"increase the size of the photo so that you can see it properly inline\"",
-  /width: 56, height: 56/.test(table) && !/width: 28, height: 28/.test(table)
+  "the inline photo thumbnail is now a 36px square (Sarel, 27 Nov 2026), and the old 120px / 56px sizes are not what the row uses",
+  /size=\{36\}/.test(table) && /width: size, height: size/.test(table)
 );
 check(
   "the Finding column no longer prints \"AUDIT CHECK NOTE\"/\"FINDING\"/\"EVIDENCE REVIEW\" eyebrow labels — Sarel: \"no need for headings in the column\"",
@@ -769,26 +700,15 @@ check(
     !/Evidence review\s*<\/div>/.test(table)
 );
 check(
-  /* build prompt 8 (22 Nov 2026): this anchor's own line changed — `r` is
-     now also gated on the finding being from the current visit (code
-     review on that branch; see tests/issuesscreen.test.mjs's own
-     regression test for why). Same cell, same four sources, same order. */
-  "the four sources (the audit check's own question, the audit check note, the finding itself, evidence review) still render in order, just without their own heading line each",
+  "the Finding cell reads: the finding text clamped to two lines, then its tag badges / + Tag — no reference code; the desk note and evidence notes live in the drawer",
   (() => {
-    const cellStart = table.indexOf(
-      "const r = f.checkId && f.originVisit === visitId ? responses[f.checkId] : undefined;",
-    );
-    const cellEnd = table.indexOf("})()}", cellStart);
-    const cell = cellStart === -1 ? "" : table.slice(cellStart, cellEnd);
+    const cell = table.slice(table.indexOf("Finding: at most two lines"), table.indexOf("<MultiPill"));
     return (
       cell.length > 0 &&
-      /question &&/.test(cell) &&
-      /r\?\.observation &&/.test(cell) &&
-      /f\.title \|\| f\.description \|\| f\.id/.test(cell) &&
-      /r\?\.evidenceProves &&/.test(cell) &&
-      cell.indexOf("question") < cell.indexOf("r?.observation") &&
-      cell.indexOf("r?.observation") < cell.indexOf("f.title || f.description || f.id") &&
-      cell.indexOf("f.title || f.description || f.id") < cell.indexOf("r?.evidenceProves")
+      !cell.includes("{f.checkId}") &&
+      cell.lastIndexOf("{text}") < cell.indexOf("<TagsMenu") &&
+      /line-clamp-2/.test(cell) &&
+      /FILLER_WORDS/.test(table)
     );
   })()
 );
@@ -833,6 +753,52 @@ check(
 check(
   "that stays ONE task/one model call, not three — polish's own instruction (assistPrompts.ts) already covers all three in one pass",
   /polish:\s*\n?\s*"Rewrite the note below[\s\S]{0,2000}answer it/.test(assistPromptsSrc)
+);
+
+
+/* ---- 27 Nov 2026, second pass: vocabularies, tags, location, photos ----- */
+check(
+  "ROOT_CAUSES is exactly the eight choices the popover offers, and the two retired values are kept only as LEGACY_ROOT_CAUSES so stored data is never rewritten",
+  /ROOT_CAUSES = \[\s*"Maintenance backlog",\s*"Documentation gap",\s*"Design \/ installation defect",\s*"Operational wear & tear",\s*"Environmental \/ weather",\s*"Procurement delay",\s*"Training \/ procedure gap",\s*"Other",\s*\]/.test(riskVocab) &&
+    /LEGACY_ROOT_CAUSES = \["Design \/ original installation", "Resourcing \/ staffing"\]/.test(riskVocab) &&
+    /legacy=\{LEGACY_ROOT_CAUSES\}/.test(table)
+);
+check(
+  "the Root cause pill shows the first choice and '+N'; the Impact pill is outlined; an empty cell is a quiet '+ Add' button",
+  /filled\s*\n?\s*addLabel="\+ Root cause"/.test(table) && /filled=\{false\}\s*\n?\s*addLabel="\+ Impact"/.test(table) && /\+\{rest\.length\}/.test(cells)
+);
+check(
+  "tags: red '🚨 Immediate Safety' and amber '⚡ Critical Item' badges are themselves the menu trigger, '+ Tag' is always visible, and the two toggles write safetyTag / critical",
+  /border-red-200 bg-red-50 text-red-700`\}>\{"\\u\{1F6A8\}"\} Immediate Safety/.test(cells) &&
+    /border-amber-200 bg-amber-50 text-amber-700`\}>\{"\\u26A1"\} Critical Item/.test(cells) &&
+    /\{any \? <TagBadges f=\{f\} \/> : "\+ Tag"\}/.test(cells) && !/group-hover:opacity-100/.test(cells) &&
+    /Immediate Safety Concern/.test(cells) && /Immediate Critical Item/.test(cells) &&
+    /safetyTag: !f\.safetyTag/.test(cells) && /critical: !f\.critical/.test(cells)
+);
+check(
+  "the Critical / Safety header counts are read from the findings' own critical / safetyTag fields, so a tag toggle moves them without a reload",
+  /criticalFindings/.test(reviewPage) && /safetyFindings/.test(reviewPage) && /critical: criticalFindings\.length/.test(reviewPage) && /safety: safetyFindings\.length/.test(reviewPage)
+);
+check(
+  "Location wraps instead of truncating: no 'truncate' class in the Location cell, discipline medium on line 1, asset system text-xs muted on line 2",
+  (() => {
+    const cell = table.slice(table.indexOf("Location: discipline"), table.indexOf("Finding: at most two lines"));
+    return cell.length > 0 && !/truncate/.test(cell) && /break-words text-\[13px\] font-medium/.test(cell) && /break-words text-xs/.test(cell) && /w-\[210px\][^>]*>Location/.test(table);
+  })()
+);
+check(
+  "photos: the thumbnail opens a lightbox (not the drawer) and shows a 200ms hover preview; the lightbox loads the full image through useRecordImage, never the thumbnail by choice",
+  /useHoverPreview\(delay = 200\)/.test(lightbox) && /width=\{?280|const W = 280/.test(lightbox) && /const H = 180/.test(lightbox) &&
+    /useRecordImage\(cur\.attachment, entityCode, visitId\)/.test(lightbox) && /<PhotoLightbox/.test(table) && /<PhotoLightbox/.test(panel)
+);
+check(
+  "lightbox: zoom to 400%, drag to pan, Zoom in / Zoom out / Fit to screen / 1:1 actual size, arrows and Escape, metadata bar with asset system, summary and capture time",
+  /const MAX = 4/.test(lightbox) && /Zoom in/.test(lightbox) && /Zoom out/.test(lightbox) && /Fit to screen/.test(lightbox) && /1:1 actual size/.test(lightbox) &&
+    /"ArrowLeft"/.test(lightbox) && /"ArrowRight"/.test(lightbox) && /"Escape"/.test(lightbox) && /passive: false/.test(lightbox) && /Asset system/.test(lightbox) && /Captured/.test(lightbox) && /Showing the small preview only/.test(lightbox)
+);
+check(
+  "drawer photographs render at full row width (min 340px) from the full-size copy, each with an 'Inspect full-size' button",
+  /largePhotos/.test(panel) && /minWidth: 340/.test(read("src", "components", "Capture.tsx")) && /Inspect full-size/.test(read("src", "components", "Capture.tsx")) && /useRecordImage\(a, entityCode, visitId\)/.test(read("src", "components", "Capture.tsx"))
 );
 
 console.log(failures === 0 ? "\nREVIEW TABLE V2 OK" : `\n${failures} FAILURES`);

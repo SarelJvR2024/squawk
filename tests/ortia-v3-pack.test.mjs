@@ -482,7 +482,7 @@ check(
 check(
   "after undo, this entity/visit holds no ad-hoc item, finding or hazard from this import",
   adhocNow().filter((a) => fileKeys.has(a.importKey)).length === 0 &&
-    findingsNow().filter((f) => fileKeys.has(f.importKey)).length === 0 &&
+    findingsNow().filter((f) => fileKeys.has(f.importKey) && !f.deletedAt).length === 0 &&
     hazardsNow().filter((h) => fileKeys.has(h.importKey)).length === 0
 );
 check("a manually captured ad-hoc item (no import key) survives the undo untouched", adhocNow().some((a) => a.id === manualId));

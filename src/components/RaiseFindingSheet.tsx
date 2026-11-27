@@ -44,6 +44,17 @@ const uid = () => Math.random().toString(36).slice(2, 10);
  *  asset system and check-point are both optional. Forcing either would put
  *  a guess into a finding that may genuinely be about neither. */
 
+/** Hand-off from the + sheet: a photo or voice note taken there is carried
+ *  into the full raise form (discipline, asset system, check, text, type,
+ *  tags) instead of being saved on its own. Sarel, 26 Nov 2026: "go back to
+ *  the way add a finding previously worked... at the moment it kicks you
+ *  out of that process." A module-level slot, not a prop, so the six
+ *  screens that already render AddSheet + RaiseFindingSheet need no change. */
+let carriedMedia: Omit<Attachment, "id" | "createdAt" | "createdBy">[] = [];
+export function carryMediaToRaiseForm(m: Omit<Attachment, "id" | "createdAt" | "createdBy">) {
+  carriedMedia = [...carriedMedia, m];
+}
+
 export default function RaiseFindingSheet({
   open,
   onClose,
@@ -75,6 +86,7 @@ export default function RaiseFindingSheet({
   const disciplines = useMemo(() => disciplinesAt(entityCode), [entityCode]);
   const checks = useMemo(() => checksAt(entityCode), [entityCode]);
 
+  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [discipline, setDiscipline] = useState<string>("");
@@ -82,6 +94,16 @@ export default function RaiseFindingSheet({
   const [systemQuery, setSystemQuery] = useState("");
   const [checkId, setCheckId] = useState<string | null>(null);
   const [checkQuery, setCheckQuery] = useState("");
+  /* TYPE AND TAGS, SET AT RAISING — Sarel (25 Nov 2026): "when raising a
+     finding add an option to indicate compliance as Observation. Add option
+     to tag it as critical, safety." They are the same Finding fields the
+     Issues screen already sets and filters on (findingType, critical,
+     safetyTag), so a finding raised here lands under the right chip with no
+     second pass. Default is non-compliance, the same default findingTypeFor()
+     already applies to an unset one. */
+  const [findingType, setFindingType] = useState<"non-compliance" | "observation">("non-compliance");
+  const [critical, setCritical] = useState(false);
+  const [safetyTag, setSafetyTag] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   /* Apply the + sheet's context on the transition into open, not on every
@@ -94,6 +116,14 @@ export default function RaiseFindingSheet({
      alone (see the comment above this effect) */
   useEffect(() => {
     if (!open) return;
+    if (carriedMedia.length > 0) {
+      const taken = carriedMedia;
+      carriedMedia = [];
+      setPendingAttachments((cur) => [
+        ...cur,
+        ...taken.map((m) => ({ ...m, createdBy: auditor, id: uid(), createdAt: Date.now() }) as Attachment),
+      ]);
+    }
     if (presetDiscipline) setDiscipline(presetDiscipline);
     if (presetSystem) setSystem(presetSystem);
     if (presetCheckId) setCheckId(presetCheckId);
@@ -114,7 +144,6 @@ export default function RaiseFindingSheet({
    *  so every capture here joins the FINDING's own attachments via
    *  addFindingAttachment once it exists — a check-point, if one is ever
    *  picked, is no longer a precondition for keeping a photo. */
-  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
 
   /* Scoped to the discipline once one is chosen — same rule AddItemSheet's
      own asset-system picker uses — and searched otherwise. */
@@ -157,6 +186,9 @@ export default function RaiseFindingSheet({
     setCheckId(null);
     setCheckQuery("");
     setError(null);
+    setFindingType("non-compliance");
+    setCritical(false);
+    setSafetyTag(false);
     setPendingAttachments([]);
   };
 
@@ -204,6 +236,9 @@ export default function RaiseFindingSheet({
       adHoc: true,
       createdBy: auditor,
       attachments: [],
+      findingType,
+      ...(critical ? { critical: true } : {}),
+      ...(safetyTag ? { safetyTag: true } : {}),
     });
     /* Always the FINDING's own attachments now, checkId picked or not — see
        Finding.attachments' own doc comment. addFindingAttachment generates
@@ -330,6 +365,57 @@ export default function RaiseFindingSheet({
           style={boxStyle}
         />
       </label>
+
+      <div className="mt-4">
+        <span className={label}>Type</span>
+        <div className="mt-1.5 flex flex-wrap gap-[6px]" role="group" aria-label="Finding type">
+          {(
+            [
+              ["non-compliance", "Non-compliance"],
+              ["observation", "Observation"],
+            ] as const
+          ).map(([v, text]) => (
+            <button
+              key={v}
+              type="button"
+              aria-pressed={findingType === v}
+              onClick={() => setFindingType(v)}
+              className="min-h-[38px] rounded-full border px-3 text-[12px] font-semibold"
+              style={
+                findingType === v
+                  ? { background: "var(--acc)", color: "#fff", borderColor: "var(--acc)" }
+                  : { background: "var(--panel)", color: "var(--ink-2)", borderColor: "var(--line-2)" }
+              }
+            >
+              {text}
+            </button>
+          ))}
+        </div>
+        <span className={`${label} mt-3 block`}>Tag</span>
+        <div className="mt-1.5 flex flex-wrap gap-[6px]" role="group" aria-label="Finding tags">
+          {(
+            [
+              ["Critical", critical, setCritical],
+              ["Safety", safetyTag, setSafetyTag],
+            ] as const
+          ).map(([text, on, set]) => (
+            <button
+              key={text}
+              type="button"
+              aria-pressed={on}
+              onClick={() => set(!on)}
+              className="min-h-[38px] rounded-full border px-3 text-[12px] font-semibold"
+              style={
+                on
+                  ? { background: "var(--bad)", color: "#fff", borderColor: "var(--bad)" }
+                  : { background: "var(--panel)", color: "var(--ink-2)", borderColor: "var(--line-2)" }
+              }
+            >
+              {text}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {error && (
         <div className="mt-2 text-[11.5px]" style={{ color: "var(--warn)" }}>

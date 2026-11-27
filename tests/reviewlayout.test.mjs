@@ -88,7 +88,7 @@ check(
      never both at once, so the column itself carries no `hidden` class; the
      condition above already keeps it from mounting at all below `md`. */
   "the outer panel column is a bounded flex column (min-h-0), so the inner flex-1 scroll area actually clips to the viewport instead of growing past it",
-  /flex min-h-0 w-\[320px\] shrink-0 flex-col border-l/.test(reviewPage)
+  /flex min-h-0 w-\[440px\] max-w-full flex-col border-l/.test(reviewPage)
 );
 
 console.log(failures === 0 ? "\nREVIEW LAYOUT OK" : `\n${failures} FAILURES`);

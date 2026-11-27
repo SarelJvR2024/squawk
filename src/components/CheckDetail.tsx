@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Check, Compliance, EvidenceStatus } from "@/lib/types";
 import { channelsOf } from "@/lib/channels";
+import { channelOf } from "@/lib/attachmentChannel";
 import {
   deskDone,
   needsDeskCommit,
@@ -27,6 +28,8 @@ import { checksOf } from "@/lib/register";
 import { trackingStage } from "@/lib/evidence";
 import { AttachmentStrip, FileButton, PhotoButton, VoiceNoteButton } from "./Capture";
 import AcsaRequirementPanel from "./AcsaRequirementPanel";
+import { StandardsPanel, EvidenceListPanel } from "./CheckStandardsSheets";
+import { ReferencePanel } from "./ReferencePanel";
 import FindingDetail from "./FindingDetail";
 import Sheet from "./ui/Sheet";
 import AddSheet from "./AddSheet";
@@ -740,14 +743,14 @@ export default function CheckDetail({
           <PhotoButton
             compact
             onCaptured={(m) => {
-              addAttachment(check.id, { ...m, createdBy: auditor });
+              addAttachment(check.id, { ...m, channel: "evidence", createdBy: auditor });
               onSaved(`Photo attached to ${portalId}`);
             }}
           />
           <FileButton
             compact
             onCaptured={(m) => {
-              addAttachment(check.id, { ...m, createdBy: auditor });
+              addAttachment(check.id, { ...m, channel: "evidence", createdBy: auditor });
               onSaved(`File attached to ${portalId}`);
             }}
           />
@@ -773,10 +776,10 @@ export default function CheckDetail({
             captured, per discipline") is the one place a photograph is
             now shown and captioned, so a photo attached from here is
             not lost, only not carded again in this tab. */}
-        {r.attachments.some((a) => a.kind !== "photo") ? (
+        {r.attachments.some((a) => a.kind !== "photo" && channelOf(a) === "evidence") ? (
           <div className="mt-2.5">
             <AttachmentStrip
-              attachments={r.attachments.filter((a) => a.kind !== "photo")}
+              attachments={r.attachments.filter((a) => a.kind !== "photo" && channelOf(a) === "evidence")}
               thumbSize={40}
               onRemove={(id) => removeAttachment(check.id, id)}
               onUpdate={(id, p) => updateAttachment(check.id, id, p)}
@@ -1344,6 +1347,32 @@ export default function CheckDetail({
         </div>
       )}
 
+      {/* REFERENCE ROW — always shown, whether or not the check has a TPJV
+          question. The ACSA requirement, ICAO and other standards, and the
+          evidence list are read for EVERY check; the row above only exists
+          for checks with a question, so on the rest of them these were not
+          reachable at all. "ACSA requirement" is repeated here only when
+          that row is absent, so it never appears twice. */}
+      <div
+        className="flex flex-wrap gap-[6px] border-b px-5 py-[7px]"
+        style={{ borderColor: "var(--line)", background: "var(--panel)" }}
+      >
+        {!(check.question && channels.interview) && (
+          <Btn onClick={() => setSheet("standard")} className="text-[11px]">
+            ACSA requirement
+          </Btn>
+        )}
+        <Btn onClick={() => setSheet("reference")} className="text-[11px]">
+          Reference &amp; specs
+        </Btn>
+        <Btn onClick={() => setSheet("icao")} className="text-[11px]">
+          ICAO &amp; standards
+        </Btn>
+        <Btn onClick={() => setSheet("evidenceList")} className="text-[11px]">
+          Evidence list
+        </Btn>
+      </div>
+
       {/* THE THREE CHANNEL ROWS, FIXED ORDER, SAME COLOURS EVERY TIME — build
           prompt 3. A row for a channel Setup has switched off for this check
           is not shown at all (channels.interview/evidence/walk, same test
@@ -1536,6 +1565,15 @@ export default function CheckDetail({
           </p>
         )}
       </Sheet>
+      <Sheet open={sheet === "reference"} onClose={() => setSheet(null)} title="Reference & specs" wide>
+        <ReferencePanel check={check} />
+      </Sheet>
+      <Sheet open={sheet === "icao"} onClose={() => setSheet(null)} title="ICAO & standards" wide>
+        <StandardsPanel check={check} />
+      </Sheet>
+      <Sheet open={sheet === "evidenceList"} onClose={() => setSheet(null)} title="Evidence list" wide>
+        <EvidenceListPanel check={check} />
+      </Sheet>
       <Sheet open={sheet === "standard"} onClose={() => setSheet(null)} title="ACSA requirement" wide>
         {panelByKey("standard")?.body}
       </Sheet>
@@ -1557,6 +1595,50 @@ export default function CheckDetail({
         {panelByKey("evidenceStatus")?.body}
       </Sheet>
       <Sheet open={sheet === "walkabout"} onClose={() => setSheet(null)} title="Walkabout">
+        {/* WHAT WAS RECORDED ON THE WALK FOR THIS CHECK — the walk's own note
+            (never the desk observation), its photographs and the voice notes
+            recorded on the walk. Capture here is tagged "walk", so it shows
+            here and not under Evidence or the desk observation. */}
+        <div className="mb-3 flex flex-col gap-2.5">
+          <div className="label-xs">Recorded on the walk</div>
+          {r.fieldObservation?.trim() ? (
+            <p className="whitespace-pre-wrap text-[12.5px] leading-[1.55]" style={{ color: "var(--ink-2)" }}>
+              {r.fieldObservation}
+            </p>
+          ) : (
+            <p className="text-[12.5px]" style={{ color: "var(--ink-3)" }}>
+              No walk note yet. Add one on the Walk screen.
+            </p>
+          )}
+          {r.attachments.some((a) => channelOf(a) === "walk") ? (
+            <AttachmentStrip
+              attachments={r.attachments.filter((a) => channelOf(a) === "walk")}
+              thumbSize={56}
+              onRemove={(id) => removeAttachment(check.id, id)}
+              onUpdate={(id, p) => updateAttachment(check.id, id, p)}
+            />
+          ) : (
+            <p className="text-[12.5px]" style={{ color: "var(--ink-3)" }}>
+              No walk photos or voice notes yet.
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-[6px]">
+            <PhotoButton
+              compact
+              onCaptured={(m) => {
+                addAttachment(check.id, { ...m, channel: "walk", createdBy: auditor });
+                onSaved(`Walk photo attached to ${portalId}`);
+              }}
+            />
+            <VoiceNoteButton
+              compact
+              onCaptured={(m) => {
+                addAttachment(check.id, { ...m, channel: "walk", createdBy: auditor });
+                onSaved(`Walk voice note attached to ${portalId}`);
+              }}
+            />
+          </div>
+        </div>
         {panelByKey("walkabout")?.body}
       </Sheet>
       <Sheet open={sheet === "findings"} onClose={() => setSheet(null)} title="Findings" wide>
@@ -1764,7 +1846,7 @@ export default function CheckDetail({
             </div>
           )}
 
-          {r.attachments.some((a) => a.kind !== "photo") && (
+          {r.attachments.some((a) => a.kind !== "photo" && channelOf(a) === "check") && (
             /* Bounded, because this bar is pinned: four photographs and a voice
                note being written up must not grow until they own the screen.
 
@@ -1778,7 +1860,7 @@ export default function CheckDetail({
                hidden, only their cards. */
             <div className="mb-[7px] max-h-[34vh] overflow-y-auto">
               <AttachmentStrip
-                attachments={r.attachments.filter((a) => a.kind !== "photo")}
+                attachments={r.attachments.filter((a) => a.kind !== "photo" && channelOf(a) === "check")}
                 onRemove={(id) => removeAttachment(check.id, id)}
                 onUpdate={(id, p) => updateAttachment(check.id, id, p)}
                 /* Only offered where a model is configured. Without one the
@@ -1925,14 +2007,14 @@ export default function CheckDetail({
               <PhotoButton
                 inline
                 onCaptured={(m) => {
-                  addAttachment(check.id, { ...m, createdBy: auditor });
+                  addAttachment(check.id, { ...m, channel: "check", createdBy: auditor });
                   onSaved(`Photo attached to ${portalId}`);
                 }}
               />
               <VoiceNoteButton
                 inline
                 onCaptured={(m) => {
-                  addAttachment(check.id, { ...m, createdBy: auditor });
+                  addAttachment(check.id, { ...m, channel: "check", createdBy: auditor });
                   /* The transcript is attached to the note, not spliced into
                      the observation. An auditor writes the observation; the
                      recording is evidence beside it. */

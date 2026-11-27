@@ -487,7 +487,7 @@ check(
 check(
   "after undo, this entity/visit holds no ad-hoc item, finding or hazard from this import",
   adhocNow().filter((a) => fileKeys.has(a.importKey)).length === 0 &&
-    findingsNow().filter((f) => fileKeys.has(f.importKey)).length === 0 &&
+    findingsNow().filter((f) => fileKeys.has(f.importKey) && !f.deletedAt).length === 0 &&
     hazardsNow().filter((h) => fileKeys.has(h.importKey)).length === 0
 );
 check(
@@ -536,20 +536,17 @@ check("the migration version is unchanged", /version: 45,/.test(storeSrc));
  * set()/get(), never a direct mutation from outside the store — still
  * holds; it no longer pins the one-line body that point used to live in. */
 check(
-  "removeFinding is a real store action, filtering `findings` by id — not a direct mutation from outside the store",
-  /removeFinding: \(id\) => \{[\s\S]{0,600}?set\(\(s\) => \(\{[\s\S]{0,300}?findings: s\.findings\.filter\(\(x\) => x\.id !== id\)/.test(
-    storeSrc
-  )
+  "removeFinding is a real store action that SOFT-deletes: it flags deletedAt on the finding by id and never removes it (Sarel, 26 Nov 2026)",
+  /removeFinding: \(id\) => \{[\s\S]{0,600}?findings: s\.findings\.map\(\(x\) =>[\s\S]{0,200}?deletedAt: Date\.now\(\)/.test(storeSrc) &&
+    !/findings: s\.findings\.filter\(\(x\) => x\.id !== id\)/.test(storeSrc)
 );
 check(
-  "removeFinding also frees the deleted finding's own attachment blobs, same as removeFindingAttachment already does for one",
-  /removeFinding: \(id\) => \{[\s\S]{0,400}?if \(a\.blobKey\) void delBlob\(a\.blobKey\)/.test(storeSrc)
+  "removeFinding keeps the finding's attachment blobs, so a restore is complete",
+  !/removeFinding: \(id\) => \{[\s\S]{0,400}?delBlob\(a\.blobKey\)/.test(storeSrc)
 );
 check(
-  "removeFinding also strips the deleted id out of every Hazard.findingIds that named it",
-  /removeFinding: \(id\) => \{[\s\S]{0,900}?hazards: s\.hazards\.map\(\(h\) =>[\s\S]{0,200}?h\.findingIds\.includes\(id\)/.test(
-    storeSrc
-  )
+  "restoreFinding clears the deleted flag, and the hooks hide flagged findings everywhere else",
+  /restoreFinding: \(id\) =>/.test(storeSrc) && /!f\.deletedAt\)\n?\s*,?\s*\[all, entity/.test(storeSrc.replace(/\s+/g," ").replace(/ ,/g,",")) || /&& !f\.deletedAt/.test(storeSrc)
 );
 
 console.log(failures === 0 ? "\nIMPORT PACK OK" : `\n${failures} FAILURES`);

@@ -5,7 +5,7 @@ device, a real network, a real Supabase project, and a person who can tell
 whether a photograph shows the right panel. That file is the dry run's
 checklist; this one is what runs without anybody watching.
 
-Hundred-and-eighteen suites, no framework. Thirteen need a running server; hundred-and-five do not.
+Hundred-and-twenty-three suites, no framework. Thirteen need a running server; hundred-and-ten do not.
 **Check each suite's exit status, not its output**: a `for` loop over
 them reports the status of the loop.
 
@@ -64,6 +64,10 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `syncwatermark.test.mjs` | no | 14 |
 | `tablet.test.mjs` | no | 48 |
 | `channels.test.mjs` | no | 9 |
+| `standards-evidence.test.mjs` | no | 10 |
+| `issues-delete.test.mjs` | no | 5 |
+| `raise-type-tags.test.mjs` | no | 4 |
+| `reference.test.mjs` | no | 25 |
 | `checkresult.test.mjs` | no | 24 |
 | `channel-counts.test.mjs` | no | 11 |
 | `refresh.test.mjs` | no | 10 |
@@ -85,8 +89,9 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `suite-table.test.mjs` | no | 5 |
 | `reviewfields.test.mjs` | no | 20 |
 | `review-risk-fields.test.mjs` | no | 49 |
-| `review-table-v2.test.mjs` | no | 108 |
-| `reviewreport.test.mjs` | no | 45 |
+| `review-table-v2.test.mjs` | no | 111 |
+| `reviewreport.test.mjs` | no | 51 |
+| `reporttext.test.mjs` | no | 15 |
 | `reviewlayout.test.mjs` | no | 8 |
 | `reviewsavestate.test.mjs` | no | 14 |
 | `reviewpanelcontent.test.mjs` | no | 14 |
@@ -140,7 +145,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `import-pack.test.mjs` | no | 65 |
 | `ortia-v3-pack.test.mjs` | no | 84 |
 | `sheet.test.mjs` | no | 17 |
-| `exports.test.mjs` | no | 61 |
+| `exports.test.mjs` | no | 63 |
 | `field-wide-detail.test.mjs` | no | 15 |
 | `fieldobservation-display.test.mjs` | no | 6 |
 | `findings-inspection-link.test.mjs` | no | 19 |
@@ -169,7 +174,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**4,514 assertions in total**, every count above verified by running the suite,
+**4,581 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —

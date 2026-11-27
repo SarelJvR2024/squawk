@@ -37,13 +37,12 @@ const check = (name, cond, detail = "") => {
 
 check(
   "AttachmentStrip is imported from Capture.tsx, not reimplemented",
-  /import \{ AttachmentStrip \} from "@\/components\/Capture"/.test(panel)
+  /import \{ AttachmentStrip, PhotoButton \} from "@\/components\/Capture"/.test(panel)
 );
 check(
-  "the finding's own attachments render through it, read-only (no onRemove/onUpdate wired here)",
-  /<AttachmentStrip attachments=\{finding\.attachments\}/.test(panel) &&
-    !/<AttachmentStrip attachments=\{finding\.attachments\}[^>]*onRemove/.test(panel) &&
-    !/<AttachmentStrip attachments=\{finding\.attachments\}[^>]*onUpdate/.test(panel)
+  "the finding's own attachments render through it, with Remove and note edits wired (the drawer's photo gallery, Sarel 27 Nov 2026)",
+  /<AttachmentStrip\s+attachments=\{finding\.attachments\}[\s\S]{0,200}onRemove=/.test(panel) &&
+    /<AttachmentStrip\s+attachments=\{finding\.attachments\}[\s\S]{0,260}onUpdate=/.test(panel)
 );
 check(
   "the notes/attachments block is clearly labelled as THIS finding's own capture, not the linked check's",
@@ -63,7 +62,7 @@ check(
 );
 check(
   "attachments stay conditional on actually having any — no empty strip",
-  /\{finding\.attachments\.length > 0 && <AttachmentStrip/.test(panel)
+  /\{finding\.attachments\.length > 0 && \(\s*<AttachmentStrip/.test(panel)
 );
 check(
   "the full description is editable, not truncated — no .slice() on the value bound to the textarea",

@@ -87,28 +87,28 @@ check(
     const fn = start === -1 ? "" : report.slice(start, report.indexOf("\n}\n", start) + 2);
     return (
       fn.length > 0 &&
-      fn.indexOf("r?.observation") < fn.indexOf("f.title || f.description || f.id") &&
-      fn.indexOf("f.title || f.description || f.id") < fn.indexOf("r?.evidenceProves")
+      fn.indexOf("r?.observation") < fn.indexOf("reportFindingText(f") &&
+      fn.indexOf("reportFindingText(f") < fn.indexOf("r?.evidenceProves")
     );
   })()
 );
 check(
   "root cause / impact distributions use the SAME countByMultiSelect every other roll-up in this app uses — not a second counting function",
-  /import \{ countByMultiSelect, findingTypeFor, FINDING_TYPE_LABEL \} from "@\/lib\/reviewRisk"/.test(report) &&
+  /import \{ countByMultiSelect, findingTypeFor \} from "@\/lib\/reviewRisk"/.test(report) &&
     /countByMultiSelect\(findings, \(f\) => f\.rootCauseCategories\)/.test(report) &&
     /countByMultiSelect\(findings, \(f\) => f\.impactAreas\)/.test(report)
 );
 check(
   "the timeline distribution reads TIMELINES from riskVocab.ts, not a hand-typed list that could drift from the table's own",
-  /import \{ ROOT_CAUSES, IMPACT_AREAS, TIMELINES \} from "@\/lib\/riskVocab"/.test(report)
+  /import \{ ROOT_CAUSES, LEGACY_ROOT_CAUSES, IMPACT_AREAS, TIMELINES \} from "@\/lib\/riskVocab"/.test(report)
 );
 check(
   "TIMELINES is still exactly the three categories this report's distribution table assumes",
   /export const TIMELINES = \["Immediate", "Before next audit", "Long term"\];/.test(riskVocab)
 );
 check(
-  "Type reads findingTypeFor/FINDING_TYPE_LABEL — the same non-compliance/observation classification the table uses, not a re-derived one",
-  /findingTypeFor\(f\)/.test(report) && /FINDING_TYPE_LABEL\[type\]/.test(report)
+  "the non-compliance/observation split reads findingTypeFor — the same classification the table uses — and the Type column is gone (the section heading already says which it is)",
+  /findingTypeFor\(f\) === "non-compliance"/.test(report) && !/<th[^>]*>Type<\/th>/.test(report)
 );
 
 /* ---- 4 · print output is deterministic, not theme- or viewport-dependent */
@@ -126,15 +126,17 @@ check(
 );
 check(
   "the findings list is a plain HTML <table>, specifically so the browser repeats <thead> on every printed page with no custom pagination code",
-  /thead \{ display: table-header-group; \}/.test(report)
+  /thead \{ display: table-header-group !important; \}/.test(report)
 );
 check(
   "table rows and KPI cards are guarded against being split across a page break",
-  /tr, \.rr-card \{ break-inside: avoid; \}/.test(report)
+  /tr, \.report-card, \.metric-box, \.rr-card, figure \{ break-inside: avoid !important; page-break-inside: avoid !important; \}/.test(report) &&
+    /tbody\.rr-unit \{ break-inside: avoid/.test(report) &&
+    /rr-table tbody tr:last-child \{ break-before: avoid; \}/.test(report)
 );
 check(
   "the on-screen toolbar (Download PDF button) is hidden in print, so it never shows up on the PDF itself",
-  /\.rr-report-toolbar \{ display: none !important; \}/.test(report)
+  /\.rr-report-toolbar, \.rr-noprint \{ display: none !important; \}/.test(report)
 );
 
 /* ---- 5 · the app's fixed-shell html/body rule is overridden for this
@@ -154,20 +156,20 @@ check(
 
 check(
   "ReviewRiskTable.tsx has a Generate report link, enabled only once a discipline is picked — not system/impact/root-cause, which narrow WITHIN a discipline rather than naming one",
-  /filter\.kind === "discipline" \? \(/.test(table) &&
-    /href=\{`\/report\?discipline=\$\{encodeURIComponent\(filter\.discipline\)\}`\}/.test(table)
+  /fx\.discipline \? \(/.test(table) &&
+    /href=\{`\/report\?discipline=\$\{encodeURIComponent\(fx\.discipline\)\}`\}/.test(table)
 );
 check(
   "it opens in a new tab, not router.push — the report is meant to be printed/saved and come back to, not navigated away to",
   (() => {
-    const start = table.indexOf("Generate report");
+    const start = table.indexOf("Report for {fx.discipline}");
     const near = start === -1 ? "" : table.slice(Math.max(0, start - 400), start);
     return /target="_blank"/.test(near) && /rel="noopener noreferrer"/.test(near);
   })()
 );
 check(
   "with no discipline picked, the button is disabled with a tooltip explaining why — same convention EvidenceReviewView's own discipline-gated button uses",
-  /disabled\s*\n\s*title="Pick one discipline above first/.test(table)
+  /title="Pick one discipline in the filter first"/.test(table)
 );
 
 /* ---- 7 · Finding.actionPlan — Sarel: "Add an option to add action and
@@ -183,21 +185,8 @@ check(
   /version: 45,/.test(storeSrc) && /if \(from < 44\)/.test(storeSrc)
 );
 check(
-  "the table has an Action plan column, with its own compact trigger-plus-popover cell (ActionPlanCell) — a textarea cannot be a chip row",
-  /<Th>Action plan<\/Th>/.test(table) && /function ActionPlanCell/.test(table)
-);
-check(
-  "the cell shows a ghost \"+ Add\" with nothing written, and the SAME value.trim() gate the table's own MultiSelectCell convention uses elsewhere",
-  (() => {
-    const start = table.indexOf("function ActionPlanCell");
-    const fn = start === -1 ? "" : table.slice(start, table.indexOf("\n}\n", start) + 2);
-    return fn.length > 0 && /value\.trim\(\)/.test(fn) && /\+ Add/.test(fn);
-  })()
-);
-check(
-  "the row wires it straight through onChange — bound on every keystroke, no separate Save button, same as every other free-text field here",
-  /value={f\.actionPlan \?\? ""}/.test(table) &&
-    /onChange={\(v\) => onChange\(f\.id, { actionPlan: v \|\| undefined }\)}/.test(table)
+  "the Action plan is edited in the drawer (Sarel, 27 Nov 2026: the table row is one line), no longer as a table column with its own popover cell",
+  !/function ActionPlanCell/.test(table) && !/<Th>Action plan<\/Th>/.test(table) && /Action &amp; improvement plan/.test(panel)
 );
 check(
   "the drawer (ReviewRiskPanel) ALSO carries the field — RiskPatch includes actionPlan, and its own textarea binds directly",
@@ -253,12 +242,20 @@ check(
 check(
   "an Evidence requested section exists, scoped to this discipline via the SAME disciplineFor() the real Evidence tab uses — not a second scoping rule",
   /Evidence requested/.test(report) &&
-    /import { TRACKING_LABEL, disciplineFor, trackingStage } from "@\/lib\/evidence"/.test(report) &&
+    /import { EVIDENCE_COMPLIANCE_LABEL, TRACKING_LABEL, disciplineFor, trackingStage } from "@\/lib\/evidence"/.test(report) &&
     /disciplineFor\(e, checkDisciplineOf\) === discipline/.test(report)
 );
 check(
   "its status column reads the SAME trackingStage\\(\\)\\/TRACKING_LABEL the real Evidence tab reads, never a second status vocabulary",
   /TRACKING_LABEL\[trackingStage\(e\)\]/.test(report)
+);
+check(
+  "the evidence table shows an Evidence feedback column (rating, analysis note, insufficient/unavailable reason, or 'Awaiting feedback') in place of Requested from",
+  /<th[^>]*>Evidence feedback<\/th>/.test(report) &&
+    !/<th[^>]*>Requested from<\/th>/.test(report) &&
+    /function evidenceFeedback/.test(report) &&
+    /EVIDENCE_COMPLIANCE_LABEL\[e\.complianceRating\]/.test(report) &&
+    /Awaiting feedback/.test(report)
 );
 check(
   "a Quick wins / immediate action items section exists, pulling out Timeline === Immediate on its own rather than leaving it as one row of the distribution table",
@@ -269,9 +266,9 @@ check(
   /rr-amber/.test(report) && /\.rr-table\.rr-amber th/.test(report)
 );
 check(
-  "the full findings list now shows actual photographs, not only a count — thumbDataUrl, never a live blob/object-URL hook, so the report never waits on async IndexedDB reads to have something to print",
+  "the full findings list shows actual photographs as numbered figures — thumbDataUrl, never a live blob/object-URL hook, so the report never waits on async IndexedDB reads",
   (() => {
-    const start = report.indexOf("function ReportPhoto");
+    const start = report.indexOf("function ReportFigure");
     const fn = start === -1 ? "" : report.slice(start, report.indexOf("\n}\n", start) + 2);
     return fn.length > 0 && /attachment\.thumbDataUrl \|\| attachment\.dataUrl/.test(fn) && !/useBlobUrl/.test(fn);
   })()
@@ -299,21 +296,59 @@ check(
    maybe so landscape report." ------------------------------------------ */
 
 check(
-  "the page is A4 landscape, not portrait",
-  /size: A4 landscape;/.test(report)
+  "the page is A4 portrait (Sarel asked for the report back in portrait)",
+  /size: A4 portrait;/.test(report) && !/size: A4 landscape;/.test(report)
 );
 check(
-  "photos render at 144px — bigger than the first pass's 64px, and still a downscale (not an upscale) of the 240px thumbDataUrl source",
+  "figures are 240x160 with a 180x120 floor, rounded and bordered, captioned 'Figure N: system — description', laid out two-up",
   (() => {
-    const start = report.indexOf("function ReportPhoto");
+    const start = report.indexOf("function ReportFigure");
     const fn = start === -1 ? "" : report.slice(start, report.indexOf("\n}\n", start) + 2);
-    return fn.length > 0 && /width: 144, height: 144/.test(fn);
+    return fn.length > 0 && /width: 240, height: 160, minWidth: 180, minHeight: 120/.test(fn) && /borderRadius: 6/.test(fn) &&
+      /Figure \{n\}: \{system \|\| "General"\} &mdash; \{caption\}/.test(fn);
   })()
 );
 check(
-  "the screen preview's own max-width grew to match the wider landscape page, not left at the old portrait-sized 900px",
-  /max-width: 1200px/.test(report) && !/max-width: 900px/.test(report)
+  "the KPI row is exactly four cards, the 'How to read the counts and tags' explainer is gone, and an empty category is a 'None recorded' chip, not an empty table",
+  ["Total findings", "Immediate action required", "Routine / before next audit", "Evidence outstanding"].every((l) => report.includes(`label: "${l}"`)) &&
+    !report.includes("How to read the counts and tags") && /function NoneChip/.test(report) && /None recorded/.test(report)
+);
+check(
+  "the Action plan column is dropped when no row in the table has one",
+  /const hasPlan = list\.some\(\(f\) => f\.actionPlan\?\.trim\(\)\)/.test(report) && /\{hasPlan && <th/.test(report)
+);
+check(
+  "running header on pages 2+ and Page X of Y + timestamp + disclaimer footer in the @page margin boxes; margins 15mm 12mm",
+  /size: A4 portrait;\s*margin: 15mm 12mm 15mm 12mm/.test(report) && /@page :first \{ @top-left \{ content: none; \} \}/.test(report) && /@top-left \{ content: "\$\{runningHead\}"/.test(report) &&
+    /Interim, system-generated report: subject to update/.test(report) && /Squawk Assurance/.test(report)
+);
+check(
+  "the downloaded PDF engine repeats the table header on continuation pages, draws a running header from the page's meta, and avoids orphan rows",
+  (() => {
+    const pdf = src("lib", "reportPdf.ts");
+    return /header\?: string/.test(pdf) && /Page \$\{|Page " ?\+|of \$\{/.test(pdf) && /thead/.test(pdf) && /orphan|second-to-last|keepnext|data-keepnext/i.test(pdf) &&
+      /header:/.test(reportPage);
+  })()
+);
+check(
+  "the screen preview's max-width is narrowed to match the portrait page, not left at the landscape 1200px",
+  /max-width: 860px/.test(report) && !/max-width: 1200px/.test(report)
 );
 
+
+check(
+  "a finding linked to an audit check reads 'REQUIREMENT:' (muted, upper) then 'DEFECT OBSERVED:' (lower); an unlinked one shows its text alone, with no empty requirement block",
+  /function FindingCell/.test(report) && /REQUIREMENT:/.test(report) && /DEFECT OBSERVED:/.test(report) &&
+    /if \(!req\) return <>\{body\}<\/>/.test(report) && !/findingText\(f, responses, requirementOf\)\}\s*<\/td>/.test(report)
+);
+check(
+  "no check reference code (KSIA-…) or finding id is printed in any report table cell",
+  !/\{f\.checkId\}/.test(report) && !/[^=]\{f\.id\}/.test(report) && !/Asset system &amp; ref/.test(report)
+);
+check(
+  "every report table drops its Action plan column when no row has a plan and caps it at 15% when some do (findings tables 42% Finding / 20% Root cause & impact without one)",
+  /finding: "42%", cause: "20%"/.test(report) && /plan: "15%"/.test(report) && /\{hasPlan && <th style=\{\{ width: "15%" \}\}>Action plan<\/th>\}/.test(report) &&
+    /quickWins\.some\(\(f\) => f\.actionPlan\?\.trim\(\)\)/.test(report)
+);
 console.log(failures === 0 ? "\nREVIEW REPORT OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

@@ -56,12 +56,13 @@
  *  report printed from a dark-mode session must not print dark-mode, so it
  *  does not read the app's theme tokens at all. */
 
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import { entity as entityOf } from "@/lib/programme";
 import { checksAt } from "@/lib/register";
-import { countByMultiSelect, findingTypeFor, FINDING_TYPE_LABEL } from "@/lib/reviewRisk";
-import { ROOT_CAUSES, IMPACT_AREAS, TIMELINES } from "@/lib/riskVocab";
-import { TRACKING_LABEL, disciplineFor, trackingStage } from "@/lib/evidence";
+import { countByMultiSelect, findingTypeFor } from "@/lib/reviewRisk";
+import { ROOT_CAUSES, LEGACY_ROOT_CAUSES, IMPACT_AREAS, TIMELINES } from "@/lib/riskVocab";
+import { EVIDENCE_COMPLIANCE_LABEL, TRACKING_LABEL, disciplineFor, trackingStage } from "@/lib/evidence";
+import { briefOf, cleanSpeech, reportFindingText } from "@/lib/reportText";
 import type { Attachment, EvidenceItem, Finding, Response } from "@/lib/types";
 
 const PURPLE = "#2D1956";
@@ -80,43 +81,183 @@ const TIMELINE_COLOR: Record<string, string> = {
  *  uses — the audit check's own desk note, the finding itself, and what the
  *  evidence review found — so the report never says something different
  *  from the screen it was generated off. */
-function findingText(f: Finding, responses: Record<string, Response>): string {
-  const r = f.checkId ? responses[f.checkId] : undefined;
+/** Evidence feedback for the report: the auditor's compliance rating of the
+ *  document plus whatever was recorded about it (analysis note, why it was
+ *  insufficient, or why it could not be produced). "Awaiting feedback" when
+ *  nothing has been recorded yet, so a blank is never read as "no issues". */
+function evidenceFeedback(e: EvidenceItem): string {
   const parts: string[] = [];
-  if (r?.observation) parts.push(r.observation);
-  parts.push(f.title || f.description || f.id);
-  if (f.description && f.title && f.description !== f.title) parts.push(f.description);
-  if (r?.evidenceProves) parts.push(r.evidenceProves);
-  return parts.join(" — ");
+  if (e.complianceRating) parts.push(EVIDENCE_COMPLIANCE_LABEL[e.complianceRating]);
+  if (e.analysisNote?.trim()) parts.push(e.analysisNote.trim());
+  if (e.insufficientAt && e.insufficientReason?.trim()) parts.push(`Insufficient: ${e.insufficientReason.trim()}`);
+  if (e.unavailableAt && e.unavailableReason?.trim()) parts.push(`Not available: ${e.unavailableReason.trim()}`);
+  return parts.length ? parts.join(" — ") : "Awaiting feedback";
 }
 
-/** One photograph, inline. `thumbDataUrl` is already a small, persisted
- *  preview (see Attachment's own doc comment in types.ts: "so a strip of
- *  photographs paints without an async read per tile") — exactly what a
- *  printed report wants, and the reason this is a synchronous <img>, never
- *  a useBlobUrl()/object-URL component: a report with 30 findings cannot
- *  wait on 30 async IndexedDB reads before Print to PDF has anything to
- *  print. Falls back to the legacy inline `dataUrl` for an attachment that
- *  predates thumbDataUrl; shows nothing rather than a broken-image icon
- *  when neither is there.
- *
- *  144px, not the first pass's 64px — Sarel, looking at the first report:
- *  "include photos of decent size to see the image." thumbDataUrl is
- *  encoded at 240px on its longest side (src/lib/media.ts's own
- *  `drawTo(img, 240)`), so 144px is still a downscale, not an upscale past
- *  what the source actually holds — bigger than this would start looking
- *  soft. The report went landscape in the same pass, specifically to give
- *  this the room it needs without starving the columns beside it. */
-function ReportPhoto({ attachment }: { attachment: Attachment }) {
+/** What a finding's text reads in the report: the audit check's desk note, the
+ *  finding itself (speech fillers and glitches cleaned, a bare audit-check
+ *  question replaced by a "to be confirmed" line), then what the evidence
+ *  review found. See src/lib/reportText.ts for the rules. */
+type RequirementOf = (checkId: string | null | undefined) => string | undefined;
+
+function findingText(f: Finding, responses: Record<string, Response>, requirementOf: RequirementOf): string {
+  const r = f.checkId ? responses[f.checkId] : undefined;
+  const parts: string[] = [];
+  if (r?.observation) parts.push(cleanSpeech(r.observation));
+  const main = reportFindingText(f, requirementOf(f.checkId));
+  parts.push(main.text);
+  if (f.description && f.title && f.description !== f.title && !main.flags.includes("question-only")) parts.push(cleanSpeech(f.description));
+  if (r?.evidenceProves) parts.push(cleanSpeech(r.evidenceProves));
+  return parts.filter(Boolean).join(" \u2014 ");
+}
+
+/** The Finding cell. Linked to an audit check: the requirement (muted, upper)
+ *  then the defect observed (standard, lower). Not linked (captured at
+ *  discipline / asset-system level): the finding text alone, no empty
+ *  requirement block. Never a check reference code, only readable words. */
+function FindingCell({ f, responses, requirementOf }: { f: Finding; responses: Record<string, Response>; requirementOf: RequirementOf }) {
+  const req = f.checkId ? requirementOf(f.checkId)?.trim() : undefined;
+  const body = findingText(f, responses, requirementOf);
+  if (!req) return <>{body}</>;
+  const label = { fontWeight: 700, letterSpacing: "0.04em" } as const;
+  return (
+    <>
+      <div style={{ fontSize: 9, lineHeight: 1.35, color: INK_SOFT, marginBottom: 4 }}>
+        <span style={label}>REQUIREMENT:</span> {req}
+      </div>
+      <div>
+        <span style={{ ...label, fontSize: 9, color: INK_SOFT }}>DEFECT OBSERVED:</span> {body}
+      </div>
+    </>
+  );
+}
+
+/** One numbered figure: a photograph at 240x160 (never below 180x120; the stored
+ *  preview is 240px on its longest side, so this is 1:1, not an upscale) with a
+ *  one-line caption "Figure N: Asset system \u2014 brief description". */
+function ReportFigure({ attachment, n, system, brief }: { attachment: Attachment; n: number; system: string; brief: string }) {
   const src = attachment.thumbDataUrl || attachment.dataUrl;
   if (!src) return null;
+  const caption = attachment.caption?.trim() ? briefOf(attachment.caption.trim(), 70) : brief;
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- local data URL, not a remote asset next/image can optimise
-    <img
-      src={src}
-      alt={attachment.caption?.trim() || "Finding photograph"}
-      style={{ width: 144, height: 144, objectFit: "cover", borderRadius: 8, border: `1px solid ${LINE}` }}
-    />
+    <figure id={`fig-${n}`} className="report-card" style={{ margin: 0, width: 240 }}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- local data URL, not a remote asset next/image can optimise */}
+      <img
+        src={src}
+        alt={attachment.caption?.trim() || `Figure ${n}`}
+        style={{ display: "block", width: 240, height: 160, minWidth: 180, minHeight: 120, objectFit: "cover", borderRadius: 6, border: `1px solid ${LINE}` }}
+      />
+      <figcaption style={{ fontSize: 9, lineHeight: 1.3, color: INK_SOFT, marginTop: 4 }}>
+        Figure {n}: {system || "General"} &mdash; {caption}
+      </figcaption>
+    </figure>
+  );
+}
+
+function Tag({ children, kind }: { children: React.ReactNode; kind: "cause" | "impact" }) {
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        margin: "0 4px 4px 0",
+        padding: "1px 7px",
+        borderRadius: 999,
+        fontSize: 9.5,
+        fontWeight: 600,
+        whiteSpace: "nowrap",
+        ...(kind === "cause"
+          ? { background: PURPLE_SOFT, color: PURPLE, border: `1px solid ${PURPLE_SOFT}` }
+          : { background: "#FFFFFF", color: INK_SOFT, border: `1px solid ${LINE}` }),
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+/** Red for Immediate, amber for Before next audit, green for Long term. */
+function TimelineBadge({ timeline }: { timeline?: string }) {
+  const bg: Record<string, string> = { Immediate: "#FBE4DE", "Before next audit": "#FDF0D5", "Long term": "#E1F1E8" };
+  if (!timeline) return <span style={{ fontSize: 10, color: INK_SOFT }}>Not set</span>;
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "2px 8px",
+        borderRadius: 999,
+        fontSize: 9.5,
+        fontWeight: 700,
+        whiteSpace: "normal",
+        overflowWrap: "normal",
+        wordBreak: "keep-all",
+        textAlign: "center",
+        lineHeight: 1.25,
+        background: bg[timeline] ?? PURPLE_SOFT,
+        color: TIMELINE_COLOR[timeline] ?? INK,
+      }}
+    >
+      {timeline}
+    </span>
+  );
+}
+
+function TaggedList({ title, list, responses, requirementOf }: { title: string; list: Finding[]; responses: Record<string, Response>; requirementOf: RequirementOf }) {
+  /* No row has an action plan: the column is dropped and its width goes to
+     Finding. Some do: it is capped at 15% and wraps. */
+  const hasPlan = list.some((f) => f.actionPlan?.trim());
+  return (
+    <div style={{ padding: "20px 36px 0" }}>
+      <SectionHeading>{title} &middot; {list.length}</SectionHeading>
+      <table className="rr-table">
+        <thead>
+          <tr>
+            <th style={{ width: "18%" }}>Asset system</th>
+            <th style={{ width: hasPlan ? "52%" : "64%" }}>Finding</th>
+            <th style={{ width: hasPlan ? "15%" : "18%" }}>Timeline</th>
+            {hasPlan && <th style={{ width: "15%" }}>Action plan</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {list.map((f) => (
+            <tr key={f.id}>
+              <td style={{ fontWeight: 600 }}>{f.system || "General"}</td>
+              <td><FindingCell f={f} responses={responses} requirementOf={requirementOf} /></td>
+              <td><TimelineBadge timeline={f.timeline} /></td>
+              {hasPlan && <td className="rr-plan" style={{ color: f.actionPlan?.trim() ? INK : INK_SOFT }}>{f.actionPlan?.trim() || "\u2014"}</td>}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function Pill2({ children, bg, fg }: { children: React.ReactNode; bg: string; fg: string }) {
+  return (
+    <span style={{ display: "inline-block", margin: "0 4px 3px 0", padding: "1px 8px", borderRadius: 999, fontSize: 9.5, fontWeight: 700, background: bg, color: fg }}>
+      {children}
+    </span>
+  );
+}
+
+/** A category with nothing in it is one quiet line, not an empty table. */
+function NoneChip({ label, count }: { label: string; count: number }) {
+  const zero = count === 0;
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "3px 10px",
+        borderRadius: 999,
+        fontSize: 10.5,
+        fontWeight: 600,
+        background: zero ? "#F3F1F8" : "#FBE4DE",
+        color: zero ? INK_SOFT : "#B3261E",
+        border: `1px solid ${zero ? LINE : "#F0B9AC"}`,
+      }}
+    >
+      {label}: {zero ? "None recorded" : count}
+    </span>
   );
 }
 
@@ -126,6 +267,23 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** `/report?discipline=all` — the whole airport in one report. */
+/** One earlier-audit finding that was open coming into this visit, with its
+ *  status now and the comments recorded against it. Built in report/page.tsx
+ *  from carryforward + the verifications, so this component stays pure. */
+export interface PreviousFindingRow {
+  key: string;
+  discipline: string;
+  system: string;
+  raisedAt: string;
+  finding: string;
+  rating: string;
+  status: string;
+  comments: string[];
+}
+
+export const ALL_DISCIPLINES_LABEL = "All disciplines";
+
 export default function ReviewRiskReport({
   findings: allFindings,
   discipline,
@@ -134,6 +292,7 @@ export default function ReviewRiskReport({
   evidenceItems,
   visitLabel,
   auditor,
+  previous = [],
 }: {
   findings: Finding[];
   discipline: string;
@@ -147,6 +306,8 @@ export default function ReviewRiskReport({
   evidenceItems: EvidenceItem[];
   visitLabel: string;
   auditor: string;
+  /** Findings left open by earlier audits, with where each stands now. */
+  previous?: PreviousFindingRow[];
 }) {
   const airport = entityOf(entityCode);
 
@@ -167,6 +328,11 @@ export default function ReviewRiskReport({
   );
 
   const nonCompliances = findings.filter((f) => findingTypeFor(f) === "non-compliance").length;
+  const observations = findings.filter((f) => findingTypeFor(f) === "observation").length;
+  /* Two separate tags, reported separately (Sarel, 26 Nov 2026): an
+     immediate safety concern is not the same call as a critical item. */
+  const safetyList = findings.filter((f) => f.safetyTag);
+  const criticalList = findings.filter((f) => f.critical);
   const byTimeline = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const t of TIMELINES) counts[t] = 0;
@@ -197,7 +363,10 @@ export default function ReviewRiskReport({
     return (id: string) => m.get(id);
   }, [entityCode]);
   const evidenceForDiscipline = useMemo(
-    () => evidenceItems.filter((e) => disciplineFor(e, checkDisciplineOf) === discipline),
+    () =>
+      discipline === ALL_DISCIPLINES_LABEL
+        ? evidenceItems
+        : evidenceItems.filter((e) => disciplineFor(e, checkDisciplineOf) === discipline),
     [evidenceItems, checkDisciplineOf, discipline]
   );
 
@@ -217,7 +386,143 @@ export default function ReviewRiskReport({
     [sorted]
   );
 
+  const ncList = sorted.filter((f) => findingTypeFor(f) === "non-compliance");
+  const obsList = sorted.filter((f) => findingTypeFor(f) !== "non-compliance");
+
+  /* The linked audit check's own wording, so a finding whose text is only that
+     question can be caught (see reportText.ts). */
+  const requirementOf = useMemo<RequirementOf>(() => {
+    const m = new Map<string, string>();
+    for (const c of checksAt(entityCode)) m.set(c.id, c.requirement);
+    return (id) => (id ? m.get(id) : undefined);
+  }, [entityCode]);
+
+  /* Figure numbers run through the report in print order: non-compliances,
+     then observations. One number per photograph, never reused. */
+  const figureNo = useMemo(() => {
+    const m = new Map<string, number>();
+    let n = 0;
+    for (const f of [...ncList, ...obsList])
+      for (const a of f.attachments) if (a.kind === "photo" && (a.thumbDataUrl || a.dataUrl)) m.set(a.id, ++n);
+    return m;
+  }, [ncList, obsList]);
+
+  /* BEFORE YOU PUBLISH — findings whose wording needs the auditor: too short to
+     stand as a finding, or only the audit question. Screen only. Raw text with
+     fillers is cleaned automatically and is not listed. */
+  const wordingWarnings = useMemo(
+    () =>
+      [...ncList, ...obsList]
+        .map((f) => ({ f, t: reportFindingText(f, requirementOf(f.checkId)) }))
+        .filter((x) => x.t.flags.length > 0),
+    [ncList, obsList, requirementOf]
+  );
+
+  /* HEADLINE NUMBERS. "Immediate action required" is ONE figure: a finding
+     counts once whether it is tagged a safety concern, critical, on an
+     Immediate timeline, or any mix. */
+  const immediateAction = findings.filter((f) => f.safetyTag || f.critical || f.timeline === "Immediate");
+  const routine = findings.filter((f) => f.timeline === "Before next audit" || f.timeline === "Long term");
+  const evidenceOutstanding = evidenceForDiscipline.filter((e) =>
+    ["notStarted", "requested", "uploaded", "insufficient", "unavailable"].includes(trackingStage(e))
+  );
+  /* Same row layout for both lists — Sarel, 26 Nov 2026: observations get
+     their own section instead of sharing one table with non-compliances. */
+  const findingsTable = (list: Finding[]) => {
+    /* The Action plan column is only there when at least one row has a plan;
+       otherwise its width goes to Finding and Root cause. */
+    const hasPlan = list.some((f) => f.actionPlan?.trim());
+    const w = hasPlan
+      ? { asset: "16%", finding: "33%", cause: "17%", time: "12%", plan: "15%", photo: "7%" }
+      : { asset: "18%", finding: "42%", cause: "20%", time: "12%", plan: "0", photo: "8%" };
+    const cols = hasPlan ? 6 : 5;
+    return (
+      <table className="rr-table rr-findings">
+        <thead>
+          <tr>
+            <th style={{ width: w.asset }}>Asset system</th>
+            <th style={{ width: w.finding }}>Finding &amp; technical observation</th>
+            <th style={{ width: w.cause }}>Root cause &amp; impact</th>
+            <th style={{ width: w.time }}>Urgency</th>
+            {hasPlan && <th style={{ width: w.plan }}>Action plan</th>}
+            <th style={{ width: w.photo }}>Photo</th>
+          </tr>
+        </thead>
+        {list.map((f) => {
+          const photos = f.attachments.filter((a) => a.kind === "photo" && (a.thumbDataUrl || a.dataUrl));
+          const voices = f.attachments.filter((a) => a.kind === "voice").length;
+          const main = reportFindingText(f, requirementOf(f.checkId));
+          const brief = briefOf(main.flags.includes("question-only") ? "defect detail to be confirmed" : main.text);
+          const firstNo = photos.length ? figureNo.get(photos[0].id) : undefined;
+          return (
+            <tbody key={f.id} className="rr-unit">
+              <tr data-keepnext={photos.length > 0 ? "1" : undefined}>
+                <td>
+                  <div style={{ fontWeight: 700 }}>{f.system || "General"}</div>
+                </td>
+                <td>
+                  <FindingCell f={f} responses={responses} requirementOf={requirementOf} />
+                  {voices > 0 && (
+                    <div style={{ fontSize: 9, color: INK_SOFT, marginTop: 3 }}>
+                      {voices} voice note{voices === 1 ? "" : "s"} on file
+                    </div>
+                  )}
+                </td>
+                <td>
+                  {(f.rootCauseCategories ?? []).length === 0 && (f.impactAreas ?? []).length === 0 ? (
+                    <span style={{ color: INK_SOFT }}>Not yet assessed</span>
+                  ) : (
+                    <>
+                      <div>{(f.rootCauseCategories ?? []).map((c) => <Tag key={c} kind="cause">{c}</Tag>)}</div>
+                      <div>{(f.impactAreas ?? []).map((a) => <Tag key={a} kind="impact">{a}</Tag>)}</div>
+                    </>
+                  )}
+                </td>
+                <td><TimelineBadge timeline={f.timeline} /></td>
+                {hasPlan && <td className="rr-plan" style={{ color: f.actionPlan ? undefined : INK_SOFT }}>{f.actionPlan || "\u2014"}</td>}
+                <td>
+                  {photos.length > 0 && firstNo !== undefined ? (
+                    <a href={`#fig-${firstNo}`} style={{ color: PURPLE, textDecoration: "none", fontSize: 9.5, fontWeight: 600 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element -- local data URL */}
+                      <img
+                        src={photos[0].thumbDataUrl || photos[0].dataUrl}
+                        alt=""
+                        style={{ display: "block", width: 54, height: 36, objectFit: "cover", borderRadius: 4, border: `1px solid ${LINE}`, marginBottom: 3 }}
+                      />
+                      Fig. {firstNo}
+                      {photos.length > 1 ? `\u2013${figureNo.get(photos[photos.length - 1].id)}` : ""}
+                    </a>
+                  ) : (
+                    <span style={{ fontSize: 9.5, color: INK_SOFT }}>None</span>
+                  )}
+                </td>
+              </tr>
+              {photos.length > 0 && (
+                <tr className="rr-figs">
+                  <td colSpan={cols}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                      {photos.map((a) => (
+                        <ReportFigure key={a.id} attachment={a} n={figureNo.get(a.id) ?? 0} system={f.system} brief={brief} />
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          );
+        })}
+      </table>
+    );
+  };
+
   const generated = new Date();
+  /* Strings that go into CSS `content:`; quotes and backslashes removed so a name
+     can never break out of the declaration. */
+  const cssSafe = (t: string) => t.replace(/["\\\n]/g, " ");
+  const runningHead = cssSafe(`Squawk Assurance \u00b7 ${discipline} \u00b7 ${entityCode} \u00b7 ${visitLabel}`);
+  const stamp = cssSafe(
+    `${generated.toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })} ${generated.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}`
+  );
 
   return (
     <div style={{ background: "#FFFFFF", color: INK, fontFamily: "Arial, Helvetica, sans-serif" }}>
@@ -230,34 +535,71 @@ export default function ReviewRiskReport({
            (it's outside the (app) route group), so it opts back into
            ordinary document scrolling, on screen and in print alike. */
         html, body { height: auto !important; overflow: visible !important; background: #FFFFFF !important; }
-        /* LANDSCAPE — Sarel: "maybe so landscape report," in the same
-           breath as asking for bigger photos. The two asks are really
-           one: a photo big enough to actually see needs width, and a
-           portrait A4 page doesn't have it to spare once six columns
-           share it. */
+        /* PRINT ARCHITECTURE — Sarel, 27 Nov 2026. A4 portrait, 15/12mm margins.
+           Running header (pages 2+) and footer (timestamp, disclaimer, "Page X of
+           Y") sit in the page margin boxes, so they print on every page and never
+           collide with content. Table headers repeat on each page a table
+           continues onto; rows, cards, KPI boxes and a finding's photographs are
+           never split; a table's first row is kept with its header and its last
+           row with the one before, so no single row is stranded. The "Download
+           PDF" button draws the same header, footer, repeated table headers and
+           break rules itself (src/lib/reportPdf.ts), because it builds the file
+           from an image of this page rather than the browser's print engine. */
         @page {
-          size: A4 landscape;
-          margin: 14mm 16mm 18mm 16mm;
-          @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: Arial, Helvetica, sans-serif; font-size: 9px; color: ${INK_SOFT}; }
-          @bottom-left { content: "Squawk \\2014 TPJV for Airports Company South Africa"; font-family: Arial, Helvetica, sans-serif; font-size: 9px; color: ${INK_SOFT}; }
+          size: A4 portrait;
+          margin: 15mm 12mm 15mm 12mm;
+          @top-left { content: "${runningHead}"; font-family: Arial, Helvetica, sans-serif; font-size: 8px; color: ${INK_SOFT}; }
+          @bottom-left { content: "Generated ${stamp} \\00B7 Interim, system-generated report: subject to update"; font-family: Arial, Helvetica, sans-serif; font-size: 7.5px; color: ${INK_SOFT}; }
+          @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: Arial, Helvetica, sans-serif; font-size: 8px; color: ${INK_SOFT}; }
         }
+        @page :first { @top-left { content: none; } }
         @media screen {
-          .rr-report-page { max-width: 1200px; margin: 24px auto 64px; box-shadow: 0 1px 10px rgba(0,0,0,0.12); }
+          .rr-report-page { max-width: 860px; margin: 24px auto 64px; box-shadow: 0 1px 10px rgba(0,0,0,0.12); }
         }
         @media print {
-          .rr-report-toolbar { display: none !important; }
+          .rr-report-toolbar, .rr-noprint { display: none !important; }
           .rr-report-page { box-shadow: none; }
-          thead { display: table-header-group; }
-          tr, .rr-card { break-inside: avoid; }
+          thead { display: table-header-group !important; }
+          tr, .report-card, .metric-box, .rr-card, figure { break-inside: avoid !important; page-break-inside: avoid !important; }
+          tbody.rr-unit { break-inside: avoid; page-break-inside: avoid; }
+          h2 { break-after: avoid; page-break-after: avoid; }
+          .rr-table tbody tr:first-child { break-after: avoid; }
+          .rr-table tbody tr:last-child { break-before: avoid; }
+          tr.rr-figs { break-before: avoid; }
         }
-        .rr-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        .rr-table { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; }
         .rr-table th { background: ${PURPLE}; color: #FFFFFF; text-align: left; padding: 8px 10px; font-weight: 600; font-size: 10.5px; }
-        .rr-table td { padding: 8px 10px; border-bottom: 1px solid ${LINE}; vertical-align: top; color: ${INK}; }
-        .rr-table tr:nth-child(even) td { background: #FAF9FC; }
+        .rr-table td { padding: 8px 10px; border-bottom: 1px solid ${LINE}; vertical-align: top; color: ${INK}; overflow-wrap: anywhere; }
+        .rr-table tbody:nth-of-type(even) td, .rr-table tbody tr:nth-child(even) td { background: #FAF9FC; }
+        .rr-table tbody.rr-unit tr.rr-figs td { background: #FFFFFF; border-bottom: 1px solid ${LINE}; padding-top: 2px; padding-bottom: 12px; }
+        .rr-table tbody.rr-unit tr:first-child td { border-bottom: none; }
+        /* Action plan: captured in a large box, printed small so the plan does not dominate the row. */
+        .rr-table td.rr-plan { font-size: 9px; line-height: 1.3; }
         .rr-table.rr-amber th { background: ${TIMELINE_COLOR.Immediate}; }
         .rr-table.rr-amber tr:nth-child(even) td { background: ${AMBER_SOFT}; }
       `}</style>
 
+      {wordingWarnings.length > 0 && (
+        <div
+          className="rr-noprint"
+          data-html2canvas-ignore="true"
+          role="alert"
+          style={{ maxWidth: 860, margin: "16px auto 0", padding: "10px 14px", border: "1px solid #F0C36D", background: "#FFF8E6", borderRadius: 8, fontSize: 12, color: INK }}
+        >
+          <strong>Before you publish: {wordingWarnings.length} finding{wordingWarnings.length === 1 ? "" : "s"} need{wordingWarnings.length === 1 ? "s" : ""} wording.</strong>{" "}
+          Open Triage and use <em>Clean up wording</em> (AI or Basic tidy), then approve the result. Nothing is rewritten here without you.
+          <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+            {wordingWarnings.map(({ f, t }) => (
+              <li key={f.id}>
+                <strong>{f.system || "General"}</strong>:{" "}
+                {t.flags.includes("question-only")
+                  ? `"${briefOf(t.raw, 60)}" is only the audit-check question; say what was actually found`
+                  : `"${t.raw}" is too short to stand as a finding`}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="rr-report-page" style={{ padding: "0 0 24px" }}>
         {/* HEADER BAND — same shape as ACSA's own report cover: eyebrow,
             discipline + airport, then the audit-identity line. */}
@@ -273,31 +615,83 @@ export default function ReviewRiskReport({
           </div>
         </div>
 
-        {/* KPI STRIP */}
+        {/* KPI STRIP — four cards (Sarel, 27 Nov 2026): the old six tiles and
+            the "how to read the counts" explainer are gone; each card says what
+            it counts. A finding counts once in "Immediate action required"
+            however many of its tags apply. */}
         <div style={{ display: "flex", gap: 12, padding: "20px 36px 0" }}>
           {(
             [
-              [findings.length, "Findings this visit"],
-              [nonCompliances, "Non-compliances"],
-              [immediate, "Immediate — attend to first"],
-              [evidenceForDiscipline.length, "Evidence requested"],
-              [withActionPlan.length, "Action plans set"],
-            ] as [number, string][]
-          ).map(([n, label]) => (
+              {
+                label: "Total findings",
+                n: findings.length,
+                tone: "",
+                sub: (
+                  <>
+                    <Pill2 bg="#FBE4DE" fg="#B3261E">{nonCompliances} non-compliance{nonCompliances === 1 ? "" : "s"}</Pill2>
+                    <Pill2 bg={PURPLE_SOFT} fg={PURPLE}>{observations} observation{observations === 1 ? "" : "s"}</Pill2>
+                  </>
+                ),
+              },
+              {
+                label: "Immediate action required",
+                n: immediateAction.length,
+                tone: "imm",
+                sub: (
+                  <span>
+                    {[
+                      safetyList.length ? `${safetyList.length} safety` : "",
+                      criticalList.length ? `${criticalList.length} critical` : "",
+                      immediate ? `${immediate} immediate timeline` : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" \u00b7 ") || "Nothing urgent recorded"}
+                  </span>
+                ),
+              },
+              {
+                label: "Routine / before next audit",
+                n: routine.length,
+                tone: "",
+                sub: (
+                  <span>
+                    {byTimeline.counts["Before next audit"]} before next audit &middot; {byTimeline.counts["Long term"]} long term
+                    {byTimeline.notSet ? ` \u00b7 ${byTimeline.notSet} not yet timed` : ""}
+                  </span>
+                ),
+              },
+              {
+                label: "Evidence outstanding",
+                n: evidenceOutstanding.length,
+                tone: "",
+                sub: <span>of {evidenceForDiscipline.length} requested</span>,
+              },
+            ] as { label: string; n: number; tone: string; sub: React.ReactNode }[]
+          ).map(({ n, label, tone, sub }) => (
             <div
               key={label}
-              className="rr-card"
+              className="report-card metric-box rr-card"
               style={{ flex: 1, background: PURPLE_SOFT, border: `1px solid ${LINE}`, borderRadius: 10, padding: "12px 14px" }}
             >
-              <div style={{ fontSize: 9.5, color: INK_SOFT, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                {label}
-              </div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: label.startsWith("Immediate") ? TIMELINE_COLOR.Immediate : INK, marginTop: 2 }}>
-                {n}
-              </div>
+              <div style={{ fontSize: 9.5, color: INK_SOFT, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
+              <div style={{ fontSize: 26, fontWeight: 700, color: tone === "imm" ? TIMELINE_COLOR.Immediate : INK, marginTop: 2 }}>{n}</div>
+              <div style={{ fontSize: 9.5, color: INK_SOFT, marginTop: 4, lineHeight: 1.5 }}>{sub}</div>
             </div>
           ))}
         </div>
+
+        {/* A category with nothing in it is a quiet chip; a category with items
+            gets its table. */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "16px 36px 0" }}>
+          <NoneChip label="Immediate safety concerns" count={safetyList.length} />
+          <NoneChip label="Critical items" count={criticalList.length} />
+        </div>
+        {safetyList.length > 0 && (
+          <TaggedList title="Immediate safety concerns" list={safetyList} responses={responses} requirementOf={requirementOf} />
+        )}
+        {criticalList.length > 0 && (
+          <TaggedList title="Critical items to attend to" list={criticalList} responses={responses} requirementOf={requirementOf} />
+        )}
 
         {/* FINDINGS BY TIMELINE */}
         <div style={{ padding: "24px 36px 0" }}>
@@ -345,7 +739,7 @@ export default function ReviewRiskReport({
                 </tr>
               </thead>
               <tbody>
-                {ROOT_CAUSES.map((c) => (
+                {[...ROOT_CAUSES, ...LEGACY_ROOT_CAUSES.filter((c) => (rootCauseCounts[c] ?? 0) > 0)].map((c) => (
                   <tr key={c}>
                     <td>{c}</td>
                     <td style={{ textAlign: "right" }}>{rootCauseCounts[c] ?? 0}</td>
@@ -387,10 +781,10 @@ export default function ReviewRiskReport({
             <table className="rr-table">
               <thead>
                 <tr>
-                  <th style={{ width: "40%" }}>What&rsquo;s needed</th>
-                  <th style={{ width: "20%" }}>Asset system</th>
-                  <th style={{ width: "20%" }}>Status</th>
-                  <th style={{ width: "20%" }}>Requested from</th>
+                  <th style={{ width: "30%" }}>What&rsquo;s needed</th>
+                  <th style={{ width: "15%" }}>Asset system</th>
+                  <th style={{ width: "15%" }}>Status</th>
+                  <th style={{ width: "40%" }}>Evidence feedback</th>
                 </tr>
               </thead>
               <tbody>
@@ -399,7 +793,7 @@ export default function ReviewRiskReport({
                     <td>{e.title || e.id}</td>
                     <td>{e.system || "General"}</td>
                     <td style={{ fontWeight: 600 }}>{TRACKING_LABEL[trackingStage(e)]}</td>
-                    <td>{e.requestedFrom || "—"}</td>
+                    <td>{evidenceFeedback(e)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -421,18 +815,20 @@ export default function ReviewRiskReport({
               <thead>
                 <tr>
                   <th style={{ width: "18%" }}>Asset system</th>
-                  <th style={{ width: "52%" }}>Finding</th>
-                  <th style={{ width: "30%" }}>Action &amp; improvement plan</th>
+                  <th style={{ width: quickWins.some((f) => f.actionPlan?.trim()) ? "67%" : "82%" }}>Finding</th>
+                  {quickWins.some((f) => f.actionPlan?.trim()) && <th style={{ width: "15%" }}>Action plan</th>}
                 </tr>
               </thead>
               <tbody>
                 {quickWins.map((f) => (
                   <tr key={f.id}>
                     <td style={{ fontWeight: 600 }}>{f.system || "General"}</td>
-                    <td>{findingText(f, responses)}</td>
-                    <td style={{ color: f.actionPlan?.trim() ? INK : INK_SOFT, fontStyle: f.actionPlan?.trim() ? "normal" : "italic" }}>
-                      {f.actionPlan?.trim() || "Not yet planned"}
-                    </td>
+                    <td><FindingCell f={f} responses={responses} requirementOf={requirementOf} /></td>
+                    {quickWins.some((x) => x.actionPlan?.trim()) && (
+                      <td className="rr-plan" style={{ color: f.actionPlan?.trim() ? INK : INK_SOFT }}>
+                        {f.actionPlan?.trim() || "\u2014"}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -445,83 +841,20 @@ export default function ReviewRiskReport({
             id (the table's own default order), now with the finding's own
             photographs shown inline rather than only counted. */}
         <div style={{ padding: "24px 36px 0" }}>
-          <SectionHeading>All findings &middot; {findings.length} in {discipline}</SectionHeading>
-          {sorted.length === 0 ? (
-            <p style={{ fontSize: 12, color: INK_SOFT }}>No findings raised against this discipline this visit.</p>
+          <SectionHeading>Non-compliances &middot; {ncList.length} in {discipline}</SectionHeading>
+          {ncList.length === 0 ? (
+            <p style={{ fontSize: 12, color: INK_SOFT }}>No non-compliances raised against this discipline this visit.</p>
           ) : (
-            <table className="rr-table">
-              <thead>
-                <tr>
-                  <th style={{ width: "6%" }}>Type</th>
-                  <th style={{ width: "9%" }}>Asset system</th>
-                  <th style={{ width: "21%" }}>Finding</th>
-                  <th style={{ width: "11%" }}>Root cause / Impact</th>
-                  <th style={{ width: "7%" }}>Timeline</th>
-                  {/* NARROWED FROM 38% — Sarel, on a live report screenshot:
-                      "a lot of wasted open space, use it more effectively."
-                      A 144px photo plus its caption never used anywhere
-                      near 38% of a landscape page; the space it gave up
-                      goes to the new Action plan column right beside it,
-                      not back into Finding/Root cause, which already had
-                      enough room for their own text. */}
-                  <th style={{ width: "21%" }}>Evidence</th>
-                  {/* ACTION PLAN, NEXT TO THE PHOTO — Sarel: "add the
-                      action plan column to the right of the photo."
-                      Alongside the dedicated Action & improvement plan
-                      section below, not instead of it: that section is
-                      the scannable, findings-with-a-plan-only list; this
-                      is the full findings list showing the same text
-                      inline, so a reader going straight down this table
-                      never has to cross-reference the other one to see
-                      what's already planned for a given row. */}
-                  <th style={{ width: "25%" }}>Action plan</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sorted.map((f) => {
-                  const type = findingTypeFor(f);
-                  const photos = f.attachments.filter((a) => a.kind === "photo");
-                  const voices = f.attachments.filter((a) => a.kind === "voice").length;
-                  return (
-                    <tr key={f.id}>
-                      <td style={{ fontWeight: 600, color: type === "non-compliance" ? "#A32626" : INK_SOFT }}>
-                        {FINDING_TYPE_LABEL[type]}
-                      </td>
-                      <td>{f.system || "General"}</td>
-                      <td>{findingText(f, responses)}</td>
-                      <td>
-                        {(f.rootCauseCategories ?? []).join(", ") || "—"}
-                        {f.impactAreas && f.impactAreas.length > 0 ? (
-                          <div style={{ color: INK_SOFT, marginTop: 2 }}>{f.impactAreas.join(", ")}</div>
-                        ) : null}
-                      </td>
-                      <td style={{ fontWeight: 600, color: f.timeline ? TIMELINE_COLOR[f.timeline] : INK_SOFT }}>
-                        {f.timeline || "Not set"}
-                      </td>
-                      <td>
-                        {photos.length > 0 && (
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
-                            {photos.slice(0, 2).map((a) => (
-                              <ReportPhoto key={a.id} attachment={a} />
-                            ))}
-                            {photos.length > 2 && (
-                              <span style={{ alignSelf: "center", fontSize: 10, color: INK_SOFT }}>
-                                +{photos.length - 2} more
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        <span style={{ fontSize: 10, color: INK_SOFT }}>
-                          {photos.length} photo{photos.length === 1 ? "" : "s"}
-                          {voices > 0 ? `, ${voices} voice note${voices === 1 ? "" : "s"}` : ""}
-                        </span>
-                      </td>
-                      <td style={{ color: f.actionPlan ? undefined : INK_SOFT }}>{f.actionPlan || "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            findingsTable(ncList)
+          )}
+        </div>
+
+        <div style={{ padding: "24px 36px 0" }}>
+          <SectionHeading>Observations &middot; {obsList.length} in {discipline}</SectionHeading>
+          {obsList.length === 0 ? (
+            <p style={{ fontSize: 12, color: INK_SOFT }}>No observations raised against this discipline this visit.</p>
+          ) : (
+            findingsTable(obsList)
           )}
         </div>
 
@@ -541,20 +874,20 @@ export default function ReviewRiskReport({
               <thead>
                 <tr>
                   <th style={{ width: "16%" }}>Asset system</th>
-                  <th style={{ width: "34%" }}>Finding</th>
-                  <th style={{ width: "10%" }}>Timeline</th>
-                  <th style={{ width: "40%" }}>Action &amp; improvement plan</th>
+                  <th style={{ width: "32%" }}>Finding</th>
+                  <th style={{ width: "14%" }}>Timeline</th>
+                  <th style={{ width: "38%" }}>Action &amp; improvement plan</th>
                 </tr>
               </thead>
               <tbody>
                 {withActionPlan.map((f) => (
                   <tr key={f.id}>
                     <td style={{ fontWeight: 600 }}>{f.system || "General"}</td>
-                    <td>{findingText(f, responses)}</td>
-                    <td style={{ fontWeight: 600, color: f.timeline ? TIMELINE_COLOR[f.timeline] : INK_SOFT }}>
+                    <td><FindingCell f={f} responses={responses} requirementOf={requirementOf} /></td>
+                    <td style={{ fontWeight: 600, whiteSpace: "nowrap", color: f.timeline ? TIMELINE_COLOR[f.timeline] : INK_SOFT }}>
                       {f.timeline || "Not set"}
                     </td>
-                    <td>{f.actionPlan}</td>
+                    <td className="rr-plan">{f.actionPlan}</td>
                   </tr>
                 ))}
               </tbody>
@@ -562,10 +895,83 @@ export default function ReviewRiskReport({
           )}
         </div>
 
+        {/* PREVIOUS OPEN FINDINGS — Sarel, 26 Nov 2026: "the report should
+            also show previous open findings and their new status and
+            comments". */}
+        <div style={{ padding: "24px 36px 0" }}>
+          <SectionHeading>Previous open findings &mdash; status update &middot; {previous.length}</SectionHeading>
+          {previous.length === 0 ? (
+            <p style={{ fontSize: 12, color: INK_SOFT }}>No findings from earlier audits were open for {discipline}.</p>
+          ) : (
+            <table className="rr-table">
+              <thead>
+                <tr>
+                  <th style={{ width: "13%" }}>Asset system</th>
+                  <th style={{ width: "9%" }}>Raised</th>
+                  <th style={{ width: "30%" }}>Original finding</th>
+                  <th style={{ width: "9%" }}>Rating</th>
+                  <th style={{ width: "13%" }}>Status now</th>
+                  <th style={{ width: "26%" }}>Comments</th>
+                </tr>
+              </thead>
+              <tbody>
+                {previous.map((r) => (
+                  <tr key={r.key}>
+                    <td style={{ fontWeight: 600 }}>{r.system || "General"}</td>
+                    <td>{r.raisedAt}</td>
+                    <td>{r.finding}</td>
+                    <td>{r.rating}</td>
+                    <td style={{ fontWeight: 600, color: r.status === "Closed" ? "#1B7F4B" : r.status === "Not yet verified" ? INK_SOFT : "#B3261E" }}>
+                      {r.status}
+                    </td>
+                    <td>{r.comments.length ? r.comments.join(" \u2022 ") : "\u2014"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* INTERIM-REPORT NOTICE AND COPYRIGHT — Sarel, 26 Nov 2026: "add a
+            detailed clause of copyright and that this is an interim system
+            generated report... to cover us". Wording is drafted for him to
+            have his legal advisers confirm. */}
+        <div
+          className="rr-card"
+          style={{ margin: "18px 36px 0", padding: "12px 14px", border: `1px solid ${LINE}`, borderRadius: 8, background: PURPLE_SOFT, fontSize: 9.5, lineHeight: 1.5, color: INK }}
+        >
+          <div style={{ fontWeight: 700, color: PURPLE, marginBottom: 4 }}>Interim report, copyright and limitations</div>
+          <p style={{ margin: "0 0 4px" }}>
+            <strong>Interim status.</strong> This is an interim, system-generated report. It is based only on the
+            information, records, evidence and observations available to the audit team at the time of generation
+            ({new Date().toISOString().slice(0, 10)}), and is shared to show project progress. It is not a final audit
+            report. Findings, ratings, root causes, impacts, timelines, action plans and statuses may be incomplete and
+            may be updated, corrected or withdrawn as new information becomes available. A blank field means not yet
+            captured, not a decision.
+          </p>
+          <p style={{ margin: "0 0 4px" }}>
+            <strong>No warranty or reliance.</strong> The content is provided in good faith for information only. No
+            representation or warranty, express or implied, is given as to its completeness or accuracy, and it must not
+            be treated as a certificate of compliance, a safety clearance or professional advice. To the fullest extent
+            permitted by law, the authors and their employers accept no liability for loss or damage arising from
+            reliance on this interim report. Decisions affecting safety or operations should be confirmed against the
+            current records and the final report. Nothing here amends the contract or any contractual notice, rating or
+            instruction.
+          </p>
+          <p style={{ margin: 0 }}>
+            <strong>Copyright.</strong> &copy; {new Date().getFullYear()} the audit team and their employers. All rights
+            reserved. The report is confidential and is issued solely to the intended recipient for this project. It
+            may not be copied, reproduced, published or disclosed to a third party, in whole or in part, without prior
+            written consent. Third-party material referred to (including ACSA procedures and ICAO documents) remains
+            the property of its owners.
+          </p>
+        </div>
+
         <p style={{ padding: "24px 36px 0", fontSize: 10, color: INK_SOFT, borderTop: `1px solid ${LINE}`, marginTop: 20, paddingTop: 14 }}>
-          Generated by Squawk from the Risk &amp; root cause (Triage) tab, scoped to {discipline}. A blank Timeline, Root
-          cause, Impact or Action plan means not yet set, never a decision — see the Review page for the live, editable
-          record this report was generated from.
+          This report was generated by Squawk from the Risk &amp; Root Cause register and is scoped to {discipline}. Where the
+          Timeline, Root Cause, Impact or Action Plan is blank, that item has not yet been assessed or completed and should
+          not be read as a determination. The live, editable record from which this report was produced is maintained on the
+          Review page.
         </p>
       </div>
     </div>

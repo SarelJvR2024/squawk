@@ -42,6 +42,7 @@ const check = (name, cond, detail = "") => {
    one list rather than a try/catch, so a new suite that needs it fails loudly
    here instead of being silently counted as zero. */
 const NEEDS_ALIAS = new Set([
+  "reporttext.test.mjs",
   "sharepoint.test.mjs",
   "merge.test.mjs",
   "figures.test.mjs",
@@ -199,6 +200,12 @@ const WORDS = {
   "hundred-and-sixteen": 116,
   "hundred-and-seventeen": 117,
   "hundred-and-eighteen": 118,
+  "hundred-and-nineteen": 119,
+  "hundred-and-twenty": 120,
+  "hundred-and-twenty-one": 121,
+  "hundred-and-twenty-two": 122,
+  "hundred-and-twenty-three": 123,
+  "hundred-and-ten": 110,
   "thirty-seven": 37,
   "twenty-four": 24, "twenty-five": 25, "twenty-six": 26,
   "twenty-seven": 27, "twenty-eight": 28, "twenty-nine": 29,

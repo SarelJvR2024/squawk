@@ -36,8 +36,8 @@ const issues = src("src", "app", "(app)", "issues", "page.tsx");
 
 /* ---------- the filter-chip row: six filters, each with a real count ---------- */
 
-check("IssuesFilter is exactly the spec's six values", () => {
-  if (!/type IssuesFilter = "all" \| "toReview" \| "carried" \| "critical" \| "safety" \| "closed";/.test(issues))
+check("IssuesFilter is the spec's six values plus Deleted", () => {
+  if (!/type IssuesFilter = "all" \| "toReview" \| "carried" \| "critical" \| "safety" \| "closed" \| "deleted";/.test(issues))
     throw new Error("filter union does not match");
 });
 check("each filter has a label and every label is rendered with its own count, read off issuesCounts", () => {
@@ -184,10 +184,10 @@ check(
   () => {
     if (!/const visitId = useVisitId\(\);/.test(src("src", "components", "ReviewRiskTable.tsx")))
       throw new Error("no visitId read");
-    if (!/const r = f\.checkId && f\.originVisit === visitId \? responses\[f\.checkId\] : undefined;/.test(
+    if (!/const chk = f\.checkId && f\.originVisit === visitId \? responses\[f\.checkId\] : undefined;/.test(
       src("src", "components", "ReviewRiskTable.tsx"),
     ))
-      throw new Error("r not gated on originVisit");
+      throw new Error("chk not gated on originVisit");
   },
 );
 

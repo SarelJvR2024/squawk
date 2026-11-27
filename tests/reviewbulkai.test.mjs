@@ -90,11 +90,11 @@ check(
 );
 check(
   "Accept (applyOne) writes exactly the proposed text, through onChangeOne — the real per-row apply",
-  /onChangeOne\(f\.id, \{ description: prop\.text \}\);/.test(table)
+  /onChangeOne\(f\.id, \{ description: text \}\);/.test(table) && /const text = \(edits\[f\.id\] \?\? prop\?\.text \?\? ""\)\.trim\(\);/.test(table)
 );
 check(
   "Reject only clears that finding's own proposal — never calls onChangeOne",
-  /setProposals\(\(p\) => \{ const next = \{ \.\.\.p \}; delete next\[f\.id\]; return next; \}\)/.test(table)
+  /function rejectOne\(id: string\) \{\s*\n\s*setProposals\(\(p\) => \{\s*\n\s*const next = \{ \.\.\.p \};\s*\n\s*delete next\[id\];/.test(table)
 );
 check(
   "requests run sequentially, not in parallel — same rate-limit reasoning /cleanup's own PolishSection documents",
@@ -108,7 +108,7 @@ check(
 );
 check(
   "an \"Apply N accepted\" bulk action exists, same shape /cleanup's own PolishSection already proved, beside the per-row Accept",
-  /function applyAllProposed\(\) \{/.test(table) && /Apply \{proposedCount\} accepted/.test(table)
+  /proposedList\.forEach\(applyOne\)/.test(table) && /Accept all \{proposedList\.length\}/.test(table)
 );
 
 /* ---- 3 · BulkTranscribeVoiceNotes — verbatim only, auto-applied -------- */
