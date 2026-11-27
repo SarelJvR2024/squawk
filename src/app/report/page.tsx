@@ -130,7 +130,8 @@ function ReportInner() {
                 const day = new Date().toISOString().slice(0, 10);
                 await downloadReportPdf(
                   root,
-                  `Root-cause-report-${entityCode}-${discipline.replace(/\s+/g, "-")}-${day}.pdf`
+                  `Root-cause-report-${entityCode}-${discipline.replace(/\s+/g, "-")}-${day}.pdf`,
+                  { header: `Squawk Assurance \u00b7 ${discipline} \u00b7 ${entityCode} \u00b7 ${visitLabel}` }
                 );
               } catch (e) {
                 setErr(`Could not create the PDF (${e instanceof Error ? e.message : "unknown error"}). Use Print and choose Save as PDF.`);
