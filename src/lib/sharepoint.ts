@@ -59,6 +59,7 @@ import { EVIDENCE_COMPLIANCE_LABEL, MEDIUM_LABEL } from "./evidence";
 import { bandFor, BAND_META } from "./risk";
 import { findingTypeFor } from "./reviewRisk";
 import { TIMELINES } from "./riskVocab";
+import { docRefLabel } from "./library";
 import { evidenceAxisFor, reviewCombinedCompliance } from "./review";
 import type {
   AdHocItem,
@@ -337,6 +338,16 @@ export const FIELD_CANDIDATES: Record<string, string[]> = {
      class, same fix shape, yet again. */
   findingCritical: ["Critical", "Finding critical", "Critical issue"],
   findingSafetyTag: ["Safety", "Safety tag", "Finding safety tag"],
+  /* CITE A PROCEDURE — Finding.citedDocs (Library, build prompt 9, 22 Nov
+     2026), aggregated onto the Hazard row the same way as the fields
+     above. A union of every DISTINCT citation across the hazard's
+     consolidated findings, same shape as findingRootCauseCategories, not
+     a "first one wins" pick — two findings on one hazard can cite two
+     different clauses and a reader needs both. Found missing from the
+     portal (and exports.ts) by the standing sync-integrity review within
+     hours of the field landing — same bug class, same fix shape, yet
+     again. */
+  findingCitedDocs: ["Cited procedures", "Finding cited procedures", "Procedures cited"],
   /* THE PHOTOGRAPH COLUMNS. Prince Mahlangu, 17 September 2026, on the first
      five files to reach the library: "They carry no metadata at all: CheckID,
      AssetSystem, PhotographReference, CaptionSource and AttachedBy are blank,
@@ -568,7 +579,7 @@ export const FINDING_FIELDS = [
   "evidenceRequested", "discussionLog",
   "findingRootCauseCategories", "findingImpactAreas", "findingRootCauseNote",
   "findingRootCauseConfirmed", "findingTimeline", "findingActionPlan",
-  "findingCritical", "findingSafetyTag",
+  "findingCritical", "findingSafetyTag", "findingCitedDocs",
 ] as const;
 
 /** The column contract, for a person to build against: the name to create, and
@@ -1658,6 +1669,7 @@ export function findingRiskFieldsFor(
   actionPlan: string | null;
   critical: string | null;
   safetyTag: string | null;
+  citedDocs: string | null;
 } {
   if (!h.findingIds?.length) {
     return {
@@ -1669,12 +1681,20 @@ export function findingRiskFieldsFor(
       actionPlan: null,
       critical: null,
       safetyTag: null,
+      citedDocs: null,
     };
   }
   const mine = new Set(h.findingIds);
   const categories = new Set<string>();
   const areas = new Set<string>();
   const notes = new Set<string>();
+  /* CITED PROCEDURES — Finding.citedDocs, union/dedup same shape as
+     `categories`/`areas` above: two findings on one hazard can cite two
+     different clauses, and a reader needs both, not whichever was
+     checked first. Deduped on the SAME LABEL docRefLabel() renders in the
+     UI (doc+clause), the one shared formatter, not a second hand-rolled
+     template that could drift from it. */
+  const citedDocs = new Set<string>();
   /* ACTION & IMPROVEMENT PLAN — same join-distinct-non-empty shape as
      `notes` above, kept as its own set rather than folded into it: a
      finding can carry a root-cause note AND an action plan that say
@@ -1730,6 +1750,10 @@ export function findingRiskFieldsFor(
     if (plan) actionPlans.add(plan);
     if (f.critical) anyCritical = true;
     if (f.safetyTag) anySafety = true;
+    for (const d of f.citedDocs ?? []) {
+      const label = docRefLabel(d);
+      if (label) citedDocs.add(label);
+    }
   }
   return {
     rootCauseCategories: categories.size ? [...categories].join(", ") : null,
@@ -1740,6 +1764,7 @@ export function findingRiskFieldsFor(
     actionPlan: actionPlans.size ? [...actionPlans].join(" | ") : null,
     critical: anyCritical ? "Yes" : "No",
     safetyTag: anySafety ? "Yes" : "No",
+    citedDocs: citedDocs.size ? [...citedDocs].join("; ") : null,
   };
 }
 
@@ -2396,6 +2421,7 @@ export function buildPlan(
         findingActionPlan: riskFields.actionPlan,
         findingCritical: riskFields.critical,
         findingSafetyTag: riskFields.safetyTag,
+        findingCitedDocs: riskFields.citedDocs,
         observation: [h.event, h.description].filter(Boolean).join(" — "),
         severity: agreed ? portalSeverity(h.ermConsequence) : null,
         likelihood: agreed ? portalLikelihood(h.ermLikelihood) : null,

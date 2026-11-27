@@ -1340,6 +1340,44 @@ check(
   ["findingCritical", "findingSafetyTag"].every((k) => sp.FINDING_FIELDS.includes(k))
 );
 
+/* ---- Finding.citedDocs (Library, build prompt 9) — found missing from
+   this file by the same standing sync-integrity review within hours of
+   the field landing. A union/dedup of every DISTINCT citation across
+   the hazard's consolidated findings, same shape as the root-cause
+   categories/impact areas above, never a "first one wins" pick. ------- */
+
+check(
+  "a hazard's cited procedures are the union of its findings', deduplicated",
+  (() => {
+    const p = sp.buildPlan(
+      {
+        ...HAZ,
+        findings: [
+          { id: "f1", entity: "FALE", checkId: "KSIA-ELE-001", citedDocs: [{ doc: "B170", clause: "001M", title: null }] },
+          { id: "f2", entity: "FALE", checkId: "KSIA-ELE-002", citedDocs: [{ doc: "B170", clause: "001M", title: null }, { doc: "J050", clause: null, title: null }] },
+          { id: "f3", entity: "FALE", checkId: "KSIA-ELE-001" },
+        ],
+      },
+      NOTHING
+    );
+    return p.findings.find((r) => r.key === "KSIA-ELE-P01").values.findingCitedDocs === "B170 cl. 001M; J050";
+  })(),
+  "f1 and f2 both cite B170 cl. 001M — the hazard's own row must say it once, not twice; f2's own second citation (J050) still carries across"
+);
+
+check(
+  "a hazard with no finding citing anything reads null, not an empty string",
+  (() => {
+    const v = sp.buildPlan(HAZ, NOTHING).findings.find((r) => r.key === "KSIA-ELE-P01").values;
+    return v.findingCitedDocs === null;
+  })()
+);
+
+check(
+  "is in the FINDINGS contract, so the column gets asked for",
+  sp.FINDING_FIELDS.includes("findingCitedDocs")
+);
+
 /* A SITE NOBODY HAS AUDITED YET — the check that would have caught both Bram
  * Fischer incidents, added 16 September 2026 at Sarel's request. Every other
  * guard passed on those syncs, correctly: the rows carried the right BFIA
