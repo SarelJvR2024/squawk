@@ -569,8 +569,18 @@ export default function ReviewRiskReport({
                     <span style={{ color: INK_SOFT }}>Not yet assessed</span>
                   ) : (
                     <>
-                      <div>{(f.rootCauseCategories ?? []).map((c) => <Tag key={c} kind="cause">{c}</Tag>)}</div>
-                      <div>{(f.impactAreas ?? []).map((a) => <Tag key={a} kind="impact">{a}</Tag>)}</div>
+                      {(f.rootCauseCategories ?? []).length > 0 && (
+                        <div className="rr-tagblock">
+                          <div className="rr-taglabel">Root cause</div>
+                          {(f.rootCauseCategories ?? []).map((c) => <Tag key={c} kind="cause">{c}</Tag>)}
+                        </div>
+                      )}
+                      {(f.impactAreas ?? []).length > 0 && (
+                        <div className="rr-tagblock">
+                          <div className="rr-taglabel">Impact</div>
+                          {(f.impactAreas ?? []).map((a) => <Tag key={a} kind="impact">{a}</Tag>)}
+                        </div>
+                      )}
                     </>
                   )}
                 </td>
@@ -639,6 +649,8 @@ export default function ReviewRiskReport({
           .rr-table tbody tr:last-child { break-before: avoid; }
           .rr-annexure { break-before: page; page-break-before: always; }
         }
+        .rr-tagblock { margin-bottom: 6px; }
+        .rr-taglabel { font-size: 8.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #6B6880; margin-bottom: 3px; }
         .rr-table { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; }
         .rr-table th { background: ${PURPLE}; color: #FFFFFF; text-align: left; padding: 8px 10px; font-weight: 600; font-size: 10.5px; }
         .rr-table td { padding: 8px 10px; border-bottom: 1px solid ${LINE}; vertical-align: top; color: ${INK}; overflow-wrap: anywhere; }
