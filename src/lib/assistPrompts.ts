@@ -1,3 +1,4 @@
+import { IMPACT_AREAS, ROOT_CAUSES, TIMELINES } from "@/lib/riskVocab";
 import {
   LIKELIHOODS,
   LIKELIHOOD_DEF,
@@ -56,6 +57,7 @@ export type Task =
   | "consolidate"      // group findings that describe one physical thing
   | "reassess"         // re-read a hazard after the walkthrough
   | "polish"           // rewrite an existing note/caption, technical and grammatical
+  | "triage"           // one finding in full context: wording, root cause, impact, timeline, check link
   | "evidenceAnalysis" // opinion on what a piece of evidence shows, rated
   | "evidenceSummary"; // plain-language summary of what attached files contain
 
@@ -71,6 +73,7 @@ export type Task =
  *  Nothing here is agreed by the model either way. Every one of these is a
  *  proposal an auditor accepts, edits or ignores. */
 export const JUDGEMENT: Task[] = [
+  "triage",
   "rating",
   "rootcause",
   "hazard",
@@ -132,6 +135,89 @@ House rules, in order of importance:
 7. Photographs are evidence, not proof of the auditor's conclusion. Describe only what is visible. Do not infer a maintenance history, a date, a rating or a cause from an image. Where the image is unclear, say so rather than guessing — "the plate is not legible in this photograph" is a useful answer.
 8. Where the material below names which airport this audit is at, every airport-specific claim in your answer must match it exactly — never substitute, generalise to, or invent a reference to a different ACSA airport, its policies or its procedures. If the source text you were given already names a different airport than the one given to you, that is exactly the kind of thing house rule 1 covers: do not silently pick a side, say so plainly instead.`;
 
+
+/** THE TRIAGE TASK'S VOCABULARY, BUILT FROM src/lib/riskVocab.ts, never typed
+ *  here — a category added to the app reaches the prompt with no edit. The
+ *  meanings are the working definitions an auditor uses in the Triage table. */
+const ROOT_CAUSE_MEANING: Record<string, string> = {
+  "Maintenance backlog": "planned or routine maintenance is overdue, deferred or not being done",
+  "Documentation gap": "a record, register, certificate, drawing or procedure is missing, unsigned, out of date or cannot be produced",
+  "Design / installation defect": "the item was designed, specified or installed wrongly, so it was never right from the start",
+  "Operational wear & tear": "ordinary use and age have degraded something that was once in order",
+  "Environmental / weather": "rain, wind, heat, flooding, corrosion from the setting, vegetation or animals caused it",
+  "Procurement delay": "a part, contractor or approval has been ordered or requested and has not arrived",
+  "Training / procedure gap": "people did not know, or were not told, what to do, or there is no procedure to follow",
+  Other: "none of the above fits, or the text does not allow a choice",
+};
+const IMPACT_MEANING: Record<string, string> = {
+  Operations: "aircraft, vehicle or passenger movement, availability of a facility or service",
+  "Process safety": "loss of containment, fire, explosion, failure of a safety system or barrier",
+  "Occupational safety": "harm to a person working at or using the asset: falls, electric shock, struck by, trips",
+  Licenses: "the airport licence, a permit, a registration or an appointment under the OHS Act",
+  Reputation: "how ACSA or the airport is seen by passengers, airlines, the public",
+  "Regulatory standing": "non-conformance with legislation, SACAA Part 139, SANS or ACSA's own standards",
+};
+const TIMELINE_MEANING: Record<string, string> = {
+  Immediate: "a hazard to people, aircraft or operations that should not be left until the next routine visit: act now",
+  "Before next audit": "a real deficiency that should be closed by the next audit but is not an immediate hazard",
+  "Long term": "needs planning or capital, or is a low-risk improvement",
+};
+const list = (vals: string[], meaning: Record<string, string>) => vals.map((v) => `  - ${v}: ${meaning[v] ?? ""}`.trimEnd()).join("\n");
+export const TRIAGE_VOCAB = [
+  "Root-cause categories (use these exact words):",
+  list(ROOT_CAUSES, ROOT_CAUSE_MEANING),
+  "",
+  "Impact areas (use these exact words):",
+  list(IMPACT_AREAS, IMPACT_MEANING),
+  "",
+  "Timelines (use these exact words):",
+  list(TIMELINES, TIMELINE_MEANING),
+].join("\n");
+
+const TRIAGE_PROMPT = `You are triaging ONE audit finding for a Thabile-Pridin JV auditor. Below is everything known about it: the airport, the discipline, the asset system, the audit check it came from (or a shortlist of checks it might belong to), what the auditor typed or dictated, the photograph captions, and what has already been set.
+
+WHAT A FINDING IS. A finding states what was OBSERVED at the asset that departs from what the audit check requires: the condition, where it is, and how much of it. It is not the requirement, not the cause, not the fix and not the rating. "Fire curtain not in a functional state" is a finding. "Assess surface condition of concrete" is a QUESTION, not a finding.
+
+Do five jobs and answer in the JSON shape at the end.
+
+1. WORDING ("finding").
+- Write one or two sentences, third person, past tense, in the language of the discipline and asset system (a civil defect reads like a civil engineer wrote it: "spalling", "delamination", "ponding", "exposed reinforcement"; an electrical one like an electrician wrote it).
+- Put the facts in this order where the text gives them: WHAT the item is, WHERE it is (airport area, asset), the CONDITION observed, the EXTENT (size, number, length), and what that stops it doing. Use only the facts given. The photograph captions and the audit check are context for choosing words, never a source of facts the auditor did not state, with one exception: a fact a photograph caption or the photographs themselves state may be used and must be marked "from the photograph" in "basis".
+- Where the auditor wrote or spoke in Afrikaans or mixed languages, write "text" in English and keep names, tags and numbers as given.
+- Remove speech artefacts and repetition ("uh", "you know", a sentence said twice). Fix spelling. Keep every number, unit, quantity and location exactly. Never round, convert or drop one.
+- Move recommendations ("needs to be repaired") out of the finding; they are not findings. Move causes ("because it was not maintained") out of the finding unless the auditor stated them as observed. Put a stated cause or recommendation in "extracted" so the auditor can use it.
+- Do not use praise or blame words (poor, bad, terrible, unacceptable, dangerous) unless the auditor used them about a measured thing. "Safety issue" stated by the auditor is a judgement: keep it as "the auditor noted a safety concern" only if it is the point of the note, else leave it to the tags.
+- Do not name the airport in "text" unless the auditor's own words do: the record is already for that airport. If the auditor's words name a DIFFERENT airport or ACSA site than the one given above, keep what they observed, leave that name out of "text", and say so in "needsAuditor" ("The note mentions <name>; this audit is at <airport>. Is that a comparison or a mistake?").
+- "needsAuditor" holds at most three short questions, the most important first, and only things that would change the finding or its triage. Every question is for the auditor standing at the asset: never mention the shortlist, check ids, id prefixes, the vocabulary, confidence or these instructions in it.
+- "text" holds the observation and nothing else. Never put remarks about the note itself inside it: no "the extent was not recorded", no "(from the photograph)", no "details to be confirmed". What is missing goes in "needsAuditor"; where a fact came from goes in "basis".
+- If the text merely restates the audit check's question or requirement ("Assess surface condition of concrete") or says nothing observed, DO NOT write a finding. Return the text unchanged, set "kind" to "restates-check", and ask the auditor in "needsAuditor" what was actually seen. For a "restates-check" note, leave "rootCauses" and "impactAreas" empty and "timeline" value empty: nothing was observed to triage. The one thing to do is the check link: if the text is the question or requirement of a shortlisted check, link that check with "high" confidence.
+- If the text is a fragment with no condition at all ("Missing canopy" has a condition but no place or extent), improve only what the facts allow, and list what is missing in "needsAuditor" as short questions the auditor can answer in the field: where exactly, how many, how large, what does it affect.
+- Never state or imply that the check was or was not met, and never claim compliance or non-compliance unless the auditor wrote it.
+- If the original is already a good finding, set "changed" to false and return it as it is. Making a good finding longer or more formal is a failure, not a service.
+
+2. ROOT CAUSE ("rootCauses"). Choose zero, one or two categories from the list that the TEXT supports. A root cause is something the responsible person knows; an auditor usually sees only a symptom. Offer a category only where the text itself points to it (an overdue service, a missing certificate, water damage from a leak). "Corrosion of fence" supports Environmental / weather at most, with low confidence. When the text does not support a cause, return an empty list and put the question that would settle it in "rootCauseQuestion" (for example "When was the roof drainage last cleared, and is it on a maintenance plan?"). Leaving it empty is a good answer.
+
+3. IMPACT ("impactAreas"). Choose zero to three areas from the list that follow from WHAT THE ITEM DOES and what its failure could affect, reasoned from the asset system and the condition, not from the severity of the words. A fire curtain next to the airfield: Process safety and Operations. Say in "reason" which function is affected.
+
+4. TIMELINE ("timeline"). Propose one value from the list, with a reason tied to the condition and the asset (fencing leaning into a walkway used by people: Immediate because it is a fall or strike hazard in use; ceiling panel missing in a back office: Long term). If the text does not let you judge urgency, propose "Before next audit" with "low" confidence and say what would change it. Never choose Immediate for appearance alone.
+
+5. AUDIT CHECK LINK ("checkLink"). Only when the finding is NOT linked to a check and a shortlist is supplied. Pick the one check whose requirement this observed condition would be a departure from, or null if none fits. Match on the physical subject and the discipline and asset system first, not on shared words. The "id" MUST be copied exactly from the shortlist; never invent or alter one. Prefer null with a reason to a weak match: a wrong link in an audit record is worse than none. Also null if a finding spans several checks; name the best two in "reason".
+
+HOUSE RULES THAT STILL APPLY: never invent a fact, figure, clause or document; name only the airport given; British spelling; you advise and the auditor decides. Give a short "reason" for every suggestion (one sentence, tied to the text), and "confidence" of "high", "medium" or "low". High confidence is only for a suggestion the text itself settles.
+
+PHOTOGRAPHS. If photographs are supplied, look at them as evidence of the condition, location and extent. Say what you saw that the text did not state in "photoNotes", never to override the auditor's words. If none are supplied, say nothing about them.
+
+${TRIAGE_VOCAB}
+
+Return JSON and nothing else:
+{"finding":{"text":"<the finding, or the original text unchanged>","changed":<true|false>,"kind":"<observed|restates-check|too-sparse>","basis":"<one sentence: what the wording rests on, or 'from the photograph' where used>","extracted":{"cause":"<a cause the auditor stated, or empty>","recommendation":"<a fix the auditor stated, or empty>"},"needsAuditor":["<short field question>"]},
+"rootCauses":[{"category":"<exact category>","reason":"<one sentence>","confidence":"<high|medium|low>"}],
+"rootCauseQuestion":"<question for the responsible person, or empty>",
+"impactAreas":[{"area":"<exact area>","reason":"<one sentence>","confidence":"<high|medium|low>"}],
+"timeline":{"value":"<exact timeline, or empty>","reason":"<one sentence>","confidence":"<high|medium|low>"},
+"checkLink":{"id":"<exact shortlist id, or null>","reason":"<one sentence>","confidence":"<high|medium|low>"},
+"photoNotes":"<what the photographs show beyond the text, or empty>"}`;
+
 /** Every task's own instruction, keyed by Task — see this file's own header
  *  for what to keep in mind when editing one. */
 export const TASK_PROMPT: Record<Task, string> = {
@@ -161,6 +247,7 @@ export const TASK_PROMPT: Record<Task, string> = {
     "Draft the narrative for this discipline's section of the audit report from the captured material below. Lead with the overall position, then what was found, then what remains open. Do not list every check. No headings, no bullet points, three paragraphs at most.",
   polish:
     "Rewrite the note below for the formal audit record. It was typed quickly on site and needs to read as a finished, technical entry in a compliance audit — not a redraft of what happened, a cleaner statement of the same thing.\n\nRules for this task specifically:\n- Carry across every fact, measurement, location, quantity and item named below, exactly as given. Changing or dropping one is the worst thing you can do here.\n- Fix grammar, spelling and sentence structure only. Do not add a finding, a cause, a severity or an opinion the original text does not contain.\n- Name the asset system given below explicitly in the rewrite, where it reads naturally — a reader of this one entry, outside of its original context, should be able to tell what it is about.\n- Where an Audit check requirement is given below, write in terms that actually answer it — technical, specific to what ACSA asked for — rather than a generic tidy-up that could apply to any check. Never state that the requirement was or was not met; that is the compliance marking's job, not this rewrite's.\n- Where the material below names a specific ACSA document, drawing, procedure or clause number, keep it verbatim. Do NOT invent, guess at or supply a clause, standard or document reference that is not already given to you — see house rule 1.\n- If the material plainly describes a defect, non-conformance or deficiency, the rewrite may use the word 'non-compliant' or 'non-conforming' once, factually, if it is not already implied by the register's own compliance marking — never invent the underlying fact to justify using it.\n- Proper prose, not a fragment padded out, and not a sprawl either: a full note or finding rewrites to one to four sentences, one short paragraph — see house rule 6 for the shorter observation/finding case. If the text given is already a short fragment (a caption rather than a full observation), keep the rewrite to one line of the same kind — do not expand a caption into paragraphs.\n- If the text is too sparse or unclear to rewrite without guessing, return it unchanged rather than inventing detail.\nReturn the rewritten text alone, with no preamble, heading or quotation marks.",
+  triage: TRIAGE_PROMPT,
   evidenceAnalysis:
     `Below is one piece of evidence requested from the airport during this audit — its title, any notes captured so far, and the audit check it bears on, if it bears on a specific one. Photographs of the document, where supplied, follow the same house rules as every other image this feature is shown. Give your opinion on what it shows and, where it supports one, a finding.\n\n${B170_SCALES}\n\nRules:\n- Work only from the request's own title/notes and whatever photographs are actually supplied. If nothing was supplied to read — no notes, no photograph — say so plainly in \`reason\` rather than inventing what the document shows.\n- \`findingText\` is one sentence stating what was found, in the same style as any other finding on this audit (factual, third person, past tense). Leave it empty if the material does not support a finding — evidence that simply confirms compliance is a good, ordinary outcome and does not need one invented.\n- Only set severity/likelihood where you set a \`findingText\` — an opinion, not a verdict; the audit team rates as a group and may well disagree.\n- \`reason\` is one sentence.\nReturn JSON and nothing else:\n{"findingText":"<one sentence, or empty>","severity":"<letter, or empty>","likelihood":"<number, or empty>","reason":"<one sentence>"}`,
   evidenceSummary:

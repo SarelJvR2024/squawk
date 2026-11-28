@@ -37,26 +37,16 @@ const check = (name, cond, detail = "") => {
 /* ---- 1 · reuses the existing "polish" task, never a new prompt -------- */
 
 check(
-  "the panel calls the existing \"polish\" task via polishContext, not a new prompt entry",
-  /import \{ assist, polishContext, useAssistAvailable \} from "@\/lib\/assist"/.test(panel) &&
-    /assist\(\s*\n\s*"polish",/.test(panel)
+  "the panel calls the \"triage\" task through the same context builder as the bulk review, not a separate prompt",
+  /import \{ buildTriageContext, parseTriage \} from "@\/lib\/triageSuggest"/.test(panel) && /assist\("triage", context\)/.test(panel)
 );
 check(
-  "polishContext is called with the finding's own discipline/system/title, kind \"note\"",
-  /polishContext\(\s*\n\s*finding\.description,\s*\n\s*finding\.discipline,\s*\n\s*finding\.system,\s*\n\s*"note",\s*\n\s*finding\.title \|\| undefined,/.test(
-    panel
-  )
+  "the context carries the airport name, the finding, its linked check (or a shortlist), the desk note, photo captions and voice transcripts",
+  /airport: entityOf\(entityCode\)\.name,/.test(panel) && /check: linkedCheck,/.test(panel) && /allChecks: linkedCheck \? undefined : checksAt\(entityCode\)/.test(panel) && /deskNote: linkedResponse\?\.observation/.test(panel) && /photoCaptions:/.test(panel) && /transcripts:/.test(panel)
 );
-/* 16 Nov 2026 — Sarel: "have a look at the discipline, asset system, and
-   the audit check that is linked to the finding... to reword and
-   describe the audit finding in that context... make sure all facts are
-   double checked for the correct airport." Two more arguments joined the
-   same call: the linked check's own requirement text (so the rewrite
-   speaks to what ACSA actually asked for), and the entity's full airport
-   name (feeds SYSTEM's new house rule 8). */
 check(
-  "the same call now also carries the linked check's requirement text and the entity's full airport name",
-  /linkedCheck\?\.requirement,\s*\n\s*entityOf\(entityCode\)\.name/.test(panel)
+  "a restated check or unchanged wording is explained to the auditor, never silently replaced",
+  /t\.finding\.kind === "restates-check" \|\| !t\.finding\.changed/.test(panel) && /The wording stays as written/.test(panel)
 );
 check(
   "polishContext itself takes both new parameters, both optional, both documented",

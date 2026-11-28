@@ -801,5 +801,9 @@ check(
   /largePhotos/.test(panel) && /minWidth: 340/.test(read("src", "components", "Capture.tsx")) && /Inspect full-size/.test(read("src", "components", "Capture.tsx")) && /useRecordImage\(a, entityCode, visitId\)/.test(read("src", "components", "Capture.tsx"))
 );
 
+check(
+  "an Audit check column sits beside Finding: reference without the airport prefix, the check's question (else requirement), and 'Not linked to an audit check' when there is none",
+  /Audit check<\/th>/.test(table) && /checkRefOf\(chkDef\.id\)/.test(table) && /chkDef\.question \|\| chkDef\.requirement/.test(table) && /Not linked to an audit check/.test(table) && !/\{f\.checkId\}/.test(table)
+);
 console.log(failures === 0 ? "\nREVIEW TABLE V2 OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

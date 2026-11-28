@@ -30,6 +30,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (...p) => fs.readFileSync(path.join(here, "..", ...p), "utf8");
 
 const table = read("src", "components", "ReviewRiskTable.tsx");
+const tri = read("src", "components", "TriageSuggestions.tsx");
 const panel = read("src", "components", "ReviewRiskPanel.tsx");
 const assistLib = read("src", "lib", "assist.ts");
 const storeSrc = read("src", "lib", "store.ts");
@@ -61,7 +62,7 @@ check(
 );
 check(
   "BulkBar renders both AI tools beside its own impact/root-cause bulk edit, not on a separate screen",
-  /<BulkSuggestWording findings=\{findings\} entityCode=\{entityCode\} checksById=\{checksById\} onChangeOne=\{onChangeOne\} \/>/.test(
+  /<BulkTriageSuggest findings=\{findings\} entityCode=\{entityCode\} visitId=\{visitId\} checksById=\{checksById\} allChecks=\{allChecks\} responses=\{responses\} onChangeOne=\{onChangeOne\} \/>/.test(
     table
   ) && /<BulkTranscribeVoiceNotes findings=\{findings\} onChangeOne=\{onChangeOne\} \/>/.test(table)
 );
@@ -75,40 +76,36 @@ check(
 
 check(
   "BulkSuggestWording is gated on useAssistAvailable, same as every other AI entry point",
-  /function BulkSuggestWording\(/.test(table) && /const aiOn = useAssistAvailable\(\);/.test(table)
+  /export default function BulkTriageSuggest\(/.test(tri) && /const aiOn = useAssistAvailable\(\);/.test(tri)
 );
 check(
-  "it calls the SAME \"polish\" task through polishContext, with the SAME widened context (title, linked check requirement, airport) ReviewRiskPanel's single-finding button now sends",
-  /assist\(\s*\n\s*"polish",\s*\n\s*polishContext\(\s*\n\s*f\.description,\s*\n\s*f\.discipline,\s*\n\s*f\.system,\s*\n\s*"note",\s*\n\s*f\.title \|\| undefined,\s*\n\s*f\.checkId \? checksById\.get\(f\.checkId\)\?\.requirement : undefined,\s*\n\s*entityOf\(entityCode\)\.name/.test(
-    table
-  )
+  "it calls the \"triage\" task (wording, root cause, impact, timeline, check link in one reviewed proposal), the same engine the single-finding panel uses",
+  /assist\("triage",/.test(tri) && /buildTriageContext\(/.test(tri) && /parseTriage\(/.test(tri)
 );
 check(
   "nothing is written for any finding until its own Accept — proposals live in local state, same ephemeral convention as the single-finding panel",
-  /const \[proposals, setProposals\] = useState<Record<string, AiProposal>>\(\{\}\);/.test(table) &&
-    !/setProposals\([\s\S]{0,60}onChangeOne\(/.test(table)
+  /const \[proposals, setProposals\] = useState<Record<string, Proposal>>\(\{\}\);/.test(tri) &&
+    !/setProposals\([\s\S]{0,60}onChangeOne\(/.test(tri)
 );
 check(
   "Accept (applyOne) writes exactly the proposed text, through onChangeOne — the real per-row apply",
-  /onChangeOne\(f\.id, \{ description: text \}\);/.test(table) && /const text = \(edits\[f\.id\] \?\? prop\?\.text \?\? ""\)\.trim\(\);/.test(table)
+  /onChangeOne\(f\.id, patch\)/.test(tri) && /patchFor\(/.test(tri)
 );
 check(
-  "Reject only clears that finding's own proposal — never calls onChangeOne",
-  /function rejectOne\(id: string\) \{\s*\n\s*setProposals\(\(p\) => \{\s*\n\s*const next = \{ \.\.\.p \};\s*\n\s*delete next\[id\];/.test(table)
+  "Reject only clears that finding's own proposal, never writes it",
+  (() => { const k = tri.indexOf("function reject"); const e = tri.indexOf("\n  }\n", k); return k > -1 && !/onChangeOne/.test(tri.slice(k, e)); })()
 );
 check(
   "requests run sequentially, not in parallel — same rate-limit reasoning /cleanup's own PolishSection documents",
-  /for \(const f of eligible\) \{\s*\n\s*if \(proposals\[f\.id\]\?\.state === "proposed" \|\| proposals\[f\.id\]\?\.state === "applied"\) continue;/.test(
-    table
-  )
+  /for \(const f of eligible\) \{/.test(tri) && /await assist\("triage"/.test(tri)
 );
 check(
   "only findings with something to improve are offered — an empty description is skipped, same guard the single-finding button uses",
-  /const eligible = findings\.filter\(\(f\) => f\.description\.trim\(\)\);/.test(table)
+  /const eligible = findings\.filter\(\(f\) => \(f\.description \|\| f\.title\)\.trim\(\)\);/.test(tri)
 );
 check(
   "an \"Apply N accepted\" bulk action exists, same shape /cleanup's own PolishSection already proved, beside the per-row Accept",
-  /proposedList\.forEach\(applyOne\)/.test(table) && /Accept all \{proposedList\.length\}/.test(table)
+  /proposedList\.forEach\(applyAll\)/.test(tri) && /Accept all \{proposedList\.length\}/.test(tri)
 );
 
 /* ---- 3 · BulkTranscribeVoiceNotes — verbatim only, auto-applied -------- */
@@ -163,7 +160,7 @@ check(
   (() => {
     const guards = table.match(/if \(runningRef\.current\) return;\s*\n\s*runningRef\.current = true;/g);
     const resets = table.match(/setRunning\(false\);\s*\n\s*runningRef\.current = false;/g);
-    return Array.isArray(guards) && guards.length === 2 && Array.isArray(resets) && resets.length === 2;
+    return Array.isArray(guards) && guards.length === 1 && Array.isArray(resets) && resets.length === 1 && /if \(runningRef\.current\) return;\s*\n\s*runningRef\.current = true;/.test(tri) && /runningRef\.current = false;/.test(tri);
   })()
 );
 check(
