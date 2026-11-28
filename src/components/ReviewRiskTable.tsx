@@ -57,7 +57,6 @@ import {
   LEGACY_ROOT_CAUSES,
   ROOT_CAUSES,
   TIMELINES,
-  applyBulkMulti,
   findingTypeFor,
   priorityFor,
 } from "@/lib/reviewRisk";
@@ -65,7 +64,7 @@ import { ALL_DISCIPLINES, checksAt, systemsAt, systemsOf } from "@/lib/register"
 import { useFieldSaveStatus, useStore, useVisitId } from "@/lib/store";
 import { getBlob, useBlobUrl } from "@/lib/media";
 import { transcribe, useTranscribeAvailable } from "@/lib/assist";
-import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
+import { Pill, SaveStatusPill } from "@/components/ui/primitives";
 import { IconCamera, IconClipboard, IconEye, IconMic, IconSpark, IconTeam, IconTrash } from "@/components/ui/icons";
 import { checkRefOf } from "@/lib/reportText";
 import BulkTriageSuggest from "@/components/TriageSuggestions";
@@ -452,9 +451,6 @@ export default function ReviewRiskTable({
           allChecks={allChecks}
           visitId={visitId}
           responses={responses}
-          onApply={(patchFor) => {
-            for (const f of selectedFindings) onChange(f.id, patchFor(f));
-          }}
           onChangeOne={onChange}
           onClear={() => setSelected(new Set())}
           onDelete={
@@ -894,7 +890,6 @@ function BulkBar({
   allChecks,
   visitId,
   responses,
-  onApply,
   onChangeOne,
   onClear,
   onDelete,
@@ -911,25 +906,15 @@ function BulkBar({
   allChecks: Check[];
   visitId: string;
   responses: Record<string, Response>;
-  onApply: (patchFor: (f: Finding) => Partial<Finding>) => void;
   /** A single row's own apply, same function the table's per-row edits
    *  already use — for an individual AI proposal's own Accept (one
-   *  finding, not every selected one), rather than looping `onApply`
-   *  across every selected row with an empty patch on all but one. */
+   *  finding, not every selected one), for one finding only. */
   onChangeOne: (id: string, patch: Partial<Finding>) => void;
   onClear: () => void;
   /** Present only when the screen allows deleting. */
   onDelete?: () => void;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [impactAdd, setImpactAdd] = useState<string[]>([]);
-  const [impactRemove, setImpactRemove] = useState<string[]>([]);
-  const [causeAdd, setCauseAdd] = useState<string[]>([]);
-  const [causeRemove, setCauseRemove] = useState<string[]>([]);
-
-  const toggleIn = (list: string[], v: string, set: (l: string[]) => void) =>
-    set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
-
   return (
     <div
       id="triage-bulk-bar"
@@ -973,87 +958,6 @@ function BulkBar({
           </button>
         </div>
       </div>
-
-      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-        <div>
-          <div className="mb-1 text-[10px]" style={{ color: "var(--ink-3)" }}>
-            Impact areas — tap to add, tap again to remove on apply
-          </div>
-          <div className="flex flex-wrap gap-[4px]">
-            {IMPACT_AREAS.map((a) => (
-              <Chip
-                key={a}
-                selected={impactAdd.includes(a) || impactRemove.includes(a)}
-                title={impactRemove.includes(a) ? "Will be removed" : impactAdd.includes(a) ? "Will be added" : undefined}
-                onClick={() => {
-                  if (impactAdd.includes(a)) {
-                    toggleIn(impactAdd, a, setImpactAdd);
-                    toggleIn(impactRemove, a, setImpactRemove);
-                  } else if (impactRemove.includes(a)) {
-                    toggleIn(impactRemove, a, setImpactRemove);
-                  } else {
-                    toggleIn(impactAdd, a, setImpactAdd);
-                  }
-                }}
-              >
-                {impactRemove.includes(a) ? `− ${a}` : impactAdd.includes(a) ? `+ ${a}` : a}
-              </Chip>
-            ))}
-          </div>
-        </div>
-        <div>
-          <div className="mb-1 text-[10px]" style={{ color: "var(--ink-3)" }}>
-            Root cause categories — tap to add, tap again to remove on apply
-          </div>
-          <div className="flex flex-wrap gap-[4px]">
-            {ROOT_CAUSES.map((c) => (
-              <Chip
-                key={c}
-                selected={causeAdd.includes(c) || causeRemove.includes(c)}
-                title={causeRemove.includes(c) ? "Will be removed" : causeAdd.includes(c) ? "Will be added" : undefined}
-                onClick={() => {
-                  if (causeAdd.includes(c)) {
-                    toggleIn(causeAdd, c, setCauseAdd);
-                    toggleIn(causeRemove, c, setCauseRemove);
-                  } else if (causeRemove.includes(c)) {
-                    toggleIn(causeRemove, c, setCauseRemove);
-                  } else {
-                    toggleIn(causeAdd, c, setCauseAdd);
-                  }
-                }}
-              >
-                {causeRemove.includes(c) ? `− ${c}` : causeAdd.includes(c) ? `+ ${c}` : c}
-              </Chip>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {(impactAdd.length > 0 || impactRemove.length > 0 || causeAdd.length > 0 || causeRemove.length > 0) && (
-        <div className="mt-2">
-          <button
-            type="button"
-            onClick={() => {
-              onApply((f) => ({
-                ...(impactAdd.length || impactRemove.length
-                  ? { impactAreas: applyBulkMulti(f.impactAreas, impactAdd, impactRemove) }
-                  : {}),
-                ...(causeAdd.length || causeRemove.length
-                  ? { rootCauseCategories: applyBulkMulti(f.rootCauseCategories, causeAdd, causeRemove) }
-                  : {}),
-              }));
-              setImpactAdd([]);
-              setImpactRemove([]);
-              setCauseAdd([]);
-              setCauseRemove([]);
-            }}
-            className="rounded-[8px] px-3 py-[7px] text-[11px] font-semibold"
-            style={{ background: "var(--acc)", color: "#fff" }}
-          >
-            Apply to {count} selected
-          </button>
-        </div>
-      )}
 
       <div className="mt-2.5 grid gap-2 border-t pt-2.5 sm:grid-cols-2" style={{ borderColor: "var(--acc-line)" }}>
         <BulkTriageSuggest findings={findings} entityCode={entityCode} visitId={visitId} checksById={checksById} allChecks={allChecks} responses={responses} onChangeOne={onChangeOne} />
