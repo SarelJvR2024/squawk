@@ -85,6 +85,11 @@ export async function downloadReportPdf(root: HTMLElement, filename: string, met
     if (!el.closest("table")) add(rel(el, "bottom"), null);
   });
   cands.sort((a, b) => a.y - b.y);
+  /* Sections that must open a fresh page (the photographic annexure). */
+  const forced = Array.from(root.querySelectorAll<HTMLElement>(".rr-annexure"))
+    .map((el) => rel(el, "top"))
+    .filter((y) => y > 0)
+    .sort((a, b) => a - b);
 
   const SCALE = 2;
   const canvas = await html2canvas(root, {
@@ -121,7 +126,9 @@ export async function downloadReportPdf(root: HTMLElement, filename: string, met
     const headPx = head ? head[1] - head[0] : 0;
     const room = usablePx - headPx;
     let end = Math.min(start + room, heightPx);
-    if (end < heightPx) {
+    const force = forced.find((y) => y > start + 1 && y <= end);
+    if (force !== undefined) end = force;
+    else if (end < heightPx) {
       const fit = cands.filter((c) => c.y > start + room * 0.3 && c.y <= end);
       if (fit.length) end = fit[fit.length - 1].y;
     }

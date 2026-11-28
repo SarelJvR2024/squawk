@@ -266,21 +266,42 @@ check(
   /rr-amber/.test(report) && /\.rr-table\.rr-amber th/.test(report)
 );
 check(
-  "the full findings list shows actual photographs as numbered figures — thumbDataUrl, never a live blob/object-URL hook, so the report never waits on async IndexedDB reads",
+  "the findings table's Photo cell is ONE 120x80 thumbnail (thumbDataUrl, no async hook) with a 'Photo N' caption and a 4px rounded border; no photo shows a dash, never the word None",
   (() => {
-    const start = report.indexOf("function ReportFigure");
+    const start = report.indexOf("function PhotoCell");
     const fn = start === -1 ? "" : report.slice(start, report.indexOf("\n}\n", start) + 2);
-    return fn.length > 0 && /attachment\.thumbDataUrl \|\| attachment\.dataUrl/.test(fn) && !/useBlobUrl/.test(fn);
+    return fn.length > 0 && /first\.thumbDataUrl \|\| first\.dataUrl/.test(fn) && /width: 120, height: 80, objectFit: "cover", borderRadius: 4/.test(fn) &&
+      /Photo \{n\}/.test(fn) && /\\u2014/.test(fn) && !/>None</.test(fn) && !/useBlobUrl|useRecordImage/.test(fn);
   })()
+);
+check(
+  "the thumbnail is a link that opens the high-resolution image in a new tab (window opened synchronously, then pointed at the full-size blob)",
+  /async function openHiRes/.test(report) && /window\.open\("", "_blank"\)/.test(report) && /fullPhotoBlob\(a, entityCode, visitId\)/.test(report) && /target="_blank"/.test(report)
+);
+check(
+  "no photo block sits inside a table row any more: no rr-figs row, no data-keepnext, no in-table ReportFigure",
+  !/rr-figs/.test(report) && !/data-keepnext/.test(report) && !/ReportFigure/.test(report)
+);
+check(
+  "the Photo column is a fixed 130px",
+  /photo: 130/.test(report) && /<th style=\{\{ width: w\.photo \}\}>Photo<\/th>/.test(report)
+);
+check(
+  "voice-note metadata is never printed in the report",
+  !/voice note/.test(report.replace(/\/\*[\s\S]*?\*\//g, ""))
 );
 check(
   "a new Action & improvement plan category exists as its own section, separate from the findings list above it",
   /Action &amp;? ?improvement plan/.test(report) && /withActionPlan/.test(report)
 );
 check(
-  "that category only lists findings that actually carry a plan, and says so plainly when none do yet — never an empty table with no explanation",
+  "that category only lists findings that actually carry a plan, and collapses to a one-line muted notice (no heading, no paragraph) when none do",
   /sorted\.filter\(\(f\) => f\.actionPlan\?\.trim\(\)\)/.test(report) &&
-    /No action or improvement plans captured/.test(report)
+    /<strong>Action &amp; improvement plan:<\/strong> none captured/.test(report) && !/No action or improvement plans captured/.test(report)
+);
+check(
+  "Previous open findings collapses the same way when there are none",
+  /<strong>Previous open findings:<\/strong> none from earlier audits/.test(report) && !/No findings from earlier audits were open/.test(report)
 );
 check(
   "the report takes evidenceItems as its own prop, scoped by the caller — not a second useEvidenceItems() call hidden inside the printable component",
@@ -300,13 +321,29 @@ check(
   /size: A4 portrait;/.test(report) && !/size: A4 landscape;/.test(report)
 );
 check(
-  "figures are 240x160 with a 180x120 floor, rounded and bordered, captioned 'Figure N: system — description', laid out two-up",
+  "the optional photographic annexure is a 2-up grid of full-size images at the very end, captioned 'Figure N: system — summary', and starts a new page",
   (() => {
-    const start = report.indexOf("function ReportFigure");
+    const start = report.indexOf("function AnnexureFigure");
     const fn = start === -1 ? "" : report.slice(start, report.indexOf("\n}\n", start) + 2);
-    return fn.length > 0 && /width: 240, height: 160, minWidth: 180, minHeight: 120/.test(fn) && /borderRadius: 6/.test(fn) &&
-      /Figure \{n\}: \{system \|\| "General"\} &mdash; \{caption\}/.test(fn);
+    return fn.length > 0 && /useRecordImage\(attachment, entityCode, visitId\)/.test(fn) && /Figure \{n\}: \{system \|\| "General"\} &mdash; \{caption\}/.test(fn) &&
+      /gridTemplateColumns: "1fr 1fr"/.test(report) && /photoAnnexure && annexureItems\.length > 0/.test(report) && /\.rr-annexure \{ break-before: page/.test(report);
   })()
+);
+check(
+  "the annexure is opt-in: default false, switched by an 'Include Photographic Annexure' checkbox on the report toolbar, and the PDF engine forces a page break before it",
+  /photoAnnexure = false/.test(report) && /Include Photographic Annexure/.test(reportPage) && /photoAnnexure=\{annexure\}/.test(reportPage) && /\.rr-annexure/.test(src("lib", "reportPdf.ts"))
+);
+check(
+  "page 1: when no finding has a root cause or impact the two zero tables are replaced by a muted 'Pending post-audit triage (0 of N evaluated)' pill",
+  /categorised === 0/.test(report) && /Root Cause &amp; Impact Analysis:<\/strong> Pending post-audit triage \(0 of \{findings\.length\} evaluated\)/.test(report)
+);
+check(
+  "Quick wins without any action plan splits the width 35% Asset system / 65% Finding",
+  /"18%" : "35%"/.test(report) && /"67%" : "65%"/.test(report)
+);
+check(
+  "ids and check codes are scrubbed from finding text, evidence titles and previous-finding text before printing",
+  /scrubCodes\(parts/.test(report) && /scrubCodes\(e\.title/.test(report) && /scrubCodes\(r\.finding\)/.test(report) && !/e\.title \|\| e\.id/.test(report)
 );
 check(
   "the KPI row is exactly four cards, the 'How to read the counts and tags' explainer is gone, and an empty category is a 'None recorded' chip, not an empty table",
@@ -346,8 +383,8 @@ check(
   !/\{f\.checkId\}/.test(report) && !/[^=]\{f\.id\}/.test(report) && !/Asset system &amp; ref/.test(report)
 );
 check(
-  "every report table drops its Action plan column when no row has a plan and caps it at 15% when some do (findings tables 42% Finding / 20% Root cause & impact without one)",
-  /finding: "42%", cause: "20%"/.test(report) && /plan: "15%"/.test(report) && /\{hasPlan && <th style=\{\{ width: "15%" \}\}>Action plan<\/th>\}/.test(report) &&
+  "every report table drops its Action plan column when no row has a plan and caps it at 15% when some do (findings tables 38% Finding / 17% Root cause & impact without one, beside the fixed 130px Photo column)",
+  /finding: "38%", cause: "17%"/.test(report) && /plan: "13%"/.test(report) && /\{hasPlan && <th style=\{\{ width: w\.plan \}\}>Action plan<\/th>\}/.test(report) &&
     /quickWins\.some\(\(f\) => f\.actionPlan\?\.trim\(\)\)/.test(report)
 );
 console.log(failures === 0 ? "\nREVIEW REPORT OK" : `\n${failures} FAILURES`);
