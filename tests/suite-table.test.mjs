@@ -43,6 +43,7 @@ const check = (name, cond, detail = "") => {
    here instead of being silently counted as zero. */
 const NEEDS_ALIAS = new Set([
   "reporttext.test.mjs",
+  "triage.test.mjs",
   "sharepoint.test.mjs",
   "merge.test.mjs",
   "figures.test.mjs",
@@ -205,6 +206,7 @@ const WORDS = {
   "hundred-and-twenty-one": 121,
   "hundred-and-twenty-two": 122,
   "hundred-and-twenty-three": 123,
+  "hundred-and-twenty-four": 124,
   "hundred-and-ten": 110,
   "thirty-seven": 37,
   "twenty-four": 24, "twenty-five": 25, "twenty-six": 26,
