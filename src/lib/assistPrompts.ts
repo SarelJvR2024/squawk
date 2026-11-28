@@ -57,7 +57,7 @@ export type Task =
   | "consolidate"      // group findings that describe one physical thing
   | "reassess"         // re-read a hazard after the walkthrough
   | "polish"           // rewrite an existing note/caption, technical and grammatical
-  | "triage"           // one finding in full context: wording, root cause, impact, timeline, check link
+  | "triage"           // one finding in full context: wording, root cause, impact, timeline, type, check link
   | "evidenceAnalysis" // opinion on what a piece of evidence shows, rated
   | "evidenceSummary"; // plain-language summary of what attached files contain
 
@@ -178,7 +178,7 @@ const TRIAGE_PROMPT = `You are triaging ONE audit finding for a Thabile-Pridin J
 
 WHAT A FINDING IS. A finding states what was OBSERVED at the asset that departs from what the audit check requires: the condition, where it is, and how much of it. It is not the requirement, not the cause, not the fix and not the rating. "Fire curtain not in a functional state" is a finding. "Assess surface condition of concrete" is a QUESTION, not a finding.
 
-Do five jobs and answer in the JSON shape at the end.
+Do six jobs and answer in the JSON shape at the end.
 
 1. WORDING ("finding").
 - Write one or two sentences, third person, past tense, in the language of the discipline and asset system (a civil defect reads like a civil engineer wrote it: "spalling", "delamination", "ponding", "exposed reinforcement"; an electrical one like an electrician wrote it).
@@ -201,7 +201,9 @@ Do five jobs and answer in the JSON shape at the end.
 
 4. TIMELINE ("timeline"). Propose one value from the list, with a reason tied to the condition and the asset (fencing leaning into a walkway used by people: Immediate because it is a fall or strike hazard in use; ceiling panel missing in a back office: Long term). If the text does not let you judge urgency, propose "Before next audit" with "low" confidence and say what would change it. Never choose Immediate for appearance alone.
 
-5. AUDIT CHECK LINK ("checkLink"). Only when the finding is NOT linked to a check and a shortlist is supplied. Pick the one check whose requirement this observed condition would be a departure from, or null if none fits. Match on the physical subject and the discipline and asset system first, not on shared words. The "id" MUST be copied exactly from the shortlist; never invent or alter one. Prefer null with a reason to a weak match: a wrong link in an audit record is worse than none. Also null if a finding spans several checks; name the best two in "reason".
+5. FINDING TYPE ("findingType"). Decide whether this is a "non-compliance" or an "observation". A non-compliance is a departure from a stated requirement: the audit check, an ACSA standard or procedure, or a statutory duty, with the condition failing it (a cracked fire door that cannot close; an expired certificate; a missing sign the check requires). An observation is a noted condition that does not depart from a requirement: housekeeping, a good-practice or improvement point, an early sign of wear still within tolerance, a risk no listed requirement covers, or something the auditor could not confirm. Weigh the linked check or shortlist: if the condition fails what the check asks for, it is a non-compliance; if it only comments, it is an observation. Give the reason in one sentence tied to the requirement. Prefer "observation" with "low" confidence to a non-compliance the text does not support. Leave it null for a "restates-check" note.
+
+6. AUDIT CHECK LINK ("checkLink"). Only when the finding is NOT linked to a check and a shortlist is supplied. Pick the one check whose requirement this observed condition would be a departure from, or null if none fits. Match on the physical subject and the discipline and asset system first, not on shared words. The "id" MUST be copied exactly from the shortlist; never invent or alter one. Prefer null with a reason to a weak match: a wrong link in an audit record is worse than none. Also null if a finding spans several checks; name the best two in "reason".
 
 HOUSE RULES THAT STILL APPLY: never invent a fact, figure, clause or document; name only the airport given; British spelling; you advise and the auditor decides. Give a short "reason" for every suggestion (one sentence, tied to the text), and "confidence" of "high", "medium" or "low". High confidence is only for a suggestion the text itself settles.
 
@@ -215,6 +217,7 @@ Return JSON and nothing else:
 "rootCauseQuestion":"<question for the responsible person, or empty>",
 "impactAreas":[{"area":"<exact area>","reason":"<one sentence>","confidence":"<high|medium|low>"}],
 "timeline":{"value":"<exact timeline, or empty>","reason":"<one sentence>","confidence":"<high|medium|low>"},
+"findingType":{"value":"<non-compliance|observation, or empty>","reason":"<one sentence>","confidence":"<high|medium|low>"},
 "checkLink":{"id":"<exact shortlist id, or null>","reason":"<one sentence>","confidence":"<high|medium|low>"},
 "photoNotes":"<what the photographs show beyond the text, or empty>"}`;
 

@@ -41,6 +41,8 @@ export interface TriageSuggestion {
   rootCauseQuestion: string;
   impactAreas: { area: string; reason: string; confidence: Confidence }[];
   timeline: { value: string; reason: string; confidence: Confidence } | null;
+  /** Whether this is a departure from a requirement (non-compliance) or a noted condition (observation). */
+  findingType: { value: "non-compliance" | "observation"; reason: string; confidence: Confidence } | null;
   checkLink: { id: string; reason: string; confidence: Confidence } | null;
   photoNotes: string;
 }
@@ -203,6 +205,11 @@ export function parseTriage(raw: string, shortlist: Check[], original: string): 
     .map((x) => ({ area: str(x.area), reason: str(x.reason), confidence: conf(x.confidence) }));
   const tl = (j.timeline ?? null) as Record<string, unknown> | null;
   const timeline = tl && TIMELINES.includes(str(tl.value)) ? { value: str(tl.value), reason: str(tl.reason), confidence: conf(tl.confidence) } : null;
+  const ft = (j.findingType ?? null) as Record<string, unknown> | null;
+  const findingType =
+    kind !== "restates-check" && ft && (str(ft.value) === "non-compliance" || str(ft.value) === "observation")
+      ? { value: str(ft.value) as "non-compliance" | "observation", reason: str(ft.reason), confidence: conf(ft.confidence) }
+      : null;
   const cl = (j.checkLink ?? null) as Record<string, unknown> | null;
   const linkId = cl ? str(cl.id) : "";
   const checkLink = linkId && shortlist.some((c) => c.id === linkId) ? { id: linkId, reason: str(cl?.reason), confidence: conf(cl?.confidence) } : null;
@@ -221,6 +228,7 @@ export function parseTriage(raw: string, shortlist: Check[], original: string): 
     rootCauseQuestion: str(j.rootCauseQuestion),
     impactAreas,
     timeline,
+    findingType,
     checkLink,
     photoNotes: str(j.photoNotes),
   };
@@ -242,6 +250,8 @@ export function patchFor(s: TriageSuggestion, f: Finding, opts: { onlyConfident:
   const im = s.impactAreas.filter((x) => ok(x.confidence)).map((x) => x.area);
   if (im.length) patch.impactAreas = Array.from(new Set([...(f.impactAreas ?? []), ...im]));
   if (s.timeline && ok(s.timeline.confidence) && !f.timeline) patch.timeline = s.timeline.value;
+  /* A type the auditor chose themselves is never overwritten by Accept all; the per-field Apply can. */
+  if (s.findingType && ok(s.findingType.confidence) && f.findingType === undefined && s.findingType.value !== "non-compliance") patch.findingType = s.findingType.value;
   if (s.checkLink && ok(s.checkLink.confidence) && !f.checkId) patch.checkId = s.checkLink.id;
   return patch;
 }

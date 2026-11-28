@@ -92,7 +92,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `review-table-v2.test.mjs` | no | 112 |
 | `reviewreport.test.mjs` | no | 62 |
 | `reporttext.test.mjs` | no | 26 |
-| `triage.test.mjs` | no | 29 |
+| `triage.test.mjs` | no | 34 |
 | `reviewlayout.test.mjs` | no | 8 |
 | `reviewsavestate.test.mjs` | no | 14 |
 | `reviewpanelcontent.test.mjs` | no | 14 |
@@ -175,7 +175,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `shared.js` | starts its own | 64 |
 | `a11y.js` | yes | 71 |
 
-**4,636 assertions in total**, every count above verified by running the suite,
+**4,642 assertions in total**, every count above verified by running the suite,
 not by remembering what it used to be. Two in this table were wrong the first
 time that was done; **eight more had gone stale by 2026-09-10, one suite was
 missing from the table entirely, and the total was understated by 223** —
