@@ -35,7 +35,7 @@ const F = (o = {}) => ({
 /* ---- shortlist ---- */
 const sl = shortlistChecks(F({ description: "Water ponding on roof" }), CHECKS);
 check("the shortlist is limited to the finding's discipline and ranks the roof-drainage check first", sl.every((c) => c.discipline === "Civil") && sl[0].id === "KSIA-CIV-019");
-check("a finding in a system with few checks still gets the discipline's checks to choose from", shortlistChecks(F({ system: "Drainage", description: "blocked channel" }), CHECKS).length >= 3);
+check("the shortlist searches the whole discipline, so a roof finding filed under a records-only system still reaches the roof check", shortlistChecks(F({ system: "Records", description: "Water ponding on roof" }), [...CHECKS, mkCheck("KSIA-CIV-030", "Civil", "Records", "Job cards", null)])[0].id === "KSIA-CIV-019");
 check("the shortlist is capped", shortlistChecks(F(), Array.from({ length: 40 }, (_, i) => mkCheck(`KSIA-CIV-${100 + i}`, "Civil", "Roofing", "x")), 12).length === 12);
 
 /* ---- context ---- */
@@ -78,6 +78,9 @@ check("existing root causes are kept when one is added", patchFor(t, F({ descrip
 check("the triage prompt is built from the app's own vocabularies, not typed twice", /ROOT_CAUSES/.test(prompts) && /IMPACT_AREAS/.test(prompts) && /TIMELINES/.test(prompts) && /triage: TRIAGE_PROMPT/.test(prompts));
 check("the prompt tells the model what a finding is, to leave a check-question alone, to prefer null to a weak check match, and not to invent facts", /restates-check/.test(prompts) && /Prefer null with a reason to a weak match/.test(prompts) && /Never invent a fact|never invent a fact/.test(prompts) && /Making a good finding longer or more formal is a failure/.test(prompts));
 check("the triage task thinks at 'medium' effort like the other judgement tasks", /export const JUDGEMENT: Task\[\] = \[\s*"triage"/.test(prompts));
+
+check("the prompt keeps meta-commentary out of the finding text, and links a restated check while leaving root cause, impact and timeline empty", /remarks about the note itself/.test(prompts) && /link that check with "high" confidence/.test(prompts) && /leave "rootCauses" and "impactAreas" empty/.test(prompts));
+check("a too-sparse finding still gets its improved wording applied; only a restated check keeps its text", patchFor({ ...t, finding: { ...t.finding, kind: "too-sparse" } }, f, { onlyConfident: true }).description === "Water was ponding on the roof.");
 
 /* ---- wiring ---- */
 check("the bulk bar uses the triage engine with the airport's check list, and the old wording-only component is gone", /<BulkTriageSuggest/.test(table) && /allChecks=\{allChecks\}/.test(table) && !/function BulkSuggestWording/.test(table));

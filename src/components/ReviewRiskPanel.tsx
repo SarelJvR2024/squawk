@@ -357,7 +357,7 @@ export default function ReviewRiskPanel({
         transcripts: finding.attachments.filter((a) => a.kind === "voice" && a.transcript?.trim()).map((a) => a.transcript!.trim()),
       });
       const t = parseTriage(await assist("triage", context), shortlist, original);
-      if (t.finding.kind !== "observed" || !t.finding.changed) {
+      if (t.finding.kind === "restates-check" || !t.finding.changed) {
         setAiError(
           t.finding.needsAuditor.length
             ? `The wording stays as written. To improve it the auditor needs to say: ${t.finding.needsAuditor.join(" · ")}`

@@ -63,16 +63,19 @@ export function shortlistChecks(
   checks: Check[],
   max = 12
 ): Check[] {
+  /* The WHOLE discipline is searched, with a small bonus for the same asset
+     system. The system alone is not trusted: "Building Maintenance" holds
+     three records checks, and the roof-drainage check a "water ponding on
+     roof" finding belongs to sits under "Roofs & Waterproofing". */
   const inDiscipline = checks.filter((c) => c.discipline === f.discipline);
-  const inSystem = inDiscipline.filter((c) => f.system && c.system === f.system);
-  const pool = inSystem.length >= 3 ? inSystem : inDiscipline.length ? inDiscipline : checks;
+  const pool = inDiscipline.length ? inDiscipline : checks;
   const want = new Set(tokens(`${f.title} ${f.description} ${f.system}`));
   return pool
     .map((c) => {
       const have = tokens(`${c.requirement} ${c.question ?? ""} ${c.area} ${c.system} ${c.assetClass ?? ""}`);
       let score = 0;
       for (const w of new Set(have)) if (want.has(w)) score++;
-      if (f.system && c.system === f.system) score += 2;
+      if (f.system && c.system === f.system) score += 1;
       return { c, score };
     })
     .sort((a, b) => b.score - a.score || a.c.id.localeCompare(b.c.id))
@@ -229,7 +232,7 @@ export function parseTriage(raw: string, shortlist: Check[], original: string): 
 export function patchFor(s: TriageSuggestion, f: Finding, opts: { onlyConfident: boolean }): Partial<Finding> {
   const ok = (c: Confidence) => !opts.onlyConfident || c !== "low";
   const patch: Partial<Finding> = {};
-  if (s.finding.changed && s.finding.kind === "observed") {
+  if (s.finding.changed && s.finding.kind !== "restates-check") {
     patch.description = s.finding.text;
     const t = (f.title ?? "").trim();
     if (!t || t === (f.description ?? "").trim()) patch.title = s.finding.text;
