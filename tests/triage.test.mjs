@@ -82,6 +82,8 @@ check("the triage task thinks at 'medium' effort like the other judgement tasks"
 check("the prompt keeps meta-commentary out of the finding text, and links a restated check while leaving root cause, impact and timeline empty", /remarks about the note itself/.test(prompts) && /link that check with "high" confidence/.test(prompts) && /leave "rootCauses" and "impactAreas" empty/.test(prompts));
 check("a too-sparse finding still gets its improved wording applied; only a restated check keeps its text", patchFor({ ...t, finding: { ...t.finding, kind: "too-sparse" } }, f, { onlyConfident: true }).description === "Water was ponding on the roof.");
 
+check("the prompt tells the model not to name the airport in the finding, to flag a different airport named in the note, to cap its questions at three and to write Afrikaans notes in English", /Do not name the airport in "text"/.test(prompts) && /names a DIFFERENT airport/.test(prompts) && /at most three short questions/.test(prompts) && /Afrikaans/.test(prompts));
+
 /* ---- wiring ---- */
 check("the bulk bar uses the triage engine with the airport's check list, and the old wording-only component is gone", /<BulkTriageSuggest/.test(table) && /allChecks=\{allChecks\}/.test(table) && !/function BulkSuggestWording/.test(table));
 check("the review card has per-field Apply for root cause, impact, timeline and check link, and Accept all applies only confident suggestions", /label="Root cause"/.test(ui) && /label="Impact"/.test(ui) && /label="Timeline"/.test(ui) && /label="Audit check"/.test(ui) && /onlyConfident: true/.test(ui));
