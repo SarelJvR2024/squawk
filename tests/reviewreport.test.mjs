@@ -387,5 +387,9 @@ check(
   /finding: "38%", cause: "17%"/.test(report) && /plan: "13%"/.test(report) && /\{hasPlan && <th style=\{\{ width: w\.plan \}\}>Action plan<\/th>\}/.test(report) &&
     /quickWins\.some\(\(f\) => f\.actionPlan\?\.trim\(\)\)/.test(report)
 );
+check(
+  "the report's Finding cell names the audit check (reference without the airport prefix), its requirement, and its question when it has one",
+  /AUDIT CHECK\{ref \? ` \$\{ref\}` : ""\} &mdash; REQUIREMENT:/.test(report) && /AUDIT QUESTION:/.test(report) && /checkRefOf\(f\.checkId\)/.test(report) && /checkOf=\{checkOf\}/.test(report)
+);
 console.log(failures === 0 ? "\nREVIEW REPORT OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

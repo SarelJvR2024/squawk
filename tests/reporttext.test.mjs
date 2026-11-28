@@ -1,6 +1,6 @@
 /* REPORT TEXT SANITISER (src/lib/reportText.ts) — behavioural: imports the
  * real module, so the speech-cleanup rules are exercised, not just read. */
-import { cleanSpeech, reportFindingText, isQuestionOnly, briefOf, scrubCodes, stripPlaceholders, PENDING_PLACEHOLDER, QUESTION_ONLY_PLACEHOLDER, MIN_FINDING_CHARS } from "../src/lib/reportText.ts";
+import { cleanSpeech, reportFindingText, isQuestionOnly, briefOf, scrubCodes, checkRefOf, stripPlaceholders, PENDING_PLACEHOLDER, QUESTION_ONLY_PLACEHOLDER, MIN_FINDING_CHARS } from "../src/lib/reportText.ts";
 
 let failures = 0;
 const check = (name, ok) => {
@@ -47,5 +47,7 @@ check("database ids and audit check codes never survive (F-0TBDV, KSIA-CIV-055)"
 check("an id is never the fallback text for an empty finding", !/^F-/.test(reportFindingText({ title: "um erm", description: "", id: "F-G9G3C" }).text));
 check("legitimate repeats are left alone ('had had', 'that that')", /had had/.test(cleanSpeech("The drain had had repairs done")));
 
+check("checkRefOf drops the airport prefix, so a FAPE or CDSIA report never says KSIA", checkRefOf("KSIA-CIV-055") === "CIV-055" && checkRefOf("CIV-055") === "CIV-055" && checkRefOf(null) === "" && !/KSIA/.test(checkRefOf("KSIA-ELE-001")));
+check("the displayed reference survives the code scrubber (it is not an airport-prefixed id)", scrubCodes("see CIV-055") === "see CIV-055");
 console.log(failures === 0 ? "\nREPORT TEXT OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

@@ -62,13 +62,13 @@ import {
   priorityFor,
 } from "@/lib/reviewRisk";
 import { ALL_DISCIPLINES, checksAt, systemsAt, systemsOf } from "@/lib/register";
-import { entity as entityOf } from "@/lib/programme";
 import { useFieldSaveStatus, useStore, useVisitId } from "@/lib/store";
 import { getBlob, useBlobUrl } from "@/lib/media";
-import { assist, polishContext, transcribe, useAssistAvailable, useTranscribeAvailable } from "@/lib/assist";
+import { transcribe, useTranscribeAvailable } from "@/lib/assist";
 import { Chip, Pill, SaveStatusPill } from "@/components/ui/primitives";
 import { IconCamera, IconClipboard, IconEye, IconMic, IconSpark, IconTeam, IconTrash } from "@/components/ui/icons";
-import { basicTidy, wordDiff } from "@/lib/wordDiff";
+import { checkRefOf } from "@/lib/reportText";
+import BulkTriageSuggest from "@/components/TriageSuggestions";
 import { evidenceChannelStatus, inspectionStatus, interviewStatus, TONE_COLOUR, type ChannelStatus } from "@/lib/triageStatus";
 import EvidenceQuickCapture from "@/components/EvidenceQuickCapture";
 import { PhotoHoverPreview, PhotoLightbox, useHoverPreview, type LightboxPhoto } from "@/components/PhotoLightbox";
@@ -196,11 +196,12 @@ export default function ReviewRiskTable({
    *  the readable requirement text takes their place everywhere a check is
    *  linked. Built once per entity rather than re-scanning checksAt() on
    *  every row's render. */
+  const allChecks = useMemo(() => checksAt(entityCode), [entityCode]);
   const checksById = useMemo(() => {
     const m = new Map<string, Check>();
-    for (const c of checksAt(entityCode)) m.set(c.id, c);
+    for (const c of allChecks) m.set(c.id, c);
     return m;
-  }, [entityCode]);
+  }, [allChecks]);
   /* Sorted Discipline, then Asset system (a no-system row last in its
      discipline), as before; now filtered by every toolbar part at once. */
   const visible = useMemo(() => {
@@ -448,6 +449,9 @@ export default function ReviewRiskTable({
           findings={selectedFindings}
           entityCode={entityCode}
           checksById={checksById}
+          allChecks={allChecks}
+          visitId={visitId}
+          responses={responses}
           onApply={(patchFor) => {
             for (const f of selectedFindings) onChange(f.id, patchFor(f));
           }}
@@ -502,7 +506,7 @@ export default function ReviewRiskTable({
           columns; the table keeps what a reviewer scans: Type, Location,
           Finding, the 5x5 rating and its Priority, Timeline, Photos. */}
       <div className="overflow-x-auto rounded-[11px] border" style={{ borderColor: "var(--line)" }}>
-        <table className="w-full min-w-[880px] table-fixed text-[12px]">
+        <table className="w-full min-w-[1100px] table-fixed text-[12px]">
           <thead>
             <tr style={{ background: "var(--sunken)" }}>
               <th className="w-[34px] px-2 py-2">
@@ -517,6 +521,7 @@ export default function ReviewRiskTable({
               </th>
               <th className="w-[138px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Type</th>
               <th className="w-[210px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Location</th>
+              <th className="w-[230px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Audit check</th>
               <th className="px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Finding</th>
               <th className="w-[160px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Root cause</th>
               <th className="w-[150px] px-2 py-2 text-left font-display text-[10.5px] font-semibold" style={{ color: "var(--ink-3)" }}>Impact</th>
@@ -589,6 +594,26 @@ export default function ReviewRiskTable({
                         ))}
                       </span>
                     </div>
+                  </td>
+
+                  {/* AUDIT CHECK — Sarel, 28 Nov 2026: "i dont see the audit
+                      check question and reference in the list". The check's
+                      reference (discipline + number, no airport prefix: the
+                      ids are one template shared by every airport) and its
+                      question, or its requirement where it has no question.
+                      A finding raised outside a check says so. */}
+                  <td className="px-2 py-1 align-middle">
+                    {(() => {
+                      const chkDef = f.checkId ? checksById.get(f.checkId) : undefined;
+                      if (!chkDef) return <span className="text-[11px] italic" style={{ color: "var(--ink-4)" }}>Not linked to an audit check</span>;
+                      const q = (chkDef.question || chkDef.requirement || "").trim();
+                      return (
+                        <div title={`${chkDef.requirement}${chkDef.question ? `\n\nQuestion: ${chkDef.question}` : ""}`}>
+                          <div className="font-mono text-[10.5px] font-semibold" style={{ color: "var(--acc)" }}>{checkRefOf(chkDef.id)}</div>
+                          <div className="line-clamp-3 break-words text-[11px] leading-[14px]" style={{ color: "var(--ink-3)" }}>{q}</div>
+                        </div>
+                      );
+                    })()}
                   </td>
 
                   {/* Finding: at most two lines, the rest in the drawer. */}
@@ -866,6 +891,9 @@ function BulkBar({
   findings,
   entityCode,
   checksById,
+  allChecks,
+  visitId,
+  responses,
   onApply,
   onChangeOne,
   onClear,
@@ -879,6 +907,10 @@ function BulkBar({
   /** For the linked audit check's own requirement text — same map the
    *  table's own Audit check column already built once per entity. */
   checksById: Map<string, Check>;
+  /** Every check at this airport, for the AI's shortlist when a finding is not linked. */
+  allChecks: Check[];
+  visitId: string;
+  responses: Record<string, Response>;
   onApply: (patchFor: (f: Finding) => Partial<Finding>) => void;
   /** A single row's own apply, same function the table's per-row edits
    *  already use — for an individual AI proposal's own Accept (one
@@ -1024,253 +1056,9 @@ function BulkBar({
       )}
 
       <div className="mt-2.5 grid gap-2 border-t pt-2.5 sm:grid-cols-2" style={{ borderColor: "var(--acc-line)" }}>
-        <BulkSuggestWording findings={findings} entityCode={entityCode} checksById={checksById} onChangeOne={onChangeOne} />
+        <BulkTriageSuggest findings={findings} entityCode={entityCode} visitId={visitId} checksById={checksById} allChecks={allChecks} responses={responses} onChangeOne={onChangeOne} />
         <BulkTranscribeVoiceNotes findings={findings} onChangeOne={onChangeOne} />
       </div>
-    </div>
-  );
-}
-
-type AiProposalState = "loading" | "proposed" | "applied" | "error";
-interface AiProposal {
-  state: AiProposalState;
-  /** Produced by the offline Basic tidy, not the AI. */
-  basic?: boolean;
-  text?: string;
-  error?: string;
-}
-
-/** BULK "SUGGEST WORDING" — Sarel: "AI to correct, to review the context
- *  of the finding... have a look at the discipline, asset system, and the
- *  audit check that is linked to the finding... to reword and describe
- *  the audit finding in that context... a review from a technical and
- *  grammar perspective... make sure all facts are double checked for the
- *  correct airport."
- *
- *  Reuses the SAME "polish" task and polishContext ReviewRiskPanel's own
- *  single-finding button already calls (see that file's own runPolish) —
- *  not a second prompt. Sequential, not parallel, same reasoning
- *  /cleanup's own PolishSection documents: there is no bulk endpoint, and
- *  N requests in flight at once is N ways to hit a provider rate limit
- *  for one tap. No revert-after-apply here, unlike the single-finding
- *  panel: reviewing each proposal individually before Accept (below) IS
- *  the review step for this bulk path, same as /cleanup's own bulk apply
- *  has never offered an undo either. */
-function BulkSuggestWording({
-  findings,
-  entityCode,
-  checksById,
-  onChangeOne,
-}: {
-  findings: Finding[];
-  entityCode: string;
-  checksById: Map<string, Check>;
-  onChangeOne: (id: string, patch: Partial<Finding>) => void;
-}) {
-  const aiOn = useAssistAvailable();
-  const [proposals, setProposals] = useState<Record<string, AiProposal>>({});
-  const [running, setRunning] = useState(false);
-  /* Edited suggestion text, per finding, so the reviewer can tweak a
-     suggestion before accepting it. */
-  const [edits, setEdits] = useState<Record<string, string>>({});
-  /* Same synchronous double-fire guard as before. */
-  const runningRef = useRef(false);
-
-  const eligible = findings.filter((f) => f.description.trim());
-  const pending = eligible.filter((f) => !proposals[f.id] || proposals[f.id].state === "error");
-  const proposedList = eligible.filter((f) => proposals[f.id]?.state === "proposed");
-  const appliedCount = Object.values(proposals).filter((p) => p.state === "applied").length;
-  const failed = eligible.filter((f) => proposals[f.id]?.state === "error");
-
-  async function run(offline = false) {
-    if (runningRef.current) return;
-    runningRef.current = true;
-    setRunning(true);
-    for (const f of eligible) {
-      if (proposals[f.id]?.state === "proposed" || proposals[f.id]?.state === "applied") continue;
-      if (offline) {
-        setProposals((p) => ({ ...p, [f.id]: { state: "proposed", text: basicTidy(f.description), basic: true } }));
-        continue;
-      }
-      setProposals((p) => ({ ...p, [f.id]: { state: "loading" } }));
-      try {
-        const text = await assist(
-          "polish",
-          polishContext(
-            f.description,
-            f.discipline,
-            f.system,
-            "note",
-            f.title || undefined,
-            f.checkId ? checksById.get(f.checkId)?.requirement : undefined,
-            entityOf(entityCode).name
-          )
-        );
-        setProposals((p) => ({ ...p, [f.id]: { state: "proposed", text: text.trim() } }));
-      } catch (e) {
-        setProposals((p) => ({
-          ...p,
-          [f.id]: { state: "error", error: e instanceof Error ? e.message : "The assistant is unavailable." },
-        }));
-      }
-    }
-    setRunning(false);
-    runningRef.current = false;
-  }
-
-  function applyOne(f: Finding) {
-    const prop = proposals[f.id];
-    const text = (edits[f.id] ?? prop?.text ?? "").trim();
-    if (!text) return;
-    onChangeOne(f.id, { description: text });
-    setProposals((p) => ({ ...p, [f.id]: { ...prop, state: "applied" } }));
-  }
-
-  function rejectOne(id: string) {
-    setProposals((p) => {
-      const next = { ...p };
-      delete next[id];
-      return next;
-    });
-  }
-
-  const reviewing = Object.keys(proposals).length > 0;
-
-  return (
-    <div>
-      <div className="mb-1 text-[10px]" style={{ color: "var(--ink-3)" }}>
-        Wording cleanup — rewrite each selected finding&rsquo;s notes; nothing changes until you accept it
-      </div>
-      <div className="flex flex-wrap items-center gap-[6px]">
-        {aiOn && (
-          <button
-            type="button"
-            onClick={() => void run(false)}
-            disabled={running || eligible.length === 0 || pending.length === 0}
-            className="flex items-center gap-[5px] rounded-[8px] px-[9px] py-[6px] text-[11px] font-semibold disabled:opacity-55"
-            style={{ background: "var(--acc)", color: "#fff" }}
-          >
-            <IconSpark width={12} height={12} />
-            {running ? "Suggesting…" : pending.length === 0 ? "All proposed" : `AI cleanup for ${pending.length}`}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => void run(true)}
-          disabled={running || eligible.length === 0 || pending.length === 0}
-          className="rounded-[8px] border px-[9px] py-[6px] text-[11px] font-semibold disabled:opacity-55"
-          style={{ borderColor: "var(--line-2)", color: "var(--ink-2)", background: "var(--panel)" }}
-          title="Spelling, capital letters, full stops and plain wording. Works without the AI and adds no facts."
-        >
-          Basic tidy{aiOn ? "" : ` for ${pending.length}`}
-        </button>
-        {proposedList.length > 0 && (
-          <button
-            type="button"
-            onClick={() => proposedList.forEach(applyOne)}
-            className="rounded-[8px] px-[9px] py-[6px] text-[11px] font-semibold"
-            style={{ background: "var(--good)", color: "#fff" }}
-          >
-            Accept all {proposedList.length}
-          </button>
-        )}
-        {appliedCount > 0 && <Pill tone="good">{appliedCount} applied</Pill>}
-      </div>
-      {!aiOn && (
-        <div className="mt-1 text-[10px]" style={{ color: "var(--ink-3)" }}>
-          The AI assistant is not switched on for this deployment, so Basic tidy is offered instead.
-        </div>
-      )}
-      {failed.length > 0 && (
-        <div role="alert" className="mt-1.5 rounded-[8px] border px-2 py-1.5 text-[10.5px]" style={{ borderColor: "var(--bad-line)", background: "var(--bad-bg)", color: "var(--bad)" }}>
-          {failed[0].id && proposals[failed[0].id]?.error}{" "}
-          {failed.length > 1 ? `(${failed.length} findings affected.) ` : ""}
-          <button type="button" onClick={() => void run(true)} className="font-semibold underline">
-            Use Basic tidy for these instead
-          </button>
-        </div>
-      )}
-      {reviewing && (
-        <div className="mt-2 flex flex-col gap-2">
-          {eligible
-            .filter((f) => proposals[f.id] && proposals[f.id].state !== "error")
-            .map((f) => {
-              const prop = proposals[f.id];
-              const suggestion = edits[f.id] ?? prop.text ?? "";
-              const parts = prop.state === "proposed" ? wordDiff(f.description, suggestion) : [];
-              const changes = parts.filter((x) => x.kind !== "same").length;
-              return (
-                <div key={f.id} className="rounded-[10px] border p-2.5 text-[11.5px]" style={{ borderColor: "var(--line-2)", background: "var(--panel)" }}>
-                  <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                    <span className="font-semibold" style={{ color: "var(--ink)" }}>{f.title || f.id}</span>
-                    <span className="text-[10px]" style={{ color: "var(--ink-3)" }}>
-                      {f.discipline}{f.system ? ` · ${f.system}` : ""}
-                    </span>
-                    {prop.state === "proposed" && (
-                      <Pill tone={changes === 0 ? "neutral" : "warn"}>
-                        {changes === 0 ? "No change needed" : `${changes} change${changes === 1 ? "" : "s"}`}
-                      </Pill>
-                    )}
-                    {prop.basic && <Pill tone="neutral">Basic tidy</Pill>}
-                  </div>
-                  {prop.state === "loading" && <div style={{ color: "var(--ink-4)" }}>Working on it…</div>}
-                  {prop.state === "applied" && <div style={{ color: "var(--good)" }}>Applied.</div>}
-                  {prop.state === "proposed" && (
-                    <>
-                      <div className="grid gap-2 md:grid-cols-2">
-                        <div>
-                          <div className="mb-0.5 text-[9.5px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)" }}>
-                            Now (removed words struck through)
-                          </div>
-                          <div className="whitespace-pre-wrap rounded-[6px] border px-2 py-1.5 leading-[1.5]" style={{ borderColor: "var(--line-2)" }}>
-                            {parts.filter((x) => x.kind !== "add").map((x, i) =>
-                              x.kind === "del" ? (
-                                <span key={i} style={{ background: "var(--bad-bg)", color: "var(--bad)", textDecoration: "line-through" }}>{x.text}</span>
-                              ) : (
-                                <span key={i}>{x.text}</span>
-                              )
-                            )}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="mb-0.5 text-[9.5px] font-semibold uppercase tracking-wide" style={{ color: "var(--ink-3)" }}>
-                            Suggested (added words highlighted)
-                          </div>
-                          <div className="whitespace-pre-wrap rounded-[6px] border px-2 py-1.5 leading-[1.5]" style={{ borderColor: "var(--acc)", background: "var(--acc-soft)" }}>
-                            {parts.filter((x) => x.kind !== "del").map((x, i) =>
-                              x.kind === "add" ? (
-                                <span key={i} style={{ background: "var(--good-bg, #d9f2e3)", color: "var(--good)", fontWeight: 600 }}>{x.text}</span>
-                              ) : (
-                                <span key={i}>{x.text}</span>
-                              )
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <details className="mt-1.5">
-                        <summary className="cursor-pointer text-[10.5px]" style={{ color: "var(--ink-3)" }}>Edit the suggestion before accepting</summary>
-                        <textarea
-                          value={suggestion}
-                          onChange={(e) => setEdits((c) => ({ ...c, [f.id]: e.target.value }))}
-                          className="mt-1 min-h-[90px] w-full rounded-[6px] border p-2 text-[11.5px]"
-                          style={{ borderColor: "var(--line-2)", background: "var(--panel)", color: "var(--ink)" }}
-                        />
-                      </details>
-                      <div className="mt-2 flex gap-2">
-                        <button type="button" onClick={() => applyOne(f)} className="rounded-[7px] px-3 py-1.5 text-[11px] font-semibold" style={{ background: "var(--good)", color: "#fff" }}>
-                          Accept
-                        </button>
-                        <button type="button" onClick={() => rejectOne(f.id)} className="rounded-[7px] border px-3 py-1.5 text-[11px] font-semibold" style={{ borderColor: "var(--bad-line)", color: "var(--bad)" }}>
-                          Reject (keep as is)
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-        </div>
-      )}
     </div>
   );
 }

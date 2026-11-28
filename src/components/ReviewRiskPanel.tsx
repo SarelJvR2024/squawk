@@ -37,7 +37,8 @@ import {
   toggleMulti,
 } from "@/lib/reviewRisk";
 import { evidenceAxisFor, reviewCombinedCompliance } from "@/lib/review";
-import { assist, polishContext, useAssistAvailable } from "@/lib/assist";
+import { assist, useAssistAvailable } from "@/lib/assist";
+import { buildTriageContext, parseTriage } from "@/lib/triageSuggest";
 import { TRACKING_LABEL, trackingStage } from "@/lib/evidence";
 import { entity as entityOf } from "@/lib/programme";
 import { checksAt, checksOf, disciplinesAt, systemsOf } from "@/lib/register";
@@ -340,20 +341,32 @@ export default function ReviewRiskPanel({
     setAiBusy(true);
     setAiError(null);
     try {
-      const text = await assist(
-        "polish",
-        polishContext(
-          finding.description,
-          finding.discipline,
-          finding.system,
-          "note",
-          finding.title || undefined,
-          linkedCheck?.requirement,
-          entityOf(entityCode).name
-        )
-      );
-      setSuggestion(text.trim());
-      setEditingSuggestion(false);
+      /* The same triage engine the bulk "AI cleanup" uses: the airport,
+         discipline, asset system, linked check (or a shortlist), notes and
+         photo captions go in; the panel takes the wording from it. Root
+         cause, impact, timeline and the check link are proposed in the
+         bulk review, where each can be accepted on its own. */
+      const original = (finding.description || finding.title).trim();
+      const { context, shortlist } = buildTriageContext({
+        airport: entityOf(entityCode).name,
+        finding,
+        check: linkedCheck,
+        allChecks: linkedCheck ? undefined : checksAt(entityCode),
+        deskNote: linkedResponse?.observation,
+        photoCaptions: finding.attachments.filter((a) => a.kind === "photo" && a.caption?.trim()).map((a) => a.caption!.trim()),
+        transcripts: finding.attachments.filter((a) => a.kind === "voice" && a.transcript?.trim()).map((a) => a.transcript!.trim()),
+      });
+      const t = parseTriage(await assist("triage", context), shortlist, original);
+      if (t.finding.kind !== "observed" || !t.finding.changed) {
+        setAiError(
+          t.finding.needsAuditor.length
+            ? `The wording stays as written. To improve it the auditor needs to say: ${t.finding.needsAuditor.join(" · ")}`
+            : "The wording is already a clear finding."
+        );
+      } else {
+        setSuggestion(t.finding.text);
+        setEditingSuggestion(false);
+      }
     } catch (e) {
       setAiError(e instanceof Error ? e.message : "The assistant is unavailable.");
     } finally {

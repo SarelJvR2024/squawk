@@ -64,7 +64,7 @@ import { checksAt } from "@/lib/register";
 import { countByMultiSelect, findingTypeFor } from "@/lib/reviewRisk";
 import { ROOT_CAUSES, LEGACY_ROOT_CAUSES, IMPACT_AREAS, TIMELINES } from "@/lib/riskVocab";
 import { EVIDENCE_COMPLIANCE_LABEL, TRACKING_LABEL, disciplineFor, trackingStage } from "@/lib/evidence";
-import { PENDING_PLACEHOLDER, briefOf, cleanSpeech, reportFindingText, scrubCodes, stripPlaceholders } from "@/lib/reportText";
+import { PENDING_PLACEHOLDER, briefOf, checkRefOf, cleanSpeech, reportFindingText, scrubCodes, stripPlaceholders } from "@/lib/reportText";
 import type { Attachment, EvidenceItem, Finding, Response } from "@/lib/types";
 
 const PURPLE = "#2D1956";
@@ -101,6 +101,7 @@ function evidenceFeedback(e: EvidenceItem): string {
  *  question replaced by a "to be confirmed" line), then what the evidence
  *  review found. See src/lib/reportText.ts for the rules. */
 type RequirementOf = (checkId: string | null | undefined) => string | undefined;
+type CheckOf = (checkId: string) => { question: string | null; requirement: string } | undefined;
 
 function findingText(f: Finding, responses: Record<string, Response>, requirementOf: RequirementOf): string {
   const r = f.checkId ? responses[f.checkId] : undefined;
@@ -118,15 +119,23 @@ function findingText(f: Finding, responses: Record<string, Response>, requiremen
  *  then the defect observed (standard, lower). Not linked (captured at
  *  discipline / asset-system level): the finding text alone, no empty
  *  requirement block. Never a check reference code, only readable words. */
-function FindingCell({ f, responses, requirementOf }: { f: Finding; responses: Record<string, Response>; requirementOf: RequirementOf }) {
+function FindingCell({ f, responses, requirementOf, checkOf }: { f: Finding; responses: Record<string, Response>; requirementOf: RequirementOf; checkOf?: CheckOf }) {
   const req = f.checkId ? requirementOf(f.checkId)?.trim() : undefined;
   const body = findingText(f, responses, requirementOf);
   if (!req) return <>{body}</>;
   const label = { fontWeight: 700, letterSpacing: "0.04em" } as const;
+  const chk = f.checkId ? checkOf?.(f.checkId) : undefined;
+  const ref = checkRefOf(f.checkId);
+  const question = chk?.question?.trim();
   return (
     <>
       <div style={{ fontSize: 9, lineHeight: 1.35, color: INK_SOFT, marginBottom: 4 }}>
-        <span style={label}>REQUIREMENT:</span> {req}
+        <span style={label}>AUDIT CHECK{ref ? ` ${ref}` : ""} &mdash; REQUIREMENT:</span> {req}
+        {question && question !== req && (
+          <div style={{ marginTop: 2 }}>
+            <span style={label}>AUDIT QUESTION:</span> {question}
+          </div>
+        )}
       </div>
       <div>
         <span style={{ ...label, fontSize: 9, color: INK_SOFT }}>DEFECT OBSERVED:</span> {body}
@@ -270,7 +279,7 @@ function TimelineBadge({ timeline }: { timeline?: string }) {
   );
 }
 
-function TaggedList({ title, list, responses, requirementOf }: { title: string; list: Finding[]; responses: Record<string, Response>; requirementOf: RequirementOf }) {
+function TaggedList({ title, list, responses, requirementOf, checkOf }: { title: string; list: Finding[]; responses: Record<string, Response>; requirementOf: RequirementOf; checkOf?: CheckOf }) {
   /* No row has an action plan: the column is dropped and its width goes to
      Finding. Some do: it is capped at 15% and wraps. */
   const hasPlan = list.some((f) => f.actionPlan?.trim());
@@ -290,7 +299,7 @@ function TaggedList({ title, list, responses, requirementOf }: { title: string; 
           {list.map((f) => (
             <tr key={f.id}>
               <td style={{ fontWeight: 600 }}>{f.system || "General"}</td>
-              <td><FindingCell f={f} responses={responses} requirementOf={requirementOf} /></td>
+              <td><FindingCell f={f} responses={responses} requirementOf={requirementOf} checkOf={checkOf} /></td>
               <td><TimelineBadge timeline={f.timeline} /></td>
               {hasPlan && <td className="rr-plan" style={{ color: f.actionPlan?.trim() ? INK : INK_SOFT }}>{f.actionPlan?.trim() || "\u2014"}</td>}
             </tr>
@@ -474,6 +483,11 @@ export default function ReviewRiskReport({
     for (const c of checksAt(entityCode)) m.set(c.id, c.requirement);
     return (id) => (id ? m.get(id) : undefined);
   }, [entityCode]);
+  const checkOf = useMemo<CheckOf>(() => {
+    const m = new Map<string, { question: string | null; requirement: string }>();
+    for (const c of checksAt(entityCode)) m.set(c.id, c);
+    return (id) => m.get(id);
+  }, [entityCode]);
 
   /* Figure numbers run through the report in print order: non-compliances,
      then observations. One number per photograph, never reused. */
@@ -548,7 +562,7 @@ export default function ReviewRiskReport({
                   <div style={{ fontWeight: 700 }}>{f.system || "General"}</div>
                 </td>
                 <td>
-                  <FindingCell f={f} responses={responses} requirementOf={requirementOf} />
+                  <FindingCell f={f} responses={responses} requirementOf={requirementOf} checkOf={checkOf} />
                 </td>
                 <td>
                   {(f.rootCauseCategories ?? []).length === 0 && (f.impactAreas ?? []).length === 0 ? (
@@ -743,10 +757,10 @@ export default function ReviewRiskReport({
           <NoneChip label="Critical items" count={criticalList.length} />
         </div>
         {safetyList.length > 0 && (
-          <TaggedList title="Immediate safety concerns" list={safetyList} responses={responses} requirementOf={requirementOf} />
+          <TaggedList title="Immediate safety concerns" list={safetyList} responses={responses} requirementOf={requirementOf} checkOf={checkOf} />
         )}
         {criticalList.length > 0 && (
-          <TaggedList title="Critical items to attend to" list={criticalList} responses={responses} requirementOf={requirementOf} />
+          <TaggedList title="Critical items to attend to" list={criticalList} responses={responses} requirementOf={requirementOf} checkOf={checkOf} />
         )}
 
         {/* FINDINGS BY TIMELINE */}
@@ -890,7 +904,7 @@ export default function ReviewRiskReport({
                 {quickWins.map((f) => (
                   <tr key={f.id}>
                     <td style={{ fontWeight: 600 }}>{f.system || "General"}</td>
-                    <td><FindingCell f={f} responses={responses} requirementOf={requirementOf} /></td>
+                    <td><FindingCell f={f} responses={responses} requirementOf={requirementOf} checkOf={checkOf} /></td>
                     {quickWins.some((x) => x.actionPlan?.trim()) && (
                       <td className="rr-plan" style={{ color: f.actionPlan?.trim() ? INK : INK_SOFT }}>
                         {f.actionPlan?.trim() || "\u2014"}
@@ -953,7 +967,7 @@ export default function ReviewRiskReport({
                 {withActionPlan.map((f) => (
                   <tr key={f.id}>
                     <td style={{ fontWeight: 600 }}>{f.system || "General"}</td>
-                    <td><FindingCell f={f} responses={responses} requirementOf={requirementOf} /></td>
+                    <td><FindingCell f={f} responses={responses} requirementOf={requirementOf} checkOf={checkOf} /></td>
                     <td style={{ fontWeight: 600, whiteSpace: "nowrap", color: f.timeline ? TIMELINE_COLOR[f.timeline] : INK_SOFT }}>
                       {f.timeline || "Not set"}
                     </td>

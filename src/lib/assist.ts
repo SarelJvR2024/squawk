@@ -81,6 +81,7 @@ export type AssistTask =
   | "consolidate"
   | "reassess"
   | "polish"
+  | "triage"
   | "evidenceAnalysis"
   | "evidenceSummary";
 

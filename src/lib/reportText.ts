@@ -178,3 +178,12 @@ export function briefOf(text: string, max = 70): string {
   const cut = t.slice(0, max);
   return cut.slice(0, Math.max(cut.lastIndexOf(" "), 20)).replace(/[,;:\-\s]+$/, "") + "…";
 }
+
+/** The audit check's reference as shown to a reader: the register's check ids
+ *  are one template shared by every airport ("KSIA-CIV-055"), so the airport
+ *  prefix is dropped and only discipline + number is shown ("CIV-055"). It
+ *  never names a different airport. */
+export function checkRefOf(id: string | null | undefined): string {
+  if (!id) return "";
+  return id.replace(/^[A-Z]{3,5}-(?=[A-Z]{2,5}-\d)/, "");
+}
