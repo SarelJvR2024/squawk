@@ -391,5 +391,9 @@ check(
   "the report's Finding cell names the audit check (reference without the airport prefix), its requirement, and its question when it has one",
   /AUDIT CHECK\{ref \? ` \$\{ref\}` : ""\} &mdash; REQUIREMENT:/.test(report) && /AUDIT QUESTION:/.test(report) && /checkRefOf\(f\.checkId\)/.test(report) && /checkOf=\{checkOf\}/.test(report)
 );
+check(
+  "root causes and impacts sit under their own small-caps labels in the report, each group shown only when it has entries",
+  /className="rr-taglabel">Root cause</.test(report) && /className="rr-taglabel">Impact</.test(report) && /\.rr-taglabel \{/.test(report)
+);
 console.log(failures === 0 ? "\nREVIEW REPORT OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);
