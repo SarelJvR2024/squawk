@@ -90,5 +90,12 @@ check("the review card has per-field Apply for root cause, impact, timeline and 
 check("photographs go to the model only when the deployment sends them (vision on); otherwise the captions carry", /vision \? await photoImages/.test(ui));
 check("the single-finding panel button uses the same engine", /assist\("triage"/.test(panel) && !/assist\(\s*"polish"/.test(panel));
 
+/* ---- finding type: non-compliance or observation ---- */
+const withType = (v, extra = {}) => JSON.stringify({ ...JSON.parse(good), ...extra, findingType: { value: v, reason: "does not depart from a requirement", confidence: "medium" } });
+check("the model's finding type (non-compliance or observation) is read with its reason", parseTriage(withType("observation"), sl, "x").findingType?.value === "observation");
+check("a finding type outside the two values is dropped", parseTriage(withType("needs-evidence"), sl, "x").findingType === null);
+check("a restated check gets no finding type", parseTriage(withType("observation", { finding: { ...JSON.parse(good).finding, kind: "restates-check" } }), sl, "x").findingType === null);
+check("Accept all sets observation when the auditor has not chosen a type, but never overwrites one they chose", patchFor(parseTriage(withType("observation"), sl, "x"), F({ description: "x", findingType: undefined }), { onlyConfident: true }).findingType === "observation" && patchFor(parseTriage(withType("observation"), sl, "x"), F({ description: "x", findingType: "non-compliance" }), { onlyConfident: true }).findingType === undefined);
+check("the prompt defines non-compliance and observation against the requirement and the review card has a Type row with its own Apply", /FINDING TYPE \("findingType"\)/.test(prompts) && /departure from a stated requirement/.test(prompts) && /label="Type"/.test(ui));
 console.log(failures === 0 ? "\nAI TRIAGE OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

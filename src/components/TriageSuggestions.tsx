@@ -330,6 +330,14 @@ export default function BulkTriageSuggest({
                             items={s.timeline ? [{ text: s.timeline.value, reason: s.timeline.reason, conf: s.timeline.confidence }] : []}
                             onApply={s.timeline ? () => apply(f, { timeline: s.timeline!.value }, false) : undefined}
                           />
+                          {/* FINDING TYPE */}
+                          <FieldRow
+                            label="Type"
+                            now={f.findingType === "observation" ? "Observation" : f.findingType === "needs-evidence" ? "Needs evidence" : "Non-compliance"}
+                            empty={s.finding.kind === "restates-check" ? "Nothing observed yet, so no type to suggest." : "Not enough in the notes to judge."}
+                            items={s.findingType ? [{ text: s.findingType.value === "observation" ? "Observation" : "Non-compliance", reason: s.findingType.reason, conf: s.findingType.confidence }] : []}
+                            onApply={s.findingType ? () => apply(f, { findingType: s.findingType!.value }, false) : undefined}
+                          />
                           {/* CHECK LINK */}
                           {!f.checkId && (
                             <FieldRow
