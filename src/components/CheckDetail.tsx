@@ -1381,7 +1381,9 @@ export default function CheckDetail({
           chip picker, the four-state evidence picker, "what the interview
           actually found" — opens in its own Sheet on tap, reusing that tab's
           exact body rather than rebuilding it. */}
-      <div className="flex flex-col gap-[1px] border-b px-5 py-[7px]" style={{ borderColor: "var(--line)", background: "var(--panel)" }}>
+      {/* One row on a wide screen, three side by side, instead of three full-width
+            rows each leaving the middle empty; stacked on a phone. */}
+      <div className="grid grid-cols-1 gap-x-5 gap-y-[1px] border-b px-5 py-[7px] md:grid-cols-3" style={{ borderColor: "var(--line)", background: "var(--panel)" }}>
         {channels.interview && (
           <div className="flex min-h-[40px] items-center justify-between gap-2 py-[5px]">
             <span className="text-[12.5px] font-semibold">Interview</span>
@@ -1423,7 +1425,7 @@ export default function CheckDetail({
                     secondary line rather than a separate always-visible
                     banner. */}
                 {evidenceLine && (
-                  <span className="block max-w-[46ch] truncate text-[10.5px]" style={{ color: "var(--ink-4)" }}>
+                  <span className="block max-w-[46ch] truncate text-[10.5px] md:max-w-[20ch]" style={{ color: "var(--ink-4)" }}>
                     {evidenceLine}
                   </span>
                 )}
