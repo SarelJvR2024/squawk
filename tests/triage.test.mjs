@@ -82,7 +82,7 @@ check("the triage task thinks at 'medium' effort like the other judgement tasks"
 check("the prompt keeps meta-commentary out of the finding text, and links a restated check while leaving root cause, impact and timeline empty", /remarks about the note itself/.test(prompts) && /link that check with "high" confidence/.test(prompts) && /leave "rootCauses" and "impactAreas" empty/.test(prompts));
 check("a too-sparse finding still gets its improved wording applied; only a restated check keeps its text", patchFor({ ...t, finding: { ...t.finding, kind: "too-sparse" } }, f, { onlyConfident: true }).description === "Water was ponding on the roof.");
 
-check("the prompt tells the model not to name the airport in the finding, to flag a different airport named in the note, to cap its questions at three and to write Afrikaans notes in English", /Do not name the airport in "text"/.test(prompts) && /name a DIFFERENT airport/.test(prompts) && /at most three short questions/.test(prompts) && /Afrikaans/.test(prompts));
+check("the prompt tells the model not to name the airport in the finding, to flag a different airport named in the note, to cap its questions at three and to write Afrikaans notes in English", /Do not name the airport in "text"/.test(prompts) && /name a DIFFERENT airport/.test(prompts) && /at most three short questions/.test(prompts) && /Afrikaans/.test(prompts) && /never mention the shortlist, check ids, id prefixes/.test(prompts));
 
 /* ---- wiring ---- */
 check("the bulk bar uses the triage engine with the airport's check list, and the old wording-only component is gone", /<BulkTriageSuggest/.test(table) && /allChecks=\{allChecks\}/.test(table) && !/function BulkSuggestWording/.test(table));

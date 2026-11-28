@@ -48,7 +48,7 @@ check("Add an inspection item offers a gallery Upload beside the camera Photo bu
 check("Triage has a Clean up wording button that selects the visible findings; unavailable assistant is said, not hidden", () => {
   const t = src("../src/components/ReviewRiskTable.tsx");
   assert.ok(t.includes("Clean up wording") && t.includes('id="triage-bulk-bar"'));
-  assert.ok(t.includes("not switched on for this deployment"));
+  assert.ok(src("../src/components/TriageSuggestions.tsx").includes("not switched on for this deployment"));
 });
 check("every check carries inspection records where it is inspected, and PM requests where it has maintenance tasks", () => {
   let insp = 0, pm = 0;
@@ -120,7 +120,8 @@ check("Triage: evidence-requested column with comments; Close button on the righ
 });
 check("Wording cleanup: side-by-side review with highlighted changes, Basic tidy fallback, and a plain explanation when the AI key is rejected", () => {
   const t = src("../src/components/ReviewRiskTable.tsx");
-  assert.ok(t.includes("wordDiff(f.description, suggestion)") && t.includes("Basic tidy") && t.includes("Accept all"));
+  const ts2 = src("../src/components/TriageSuggestions.tsx");
+  assert.ok(ts2.includes("wordDiff(base, suggested)") && ts2.includes("Basic tidy") && ts2.includes("Accept all"));
   assert.ok(src("../src/app/api/assist/route.ts").includes("ANTHROPIC_API_KEY in the Vercel project settings"));
 });
 const ts = await import("../src/lib/triageStatus.ts");
