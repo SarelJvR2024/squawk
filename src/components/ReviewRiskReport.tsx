@@ -57,12 +57,14 @@
  *  does not read the app's theme tokens at all. */
 
 import { Fragment, useMemo } from "react";
+import { fullPhotoBlob, useRecordImage } from "@/lib/recordimage";
+import { useStore } from "@/lib/store";
 import { entity as entityOf } from "@/lib/programme";
 import { checksAt } from "@/lib/register";
 import { countByMultiSelect, findingTypeFor } from "@/lib/reviewRisk";
 import { ROOT_CAUSES, LEGACY_ROOT_CAUSES, IMPACT_AREAS, TIMELINES } from "@/lib/riskVocab";
 import { EVIDENCE_COMPLIANCE_LABEL, TRACKING_LABEL, disciplineFor, trackingStage } from "@/lib/evidence";
-import { briefOf, cleanSpeech, reportFindingText } from "@/lib/reportText";
+import { PENDING_PLACEHOLDER, briefOf, cleanSpeech, reportFindingText, scrubCodes, stripPlaceholders } from "@/lib/reportText";
 import type { Attachment, EvidenceItem, Finding, Response } from "@/lib/types";
 
 const PURPLE = "#2D1956";
@@ -108,7 +110,8 @@ function findingText(f: Finding, responses: Record<string, Response>, requiremen
   parts.push(main.text);
   if (f.description && f.title && f.description !== f.title && !main.flags.includes("question-only")) parts.push(cleanSpeech(f.description));
   if (r?.evidenceProves) parts.push(cleanSpeech(r.evidenceProves));
-  return parts.filter(Boolean).join(" \u2014 ");
+  const joined = stripPlaceholders(scrubCodes(parts.filter(Boolean).join(" \u2014 ")));
+  return joined || PENDING_PLACEHOLDER;
 }
 
 /** The Finding cell. Linked to an audit check: the requirement (muted, upper)
@@ -132,22 +135,88 @@ function FindingCell({ f, responses, requirementOf }: { f: Finding; responses: R
   );
 }
 
-/** One numbered figure: a photograph at 240x160 (never below 180x120; the stored
- *  preview is 240px on its longest side, so this is 1:1, not an upscale) with a
- *  one-line caption "Figure N: Asset system \u2014 brief description". */
-function ReportFigure({ attachment, n, system, brief }: { attachment: Attachment; n: number; system: string; brief: string }) {
-  const src = attachment.thumbDataUrl || attachment.dataUrl;
-  if (!src) return null;
+/** Opens the high-resolution photograph in a new tab. The window is opened
+ *  synchronously (a window opened after an await is blocked as a pop-up), then
+ *  pointed at the full-size copy: the local blob, else the record copy, else
+ *  the best inline image there is. Never navigates a data: URL directly, which
+ *  browsers refuse for top-level navigation. */
+async function openHiRes(a: Attachment, entityCode: string, visitId: string) {
+  const w = window.open("", "_blank");
+  if (!w) return;
+  try {
+    let blob: Blob;
+    try {
+      blob = await fullPhotoBlob(a, entityCode, visitId);
+    } catch {
+      const inline = a.dataUrl || a.thumbDataUrl;
+      if (!inline) throw new Error("no image");
+      blob = await (await fetch(inline)).blob();
+    }
+    w.location.href = URL.createObjectURL(blob);
+  } catch {
+    w.close();
+  }
+}
+
+/** The Photo column cell: ONE crisp 120x80 thumbnail, "Photo N" under it, the
+ *  thumbnail a link to the full-size image. Never a photo block inside the
+ *  row (Sarel, 28 Nov 2026). More than one photograph: the first is shown and
+ *  the caption says how many more there are. */
+function PhotoCell({
+  photos,
+  figureNo,
+  entityCode,
+  visitId,
+  annexure,
+}: {
+  photos: Attachment[];
+  figureNo: Map<string, number>;
+  entityCode: string;
+  visitId: string;
+  annexure: boolean;
+}) {
+  if (photos.length === 0) return <span style={{ color: INK_SOFT }}>{"\u2014"}</span>;
+  const first = photos[0];
+  const n = figureNo.get(first.id) ?? 0;
+  const more = photos.length - 1;
+  return (
+    <a
+      href={annexure ? `#fig-${n}` : "#"}
+      target="_blank"
+      rel="noreferrer"
+      onClick={(e) => {
+        e.preventDefault();
+        void openHiRes(first, entityCode, visitId);
+      }}
+      style={{ display: "block", color: PURPLE, textDecoration: "none", fontSize: 9, fontWeight: 600 }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element -- local data URL */}
+      <img
+        src={first.thumbDataUrl || first.dataUrl}
+        alt={`Photo ${n}`}
+        style={{ display: "block", width: 120, height: 80, objectFit: "cover", borderRadius: 4, border: `1px solid ${LINE}`, marginBottom: 3 }}
+      />
+      Photo {n}
+      {more > 0 && <span style={{ color: INK_SOFT, fontWeight: 400 }}>{` (+${more} more${annexure ? ", see annexure" : ""})`}</span>}
+    </a>
+  );
+}
+
+/** One annexure figure: the full-size photograph (local blob, else record
+ *  copy, else the best inline image) with "Figure N: Asset system - summary". */
+function AnnexureFigure({ attachment, n, system, brief, entityCode, visitId }: { attachment: Attachment; n: number; system: string; brief: string; entityCode: string; visitId: string }) {
+  const { url } = useRecordImage(attachment, entityCode, visitId);
+  if (!url) return null;
   const caption = attachment.caption?.trim() ? briefOf(attachment.caption.trim(), 70) : brief;
   return (
-    <figure id={`fig-${n}`} className="report-card" style={{ margin: 0, width: 240 }}>
-      {/* eslint-disable-next-line @next/next/no-img-element -- local data URL, not a remote asset next/image can optimise */}
+    <figure id={`fig-${n}`} className="report-card" style={{ margin: 0 }}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- local blob/data URL */}
       <img
-        src={src}
+        src={url}
         alt={attachment.caption?.trim() || `Figure ${n}`}
-        style={{ display: "block", width: 240, height: 160, minWidth: 180, minHeight: 120, objectFit: "cover", borderRadius: 6, border: `1px solid ${LINE}` }}
+        style={{ display: "block", width: "100%", aspectRatio: "3 / 2", objectFit: "cover", borderRadius: 6, border: `1px solid ${LINE}` }}
       />
-      <figcaption style={{ fontSize: 9, lineHeight: 1.3, color: INK_SOFT, marginTop: 4 }}>
+      <figcaption style={{ fontSize: 10, lineHeight: 1.35, color: INK_SOFT, marginTop: 5 }}>
         Figure {n}: {system || "General"} &mdash; {caption}
       </figcaption>
     </figure>
@@ -293,6 +362,7 @@ export default function ReviewRiskReport({
   visitLabel,
   auditor,
   previous = [],
+  photoAnnexure = false,
 }: {
   findings: Finding[];
   discipline: string;
@@ -308,8 +378,12 @@ export default function ReviewRiskReport({
   auditor: string;
   /** Findings left open by earlier audits, with where each stands now. */
   previous?: PreviousFindingRow[];
+  /** "Include Photographic Annexure": a 2-up grid of full-size photographs
+   *  at the very end of the report. Off by default. */
+  photoAnnexure?: boolean;
 }) {
   const airport = entityOf(entityCode);
+  const visitId = useStore((st) => st.visit);
 
   /* INTERNAL FINDINGS NEVER REACH THIS REPORT — Sarel: "add an option in
    *  root cause to tag rows 'internal' to keep as our internal info and
@@ -353,6 +427,10 @@ export default function ReviewRiskReport({
     () => countByMultiSelect(findings, (f) => f.impactAreas),
     [findings]
   );
+
+  /* PAGE 1: when nothing has a root cause or impact yet, two tables of zeroes
+     say nothing. Count the findings that carry at least one of either. */
+  const categorised = findings.filter((f) => (f.rootCauseCategories ?? []).length > 0 || (f.impactAreas ?? []).length > 0).length;
 
   /* EVIDENCE REQUESTED, scoped to this discipline — same checkDisciplineOf
      map EvidenceReviewView.tsx builds for its own "By discipline" tab, not
@@ -407,6 +485,19 @@ export default function ReviewRiskReport({
     return m;
   }, [ncList, obsList]);
 
+  /* The annexure: every photograph, in figure order, with the one-line summary
+     of the finding it belongs to. */
+  const annexureItems = useMemo(
+    () =>
+      [...ncList, ...obsList].flatMap((f) => {
+        const brief = briefOf(reportFindingText(f, requirementOf(f.checkId)).text);
+        return f.attachments
+          .filter((a) => a.kind === "photo" && (a.thumbDataUrl || a.dataUrl))
+          .map((a) => ({ a, f, brief }));
+      }),
+    [ncList, obsList, requirementOf]
+  );
+
   /* BEFORE YOU PUBLISH — findings whose wording needs the auditor: too short to
      stand as a finding, or only the audit question. Screen only. Raw text with
      fillers is cleaned automatically and is not listed. */
@@ -432,10 +523,10 @@ export default function ReviewRiskReport({
     /* The Action plan column is only there when at least one row has a plan;
        otherwise its width goes to Finding and Root cause. */
     const hasPlan = list.some((f) => f.actionPlan?.trim());
+    /* The Photo column is a fixed 130px; the rest share what is left. */
     const w = hasPlan
-      ? { asset: "16%", finding: "33%", cause: "17%", time: "12%", plan: "15%", photo: "7%" }
-      : { asset: "18%", finding: "42%", cause: "20%", time: "12%", plan: "0", photo: "8%" };
-    const cols = hasPlan ? 6 : 5;
+      ? { asset: "13%", finding: "30%", cause: "15%", time: "11%", plan: "13%", photo: 130 }
+      : { asset: "15%", finding: "38%", cause: "17%", time: "12%", plan: "0", photo: 130 };
     return (
       <table className="rr-table rr-findings">
         <thead>
@@ -450,23 +541,14 @@ export default function ReviewRiskReport({
         </thead>
         {list.map((f) => {
           const photos = f.attachments.filter((a) => a.kind === "photo" && (a.thumbDataUrl || a.dataUrl));
-          const voices = f.attachments.filter((a) => a.kind === "voice").length;
-          const main = reportFindingText(f, requirementOf(f.checkId));
-          const brief = briefOf(main.flags.includes("question-only") ? "defect detail to be confirmed" : main.text);
-          const firstNo = photos.length ? figureNo.get(photos[0].id) : undefined;
           return (
             <tbody key={f.id} className="rr-unit">
-              <tr data-keepnext={photos.length > 0 ? "1" : undefined}>
+              <tr>
                 <td>
                   <div style={{ fontWeight: 700 }}>{f.system || "General"}</div>
                 </td>
                 <td>
                   <FindingCell f={f} responses={responses} requirementOf={requirementOf} />
-                  {voices > 0 && (
-                    <div style={{ fontSize: 9, color: INK_SOFT, marginTop: 3 }}>
-                      {voices} voice note{voices === 1 ? "" : "s"} on file
-                    </div>
-                  )}
                 </td>
                 <td>
                   {(f.rootCauseCategories ?? []).length === 0 && (f.impactAreas ?? []).length === 0 ? (
@@ -481,33 +563,9 @@ export default function ReviewRiskReport({
                 <td><TimelineBadge timeline={f.timeline} /></td>
                 {hasPlan && <td className="rr-plan" style={{ color: f.actionPlan ? undefined : INK_SOFT }}>{f.actionPlan || "\u2014"}</td>}
                 <td>
-                  {photos.length > 0 && firstNo !== undefined ? (
-                    <a href={`#fig-${firstNo}`} style={{ color: PURPLE, textDecoration: "none", fontSize: 9.5, fontWeight: 600 }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element -- local data URL */}
-                      <img
-                        src={photos[0].thumbDataUrl || photos[0].dataUrl}
-                        alt=""
-                        style={{ display: "block", width: 54, height: 36, objectFit: "cover", borderRadius: 4, border: `1px solid ${LINE}`, marginBottom: 3 }}
-                      />
-                      Fig. {firstNo}
-                      {photos.length > 1 ? `\u2013${figureNo.get(photos[photos.length - 1].id)}` : ""}
-                    </a>
-                  ) : (
-                    <span style={{ fontSize: 9.5, color: INK_SOFT }}>None</span>
-                  )}
+                  <PhotoCell photos={photos} figureNo={figureNo} entityCode={entityCode} visitId={visitId} annexure={photoAnnexure} />
                 </td>
               </tr>
-              {photos.length > 0 && (
-                <tr className="rr-figs">
-                  <td colSpan={cols}>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-                      {photos.map((a) => (
-                        <ReportFigure key={a.id} attachment={a} n={figureNo.get(a.id) ?? 0} system={f.system} brief={brief} />
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              )}
             </tbody>
           );
         })}
@@ -565,14 +623,12 @@ export default function ReviewRiskReport({
           h2 { break-after: avoid; page-break-after: avoid; }
           .rr-table tbody tr:first-child { break-after: avoid; }
           .rr-table tbody tr:last-child { break-before: avoid; }
-          tr.rr-figs { break-before: avoid; }
+          .rr-annexure { break-before: page; page-break-before: always; }
         }
         .rr-table { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; }
         .rr-table th { background: ${PURPLE}; color: #FFFFFF; text-align: left; padding: 8px 10px; font-weight: 600; font-size: 10.5px; }
         .rr-table td { padding: 8px 10px; border-bottom: 1px solid ${LINE}; vertical-align: top; color: ${INK}; overflow-wrap: anywhere; }
         .rr-table tbody:nth-of-type(even) td, .rr-table tbody tr:nth-child(even) td { background: #FAF9FC; }
-        .rr-table tbody.rr-unit tr.rr-figs td { background: #FFFFFF; border-bottom: 1px solid ${LINE}; padding-top: 2px; padding-bottom: 12px; }
-        .rr-table tbody.rr-unit tr:first-child td { border-bottom: none; }
         /* Action plan: captured in a large box, printed small so the plan does not dominate the row. */
         .rr-table td.rr-plan { font-size: 9px; line-height: 1.3; }
         .rr-table.rr-amber th { background: ${TIMELINE_COLOR.Immediate}; }
@@ -728,6 +784,16 @@ export default function ReviewRiskReport({
         {/* ROOT CAUSE / IMPACT DISTRIBUTION — side by side, counted with the
             SAME countByMultiSelect every other roll-up in this app uses
             ("one finding with 2 categories counts once in each"). */}
+        {categorised === 0 ? (
+          <div style={{ padding: "16px 36px 0" }}>
+            <div
+              className="rr-card"
+              style={{ display: "inline-block", padding: "6px 14px", borderRadius: 999, background: PURPLE_SOFT, color: INK_SOFT, fontSize: 11 }}
+            >
+              <strong style={{ color: PURPLE }}>Root Cause &amp; Impact Analysis:</strong> Pending post-audit triage (0 of {findings.length} evaluated)
+            </div>
+          </div>
+        ) : (
         <div style={{ display: "flex", gap: 24, padding: "20px 36px 0" }}>
           <div style={{ flex: 1 }}>
             <SectionHeading>By root cause</SectionHeading>
@@ -768,6 +834,7 @@ export default function ReviewRiskReport({
             </table>
           </div>
         </div>
+        )}
 
         {/* EVIDENCE REQUESTED — Sarel: "have a section that lists the
             evidence that's requested." Status reads TRACKING_LABEL off the
@@ -790,7 +857,7 @@ export default function ReviewRiskReport({
               <tbody>
                 {evidenceForDiscipline.map((e) => (
                   <tr key={e.id}>
-                    <td>{e.title || e.id}</td>
+                    <td>{scrubCodes(e.title || "") || "Evidence item"}</td>
                     <td>{e.system || "General"}</td>
                     <td style={{ fontWeight: 600 }}>{TRACKING_LABEL[trackingStage(e)]}</td>
                     <td>{evidenceFeedback(e)}</td>
@@ -814,8 +881,8 @@ export default function ReviewRiskReport({
             <table className="rr-table rr-amber">
               <thead>
                 <tr>
-                  <th style={{ width: "18%" }}>Asset system</th>
-                  <th style={{ width: quickWins.some((f) => f.actionPlan?.trim()) ? "67%" : "82%" }}>Finding</th>
+                  <th style={{ width: quickWins.some((f) => f.actionPlan?.trim()) ? "18%" : "35%" }}>Asset system</th>
+                  <th style={{ width: quickWins.some((f) => f.actionPlan?.trim()) ? "67%" : "65%" }}>Finding</th>
                   {quickWins.some((f) => f.actionPlan?.trim()) && <th style={{ width: "15%" }}>Action plan</th>}
                 </tr>
               </thead>
@@ -866,10 +933,13 @@ export default function ReviewRiskReport({
             act on should not require reading the whole findings table to
             find the ask. */}
         <div style={{ padding: "24px 36px 0" }}>
-          <SectionHeading>Action &amp; improvement plan &middot; {withActionPlan.length} of {findings.length} findings</SectionHeading>
           {withActionPlan.length === 0 ? (
-            <p style={{ fontSize: 12, color: INK_SOFT }}>No action or improvement plans captured for {discipline} yet.</p>
+            <p style={{ fontSize: 10.5, color: INK_SOFT, margin: 0 }}>
+              <strong>Action &amp; improvement plan:</strong> none captured for {discipline} yet.
+            </p>
           ) : (
+            <>
+            <SectionHeading>Action &amp; improvement plan &middot; {withActionPlan.length} of {findings.length} findings</SectionHeading>
             <table className="rr-table">
               <thead>
                 <tr>
@@ -892,6 +962,7 @@ export default function ReviewRiskReport({
                 ))}
               </tbody>
             </table>
+            </>
           )}
         </div>
 
@@ -899,10 +970,13 @@ export default function ReviewRiskReport({
             also show previous open findings and their new status and
             comments". */}
         <div style={{ padding: "24px 36px 0" }}>
-          <SectionHeading>Previous open findings &mdash; status update &middot; {previous.length}</SectionHeading>
           {previous.length === 0 ? (
-            <p style={{ fontSize: 12, color: INK_SOFT }}>No findings from earlier audits were open for {discipline}.</p>
+            <p style={{ fontSize: 10.5, color: INK_SOFT, margin: 0 }}>
+              <strong>Previous open findings:</strong> none from earlier audits were open for {discipline}.
+            </p>
           ) : (
+            <>
+            <SectionHeading>Previous open findings &mdash; status update &middot; {previous.length}</SectionHeading>
             <table className="rr-table">
               <thead>
                 <tr>
@@ -919,16 +993,17 @@ export default function ReviewRiskReport({
                   <tr key={r.key}>
                     <td style={{ fontWeight: 600 }}>{r.system || "General"}</td>
                     <td>{r.raisedAt}</td>
-                    <td>{r.finding}</td>
+                    <td>{scrubCodes(r.finding)}</td>
                     <td>{r.rating}</td>
                     <td style={{ fontWeight: 600, color: r.status === "Closed" ? "#1B7F4B" : r.status === "Not yet verified" ? INK_SOFT : "#B3261E" }}>
                       {r.status}
                     </td>
-                    <td>{r.comments.length ? r.comments.join(" \u2022 ") : "\u2014"}</td>
+                    <td>{r.comments.length ? scrubCodes(r.comments.join(" \u2022 ")) : "\u2014"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </>
           )}
         </div>
 
@@ -973,6 +1048,20 @@ export default function ReviewRiskReport({
           not be read as a determination. The live, editable record from which this report was produced is maintained on the
           Review page.
         </p>
+
+        {/* PHOTOGRAPHIC ANNEXURE — only when the user ticks "Include
+            Photographic Annexure". A 2-up grid at the very end, full-size
+            images, "Figure N: Asset system - summary". */}
+        {photoAnnexure && annexureItems.length > 0 && (
+          <div className="rr-annexure" style={{ padding: "24px 36px 24px" }}>
+            <SectionHeading>Photographic annexure &middot; {annexureItems.length}</SectionHeading>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              {annexureItems.map((x) => (
+                <AnnexureFigure key={x.a.id} attachment={x.a} n={figureNo.get(x.a.id) ?? 0} system={x.f.system} brief={x.brief} entityCode={entityCode} visitId={visitId} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

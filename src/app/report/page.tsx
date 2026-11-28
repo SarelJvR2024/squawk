@@ -26,6 +26,7 @@ function ReportInner() {
   const wholeAirport = raw.toLowerCase() === "all";
   const discipline = wholeAirport ? ALL_DISCIPLINES_LABEL : raw;
   const [busy, setBusy] = useState(false);
+  const [annexure, setAnnexure] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   /* Same hydration gate AppShell gives every other screen — see that
@@ -110,6 +111,10 @@ function ReportInner() {
               {err}
             </span>
           )}
+          <label className="flex items-center gap-2 text-[12px]" style={{ color: "#2D1956" }}>
+            <input type="checkbox" checked={annexure} onChange={(e) => setAnnexure(e.target.checked)} />
+            Include Photographic Annexure
+          </label>
           <button
             type="button"
             onClick={() => window.print()}
@@ -155,6 +160,7 @@ function ReportInner() {
         visitLabel={visitLabel}
         auditor={auditor}
         previous={previous}
+        photoAnnexure={annexure}
       />
     </>
   );

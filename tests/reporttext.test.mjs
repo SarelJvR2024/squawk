@@ -1,6 +1,6 @@
 /* REPORT TEXT SANITISER (src/lib/reportText.ts) — behavioural: imports the
  * real module, so the speech-cleanup rules are exercised, not just read. */
-import { cleanSpeech, reportFindingText, isQuestionOnly, briefOf, QUESTION_ONLY_PLACEHOLDER, MIN_FINDING_CHARS } from "../src/lib/reportText.ts";
+import { cleanSpeech, reportFindingText, isQuestionOnly, briefOf, scrubCodes, stripPlaceholders, PENDING_PLACEHOLDER, QUESTION_ONLY_PLACEHOLDER, MIN_FINDING_CHARS } from "../src/lib/reportText.ts";
 
 let failures = 0;
 const check = (name, ok) => {
@@ -35,6 +35,17 @@ check("a long finding is neither flagged nor altered beyond tidy", (() => {
   return r.flags.length === 0;
 })());
 check("briefOf cuts at a word boundary and ends with an ellipsis", (() => { const b = briefOf("The runway edge light is cracked and the cover is missing near the holding point", 40); return b.length <= 42 && b.endsWith("…") && !/\s…$/.test(b); })());
+
+/* ---- 28 Nov 2026 FAPE Civil review ---- */
+check("the placeholder is '[Defect assessment pending]'", PENDING_PLACEHOLDER === "[Defect assessment pending]" && QUESTION_ONLY_PLACEHOLDER === PENDING_PLACEHOLDER);
+check("'— Defect detail to be confirmed by the auditor.' is stripped from the end of a finding", stripPlaceholders("Pothole at the gate \u2014 Defect detail to be confirmed by the auditor.") === "Pothole at the gate");
+check("'N voice note(s) on file' and '[N] voice notes on file' are stripped", !/voice note/i.test(stripPlaceholders("Cracked kerb. 1 voice note on file")) && !/voice note/i.test(stripPlaceholders("Cracked kerb [N] voice notes on file")));
+check("a finding with nothing but the placeholder prints '[Defect assessment pending]'", reportFindingText({ title: "Defect detail to be confirmed by the auditor.", description: "", id: "F-0TBDV" }).text === PENDING_PLACEHOLDER);
+check("voice stutters collapse ('higher than the, higher than the')", cleanSpeech("The kerb is higher than the, higher than the road surface") === "The kerb is higher than the road surface.");
+check("'extens' becomes 'extend'", /\bextend\b/.test(cleanSpeech("the cracks extens across the lane")) && !/extens\b/.test(cleanSpeech("the cracks extens across the lane")));
+check("database ids and audit check codes never survive (F-0TBDV, KSIA-CIV-055)", !/F-0TBDV|KSIA-CIV-055/.test(scrubCodes("Gate F-0TBDV cracked (KSIA-CIV-055) and KSIA-CIV-013 failed")) && !/KSIA|F-[A-Z0-9]{5}/.test(cleanSpeech("Fence down, ref KSIA-CIV-056, id F-AAYM5")));
+check("an id is never the fallback text for an empty finding", !/^F-/.test(reportFindingText({ title: "um erm", description: "", id: "F-G9G3C" }).text));
+check("legitimate repeats are left alone ('had had', 'that that')", /had had/.test(cleanSpeech("The drain had had repairs done")));
 
 console.log(failures === 0 ? "\nREPORT TEXT OK" : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);
