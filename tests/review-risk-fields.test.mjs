@@ -207,9 +207,8 @@ check(
   })()
 );
 check(
-  "the bulk bar's own apply only ever patches the one axis it touched — source-read",
-  /impactAreas: applyBulkMulti/.test(table) && /rootCauseCategories: applyBulkMulti/.test(table),
-  "each spread conditionally into the patch object, never both unconditionally"
+  "the bulk bar no longer carries the tap-to-add impact and root-cause chip grid (removed 28 Nov 2026); impact and root cause are set per finding or proposed by the AI triage",
+  !/tap to add, tap again to remove/.test(table) && !/applyBulkMulti\(f\./.test(table)
 );
 
 /* ---- 6 · roll-up counts a finding once per selected value --------------- */
