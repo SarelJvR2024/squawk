@@ -117,7 +117,7 @@ node --experimental-transform-types --import ./tests/alias.mjs tests/graph.test.
 | `graph.test.mjs` | no | 16 |
 | `activity.test.mjs` | no | 34 |
 | `assets.test.mjs` | no | 21 |
-| `checkscreen.test.mjs` | no | 53 |
+| `checkscreen.test.mjs` | no | 54 |
 | `checktabs-a11y.test.mjs` | no | 15 |
 | `checksfilter.test.mjs` | no | 3 |
 | `cleanup.test.mjs` | no | 22 |
