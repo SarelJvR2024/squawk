@@ -423,6 +423,11 @@ check(
    is a capture-time workspace; "fit to share with the client" is a
    review-time question, asked on /review's own detail pane now. */
 
+check(
+  "the Issues row carries a Capture finding button that opens the raise sheet already preset to this check, system and discipline",
+  /data-testid="capture-finding"/.test(detail) && /onClick=\{\(\) => setRaiseOpen\(true\)\}/.test(detail) && /presetCheckId=\{check\.id\}/.test(detail)
+);
+
 /* ------------------------------------------------------------------ result */
 
 console.log(failures === 0 ? "\nCHECK SCREEN OK" : `\n${failures} FAILURE${failures > 1 ? "S" : ""}`);

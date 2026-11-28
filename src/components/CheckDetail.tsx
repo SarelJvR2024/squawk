@@ -1505,25 +1505,39 @@ export default function CheckDetail({
           that only exists once there is something in it looks like it was
           never built. Opens the exact FindingDetail content the old
           "Findings" tab showed, when there is something to open. */}
-      <button
-        type="button"
-        onClick={() => checkFindings.length > 0 && setSheet("findings")}
-        disabled={checkFindings.length === 0}
-        className="flex min-h-[40px] w-full items-center justify-between gap-2 border-b px-5 py-[7px] text-left disabled:opacity-60"
-        style={{ borderColor: "var(--line)", background: "var(--panel)" }}
-      >
-        <span className="text-[12.5px] font-semibold">Issues</span>
-        {checkFindings.length > 0 ? (
-          <span className="flex items-center gap-[6px] font-mono text-[11px]" style={{ color: "var(--ink-3)" }}>
-            {checkFindings.length} issue{checkFindings.length > 1 ? "s" : ""}
-            <Pill tone="warn">Open</Pill>
-          </span>
-        ) : (
-          <span className="font-mono text-[11px]" style={{ color: "var(--ink-4)" }}>
-            No issues
-          </span>
-        )}
-      </button>
+      <div className="flex min-h-[40px] w-full items-center justify-between gap-2 border-b px-5 py-[7px]" style={{ borderColor: "var(--line)", background: "var(--panel)" }}>
+        <button
+          type="button"
+          onClick={() => checkFindings.length > 0 && setSheet("findings")}
+          disabled={checkFindings.length === 0}
+          className="flex min-h-[32px] flex-1 items-center justify-between gap-2 text-left disabled:opacity-60"
+        >
+          <span className="text-[12.5px] font-semibold">Issues</span>
+          {checkFindings.length > 0 ? (
+            <span className="flex items-center gap-[6px] font-mono text-[11px]" style={{ color: "var(--ink-3)" }}>
+              {checkFindings.length} issue{checkFindings.length > 1 ? "s" : ""}
+              <Pill tone="warn">Open</Pill>
+            </span>
+          ) : (
+            <span className="font-mono text-[11px]" style={{ color: "var(--ink-4)" }}>
+              No issues
+            </span>
+          )}
+        </button>
+        {/* Capture a finding against THIS check, right here: the same sheet the
+            + menu's "Issue" opens, already carrying this check, its system and
+            its discipline. */}
+        <button
+          type="button"
+          onClick={() => setRaiseOpen(true)}
+          className="shrink-0 rounded-[8px] border px-3 py-[6px] text-[11.5px] font-semibold"
+          style={{ borderColor: "var(--acc)", color: "var(--acc)", background: "var(--panel)" }}
+          aria-label="Capture a finding for this check"
+          data-testid="capture-finding"
+        >
+          + Capture finding
+        </button>
+      </div>
 
       {/* INTERNAL NOTE — this check's own, for this audit; never printed,
           never synced. See Response.internalNote's own doc comment for why
